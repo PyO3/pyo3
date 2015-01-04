@@ -1,5 +1,5 @@
 use std;
-use {PyObject, PythonObject, PyTypeObject, Python, PyPtr};
+use {PyObject, PythonObject, PyType, Python, PyPtr};
 use pyptr::PythonPointer;
 use ffi;
 use libc;
@@ -48,7 +48,7 @@ impl <'p> PyErr<'p> {
     }
 
     #[allow(unused_variables)]
-    pub fn type_error(obj : &PyObject<'p>, expected_type : &PyTypeObject<'p>) -> PyErr<'p> {
+    pub fn type_error(obj : &PyObject<'p>, expected_type : &PyType<'p>) -> PyErr<'p> {
         let py = obj.python();
         PyErr {
             ptype: Some(unsafe { PyPtr::from_borrowed_ptr(py, ffi::PyExc_TypeError) }),

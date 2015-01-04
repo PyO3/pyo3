@@ -4,14 +4,14 @@ use ffi;
 use libc::c_char;
 use std;
 
-pub struct PyTypeObject<'p> {
+pub struct PyType<'p> {
     cell : std::cell::UnsafeCell<ffi::PyTypeObject>,
     py : Python<'p>
 }
 
-impl <'p> PythonObject<'p> for PyTypeObject<'p> {
+impl <'p> PythonObject<'p> for PyType<'p> {
     #[inline]
-    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyTypeObject<'p>> {
+    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyType<'p>> {
         unsafe {
             if ffi::PyType_Check(obj.as_ptr()) {
                 Some(std::mem::transmute(obj))
@@ -31,24 +31,24 @@ impl <'p> PythonObject<'p> for PyTypeObject<'p> {
         self.py
     }
     
-    fn type_object(_ : Option<&Self>) -> &'p PyTypeObject<'p> {
+    fn type_object(_ : Option<&Self>) -> &'p PyType<'p> {
         panic!()
     }
 }
 /*
-impl PyTypeObject {
+impl PyType {
 	pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObjectRaw {
 		// safe because the PyObject is only accessed while holding the GIL
 		(unsafe { self.cell.get() })
 	}
 
-	pub unsafe fn from_type_ptr(_ : &Python, p : *mut ffi::PyTypeObjectRaw) -> &PyTypeObject {
+	pub unsafe fn from_type_ptr(_ : &Python, p : *mut ffi::PyTypeObjectRaw) -> &PyType {
 		debug_assert!(p.is_not_null())
-		&*(p as *mut PyTypeObject)
+		&*(p as *mut PyType)
 	}
 
 	/// Return true if self is a subtype of b.
-	pub fn is_subtype_of(&self, b : &PyTypeObject) -> bool {
+	pub fn is_subtype_of(&self, b : &PyType) -> bool {
 		unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
 	}
 

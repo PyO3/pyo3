@@ -79,6 +79,16 @@ pub trait PythonPointer {
     fn steal_ptr(self) -> *mut ffi::PyObject;
 }
 
+/// Workaround because 'p.as_ptr()' doesn't work for associated types.
+pub fn as_ptr<P: PythonPointer>(p: &P) -> *mut ffi::PyObject {
+    PythonPointer::as_ptr(p)
+}
+
+/// Workaround because 'p.steal_ptr()' doesn't work for associated types.
+pub fn steal_ptr<P: PythonPointer>(p: P) -> *mut ffi::PyObject {
+    PythonPointer::steal_ptr(p)
+}
+
 impl <'p, T : 'p + PythonObject<'p>> PythonPointer for PyPtr<'p, T> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {

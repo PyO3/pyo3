@@ -1,8 +1,6 @@
 use std;
 use ffi;
-//use ffi::CStringAsPtr;
-//use {PyResult, PyErr, FromPyObject, PyTypeObject, ToPyObject, PyObject, Python, PyPtr, PythonObject};
-use {Python, PyPtr, PyResult, PyObject, PythonObject, PyTypeObject};
+use {Python, PyPtr, PyResult, PyObject, PythonObject, PyType};
 use err;
 
 pub struct PyModule<'p>(PyObject<'p>);
@@ -22,7 +20,7 @@ impl <'p> PythonObject<'p> for PyModule<'p> {
         &self.0
     }
     
-    fn type_object(_ : Option<&Self>) -> &'p PyTypeObject<'p> {
+    fn type_object(_ : Option<&Self>) -> &'p PyType<'p> {
         panic!()
     }
 }

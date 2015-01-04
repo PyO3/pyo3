@@ -9,7 +9,7 @@ pub use err::{PyErr, PyResult};
 pub use python::Python;
 pub use pythonrun::PythonInterpreter;
 pub use object::{PythonObject, PyObject, ObjectProtocol};
-pub use typeobject::PyTypeObject;
+pub use typeobject::PyType;
 pub use pyptr::PyPtr;
 pub use module::PyModule;
 pub use conversion::{FromPyObject, ToPyObject};

@@ -1,10 +1,10 @@
-//use {PythonObject, PyPtr, PyResult, PyTypeObject, Python};
 use std;
 use std::cmp::Ordering;
 use libc;
 use ffi;
-use {Python, Py_ssize_t, PyResult, PyErr, PyPtr, ToPyObject};
-use typeobject::PyTypeObject;
+use {Python, Py_ssize_t, PyResult, PyErr, ToPyObject};
+use typeobject::PyType;
+use pyptr::{PyPtr, PythonPointer, as_ptr};
 use err;
 
 /// Trait implemented by all python object types.
@@ -23,7 +23,7 @@ pub trait PythonObject<'p> {
 
     /// Retrieves the type object for this python object type.
     /// unused_self is necessary until UFCS is implemented.
-    fn type_object(unused_self : Option<&Self>) -> &'p PyTypeObject<'p>;
+    fn type_object(unused_self : Option<&Self>) -> &'p PyType<'p>;
 
     /// Retrieve python instance from an existing python object.
     fn python(&self) -> Python<'p> {
@@ -58,7 +58,7 @@ impl <'p> PythonObject<'p> for PyObject<'p> {
         self.py
     }
     
-    fn type_object(_ : Option<&Self>) -> &'p PyTypeObject<'p> {
+    fn type_object(_ : Option<&Self>) -> &'p PyType<'p> {
         panic!()
     }
 }
@@ -82,8 +82,8 @@ impl <'p> PyObject<'p> {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 
-    /*pub fn get_type(&self) -> &PyTypeObject {
-        unsafe { PyTypeObject::from_type_ptr(self.python(), ffi::Py_TYPE(self.as_ptr())) }
+    /*pub fn get_type(&self) -> &PyType {
+        unsafe { PyType::from_type_ptr(self.python(), ffi::Py_TYPE(self.as_ptr())) }
     }*/
     
     /// Casts the PyObject to a concrete python object type.
@@ -120,7 +120,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
-            Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name.as_ptr()) != 0)
+            Ok(ffi::PyObject_HasAttr(self.as_ptr(), as_ptr(&attr_name)) != 0)
         }
     }
     
@@ -131,7 +131,8 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
-            err::result_from_owned_ptr(py, ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr()))
+            err::result_from_owned_ptr(py,
+                ffi::PyObject_GetAttr(self.as_ptr(), as_ptr(&attr_name)))
         }
     }
 
@@ -145,7 +146,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let value = try!(value.to_py_object(py));
         unsafe {
             err::result_from_error_code(py,
-                ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr()))
+                ffi::PyObject_SetAttr(self.as_ptr(), as_ptr(&attr_name), as_ptr(&value)))
         }
     }
 
@@ -157,13 +158,13 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
             err::result_from_error_code(py,
-                ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr()))
+                ffi::PyObject_DelAttr(self.as_ptr(), as_ptr(&attr_name)))
         }
     }
 
     /// Compares two python objects.
     /// This is equivalent to the python expression 'cmp(self, other)'.
-    fn compare(&self, other : &PyObject<'p>) -> PyResult<'p, Ordering> {
+    fn compare(&self, other: &PyObject<'p>) -> PyResult<'p, Ordering> {
         unsafe {
             let mut result : libc::c_int = std::mem::uninitialized();
             try!(err::result_from_error_code(self.python(),

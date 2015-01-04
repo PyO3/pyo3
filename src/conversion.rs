@@ -12,10 +12,10 @@ pub trait FromPyObject<'p, 'a> {
 
 /// ToPyObject is implemented for types that can be converted into a python object.
 pub trait ToPyObject<'p> for Sized? {
-    //type PointerType : 'p + PythonPointer + Deref<PyObject<'p>> = PyPtr<'p, PyObject<'p>>;
+    type PointerType : 'p + PythonPointer + std::ops::Deref;
     
-    //fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, Self::PointerType>;
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>>;
+    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, Self::PointerType>;
+    //fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>>;
 }
 
 /// BorrowAsPyObject is implemented for types that can be accessed as a borrowed python object
@@ -31,6 +31,8 @@ trait BorrowAsPyObject<'p> for Sized? {
 
 // impl ToPyObject for BorrowAsPyObject
 impl <'p, T : BorrowAsPyObject<'p>> ToPyObject<'p> for T {
+    type PointerType = PyPtr<'p, PyObject<'p>>;
+    
     #[inline]
     fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         Ok(PyPtr::new(self.as_py_object(py)))
@@ -103,6 +105,8 @@ impl <'p, 'a> FromPyObject<'p, 'a> for bool {
 // When converting strings to/from python, we need to copy the string data.
 // This means we can implement ToPyObject for str, but FromPyObject only for String.
 impl <'p> ToPyObject<'p> for str {
+    type PointerType = PyPtr<'p, PyObject<'p>>;
+    
     fn to_py_object(&self, py : Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         let ptr : *const c_char = self.as_ptr() as *const _;
         let len : ffi::Py_ssize_t = std::num::from_uint(self.len()).unwrap();
