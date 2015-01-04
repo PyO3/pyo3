@@ -3,7 +3,8 @@ use std::kinds::marker::{NoSend, NoCopy, InvariantLifetime};
 use std::ptr;
 use ffi;
 use std::c_str::CString;
-use object::PyObject;
+use object::{PythonObject, PyObject};
+use typeobject::PyType;
 
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
 /// This is used to indicate that the operation accesses/modifies the python interpreter state,
@@ -43,6 +44,13 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_ptr(self, ffi::Py_False()) }
     }
     
+    /// Retrieves a reference to the type object for type T.
+    #[inline]
+    pub fn get_type<T>(self) -> &'p PyType<'p> where T: PythonObject<'p> {
+        let none : Option<&T> = None;
+        PythonObject::type_object(self, none)
+    }
+    
     /// Acquires the global interpreter lock, which allows access to the Python runtime.
     /// If the python runtime is not already initialized, this function will initialize it.
     /// Note that in this case, the python runtime will not have any main thread, and will
@@ -50,7 +58,7 @@ impl<'p> Python<'p> {
     pub fn acquire_gil() -> GILGuard {
         ::pythonrun::prepare_freethreaded_python();
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-        GILGuard { gstate: gstate }
+        GILGuard { gstate: gstate, marker: NoSend }
     }
 
     /// Releases the GIL and allows the use of python on other threads.
@@ -67,7 +75,8 @@ impl<'p> Python<'p> {
 /// RAII type that represents an acquired GIL.
 #[must_use]
 pub struct GILGuard {
-    gstate : ffi::PyGILState_STATE,
+    gstate: ffi::PyGILState_STATE,
+    marker: NoSend
 }
 
 impl Drop for GILGuard {

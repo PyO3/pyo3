@@ -90,5 +90,18 @@ pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
     }
 }
 
+#[cfg(test)]
+#[allow(experimental)]
+mod tests {
+    use {Python, PyType, PyErr};
+    
+    #[test]
+    fn set_typeerror() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        PyErr::type_error(py.None(), py.get_type::<PyType>()).restore();
+        assert!(PyErr::occurred(py));
+    }
+}
 
 

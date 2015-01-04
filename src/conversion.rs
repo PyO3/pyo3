@@ -28,7 +28,8 @@ pub trait ToPyObject<'p, 's> for Sized? {
     // it can be either &PyObject or PyPtr<PyObject>, depending on whether
     // the conversion is allocating a new object.
     // This lets us avoid a useless IncRef/DecRef pair
-    type PointerType : PythonPointer = PyPtr<'p, PyObject<'p>>;
+    type PointerType : PythonPointer + std::ops::Deref //<Target = PyObject<'p>>
+        = PyPtr<'p, PyObject<'p>>;
     
     fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, Self::PointerType>;
     

@@ -9,6 +9,12 @@ pub struct PyType<'p> {
     py : Python<'p>
 }
 
+#[test]
+fn test_sizeof() {
+    // should be a static_assert, but size_of is not a compile-time const
+    assert_eq!(std::mem::size_of::<PyType>(), std::mem::size_of::<ffi::PyTypeObject>());
+}
+
 impl <'p> PythonObject<'p> for PyType<'p> {
     #[inline]
     fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyType<'p>> {
@@ -31,13 +37,15 @@ impl <'p> PythonObject<'p> for PyType<'p> {
         self.py
     }
     
-    fn type_object(_ : Option<&Self>) -> &'p PyType<'p> {
-        panic!()
+    #[inline]
+    fn type_object(py: Python<'p>, _ : Option<&Self>) -> &'p PyType<'p> {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyType_Type) }
     }
 }
 
 impl <'p> PyType<'p> {
     /// Retrieves the underlying FFI pointer associated with this python object.
+    #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
         // safe because the PyObject is only accessed while holding the GIL
         self.cell.get()
@@ -47,17 +55,20 @@ impl <'p> PyType<'p> {
     /// Undefined behavior if the pointer is NULL or invalid.
     /// Also, the output lifetime 'a is unconstrained, make sure to use a lifetime
     /// appropriate for the underlying FFI pointer.
+    #[inline]
     pub unsafe fn from_type_ptr<'a>(_: Python<'p>, p: *mut ffi::PyTypeObject) -> &'a PyType<'p> {
         debug_assert!(!p.is_null());
         &*(p as *mut PyType)
     }
 
     /// Return true if self is a subtype of b.
+    #[inline]
     pub fn is_subtype_of(&self, b : &PyType<'p>) -> bool {
         unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
     }
 
     /// Return true if obj is an instance of self.
+    #[inline]
     pub fn is_instance(&self, obj : &PyObject<'p>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) }
     }

@@ -15,12 +15,30 @@ use python::Python;
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PyPtr<'p, T : PythonObject<'p>>(&'p T);
 
+// impl PyPtr
+impl<'p, T : PythonObject<'p>> PyPtr<'p, T> {
+    /// Creates a new PyPtr instance from a borrowed reference.
+    /// This increments the reference count.
+    #[inline]
+    pub fn new(obj : &T) -> PyPtr<'p, T> {
+        debug_assert!(obj.as_object().get_refcnt() > 0);
+        let obj_extended_life : &T = unsafe {
+            ffi::Py_INCREF(obj.as_ptr());
+            // transmuting from &T to &'p T is safe because we just incremented the reference count,
+            // and the &'p T is used only within the PyPtr -- the reference returned by Deref has
+            // the lifetime restricted to the PyPtr's lifetime.
+            std::mem::transmute(obj)
+        };
+        PyPtr(obj_extended_life)
+    }
+}
+
 // impl Deref for PyPtr
 impl <'p, T : PythonObject<'p>> Deref for PyPtr<'p, T> {
     type Target = T;
     
     #[inline]
-    fn deref(&self) -> &T {
+    fn deref<'a>(&'a self) -> &'a T {
         debug_assert!(self.0.as_object().get_refcnt() > 0);
         self.0
     }
@@ -60,21 +78,10 @@ impl<'p, T : PythonObject<'p>> std::borrow::BorrowFrom<PyPtr<'p, T>> for T {
     }
 }
 
-// impl PyPtr
-impl<'p, T : PythonObject<'p>> PyPtr<'p, T> {
-    /// Creates a new PyPtr instance from a borrowed reference.
-    /// This increments the reference count.
-    #[inline]
-    pub fn new(obj : &T) -> PyPtr<'p, T> {
-        debug_assert!(obj.as_object().get_refcnt() > 0);
-        let obj_extended_life : &T = unsafe {
-            ffi::Py_INCREF(obj.as_ptr());
-            // transmuting from &T to &'p T is safe because we just incremented the reference count,
-            // and the &'p T is used only within the PyPtr -- the reference returned by Deref has
-            // the lifetime restricted to the PyPtr's lifetime.
-            std::mem::transmute(obj)
-        };
-        PyPtr(obj_extended_life)
+// impl ToOwned<PyPtr>
+impl<'p, T : PythonObject<'p>> std::borrow::ToOwned<PyPtr<'p, T>> for T {
+    fn to_owned(&self) -> PyPtr<'p, T> {
+        PyPtr::new(self)
     }
 }
 

@@ -20,8 +20,9 @@ impl <'p> PythonObject<'p> for PyModule<'p> {
         &self.0
     }
     
-    fn type_object(_ : Option<&Self>) -> &'p PyType<'p> {
-        panic!()
+    #[inline]
+    fn type_object(py: Python<'p>, _ : Option<&Self>) -> &'p PyType<'p> {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyModule_Type) }
     }
 }
 
