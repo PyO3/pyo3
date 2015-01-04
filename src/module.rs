@@ -1,11 +1,22 @@
 use std;
 use ffi;
-use {Python, PyPtr, PyResult, PyObject, PythonObject, PyType};
-use err;
+use python::{Python, PythonObject, PythonObjectDowncast};
+use object::PyObject;
+use typeobject::PyType;
+use pyptr::PyPtr;
+use err::{self, PyResult};
 
 pub struct PyModule<'p>(PyObject<'p>);
 
 impl <'p> PythonObject<'p> for PyModule<'p> {
+    #[inline]
+    fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
+        &self.0
+    }
+}
+
+impl <'p> PythonObjectDowncast<'p> for PyModule<'p> {
+    #[inline]
     fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyModule<'p>> {
         unsafe {
             if ffi::PyModule_Check(obj.as_ptr()) {
@@ -14,10 +25,6 @@ impl <'p> PythonObject<'p> for PyModule<'p> {
                 None
             }
         }
-    }
-    
-    fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
-        &self.0
     }
     
     #[inline]

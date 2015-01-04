@@ -1,10 +1,10 @@
 use std;
-use std::kinds::marker::{NoSend, NoCopy, InvariantLifetime};
+use std::kinds::marker::{NoSend, InvariantLifetime};
 use std::ptr;
 use ffi;
-use std::c_str::CString;
-use object::{PythonObject, PyObject};
+use object::PyObject;
 use typeobject::PyType;
+use pythonrun::GILGuard;
 
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
 /// This is used to indicate that the operation accesses/modifies the python interpreter state,
@@ -16,11 +16,64 @@ use typeobject::PyType;
 #[derive(Copy)]
 pub struct Python<'p>(NoSend, InvariantLifetime<'p>);
 
+/// Trait implemented by all python object types.
+pub trait PythonObject<'p> : 'p {
+    /// Casts the python object to PyObject.
+    fn as_object(&self) -> &PyObject<'p>;
+
+    /// Retrieves the underlying FFI pointer associated with this python object.
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.as_object().as_ptr()
+    }
+
+    /// Retrieve python instance from an existing python object.
+    #[inline]
+    fn python(&self) -> Python<'p> {
+        self.as_object().python()
+    }
+}
+
+/// Trait implemented by python object types that allow a checked downcast.
+pub trait PythonObjectDowncast<'p> : PythonObject<'p> {
+    // TODO: maybe add 'unsafe fn from_object_unchecked' to PythonObject/PythonObjectDowncast,
+    // and then implement from_object using type_object().is_instance() ?
+    
+    /// Upcast from PyObject to a concrete python object type.
+    /// Returns None if the python object is not of the specified type.
+    fn from_object<'a>(&'a PyObject<'p>) -> Option<&'a Self>;
+
+    /// Retrieves the type object for this python object type.
+    /// Option<&Self> is necessary until UFCS is implemented.
+    fn type_object(Python<'p>, Option<&Self>) -> &'p PyType<'p>;
+}
+
 impl<'p> Python<'p> {
     /// Retrieve python instance under the assumption that the GIL is already acquired at this point,
-    /// and stays acquired for the lifetime 'p.
+    /// and stays acquired for the lifetime 'p
+    #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'p> {
         Python(NoSend, InvariantLifetime)
+    }
+    
+    /// Acquires the global interpreter lock, which allows access to the Python runtime.
+    /// If the python runtime is not already initialized, this function will initialize it.
+    /// Note that in this case, the python runtime will not have any main thread, and will
+    /// not deliver signals like KeyboardInterrupt.
+    #[inline]
+    pub fn acquire_gil() -> GILGuard {
+        GILGuard::acquire()
+    }
+
+    /// Releases the GIL and allows the use of python on other threads.
+    /// Unsafe because we do not ensure that existing references to python objects
+    /// are not accessed within the closure.
+    pub unsafe fn allow_threads<T, F>(self, f: F) -> T where F : FnOnce() -> T {
+        // TODO: we should use a type with destructor to be panic-safe, and avoid the unnecessary closure
+        let save = ffi::PyEval_SaveThread();
+        let result = f();
+        ffi::PyEval_RestoreThread(save);
+        result
     }
     
     /// Retrieves a reference to the special 'None' value.
@@ -46,48 +99,9 @@ impl<'p> Python<'p> {
     
     /// Retrieves a reference to the type object for type T.
     #[inline]
-    pub fn get_type<T>(self) -> &'p PyType<'p> where T: PythonObject<'p> {
+    pub fn get_type<T>(self) -> &'p PyType<'p> where T: PythonObjectDowncast<'p> {
         let none : Option<&T> = None;
-        PythonObject::type_object(self, none)
-    }
-    
-    /// Acquires the global interpreter lock, which allows access to the Python runtime.
-    /// If the python runtime is not already initialized, this function will initialize it.
-    /// Note that in this case, the python runtime will not have any main thread, and will
-    /// not deliver signals like KeyboardInterrupt.
-    pub fn acquire_gil() -> GILGuard {
-        ::pythonrun::prepare_freethreaded_python();
-        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-        GILGuard { gstate: gstate, marker: NoSend }
-    }
-
-    /// Releases the GIL and allows the use of python on other threads.
-    /// Unsafe because we do not ensure that existing references to python objects
-    /// are not accessed within the closure.
-    pub unsafe fn allow_threads<T, F>(self, f: F) -> T where F : FnOnce() -> T {
-        let save = ffi::PyEval_SaveThread();
-        let result = f();
-        ffi::PyEval_RestoreThread(save);
-        result
-    }
-}
-
-/// RAII type that represents an acquired GIL.
-#[must_use]
-pub struct GILGuard {
-    gstate: ffi::PyGILState_STATE,
-    marker: NoSend
-}
-
-impl Drop for GILGuard {
-    fn drop(&mut self) {
-        unsafe { ffi::PyGILState_Release(self.gstate) }
-    }
-}
-
-impl GILGuard {
-    pub fn python<'p>(&'p self) -> Python<'p> {
-        unsafe { Python::assume_gil_acquired() }
+        PythonObjectDowncast::type_object(self, none)
     }
 }
 

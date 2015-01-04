@@ -5,11 +5,11 @@
 #![feature(slicing_syntax)]
 
 extern crate libc;
-extern crate "libpython27-sys" as ffi;
+extern crate "python27-sys" as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
-pub use python::Python;
-pub use object::{PythonObject, PyObject};
+pub use python::{Python, PythonObject, PythonObjectDowncast};
+pub use object::PyObject;
 pub use typeobject::PyType;
 pub use pyptr::PyPtr;
 pub use module::PyModule;
@@ -18,17 +18,18 @@ pub use objectprotocol::{ObjectProtocol};
 
 // Fundamentals:
 mod python;
-mod object;
 mod pyptr;
 mod err;
+mod conversion;
 
 // Object Types:
+mod object;
 mod typeobject;
 mod module;
 
+// Python APIs:
 mod objectprotocol;
 mod pythonrun;
-mod conversion;
 
 #[test]
 fn it_works() {

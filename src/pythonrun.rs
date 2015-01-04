@@ -1,7 +1,8 @@
-use ffi;
-
 use std::sync::{Once, ONCE_INIT};
 use std::thread::Thread;
+use std::kinds::marker::NoSend;
+use ffi;
+use python::Python;
 
 static START: Once = ONCE_INIT;
 
@@ -35,6 +36,35 @@ pub fn prepare_freethreaded_python() {
             // and will be restored by PyGILState_Ensure.
         }
     });
+}
+
+/// RAII type that represents an acquired GIL.
+#[must_use]
+pub struct GILGuard {
+    gstate: ffi::PyGILState_STATE,
+    marker: NoSend
+}
+
+impl Drop for GILGuard {
+    fn drop(&mut self) {
+        unsafe { ffi::PyGILState_Release(self.gstate) }
+    }
+}
+
+impl GILGuard {
+    /// Acquires the global interpreter lock, which allows access to the Python runtime.
+    /// If the python runtime is not already initialized, this function will initialize it.
+    /// Note that in this case, the python runtime will not have any main thread, and will
+    /// not deliver signals like KeyboardInterrupt.
+    pub fn acquire() -> GILGuard {
+        ::pythonrun::prepare_freethreaded_python();
+        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        GILGuard { gstate: gstate, marker: NoSend }
+    }
+    
+    pub fn python<'p>(&'p self) -> Python<'p> {
+        unsafe { Python::assume_gil_acquired() }
+    }
 }
 
 

@@ -1,11 +1,11 @@
 [package]
 
-name = "rust-cpython"
+name = "cpython"
 version = "0.0.1"
+description = "Bindings to Python 2.7"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 
-[dependencies.libpython27-sys]
-path="../libpython27-sys"
-
+[dependencies]
+python27-sys="0.0.1"
 
 

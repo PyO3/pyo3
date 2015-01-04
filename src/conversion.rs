@@ -2,7 +2,7 @@ use libc::c_char;
 use std;
 use ffi;
 use err;
-use {Python, PyObject, PyResult, PythonObject, PyErr};
+use {Python, PyObject, PyResult, PythonObject, PythonObjectDowncast, PyErr};
 use pyptr::{PyPtr, PythonPointer};
 
 /// ToPyObject is implemented for types that can be converted into a python object.
@@ -71,15 +71,16 @@ pub trait FromPyObject<'p, 's> {
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
 
-impl <'p, 's, T : PythonObject<'p>> ToPyObject<'p, 's> for T {
+impl <'p, 's, T> ToPyObject<'p, 's> for T where T : PythonObject<'p> {
     type PointerType = &'s PyObject<'p>;
     
+    #[inline]
     fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s PyObject<'p>> {
         Ok(self.as_object())
     }
 }
 
-impl <'p, 's, T : PythonObject<'p>> FromPyObject<'p, 's> for &'s T {
+impl <'p, 's, T> FromPyObject<'p, 's> for &'s T where T: PythonObjectDowncast<'p> {
     #[inline]
     fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, &'s T> {
         s.downcast()
@@ -87,20 +88,20 @@ impl <'p, 's, T : PythonObject<'p>> FromPyObject<'p, 's> for &'s T {
 }
 
 // PyPtr<T>
-// We support all three traits (FromPyObject, ToPyObject, BorrowAsPyObject) for
-// owned python references.
+// We support FromPyObject and ToPyObject for owned python references.
 // This allows using existing python objects in code that generically expects a value
-// convertible to a python object.
+// convertible to a python object, without having to re-borrow the &PyObject.
 
-impl <'p, 's, T : PythonObject<'p>> ToPyObject<'p, 's> for PyPtr<'p, T> {
+impl <'p, 's, T> ToPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObject<'p> {
     type PointerType = &'s PyObject<'p>;
     
+    #[inline]
     fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s PyObject<'p>> {
         Ok(self.as_object())
     }
 }
 
-impl <'p, 's, T : PythonObject<'p>> FromPyObject<'p, 's> for PyPtr<'p, T> {
+impl <'p, 's, T> FromPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObjectDowncast<'p> {
     #[inline]
     fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, PyPtr<'p, T>> {
         PyPtr::new(s).downcast_into()

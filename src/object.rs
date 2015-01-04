@@ -1,38 +1,9 @@
 use std;
 use libc;
 use ffi;
+use python::{Python, PythonObject, PythonObjectDowncast};
 use typeobject::PyType;
-use python::Python;
 use err::{PyErr, PyResult};
-
-/// Trait implemented by all python object types.
-pub trait PythonObject<'p> : 'p {
-    // TODO: split this trait; not every PythonObject impl has a statically known type,
-    // or the ability to perform a typecheck
-
-    /// Upcast from PyObject to a concrete python object type.
-    /// Returns None if the python object is not of the specified type.
-    fn from_object<'a>(&'a PyObject<'p>) -> Option<&'a Self>;
-
-    /// Casts the python object to PyObject.
-    fn as_object<'a>(&'a self) -> &'a PyObject<'p>;
-
-    /// Retrieves the underlying FFI pointer associated with this python object.
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.as_object().as_ptr()
-    }
-
-    /// Retrieves the type object for this python object type.
-    /// unused_self is necessary until UFCS is implemented.
-    fn type_object(py: Python<'p>, unused_self : Option<&Self>) -> &'p PyType<'p>;
-
-    /// Retrieve python instance from an existing python object.
-    #[inline]
-    fn python(&self) -> Python<'p> {
-        self.as_object().python()
-    }
-}
 
 pub struct PyObject<'p> {
     cell : std::cell::UnsafeCell<ffi::PyObject>,
@@ -47,11 +18,6 @@ fn test_sizeof() {
 
 impl <'p> PythonObject<'p> for PyObject<'p> {
     #[inline]
-    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyObject<'p>> {
-        Some(obj)
-    }
-    
-    #[inline]
     fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
         self
     }
@@ -65,6 +31,13 @@ impl <'p> PythonObject<'p> for PyObject<'p> {
     #[inline]
     fn python(&self) -> Python<'p> {
         self.py
+    }
+}
+
+impl <'p> PythonObjectDowncast<'p> for PyObject<'p> {
+    #[inline]
+    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyObject<'p>> {
+        Some(obj)
     }
     
     #[inline]
@@ -100,11 +73,11 @@ impl <'p> PyObject<'p> {
     /// Casts the PyObject to a concrete python object type.
     /// Returns a python TypeError if the object is not of the expected type.
     #[inline]
-    pub fn downcast<T : PythonObject<'p>>(&self) -> PyResult<'p, &T> {
-        let obj_opt : Option<&T> = PythonObject::from_object(self);
+    pub fn downcast<T : PythonObjectDowncast<'p>>(&self) -> PyResult<'p, &T> {
+        let obj_opt : Option<&T> = PythonObjectDowncast::from_object(self);
         match obj_opt {
             Some(obj) => Ok(obj),
-            None => Err(PyErr::type_error(self, PythonObject::type_object(self.python(), obj_opt)))
+            None => Err(PyErr::type_error(self, PythonObjectDowncast::type_object(self.python(), obj_opt)))
         }
     }
 }
