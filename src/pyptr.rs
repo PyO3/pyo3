@@ -12,10 +12,10 @@ use python::Python;
 /// The PyPtr<T> owns one reference to a python object.
 /// Python objects are reference-counted, so it is possible to have
 /// multiple PyPtr<T> objects pointing to the same object, like Rc<T>.
-pub struct PyPtr<'p, T : 'p + PythonObject<'p>>(&'p T);
+pub struct PyPtr<'p, T : PythonObject<'p>>(&'p T);
 
 // impl Deref for PyPtr
-impl <'p, T : 'p + PythonObject<'p>> Deref for PyPtr<'p, T> {
+impl <'p, T : PythonObject<'p>> Deref for PyPtr<'p, T> {
     type Target = T;
     
     #[inline]
@@ -27,7 +27,7 @@ impl <'p, T : 'p + PythonObject<'p>> Deref for PyPtr<'p, T> {
 
 // impl Drop for PyPtr
 #[unsafe_destructor]
-impl<'p, T : 'p + PythonObject<'p>> Drop for PyPtr<'p, T> {
+impl<'p, T : PythonObject<'p>> Drop for PyPtr<'p, T> {
     #[inline]
     fn drop(&mut self) {
         debug_assert!(self.0.as_object().get_refcnt() > 0);
@@ -36,7 +36,7 @@ impl<'p, T : 'p + PythonObject<'p>> Drop for PyPtr<'p, T> {
 }
 
 // impl Clone for PyPtr
-impl<'p, T : 'p + PythonObject<'p>> Clone for PyPtr<'p, T> {
+impl<'p, T : PythonObject<'p>> Clone for PyPtr<'p, T> {
     #[inline]
     fn clone(&self) -> PyPtr<'p, T> {
         unsafe { ffi::Py_INCREF(self.as_ptr()) };
@@ -45,15 +45,22 @@ impl<'p, T : 'p + PythonObject<'p>> Clone for PyPtr<'p, T> {
 }
 
 // impl Show for PyPtr
-impl<'p, T : 'p + PythonObject<'p> + std::fmt::Show> std::fmt::Show for PyPtr<'p, T> {
+impl<'p, T : PythonObject<'p> + std::fmt::Show> std::fmt::Show for PyPtr<'p, T> {
     #[inline]
     fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         self.deref().fmt(f)
     }
 }
 
+// impl BorrowFrom<PyPtr>
+impl<'p, T : PythonObject<'p>> std::borrow::BorrowFrom<PyPtr<'p, T>> for T {
+    fn borrow_from<'a>(owned: &'a PyPtr<'p, T>) -> &'a T {
+        &**owned
+    }
+}
+
 // impl PyPtr
-impl<'p, T : 'p + PythonObject<'p>> PyPtr<'p, T> {
+impl<'p, T : PythonObject<'p>> PyPtr<'p, T> {
     /// Creates a new PyPtr instance from a borrowed reference.
     /// This increments the reference count.
     #[inline]
@@ -89,7 +96,7 @@ pub fn steal_ptr<P: PythonPointer>(p: P) -> *mut ffi::PyObject {
     PythonPointer::steal_ptr(p)
 }
 
-impl <'p, T : 'p + PythonObject<'p>> PythonPointer for PyPtr<'p, T> {
+impl <'p, T : PythonObject<'p>> PythonPointer for PyPtr<'p, T> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.deref().as_ptr()
@@ -106,7 +113,7 @@ impl <'p, T : 'p + PythonObject<'p>> PythonPointer for PyPtr<'p, T> {
 
 // &PyObject (etc.) is also a PythonPointer
 // (but steal_ptr increases the reference count)
-impl <'p, 'a, T : 'p + PythonObject<'p>> PythonPointer for &'a T {
+impl <'p, 'a, T : PythonObject<'p>> PythonPointer for &'a T {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.deref().as_ptr()

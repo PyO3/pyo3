@@ -8,7 +8,7 @@ use pyptr::{PyPtr, PythonPointer, as_ptr};
 use err;
 
 /// Trait implemented by all python object types.
-pub trait PythonObject<'p> {
+pub trait PythonObject<'p> : 'p {
     /// Upcast from PyObject to a concrete python object type.
     /// Returns None if the python object is not of the specified type.
     fn from_object<'a>(&'a PyObject<'p>) -> Option<&'a Self>;
@@ -99,10 +99,11 @@ impl <'p> PyObject<'p> {
 
 impl <'p> std::fmt::Show for PyObject<'p> {
     fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        let rep = try!(self.repr().map_err(|_| std::fmt::Error));
+        unimplemented!()
+/*        let rep = try!(self.repr().map_err(|_| std::fmt::Error));
         let slice = try!(::conversion::string_as_slice(&*rep).map_err(|_| std::fmt::Error));
         f.write_str(try!(std::str::from_utf8(slice).map_err(|_| std::fmt::Error)))
-    }
+  */  }
 }
 
 impl <'p> PartialEq for PyObject<'p> {
@@ -116,7 +117,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
     #[inline]
-    fn hasattr<Sized? N: ToPyObject<'p>>(&self, attr_name: &N) -> PyResult<'p, bool> {
+    fn hasattr<'n, Sized? N: ToPyObject<'p, 'n>>(&self, attr_name: &'n N) -> PyResult<'p, bool> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
@@ -127,7 +128,8 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-    fn getattr<Sized? N: ToPyObject<'p>>(&self, attr_name: &N) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+    fn getattr<'n, Sized? N: ToPyObject<'p, 'n>>(&self, attr_name: &'n N)
+      -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
@@ -139,8 +141,8 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     #[inline]
-    fn setattr<Sized? N: ToPyObject<'p>, Sized? V: ToPyObject<'p>>
-            (&self, attr_name: &N, value: &V) -> PyResult<'p, ()> {
+    fn setattr<'n, 'v, Sized? N: ToPyObject<'p, 'n>, Sized? V: ToPyObject<'p, 'v>>
+            (&self, attr_name: &'n N, value: &'v V) -> PyResult<'p, ()> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         let value = try!(value.to_py_object(py));
@@ -153,7 +155,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
     #[inline]
-    fn delattr<Sized? N: ToPyObject<'p>>(&self, attr_name: &N) -> PyResult<'p, ()> {
+    fn delattr<'n, Sized? N: ToPyObject<'p, 'n>>(&self, attr_name: &'n N) -> PyResult<'p, ()> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
@@ -214,7 +216,9 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         unimplemented!()
     }
     
-    fn call_method<Sized? N: ToPyObject<'p>>(&self, name: &N, args: &PyObject<'p>, kw: Option<&PyObject<'p>>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+    fn call_method<'n, Sized? N: ToPyObject<'p, 'n>>
+      (&self, name: &'n N, args: &PyObject<'p>, kw: Option<&PyObject<'p>>)
+      -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         try!(self.getattr(name)).call(args, kw)
     }
 }
