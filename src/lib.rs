@@ -2,6 +2,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 #![feature(associated_types)]
 #![feature(globs)]
+#![feature(slicing_syntax)]
 
 extern crate libc;
 extern crate "libpython27-sys" as ffi;

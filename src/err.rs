@@ -91,7 +91,6 @@ pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
 }
 
 #[cfg(test)]
-#[allow(experimental)]
 mod tests {
     use {Python, PyType, PyErr};
     

@@ -79,9 +79,9 @@ impl <'p, 's, T : PythonObject<'p>> ToPyObject<'p, 's> for T {
     }
 }
 
-impl <'p, 'a, T : PythonObject<'p>> FromPyObject<'p, 'a> for &'a T {
+impl <'p, 's, T : PythonObject<'p>> FromPyObject<'p, 's> for &'s T {
     #[inline]
-    fn from_py_object(s: &'a PyObject<'p>) -> PyResult<'p, &'a T> {
+    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, &'s T> {
         s.downcast()
     }
 }
@@ -100,23 +100,24 @@ impl <'p, 's, T : PythonObject<'p>> ToPyObject<'p, 's> for PyPtr<'p, T> {
     }
 }
 
-impl <'p, 'a, T : PythonObject<'p>> FromPyObject<'p, 'a> for PyPtr<'p, T> {
+impl <'p, 's, T : PythonObject<'p>> FromPyObject<'p, 's> for PyPtr<'p, T> {
     #[inline]
-    fn from_py_object(s : &'a PyObject<'p>) -> PyResult<'p, PyPtr<'p, T>> {
+    fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, PyPtr<'p, T>> {
         PyPtr::new(s).downcast_into()
     }
 }
 
 // bool
 
-/*
-impl <'p, T : PythonObject<'p>> ToPyObject<'p> for bool {
+
+impl <'p, 's> ToPyObject<'p, 's> for bool {
     type PointerType = &'p PyObject<'p>;
     
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, Self::PointerType>;
-        if *self { py.True() } else { py.False() }
+    #[inline]
+    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'p PyObject<'p>> {
+        Ok(if *self { py.True() } else { py.False() })
+    }
 }
-*/
 
 impl <'p, 'a> FromPyObject<'p, 'a> for bool {
     fn from_py_object(s: &'a PyObject<'p>) -> PyResult<'p, bool> {
