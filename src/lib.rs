@@ -9,11 +9,12 @@ extern crate "libpython27-sys" as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use python::Python;
-pub use object::{PythonObject, PyObject, ObjectProtocol};
+pub use object::{PythonObject, PyObject};
 pub use typeobject::PyType;
 pub use pyptr::PyPtr;
 pub use module::PyModule;
 pub use conversion::{FromPyObject, ToPyObject};
+pub use objectprotocol::{ObjectProtocol};
 
 // Fundamentals:
 mod python;
@@ -25,6 +26,7 @@ mod err;
 mod typeobject;
 mod module;
 
+mod objectprotocol;
 mod pythonrun;
 mod conversion;
 
