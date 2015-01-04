@@ -1,32 +1,21 @@
 use ffi;
-use std::kinds::marker::{NoSend, NoCopy};
-use python::Python;
 
-/// Represents the python interpreter instance.
-/// The python runtime is initialized using `PythonInterpreter::new()`,
-/// and destroyed when the PythonInterpreter is dropped.
-pub struct PythonInterpreter(NoSend, NoCopy);
+use std::sync::{Once, ONCE_INIT};
+use std::thread::Thread;
 
-#[must_use]
-impl PythonInterpreter {
-	/// Initializes the python interpreter.
-	/// Unsafe because we currently do not prevent multiple initialization, which is not supported.
-	pub unsafe fn new() -> PythonInterpreter {
-		ffi::Py_Initialize();
-		ffi::PyEval_InitThreads();
-		PythonInterpreter(NoSend, NoCopy)
-	}
+static START: Once = ONCE_INIT;
 
-	pub fn python<'p>(&'p self) -> Python<'p> {
-		unsafe { Python::assume_gil_acquired() }
-	}
+/// Prepares the use of python in a free-threaded context.
+pub fn prepare_freethreaded_python() {
+    START.call_once(|| unsafe {
+        ::ffi::Py_InitializeEx(0);
+        if ::ffi::PyEval_ThreadsInitialized() == 0 {
+            ::ffi::PyEval_InitThreads();
+            // InitThreads() will acquire the GIL,
+            // but we don't want to acquire it at this point
+            // (it's not acquired in the other code paths)
+            ::ffi::PyEval_ReleaseLock();
+        }
+    });
 }
-
-#[unsafe_destructor]
-impl Drop for PythonInterpreter {
-	fn drop(&mut self) {
-		unsafe { ffi::Py_Finalize() }
-	}
-}
-
 

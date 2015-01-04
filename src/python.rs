@@ -43,84 +43,42 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_ptr(self, ffi::Py_False()) }
     }
     
-/*
-	/// Retrieve python instance from an existing PyObject.
-	/// This can be used to avoid having to explicitly pass the &Python parameter to each function call.
-	/// Note that the reference may point to a different memory location than the original &Python used to
-	/// construct the object -- the Python type is just used as a token to prove that the GIL is currently held.
-	pub fn from_object<T : PythonObject>(_ : &T) -> &Python {
-		&STATIC_PYTHON_INSTANCE
-	}
+    /// Acquires the global interpreter lock, which allows access to the Python runtime.
+    /// If the python runtime is not already initialized, this function will initialize it.
+    /// Note that in this case, the python runtime will not have any main thread, and will
+    /// not deliver signals like KeyboardInterrupt.
+    pub fn acquire_gil() -> GILGuard {
+        ::pythonrun::prepare_freethreaded_python();
+        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
+        GILGuard { gstate: gstate }
+    }
 
-	/// Acquires the global interpreter lock, which allows access to the Python runtime.
-	/// This function is unsafe because 
-	/// This function is unsafe because it is possible to recursively acquire the GIL,
-	/// and thus getting access to multiple '&mut Python' references to the python interpreter.
-	pub unsafe fn acquire_gil(&self) -> GILGuard {
-		let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-		GILGuard { py: NEW_PYTHON_INSTANCE, gstate: gstate }
-	}
-
-	/// Releases the GIL and allows the use of python on other threads.
-	pub fn allow_threads<T>(&mut self, f: fn() -> T) -> T {
-		let save = unsafe { ffi::PyEval_SaveThread() };
-		let result = f();
-		unsafe { ffi::PyEval_RestoreThread(save); }
-		result
-	}
-
-	pub fn module_type(&self) -> &PyTypeObject {
-		unsafe { PyTypeObject::from_type_ptr(self, &mut ffi::PyModule_Type) }
-	}
-
-	// Importing Modules
-
-	/// Imports the python with the given name.
-	pub fn import_module<'s, N : ToCStr>(&'s self, name : N) -> PyResult<'s, PyPtr<'s, PyModule>> {
-	use module;
-		name.with_c_str(|name| unsafe {
-			let m = ffi::PyImport_ImportModule(name);
-			let m : PyPtr<PyObject> = try!(err::result_from_owned_ptr(self, m));
-			module::as_module(self, m)
-		})
-	}
-
-	/// Create a new module object based on a name.
-	pub fn init_module<Sized? N : ToCStr>
-		(&self, name : &N, doc : Option<&CString>) -> PyResult<&PyModule>
-	{
-		let name = name.to_c_str();
-		unsafe {
-			ffi::PyEval_InitThreads();
-			let m = ffi::Py_InitModule3(name.as_ptr(), ptr::null_mut(), doc.as_ptr());
-			if m.is_null() {
-				Err(PyErr::fetch(self))
-			} else {
-				Ok(PythonObject::from_ptr(self, m))
-			}
-		}
-	}
-	*/
+    /// Releases the GIL and allows the use of python on other threads.
+    /// Unsafe because we do not ensure that existing references to python objects
+    /// are not accessed within the closure.
+    pub unsafe fn allow_threads<T, F>(self, f: F) -> T where F : FnOnce() -> T {
+        let save = ffi::PyEval_SaveThread();
+        let result = f();
+        ffi::PyEval_RestoreThread(save);
+        result
+    }
 }
 
-/*
 /// RAII type that represents an acquired GIL.
 #[must_use]
 pub struct GILGuard {
-	gstate : ffi::PyGILState_STATE,
-	py : Python
+    gstate : ffi::PyGILState_STATE,
 }
 
-#[unsafe_destructor]
 impl Drop for GILGuard {
-	fn drop(&mut self) {
-		unsafe { ffi::PyGILState_Release(self.gstate) }
-	}
+    fn drop(&mut self) {
+        unsafe { ffi::PyGILState_Release(self.gstate) }
+    }
 }
 
 impl GILGuard {
-	pub fn python(&mut self) -> &mut Python {
-		&mut self.py
-	}
-}*/
+    pub fn python<'p>(&'p self) -> Python<'p> {
+        unsafe { Python::assume_gil_acquired() }
+    }
+}
 

@@ -35,27 +35,31 @@ impl <'p> PythonObject<'p> for PyType<'p> {
         panic!()
     }
 }
-/*
-impl PyType {
-	pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObjectRaw {
-		// safe because the PyObject is only accessed while holding the GIL
-		(unsafe { self.cell.get() })
-	}
 
-	pub unsafe fn from_type_ptr(_ : &Python, p : *mut ffi::PyTypeObjectRaw) -> &PyType {
-		debug_assert!(p.is_not_null())
-		&*(p as *mut PyType)
-	}
+impl <'p> PyType<'p> {
+    /// Retrieves the underlying FFI pointer associated with this python object.
+    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
+        // safe because the PyObject is only accessed while holding the GIL
+        self.cell.get()
+    }
 
-	/// Return true if self is a subtype of b.
-	pub fn is_subtype_of(&self, b : &PyType) -> bool {
-		unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
-	}
+    /// Retrieves the PyType instance for the given FFI pointer.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    /// Also, the output lifetime 'a is unconstrained, make sure to use a lifetime
+    /// appropriate for the underlying FFI pointer.
+    pub unsafe fn from_type_ptr<'a>(_: Python<'p>, p: *mut ffi::PyTypeObject) -> &'a PyType<'p> {
+        debug_assert!(!p.is_null());
+        &*(p as *mut PyType)
+    }
 
-	/// Return true if obj is an instance of self.
-	pub fn is_instance(&self, obj : &PyObject) -> bool {
-		obj.get_type().is_subtype_of(self)
-	}
+    /// Return true if self is a subtype of b.
+    pub fn is_subtype_of(&self, b : &PyType<'p>) -> bool {
+        unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
+    }
+
+    /// Return true if obj is an instance of self.
+    pub fn is_instance(&self, obj : &PyObject<'p>) -> bool {
+        unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) }
+    }
 }
-*/
 

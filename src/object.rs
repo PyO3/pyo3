@@ -23,6 +23,7 @@ pub trait PythonObject<'p> : 'p {
 
     /// Retrieves the type object for this python object type.
     /// unused_self is necessary until UFCS is implemented.
+    // (to be replaced with py: Python<'p>)
     fn type_object(unused_self : Option<&Self>) -> &'p PyType<'p>;
 
     /// Retrieve python instance from an existing python object.
@@ -82,12 +83,14 @@ impl <'p> PyObject<'p> {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 
-    /*pub fn get_type(&self) -> &PyType {
+    #[inline]
+    pub fn get_type(&self) -> &PyType<'p> {
         unsafe { PyType::from_type_ptr(self.python(), ffi::Py_TYPE(self.as_ptr())) }
-    }*/
+    }
     
     /// Casts the PyObject to a concrete python object type.
     /// Returns a python TypeError if the object is not of the expected type.
+    #[inline]
     pub fn downcast<T : PythonObject<'p>>(&self) -> PyResult<'p, &T> {
         let obj_opt : Option<&T> = PythonObject::from_object(self);
         match obj_opt {
@@ -99,11 +102,10 @@ impl <'p> PyObject<'p> {
 
 impl <'p> std::fmt::Show for PyObject<'p> {
     fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        unimplemented!()
-/*        let rep = try!(self.repr().map_err(|_| std::fmt::Error));
+        let rep = try!(self.repr().map_err(|_| std::fmt::Error));
         let slice = try!(::conversion::string_as_slice(&*rep).map_err(|_| std::fmt::Error));
         f.write_str(try!(std::str::from_utf8(slice).map_err(|_| std::fmt::Error)))
-  */  }
+    }
 }
 
 impl <'p> PartialEq for PyObject<'p> {
@@ -147,7 +149,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let attr_name = try!(attr_name.to_py_object(py));
         let value = try!(value.to_py_object(py));
         unsafe {
-            err::result_from_error_code(py,
+            err::error_on_minusone(py,
                 ffi::PyObject_SetAttr(self.as_ptr(), as_ptr(&attr_name), as_ptr(&value)))
         }
     }
@@ -159,7 +161,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let py = self.python();
         let attr_name = try!(attr_name.to_py_object(py));
         unsafe {
-            err::result_from_error_code(py,
+            err::error_on_minusone(py,
                 ffi::PyObject_DelAttr(self.as_ptr(), as_ptr(&attr_name)))
         }
     }
@@ -169,7 +171,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     fn compare(&self, other: &PyObject<'p>) -> PyResult<'p, Ordering> {
         unsafe {
             let mut result : libc::c_int = std::mem::uninitialized();
-            try!(err::result_from_error_code(self.python(),
+            try!(err::error_on_minusone(self.python(),
                 ffi::PyObject_Cmp(self.as_ptr(), other.as_ptr(), &mut result)));
             Ok(if result < 0 {
                 Ordering::Less
@@ -212,14 +214,110 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         }
     }
     
+    /// Calls the object.
+    /// This is equivalent to the python expression: 'self(*args, **kw)'
     fn call(&self, args: &PyObject<'p>, kw: Option<&PyObject<'p>>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         unimplemented!()
     }
     
-    fn call_method<'n, Sized? N: ToPyObject<'p, 'n>>
-      (&self, name: &'n N, args: &PyObject<'p>, kw: Option<&PyObject<'p>>)
+    /// Calls a method on the object.
+    /// This is equivalent to the python expression: 'self.name(*args, **kw)'
+    fn call_method(&self, name: &str, args: &PyObject<'p>, kw: Option<&PyObject<'p>>)
       -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         try!(self.getattr(name)).call(args, kw)
+    }
+    
+    /// Retrieves the hash code of the object.
+    /// This is equivalent to the python expression: 'hash(self)'
+    fn hash(&self) -> PyResult<'p, libc::c_long> {
+        let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
+        if v == -1 {
+            Err(PyErr::fetch(self.python()))
+        } else {
+            Ok(v)
+        }
+    }
+    
+    /// Returns whether the object is considered to be true.
+    /// This is equivalent to the python expression: 'not not self'
+    fn is_true(&self) -> PyResult<'p, bool> {
+        let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
+        if v == -1 {
+            Err(PyErr::fetch(self.python()))
+        } else {
+            Ok(v != 0)
+        }
+    }
+    
+    /// Returns the length of the sequence or mapping.
+    /// This is equivalent to the python expression: 'len(self)'
+    fn len(&self) -> PyResult<'p, Py_ssize_t> {
+        let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
+        if v == -1 {
+            Err(PyErr::fetch(self.python()))
+        } else {
+            Ok(v)
+        }
+    }
+    
+    /// This is equivalent to the python expression: 'self[key]'
+    fn get_item<'k, Sized? K: ToPyObject<'p, 'k>>(&self, key: &'k K) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+           let py = self.python();
+        let key = try!(key.to_py_object(py));
+        unsafe {
+            err::result_from_owned_ptr(py,
+                ffi::PyObject_GetItem(self.as_ptr(), as_ptr(&key)))
+        }
+    }
+
+    /// Sets an item value.
+    /// This is equivalent to the Python expression 'self[key] = value'.
+    fn set_item<'k, 'v, Sized? K: ToPyObject<'p, 'k>, Sized? V: ToPyObject<'p, 'v>>
+            (&self, key: &'k K, value: &'v V) -> PyResult<'p, ()> {
+        let py = self.python();
+        let key = try!(key.to_py_object(py));
+        let value = try!(value.to_py_object(py));
+        unsafe {
+            err::error_on_minusone(py,
+                ffi::PyObject_SetItem(self.as_ptr(), as_ptr(&key), as_ptr(&value)))
+        }
+    }
+
+    /// Deletes an item.
+    /// This is equivalent to the Python expression 'del self[key]'.
+    #[inline]
+    fn del_item<'k, Sized? K: ToPyObject<'p, 'k>>(&self, key: &'k K) -> PyResult<'p, ()> {
+        let py = self.python();
+        let key = try!(key.to_py_object(py));
+        unsafe {
+            err::error_on_minusone(py,
+                ffi::PyObject_DelItem(self.as_ptr(), as_ptr(&key)))
+        }
+    }
+    
+    /// Takes an object and returns an iterator for it.
+    /// This is typically a new iterator but if the argument
+    /// is an iterator, this returns itself.
+    fn iter(&self) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+        unsafe {
+            err::result_from_owned_ptr(self.python(), ffi::PyObject_GetIter(self.as_ptr()))
+        }
+    }
+    
+    /// Retrieves the next item from an iterator.
+    /// Returns None when the iterator is exhausted.
+    fn iter_next(&self) -> PyResult<'p, Option<PyPtr<'p, PyObject<'p>>>> {
+        let py = self.python();
+        let r = unsafe { ffi::PyIter_Next(self.as_ptr()) };
+        if r.is_null() {
+            if PyErr::occurred(py) {
+                Err(PyErr::fetch(py))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(Some(unsafe { PyPtr::from_owned_ptr(py, r) }))
+        }
     }
 }
 

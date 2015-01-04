@@ -72,11 +72,23 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
 
 /// Returns Ok if the error code is 0.
 #[inline]
-pub fn result_from_error_code(py : Python, result : libc::c_int) -> PyResult<()> {
+pub fn error_on_nonzero(py : Python, result : libc::c_int) -> PyResult<()> {
     if result == 0 {
         Ok(())
     } else {
         Err(PyErr::fetch(py))
     }
 }
+
+/// Returns Ok if the error code is not -1.
+#[inline]
+pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
+    if result != -1 {
+        Ok(())
+    } else {
+        Err(PyErr::fetch(py))
+    }
+}
+
+
 

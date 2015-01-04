@@ -12,6 +12,7 @@ use python::Python;
 /// The PyPtr<T> owns one reference to a python object.
 /// Python objects are reference-counted, so it is possible to have
 /// multiple PyPtr<T> objects pointing to the same object, like Rc<T>.
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PyPtr<'p, T : PythonObject<'p>>(&'p T);
 
 // impl Deref for PyPtr
