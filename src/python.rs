@@ -21,6 +21,10 @@ pub trait PythonObject<'p> : 'p {
     /// Casts the python object to PyObject.
     fn as_object(&self) -> &PyObject<'p>;
 
+    /// Unsafe downcast from &PyObject to &Self.
+    /// Undefined behavior if the input object does not have the expected type.
+    unsafe fn unchecked_downcast_from<'a>(&'a PyObject<'p>) -> &'a Self;
+
     /// Retrieves the underlying FFI pointer associated with this python object.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -35,14 +39,14 @@ pub trait PythonObject<'p> : 'p {
 }
 
 /// Trait implemented by python object types that allow a checked downcast.
-pub trait PythonObjectDowncast<'p> : PythonObject<'p> {
-    // TODO: maybe add 'unsafe fn from_object_unchecked' to PythonObject/PythonObjectDowncast,
-    // and then implement from_object using type_object().is_instance() ?
-    
+pub trait PythonObjectWithCheckedDowncast<'p> : PythonObject<'p> {
     /// Upcast from PyObject to a concrete python object type.
     /// Returns None if the python object is not of the specified type.
-    fn from_object<'a>(&'a PyObject<'p>) -> Option<&'a Self>;
+    fn downcast_from<'a>(&'a PyObject<'p>) -> Option<&'a Self>;
+}
 
+/// Trait implemented by python object types that have a corresponding type object.
+pub trait PythonObjectWithTypeObject<'p> : PythonObjectWithCheckedDowncast<'p> {
     /// Retrieves the type object for this python object type.
     /// Option<&Self> is necessary until UFCS is implemented.
     fn type_object(Python<'p>, Option<&Self>) -> &'p PyType<'p>;
@@ -99,9 +103,9 @@ impl<'p> Python<'p> {
     
     /// Retrieves a reference to the type object for type T.
     #[inline]
-    pub fn get_type<T>(self) -> &'p PyType<'p> where T: PythonObjectDowncast<'p> {
+    pub fn get_type<T>(self) -> &'p PyType<'p> where T: PythonObjectWithTypeObject<'p> {
         let none : Option<&T> = None;
-        PythonObjectDowncast::type_object(self, none)
+        PythonObjectWithTypeObject::type_object(self, none)
     }
 }
 

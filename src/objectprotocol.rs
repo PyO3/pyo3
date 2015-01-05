@@ -2,7 +2,7 @@ use std;
 use std::cmp::Ordering;
 use ffi;
 use libc;
-use python::{Python, PythonObject};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
 use object::PyObject;
 use pyptr::{PyPtr, PythonPointer, as_ptr};
 use conversion::ToPyObject;
@@ -204,16 +204,48 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// This is typically a new iterator but if the argument
     /// is an iterator, this returns itself.
     #[inline]
-    fn iter(&self) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
-        unsafe {
+    fn iter(&self) -> PyResult<'p, PyPtr<'p, PyIterator<'p>>> {
+        let it = try!(unsafe {
             result_from_owned_ptr(self.python(), ffi::PyObject_GetIter(self.as_ptr()))
-        }
+        });
+        it.downcast_into()
+    }
+}
+
+impl <'p> ObjectProtocol<'p> for PyObject<'p> {}
+
+pub struct PyIterator<'p>(PyObject<'p>);
+
+impl <'p> PythonObject<'p> for PyIterator<'p> {
+    #[inline]
+    fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
+        &self.0
     }
     
+    #[inline]
+    unsafe fn unchecked_downcast_from<'a>(o: &'a PyObject<'p>) -> &'a PyIterator<'p> {
+        std::mem::transmute(o)
+    }
+}
+
+impl <'p> PythonObjectWithCheckedDowncast<'p> for PyIterator<'p> {
+    #[inline]
+    fn downcast_from<'a>(o: &'a PyObject<'p>) -> Option<&'a PyIterator<'p>> {
+        unsafe {
+            if ffi::PyIter_Check(o.as_ptr()) {
+                Some(PythonObject::unchecked_downcast_from(o))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl <'p> PyIterator<'p> {
     /// Retrieves the next item from an iterator.
     /// Returns None when the iterator is exhausted.
     #[inline]
-    fn iter_next(&self) -> PyResult<'p, Option<PyPtr<'p, PyObject<'p>>>> {
+    pub fn iter_next(&self) -> PyResult<'p, Option<PyPtr<'p, PyObject<'p>>>> {
         let py = self.python();
         let r = unsafe { ffi::PyIter_Next(self.as_ptr()) };
         if r.is_null() {
@@ -227,7 +259,4 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         }
     }
 }
-
-impl <'p> ObjectProtocol<'p> for PyObject<'p> {}
-
 

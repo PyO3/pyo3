@@ -1,4 +1,4 @@
-use python::{Python, PythonObject, PythonObjectDowncast};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 use object::PyObject;
 use ffi;
 use libc::c_char;
@@ -20,25 +20,32 @@ impl <'p> PythonObject<'p> for PyType<'p> {
     fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
         unsafe { std::mem::transmute(self) }
     }
-
+    
+    #[inline]
+    unsafe fn unchecked_downcast_from<'a>(obj: &'a PyObject<'p>) -> &'a PyType<'p> {
+        std::mem::transmute(obj)
+    }
+    
     #[inline]
     fn python(&self) -> Python<'p> {
         self.py
     }
 }
 
-impl <'p> PythonObjectDowncast<'p> for PyType<'p> {
+impl <'p> PythonObjectWithCheckedDowncast<'p> for PyType<'p> {
     #[inline]
-    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyType<'p>> {
+    fn downcast_from<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyType<'p>> {
         unsafe {
             if ffi::PyType_Check(obj.as_ptr()) {
-                Some(std::mem::transmute(obj))
+                Some(PythonObject::unchecked_downcast_from(obj))
             } else {
                 None
             }
         }
     }
+}
 
+impl <'p> PythonObjectWithTypeObject<'p> for PyType<'p> {
     #[inline]
     fn type_object(py: Python<'p>, _ : Option<&Self>) -> &'p PyType<'p> {
         unsafe { PyType::from_type_ptr(py, &mut ffi::PyType_Type) }

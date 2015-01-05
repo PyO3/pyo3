@@ -1,6 +1,6 @@
 use std;
 use ffi;
-use python::{Python, PythonObject, PythonObjectDowncast};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 use object::PyObject;
 use typeobject::PyType;
 use pyptr::PyPtr;
@@ -13,20 +13,27 @@ impl <'p> PythonObject<'p> for PyModule<'p> {
     fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
         &self.0
     }
+    
+    #[inline]
+    unsafe fn unchecked_downcast_from<'a>(obj: &'a PyObject<'p>) -> &'a PyModule<'p> {
+        std::mem::transmute(obj)
+    }
 }
 
-impl <'p> PythonObjectDowncast<'p> for PyModule<'p> {
+impl <'p> PythonObjectWithCheckedDowncast<'p> for PyModule<'p> {
     #[inline]
-    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyModule<'p>> {
+    fn downcast_from<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyModule<'p>> {
         unsafe {
             if ffi::PyModule_Check(obj.as_ptr()) {
-                Some(std::mem::transmute(obj))
+                Some(PythonObject::unchecked_downcast_from(obj))
             } else {
                 None
             }
         }
     }
-    
+}
+
+impl <'p> PythonObjectWithTypeObject<'p> for PyModule<'p> {
     #[inline]
     fn type_object(py: Python<'p>, _ : Option<&Self>) -> &'p PyType<'p> {
         unsafe { PyType::from_type_ptr(py, &mut ffi::PyModule_Type) }

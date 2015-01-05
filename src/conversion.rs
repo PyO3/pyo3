@@ -1,8 +1,9 @@
 use libc::c_char;
 use std;
 use ffi;
-use err;
-use {Python, PyObject, PyResult, PythonObject, PythonObjectDowncast, PyErr};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
+use object::PyObject;
+use err::{self, PyErr, PyResult};
 use pyptr::{PyPtr, PythonPointer};
 
 /// ToPyObject is implemented for types that can be converted into a python object.
@@ -24,12 +25,14 @@ use pyptr::{PyPtr, PythonPointer};
 ///   m1(*try!(i.to_py_object(py)))
 ///   m2(i)
 pub trait ToPyObject<'p, 's> for Sized? {
+    type ResultType : PythonObject<'p> = PyObject<'p>;
+    
     // The returned pointer type is flexible:
     // it can be either &PyObject or PyPtr<PyObject>, depending on whether
     // the conversion is allocating a new object.
     // This lets us avoid a useless IncRef/DecRef pair
-    type PointerType : PythonPointer + std::ops::Deref //<Target = PyObject<'p>>
-        = PyPtr<'p, PyObject<'p>>;
+    type PointerType : PythonPointer + std::ops::Deref // <Target = Self::ResultType>
+        = PyPtr<'p, Self::ResultType>;
     
     fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, Self::PointerType>;
     
@@ -59,6 +62,10 @@ pub trait ToPyObject<'p, 's> for Sized? {
     
     // Note that the 'PointerType' associated type is essential to avoid unnecessarily
     // touching the reference count in cases (2) and (4).
+    
+    // Btw: I'm not sure if this type crazyness is worth it.
+    // If rust had automatic re-borrowing to avoid the '&*p' dance when using a PyPtr as &PyObject,
+    // we should probably just force the user to manually call .to_py()
 }
 
 /// FromPyObject is implemented by various types that can be extracted from a python object.
@@ -72,15 +79,16 @@ pub trait FromPyObject<'p, 's> {
 // convertible to a python object.
 
 impl <'p, 's, T> ToPyObject<'p, 's> for T where T : PythonObject<'p> {
-    type PointerType = &'s PyObject<'p>;
+    type ResultType = T;
+    type PointerType = &'s T;
     
     #[inline]
-    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s PyObject<'p>> {
-        Ok(self.as_object())
+    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s T> {
+        Ok(self)
     }
 }
 
-impl <'p, 's, T> FromPyObject<'p, 's> for &'s T where T: PythonObjectDowncast<'p> {
+impl <'p, 's, T> FromPyObject<'p, 's> for &'s T where T: PythonObjectWithCheckedDowncast<'p> {
     #[inline]
     fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, &'s T> {
         s.downcast()
@@ -93,15 +101,16 @@ impl <'p, 's, T> FromPyObject<'p, 's> for &'s T where T: PythonObjectDowncast<'p
 // convertible to a python object, without having to re-borrow the &PyObject.
 
 impl <'p, 's, T> ToPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObject<'p> {
-    type PointerType = &'s PyObject<'p>;
+    type ResultType = T;
+    type PointerType = &'s T;
     
     #[inline]
-    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s PyObject<'p>> {
-        Ok(self.as_object())
+    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s T> {
+        Ok(&**self)
     }
 }
 
-impl <'p, 's, T> FromPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObjectDowncast<'p> {
+impl <'p, 's, T> FromPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObjectWithCheckedDowncast<'p> {
     #[inline]
     fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, PyPtr<'p, T>> {
         PyPtr::new(s).downcast_into()
@@ -112,6 +121,7 @@ impl <'p, 's, T> FromPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObjectDown
 
 
 impl <'p, 's> ToPyObject<'p, 's> for bool {
+    type ResultType = PyObject<'p>;
     type PointerType = &'p PyObject<'p>;
     
     #[inline]
@@ -137,6 +147,7 @@ impl <'p, 'a> FromPyObject<'p, 'a> for bool {
 // When converting strings to/from python, we need to copy the string data.
 // This means we can implement ToPyObject for str, but FromPyObject only for String.
 impl <'p, 's> ToPyObject<'p, 's> for str {
+    type ResultType = PyObject<'p>;
     type PointerType = PyPtr<'p, PyObject<'p>>;
     
     fn to_py_object(&'s self, py : Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {

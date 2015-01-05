@@ -1,7 +1,7 @@
 use std;
 use std::ops::Deref;
 use ffi;
-use python::{Python, PythonObject, PythonObjectDowncast};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
 use object::PyObject;
 use err::{PyResult, PyErr};
 //use conversion::{FromPyObject, ToPyObject};
@@ -181,7 +181,7 @@ impl<'p> PyPtr<'p, PyObject<'p>> {
     /// Casts the PyPtr<PyObject> to a PyPtr of a concrete python object type.
     /// Returns a python TypeError if the object is not of the expected type.
     #[inline]
-    pub fn downcast_into<T>(self) -> PyResult<'p, PyPtr<'p, T>> where T: PythonObjectDowncast<'p> {
+    pub fn downcast_into<T>(self) -> PyResult<'p, PyPtr<'p, T>> where T: PythonObjectWithCheckedDowncast<'p> {
         // TODO: avoid unnecessary IncRef/DefRef
         self.deref().downcast().map(PyPtr::new)
     }

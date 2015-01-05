@@ -1,7 +1,7 @@
 use std;
 use libc;
 use ffi;
-use python::{Python, PythonObject, PythonObjectDowncast};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 use typeobject::PyType;
 use err::{PyErr, PyResult};
 
@@ -21,6 +21,11 @@ impl <'p> PythonObject<'p> for PyObject<'p> {
     fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
         self
     }
+    
+    #[inline]
+    fn unchecked_downcast_from<'a>(o: &'a PyObject<'p>) -> &'a PyObject<'p> {
+        o
+    }
 
     /// Retrieves the underlying FFI pointer associated with this python object.
     #[inline]
@@ -34,12 +39,14 @@ impl <'p> PythonObject<'p> for PyObject<'p> {
     }
 }
 
-impl <'p> PythonObjectDowncast<'p> for PyObject<'p> {
+impl <'p> PythonObjectWithCheckedDowncast<'p> for PyObject<'p> {
     #[inline]
-    fn from_object<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyObject<'p>> {
+    fn downcast_from<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyObject<'p>> {
         Some(obj)
     }
-    
+}
+
+impl <'p> PythonObjectWithTypeObject<'p> for PyObject<'p> {
     #[inline]
     fn type_object(py: Python<'p>, _ : Option<&Self>) -> &'p PyType<'p> {
         unsafe { PyType::from_type_ptr(py, &mut ffi::PyBaseObject_Type) }
@@ -73,11 +80,11 @@ impl <'p> PyObject<'p> {
     /// Casts the PyObject to a concrete python object type.
     /// Returns a python TypeError if the object is not of the expected type.
     #[inline]
-    pub fn downcast<T : PythonObjectDowncast<'p>>(&self) -> PyResult<'p, &T> {
-        let obj_opt : Option<&T> = PythonObjectDowncast::from_object(self);
+    pub fn downcast<T : PythonObjectWithCheckedDowncast<'p>>(&self) -> PyResult<'p, &T> {
+        let obj_opt : Option<&T> = PythonObjectWithCheckedDowncast::downcast_from(self);
         match obj_opt {
             Some(obj) => Ok(obj),
-            None => Err(PyErr::type_error(self, PythonObjectDowncast::type_object(self.python(), obj_opt)))
+            None => Err(unimplemented!())
         }
     }
 }

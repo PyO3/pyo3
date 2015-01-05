@@ -3,12 +3,14 @@
 #![feature(associated_types)]
 #![feature(globs)]
 #![feature(slicing_syntax)]
+#![feature(macro_rules)]
 
 extern crate libc;
 extern crate "python27-sys" as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
-pub use python::{Python, PythonObject, PythonObjectDowncast};
+pub use err::exception_types::*;
+pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 pub use object::PyObject;
 pub use typeobject::PyType;
 pub use pyptr::PyPtr;
