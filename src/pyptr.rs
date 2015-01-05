@@ -2,7 +2,7 @@ use std;
 use std::ops::Deref;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
-use object::PyObject;
+use objects::PyObject;
 use err::{PyResult, PyErr};
 //use conversion::{FromPyObject, ToPyObject};
 //use PyResult;

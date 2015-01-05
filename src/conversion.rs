@@ -2,7 +2,7 @@ use libc::c_char;
 use std;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
-use object::PyObject;
+use objects::PyObject;
 use err::{self, PyErr, PyResult};
 use pyptr::{PyPtr, PythonPointer};
 

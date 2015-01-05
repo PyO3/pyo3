@@ -1,5 +1,6 @@
 use std;
-use {PyObject, PythonObject, PyType, Python};
+use python::{PythonObject, Python};
+use objects::{PyObject, PyType};
 use pyptr::{PyPtr, PythonPointer};
 use ffi;
 use libc;
@@ -145,8 +146,8 @@ pub mod exception_types {
     macro_rules! exc_getter(
         ($name:ident) => (
             #[inline]
-            pub fn $name(py: ::python::Python) -> &::object::PyObject {
-                unsafe { ::object::PyObject::from_ptr(py, ::ffi::$name) }
+            pub fn $name(py: ::python::Python) -> &::objects::PyObject {
+                unsafe { ::objects::PyObject::from_ptr(py, ::ffi::$name) }
             }
         )
     );
@@ -217,7 +218,8 @@ pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use {Python, PyType, PyErr};
+    use {Python, PyErr};
+    use objects::PyObject;
     
     #[test]
     fn set_typeerror() {

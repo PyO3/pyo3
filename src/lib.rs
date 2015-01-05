@@ -9,27 +9,18 @@ extern crate libc;
 extern crate "python27-sys" as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
+pub use objects::*;
 pub use err::exception_types::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
-pub use object::PyObject;
-pub use typeobject::PyType;
 pub use pyptr::PyPtr;
-pub use module::PyModule;
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 
-// Fundamentals:
 mod python;
 mod pyptr;
 mod err;
 mod conversion;
-
-// Object Types:
-mod object;
-mod typeobject;
-mod module;
-
-// Python APIs:
+mod objects;
 mod objectprotocol;
 mod pythonrun;
 

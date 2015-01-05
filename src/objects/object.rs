@@ -2,7 +2,7 @@ use std;
 use libc;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
-use typeobject::PyType;
+use objects::PyType;
 use err::{PyErr, PyResult};
 
 pub struct PyObject<'p> {

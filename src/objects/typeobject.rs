@@ -1,5 +1,5 @@
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
-use object::PyObject;
+use objects::PyObject;
 use ffi;
 use libc::c_char;
 use std;

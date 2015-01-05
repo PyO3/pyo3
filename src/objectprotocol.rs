@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
-use object::PyObject;
+use objects::PyObject;
 use pyptr::{PyPtr, PythonPointer, as_ptr};
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};

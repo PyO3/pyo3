@@ -2,8 +2,7 @@ use std;
 use std::kinds::marker::{NoSend, InvariantLifetime};
 use std::ptr;
 use ffi;
-use object::PyObject;
-use typeobject::PyType;
+use objects::{PyObject, PyType};
 use pythonrun::GILGuard;
 
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
