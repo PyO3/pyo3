@@ -4,69 +4,71 @@ use ffi;
 use libc;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
 use objects::PyObject;
-use pyptr::{PyPtr, PythonPointer, as_ptr};
+use pyptr::PyPtr;
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};
+
+// Workaround because .as_ptr() doesn't work for associated types
+#[inline]
+fn as_ptr<'p, O>(obj: &O) -> *mut ffi::PyObject where O: PythonObject<'p> {
+    PythonObject::as_ptr(obj)
+}
 
 pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
     #[inline]
-    fn hasattr<'n, Sized? N: ToPyObject<'p, 'n>>(&self, attr_name: &'n N) -> PyResult<'p, bool> {
-        let py = self.python();
-        let attr_name = try!(attr_name.to_py_object(py));
-        unsafe {
-            Ok(ffi::PyObject_HasAttr(self.as_ptr(), as_ptr(&attr_name)) != 0)
-        }
+    fn hasattr<N>(&self, attr_name: N) -> PyResult<'p, bool> where N: ToPyObject<'p> {
+        attr_name.with_py_object(self.python(), |attr_name| unsafe {
+            Ok(ffi::PyObject_HasAttr(self.as_ptr(), as_ptr(attr_name)) != 0)
+        })
     }
     
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-    fn getattr<'n, Sized? N: ToPyObject<'p, 'n>>(&self, attr_name: &'n N)
-      -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+    fn getattr<N>(&self, attr_name: N) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> where N: ToPyObject<'p> {
         let py = self.python();
-        let attr_name = try!(attr_name.to_py_object(py));
-        unsafe {
+        attr_name.with_py_object(py, |attr_name| unsafe {
             result_from_owned_ptr(py,
-                ffi::PyObject_GetAttr(self.as_ptr(), as_ptr(&attr_name)))
-        }
+                ffi::PyObject_GetAttr(self.as_ptr(), as_ptr(attr_name)))
+        })
     }
 
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     #[inline]
-    fn setattr<'n, 'v, Sized? N: ToPyObject<'p, 'n>, Sized? V: ToPyObject<'p, 'v>>
-            (&self, attr_name: &'n N, value: &'v V) -> PyResult<'p, ()> {
+    fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<'p, ()>
+        where N: ToPyObject<'p>, V: ToPyObject<'p>
+    {
         let py = self.python();
-        let attr_name = try!(attr_name.to_py_object(py));
-        let value = try!(value.to_py_object(py));
-        unsafe {
-            error_on_minusone(py,
-                ffi::PyObject_SetAttr(self.as_ptr(), as_ptr(&attr_name), as_ptr(&value)))
-        }
+        attr_name.with_py_object(py, move |attr_name|
+            value.with_py_object(py, |value| unsafe {
+                error_on_minusone(py,
+                    ffi::PyObject_SetAttr(self.as_ptr(), as_ptr(attr_name), as_ptr(value)))
+            }))
     }
 
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
     #[inline]
-    fn delattr<'n, Sized? N: ToPyObject<'p, 'n>>(&self, attr_name: &'n N) -> PyResult<'p, ()> {
+    fn delattr<N>(&self, attr_name: N) -> PyResult<'p, ()> where N: ToPyObject<'p> {
         let py = self.python();
-        let attr_name = try!(attr_name.to_py_object(py));
-        unsafe {
+        attr_name.with_py_object(py, |attr_name| unsafe {
             error_on_minusone(py,
-                ffi::PyObject_DelAttr(self.as_ptr(), as_ptr(&attr_name)))
-        }
+                ffi::PyObject_DelAttr(self.as_ptr(), as_ptr(attr_name)))
+        })
     }
 
     /// Compares two python objects.
     /// This is equivalent to the python expression 'cmp(self, other)'.
     #[inline]
-    fn compare(&self, other: &PyObject<'p>) -> PyResult<'p, Ordering> {
-        unsafe {
+    fn compare<O>(&self, other: O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
+        let py = self.python();
+        other.with_py_object(py, |other| unsafe {
             let mut result : libc::c_int = std::mem::uninitialized();
-            try!(error_on_minusone(self.python(),
-                ffi::PyObject_Cmp(self.as_ptr(), other.as_ptr(), &mut result)));
+            try!(error_on_minusone(py,
+                ffi::PyObject_Cmp(self.as_ptr(), as_ptr(other), &mut result)));
             Ok(if result < 0 {
                 Ordering::Less
             } else if result > 0 {
@@ -74,7 +76,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             } else {
                 Ordering::Equal
             })
-        }
+        })
     }
 
     /// Compute the string representation of self.
@@ -165,41 +167,37 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     
     /// This is equivalent to the python expression: 'self[key]'
     #[inline]
-    fn get_item<'k, Sized? K: ToPyObject<'p, 'k>>(&self, key: &'k K) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
-           let py = self.python();
-        let key = try!(key.to_py_object(py));
-        unsafe {
+    fn get_item<K>(&self, key: K) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> where K: ToPyObject<'p> {
+        let py = self.python();
+        key.with_py_object(py, |key| unsafe {
             result_from_owned_ptr(py,
-                ffi::PyObject_GetItem(self.as_ptr(), as_ptr(&key)))
-        }
+                ffi::PyObject_GetItem(self.as_ptr(), as_ptr(key)))
+        })
     }
 
     /// Sets an item value.
     /// This is equivalent to the Python expression 'self[key] = value'.
     #[inline]
-    fn set_item<'k, 'v, Sized? K: ToPyObject<'p, 'k>, Sized? V: ToPyObject<'p, 'v>>
-            (&self, key: &'k K, value: &'v V) -> PyResult<'p, ()> {
+    fn set_item<K, V>(&self, key: K, value: V) -> PyResult<'p, ()> where K: ToPyObject<'p>, V: ToPyObject<'p> {
         let py = self.python();
-        let key = try!(key.to_py_object(py));
-        let value = try!(value.to_py_object(py));
-        unsafe {
-            error_on_minusone(py,
-                ffi::PyObject_SetItem(self.as_ptr(), as_ptr(&key), as_ptr(&value)))
-        }
+        key.with_py_object(py, move |key|
+            value.with_py_object(py, |value| unsafe {
+                error_on_minusone(py,
+                    ffi::PyObject_SetItem(self.as_ptr(), as_ptr(key), as_ptr(value)))
+            }))
     }
 
     /// Deletes an item.
     /// This is equivalent to the Python expression 'del self[key]'.
     #[inline]
-    fn del_item<'k, Sized? K: ToPyObject<'p, 'k>>(&self, key: &'k K) -> PyResult<'p, ()> {
+    fn del_item<K>(&self, key: K) -> PyResult<'p, ()> where K: ToPyObject<'p> {
         let py = self.python();
-        let key = try!(key.to_py_object(py));
-        unsafe {
+        key.with_py_object(py, |key| unsafe {
             error_on_minusone(py,
-                ffi::PyObject_DelItem(self.as_ptr(), as_ptr(&key)))
-        }
+                ffi::PyObject_DelItem(self.as_ptr(), as_ptr(key)))
+        })
     }
-    
+    /*
     /// Takes an object and returns an iterator for it.
     /// This is typically a new iterator but if the argument
     /// is an iterator, this returns itself.
@@ -209,11 +207,12 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             result_from_owned_ptr(self.python(), ffi::PyObject_GetIter(self.as_ptr()))
         });
         it.downcast_into()
-    }
+    }*/
 }
 
 impl <'p> ObjectProtocol<'p> for PyObject<'p> {}
 
+/*
 pub struct PyIterator<'p>(PyObject<'p>);
 
 impl <'p> PythonObject<'p> for PyIterator<'p> {
@@ -228,35 +227,5 @@ impl <'p> PythonObject<'p> for PyIterator<'p> {
     }
 }
 
-impl <'p> PythonObjectWithCheckedDowncast<'p> for PyIterator<'p> {
-    #[inline]
-    fn downcast_from<'a>(o: &'a PyObject<'p>) -> Option<&'a PyIterator<'p>> {
-        unsafe {
-            if ffi::PyIter_Check(o.as_ptr()) {
-                Some(PythonObject::unchecked_downcast_from(o))
-            } else {
-                None
-            }
-        }
-    }
-}
-
-impl <'p> PyIterator<'p> {
-    /// Retrieves the next item from an iterator.
-    /// Returns None when the iterator is exhausted.
-    #[inline]
-    pub fn iter_next(&self) -> PyResult<'p, Option<PyPtr<'p, PyObject<'p>>>> {
-        let py = self.python();
-        let r = unsafe { ffi::PyIter_Next(self.as_ptr()) };
-        if r.is_null() {
-            if PyErr::occurred(py) {
-                Err(PyErr::fetch(py))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(Some(unsafe { PyPtr::from_owned_ptr(py, r) }))
-        }
-    }
-}
+*/
 

@@ -1,6 +1,8 @@
 pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
+pub use self::string::{PyBytes, PyUnicode};
+pub use self::iterator::PyIterator;
 
 macro_rules! pythonobject_newtype_only_pythonobject(
     ($name: ident) => (
@@ -40,7 +42,7 @@ macro_rules! pyobject_newtype(
         impl <'p> ::python::PythonObjectWithTypeObject<'p> for $name<'p> {
             #[inline]
             fn type_object(py: ::python::Python<'p>, _ : Option<&Self>) -> &'p ::objects::PyType<'p> {
-                unsafe { ::objects::PyType::from_type_ptr(py, &mut ffi::$typeobject) }
+                unsafe { ::objects::PyType::from_type_ptr(py, &mut ::ffi::$typeobject) }
             }
         }
     )
@@ -49,5 +51,11 @@ macro_rules! pyobject_newtype(
 mod object;
 mod typeobject;
 mod module;
+mod string;
 mod dict;
+mod iterator;
+
+pyobject_newtype!(PyTuple, PyTuple_Check, PyTuple_Type);
+pyobject_newtype!(PyList, PyList_Check, PyList_Type);
+
 

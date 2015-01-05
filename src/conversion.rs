@@ -24,48 +24,34 @@ use pyptr::{PyPtr, PythonPointer};
 ///   let i: i32 = ...;
 ///   m1(*try!(i.to_py_object(py)))
 ///   m2(i)
-pub trait ToPyObject<'p, 's> for Sized? {
-    type ResultType : PythonObject<'p> = PyObject<'p>;
+pub trait ToPyObject<'p> : Sized {
+    type ObjectType : PythonObject<'p> = PyObject<'p>;
     
-    // The returned pointer type is flexible:
-    // it can be either &PyObject or PyPtr<PyObject>, depending on whether
-    // the conversion is allocating a new object.
-    // This lets us avoid a useless IncRef/DecRef pair
-    type PointerType : PythonPointer + std::ops::Deref // <Target = Self::ResultType>
-        = PyPtr<'p, Self::ResultType>;
+    fn to_py_object(self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, Self::ObjectType>>;
     
-    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, Self::PointerType>;
+    #[inline]
+    fn with_py_object<F, T>(self, py: Python<'p>, f: F) -> PyResult<'p, T> where F: FnOnce(&Self::ObjectType) -> PyResult<'p, T> {
+        let obj = try!(self.to_py_object(py));
+        f(&*obj)
+    }
     
-    // Note that there are 6 cases with methods taking ToPyObject:
-    // 1) input is &PyObject, FFI function steals pointer
-    //   -> ToPyObject is no-op, PythonPointer::steal_ptr() calls Py_IncRef()
-    // 2) input is &PyObject, FFI function borrows pointer
-    //   -> ToPyObject is no-op, PythonPointer::as_ptr() also is no-op
-    // 3) input is &PyPtr<PyObject>, FFI function steals pointer
-    //   -> ToPyObject borrows content, PythonPointer::steal_ptr() calls Py_IncRef()
-    //    Not optimal, we'd prefer to take the input PyPtr by value.
-    // 4) input is &PyPtr<PyObject>, FFI function borrows pointer
-    //   -> ToPyObject borrows content, PythonPointer::as_ptr() is no-op
-    // 5) input is &str, int, etc., FFI function steals pointer
-    //   -> ToPyObject allocates new object, PythonPointer::steal_ptr() grabs existing owned pointer
-    // 6) input is &str, int, etc., FFI function borrows pointer
-    //   -> ToPyObject allocates new object, PythonPointer::as_ptr() is no-op,
-    //      PyPtr::drop calls Py_DecRef()
-
-    // So the only non-optimal case (3) is the one stealing from a PyPtr<PyObject>,
-    // which is unavoidable as long as to_py_object takes &self.
-    // Note that changing ToPyObject to take self by value would cause the PyPtr to become
-    // unusable in case (4) as well. Users would have to add a .clone() call if the PyPtr
-    // is still needed after the call, making case (4) non-optimal.
-    // We could potentially fix this by using separate ToPyObject and IntoPyObject traits
-    // for the borrowing and stealing cases.
+    // FFI functions that accept a borrowed reference will use:
+    //   input.with_py_object(|obj| ffi::Call(obj.as_ptr())
+    // 1) input is &PyObject
+    //   -> with_py_object() just forwards to the closure
+    // 2) input is PyPtr<PyObject>
+    //   -> to_py_object() is no-op; FFI call happens; PyPtr::drop() calls Py_DECREF()
+    // 3) input is &str, int, ...
+    //   -> to_py_object() allocates new python object; FFI call happens; PyPtr::drop() calls Py_DECREF()
     
-    // Note that the 'PointerType' associated type is essential to avoid unnecessarily
-    // touching the reference count in cases (2) and (4).
-    
-    // Btw: I'm not sure if this type crazyness is worth it.
-    // If rust had automatic re-borrowing to avoid the '&*p' dance when using a PyPtr as &PyObject,
-    // we should probably just force the user to manually call .to_py()
+    // FFI functions that steal a reference will use:
+    //   let input = try!(input.to_py_object()); ffi::Call(input.steal_ptr())
+    // 1) input is &PyObject
+    //   -> to_py_object() calls Py_INCREF
+    // 2) input is PyPtr<PyObject>
+    //   -> to_py_object() is no-op
+    // 3) input is &str, int, ...
+    //   -> to_py_object() allocates new python object
 }
 
 /// FromPyObject is implemented by various types that can be extracted from a python object.
@@ -78,13 +64,18 @@ pub trait FromPyObject<'p, 's> {
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
 
-impl <'p, 's, T> ToPyObject<'p, 's> for T where T : PythonObject<'p> {
-    type ResultType = T;
-    type PointerType = &'s T;
+impl <'p, 's, T> ToPyObject<'p> for &'s T where T : PythonObject<'p> {
+    type ObjectType = T;
     
     #[inline]
-    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s T> {
-        Ok(self)
+    fn to_py_object(self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, T>> {
+        Ok(PyPtr::new(self))
+    }
+    
+    #[inline]
+    fn with_py_object<F, R>(self, py: Python<'p>, f: F) -> PyResult<'p, R> where F: FnOnce(&T) -> PyResult<'p, R> {
+        // Avoid unnecessary Py_INCREF/Py_DECREF pair by directly using the &PyObject
+        f(self)
     }
 }
 
@@ -100,13 +91,12 @@ impl <'p, 's, T> FromPyObject<'p, 's> for &'s T where T: PythonObjectWithChecked
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object, without having to re-borrow the &PyObject.
 
-impl <'p, 's, T> ToPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObject<'p> {
-    type ResultType = T;
-    type PointerType = &'s T;
+impl <'p, T> ToPyObject<'p> for PyPtr<'p, T> where T: PythonObject<'p> {
+    type ObjectType = T;
     
     #[inline]
-    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'s T> {
-        Ok(&**self)
+    fn to_py_object(self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, T>> {
+        Ok(self)
     }
 }
 
@@ -120,13 +110,18 @@ impl <'p, 's, T> FromPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObjectWith
 // bool
 
 
-impl <'p, 's> ToPyObject<'p, 's> for bool {
-    type ResultType = PyObject<'p>;
-    type PointerType = &'p PyObject<'p>;
+impl <'p> ToPyObject<'p> for bool {
+    type ObjectType = PyObject<'p>;
     
     #[inline]
-    fn to_py_object(&'s self, py: Python<'p>) -> PyResult<'p, &'p PyObject<'p>> {
-        Ok(if *self { py.True() } else { py.False() })
+    fn to_py_object(self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+        Ok(PyPtr::new(if self { py.True() } else { py.False() }))
+    }
+    
+    #[inline]
+    fn with_py_object<F, R>(self, py: Python<'p>, f: F) -> PyResult<'p, R> where F: FnOnce(&PyObject) -> PyResult<'p, R> {
+        // Avoid unnecessary Py_INCREF/Py_DECREF pair
+        f(if self { py.True() } else { py.False() })
     }
 }
 
@@ -146,11 +141,10 @@ impl <'p, 'a> FromPyObject<'p, 'a> for bool {
 // Strings.
 // When converting strings to/from python, we need to copy the string data.
 // This means we can implement ToPyObject for str, but FromPyObject only for String.
-impl <'p, 's> ToPyObject<'p, 's> for str {
-    type ResultType = PyObject<'p>;
-    type PointerType = PyPtr<'p, PyObject<'p>>;
+impl <'p, 's> ToPyObject<'p> for &'s str {
+    type ObjectType = PyObject<'p>;
     
-    fn to_py_object(&'s self, py : Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
+    fn to_py_object(self, py : Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
         let ptr : *const c_char = self.as_ptr() as *const _;
         let len : ffi::Py_ssize_t = std::num::from_uint(self.len()).unwrap();
         unsafe {

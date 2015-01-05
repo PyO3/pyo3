@@ -91,17 +91,8 @@ pub trait PythonPointer {
     fn as_ptr(&self) -> *mut ffi::PyObject;
     /// Gets the FFI pointer (owned reference).
     /// If the implementation of this trait is an owned pointer, this steals the reference.
+    /// If the implementation of this trait is a borrowed pointer, this increments the reference count.
     fn steal_ptr(self) -> *mut ffi::PyObject;
-}
-
-/// Workaround because 'p.as_ptr()' doesn't work for associated types.
-pub fn as_ptr<P: PythonPointer>(p: &P) -> *mut ffi::PyObject {
-    PythonPointer::as_ptr(p)
-}
-
-/// Workaround because 'p.steal_ptr()' doesn't work for associated types.
-pub fn steal_ptr<P: PythonPointer>(p: P) -> *mut ffi::PyObject {
-    PythonPointer::steal_ptr(p)
 }
 
 impl <'p, T : PythonObject<'p>> PythonPointer for PyPtr<'p, T> {
