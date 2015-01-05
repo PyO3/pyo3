@@ -1,0 +1,11 @@
+[package]
+
+name = "rust-cpython"
+version = "0.0.1"
+authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+
+[dependencies.libpython27-sys]
+path="../libpython27-sys"
+
+
+
