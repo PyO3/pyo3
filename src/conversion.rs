@@ -2,7 +2,7 @@ use libc::c_char;
 use std;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
-use objects::PyObject;
+use objects::{PyObject, PyBool};
 use err::{self, PyErr, PyResult};
 use pyptr::{PyPtr, PythonPointer};
 
@@ -111,30 +111,25 @@ impl <'p, 's, T> FromPyObject<'p, 's> for PyPtr<'p, T> where T: PythonObjectWith
 
 
 impl <'p> ToPyObject<'p> for bool {
-    type ObjectType = PyObject<'p>;
+    type ObjectType = PyBool<'p>;
     
     #[inline]
-    fn to_py_object(self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, PyObject<'p>>> {
-        Ok(PyPtr::new(if self { py.True() } else { py.False() }))
+    fn to_py_object(self, py: Python<'p>) -> PyResult<'p, PyPtr<'p, PyBool<'p>>> {
+        Ok(PyPtr::new(PyBool::get(py, self)))
     }
     
     #[inline]
-    fn with_py_object<F, R>(self, py: Python<'p>, f: F) -> PyResult<'p, R> where F: FnOnce(&PyObject) -> PyResult<'p, R> {
+    fn with_py_object<F, R>(self, py: Python<'p>, f: F) -> PyResult<'p, R>
+        where F: FnOnce(&PyBool) -> PyResult<'p, R>
+    {
         // Avoid unnecessary Py_INCREF/Py_DECREF pair
-        f(if self { py.True() } else { py.False() })
+        f(PyBool::get(py, self))
     }
 }
 
 impl <'p, 'a> FromPyObject<'p, 'a> for bool {
     fn from_py_object(s: &'a PyObject<'p>) -> PyResult<'p, bool> {
-        let py = s.python();
-        if s == py.True() {
-            Ok(true)
-        } else if s == py.False() {
-            Ok(false)
-        } else {
-            unimplemented!()
-        }
+        Ok(try!(s.downcast::<PyBool>()).is_true())
     }
 }
 

@@ -83,3 +83,11 @@ impl <'p> PyType<'p> {
     }
 }
 
+impl <'p> PartialEq for PyType<'p> {
+    #[inline]
+    fn eq(&self, o : &PyType<'p>) -> bool {
+        self.as_type_ptr() == o.as_type_ptr()
+    }
+}
+impl <'p> Eq for PyType<'p> { }
+

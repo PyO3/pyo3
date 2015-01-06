@@ -82,16 +82,10 @@ impl <'p> PyErr<'p> {
         unsafe { ffi::PyErr_PrintEx(1) }
     }
 
-    /// Print a warning message to sys.stderr when an exception has been set but it is impossible for the interpreter to actually raise the exception.
-    /// It is used, for example, when an exception occurs in an __del__() method..
-    pub fn write_unraisable(self, context: &PyObject<'p>) {
-        self.restore();
-        unsafe { ffi::PyErr_WriteUnraisable(context.as_ptr()) }
-    }
-
     /// Return true if the current exception matches the exception in `exc`.
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
+    #[inline]
     pub fn matches(&self, exc: &PyObject) -> bool {
         unsafe { ffi::PyErr_GivenExceptionMatches(self.ptype.as_ptr(), exc.as_ptr()) != 0 }
     }
@@ -120,8 +114,22 @@ impl <'p> PyErr<'p> {
         }
     }
     
+    /// Retrieves the exception type.
+    /// If the exception type is an old-style class, returns oldstyle::PyClass.
+    pub fn get_type(&self) -> &PyType<'p> {
+        match self.ptype.downcast::<PyType>() {
+            Ok(t)  => t,
+            Err(_) => unimplemented!()
+            /* match self.ptype.downcast::<PyClass>() {
+                Ok(_)  => py.get_type::<PyClass>(),
+                Err(_) => py.get_type::<PyNone>()
+            }*/
+        }
+    }
+    
     /// Retrieves the exception instance for this error.
-    /// This method takes &mut self because the error might need to be normalized in order to create the exception instance.
+    /// This method takes &mut self because the error might need
+    /// to be normalized in order to create the exception instance.
     pub fn instance(&mut self) -> &PyObject<'p> {
         self.normalize();
         match self.pvalue {

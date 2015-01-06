@@ -176,5 +176,10 @@ impl<'p> PyPtr<'p, PyObject<'p>> {
         // TODO: avoid unnecessary IncRef/DefRef
         self.deref().downcast().map(PyPtr::new)
     }
+    
+    pub unsafe fn unchecked_downcast_into<T>(self) -> PyPtr<'p, T> where T: PythonObject<'p> {
+        // TODO: avoid unnecessary IncRef/DefRef
+        PyPtr::new(PythonObject::unchecked_downcast_from(self.deref()))
+    }
 }
 

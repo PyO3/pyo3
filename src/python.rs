@@ -2,7 +2,7 @@ use std;
 use std::kinds::marker::{NoSend, InvariantLifetime};
 use std::ptr;
 use ffi;
-use objects::{PyObject, PyType};
+use objects::{PyObject, PyType, PyBool};
 use pythonrun::GILGuard;
 
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
@@ -89,15 +89,15 @@ impl<'p> Python<'p> {
     /// Retrieves a reference to the 'True' constant value.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> &'p PyObject<'p> {
-        unsafe { PyObject::from_ptr(self, ffi::Py_True()) }
+    pub fn True(self) -> &'p PyBool<'p> {
+        unsafe { PythonObject::unchecked_downcast_from(PyObject::from_ptr(self, ffi::Py_True())) }
     }
     
     /// Retrieves a reference to the 'False' constant value.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> &'p PyObject<'p> {
-        unsafe { PyObject::from_ptr(self, ffi::Py_False()) }
+    pub fn False(self) -> &'p PyBool<'p> {
+        unsafe { PythonObject::unchecked_downcast_from(PyObject::from_ptr(self, ffi::Py_False())) }
     }
     
     /// Retrieves a reference to the type object for type T.
