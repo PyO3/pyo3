@@ -6,18 +6,16 @@
 #![feature(macro_rules)]
 
 extern crate libc;
+extern crate core;
 extern crate "python27-sys" as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
-pub use err::exception_types::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
-pub use pyptr::PyPtr;
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 
 mod python;
-mod pyptr;
 mod err;
 mod conversion;
 mod objects;

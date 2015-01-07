@@ -15,20 +15,30 @@ use pythonrun::GILGuard;
 #[derive(Copy)]
 pub struct Python<'p>(NoSend, InvariantLifetime<'p>);
 
+// Trait for converting from Self to *mut ffi::PyObject
+pub trait ToPythonPointer {
+    /// Retrieves the underlying FFI pointer (as a borrowed pointer).
+    fn as_ptr(&self) -> *mut ffi::PyObject;
+    
+    /// Destructures the input object, moving out the ownership of the underlying FFI pointer.
+    fn steal_ptr(self) -> *mut ffi::PyObject;
+}
+
 /// Trait implemented by all python object types.
-pub trait PythonObject<'p> : 'p {
+pub trait PythonObject<'p> : 'p + Clone + ToPythonPointer {
     /// Casts the python object to PyObject.
     fn as_object(&self) -> &PyObject<'p>;
+    
+    /// Casts the python object to PyObject.
+    fn into_object(self) -> PyObject<'p>;
 
-    /// Unsafe downcast from &PyObject to &Self.
+    /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
-    unsafe fn unchecked_downcast_from<'a>(&'a PyObject<'p>) -> &'a Self;
+    unsafe fn unchecked_downcast_from(PyObject<'p>) -> Self;
 
-    /// Retrieves the underlying FFI pointer associated with this python object.
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.as_object().as_ptr()
-    }
+    /// Unchecked downcast from PyObject to Self.
+    /// Undefined behavior if the input object does not have the expected type.
+    unsafe fn unchecked_downcast_borrow_from<'a>(&'a PyObject<'p>) -> &'a Self;
 
     /// Retrieve python instance from an existing python object.
     #[inline]
@@ -37,18 +47,44 @@ pub trait PythonObject<'p> : 'p {
     }
 }
 
+// Marker type that indicates an error while downcasting 
+pub struct PythonObjectDowncastError<'p>(pub Python<'p>);
+
 /// Trait implemented by python object types that allow a checked downcast.
 pub trait PythonObjectWithCheckedDowncast<'p> : PythonObject<'p> {
     /// Upcast from PyObject to a concrete python object type.
     /// Returns None if the python object is not of the specified type.
-    fn downcast_from<'a>(&'a PyObject<'p>) -> Option<&'a Self>;
+    fn downcast_from(PyObject<'p>) -> Result<Self, PythonObjectDowncastError<'p>>;
+    
+    /// Upcast from PyObject to a concrete python object type.
+    /// Returns None if the python object is not of the specified type.
+    fn downcast_borrow_from<'a>(&'a PyObject<'p>) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
 }
 
 /// Trait implemented by python object types that have a corresponding type object.
 pub trait PythonObjectWithTypeObject<'p> : PythonObjectWithCheckedDowncast<'p> {
     /// Retrieves the type object for this python object type.
     /// Option<&Self> is necessary until UFCS is implemented.
-    fn type_object(Python<'p>, Option<&Self>) -> &'p PyType<'p>;
+    fn type_object(Python<'p>, Option<&Self>) -> PyType<'p>;
+}
+
+/// Convert None into a null pointer.
+impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        match *self {
+            Some(ref t) => t.as_ptr(),
+            None => std::ptr::null_mut()
+        }
+    }
+    
+    #[inline]
+    fn steal_ptr(self) -> *mut ffi::PyObject {
+        match self {
+            Some(t) => t.steal_ptr(),
+            None => std::ptr::null_mut()
+        }
+    }
 }
 
 impl<'p> Python<'p> {
@@ -82,27 +118,27 @@ impl<'p> Python<'p> {
     /// Retrieves a reference to the special 'None' value.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> &'p PyObject<'p> {
-        unsafe { PyObject::from_ptr(self, ffi::Py_None()) }
+    pub fn None(self) -> PyObject<'p> {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
     
     /// Retrieves a reference to the 'True' constant value.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> &'p PyBool<'p> {
-        unsafe { PythonObject::unchecked_downcast_from(PyObject::from_ptr(self, ffi::Py_True())) }
+    pub fn True(self) -> PyBool<'p> {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_True()).unchecked_cast_into::<PyBool>() }
     }
     
     /// Retrieves a reference to the 'False' constant value.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> &'p PyBool<'p> {
-        unsafe { PythonObject::unchecked_downcast_from(PyObject::from_ptr(self, ffi::Py_False())) }
+    pub fn False(self) -> PyBool<'p> {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_False()).unchecked_cast_into::<PyBool>() }
     }
     
     /// Retrieves a reference to the type object for type T.
     #[inline]
-    pub fn get_type<T>(self) -> &'p PyType<'p> where T: PythonObjectWithTypeObject<'p> {
+    pub fn get_type<T>(self) -> PyType<'p> where T: PythonObjectWithTypeObject<'p> {
         let none : Option<&T> = None;
         PythonObjectWithTypeObject::type_object(self, none)
     }

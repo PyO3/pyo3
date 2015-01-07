@@ -1,73 +1,23 @@
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, ToPythonPointer};
 use objects::PyObject;
 use ffi;
 use libc::c_char;
 use std;
 
-pub struct PyType<'p> {
-    cell : std::cell::UnsafeCell<ffi::PyTypeObject>,
-    py : Python<'p>
-}
-
-#[test]
-fn test_sizeof() {
-    // should be a static_assert, but size_of is not a compile-time const
-    assert_eq!(std::mem::size_of::<PyType>(), std::mem::size_of::<ffi::PyTypeObject>());
-}
-
-impl <'p> PythonObject<'p> for PyType<'p> {
-    #[inline]
-    fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
-        unsafe { std::mem::transmute(self) }
-    }
-    
-    #[inline]
-    unsafe fn unchecked_downcast_from<'a>(obj: &'a PyObject<'p>) -> &'a PyType<'p> {
-        std::mem::transmute(obj)
-    }
-    
-    #[inline]
-    fn python(&self) -> Python<'p> {
-        self.py
-    }
-}
-
-impl <'p> PythonObjectWithCheckedDowncast<'p> for PyType<'p> {
-    #[inline]
-    fn downcast_from<'a>(obj : &'a PyObject<'p>) -> Option<&'a PyType<'p>> {
-        unsafe {
-            if ffi::PyType_Check(obj.as_ptr()) {
-                Some(PythonObject::unchecked_downcast_from(obj))
-            } else {
-                None
-            }
-        }
-    }
-}
-
-impl <'p> PythonObjectWithTypeObject<'p> for PyType<'p> {
-    #[inline]
-    fn type_object(py: Python<'p>, _ : Option<&Self>) -> &'p PyType<'p> {
-        unsafe { PyType::from_type_ptr(py, &mut ffi::PyType_Type) }
-    }
-}
+pyobject_newtype!(PyType, PyType_Check, PyType_Type);
 
 impl <'p> PyType<'p> {
     /// Retrieves the underlying FFI pointer associated with this python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        // safe because the PyObject is only accessed while holding the GIL
-        self.cell.get()
+        self.as_ptr() as *mut ffi::PyTypeObject
     }
 
     /// Retrieves the PyType instance for the given FFI pointer.
     /// Undefined behavior if the pointer is NULL or invalid.
-    /// Also, the output lifetime 'a is unconstrained, make sure to use a lifetime
-    /// appropriate for the underlying FFI pointer.
     #[inline]
-    pub unsafe fn from_type_ptr<'a>(_: Python<'p>, p: *mut ffi::PyTypeObject) -> &'a PyType<'p> {
-        debug_assert!(!p.is_null());
-        &*(p as *mut PyType)
+    pub unsafe fn from_type_ptr<'a>(py: Python<'p>, p: *mut ffi::PyTypeObject) -> PyType<'p> {
+        PyObject::from_borrowed_ptr(py, p as *mut ffi::PyObject).unchecked_cast_into::<PyType>()
     }
 
     /// Return true if self is a subtype of b.

@@ -2,7 +2,6 @@ use std;
 use ffi;
 use python::{Python, PythonObject};
 use objects::PyObject;
-use pyptr::PyPtr;
 use err::{self, PyResult};
 
 pyobject_newtype!(PyBytes, PyBytes_Check, PyBytes_Type);
