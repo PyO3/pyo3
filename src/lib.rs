@@ -1,9 +1,5 @@
 #![feature(unsafe_destructor)]
 #![allow(unused_imports, dead_code, unused_variables)]
-#![feature(associated_types)]
-#![feature(globs)]
-#![feature(slicing_syntax)]
-#![feature(macro_rules)]
 
 extern crate libc;
 extern crate core;
@@ -14,7 +10,9 @@ pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
+pub use cstr::CStr;
 
+mod cstr;
 mod python;
 mod err;
 mod conversion;
