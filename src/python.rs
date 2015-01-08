@@ -52,12 +52,10 @@ pub struct PythonObjectDowncastError<'p>(pub Python<'p>);
 
 /// Trait implemented by python object types that allow a checked downcast.
 pub trait PythonObjectWithCheckedDowncast<'p> : PythonObject<'p> {
-    /// Upcast from PyObject to a concrete python object type.
-    /// Returns None if the python object is not of the specified type.
+    /// Cast from PyObject to a concrete python object type.
     fn downcast_from(PyObject<'p>) -> Result<Self, PythonObjectDowncastError<'p>>;
     
-    /// Upcast from PyObject to a concrete python object type.
-    /// Returns None if the python object is not of the specified type.
+    /// Cast from PyObject to a concrete python object type.
     fn downcast_borrow_from<'a>(&'a PyObject<'p>) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
 }
 

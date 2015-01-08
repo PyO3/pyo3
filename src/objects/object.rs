@@ -157,8 +157,10 @@ impl <'p> PyObject<'p> {
 
     #[inline]
     pub fn get_type(&self) -> &PyType<'p> {
-        unimplemented!()
-        //unsafe { PyType::from_type_ptr(self.python(), ffi::Py_TYPE(self.as_ptr())) }
+        unsafe {
+            let t : &*mut ffi::PyTypeObject = &(*self.as_ptr()).ob_type;
+            transmute(t)
+        }
     }
     
     /// Casts the PyObject to a concrete python object type.
@@ -222,6 +224,8 @@ impl <'p> Eq for PyObject<'p> { }
 #[test]
 fn test_sizeof() {
     // should be a static_assert, but size_of is not a compile-time const
+    // these are necessary for the transmutes in this module
     assert_eq!(size_of::<PyObject>(), size_of::<*mut ffi::PyObject>());
+    assert_eq!(size_of::<PyType>(), size_of::<*mut ffi::PyTypeObject>());
 }
 

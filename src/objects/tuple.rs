@@ -39,6 +39,11 @@ impl <'p> PyTuple<'p> {
             })
         }
     }
+    
+    #[inline]
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, PyObject<'p>> {
+        self.as_slice().iter()
+    }
 }
 
 impl<'p> std::ops::Index<uint> for PyTuple<'p> {
