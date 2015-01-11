@@ -57,7 +57,7 @@ macro_rules! pyobject_newtype(
             #[inline]
             fn downcast_from(obj : ::objects::object::PyObject<'p>) -> Result<$name<'p>, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
-                    if ::ffi::$checkfunction(::python::ToPythonPointer::as_ptr(&obj)) {
+                    if ::ffi::$checkfunction(::python::ToPythonPointer::as_ptr(&obj)) != 0 {
                         Ok($name(obj))
                     } else {
                         Err(::python::PythonObjectDowncastError(::python::PythonObject::python(&obj)))
@@ -68,7 +68,7 @@ macro_rules! pyobject_newtype(
             #[inline]
             fn downcast_borrow_from<'a>(obj : &'a ::objects::object::PyObject<'p>) -> Result<&'a $name<'p>, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
-                    if ::ffi::$checkfunction(::python::ToPythonPointer::as_ptr(obj)) {
+                    if ::ffi::$checkfunction(::python::ToPythonPointer::as_ptr(obj)) != 0 {
                         Ok(::std::mem::transmute(obj))
                     } else {
                         Err(::python::PythonObjectDowncastError(::python::PythonObject::python(obj)))
@@ -98,4 +98,5 @@ mod iterator;
 mod boolobject;
 mod tuple;
 pub mod exc;
+pub mod oldstyle;
 

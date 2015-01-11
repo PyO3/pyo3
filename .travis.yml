@@ -1,0 +1,4 @@
+language: rust
+script:
+  - cargo build
+

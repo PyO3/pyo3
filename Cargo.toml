@@ -6,6 +6,5 @@ description = "Bindings to Python 2.7"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 
 [dependencies]
-python27-sys="0.0.1"
-
+python27-sys="0.0.2"
 

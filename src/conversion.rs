@@ -166,7 +166,7 @@ pub fn string_as_slice<'a, 'p>(s: &'a PyObject<'p>) -> PyResult<'p, &'a [u8]> {
             Err(PyErr::fetch(s.python()))
         } else {
             let buffer = buffer as *const u8; // TODO see std::ffi
-            Ok(std::slice::from_raw_buf(std::mem::copy_lifetime(s, &buffer), length as uint))
+            Ok(std::slice::from_raw_buf(std::mem::copy_lifetime(s, &buffer), length as usize))
         }
     }
 }

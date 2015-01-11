@@ -1,9 +1,11 @@
 use std;
 use python::{PythonObject, Python, ToPythonPointer, PythonObjectDowncastError};
 use objects::{PyObject, PyType, exc};
+use objects::oldstyle::PyClass;
 use ffi;
 use libc;
 use conversion::ToPyObject;
+use cstr::CStr;
 
 /// Represents a python exception that was raised.
 #[derive(Clone, Show)]
@@ -67,13 +69,13 @@ impl <'p> PyErr<'p> {
     
     fn new_from_object(obj: PyObject<'p>) -> PyErr<'p> {
         let py = obj.python();
-        if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } {
+        if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {
                 ptype: unsafe { PyObject::from_borrowed_ptr(py, ffi::PyExceptionInstance_Class(obj.as_ptr())) },
                 pvalue: Some(obj),
                 ptraceback: None
             }
-        } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } {
+        } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
                 ptype: obj,
                 pvalue: None,
@@ -147,16 +149,17 @@ impl <'p> PyErr<'p> {
     /// Retrieves the exception type.
     /// If the exception type is an old-style class, returns oldstyle::PyClass.
     pub fn get_type(&self) -> PyType<'p> {
+        let py = self.ptype.python();
         match self.ptype.clone().cast_into::<PyType>() {
             Ok(t)  => t,
-            Err(_) => unimplemented!()
-            /* match self.ptype.downcast::<PyClass>() {
-                Ok(_)  => py.get_type::<PyClass>(),
-                Err(_) => py.get_type::<PyNone>()
-            }*/
+            Err(_) =>
+                match self.ptype.cast_as::<PyClass>() {
+                    Ok(_)  => py.get_type::<PyClass>(),
+                    Err(_) => py.None().get_type().clone()
+                }
         }
     }
-    
+
     /// Retrieves the exception instance for this error.
     /// This method takes &mut self because the error might need
     /// to be normalized in order to create the exception instance.
@@ -176,6 +179,14 @@ impl <'p> PyErr<'p> {
             ffi::PyErr_Restore(ptype.steal_ptr(), pvalue.steal_ptr(), ptraceback.steal_ptr())
         }
     }
+    
+    /// Issue a warning message.
+    /// May return a PyErr if warnings-as-errors is enabled.
+    pub fn warn(py: Python<'p>, category: &PyObject, message: &CStr, stacklevel: i32) -> PyResult<'p, ()> {
+        unsafe {
+            error_on_minusone(py, ffi::PyErr_WarnEx(category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
+        }
+    }
 }
 
 impl <'p> std::error::FromError<PythonObjectDowncastError<'p>> for PyErr<'p> {
@@ -193,6 +204,16 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
         Err(PyErr::fetch(py))
     } else {
         Ok(PyObject::from_owned_ptr(py, p))
+    }
+}
+
+pub unsafe fn result_cast_from_owned_ptr<'p, T>(py : Python<'p>, p : *mut ffi::PyObject) -> PyResult<'p, T>
+    where T: ::python::PythonObjectWithCheckedDowncast<'p>
+{
+    if p.is_null() {
+        Err(PyErr::fetch(py))
+    } else {
+        Ok(try!(PyObject::from_owned_ptr(py, p).cast_into()))
     }
 }
 

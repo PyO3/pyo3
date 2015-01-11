@@ -1,8 +1,11 @@
+use libc::c_char;
 use std::iter::Range;
 use std::str::Utf8Error;
+use std::mem;
+use cstr::CStr;
 use ffi;
 use python::{Python, ToPythonPointer, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
-use err::PyResult;
+use err::{self, PyResult};
 use super::object::PyObject;
 use super::typeobject::PyType;
 
@@ -14,7 +17,7 @@ macro_rules! exc_type(
             #[inline]
             fn downcast_from(obj : PyObject<'p>) -> Result<$name<'p>, PythonObjectDowncastError<'p>> {
                 unsafe {
-                    if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) {
+                    if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) != 0 {
                         Ok(PythonObject::unchecked_downcast_from(obj))
                     } else {
                         Err(PythonObjectDowncastError(obj.python()))
@@ -25,7 +28,7 @@ macro_rules! exc_type(
             #[inline]
             fn downcast_borrow_from<'a>(obj : &'a ::objects::object::PyObject<'p>) -> Result<&'a $name<'p>, PythonObjectDowncastError<'p>> {
                 unsafe {
-                    if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) {
+                    if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) != 0 {
                         Ok(PythonObject::unchecked_downcast_borrow_from(obj))
                     } else {
                         Err(PythonObjectDowncastError(obj.python()))
@@ -81,16 +84,21 @@ exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
 exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 
 impl<'p> UnicodeDecodeError<'p> {
-    pub fn new(py: Python<'p>, encoding: &str, input: &[u8], start: uint, end: uint, reason: &str) -> PyResult<'p, UnicodeDecodeError<'p>> {
-        unimplemented!()
+    pub fn new(py: Python<'p>, encoding: &CStr, input: &[u8], range: Range<usize>, reason: &CStr) -> PyResult<'p, UnicodeDecodeError<'p>> {
+        unsafe {
+            let input: &[c_char] = mem::transmute(input);
+            err::result_cast_from_owned_ptr(py,
+                ffi::PyUnicodeDecodeError_Create(encoding.as_ptr(), input.as_ptr(), input.len() as ffi::Py_ssize_t,
+                    range.start as ffi::Py_ssize_t, range.end as ffi::Py_ssize_t, reason.as_ptr()))
+        }
     }
     
     pub fn new_utf8(py: Python<'p>, input: &[u8], err: Utf8Error) -> PyResult<'p, UnicodeDecodeError<'p>> {
         match err {
             Utf8Error::InvalidByte(pos) =>
-                UnicodeDecodeError::new(py, "utf-8", input, pos, pos+1, "invalid byte"),
+                UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos, pos+1, cstr!("invalid byte")),
             Utf8Error::TooShort         =>
-                UnicodeDecodeError::new(py, "utf-8", input, input.len() - 1, input.len(), "unexpected end of data"),
+                UnicodeDecodeError::new(py, cstr!("utf-8"), input, input.len() - 1, input.len(), cstr!("unexpected end of data")),
         }
     }
 }

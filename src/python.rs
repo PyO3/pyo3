@@ -1,5 +1,5 @@
 use std;
-use std::kinds::marker::{NoSend, InvariantLifetime};
+use std::marker::InvariantLifetime;
 use std::ptr;
 use ffi;
 use objects::{PyObject, PyType, PyBool};
@@ -13,7 +13,9 @@ use pythonrun::GILGuard;
 /// You can imagine the GIL to be a giant "Mutex<AllPythonState>". This makes 'p the lifetime of the
 /// python state protected by that mutex.
 #[derive(Copy)]
-pub struct Python<'p>(NoSend, InvariantLifetime<'p>);
+pub struct Python<'p>(InvariantLifetime<'p>);
+
+impl <'p> !Send for Python<'p> {}
 
 // Trait for converting from Self to *mut ffi::PyObject
 pub trait ToPythonPointer {
@@ -62,9 +64,23 @@ pub trait PythonObjectWithCheckedDowncast<'p> : PythonObject<'p> {
 /// Trait implemented by python object types that have a corresponding type object.
 pub trait PythonObjectWithTypeObject<'p> : PythonObjectWithCheckedDowncast<'p> {
     /// Retrieves the type object for this python object type.
-    /// Option<&Self> is necessary until UFCS is implemented.
+    #[unstable = "Option<&Self> will disappear when UFCS is implemented"]
     fn type_object(Python<'p>, Option<&Self>) -> PyType<'p>;
 }
+
+/// ToPythonPointer for borrowed python pointers.
+impl <'a, 'p, T> ToPythonPointer for &'a T where T: PythonObject<'p> {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        (**self).as_ptr()
+    }
+    
+    #[inline]
+    fn steal_ptr(self) -> *mut ffi::PyObject {
+        (*self).clone().steal_ptr()
+    }
+}
+
 
 /// Convert None into a null pointer.
 impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
@@ -90,7 +106,7 @@ impl<'p> Python<'p> {
     /// and stays acquired for the lifetime 'p
     #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'p> {
-        Python(NoSend, InvariantLifetime)
+        Python(InvariantLifetime)
     }
     
     /// Acquires the global interpreter lock, which allows access to the Python runtime.

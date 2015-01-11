@@ -151,8 +151,8 @@ impl <'p> PyObject<'p> {
     
     /// Retrieves the reference count of this python object.
     #[inline]
-    pub fn get_refcnt(&self) -> uint {
-        unsafe { ffi::Py_REFCNT(self.as_ptr()) as uint }
+    pub fn get_refcnt(&self) -> usize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) as usize }
     }
 
     #[inline]

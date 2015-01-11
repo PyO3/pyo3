@@ -1,7 +1,27 @@
 use libc::c_char;
 use std::ffi::CString;
 use std::borrow::{BorrowFrom, ToOwned};
-use std::{fmt, mem, ops};
+use std::{fmt, mem, ops, str};
+
+// Idea:
+// CString = Vec<u8> + 0-invariant (0-terminated, but no interior 0)
+// this makes it similar to
+// String = Vec<u8> + UTF-8-invariant
+
+// Dereferencing String results in
+// str = [u8] + UTF-8 invariant
+
+// So why does dereferencing CString result in [u8], dropping the 0-invariant?
+// This module implements a type CStr = [u8] + 0-invariant.
+
+// This allows writing safe FFI bindings that accept &CStr and call a C function:
+// fn f(s: &CStr) { ffi::f(s.as_ptr()) }
+
+// Without CStr, f() would have to take &CString (forcing the string to be heap-allocated),
+// or f() could take &[u8] and verify the 0-invariant itself -- but this verification is redundant
+// when the &[u8] was borrowed from a CString.
+// (or otherwise known to be valid, e.g. the output of a cstr!("string literal") macro)
+
 
 // CString changes if this type is adopted in std::ffi:
 // * <CString as Deref>::Target should change from &[c_char] to &CStr
@@ -10,14 +30,16 @@ use std::{fmt, mem, ops};
 //   available through CStr::from_ptr( ).as_bytes() / CStr::from_ptr( ).as_bytes_with_nul()
 
 // Independently from CStr:
-// * CString::from_slice should be renamed to from_bytes
+// * CString::from_slice(s.as_bytes()) looks weird, since both 'as_slice' and 'as_bytes'
+//    exist on CString with different return types.
+//   CString::from_slice should be renamed to from_bytes
 
-// #[dervie(PartialEq, PartialOrd, Eq, Ord, Hash) -- ICE #18805
+// #[derive(PartialEq, PartialOrd, Eq, Ord, Hash) -- ICE #18805
 // #[repr(newtype)] or something, for the transmute in from_slice_with_nul_unchecked
 pub struct CStr {
     // invariants:
     // - data.len() >= 1
-    // - data[0..data.len()-1] does not contains '\0'
+    // - data[0..data.len()-1] does not contain '\0'
     // - data[data.len()-1] == '\0'
     inner: [c_char]
 }
@@ -55,7 +77,15 @@ impl CStr {
         mem::transmute::<&[u8], &CStr>(v)
     }
 
-    // as_ptr(), as_slice(): from Deref<Target=c_char>
+    // as_ptr(), as_slice(): should be coming from Deref<Target=c_char>, but
+    // we need to re-implement them to avoid an ICE (#16812 ?)
+    pub fn as_ptr(&self) -> *const c_char {
+        self.inner.as_ptr()
+    }
+
+    pub fn as_slice(&self) -> &[c_char] {
+        self.inner.slice_to(self.inner.len() - 1)
+    }
 
     /// Create a view into this C string which includes the trailing nul
     /// terminator at the end of the string.
@@ -64,12 +94,15 @@ impl CStr {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        //unsafe { mem::transmute(self.as_slice()) } //  ICE (#16812 ?)
-        unsafe { mem::transmute(self.inner.slice_to(self.inner.len() - 1)) }
+        unsafe { mem::transmute(self.as_slice()) }
     }
 
     pub fn as_bytes_with_nul(&self) -> &[u8] {
         unsafe { mem::transmute(self.as_slice_with_nul()) }
+    }
+    
+    pub fn as_utf8(&self) -> Result<&str, str::Utf8Error> {
+        str::from_utf8(self.as_bytes())
     }
 }
 
@@ -77,6 +110,8 @@ impl ops::Deref for CStr {
     type Target = [c_char];
 
     fn deref(&self) -> &[c_char] {
+        // Does not underflow thanks to our invariant.
+        // But rustc doesn't know that, so it may need some help to generate efficient code.
         self.inner.slice_to(self.inner.len() - 1)
     }
 }
@@ -97,9 +132,18 @@ impl ToOwned<CString> for CStr {
     }
 }
 
-impl fmt::Show for CStr {
+impl fmt::Debug for CStr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         String::from_utf8_lossy(self.as_bytes()).fmt(f)
     }
 }
+
+#[macro_export]
+macro_rules! cstr(
+    ($s: tt) => (
+        // TODO: verify that $s is a string literal without nuls,
+        // and remove the runtime check by using from_bytes_with_nul_unchecked.
+        $crate::cstr::CStr::from_bytes_with_nul(concat!($s, "\0").as_bytes())
+    );
+);
 

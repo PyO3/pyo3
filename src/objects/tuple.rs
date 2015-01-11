@@ -20,10 +20,10 @@ impl <'p> PyTuple<'p> {
     }
     
     #[inline]
-    pub fn len(&self) -> uint {
+    pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust uint
         unsafe {
-            ffi::PyTuple_GET_SIZE(self.as_ptr()) as uint
+            ffi::PyTuple_GET_SIZE(self.as_ptr()) as usize
         }
     }
     
@@ -46,11 +46,11 @@ impl <'p> PyTuple<'p> {
     }
 }
 
-impl<'p> std::ops::Index<uint> for PyTuple<'p> {
+impl<'p> std::ops::Index<usize> for PyTuple<'p> {
     type Output = PyObject<'p>;
 
     #[inline]
-    fn index<'a>(&'a self, index: &uint) -> &'a PyObject<'p> {
+    fn index<'a>(&'a self, index: &usize) -> &'a PyObject<'p> {
         // use as_slice() to use the normal Rust bounds checking when indexing
         &self.as_slice()[*index]
     }

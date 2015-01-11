@@ -1,4 +1,5 @@
 #![feature(unsafe_destructor)]
+#![feature(optin_builtin_traits)]
 #![allow(unused_imports, dead_code, unused_variables)]
 
 extern crate libc;
@@ -12,6 +13,7 @@ pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 pub use cstr::CStr;
 
+#[macro_use]
 mod cstr;
 mod python;
 mod err;

@@ -29,7 +29,7 @@ impl <'p> PyType<'p> {
     /// Return true if obj is an instance of self.
     #[inline]
     pub fn is_instance(&self, obj : &PyObject<'p>) -> bool {
-        unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) }
+        unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
     }
 }
 
