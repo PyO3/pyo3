@@ -1,3 +1,4 @@
+#![allow(unstable)]
 #![feature(unsafe_destructor)]
 #![feature(optin_builtin_traits)]
 #![allow(unused_imports, dead_code, unused_variables)]

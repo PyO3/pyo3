@@ -1,5 +1,5 @@
 use libc::c_char;
-use std::iter::Range;
+use std::ops::Range;
 use std::str::Utf8Error;
 use std::mem;
 use cstr::CStr;
@@ -96,9 +96,9 @@ impl<'p> UnicodeDecodeError<'p> {
     pub fn new_utf8(py: Python<'p>, input: &[u8], err: Utf8Error) -> PyResult<'p, UnicodeDecodeError<'p>> {
         match err {
             Utf8Error::InvalidByte(pos) =>
-                UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos, pos+1, cstr!("invalid byte")),
+                UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid byte")),
             Utf8Error::TooShort         =>
-                UnicodeDecodeError::new(py, cstr!("utf-8"), input, input.len() - 1, input.len(), cstr!("unexpected end of data")),
+                UnicodeDecodeError::new(py, cstr!("utf-8"), input, input.len() - 1 .. input.len(), cstr!("unexpected end of data")),
         }
     }
 }

@@ -1,4 +1,3 @@
 language: rust
-script:
-  - cargo build
+rust: 1.0.0-alpha
 

@@ -62,7 +62,7 @@ impl CStr {
     /// This function will panic if the last byte in the slice is not 0,
     /// or if any other bytes are 0.
     pub fn from_bytes_with_nul(v: &[u8]) -> &CStr {
-        assert!(v[v.len() - 1] == 0 && !v.slice_to(v.len() - 1).iter().any(|&x| x == 0));
+        assert!(v[v.len() - 1] == 0 && !v[..v.len() - 1].iter().any(|&x| x == 0));
         unsafe { CStr::from_bytes_with_nul_unchecked(v) }
     }
 
@@ -132,7 +132,7 @@ impl ToOwned<CString> for CStr {
     }
 }
 
-impl fmt::Debug for CStr {
+impl fmt::Show for CStr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         String::from_utf8_lossy(self.as_bytes()).fmt(f)
     }
