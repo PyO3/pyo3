@@ -8,7 +8,7 @@ use cstr::CStr;
 pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
 
 impl <'p> PyModule<'p> {
-    pub fn import<N>(py : Python<'p>, name : &CStr) -> PyResult<'p, PyModule<'p>> {
+    pub fn import(py : Python<'p>, name : &CStr) -> PyResult<'p, PyModule<'p>> {
         let result = try!(unsafe {
             err::result_from_owned_ptr(py, ffi::PyImport_ImportModule(name.as_ptr()))
         });

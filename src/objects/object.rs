@@ -203,6 +203,15 @@ impl <'p> PyObject<'p> {
     }
 }
 
+impl <'p> fmt::String for PyObject<'p> {
+    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(),  fmt::Error> {
+        use objectprotocol::ObjectProtocol;
+        let repr_obj = try!(self.str().map_err(|_| fmt::Error));
+        let repr = try!(repr_obj.extract::<&str>().map_err(|_| fmt::Error));
+        f.write_str(repr)
+    }
+}
+
 impl <'p> fmt::Show for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(),  fmt::Error> {
         use objectprotocol::ObjectProtocol;

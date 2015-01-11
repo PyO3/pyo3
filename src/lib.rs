@@ -27,7 +27,7 @@ mod pythonrun;
 fn it_works() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let sys = PyModule::import(py, "sys").unwrap();
+    let sys = PyModule::import(py, cstr!("sys")).unwrap();
     let path = sys.as_object().getattr("path").unwrap();
     println!("{0}", path);
 }
