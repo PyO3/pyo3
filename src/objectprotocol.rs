@@ -1,9 +1,10 @@
 use std;
+use std::{fmt, string};
 use std::cmp::Ordering;
 use ffi;
 use libc;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPointer};
-use objects::PyObject;
+use objects::{PyObject, PyTuple, PyDict};
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};
 
@@ -17,7 +18,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
     #[inline]
-    fn hasattr<N>(&self, attr_name: N) -> PyResult<'p, bool> where N: ToPyObject<'p> {
+    fn hasattr<N: ?Sized>(&self, attr_name: &N) -> PyResult<'p, bool> where N: ToPyObject<'p> {
         attr_name.with_borrowed_ptr(self.python(), |attr_name| unsafe {
             Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
         })
@@ -26,7 +27,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-    fn getattr<N>(&self, attr_name: N) -> PyResult<'p, PyObject<'p>> where N: ToPyObject<'p> {
+    fn getattr<N: ?Sized>(&self, attr_name: &N) -> PyResult<'p, PyObject<'p>> where N: ToPyObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             result_from_owned_ptr(py,
@@ -37,7 +38,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     #[inline]
-    fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<'p, ()>
+    fn setattr<N: ?Sized, V: ?Sized>(&self, attr_name: &N, value: &V) -> PyResult<'p, ()>
         where N: ToPyObject<'p>, V: ToPyObject<'p>
     {
         let py = self.python();
@@ -51,7 +52,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
     #[inline]
-    fn delattr<N>(&self, attr_name: N) -> PyResult<'p, ()> where N: ToPyObject<'p> {
+    fn delattr<N: ?Sized>(&self, attr_name: &N) -> PyResult<'p, ()> where N: ToPyObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             error_on_minusone(py,
@@ -62,7 +63,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Compares two python objects.
     /// This is equivalent to the python expression 'cmp(self, other)'.
     #[inline]
-    fn compare<O>(&self, other: O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
+    fn compare<O: ?Sized>(&self, other: &O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
         let py = self.python();
         other.with_borrowed_ptr(py, |other| unsafe {
             let mut result : libc::c_int = std::mem::uninitialized();
@@ -116,15 +117,16 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Calls the object.
     /// This is equivalent to the python expression: 'self(*args, **kw)'
     #[inline]
-    fn call(&self, args: &PyObject<'p>, kw: Option<&PyObject<'p>>) -> PyResult<'p, PyObject<'p>> {
+    fn call<A: ?Sized>(&self, args: &A, kw: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+      where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         unimplemented!()
     }
     
     /// Calls a method on the object.
     /// This is equivalent to the python expression: 'self.name(*args, **kw)'
     #[inline]
-    fn call_method(&self, name: &str, args: &PyObject<'p>, kw: Option<&PyObject<'p>>)
-      -> PyResult<'p, PyObject<'p>> {
+    fn call_method<A: ?Sized>(&self, name: &str, args: &A, kw: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+      where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         try!(self.getattr(name)).call(args, kw)
     }
     
@@ -227,4 +229,23 @@ impl <'p> PythonObject<'p> for PyIterator<'p> {
 }
 
 */
+
+impl <'p> fmt::String for PyObject<'p> {
+    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use objectprotocol::ObjectProtocol;
+        let repr_obj = try!(self.str().map_err(|_| fmt::Error));
+        let repr = try!(repr_obj.extract::<string::CowString>().map_err(|_| fmt::Error));
+        f.write_str(&*repr)
+    }
+}
+
+impl <'p> fmt::Show for PyObject<'p> {
+    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use objectprotocol::ObjectProtocol;
+        let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
+        let repr = try!(repr_obj.extract::<string::CowString>().map_err(|_| fmt::Error));
+        f.write_str(&*repr)
+    }
+}
+
 

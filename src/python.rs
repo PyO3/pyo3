@@ -2,8 +2,10 @@ use std;
 use std::marker::{NoSend, InvariantLifetime};
 use std::ptr;
 use ffi;
-use objects::{PyObject, PyType, PyBool};
+use objects::{PyObject, PyType, PyBool, PyModule};
+use err::PyResult;
 use pythonrun::GILGuard;
+use cstr::CStr;
 
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
 /// This is used to indicate that the operation accesses/modifies the python interpreter state,
@@ -155,6 +157,11 @@ impl<'p> Python<'p> {
     pub fn get_type<T>(self) -> PyType<'p> where T: PythonObjectWithTypeObject<'p> {
         let none : Option<&T> = None;
         PythonObjectWithTypeObject::type_object(self, none)
+    }
+
+    /// Import the python module with the specified name.
+    pub fn import(self, name : &CStr) -> PyResult<'p, PyModule<'p>> {
+        PyModule::import(self, name)
     }
 }
 

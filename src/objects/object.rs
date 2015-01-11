@@ -1,4 +1,3 @@
-use core::fmt;
 use core::nonzero::NonZero;
 use core::mem::{size_of, transmute};
 use libc;
@@ -200,24 +199,6 @@ impl <'p> PyObject<'p> {
     #[inline]
     pub fn extract<'s, T>(&'s self) -> Result<T, PyErr<'p>> where T: ::conversion::FromPyObject<'p, 's> {
         ::conversion::FromPyObject::from_py_object(self)
-    }
-}
-
-impl <'p> fmt::String for PyObject<'p> {
-    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(),  fmt::Error> {
-        use objectprotocol::ObjectProtocol;
-        let repr_obj = try!(self.str().map_err(|_| fmt::Error));
-        let repr = try!(repr_obj.extract::<&str>().map_err(|_| fmt::Error));
-        f.write_str(repr)
-    }
-}
-
-impl <'p> fmt::Show for PyObject<'p> {
-    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(),  fmt::Error> {
-        use objectprotocol::ObjectProtocol;
-        let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
-        let repr = try!(repr_obj.extract::<&str>().map_err(|_| fmt::Error));
-        f.write_str(repr)
     }
 }
 

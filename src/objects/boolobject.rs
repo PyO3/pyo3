@@ -1,4 +1,8 @@
+use ffi;
 use python::{Python, ToPythonPointer};
+use err::PyResult;
+use super::PyObject;
+use conversion::{FromPyObject, ToPyObject};
 
 pyobject_newtype!(PyBool, PyBool_Check, PyBool_Type);
 
@@ -11,6 +15,29 @@ impl <'p> PyBool<'p> {
     #[inline]
     pub fn is_true(&self) -> bool {
         self.as_ptr() == unsafe { ::ffi::Py_True() }
+    }
+}
+
+impl <'p> ToPyObject<'p> for bool {
+    type ObjectType = PyBool<'p>;
+
+    #[inline]
+    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyBool<'p>> {
+        Ok(PyBool::get(py, *self))
+    }
+
+    #[inline]
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> PyResult<'p, R>
+        where F: FnOnce(*mut ffi::PyObject) -> PyResult<'p, R>
+    {
+        // Avoid unnecessary Py_INCREF/Py_DECREF pair
+        f(unsafe { if *self { ffi::Py_True() } else { ffi::Py_False() } })
+    }
+}
+
+impl <'p, 'a> FromPyObject<'p, 'a> for bool {
+    fn from_py_object(s: &'a PyObject<'p>) -> PyResult<'p, bool> {
+        Ok(try!(s.clone().cast_into::<PyBool>()).is_true())
     }
 }
 

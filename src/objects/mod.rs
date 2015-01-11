@@ -1,10 +1,13 @@
 pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
-pub use self::string::{PyBytes, PyUnicode};
+pub use self::string::{PyString, PyUnicode};
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::tuple::PyTuple;
+pub use self::dict::PyDict;
+pub use self::list::PyList;
+pub use self::num::{PyInt, PyLong, PyFloat};
 
 macro_rules! pyobject_newtype(
     ($name: ident) => (
@@ -97,6 +100,8 @@ mod dict;
 mod iterator;
 mod boolobject;
 mod tuple;
+mod list;
+mod num;
 pub mod exc;
 pub mod oldstyle;
 
