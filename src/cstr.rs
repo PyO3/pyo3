@@ -84,7 +84,7 @@ impl CStr {
     }
 
     pub fn as_slice(&self) -> &[c_char] {
-        self.inner.slice_to(self.inner.len() - 1)
+        &self.inner[..self.inner.len() - 1]
     }
 
     /// Create a view into this C string which includes the trailing nul
@@ -112,7 +112,7 @@ impl ops::Deref for CStr {
     fn deref(&self) -> &[c_char] {
         // Does not underflow thanks to our invariant.
         // But rustc doesn't know that, so it may need some help to generate efficient code.
-        self.inner.slice_to(self.inner.len() - 1)
+        &self.inner[..self.inner.len() - 1]
     }
 }
 
@@ -132,7 +132,7 @@ impl ToOwned<CString> for CStr {
     }
 }
 
-impl fmt::Show for CStr {
+impl fmt::Debug for CStr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         String::from_utf8_lossy(self.as_bytes()).fmt(f)
     }

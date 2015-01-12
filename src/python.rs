@@ -1,5 +1,5 @@
 use std;
-use std::marker::{NoSend, InvariantLifetime};
+use std::marker::{InvariantLifetime};
 use std::ptr;
 use ffi;
 use objects::{PyObject, PyType, PyBool, PyModule};
@@ -15,9 +15,9 @@ use cstr::CStr;
 /// You can imagine the GIL to be a giant "Mutex<AllPythonState>". This makes 'p the lifetime of the
 /// python state protected by that mutex.
 #[derive(Copy)]
-pub struct Python<'p>(NoSend, InvariantLifetime<'p>);
+pub struct Python<'p>(InvariantLifetime<'p>);
 
-//impl <'p> !Send for Python<'p> {}
+impl <'p> !Send for Python<'p> {}
 
 // Trait for converting from Self to *mut ffi::PyObject
 pub trait ToPythonPointer {
@@ -108,7 +108,7 @@ impl<'p> Python<'p> {
     /// and stays acquired for the lifetime 'p
     #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'p> {
-        Python(NoSend, InvariantLifetime)
+        Python(InvariantLifetime)
     }
     
     /// Acquires the global interpreter lock, which allows access to the Python runtime.

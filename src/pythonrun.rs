@@ -40,11 +40,10 @@ pub fn prepare_freethreaded_python() {
 /// RAII type that represents an acquired GIL.
 #[must_use]
 pub struct GILGuard {
-    gstate: ffi::PyGILState_STATE,
-    nosend: ::std::marker::NoSend
+    gstate: ffi::PyGILState_STATE
 }
 
-//impl !Send for GILGuard {}
+impl !Send for GILGuard {}
 
 impl Drop for GILGuard {
     fn drop(&mut self) {
@@ -60,7 +59,7 @@ impl GILGuard {
     pub fn acquire() -> GILGuard {
         ::pythonrun::prepare_freethreaded_python();
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-        GILGuard { gstate: gstate, nosend: ::std::marker::NoSend }
+        GILGuard { gstate: gstate }
     }
     
     pub fn python<'p>(&'p self) -> Python<'p> {

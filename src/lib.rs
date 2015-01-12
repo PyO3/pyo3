@@ -1,10 +1,12 @@
-#![allow(unstable)]
+#![feature(core)]
+#![feature(libc)]
+#![feature(std_misc)]
 #![feature(unsafe_destructor)]
 #![feature(optin_builtin_traits)]
 #![allow(unused_imports, dead_code, unused_variables)]
 
+extern crate core; // NonZero is not exposed in std?
 extern crate libc;
-extern crate core;
 extern crate "python27-sys" as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};

@@ -1,5 +1,5 @@
 use core::nonzero::NonZero;
-use core::mem::{size_of, transmute};
+use std::mem::{size_of, transmute};
 use libc;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PythonObjectDowncastError, ToPythonPointer};

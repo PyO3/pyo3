@@ -230,7 +230,7 @@ impl <'p> PythonObject<'p> for PyIterator<'p> {
 
 */
 
-impl <'p> fmt::String for PyObject<'p> {
+impl <'p> fmt::Debug for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
         let repr_obj = try!(self.str().map_err(|_| fmt::Error));
@@ -239,7 +239,7 @@ impl <'p> fmt::String for PyObject<'p> {
     }
 }
 
-impl <'p> fmt::Show for PyObject<'p> {
+impl <'p> fmt::Display for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
         let repr_obj = try!(self.repr().map_err(|_| fmt::Error));

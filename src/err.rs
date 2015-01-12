@@ -8,7 +8,7 @@ use conversion::ToPyObject;
 use cstr::CStr;
 
 /// Represents a python exception that was raised.
-#[derive(Clone, Show)]
+#[derive(Clone, Debug)]
 pub struct PyErr<'p> {
     /// Gets the type of the exception. This should be either a PyClass or a PyType.
     pub ptype : PyObject<'p>,
