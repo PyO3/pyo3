@@ -5,6 +5,9 @@ version = "0.0.1"
 description = "Bindings to Python 2.7"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 
-[dependencies]
-python27-sys="0.0.2"
+#[dependencies]
+#python27-sys="0.0.2"
+
+[dependencies.python27-sys]
+path = "../python27-sys"
 

@@ -143,7 +143,7 @@ macro_rules! cstr(
     ($s: tt) => (
         // TODO: verify that $s is a string literal without nuls,
         // and remove the runtime check by using from_bytes_with_nul_unchecked.
-        $crate::cstr::CStr::from_bytes_with_nul(concat!($s, "\0").as_bytes())
+        $crate::CStr::from_bytes_with_nul(concat!($s, "\0").as_bytes())
     );
 );
 

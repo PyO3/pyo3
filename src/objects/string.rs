@@ -59,6 +59,14 @@ impl <'p> ToPyObject<'p> for str {
     }
 }
 
+impl <'p, 'a> ToPyObject<'p> for &'a str {
+    type ObjectType = PyObject<'p>;
+
+    fn to_py_object(&self, py : Python<'p>) -> PyResult<'p, PyObject<'p>> {
+        (**self).to_py_object(py)
+    }
+}
+
 fn u32_as_bytes(input: &[u32]) -> &[u8] {
     unsafe { std::mem::transmute(input) }
 }
