@@ -2,7 +2,6 @@ use std;
 use std::{char, str};
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
-use std::string::CowString;
 use libc::c_char;
 use ffi;
 use python::{Python, PythonObject, ToPythonPointer};
@@ -21,7 +20,7 @@ impl <'p> PyString<'p> {
         unsafe {
             let buffer = ffi::PyString_AS_STRING(self.as_ptr()) as *const u8;
             let length = ffi::PyString_GET_SIZE(self.as_ptr()) as usize;
-            std::slice::from_raw_buf(std::mem::copy_lifetime(self, &buffer), length)
+            std::slice::from_raw_parts(buffer, length)
         }
     }
 
@@ -35,7 +34,7 @@ impl <'p> PyUnicode<'p> {
         unsafe {
             let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr()) as *const _;
             let length = ffi::PyUnicode_GET_SIZE(self.as_ptr()) as usize;
-            std::slice::from_raw_buf(std::mem::copy_lifetime(self, &buffer), length)
+            std::slice::from_raw_parts(buffer, length)
         }
     }
 }
@@ -46,8 +45,8 @@ impl <'p> ToPyObject<'p> for str {
     type ObjectType = PyObject<'p>;
 
     fn to_py_object(&self, py : Python<'p>) -> PyResult<'p, PyObject<'p>> {
-        let ptr : *const c_char = self.as_ptr() as *const _;
-        let len : ffi::Py_ssize_t = std::num::from_uint(self.len()).unwrap();
+        let ptr = self.as_ptr() as *const c_char;
+        let len = self.len() as ffi::Py_ssize_t;
         unsafe {
             let obj = if self.is_ascii() {
                 ffi::PyString_FromStringAndSize(ptr, len)
@@ -71,8 +70,8 @@ fn u32_as_bytes(input: &[u32]) -> &[u8] {
     unsafe { std::mem::transmute(input) }
 }
 
-impl <'p, 's> FromPyObject<'p, 's> for CowString<'s> {
-    fn from_py_object(o: &'s PyObject<'p>) -> PyResult<'p, CowString<'s>> {
+impl <'p, 's> FromPyObject<'p, 's> for Cow<'s, str> {
+    fn from_py_object(o: &'s PyObject<'p>) -> PyResult<'p, Cow<'s, str>> {
         let py = o.python();
         if let Ok(s) = o.cast_as::<PyString>() {
             match s.as_str() {
@@ -101,19 +100,18 @@ impl <'p, 's> FromPyObject<'p, 's> for CowString<'s> {
 
 impl <'p, 's> FromPyObject<'p, 's> for String {
     fn from_py_object(o: &'s PyObject<'p>) -> PyResult<'p, String> {
-        Ok(try!(o.extract::<CowString>()).into_owned())
+        Ok(try!(o.extract::<Cow<str>>()).into_owned())
     }
 }
 
-pub fn string_as_slice<'a, 'p>(s: &'a PyObject<'p>) -> PyResult<'p, &'a [u8]> {
+fn string_as_slice<'a, 'p>(s: &'a PyObject<'p>) -> PyResult<'p, &'a [u8]> {
     unsafe {
         let mut buffer : *mut c_char = std::mem::uninitialized();
         let mut length : ffi::Py_ssize_t = std::mem::uninitialized();
         if ffi::PyString_AsStringAndSize(s.as_ptr(), &mut buffer, &mut length) == 1 {
             Err(PyErr::fetch(s.python()))
         } else {
-            let buffer = buffer as *const u8; // TODO see std::ffi
-            Ok(std::slice::from_raw_buf(std::mem::copy_lifetime(s, &buffer), length as usize))
+            Ok(std::slice::from_raw_parts(buffer as *const u8, length as usize))
         }
     }
 }
@@ -125,6 +123,6 @@ fn test_non_bmp() {
     let py = gil.python();
     let s = "\u{1F30F}";
     let py_string = s.to_py_object(py).unwrap();
-    assert_eq!(s, py_string.extract::<CowString>().unwrap());
+    assert_eq!(s, py_string.extract::<Cow<str>>().unwrap());
 }
 

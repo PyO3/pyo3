@@ -1,7 +1,7 @@
 #![feature(core)]
 #![feature(libc)]
-#![feature(std_misc)]
 #![feature(unsafe_destructor)]
+#![feature(unsafe_no_drop_flag)]
 #![feature(optin_builtin_traits)]
 #![allow(unused_imports, dead_code, unused_variables)]
 
@@ -14,10 +14,18 @@ pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
-pub use cstr::CStr;
+pub use std::ffi::CStr;
 
-#[macro_use]
-mod cstr;
+#[macro_export]
+macro_rules! cstr(
+    ($s: tt) => (
+        // TODO: verify that $s is a string literal without nuls
+        unsafe {
+            ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _)
+        }
+    );
+);
+
 mod python;
 mod err;
 mod conversion;

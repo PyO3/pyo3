@@ -5,7 +5,7 @@ use python::{Python, PythonObject, ToPythonPointer};
 use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyDict, exc};
 use err::{self, PyResult, PyErr};
-use cstr::CStr;
+use std::ffi::CStr;
 
 pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
 
@@ -34,7 +34,7 @@ impl <'p> PyModule<'p> {
             Err(PyErr::fetch(py))
         } else {
             let ptr = ptr as *const c_char;
-            let slice = std::ffi::c_str_to_bytes(&ptr);
+            let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(std::mem::copy_lifetime(self, s)),
                 Err(e) => Err(PyErr::new(try!(exc::UnicodeDecodeError::new_utf8(py, slice, e))))

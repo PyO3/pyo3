@@ -2,7 +2,7 @@ use libc::c_char;
 use std::ops::Range;
 use std::str::Utf8Error;
 use std::mem;
-use cstr::CStr;
+use std::ffi::CStr;
 use ffi;
 use python::{Python, ToPythonPointer, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
 use err::{self, PyResult};

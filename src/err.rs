@@ -5,7 +5,7 @@ use objects::oldstyle::PyClass;
 use ffi;
 use libc;
 use conversion::ToPyObject;
-use cstr::CStr;
+use std::ffi::CStr;
 
 /// Represents a python exception that was raised.
 #[derive(Clone, Debug)]
@@ -248,7 +248,7 @@ mod tests {
         let py = gil.python();
         PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None).restore();
         assert!(PyErr::occurred(py));
-        drop(PyErr::fetch(py))
+        drop(PyErr::fetch(py));
     }
 }
 

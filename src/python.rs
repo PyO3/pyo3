@@ -1,11 +1,15 @@
 use std;
-use std::marker::{InvariantLifetime};
+use std::marker::PhantomData;
 use std::ptr;
 use ffi;
 use objects::{PyObject, PyType, PyBool, PyModule};
 use err::PyResult;
 use pythonrun::GILGuard;
-use cstr::CStr;
+use std::ffi::CStr;
+
+// Dummy struct representing the global state in the python interpreter.
+struct PythonInterpreterState;
+impl !Sync for PythonInterpreterState {}
 
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
 /// This is used to indicate that the operation accesses/modifies the python interpreter state,
@@ -15,9 +19,7 @@ use cstr::CStr;
 /// You can imagine the GIL to be a giant "Mutex<AllPythonState>". This makes 'p the lifetime of the
 /// python state protected by that mutex.
 #[derive(Copy)]
-pub struct Python<'p>(InvariantLifetime<'p>);
-
-impl <'p> !Send for Python<'p> {}
+pub struct Python<'p>(PhantomData<&'p PythonInterpreterState>);
 
 // Trait for converting from Self to *mut ffi::PyObject
 pub trait ToPythonPointer {
@@ -108,7 +110,7 @@ impl<'p> Python<'p> {
     /// and stays acquired for the lifetime 'p
     #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'p> {
-        Python(InvariantLifetime)
+        Python(PhantomData)
     }
     
     /// Acquires the global interpreter lock, which allows access to the Python runtime.

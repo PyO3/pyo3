@@ -1,5 +1,6 @@
 use std;
 use std::{fmt, string};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use ffi;
 use libc;
@@ -234,7 +235,7 @@ impl <'p> fmt::Debug for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
         let repr_obj = try!(self.str().map_err(|_| fmt::Error));
-        let repr = try!(repr_obj.extract::<string::CowString>().map_err(|_| fmt::Error));
+        let repr = try!(repr_obj.extract::<Cow<str>>().map_err(|_| fmt::Error));
         f.write_str(&*repr)
     }
 }
@@ -243,7 +244,7 @@ impl <'p> fmt::Display for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
         let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
-        let repr = try!(repr_obj.extract::<string::CowString>().map_err(|_| fmt::Error));
+        let repr = try!(repr_obj.extract::<Cow<str>>().map_err(|_| fmt::Error));
         f.write_str(&*repr)
     }
 }
