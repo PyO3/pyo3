@@ -7,6 +7,7 @@ extern crate "python27-sys" as py27;
 
 use cpython::{PyModule, PyResult, Python};
 
+/*
 py_module_initializer!("testmodule", inittestmodule, |py, m| {
     println!("in initializer");
     //try!(m.add(cstr!("__doc__"), "Module documentation string"));
@@ -14,8 +15,8 @@ py_module_initializer!("testmodule", inittestmodule, |py, m| {
 	//try!(m.add(cstr!("__version__"), "0.0.1"));
 	Ok(())    
 });
+*/
 
-/*
 #[no_mangle]
 pub extern "C" fn inittestmodule() {
 	//abort_on_panic!({
@@ -28,10 +29,9 @@ pub extern "C" fn inittestmodule() {
 }
 
 fn init(py : Python) -> PyResult<()> {
-	//let m : &PyModule = try!(py.init_module("testmodule", None));
-	unsafe { py27::Py_InitModule(cstr!("testmodule").as_ptr(), std::ptr::null_mut()) };
+	let m : &PyModule = try!(py.init_module("testmodule", None));
+	//unsafe { py27::Py_InitModule(cstr!("testmodule").as_ptr(), std::ptr::null_mut()) };
 	println!("init_module done");
     Ok(())
 }
-*/
 

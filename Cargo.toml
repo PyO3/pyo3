@@ -6,8 +6,6 @@ description = "Bindings to Python 2.7"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 
 [dependencies]
-python27-sys="0.0.3"
-
-#[dependencies.python27-sys]
-#path = "../python27-sys"
+python27-sys="*"
+libc="*"
 

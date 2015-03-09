@@ -16,6 +16,7 @@ pub struct PyObject<'p> {
 
 #[unsafe_destructor]
 impl <'p> Drop for PyObject<'p> {
+    #[inline]
     fn drop(&mut self) {
         // TODO: change from Py_XDECREF to Py_DECREF when #[unsafe_no_drop_flag] disappears
         unsafe { ffi::Py_XDECREF(*self.ptr); }
@@ -42,12 +43,12 @@ impl <'p> PythonObject<'p> for PyObject<'p> {
     }
     
     #[inline]
-    fn unchecked_downcast_from(o: PyObject<'p>) -> PyObject<'p> {
+    unsafe fn unchecked_downcast_from(o: PyObject<'p>) -> PyObject<'p> {
         o
     }
     
     #[inline]
-    fn unchecked_downcast_borrow_from<'a>(o: &'a PyObject<'p>) -> &'a PyObject<'p> {
+    unsafe fn unchecked_downcast_borrow_from<'a>(o: &'a PyObject<'p>) -> &'a PyObject<'p> {
         o
     }
     

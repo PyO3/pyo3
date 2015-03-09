@@ -189,8 +189,8 @@ impl <'p> PyErr<'p> {
     }
 }
 
-impl <'p> std::error::FromError<PythonObjectDowncastError<'p>> for PyErr<'p> {
-    fn from_error(err: PythonObjectDowncastError<'p>) -> PyErr<'p> {
+impl <'p> std::convert::From<PythonObjectDowncastError<'p>> for PyErr<'p> {
+    fn from(err: PythonObjectDowncastError<'p>) -> PyErr<'p> {
         PyErr::new_lazy_init(err.0.get_type::<exc::TypeError>(), None)
     }
 }

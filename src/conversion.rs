@@ -101,7 +101,7 @@ impl <'p, 's, T> FromPyObject<'p, 's> for T where T: PythonObjectWithCheckedDown
 // We support FromPyObject and ToPyObject for borrowed python references.
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
-
+/*
 impl <'p, 's, T> ToPyObject<'p> for &'s T where T : ToPyObject<'p> {
     type ObjectType = <T as ToPyObject<'p>>::ObjectType;
 
@@ -121,4 +121,5 @@ impl <'p, 's, T> ToPyObject<'p> for &'s T where T : ToPyObject<'p> {
         (**self).with_borrowed_ptr(py, f)
     }
 }
+*/
 

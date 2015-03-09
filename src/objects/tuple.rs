@@ -59,9 +59,9 @@ impl<'p> std::ops::Index<usize> for PyTuple<'p> {
     type Output = PyObject<'p>;
 
     #[inline]
-    fn index<'a>(&'a self, index: &usize) -> &'a PyObject<'p> {
+    fn index<'a>(&'a self, index: usize) -> &'a PyObject<'p> {
         // use as_slice() to use the normal Rust bounds checking when indexing
-        &self.as_slice()[*index]
+        &self.as_slice()[index]
     }
 }
 
