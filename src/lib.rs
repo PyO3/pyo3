@@ -1,11 +1,11 @@
-#![feature(core)]
-#![feature(unsafe_destructor)]
-#![feature(unsafe_no_drop_flag)]
-#![feature(optin_builtin_traits)]
-#![feature(slice_patterns)]
+#![feature(core)] // used for a lot of low-level stuff
+#![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
+#![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag
+#![feature(optin_builtin_traits)] // for opting out of Sync/Send
+#![feature(slice_patterns)] // for tuple_conversion macros
+#![feature(utf8_error)] // for translating Utf8Error to python exception
 #![allow(unused_imports, dead_code, unused_variables)]
 
-extern crate core; // NonZero is not exposed in std?
 extern crate libc;
 extern crate python27_sys as ffi;
 pub use ffi::Py_ssize_t;

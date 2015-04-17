@@ -18,7 +18,7 @@ impl !Sync for PythonInterpreterState {}
 /// For example, python constants like None have the type "&'p PyObject<'p>".
 /// You can imagine the GIL to be a giant "Mutex<AllPythonState>". This makes 'p the lifetime of the
 /// python state protected by that mutex.
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p PythonInterpreterState>);
 
 // Trait for converting from Self to *mut ffi::PyObject

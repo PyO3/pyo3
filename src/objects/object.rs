@@ -1,5 +1,4 @@
-use core::nonzero::NonZero;
-use std::mem::{size_of, transmute};
+use std::mem::{size_of, transmute, POST_DROP_USIZE};
 use libc;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PythonObjectDowncastError, ToPythonPointer};
@@ -7,26 +6,28 @@ use objects::PyType;
 use err::{PyErr, PyResult};
 
 #[unsafe_no_drop_flag]
+#[repr(C)]
 pub struct PyObject<'p> {
     // PyObject<'p> owns one reference to the *PyObject
     // ptr is not null (except possibly due to #[unsafe_no_drop_flag])
-    ptr: NonZero<*mut ffi::PyObject>,
+    ptr: *mut ffi::PyObject,
     py : Python<'p>
 }
 
-#[unsafe_destructor]
 impl <'p> Drop for PyObject<'p> {
     #[inline]
     fn drop(&mut self) {
-        // TODO: change from Py_XDECREF to Py_DECREF when #[unsafe_no_drop_flag] disappears
-        unsafe { ffi::Py_XDECREF(*self.ptr); }
+        // TODO: remove if and change Py_XDECREF to Py_DECREF when #[unsafe_no_drop_flag] disappears
+        if self.ptr as usize != POST_DROP_USIZE {
+            unsafe { ffi::Py_XDECREF(self.ptr); }
+        }
     }
 }
 
 impl <'p> Clone for PyObject<'p> {
     #[inline]
     fn clone(&self) -> PyObject<'p> {
-        unsafe { ffi::Py_INCREF(*self.ptr) };
+        unsafe { ffi::Py_INCREF(self.ptr) };
         PyObject { ptr: self.ptr, py: self.py }
     }
 }
@@ -80,12 +81,12 @@ impl <'p> PythonObjectWithTypeObject<'p> for PyObject<'p> {
 impl <'p> ToPythonPointer for PyObject<'p> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        *self.ptr
+        self.ptr
     }
     
     #[inline]
     fn steal_ptr(self) -> *mut ffi::PyObject {
-        let ptr = *self.ptr;
+        let ptr = self.ptr;
         unsafe { ::std::mem::forget(self); }
         ptr
     }
@@ -99,7 +100,7 @@ impl <'p> PyObject<'p> {
     #[inline]
     pub unsafe fn from_owned_ptr(py : Python<'p>, ptr : *mut ffi::PyObject) -> PyObject<'p> {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
-        PyObject { py: py, ptr: NonZero::new(ptr) }
+        PyObject { py: py, ptr: ptr }
     }
     
     /// Creates a PyObject instance for the given FFI pointer.
@@ -109,7 +110,7 @@ impl <'p> PyObject<'p> {
     pub unsafe fn from_borrowed_ptr(py : Python<'p>, ptr : *mut ffi::PyObject) -> PyObject<'p> {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
-        PyObject { py: py, ptr: NonZero::new(ptr) }
+        PyObject { py: py, ptr: ptr }
     }
 
     /// Creates a PyObject instance for the given FFI pointer.
