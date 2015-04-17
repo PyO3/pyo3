@@ -207,6 +207,18 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
     }
 }
 
+/// Construct PyObject from the result of a python FFI call that returns a borrowed reference.
+/// Returns Err(PyErr) if the pointer is null.
+/// Unsafe because the pointer might be invalid.
+#[inline]
+pub unsafe fn result_from_borrowed_ptr(py : Python, p : *mut ffi::PyObject) -> PyResult<PyObject> {
+    if p.is_null() {
+        Err(PyErr::fetch(py))
+    } else {
+        Ok(PyObject::from_borrowed_ptr(py, p))
+    }
+}
+
 pub unsafe fn result_cast_from_owned_ptr<'p, T>(py : Python<'p>, p : *mut ffi::PyObject) -> PyResult<'p, T>
     where T: ::python::PythonObjectWithCheckedDowncast<'p>
 {

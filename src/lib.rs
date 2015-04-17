@@ -39,7 +39,7 @@ macro_rules! py_module_initializer {
         #[no_mangle]
         pub extern "C" fn $init_funcname() {
             let py = unsafe { $crate::Python::assume_gil_acquired() };
-            match $crate::PyModule::init(py, cstr!($name), $init) {
+            match $crate::PyModule::_init(py, cstr!($name), $init) {
                 Ok(()) => (),
                 Err(e) => e.restore()
             }

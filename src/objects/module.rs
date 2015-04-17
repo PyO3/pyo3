@@ -10,12 +10,30 @@ use std::ffi::CStr;
 pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
 
 impl <'p> PyModule<'p> {
+    /// Create a new module object with the __name__ attribute set to name.
+    /// Only the module’s __doc__ and __name__ attributes are filled in;
+    /// the caller is responsible for providing a __file__ attribute.
+    pub fn new(py: Python<'p>, name: &CStr) -> PyResult<'p, PyModule<'p>> {
+        unsafe {
+            err::result_cast_from_owned_ptr(py, ffi::PyModule_New(name.as_ptr()))
+        }
+    }
+
     /// Import the python module with the specified name.
     pub fn import(py: Python<'p>, name: &CStr) -> PyResult<'p, PyModule<'p>> {
-        let result = try!(unsafe {
-            err::result_from_owned_ptr(py, ffi::PyImport_ImportModule(name.as_ptr()))
+        unsafe {
+            err::result_cast_from_owned_ptr(py, ffi::PyImport_ImportModule(name.as_ptr()))
+        }
+    }
+
+    // Helper method for module_initializer!() macro, do not use directly!
+    pub fn _init<F, R>(py: Python<'p>, name: &CStr, init: F) -> PyResult<'p, R>
+      where F: FnOnce(Python<'p>, PyModule<'p>) -> PyResult<'p, R> {
+        let module = try!(unsafe {
+            err::result_from_borrowed_ptr(py, ffi::Py_InitModule(name.as_ptr(), std::ptr::null_mut()))
         });
-        Ok(try!(result.cast_into()))
+        let module = try!(module.cast_into::<PyModule>());
+        init(py, module)
     }
 
     /// Return the dictionary object that implements module‘s namespace;
@@ -48,15 +66,6 @@ impl <'p> PyModule<'p> {
 
     pub fn filename<'a>(&'a self) -> PyResult<'p, &'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
-    }
-
-    pub fn init<F, R>(py: Python<'p>, name: &CStr, init: F) -> PyResult<'p, R>
-      where F: FnOnce(Python<'p>, PyModule<'p>) -> PyResult<'p, R> {
-        let module = try!(unsafe {
-            err::result_from_owned_ptr(py, ffi::Py_InitModule(name.as_ptr(), std::ptr::null_mut()))
-        });
-        let module = try!(module.cast_into::<PyModule>());
-        init(py, module)
     }
 
     /// Adds a member to the module.
