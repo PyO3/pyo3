@@ -5,20 +5,22 @@ use objects::oldstyle::PyClass;
 use ffi;
 use libc;
 use conversion::ToPyObject;
-use std::ffi::CStr;
+use std::ffi::{CString, CStr};
 
 /// Represents a python exception that was raised.
 #[derive(Clone, Debug)]
 pub struct PyErr<'p> {
-    /// Gets the type of the exception. This should be either a PyClass or a PyType.
+    /// The type of the exception. This should be either a `PyClass` or a `PyType`.
     pub ptype : PyObject<'p>,
-    /// Gets the value of the exception.
-    /// This can be either an instance of ptype,
-    /// a tuple of arguments to be passed to ptype's constructor,
-    /// or a single argument to be passed to ptype's constructor.
-    /// Call PyErr::instance() to get the exception instance in all cases.
+    /// The value of the exception.
+    /// 
+    /// This can be either an instance of `ptype`,
+    /// a tuple of arguments to be passed to `ptype`'s constructor,
+    /// or a single argument to be passed to `ptype`'s constructor.
+    /// Call `PyErr::instance()` to get the exception instance in all cases.
     pub pvalue : Option<PyObject<'p>>,
-    pub ptraceback : Option<PyObject<'p>> // is actually a PyTraceBack
+    /// The `PyTraceBack` object associated with the error.
+    pub ptraceback : Option<PyObject<'p>>
 }
 
 
@@ -34,7 +36,7 @@ impl <'p> PyErr<'p> {
 
     /// Retrieves the current error from the python interpreter's global state.
     /// The error is cleared from the python interpreter.
-    /// If no error is set, returns a SystemError.
+    /// If no error is set, returns a `SystemError`.
     pub fn fetch(py : Python<'p>) -> PyErr<'p> {
         unsafe {
             let mut ptype      : *mut ffi::PyObject = std::mem::uninitialized();
@@ -60,9 +62,10 @@ impl <'p> PyErr<'p> {
     }
     
     /// Creates a new PyErr.
-    /// If obj is a python exception instance, the PyErr will use that instance.
-    /// If obj is a python exception type, the PyErr will (lazily) create a new instance of that type
-    /// Otherwise, a TypeError is returned instead.
+    ///
+    /// If `obj` is a python exception instance, the PyErr will use that instance.
+    /// If `obj` is a python exception type, the PyErr will (lazily) create a new instance of that type
+    /// Otherwise, a `TypeError` is returned instead.
     pub fn new<O>(obj: O) -> PyErr<'p> where O: PythonObject<'p> {
         PyErr::new_from_object(obj.into_object())
     }
@@ -147,7 +150,7 @@ impl <'p> PyErr<'p> {
     }
     
     /// Retrieves the exception type.
-    /// If the exception type is an old-style class, returns oldstyle::PyClass.
+    /// If the exception type is an old-style class, returns `oldstyle::PyClass`.
     pub fn get_type(&self) -> PyType<'p> {
         let py = self.ptype.python();
         match self.ptype.clone().cast_into::<PyType>() {
@@ -161,7 +164,7 @@ impl <'p> PyErr<'p> {
     }
 
     /// Retrieves the exception instance for this error.
-    /// This method takes &mut self because the error might need
+    /// This method takes `&mut self` because the error might need
     /// to be normalized in order to create the exception instance.
     pub fn instance(&mut self) -> PyObject<'p> {
         self.normalize();
@@ -171,7 +174,8 @@ impl <'p> PyErr<'p> {
         }
     }
 
-    /// Restores the error by writing it to the python interpreter's global state.
+    /// Writes the error back to the python interpreter's global state.
+    /// This is the opposite of `PyErr::fetch()`.
     #[inline]
     pub fn restore(self) {
         let PyErr { ptype, pvalue, ptraceback } = self;
@@ -182,13 +186,15 @@ impl <'p> PyErr<'p> {
     
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
-    pub fn warn(py: Python<'p>, category: &PyObject, message: &CStr, stacklevel: i32) -> PyResult<'p, ()> {
+    pub fn warn(py: Python<'p>, category: &PyObject, message: &str, stacklevel: i32) -> PyResult<'p, ()> {
+        let message = CString::new(message).unwrap();
         unsafe {
             error_on_minusone(py, ffi::PyErr_WarnEx(category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
         }
     }
 }
 
+/// Converts `PythonObjectDowncastError` to python `TypeError`.
 impl <'p> std::convert::From<PythonObjectDowncastError<'p>> for PyErr<'p> {
     fn from(err: PythonObjectDowncastError<'p>) -> PyErr<'p> {
         PyErr::new_lazy_init(err.0.get_type::<exc::TypeError>(), None)
@@ -196,7 +202,7 @@ impl <'p> std::convert::From<PythonObjectDowncastError<'p>> for PyErr<'p> {
 }
 
 /// Construct PyObject from the result of a python FFI call that returns a new reference (owned pointer).
-/// Returns Err(PyErr) if the pointer is null.
+/// Returns `Err(PyErr)` if the pointer is `null`.
 /// Unsafe because the pointer might be invalid.
 #[inline]
 pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyResult<PyObject> {
@@ -207,18 +213,22 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
     }
 }
 
+fn panic_after_error(py: Python) -> ! {
+    unsafe { ffi::PyErr_Print(); }
+    panic!("Python API called failed");
+}
+
 #[inline]
 pub unsafe fn from_owned_ptr_or_panic(py : Python, p : *mut ffi::PyObject) -> PyObject {
     if p.is_null() {
-        ffi::PyErr_Print();
-        panic!("Python API called failed");
+        panic_after_error(py);
     } else {
         PyObject::from_owned_ptr(py, p)
     }
 }
 
 /// Construct PyObject from the result of a python FFI call that returns a borrowed reference.
-/// Returns Err(PyErr) if the pointer is null.
+/// Returns `Err(PyErr)` if the pointer is `null`.
 /// Unsafe because the pointer might be invalid.
 #[inline]
 pub unsafe fn result_from_borrowed_ptr(py : Python, p : *mut ffi::PyObject) -> PyResult<PyObject> {
@@ -236,6 +246,16 @@ pub unsafe fn result_cast_from_owned_ptr<'p, T>(py : Python<'p>, p : *mut ffi::P
         Err(PyErr::fetch(py))
     } else {
         Ok(try!(PyObject::from_owned_ptr(py, p).cast_into()))
+    }
+}
+
+pub unsafe fn cast_from_owned_ptr_or_panic<'p, T>(py : Python<'p>, p : *mut ffi::PyObject) -> T
+    where T: ::python::PythonObjectWithCheckedDowncast<'p>
+{
+    if p.is_null() {
+        panic_after_error(py);
+    } else {
+        PyObject::from_owned_ptr(py, p).cast_into().unwrap()
     }
 }
 

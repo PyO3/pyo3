@@ -9,22 +9,25 @@ use pythonrun::GILGuard;
 struct PythonInterpreterState;
 impl !Sync for PythonInterpreterState {}
 
+/// Marker type that indicates that the GIL is currently held.
+///
 /// The 'Python' struct is a zero-size marker struct that is required for most python operations.
 /// This is used to indicate that the operation accesses/modifies the python interpreter state,
-/// and thus can only be called if the python interpreter is initialized and the GIL is acquired.
-/// The lifetime 'p represents the lifetime of the python interpreter.
-/// For example, python constants like None have the type "&'p PyObject<'p>".
-/// You can imagine the GIL to be a giant "Mutex<AllPythonState>". This makes 'p the lifetime of the
-/// python state protected by that mutex.
+/// and thus can only be called if the python interpreter is initialized and the
+/// python global interpreter lock (GIL) is acquired.
+/// The lifetime `'p` represents the lifetime of the python interpreter.
+///
+/// You can imagine the GIL to be a giant `Mutex<PythonInterpreterState>`.
+/// The type `Python<'p>` then acts like a reference `&'p PythonInterpreterState`.
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p PythonInterpreterState>);
 
-// Trait for converting from Self to *mut ffi::PyObject
+/// This trait allows retrieving the underlying FFI pointer from python objects.
 pub trait ToPythonPointer {
     /// Retrieves the underlying FFI pointer (as a borrowed pointer).
     fn as_ptr(&self) -> *mut ffi::PyObject;
     
-    /// Destructures the input object, moving out the ownership of the underlying FFI pointer.
+    /// Retrieves the underlying FFI pointer as a "stolen pointer".
     fn steal_ptr(self) -> *mut ffi::PyObject;
 }
 
@@ -51,7 +54,7 @@ pub trait PythonObject<'p> : 'p + Clone + ToPythonPointer {
     }
 }
 
-// Marker type that indicates an error while downcasting 
+// Marker type that indicates an error while downcasting
 pub struct PythonObjectDowncastError<'p>(pub Python<'p>);
 
 /// Trait implemented by python object types that allow a checked downcast.
@@ -159,6 +162,12 @@ impl<'p> Python<'p> {
     /// Import the python module with the specified name.
     pub fn import(self, name : &str) -> PyResult<'p, PyModule<'p>> {
         PyModule::import(self, name)
+    }
+}
+
+impl <'p> std::fmt::Debug for PythonObjectDowncastError<'p> {
+    fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        f.write_str("PythonObjectDowncastError")
     }
 }
 

@@ -1,3 +1,5 @@
+//! This module contains the python exception types.
+
 use libc::c_char;
 use std::ops::Range;
 use std::str::Utf8Error;

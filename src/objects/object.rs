@@ -14,6 +14,7 @@ pub struct PyObject<'p> {
     py : Python<'p>
 }
 
+/// Dropping a `PyObject` decrements the reference count on the object by 1.
 impl <'p> Drop for PyObject<'p> {
     #[inline]
     fn drop(&mut self) {
@@ -24,6 +25,7 @@ impl <'p> Drop for PyObject<'p> {
     }
 }
 
+/// Cloning a `PyObject` increments the reference count on the object by 1.
 impl <'p> Clone for PyObject<'p> {
     #[inline]
     fn clone(&self) -> PyObject<'p> {
@@ -135,7 +137,7 @@ impl <'p> PyObject<'p> {
         }
     }
     
-    /// Transmutes an owned FFI pointer to &PyObject.
+    /// Transmutes an owned FFI pointer to `&PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn borrow_from_owned_ptr<'a>(py : Python<'p>, ptr : &'a *mut ffi::PyObject) -> &'a PyObject<'p> {
@@ -143,19 +145,20 @@ impl <'p> PyObject<'p> {
         transmute(ptr)
     }
     
-    /// Transmutes a slice of owned FFI pointers to &[PyObject].
+    /// Transmutes a slice of owned FFI pointers to `&[PyObject]`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn borrow_from_owned_ptr_slice<'a>(py : Python<'p>, ptr : &'a [*mut ffi::PyObject]) -> &'a [PyObject<'p>] {
         transmute(ptr)
     }
     
-    /// Retrieves the reference count of this python object.
+    /// Gets the reference count of this python object.
     #[inline]
     pub fn get_refcnt(&self) -> usize {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) as usize }
     }
 
+    /// Gets the python type object for this object's type.
     #[inline]
     pub fn get_type(&self) -> &PyType<'p> {
         unsafe {
@@ -166,15 +169,15 @@ impl <'p> PyObject<'p> {
     
     /// Casts the PyObject to a concrete python object type.
     /// Causes undefined behavior if the object is not of the expected type.
-    /// This is a wrapper function around PythonObject::unchecked_downcast_from().
+    /// This is a wrapper function around `PythonObject::unchecked_downcast_from()`.
     #[inline]
     pub unsafe fn unchecked_cast_into<T>(self) -> T where T: PythonObject<'p> {
         PythonObject::unchecked_downcast_from(self)
     }
     
     /// Casts the PyObject to a concrete python object type.
-    /// Returns a python TypeError if the object is not of the expected type.
-    /// This is a wrapper function around PythonObjectWithCheckedDowncast::downcast_from().
+    /// Returns a python `TypeError` if the object is not of the expected type.
+    /// This is a wrapper function around `PythonObjectWithCheckedDowncast::downcast_from()`.
     #[inline]
     pub fn cast_into<T>(self) -> Result<T, PythonObjectDowncastError<'p>> where T: PythonObjectWithCheckedDowncast<'p> {
         PythonObjectWithCheckedDowncast::downcast_from(self)
@@ -182,34 +185,39 @@ impl <'p> PyObject<'p> {
     
     /// Casts the PyObject to a concrete python object type.
     /// Causes undefined behavior if the object is not of the expected type.
-    /// This is a wrapper function around PythonObject::unchecked_downcast_borrow_from().
+    /// This is a wrapper function around `PythonObject::unchecked_downcast_borrow_from()`.
     #[inline]
     pub unsafe fn unchecked_cast_as<'s, T>(&'s self) -> &'s T where T: PythonObject<'p> {
         PythonObject::unchecked_downcast_borrow_from(self)
     }
     
     /// Casts the PyObject to a concrete python object type.
-    /// Returns a python TypeError if the object is not of the expected type.
-    /// This is a wrapper function around PythonObjectWithCheckedDowncast::downcast_borrow_from().
+    /// Returns a python `TypeError` if the object is not of the expected type.
+    /// This is a wrapper function around `PythonObjectWithCheckedDowncast::downcast_borrow_from()`.
     #[inline]
     pub fn cast_as<'s, T>(&'s self) -> Result<&'s T, PythonObjectDowncastError<'p>> where T: PythonObjectWithCheckedDowncast<'p> {
         PythonObjectWithCheckedDowncast::downcast_borrow_from(self)
     }
     
     /// Extracts some type from the python object.
-    /// This is a wrapper function around FromPyObject::from_py_object().
+    /// This is a wrapper function around `FromPyObject::from_py_object()`.
     #[inline]
     pub fn extract<'s, T>(&'s self) -> Result<T, PyErr<'p>> where T: ::conversion::FromPyObject<'p, 's> {
         ::conversion::FromPyObject::from_py_object(self)
     }
 }
 
+/// PyObject implements the `==` operator using reference equality:
+/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in python.
 impl <'p> PartialEq for PyObject<'p> {
     #[inline]
     fn eq(&self, o : &PyObject<'p>) -> bool {
         self.ptr == o.ptr
     }
 }
+
+/// PyObject implements the `==` operator using reference equality:
+/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in python.
 impl <'p> Eq for PyObject<'p> { }
 
 

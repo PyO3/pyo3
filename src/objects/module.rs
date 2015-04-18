@@ -27,6 +27,7 @@ impl <'p> PyModule<'p> {
     }
 
     // Helper method for module_initializer!() macro, do not use directly!
+    #[doc(hidden)]
     pub fn _init<F, R>(py: Python<'p>, name: &CStr, init: F) -> PyResult<'p, R>
       where F: FnOnce(Python<'p>, PyModule<'p>) -> PyResult<'p, R> {
         let module = try!(unsafe {
@@ -60,21 +61,28 @@ impl <'p> PyModule<'p> {
         }
     }
 
+    /// Gets the module name.
+    ///
+    /// May fail if the module does not have a __name__ attribute.
     pub fn name<'a>(&'a self) -> PyResult<'p, &'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
     }
-
+    
+    /// Gets the module filename.
+    ///
+    /// May fail if the module does not have a __file__ attribute.
     pub fn filename<'a>(&'a self) -> PyResult<'p, &'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
     }
 
-    /// Convenience function for retrieving a member from the module.
+    /// Gets a member from the module.
     pub fn get(&self, name: &str) -> PyResult<'p, PyObject<'p>> {
         use objectprotocol::ObjectProtocol;
         self.as_object().getattr(name)
     }
 
     /// Adds a member to the module.
+    ///
     /// This is a convenience function which can be used from the module's initialization function.
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<'p, ()> where V: ToPyObject<'p> {
         let py = self.python();

@@ -9,6 +9,7 @@ use conversion::{ToPyObject, FromPyObject};
 pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 
 impl <'p> PyList<'p> {
+    /// Construct a new list with the given elements.
     pub fn new(py: Python<'p>, elements: &[PyObject<'p>]) -> PyList<'p> {
         unsafe {
             let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
@@ -20,6 +21,7 @@ impl <'p> PyList<'p> {
         }
     }
 
+    /// Gets the length of the list.
     #[inline]
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust uint
@@ -28,6 +30,9 @@ impl <'p> PyList<'p> {
         }
     }
 
+    /// Gets the item at the specified index.
+    ///
+    /// Panics if the index is out of range.
     pub fn get_item(&self, index: usize) -> PyObject<'p> {
         assert!(index < self.len());
         unsafe {
@@ -35,21 +40,21 @@ impl <'p> PyList<'p> {
         }
     }
 
+    /// Sets the item at the specified index.
+    ///
+    /// Panics if the index is out of range.
     pub fn set_item(&self, index: usize, item: PyObject<'p>) {
         let r = unsafe { ffi::PyList_SetItem(self.as_ptr(), index as Py_ssize_t, item.steal_ptr()) };
         assert!(r == 0);
     }
     
+    /// Inserts an item at the specified index.
+    ///
+    /// Panics if the index is out of range.
     pub fn insert_item(&self, index: usize, item: PyObject<'p>) {
         let r = unsafe { ffi::PyList_Insert(self.as_ptr(), index as Py_ssize_t, item.as_ptr()) };
         assert!(r == 0);
     }
-
-/*
-    #[inline]
-    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, PyObject<'p>> {
-        self.as_slice().iter()
-    }*/
 }
 
 impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {

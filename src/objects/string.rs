@@ -16,6 +16,21 @@ pyobject_newtype!(PyString, PyString_Check, PyString_Type);
 pyobject_newtype!(PyUnicode, PyUnicode_Check, PyUnicode_Type);
 
 impl <'p> PyString<'p> {
+    /// Creates a new python string object from the Rust string.
+    ///
+    /// Note: on Python 2, this function always creates a `str` object,
+    /// never a `unicode` object.
+    /// Use `str::to_py_object()` instead to create `unicode` objects for non-ascii strings.
+    pub fn new(py: Python<'p>, s: &str) -> PyString<'p> {
+        let ptr = s.as_ptr() as *const c_char;
+        let len = s.len() as ffi::Py_ssize_t;
+        unsafe {
+            err::cast_from_owned_ptr_or_panic(py,
+                ffi::PyString_FromStringAndSize(ptr, len))
+        }
+    }
+
+    /// Gets the python string data as byte slice.
     pub fn as_slice(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyString_AS_STRING(self.as_ptr()) as *const u8;
@@ -24,12 +39,23 @@ impl <'p> PyString<'p> {
         }
     }
 
+    /// Gets the python string data as `&str`.
     pub fn as_str(&self) -> Result<&str, str::Utf8Error> {
         str::from_utf8(self.as_slice())
     }
 }
 
 impl <'p> PyUnicode<'p> {
+    /// Creates a new unicode string object from the Rust string.
+    pub fn new(py: Python<'p>, s: &str) -> PyUnicode<'p> {
+        let ptr = s.as_ptr() as *const c_char;
+        let len = s.len() as ffi::Py_ssize_t;
+        unsafe {
+            err::cast_from_owned_ptr_or_panic(py,
+                ffi::PyUnicode_FromStringAndSize(ptr, len))
+        }
+    }
+
     pub fn as_slice(&self) -> &[ffi::Py_UNICODE] {
         unsafe {
             let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr()) as *const _;
@@ -41,6 +67,10 @@ impl <'p> PyUnicode<'p> {
 
 // When converting strings to/from python, we need to copy the string data.
 // This means we can implement ToPyObject for str, but FromPyObject only for (Cow)String.
+
+/// Converts rust `str` to python object:
+/// ASCII-only strings are converted to python `str` objects;
+/// other strings are converted to python `unicode` objects.
 impl <'p> ToPyObject<'p> for str {
     type ObjectType = PyObject<'p>;
 
@@ -58,6 +88,9 @@ impl <'p> ToPyObject<'p> for str {
     }
 }
 
+/// Converts rust `&str` to python object:
+/// ASCII-only strings are converted to python `str` objects;
+/// other strings are converted to python `unicode` objects.
 impl <'p, 'a> ToPyObject<'p> for &'a str {
     type ObjectType = PyObject<'p>;
 

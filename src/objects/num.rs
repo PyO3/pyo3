@@ -12,12 +12,14 @@ pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
 pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 impl <'p> PyInt<'p> {
+    /// Creates a new python `int` object.
     pub fn new(py: Python<'p>, val: c_long) -> PyInt<'p> {
         unsafe {
-            err::result_from_owned_ptr(py, ffi::PyInt_FromLong(val)).unwrap().unchecked_cast_into::<PyInt>()
+            err::cast_from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(val))
         }
     }
 
+    /// Gets the value of this integer.
     pub fn value(&self) -> c_long {
         unsafe { ffi::PyInt_AS_LONG(self.as_ptr()) }
     }
@@ -25,12 +27,14 @@ impl <'p> PyInt<'p> {
 
 
 impl <'p> PyFloat<'p> {
+    /// Creates a new python `float` object.
     pub fn new(py: Python<'p>, val: c_double) -> PyFloat<'p> {
         unsafe {
-            err::result_from_owned_ptr(py, ffi::PyFloat_FromDouble(val)).unwrap().unchecked_cast_into::<PyFloat>()
+            err::cast_from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val))
         }
     }
 
+    /// Gets the value of this float.
     pub fn value(&self) -> c_double {
         unsafe { ffi::PyFloat_AS_DOUBLE(self.as_ptr()) }
     }

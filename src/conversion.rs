@@ -4,35 +4,28 @@ use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPoin
 use objects::{exc, PyObject, PyBool, PyTuple};
 use err::{self, PyErr, PyResult};
 
-/// ToPyObject is implemented for types that can be converted into a python object.
-/// The goal is to allow methods that take a python object to take anything that
-/// can be converted into a python object.
-/// For example, compare calling the following method signatures:
-///   fn m1(o: &PyObject) {}
-///   fn m2<O>(o: &O) where O : ToPyObject {}
-///
-///   let o: &PyObject = ...;
-///   m1(o);
-///   m2(o);
-///
-///   let p: PyPtr<PyObject> = ...;
-///   m1(*p)
-///   m2(p)
-///
-///   let i: i32 = ...;
-///   m1(*try!(i.to_py_object(py)))
-///   m2(i)
+/// Conversion trait that allows various objects to be converted into python objects.
 pub trait ToPyObject<'p> {
     type ObjectType : PythonObject<'p> = PyObject<'p>;
 
+    /// Converts self into a python object.
     fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, Self::ObjectType>;
 
+    /// Converts self into a python object.
+    ///
+    /// May be more efficient than `to_py_object` in some cases because
+    /// it can move out of the input object.
     #[inline]
     fn into_py_object(self, py: Python<'p>) -> PyResult<'p, Self::ObjectType>
       where Self: Sized {
         self.to_py_object(py)
     }
 
+    /// Converts self into a python object and calls the specified closure
+    /// on the native FFI pointer underlying the python object.
+    ///
+    /// May be more efficient than `to_py_object` because it does not need
+    /// to touch any reference counts when the input object already is a python object.
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> PyResult<'p, R>
       where F: FnOnce(*mut ffi::PyObject) -> PyResult<'p, R> {
@@ -47,7 +40,7 @@ pub trait ToPyObject<'p> {
     // 2) input is PyObject
     //   -> with_borrowed_ptr() just forwards to the closure
     // 3) input is &str, int, ...
-    //   -> to_py_object() allocates new python object; FFI call happens; PyPtr::drop() calls Py_DECREF()
+    //   -> to_py_object() allocates new python object; FFI call happens; PyObject::drop() calls Py_DECREF()
     
     // FFI functions that steal a reference will use:
     //   let input = try!(input.into_py_object()); ffi::Call(input.steal_ptr())

@@ -8,17 +8,47 @@
 
 //! Rust bindings to the python interpreter.
 //!
+//! # Ownership and Lifetimes
+//! In python, all objects are implicitly reference counted.
+//! In rust, we will use the `PyObject` type to represent a reference to a python object.
+//!
+//! Because all python objects potentially have multiple owners, the concept
+//! concept of rust mutability does not apply to python objects.
+//! As a result, this API will allow mutating python objects even if they are not stored
+//! in a mutable rust variable.
+//!
+//! The python interpreter uses a global interpreter lock (GIL)
+//! to ensure thread-safety.
+//! This API uses the lifetime parameter `PyObject<'p>` to ensure that python objects cannot
+//! be accessed without holding the GIL.
+//! Throughout this library, the lifetime `'p` always refers to the lifetime of the python interpreter.
+//!
+//! When accessing existing objects, the lifetime on `PyObject<'p>` is sufficient to ensure that the GIL
+//! is held by the current code. But we also need to ensure that the GIL is held when creating new objects.
+//! For this purpose, this library uses the marker type `Python<'p>`,
+//! which acts like a reference to the whole python interpreter.
+//!
+//! You can obtain a `Python<'p>` instance by acquiring the GIL, or by calling `python()`
+//! on any existing python object.
+//!
+//! # Error Handling
+//! The vast majority of operations in this library will return `PyResult<'p, ...>`.
+//! This is an alias for the type `Result<..., PyErr<'p>>`.
+//!
+//! A `PyErr` represents a python exception. Errors within the rust-cpython library are
+//! also exposed as python exceptions.
+//!
 //! # Example
 //! ```
-//! #[macro_use] extern crate cpython;
+//! extern crate cpython;
 //!
-//! use cpython::{PythonObject, ObjectProtocol, PyModule, Python};
+//! use cpython::{PythonObject, Python};
 //! 
 //! fn main() {
-//!     let gil = Python::acquire_gil();
-//!     let py = gil.python();
+//!     let gil_guard = Python::acquire_gil();
+//!     let py = gil_guard.python();
 //!     let sys = py.import("sys").unwrap();
-//!     let version: String = sys.get("version").unwrap().extract().unwrap();
+//!     let version = sys.get("version").unwrap().extract::<String>().unwrap();
 //!     println!("Hello Python {}", version);
 //! }
 //! ```
@@ -51,6 +81,7 @@ mod objectprotocol;
 mod pythonrun;
 
 /// Private re-exports for macros. Do not use.
+#[doc(hidden)]
 pub mod _detail {
     pub use ffi;
     pub use libc;
@@ -117,6 +148,18 @@ macro_rules! py_module_initializer {
     }
 }
 
+/// Creates a python callable object that invokes a Rust function.
+///
+/// Arguments:
+///
+/// 1. The `Python<'p>` marker, to ensure this macro is only used while holding the GIL.
+/// 2. A Rust function with the signature `<'p>(Python<'p>, &PyTuple<'p>) -> PyResult<'p, T>`
+///    for some `T` that implements `ToPyObject`.
+/// 
+/// See `py_module_initializer!` for example usage.
+///
+/// # Panic
+/// May panic when python runs out of memory.
 #[macro_export]
 macro_rules! py_func {
     ($py: expr, $f: expr) => ({
@@ -132,7 +175,10 @@ macro_rules! py_func {
             };
             match result {
                 Ok(val) => $crate::ToPythonPointer::steal_ptr(val),
-                Err(e) => { e.restore(); ::std::ptr::null_mut() }
+                Err(e) => {
+                    e.restore();
+                    ::std::ptr::null_mut()
+                }
             }
         }
         static mut method_def: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
