@@ -70,16 +70,16 @@ pub trait FromPyObject<'p, 's> {
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
 
-impl <'p, T> ToPyObject<'p> for T where T: PythonObject<'p> {
-    type ObjectType = T;
+impl <'p> ToPyObject<'p> for PyObject<'p> {
+    type ObjectType = PyObject<'p>;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, T> {
+    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
         Ok(self.clone())
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyResult<'p, T> {
+    fn into_py_object(self, py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
         Ok(self)
     }
 
@@ -101,7 +101,6 @@ impl <'p, 's, T> FromPyObject<'p, 's> for T where T: PythonObjectWithCheckedDown
 // We support FromPyObject and ToPyObject for borrowed python references.
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
-/*
 impl <'p, 's, T> ToPyObject<'p> for &'s T where T : ToPyObject<'p> {
     type ObjectType = <T as ToPyObject<'p>>::ObjectType;
 
@@ -121,5 +120,5 @@ impl <'p, 's, T> ToPyObject<'p> for &'s T where T : ToPyObject<'p> {
         (**self).with_borrowed_ptr(py, f)
     }
 }
-*/
+
 

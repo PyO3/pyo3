@@ -6,17 +6,34 @@
 #![feature(utf8_error)] // for translating Utf8Error to python exception
 #![allow(unused_imports, dead_code, unused_variables)]
 
+//! Rust bindings to the python interpreter.
+//!
+//! # Example
+//! ```
+//! #[macro_use] extern crate cpython;
+//!
+//! use cpython::{PythonObject, ObjectProtocol, PyModule, Python};
+//! 
+//! fn main() {
+//!     let gil = Python::acquire_gil();
+//!     let py = gil.python();
+//!     let sys = py.import("sys").unwrap();
+//!     let version: String = sys.get("version").unwrap().extract().unwrap();
+//!     println!("Hello Python {}", version);
+//! }
+//! ```
+
 extern crate libc;
 extern crate python27_sys as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
-pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
+pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, ToPythonPointer};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 
-#[macro_export]
+/// Constructs a `&'static CStr` literal.
 macro_rules! cstr(
     ($s: tt) => (
         // TODO: verify that $s is a string literal without nuls
@@ -33,21 +50,66 @@ mod objects;
 mod objectprotocol;
 mod pythonrun;
 
-/// Private re-exports for use in macros.
+/// Private re-exports for macros. Do not use.
 pub mod _detail {
     pub use ffi;
     pub use libc;
-    pub use python::ToPythonPointer;
     pub use err::from_owned_ptr_or_panic;
 }
 
+/// Expands to an `extern "C"` function that allows python to load
+/// the rust code as a python extension module.
+///
+/// The macro takes three arguments:
+///
+/// 1. The module name as a string literal.
+/// 2. The name of the init function as an identifier.
+///    The function must be named `init$module_name` so that python 2.7 can load the module.
+///    Note: this parameter will be removed in a future version
+///    (once Rust supports `concat_ident!` as function name).
+/// 3. A function or lambda of type `Fn(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()>`.
+///    This function will be called when the module is imported, and is responsible
+///    for adding the module's members.
+///
+/// # Example
+/// ```
+/// #![crate_type = "dylib"]
+/// #[macro_use] extern crate cpython;
+/// use cpython::{Python, PyResult, PyObject, PyTuple};
+///
+/// py_module_initializer!("example", initexample, |py, m| {
+///     try!(m.add("__doc__", "Module documentation string"));
+///     try!(m.add("run", py_func!(py, run)));
+///     Ok(())
+/// });
+/// 
+/// fn run<'p>(py: Python<'p>, args: &PyTuple<'p>) -> PyResult<'p, PyObject<'p>> {
+///     println!("Rust says: Hello Python!");
+///     Ok(py.None())
+/// }
+/// # fn main() {}
+/// ```
+/// The code must be compiled into a file `example.so`.
+///
+/// ```bash
+/// rustc example.rs -o example.so
+/// ```
+/// It can then be imported into python:
+///
+/// ```python
+/// >>> import example
+/// >>> example.run()
+/// Rust says: Hello Python!
+/// ```
+/// 
 #[macro_export]
 macro_rules! py_module_initializer {
     ($name: tt, $init_funcname: ident, $init: expr) => {
         #[no_mangle]
         pub extern "C" fn $init_funcname() {
             let py = unsafe { $crate::Python::assume_gil_acquired() };
-            match $crate::PyModule::_init(py, cstr!($name), $init) {
+            let name = unsafe { ::std::ffi::CStr::from_ptr(concat!($name, "\0").as_ptr() as *const _) };
+            match $crate::PyModule::_init(py, name, $init) {
                 Ok(()) => (),
                 Err(e) => e.restore()
             }
@@ -63,13 +125,13 @@ macro_rules! py_func {
           -> *mut $crate::_detail::ffi::PyObject {
             let py = $crate::Python::assume_gil_acquired();
             let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args: &PyTuple = $crate::PythonObject::unchecked_downcast_borrow_from(&args);
+            let args: &$crate::PyTuple = $crate::PythonObject::unchecked_downcast_borrow_from(&args);
             let result = match $f(py, args) {
                 Ok(val) => $crate::ToPyObject::into_py_object(val, py),
                 Err(e) => Err(e)
             };
             match result {
-                Ok(val) => $crate::_detail::ToPythonPointer::steal_ptr(val),
+                Ok(val) => $crate::ToPythonPointer::steal_ptr(val),
                 Err(e) => { e.restore(); ::std::ptr::null_mut() }
             }
         }
@@ -86,16 +148,5 @@ macro_rules! py_func {
             $crate::_detail::from_owned_ptr_or_panic(py, obj)
         }
     })
-}
-
-
-
-#[test]
-fn it_works() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let sys = PyModule::import(py, cstr!("sys")).unwrap();
-    let path = sys.as_object().getattr("path").unwrap();
-    println!("{0}", path);
 }
 

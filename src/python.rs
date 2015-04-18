@@ -132,35 +132,34 @@ impl<'p> Python<'p> {
         result
     }
     
-    /// Retrieves a reference to the special 'None' value.
+    /// Gets the python builtin value `None`.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
     pub fn None(self) -> PyObject<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
     
-    /// Retrieves a reference to the 'True' constant value.
+    /// Gets the python builtin value `True`.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
     pub fn True(self) -> PyBool<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_True()).unchecked_cast_into::<PyBool>() }
     }
     
-    /// Retrieves a reference to the 'False' constant value.
+    /// Gets the python builtin value `False`.
     #[allow(non_snake_case)] // the python keyword starts with uppercase
     #[inline]
     pub fn False(self) -> PyBool<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_False()).unchecked_cast_into::<PyBool>() }
     }
-    
-    /// Retrieves a reference to the type object for type T.
-    #[inline]
+
+    /// Gets the python type object for type T.
     pub fn get_type<T>(self) -> PyType<'p> where T: PythonObjectWithTypeObject<'p> {
         T::type_object(self)
     }
 
     /// Import the python module with the specified name.
-    pub fn import(self, name : &CStr) -> PyResult<'p, PyModule<'p>> {
+    pub fn import(self, name : &str) -> PyResult<'p, PyModule<'p>> {
         PyModule::import(self, name)
     }
 }

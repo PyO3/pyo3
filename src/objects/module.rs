@@ -5,22 +5,22 @@ use python::{Python, PythonObject, ToPythonPointer};
 use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyDict, exc};
 use err::{self, PyResult, PyErr};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
 pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
 
 impl <'p> PyModule<'p> {
     /// Create a new module object with the __name__ attribute set to name.
-    /// Only the module’s __doc__ and __name__ attributes are filled in;
-    /// the caller is responsible for providing a __file__ attribute.
-    pub fn new(py: Python<'p>, name: &CStr) -> PyResult<'p, PyModule<'p>> {
+    pub fn new(py: Python<'p>, name: &str) -> PyResult<'p, PyModule<'p>> {
+        let name = CString::new(name).unwrap();
         unsafe {
             err::result_cast_from_owned_ptr(py, ffi::PyModule_New(name.as_ptr()))
         }
     }
 
     /// Import the python module with the specified name.
-    pub fn import(py: Python<'p>, name: &CStr) -> PyResult<'p, PyModule<'p>> {
+    pub fn import(py: Python<'p>, name: &str) -> PyResult<'p, PyModule<'p>> {
+        let name = CString::new(name).unwrap();
         unsafe {
             err::result_cast_from_owned_ptr(py, ffi::PyImport_ImportModule(name.as_ptr()))
         }
@@ -68,10 +68,17 @@ impl <'p> PyModule<'p> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
     }
 
+    /// Convenience function for retrieving a member from the module.
+    pub fn get(&self, name: &str) -> PyResult<'p, PyObject<'p>> {
+        use objectprotocol::ObjectProtocol;
+        self.as_object().getattr(name)
+    }
+
     /// Adds a member to the module.
     /// This is a convenience function which can be used from the module's initialization function.
-    pub fn add<V>(&self, name: &CStr, value: V) -> PyResult<'p, ()> where V: ToPyObject<'p> {
+    pub fn add<V>(&self, name: &str, value: V) -> PyResult<'p, ()> where V: ToPyObject<'p> {
         let py = self.python();
+        let name = CString::new(name).unwrap();
         let value = try!(value.into_py_object(py));
         let r = unsafe { ffi::PyModule_AddObject(self.as_ptr(), name.as_ptr(), value.steal_ptr()) };
         err::error_on_minusone(py, r)

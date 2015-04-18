@@ -6,6 +6,12 @@ use python::Python;
 static START: Once = ONCE_INIT;
 
 /// Prepares the use of python in a free-threaded context.
+///
+/// If the python interpreter is not already initialized, this function
+/// will initialize it with disabled signal handling
+/// (python will not raise the `KeyboardInterrupt` exception).
+/// Python signal handling depends on the notion of a 'main thread', which must be
+/// the thread that initializes the python interpreter.
 pub fn prepare_freethreaded_python() {
     // Protect against race conditions when python is not yet initialized
     // and multiple threads concurrently call 'prepare_freethreaded_python()'.
@@ -43,8 +49,11 @@ pub struct GILGuard {
     gstate: ffi::PyGILState_STATE
 }
 
+/// GILGuard is not Send because the GIL must be released
+/// by the same thread that acquired it.
 impl !Send for GILGuard {}
 
+/// The Drop implementation for GILGuard will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe { ffi::PyGILState_Release(self.gstate) }
@@ -61,7 +70,8 @@ impl GILGuard {
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
         GILGuard { gstate: gstate }
     }
-    
+
+    /// Retrieves the marker type that proves that the GIL was acquired.
     pub fn python<'p>(&'p self) -> Python<'p> {
         unsafe { Python::assume_gil_acquired() }
     }
