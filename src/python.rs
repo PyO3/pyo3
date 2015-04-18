@@ -1,11 +1,9 @@
 use std;
 use std::marker::PhantomData;
-use std::ptr;
 use ffi;
 use objects::{PyObject, PyType, PyBool, PyModule};
 use err::PyResult;
 use pythonrun::GILGuard;
-use std::ffi::CStr;
 
 // Dummy struct representing the global state in the python interpreter.
 struct PythonInterpreterState;

@@ -1,5 +1,4 @@
 use std::sync::{Once, ONCE_INIT};
-use std::thread::Thread;
 use ffi;
 use python::Python;
 

@@ -239,16 +239,6 @@ pub unsafe fn result_cast_from_owned_ptr<'p, T>(py : Python<'p>, p : *mut ffi::P
     }
 }
 
-/// Returns Ok if the error code is 0.
-#[inline]
-pub fn error_on_nonzero(py : Python, result : libc::c_int) -> PyResult<()> {
-    if result == 0 {
-        Ok(())
-    } else {
-        Err(PyErr::fetch(py))
-    }
-}
-
 /// Returns Ok if the error code is not -1.
 #[inline]
 pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {

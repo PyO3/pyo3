@@ -1,4 +1,3 @@
-use libc::c_char;
 use std;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPointer};

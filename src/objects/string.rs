@@ -104,19 +104,6 @@ impl <'p, 's> FromPyObject<'p, 's> for String {
     }
 }
 
-fn string_as_slice<'a, 'p>(s: &'a PyObject<'p>) -> PyResult<'p, &'a [u8]> {
-    unsafe {
-        let mut buffer : *mut c_char = std::mem::uninitialized();
-        let mut length : ffi::Py_ssize_t = std::mem::uninitialized();
-        if ffi::PyString_AsStringAndSize(s.as_ptr(), &mut buffer, &mut length) == 1 {
-            Err(PyErr::fetch(s.python()))
-        } else {
-            Ok(std::slice::from_raw_parts(buffer as *const u8, length as usize))
-        }
-    }
-}
-
-
 #[test]
 fn test_non_bmp() {
     let gil = Python::acquire_gil();

@@ -9,12 +9,6 @@ use objects::{PyObject, PyTuple, PyDict};
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};
 
-// Workaround because .as_ptr() doesn't work for associated types
-#[inline]
-fn as_ptr<O>(obj: &O) -> *mut ffi::PyObject where O: ToPythonPointer {
-    obj.as_ptr()
-}
-
 pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.

@@ -4,7 +4,7 @@
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send
 #![feature(slice_patterns)] // for tuple_conversion macros
 #![feature(utf8_error)] // for translating Utf8Error to python exception
-#![allow(unused_imports, dead_code, unused_variables)]
+#![allow(unused_imports, unused_variables)]
 
 //! Rust bindings to the python interpreter.
 //!
