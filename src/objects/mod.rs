@@ -85,7 +85,7 @@ macro_rules! pyobject_newtype(
         
         impl <'p> ::python::PythonObjectWithTypeObject<'p> for $name<'p> {
             #[inline]
-            fn type_object(py: ::python::Python<'p>, _ : Option<&Self>) -> ::objects::typeobject::PyType<'p> {
+            fn type_object(py: ::python::Python<'p>) -> ::objects::typeobject::PyType<'p> {
                 unsafe { ::objects::typeobject::PyType::from_type_ptr(py, &mut ::ffi::$typeobject) }
             }
         }

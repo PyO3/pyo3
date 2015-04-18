@@ -73,7 +73,7 @@ impl <'p> PythonObjectWithCheckedDowncast<'p> for PyObject<'p> {
 
 impl <'p> PythonObjectWithTypeObject<'p> for PyObject<'p> {
     #[inline]
-    fn type_object(py: Python<'p>, _ : Option<&Self>) -> PyType<'p> {
+    fn type_object(py: Python<'p>) -> PyType<'p> {
         unsafe { PyType::from_type_ptr(py, &mut ffi::PyBaseObject_Type) }
     }
 }

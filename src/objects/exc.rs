@@ -39,7 +39,7 @@ macro_rules! exc_type(
         
         impl <'p> PythonObjectWithTypeObject<'p> for $name<'p> {
             #[inline]
-            fn type_object(py: Python<'p>, _ : Option<&Self>) -> PyType<'p> {
+            fn type_object(py: Python<'p>) -> PyType<'p> {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }

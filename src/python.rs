@@ -68,8 +68,7 @@ pub trait PythonObjectWithCheckedDowncast<'p> : PythonObject<'p> {
 /// Trait implemented by python object types that have a corresponding type object.
 pub trait PythonObjectWithTypeObject<'p> : PythonObjectWithCheckedDowncast<'p> {
     /// Retrieves the type object for this python object type.
-    #[unstable = "Option<&Self> will disappear when UFCS is implemented"]
-    fn type_object(Python<'p>, Option<&Self>) -> PyType<'p>;
+    fn type_object(Python<'p>) -> PyType<'p>;
 }
 
 /// ToPythonPointer for borrowed python pointers.
@@ -157,8 +156,7 @@ impl<'p> Python<'p> {
     /// Retrieves a reference to the type object for type T.
     #[inline]
     pub fn get_type<T>(self) -> PyType<'p> where T: PythonObjectWithTypeObject<'p> {
-        let none : Option<&T> = None;
-        PythonObjectWithTypeObject::type_object(self, none)
+        T::type_object(self)
     }
 
     /// Import the python module with the specified name.

@@ -65,6 +65,16 @@ impl<'p> std::ops::Index<usize> for PyTuple<'p> {
     }
 }
 
+impl<'p, 'a> std::iter::IntoIterator for &'a PyTuple<'p> {
+    type Item = &'a PyObject<'p>;
+    type IntoIter = std::slice::Iter<'a, PyObject<'p>>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 
 fn wrong_tuple_length<'p>(t: &PyTuple<'p>, expected_length: usize) -> PyErr<'p> {
     let py = t.python();

@@ -207,6 +207,16 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
     }
 }
 
+#[inline]
+pub unsafe fn from_owned_ptr_or_panic(py : Python, p : *mut ffi::PyObject) -> PyObject {
+    if p.is_null() {
+        ffi::PyErr_Print();
+        panic!("Python API called failed");
+    } else {
+        PyObject::from_owned_ptr(py, p)
+    }
+}
+
 /// Construct PyObject from the result of a python FFI call that returns a borrowed reference.
 /// Returns Err(PyErr) if the pointer is null.
 /// Unsafe because the pointer might be invalid.
