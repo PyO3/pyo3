@@ -23,13 +23,13 @@ impl <'p> ToPyObject<'p> for bool {
     type ObjectType = PyBool<'p>;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyBool<'p>> {
-        Ok(PyBool::get(py, *self))
+    fn to_py_object(&self, py: Python<'p>) -> PyBool<'p> {
+        PyBool::get(py, *self)
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> PyResult<'p, R>
-        where F: FnOnce(*mut ffi::PyObject) -> PyResult<'p, R>
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+        where F: FnOnce(*mut ffi::PyObject) -> R
     {
         // Avoid unnecessary Py_INCREF/Py_DECREF pair
         f(unsafe { if *self { ffi::Py_True() } else { ffi::Py_False() } })

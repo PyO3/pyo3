@@ -169,15 +169,14 @@ macro_rules! py_func {
             let py = $crate::Python::assume_gil_acquired();
             let args = $crate::PyObject::from_borrowed_ptr(py, args);
             let args: &$crate::PyTuple = $crate::PythonObject::unchecked_downcast_borrow_from(&args);
-            let result = match $f(py, args) {
-                Ok(val) => $crate::ToPyObject::into_py_object(val, py),
-                Err(e) => Err(e)
-            };
-            match result {
-                Ok(val) => $crate::ToPythonPointer::steal_ptr(val),
+            match $f(py, args) {
+                Ok(val) => {
+                    let obj = $crate::ToPyObject::into_py_object(val, py);
+                    return $crate::ToPythonPointer::steal_ptr(obj);
+                }
                 Err(e) => {
                     e.restore();
-                    ::std::ptr::null_mut()
+                    return ::std::ptr::null_mut();
                 }
             }
         }

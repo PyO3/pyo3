@@ -9,14 +9,14 @@ pub trait ToPyObject<'p> {
     type ObjectType : PythonObject<'p> = PyObject<'p>;
 
     /// Converts self into a python object.
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, Self::ObjectType>;
+    fn to_py_object(&self, py: Python<'p>) -> Self::ObjectType;
 
     /// Converts self into a python object.
     ///
     /// May be more efficient than `to_py_object` in some cases because
     /// it can move out of the input object.
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyResult<'p, Self::ObjectType>
+    fn into_py_object(self, py: Python<'p>) -> Self::ObjectType
       where Self: Sized {
         self.to_py_object(py)
     }
@@ -27,9 +27,9 @@ pub trait ToPyObject<'p> {
     /// May be more efficient than `to_py_object` because it does not need
     /// to touch any reference counts when the input object already is a python object.
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> PyResult<'p, R>
-      where F: FnOnce(*mut ffi::PyObject) -> PyResult<'p, R> {
-        let obj = try!(self.to_py_object(py));
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+      where F: FnOnce(*mut ffi::PyObject) -> R {
+        let obj = self.to_py_object(py);
         f(ToPythonPointer::as_ptr(&obj))
     }
 
@@ -62,22 +62,27 @@ pub trait FromPyObject<'p, 's> {
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
 
-impl <'p> ToPyObject<'p> for PyObject<'p> {
+/// Identity conversion: allows using existing `PyObject` instances where
+/// `ToPyObject` is expected.
+impl <'p, 's> ToPyObject<'p> for PyObject<'s> {
     type ObjectType = PyObject<'p>;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
-        Ok(self.clone())
+    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
+        self.clone().into_py_object(py)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
-        Ok(self)
+    fn into_py_object(self, py: Python<'p>) -> PyObject<'p> {
+        // Transmute the lifetime.
+        // This is safe, because both lifetime variables represent the same lifetime:
+        // that of the python GIL acquisition.
+        unsafe { std::mem::transmute(self) }
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> PyResult<'p, R>
-      where F: FnOnce(*mut ffi::PyObject) -> PyResult<'p, R> {
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+      where F: FnOnce(*mut ffi::PyObject) -> R {
         f(self.as_ptr())
     }
 }
@@ -94,21 +99,21 @@ impl <'p, 's, T> FromPyObject<'p, 's> for T where T: PythonObjectWithCheckedDown
 // This allows using existing python objects in code that generically expects a value
 // convertible to a python object.
 impl <'p, 's, T> ToPyObject<'p> for &'s T where T : ToPyObject<'p> {
-    type ObjectType = <T as ToPyObject<'p>>::ObjectType;
+    type ObjectType = T::ObjectType;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, <T as ToPyObject<'p>>::ObjectType> {
+    fn to_py_object(&self, py: Python<'p>) -> T::ObjectType {
         (**self).to_py_object(py)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyResult<'p, <T as ToPyObject<'p>>::ObjectType> {
+    fn into_py_object(self, py: Python<'p>) -> T::ObjectType {
         (*self).to_py_object(py)
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> PyResult<'p, R>
-      where F: FnOnce(*mut ffi::PyObject) -> PyResult<'p, R> {
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+      where F: FnOnce(*mut ffi::PyObject) -> R {
         (**self).with_borrowed_ptr(py, f)
     }
 }

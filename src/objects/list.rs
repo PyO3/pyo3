@@ -60,15 +60,15 @@ impl <'p> PyList<'p> {
 impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
     type ObjectType = PyList<'p>;
 
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyList<'p>> {
+    fn to_py_object(&self, py: Python<'p>) -> PyList<'p> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
-            let t = try!(err::result_from_owned_ptr(py, ptr)).unchecked_cast_into::<PyList>();
+            let t = err::cast_from_owned_ptr_or_panic(py, ptr);
             for (i, e) in self.iter().enumerate() {
-                let obj = try!(e.to_py_object(py));
+                let obj = e.to_py_object(py);
                 ffi::PyList_SET_ITEM(ptr, i as Py_ssize_t, obj.steal_ptr());
             }
-            Ok(t)
+            t
         }
     }
 }

@@ -87,7 +87,7 @@ impl <'p> PyErr<'p> {
         } else {
             PyErr {
                 ptype: py.get_type::<exc::TypeError>().into_object(),
-                pvalue: "exceptions must derive from BaseException".to_py_object(py).ok(),
+                pvalue: Some("exceptions must derive from BaseException".to_py_object(py)),
                 ptraceback: None
             }
         }

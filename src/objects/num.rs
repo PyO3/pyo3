@@ -45,10 +45,10 @@ macro_rules! int_fits_c_long(
         impl <'p> ToPyObject<'p> for $rust_type {
             type ObjectType = PyInt<'p>;
 
-            fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyInt<'p>> {
+            fn to_py_object(&self, py: Python<'p>) -> PyInt<'p> {
                 unsafe {
-                    Ok(try!(err::result_from_owned_ptr(py,
-                        ffi::PyInt_FromLong(*self as c_long))).unchecked_cast_into::<PyInt>())
+                    err::cast_from_owned_ptr_or_panic(py,
+                        ffi::PyInt_FromLong(*self as c_long))
                 }
             }
         }
@@ -76,7 +76,7 @@ macro_rules! int_fits_larger_int(
             type ObjectType = <$larger_type as ToPyObject<'p>>::ObjectType;
 
             #[inline]
-            fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, <$larger_type as ToPyObject<'p>>::ObjectType> {
+            fn to_py_object(&self, py: Python<'p>) -> <$larger_type as ToPyObject<'p>>::ObjectType {
                 (*self as $larger_type).to_py_object(py)
             }
         }
@@ -123,13 +123,13 @@ int_fits_larger_int!(usize, u64);
 impl <'p> ToPyObject<'p> for u64 {
     type ObjectType = PyObject<'p>;
 
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
+    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
         unsafe {
             let ptr = match std::num::cast::<u64, c_long>(*self) {
                 Some(v) => ffi::PyInt_FromLong(v),
                 None => ffi::PyLong_FromUnsignedLongLong(*self)
             };
-            err::result_from_owned_ptr(py, ptr)
+            err::from_owned_ptr_or_panic(py, ptr)
         }
     }
 }
@@ -167,8 +167,8 @@ impl <'p, 's> FromPyObject<'p, 's> for u64 {
 impl <'p> ToPyObject<'p> for f64 {
     type ObjectType = PyFloat<'p>;
 
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyFloat<'p>> {
-       Ok(PyFloat::new(py, *self))
+    fn to_py_object(&self, py: Python<'p>) -> PyFloat<'p> {
+       PyFloat::new(py, *self)
     }
 }
 
@@ -191,8 +191,8 @@ fn overflow_error(py: Python) -> PyErr {
 impl <'p> ToPyObject<'p> for f32 {
     type ObjectType = PyFloat<'p>;
 
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyFloat<'p>> {
-       Ok(PyFloat::new(py, *self as f64))
+    fn to_py_object(&self, py: Python<'p>) -> PyFloat<'p> {
+       PyFloat::new(py, *self as f64)
     }
 }
 
@@ -215,7 +215,7 @@ mod test {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 let val = 123 as $t1;
-                let obj = val.to_py_object(py).unwrap().into_object();
+                let obj = val.to_py_object(py).into_object();
                 assert_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
             }
         )
@@ -244,7 +244,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u32::MAX;
-        let obj = v.to_py_object(py).unwrap().into_object();
+        let obj = v.to_py_object(py).into_object();
         assert_eq!(v, obj.extract::<u32>().unwrap());
         assert_eq!(v as u64, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<i32>().is_err());
@@ -255,7 +255,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u64::MAX;
-        let obj = v.to_py_object(py).unwrap().into_object();
+        let obj = v.to_py_object(py).into_object();
         println!("{:?}", obj);
         assert_eq!(v, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<i64>().is_err());

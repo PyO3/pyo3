@@ -87,7 +87,7 @@ impl <'p> PyModule<'p> {
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<'p, ()> where V: ToPyObject<'p> {
         let py = self.python();
         let name = CString::new(name).unwrap();
-        let value = try!(value.into_py_object(py));
+        let value = value.into_py_object(py);
         let r = unsafe { ffi::PyModule_AddObject(self.as_ptr(), name.as_ptr(), value.steal_ptr()) };
         err::error_on_minusone(py, r)
     }

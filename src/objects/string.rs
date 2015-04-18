@@ -74,16 +74,11 @@ impl <'p> PyUnicode<'p> {
 impl <'p> ToPyObject<'p> for str {
     type ObjectType = PyObject<'p>;
 
-    fn to_py_object(&self, py : Python<'p>) -> PyResult<'p, PyObject<'p>> {
-        let ptr = self.as_ptr() as *const c_char;
-        let len = self.len() as ffi::Py_ssize_t;
-        unsafe {
-            let obj = if self.is_ascii() {
-                ffi::PyString_FromStringAndSize(ptr, len)
-            } else {
-                ffi::PyUnicode_FromStringAndSize(ptr, len)
-            };
-            err::result_from_owned_ptr(py, obj)
+    fn to_py_object(&self, py : Python<'p>) -> PyObject<'p> {
+        if self.is_ascii() {
+            PyString::new(py, self).into_object()
+        } else {
+            PyUnicode::new(py, self).into_object()
         }
     }
 }
@@ -94,7 +89,7 @@ impl <'p> ToPyObject<'p> for str {
 impl <'p, 'a> ToPyObject<'p> for &'a str {
     type ObjectType = PyObject<'p>;
 
-    fn to_py_object(&self, py : Python<'p>) -> PyResult<'p, PyObject<'p>> {
+    fn to_py_object(&self, py : Python<'p>) -> PyObject<'p> {
         (**self).to_py_object(py)
     }
 }
@@ -142,7 +137,7 @@ fn test_non_bmp() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let s = "\u{1F30F}";
-    let py_string = s.to_py_object(py).unwrap();
+    let py_string = s.to_py_object(py);
     assert_eq!(s, py_string.extract::<Cow<str>>().unwrap());
 }
 

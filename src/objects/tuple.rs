@@ -79,23 +79,25 @@ impl<'p, 'a> std::iter::IntoIterator for &'a PyTuple<'p> {
 fn wrong_tuple_length<'p>(t: &PyTuple<'p>, expected_length: usize) -> PyErr<'p> {
     let py = t.python();
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len());
-    PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), msg.to_py_object(py).ok())
+    PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py)))
 }
+
+macro_rules! id (($a:expr) => ($a));
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => (
     impl <'p, $($T: ToPyObject<'p>),+> ToPyObject<'p> for ($($T,)+) {
         type ObjectType = PyTuple<'p>;
 
-        fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyTuple<'p>> {
-            Ok(PyTuple::new(py, &[
-                $(try!(self.$n.to_py_object(py)).into_object(),)+
-            ]))
+        fn to_py_object(&self, py: Python<'p>) -> PyTuple<'p> {
+            PyTuple::new(py, &[
+                $(id!(self.$n.to_py_object(py)).into_object(),)+
+            ])
         }
 
-        fn into_py_object(self, py: Python<'p>) -> PyResult<'p, PyTuple<'p>> {
-            Ok(PyTuple::new(py, &[
-                $(try!(self.$n.into_py_object(py)).into_object(),)+
-            ]))
+        fn into_py_object(self, py: Python<'p>) -> PyTuple<'p> {
+            PyTuple::new(py, &[
+                $(id!(self.$n.into_py_object(py)).into_object(),)+
+            ])
         }
     }
 
@@ -134,8 +136,8 @@ pub struct NoArgs;
 impl <'p> ToPyObject<'p> for NoArgs {
     type ObjectType = PyTuple<'p>;
 
-    fn to_py_object(&self, py: Python<'p>) -> PyResult<'p, PyTuple<'p>> {
-        Ok(PyTuple::empty(py))
+    fn to_py_object(&self, py: Python<'p>) -> PyTuple<'p> {
+        PyTuple::empty(py)
     }
 }
 
