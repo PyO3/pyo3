@@ -3,7 +3,7 @@ rust-cpython [![Build Status](https://travis-ci.org/dgrunwald/rust-cpython.svg?b
 
 [Rust](http://www.rust-lang.org/) bindings for the [python](https://www.python.org/) interpreter.
 
-* [Documentation](http://www.rust-ci.org/dgrunwald/rust-cpython/doc/cpython/)
+* [Documentation](http://dgrunwald.github.io/rust-cpython/doc/cpython/)
 * Cargo package: [cpython](https://crates.io/crates/cpython)
 
 ---

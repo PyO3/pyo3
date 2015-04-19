@@ -4,6 +4,20 @@ name = "cpython"
 version = "0.0.1"
 description = "Bindings to Python 2.7"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+readme = "README.md"
+keywords = [
+    "python",
+    "cpython",
+    "libpython27",
+]
+homepage = "https://github.com/dgrunwald/rust-cpython"
+repository = "https://github.com/dgrunwald/rust-cpython.git"
+documentation = "http://dgrunwald.github.io/rust-cpython/doc/cpython/"
+license = "MIT"
+exclude = [
+    ".gitignore",
+    ".travis.yml",
+]
 
 [dependencies]
 python27-sys="*"
