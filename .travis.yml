@@ -7,6 +7,6 @@ script:
   - cargo test --verbose
   - cargo doc --verbose
 after_script:
-  - ln -s target/doc doc
+  - mv target/doc doc
   - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
 
