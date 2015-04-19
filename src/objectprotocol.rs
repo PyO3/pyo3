@@ -111,19 +111,22 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
     
     /// Calls the object.
-    /// This is equivalent to the python expression: 'self(*args, **kw)'
+    /// This is equivalent to the python expression: 'self(*args, **kwargs)'
     #[inline]
-    fn call<A: ?Sized>(&self, args: &A, kw: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+    fn call<A: ?Sized>(&self, args: &A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
-        unimplemented!()
+        let py = self.python();
+        args.with_borrowed_ptr(py, |args| unsafe {
+            result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
+        })
     }
     
     /// Calls a method on the object.
-    /// This is equivalent to the python expression: 'self.name(*args, **kw)'
+    /// This is equivalent to the python expression: 'self.name(*args, **kwargs)'
     #[inline]
-    fn call_method<A: ?Sized>(&self, name: &str, args: &A, kw: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+    fn call_method<A: ?Sized>(&self, name: &str, args: &A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
-        try!(self.getattr(name)).call(args, kw)
+        try!(self.getattr(name)).call(args, kwargs)
     }
     
     /// Retrieves the hash code of the object.
