@@ -1,0 +1,36 @@
+[package]
+name = "python3-sys"
+version = "0.1.0"
+description = "FFI Declarations for Python 3"
+readme = "README.md"
+keywords = [
+    "python",
+    "cpython",
+    "libpython3",
+]
+homepage = "https://github.com/dgrunwald/rust-python3-sys"
+repository = "https://github.com/dgrunwald/rust-python3-sys.git"
+license = "Python-2.0"
+authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+build = "build.rs"
+exclude = [
+    ".gitignore",
+    ".travis.yml",
+]
+
+[dependencies]
+libc = "*"
+
+[build-dependencies]
+pkg-config = "0.3"
+
+[features]
+
+default = ["WITH_THREAD"]
+
+Py_TRACE_REFS = []
+WITH_THREAD = []
+
+"python3.3" = []
+"python3.4" = ["python3.3"]
+
