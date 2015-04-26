@@ -1,0 +1,42 @@
+[package]
+name = "python27-sys"
+version = "0.0.6"
+description = "FFI Declarations for Python 2.7"
+readme = "README.md"
+keywords = [
+    "python",
+    "cpython",
+    "libpython27",
+]
+homepage = "https://github.com/dgrunwald/rust-python27-sys"
+repository = "https://github.com/dgrunwald/rust-python27-sys.git"
+license = "Python-2.0"
+authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+links = "python2.7"
+build = "build.rs"
+exclude = [
+    ".gitignore",
+    ".travis.yml",
+]
+
+[dependencies]
+libc = "*"
+
+[build-dependencies]
+pkg-config = "0.3"
+
+[features]
+# Features correspond to possible settings used when compiling python.
+# It's probably a misuse to use cargo features for this;
+# ideally we'd auto-detect these in the build script.
+default = ["Py_USING_UNICODE", "Py_UNICODE_WIDE", "WITH_THREAD"]
+
+Py_USING_UNICODE = []
+Py_UNICODE_WIDE = [ "Py_USING_UNICODE" ]
+
+Py_DEBUG = [ "Py_TRACE_REFS" ]
+Py_TRACE_REFS = [ "Py_REF_DEBUG" ]
+Py_REF_DEBUG = []
+COUNT_ALLOCS = []
+WITH_THREAD = []
+
