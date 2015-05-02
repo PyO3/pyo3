@@ -27,7 +27,6 @@ impl Clone for PyGetSetDef {
     #[inline] fn clone(&self) -> PyGetSetDef { *self }
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyWrapperDescr_Type: PyTypeObject;
     pub static mut PyDictProxy_Type: PyTypeObject;

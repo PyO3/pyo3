@@ -1,6 +1,5 @@
 use libc::{c_char, c_int};
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut Py_DebugFlag: c_int;
     pub static mut Py_VerboseFlag: c_int;

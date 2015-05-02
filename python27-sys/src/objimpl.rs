@@ -2,7 +2,6 @@ use libc::{c_void, c_char, c_int, size_t};
 use pyport::Py_ssize_t;
 use object::*;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyObject_Malloc(arg1: size_t) -> *mut c_void;
     pub fn PyObject_Realloc(arg1: *mut c_void, arg2: size_t)

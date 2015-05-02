@@ -432,7 +432,6 @@ pub struct PyHeapTypeObject {
 */
 
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
 }
@@ -442,7 +441,6 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
     (Py_TYPE(ob) == tp || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyType_Type: PyTypeObject;
     pub static mut PyBaseObject_Type: PyTypeObject;
@@ -459,7 +457,6 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == (&mut PyType_Type as *mut _)) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
     pub fn PyType_GenericAlloc(t: *mut PyTypeObject, nitems: Py_ssize_t)
@@ -487,7 +484,6 @@ pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
     PyObject_Str(o)
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     #[cfg(feature="Py_USING_UNICODE")]
     pub fn PyObject_Unicode(o: *mut PyObject) -> *mut PyObject;
@@ -684,7 +680,6 @@ pub unsafe fn Py_XDECREF(op : *mut PyObject) {
     }
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn Py_IncRef(o: *mut PyObject);
     pub fn Py_DecRef(o: *mut PyObject);
@@ -711,7 +706,6 @@ pub const Py_NE : c_int = 3;
 pub const Py_GT : c_int = 4;
 pub const Py_GE : c_int = 5;
 
-#[link(name = "python2.7")]
 extern "C" {
     fn _PyTrash_thread_deposit_object(o: *mut PyObject);
     fn _PyTrash_thread_destroy_chain();

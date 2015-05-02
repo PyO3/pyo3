@@ -1,7 +1,6 @@
 use libc::{c_char, c_int};
 use object::*;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyModule_Type: PyTypeObject;
     

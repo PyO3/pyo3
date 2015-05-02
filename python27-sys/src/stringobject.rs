@@ -17,7 +17,6 @@ struct PyStringObject {
     pub ob_sval: [c_char; 1],
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyBaseString_Type: PyTypeObject;
     pub static mut PyString_Type: PyTypeObject;
@@ -46,7 +45,6 @@ pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
     (*(op as *mut PyStringObject)).ob_sval.as_mut_ptr()
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyString_FromString(v: *const c_char) -> *mut PyObject;
     pub fn PyString_FromStringAndSize(v: *const c_char,

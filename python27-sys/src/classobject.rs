@@ -49,7 +49,6 @@ pub struct PyMethodObject {
     pub im_weakreflist: *mut PyObject,
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyClass_Type: PyTypeObject;
     pub static mut PyInstance_Type: PyTypeObject;
@@ -74,7 +73,6 @@ pub unsafe fn PyMethod_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyClass_New(arg1: *mut PyObject, arg2: *mut PyObject,
                        arg3: *mut PyObject) -> *mut PyObject;

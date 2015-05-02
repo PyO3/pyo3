@@ -62,7 +62,6 @@ pub enum PyGILState_STATE {
 }
 
 
-#[link(name = "python2.7")]
 extern "C" {
     static mut _PyThreadState_Current: *mut PyThreadState;
     //static mut _PyThreadState_GetFrame: PyThreadFrameGetter;

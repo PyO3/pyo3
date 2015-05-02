@@ -2,7 +2,6 @@ use libc::{c_char, c_int};
 //use pyport::Py_ssize_t;
 use object::{PyObject, PyTypeObject, Py_TYPE};
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyCFunction_Type: PyTypeObject;
 }
@@ -26,7 +25,6 @@ pub type PyNoArgsFunction =
                               -> *mut PyObject;
 
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
@@ -93,7 +91,6 @@ struct PyCFunctionObject {
 }
 */
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn Py_FindMethod(methods: *mut PyMethodDef, slf: *mut PyObject,
                          name: *const c_char) -> *mut PyObject;

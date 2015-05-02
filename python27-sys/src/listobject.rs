@@ -16,7 +16,6 @@ pub struct PyListObject {
     pub allocated: Py_ssize_t,
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyList_Type: PyTypeObject;
 }
@@ -50,7 +49,6 @@ pub unsafe fn PyList_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject
    *(*(op as *mut PyListObject)).ob_item.offset(i as isize) = v;
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;
     pub fn PyList_Size(list: *mut PyObject) -> Py_ssize_t;

@@ -24,7 +24,6 @@ pub const CO_FUTURE_WITH_STATEMENT : c_int = 0x8000;
 pub const CO_FUTURE_PRINT_FUNCTION : c_int = 0x10000;
 pub const CO_FUTURE_UNICODE_LITERALS : c_int = 0x20000;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
     

@@ -1,7 +1,6 @@
 use libc::c_int;
 use object::*;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyRange_Type: PyTypeObject;
 }

@@ -4,7 +4,6 @@ use object::PyObject;
 #[allow(missing_copy_implementations)]
 pub enum PyArena { }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyArena_New() -> *mut PyArena;
     pub fn PyArena_Free(arg1: *mut PyArena);

@@ -4,7 +4,6 @@ use pyport::Py_ssize_t;
 use object::PyObject;
 use methodobject::PyMethodDef;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyArg_Parse(args: *mut PyObject, format: *const c_char, ...)
      -> c_int;

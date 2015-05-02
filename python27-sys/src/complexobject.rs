@@ -9,7 +9,6 @@ pub struct Py_complex {
     pub imag: c_double
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn _Py_c_sum(left: Py_complex, right: Py_complex) -> Py_complex;
     pub fn _Py_c_diff(left: Py_complex, right: Py_complex) -> Py_complex;
@@ -32,7 +31,6 @@ pub struct PyComplexObject {
     pub cval: Py_complex
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyComplex_Type: PyTypeObject;
 }
@@ -48,7 +46,6 @@ pub unsafe fn PyComplex_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyComplex_FromCComplex(v: Py_complex) -> *mut PyObject;
     pub fn PyComplex_FromDoubles(real: c_double,

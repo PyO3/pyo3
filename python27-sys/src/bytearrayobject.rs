@@ -17,24 +17,20 @@ struct PyByteArrayObject {
     pub ob_bytes: *mut c_char,
 }*/
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyByteArray_Type: PyTypeObject;
     pub static mut PyByteArrayIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
 pub unsafe fn PyByteArray_Check(op : *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyByteArray_Type)
 }
 
-#[inline(always)]
 pub unsafe fn PyByteArray_CheckExact(op : *mut PyObject) -> c_int {
     let u : *mut PyTypeObject = &mut PyByteArray_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject;
     pub fn PyByteArray_Concat(a: *mut PyObject, b: *mut PyObject)

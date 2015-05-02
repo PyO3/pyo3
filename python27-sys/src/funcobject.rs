@@ -1,7 +1,6 @@
 use libc::c_int;
 use object::*;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyFunction_Type: PyTypeObject;
 }
@@ -13,7 +12,6 @@ pub unsafe fn PyFunction_Check(op : *mut PyObject) -> c_int {
 }
 
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyFunction_New(code: *mut PyObject, globals: *mut PyObject)
      -> *mut PyObject;

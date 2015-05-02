@@ -14,7 +14,6 @@ pub struct PyIntObject {
     pub ob_ival: c_long
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyInt_Type: PyTypeObject;
 }
@@ -30,7 +29,6 @@ pub unsafe fn PyInt_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyInt_FromString(str: *mut c_char,
                             pend: *mut *mut c_char,

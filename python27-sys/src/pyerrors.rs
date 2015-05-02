@@ -6,7 +6,6 @@ use stringobject::PyString_AS_STRING;
 #[cfg(feature="Py_USING_UNICODE")]
 use unicodeobject::Py_UNICODE;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyErr_SetNone(arg1: *mut PyObject);
     pub fn PyErr_SetObject(arg1: *mut PyObject, arg2: *mut PyObject);
@@ -55,7 +54,6 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     }
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyExc_BaseException: *mut PyObject;
     pub static mut PyExc_Exception: *mut PyObject;
@@ -140,7 +138,6 @@ extern "C" {
 }
 
 #[cfg(feature="Py_USING_UNICODE")]
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyUnicodeDecodeError_Create(arg1: *const c_char,
                                        arg2: *const c_char,

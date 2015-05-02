@@ -4,7 +4,6 @@ use object::PyObject;
 use pystate::{PyFrameObject, PyThreadState, Py_tracefunc};
 use pythonrun::PyCompilerFlags;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyEval_CallObjectWithKeywords(callable: *mut PyObject,
                                          args: *mut PyObject,
@@ -53,7 +52,6 @@ extern "C" {
 }
 
 #[cfg(feature = "WITH_THREAD")]
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyEval_ThreadsInitialized() -> c_int;
     pub fn PyEval_InitThreads();

@@ -2,7 +2,6 @@ use libc::{c_void, c_int};
 use object::*;
 use pyport::Py_ssize_t;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyBuffer_Type: PyTypeObject;
 }
@@ -15,7 +14,6 @@ pub unsafe fn PyBuffer_Check(op : *mut PyObject) -> c_int {
 
 pub const Py_END_OF_BUFFER: Py_ssize_t = -1;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyBuffer_FromObject(base: *mut PyObject, offset: Py_ssize_t,
                                size: Py_ssize_t) -> *mut PyObject;

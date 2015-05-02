@@ -29,7 +29,6 @@ pub struct PyUnicodeObject {
     pub defenc: *mut PyObject,
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyUnicode_Type: PyTypeObject;
 }
@@ -70,7 +69,6 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
 
 #[allow(dead_code)]
 #[cfg(feature="Py_UNICODE_WIDE")]
-#[link(name = "python2.7")]
 extern "C" {
     fn PyUnicodeUCS4_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;
@@ -315,7 +313,6 @@ extern "C" {
 
 #[allow(dead_code)]
 #[cfg(not(feature="Py_UNICODE_WIDE"))]
-#[link(name = "python2.7")]
 extern "C" {
     fn PyUnicodeUCS2_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;

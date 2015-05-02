@@ -4,7 +4,6 @@ use object::*;
 
 //pub enum PyDictObject { /* representation hidden */ }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyDict_Type: PyTypeObject;
     pub static mut PyDictIterKey_Type: PyTypeObject;
@@ -26,7 +25,6 @@ pub unsafe fn PyDict_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyDict_New() -> *mut PyObject;
     pub fn PyDictProxy_New(dict: *mut PyObject) -> *mut PyObject;

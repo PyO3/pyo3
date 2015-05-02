@@ -28,7 +28,6 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
     PyImport_ImportModuleLevel(name, globals, locals, fromlist, -1)
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyImport_ImportModule(name: *const c_char)
      -> *mut PyObject;

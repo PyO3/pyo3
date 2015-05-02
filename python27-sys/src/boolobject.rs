@@ -5,7 +5,6 @@ use intobject::PyIntObject;
 pub type PyBoolObject = PyIntObject;
 
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyBool_Type: PyTypeObject;
     static mut _Py_ZeroStruct: PyIntObject;

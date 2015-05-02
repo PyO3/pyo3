@@ -4,7 +4,6 @@ use object::*;
 
 //enum PySetObject { /* representation hidden */ }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PySet_Type: PyTypeObject;
     pub static mut PyFrozenSet_Type: PyTypeObject;
@@ -42,7 +41,6 @@ pub unsafe fn PyFrozenSet_Check(ob : *mut PyObject) -> c_int {
     (Py_TYPE(ob) == f || PyType_IsSubtype(Py_TYPE(ob), f) != 0) as c_int
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PySet_New(iterable: *mut PyObject) -> *mut PyObject;
     pub fn PyFrozenSet_New(iterable: *mut PyObject) -> *mut PyObject;

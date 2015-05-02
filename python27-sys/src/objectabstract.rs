@@ -13,7 +13,6 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
     PyObject_SetAttr(o, attr_name, ptr::null_mut())
 }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyObject_Cmp(o1: *mut PyObject, o2: *mut PyObject,
                         result: *mut c_int) -> c_int;

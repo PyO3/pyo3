@@ -2,7 +2,6 @@ use libc::{c_int, c_char};
 use pyport::Py_ssize_t;
 use object::*;
 
-#[link(name = "python2.7")]
 extern "C" {
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
@@ -24,7 +23,6 @@ pub unsafe fn PyMemoryView_GET_BASE(op : *mut PyObject) -> *mut PyObject {
 }
 
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn PyMemoryView_GetContiguous(base: *mut PyObject,
                                       buffertype: c_int,

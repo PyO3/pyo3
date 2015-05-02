@@ -25,7 +25,6 @@ pub enum Struct__node { }
 #[allow(missing_copy_implementations)]
 pub enum Struct_symtable { }
 
-#[link(name = "python2.7")]
 extern "C" {
     pub fn Py_SetProgramName(arg1: *mut c_char);
     pub fn Py_GetProgramName() -> *mut c_char;
