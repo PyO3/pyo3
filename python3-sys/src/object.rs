@@ -175,11 +175,11 @@ impl ::std::default::Default for PyType_Spec {
 extern "C" {
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
-    #[cfg(feature = "python3.3")]
+    #[cfg(feature = "python3_3")]
     pub fn PyType_FromSpecWithBases(arg1: *mut PyType_Spec, arg2: *mut PyObject)
         -> *mut PyObject;
 
-    #[cfg(feature = "python3.4")]
+    #[cfg(feature = "python3_4")]
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int)
         -> *mut c_void;
 }

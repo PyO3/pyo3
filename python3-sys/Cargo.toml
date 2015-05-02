@@ -8,8 +8,8 @@ keywords = [
     "cpython",
     "libpython3",
 ]
-homepage = "https://github.com/dgrunwald/rust-python3-sys"
-repository = "https://github.com/dgrunwald/rust-python3-sys.git"
+homepage = "https://github.com/dgrunwald/rust-cpython/tree/master/python3-sys"
+repository = "https://github.com/dgrunwald/rust-cpython/tree/master/python3-sys"
 license = "Python-2.0"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 build = "build.rs"
@@ -31,6 +31,6 @@ default = ["WITH_THREAD"]
 Py_TRACE_REFS = []
 WITH_THREAD = []
 
-"python3.3" = []
-"python3.4" = ["python3.3"]
+"python3_3" = []
+"python3_4" = ["python3_3"]
 

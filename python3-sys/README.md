@@ -1,4 +1,4 @@
-rust-python3-sys [![Build Status](https://travis-ci.org/dgrunwald/rust-python3-sys.svg?branch=master)](https://travis-ci.org/dgrunwald/rust-python3-sys)
+rust-python3-sys
 ====================
 
 [Rust](http://www.rust-lang.org/) FFI declarations for Python 3.
