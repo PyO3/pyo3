@@ -32,6 +32,10 @@ pub use methodobject::*;
 pub use moduleobject::*;
 pub use funcobject::*;
 pub use classobject::*;
+pub use fileobject::*;
+pub use cobject::*;
+pub use pycapsule::*;
+
 pub use descrobject::*;
 pub use warnings::*;
 pub use pyarena::*;
@@ -71,9 +75,9 @@ mod methodobject;
 mod moduleobject;
 mod funcobject;
 mod classobject;
-// mod fileobject; // TODO: incomplete
-// mod cobject; // TODO: incomplete
-// mod pycapsule; // TODO: incomplete
+mod fileobject;
+mod cobject;
+mod pycapsule;
 // mod traceback; // TODO: incomplete
 // mod sliceobject; // TODO: incomplete
 // mod cellobject; // TODO: incomplete
