@@ -22,4 +22,4 @@ exclude = [
 [dependencies]
 python27-sys="*"
 libc="*"
-
+num="*"
