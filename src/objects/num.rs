@@ -16,6 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+extern crate num;
+
 use libc::{c_long, c_double};
 use std;
 use python::{Python, PythonObject, ToPythonPointer};
@@ -78,7 +80,7 @@ macro_rules! int_fits_c_long(
                 if val == -1 && PyErr::occurred(py) {
                     return Err(PyErr::fetch(py));
                 }
-                match std::num::cast::<c_long, $rust_type>(val) {
+                match num::traits::cast::<c_long, $rust_type>(val) {
                     Some(v) => Ok(v),
                     None => Err(overflow_error(py))
                 }
@@ -103,7 +105,7 @@ macro_rules! int_fits_larger_int(
             fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, $rust_type> {
                 let py = s.python();
                 let val = try!(s.extract::<$larger_type>());
-                match std::num::cast::<$larger_type, $rust_type>(val) {
+                match num::traits::cast::<$larger_type, $rust_type>(val) {
                     Some(v) => Ok(v),
                     None => Err(overflow_error(py))
                 }
@@ -143,7 +145,7 @@ impl <'p> ToPyObject<'p> for u64 {
 
     fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
         unsafe {
-            let ptr = match std::num::cast::<u64, c_long>(*self) {
+            let ptr = match num::traits::cast::<u64, c_long>(*self) {
                 Some(v) => ffi::PyInt_FromLong(v),
                 None => ffi::PyLong_FromUnsignedLongLong(*self)
             };
@@ -170,7 +172,7 @@ impl <'p, 's> FromPyObject<'p, 's> for u64 {
             if ffi::PyLong_Check(ptr) != 0 {
                 pylong_as_u64(s)
             } else if ffi::PyInt_Check(ptr) != 0 {
-                match std::num::cast::<c_long, u64>(ffi::PyInt_AS_LONG(ptr)) {
+                match num::traits::cast::<c_long, u64>(ffi::PyInt_AS_LONG(ptr)) {
                     Some(v) => Ok(v),
                     None => Err(overflow_error(py))
                 }
