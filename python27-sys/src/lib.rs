@@ -7,7 +7,7 @@ pub use pymem::*;
 pub use object::*;
 pub use objimpl::*;
 pub use pydebug::*;
-#[cfg(feature="Py_USING_UNICODE")]
+#[cfg(py_sys_config="Py_USING_UNICODE")]
 pub use unicodeobject::*;
 pub use intobject::*;
 pub use boolobject::*;
@@ -53,7 +53,7 @@ mod pymem;
 mod object;
 mod objimpl;
 mod pydebug;
-#[cfg(feature="Py_USING_UNICODE")]
+#[cfg(py_sys_config="Py_USING_UNICODE")]
 mod unicodeobject; // TODO: incomplete
 mod intobject;
 mod boolobject;
@@ -117,11 +117,11 @@ mod eval;
 pub mod structmember;
 
 
-#[cfg(not(feature="Py_USING_UNICODE"))]
+#[cfg(not(py_sys_config="Py_USING_UNICODE"))]
 #[inline(always)]
 pub fn PyUnicode_Check(op : *mut PyObject) -> c_int { 0 }
 
-#[cfg(not(feature="Py_USING_UNICODE"))]
+#[cfg(not(py_sys_config="Py_USING_UNICODE"))]
 #[inline(always)]
 pub fn PyUnicode_CheckExact(op : *mut PyObject) -> c_int { 0 }
 

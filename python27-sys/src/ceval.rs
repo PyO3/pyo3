@@ -51,7 +51,7 @@ extern "C" {
      -> c_int;
 }
 
-#[cfg(feature = "WITH_THREAD")]
+#[cfg(py_sys_config="WITH_THREAD")]
 extern "C" {
     pub fn PyEval_ThreadsInitialized() -> c_int;
     pub fn PyEval_InitThreads();

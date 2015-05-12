@@ -3,7 +3,7 @@ use pyport::Py_ssize_t;
 use object::*;
 use classobject::*;
 use stringobject::PyString_AS_STRING;
-#[cfg(feature="Py_USING_UNICODE")]
+#[cfg(py_sys_config="Py_USING_UNICODE")]
 use unicodeobject::Py_UNICODE;
 
 extern "C" {
@@ -137,7 +137,7 @@ extern "C" {
      -> *mut PyObject;
 }
 
-#[cfg(feature="Py_USING_UNICODE")]
+#[cfg(py_sys_config="Py_USING_UNICODE")]
 extern "C" {
     pub fn PyUnicodeDecodeError_Create(arg1: *const c_char,
                                        arg2: *const c_char,
