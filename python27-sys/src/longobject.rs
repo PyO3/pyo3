@@ -32,7 +32,7 @@ extern "C" {
     pub fn PyLong_FromString(str: *mut c_char,
                              pend: *mut *mut c_char,
                              base: c_int) -> *mut PyObject;
-    #[cfg(feature="Py_USING_UNICODE")]
+    #[cfg(py_sys_config="Py_USING_UNICODE")]
     pub fn PyLong_FromUnicode(u: *mut ::unicodeobject::Py_UNICODE, length: Py_ssize_t,
                               base: c_int) -> *mut PyObject;
     pub fn PyLong_FromVoidPtr(p: *mut c_void) -> *mut PyObject;

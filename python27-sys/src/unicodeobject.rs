@@ -2,24 +2,24 @@ use libc::{c_char, c_int, c_long, c_double, wchar_t};
 use pyport::Py_ssize_t;
 use object::*;
 
-#[cfg(feature="Py_UNICODE_WIDE")]
+#[cfg(py_sys_config="Py_UNICODE_WIDE")]
 pub const Py_UNICODE_SIZE : Py_ssize_t = 4;
-#[cfg(not(feature="Py_UNICODE_WIDE"))]
+#[cfg(not(py_sys_config="Py_UNICODE_WIDE"))]
 pub const Py_UNICODE_SIZE : Py_ssize_t = 2;
 
 pub type Py_UCS4 = u32;
 
-#[cfg(feature="Py_UNICODE_WIDE")]
+#[cfg(py_sys_config="Py_UNICODE_WIDE")]
 pub type Py_UNICODE = u32;
-#[cfg(not(feature="Py_UNICODE_WIDE"))]
+#[cfg(not(py_sys_config="Py_UNICODE_WIDE"))]
 pub type Py_UNICODE = u16;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyUnicodeObject {
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -68,7 +68,7 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
 
 
 #[allow(dead_code)]
-#[cfg(feature="Py_UNICODE_WIDE")]
+#[cfg(py_sys_config="Py_UNICODE_WIDE")]
 extern "C" {
     fn PyUnicodeUCS4_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;
@@ -312,7 +312,7 @@ extern "C" {
 }
 
 #[allow(dead_code)]
-#[cfg(not(feature="Py_UNICODE_WIDE"))]
+#[cfg(not(py_sys_config="Py_UNICODE_WIDE"))]
 extern "C" {
     fn PyUnicodeUCS2_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;
@@ -555,26 +555,26 @@ extern "C" {
     fn _PyUnicodeUCS2_IsAlpha(ch: Py_UNICODE) -> c_int;
 }
 
-#[inline(always)]
-#[cfg(feature="Py_UNICODE_WIDE")]
+/*#[inline(always)]
+#[cfg(py_sys_config="Py_UNICODE_WIDE")]
 pub unsafe fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) -> *mut PyObject {
     PyUnicodeUCS4_FromStringAndSize(u, size)
-}
+}*/
 
 #[inline(always)]
-#[cfg(not(feature="Py_UNICODE_WIDE"))]
+#[cfg(not(py_sys_config="Py_UNICODE_WIDE"))]
 pub unsafe fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) -> *mut PyObject {
     PyUnicodeUCS2_FromStringAndSize(u, size)
 }
 
 #[inline(always)]
-#[cfg(feature="Py_UNICODE_WIDE")]
+#[cfg(py_sys_config="Py_UNICODE_WIDE")]
 pub unsafe fn PyUnicode_AsUTF8String(u: *mut PyObject) -> *mut PyObject {
     PyUnicodeUCS4_AsUTF8String(u)
 }
 
 #[inline(always)]
-#[cfg(not(feature="Py_UNICODE_WIDE"))]
+#[cfg(not(py_sys_config="Py_UNICODE_WIDE"))]
 pub unsafe fn PyUnicode_AsUTF8String(u: *mut PyObject) -> *mut PyObject {
     PyUnicodeUCS2_AsUTF8String(u)
 }

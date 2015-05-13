@@ -6,9 +6,9 @@ use methodobject::PyMethodDef;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyObject {
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -17,9 +17,9 @@ pub struct PyObject {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyVarObject {
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -485,7 +485,7 @@ pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
 }
 
 extern "C" {
-    #[cfg(feature="Py_USING_UNICODE")]
+    #[cfg(py_sys_config="Py_USING_UNICODE")]
     pub fn PyObject_Unicode(o: *mut PyObject) -> *mut PyObject;
     
     pub fn PyObject_Compare(arg1: *mut PyObject, arg2: *mut PyObject)
@@ -638,7 +638,7 @@ pub unsafe fn PyType_FastSubclass(t : *mut PyTypeObject, f : c_long) -> c_int {
 // Reference counting macros.
 #[inline(always)]
 pub unsafe fn Py_INCREF(op : *mut PyObject) {
-    if cfg!(feature="Py_REF_DEBUG") {
+    if cfg!(py_sys_config="Py_REF_DEBUG") {
         Py_IncRef(op)
     } else {
         (*op).ob_refcnt += 1
@@ -647,7 +647,7 @@ pub unsafe fn Py_INCREF(op : *mut PyObject) {
 
 #[inline(always)]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    if cfg!(feature="Py_REF_DEBUG") || cfg!(feature="COUNT_ALLOCS") {
+    if cfg!(py_sys_config="Py_REF_DEBUG") || cfg!(py_sys_config="COUNT_ALLOCS") {
         Py_DecRef(op)
     } else {
         (*op).ob_refcnt -= 1;

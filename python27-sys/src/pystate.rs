@@ -76,7 +76,7 @@ extern "C" {
     pub fn _PyThreadState_Init(arg1: *mut PyThreadState);
     pub fn PyThreadState_Clear(arg1: *mut PyThreadState);
     pub fn PyThreadState_Delete(arg1: *mut PyThreadState);
-    #[cfg(feature="WITH_THREAD")]
+    #[cfg(py_sys_config="WITH_THREAD")]
     pub fn PyThreadState_DeleteCurrent();
     pub fn PyThreadState_Get() -> *mut PyThreadState;
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
@@ -95,13 +95,13 @@ extern "C" {
     pub fn PyThreadState_Next(arg1: *mut PyThreadState) -> *mut PyThreadState;
 }
 
-#[cfg(feature="Py_DEBUG")]
+#[cfg(py_sys_config="Py_DEBUG")]
 #[inline(always)]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }
 
-#[cfg(not(feature="Py_DEBUG"))]
+#[cfg(not(py_sys_config="Py_DEBUG"))]
 #[inline(always)]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     _PyThreadState_Current

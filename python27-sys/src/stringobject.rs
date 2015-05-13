@@ -5,9 +5,9 @@ use object::*;
 #[repr(C)]
 #[allow(missing_copy_implementations)]
 struct PyStringObject {
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,

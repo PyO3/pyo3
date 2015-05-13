@@ -34,26 +34,26 @@ extern "C" {
                                       value: *const c_char)
      -> c_int;
     
-    #[cfg(all(target_pointer_width = "64", not(feature = "Py_TRACE_REFS")))]
+    #[cfg(all(target_pointer_width = "64", not(py_sys_config = "Py_TRACE_REFS")))]
     fn Py_InitModule4_64(name: *const c_char,
                              methods: *mut PyMethodDef,
                              doc: *const c_char, _self: *mut PyObject,
                              apiver: c_int) -> *mut PyObject;
 
-    #[cfg(all(target_pointer_width = "64", feature = "Py_TRACE_REFS"))]
+    #[cfg(all(target_pointer_width = "64", py_sys_config = "Py_TRACE_REFS"))]
     fn Py_InitModule4TraceRefs_64(name: *const c_char,
                                   methods: *mut PyMethodDef,
                                   doc: *const c_char, _self: *mut PyObject,
                                   apiver: c_int) -> *mut PyObject;
 
 
-    #[cfg(all(not(target_pointer_width = "64"), not(feature = "Py_TRACE_REFS")))]
+    #[cfg(all(not(target_pointer_width = "64"), not(py_sys_config = "Py_TRACE_REFS")))]
     pub fn Py_InitModule4(name: *const c_char,
                              methods: *mut PyMethodDef,
                              doc: *const c_char, _self: *mut PyObject,
                              apiver: c_int) -> *mut PyObject;
 
-    #[cfg(all(not(target_pointer_width = "64"), feature = "Py_TRACE_REFS"))]
+    #[cfg(all(not(target_pointer_width = "64"), py_sys_config = "Py_TRACE_REFS"))]
     fn Py_InitModule4TraceRefs(name: *const c_char,
                                   methods: *mut PyMethodDef,
                                   doc: *const c_char, _self: *mut PyObject,
@@ -62,7 +62,7 @@ extern "C" {
 
 pub const PYTHON_API_VERSION : c_int = 1013;
 
-#[cfg(all(target_pointer_width = "64", not(feature = "Py_TRACE_REFS")))]
+#[cfg(all(target_pointer_width = "64", not(py_sys_config = "Py_TRACE_REFS")))]
 #[inline(always)]
 pub unsafe fn Py_InitModule4(name: *const c_char,
                       methods: *mut PyMethodDef,
@@ -71,7 +71,7 @@ pub unsafe fn Py_InitModule4(name: *const c_char,
     Py_InitModule4_64(name, methods, doc, _self, apiver)
 }
 
-#[cfg(all(target_pointer_width = "64", feature = "Py_TRACE_REFS"))]
+#[cfg(all(target_pointer_width = "64", py_sys_config = "Py_TRACE_REFS"))]
 #[inline(always)]
 pub unsafe fn Py_InitModule4(name: *const c_char,
                       methods: *mut PyMethodDef,
@@ -80,7 +80,7 @@ pub unsafe fn Py_InitModule4(name: *const c_char,
     Py_InitModule4TraceRefs_64(name, methods, doc, _self, apiver)
 }
 
-#[cfg(all(not(target_pointer_width = "64"), feature = "Py_TRACE_REFS"))]
+#[cfg(all(not(target_pointer_width = "64"), py_sys_config = "Py_TRACE_REFS"))]
 #[inline(always)]
 pub unsafe fn Py_InitModule4(name: *const c_char,
                       methods: *mut PyMethodDef,

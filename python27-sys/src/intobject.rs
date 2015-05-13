@@ -5,9 +5,9 @@ use object::*;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyIntObject {
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -33,7 +33,7 @@ extern "C" {
     pub fn PyInt_FromString(str: *mut c_char,
                             pend: *mut *mut c_char,
                             base: c_int) -> *mut PyObject;
-    #[cfg(feature="Py_USING_UNICODE")]
+    #[cfg(py_sys_config="Py_USING_UNICODE")]
     pub fn PyInt_FromUnicode(u: *mut ::unicodeobject::Py_UNICODE, length: Py_ssize_t,
                              base: c_int) -> *mut PyObject;
     pub fn PyInt_FromLong(ival: c_long) -> *mut PyObject;
