@@ -12,6 +12,7 @@ homepage = "https://github.com/dgrunwald/rust-python27-sys"
 repository = "https://github.com/dgrunwald/rust-python27-sys.git"
 license = "Python-2.0"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+links = "python27"
 build = "build.rs"
 exclude = [
     ".gitignore",

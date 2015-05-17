@@ -23,6 +23,7 @@
 #![feature(slice_patterns)] // for tuple_conversion macros
 #![feature(utf8_error)] // for translating Utf8Error to python exception
 #![allow(unused_imports, unused_variables)]
+#![feature(unicode)]
 
 //! Rust bindings to the python interpreter.
 //!
