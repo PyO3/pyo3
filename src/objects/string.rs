@@ -174,7 +174,7 @@ impl <'p, 's> FromPyObject<'p, 's> for Cow<'s, str> {
             }
         } else if let Ok(u) = o.cast_as::<PyUnicode>() {
             let u = u.as_slice();
-            let s = unicode_buf_to_str(py, u).unwrap();
+            let s = try!(unicode_buf_to_str(py, u));
             Ok(Cow::Owned(s))
         } else {
             Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
