@@ -2,13 +2,9 @@ language: rust
 env:
   global:
     - secure: g4kCg8twONwKPquuJmYrvGjo2n0lNtWTbyzFOITNn8FgCxNK2j38Qc9/UhErTR3g3rDjVzsTHZ8FTH7TJZrOK1Nzz90tJG6JHqUv77ufkcBlxgwwjilOz84uQhkDTMpLitMEeQDLEynKeWbxrjtc5LIpjEkxOPk5eiqwzKRN14c=
-before_script:
-  - mkdir -p .cargo && echo 'paths = ["python27-sys"]' > .cargo/config
 script:
   - cargo build --verbose
   - cargo test --verbose
-  - cargo doc --verbose
-after_script:
-  - mv target/doc doc
-  - curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
+# 'cargo doc' is broken due to https://github.com/rust-lang/cargo/issues/1622
+#  - cargo doc --verbose
 

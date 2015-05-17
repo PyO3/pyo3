@@ -19,7 +19,7 @@ clean:
 	make -C extensions/ clean
 
 gh-pages:
-	git checkout --branch gh-pages git@github.com:dgrunwald/rust-cpython.git
+	git clone --branch gh-pages git@github.com:dgrunwald/rust-cpython.git gh-pages
 
 .PHONY: gh-pages-doc
 gh-pages-doc: doc | gh-pages

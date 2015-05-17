@@ -17,6 +17,8 @@ license = "MIT"
 exclude = [
     ".gitignore",
     ".travis.yml",
+    "python27-sys",
+    "python32-sys",
 ]
 build = "build.rs"
 
@@ -24,6 +26,6 @@ build = "build.rs"
 libc="*"
 num="*"
 
-# TODO: crates.io version doesn't have necessary conditional cfg flags yet
 [dependencies.python27-sys]
-git = "https://github.com/dgrunwald/rust-cpython.git"
+path="python27-sys"
+
