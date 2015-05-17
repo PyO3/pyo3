@@ -18,8 +18,12 @@ exclude = [
     ".gitignore",
     ".travis.yml",
 ]
+build = "build.rs"
 
 [dependencies]
-python27-sys="*"
 libc="*"
 num="*"
+
+# TODO: crates.io version doesn't have necessary conditional cfg flags yet
+[dependencies.python27-sys]
+git = "https://github.com/dgrunwald/rust-cpython.git"

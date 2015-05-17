@@ -16,6 +16,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+extern crate rustc_unicode;
+
+use self::rustc_unicode::str as unicode_str;
+use self::rustc_unicode::str::Utf16Item;
 use std;
 use std::{char, str};
 use std::ascii::AsciiExt;
@@ -112,8 +116,52 @@ impl <'p, 'a> ToPyObject<'p> for &'a str {
     }
 }
 
+#[cfg(py_sys_config="Py_UNICODE_SIZE_4")]
 fn u32_as_bytes(input: &[u32]) -> &[u8] {
     unsafe { std::mem::transmute(input) }
+}
+
+#[cfg(not(py_sys_config="Py_UNICODE_SIZE_4"))]
+fn u16_as_bytes(input: &[u16]) -> &[u8] {
+    unsafe { std::mem::transmute(input) }
+}
+
+#[cfg(py_sys_config="Py_UNICODE_SIZE_4")]
+fn unicode_buf_to_str<'p>(p: Python<'p>, u: &[ffi::Py_UNICODE]) 
+        -> Result<String, PyErr<'p> > {
+    let mut s = String::with_capacity(u.len());
+    for (i, &c) in u.iter().enumerate() {
+        match char::from_u32(c) {
+            Some(c) => s.push(c),
+            None => {
+                let e = try!(exc::UnicodeDecodeError::new(
+                    p, cstr!("utf-32"), 
+                    u32_as_bytes(u), i .. i+1, 
+                    cstr!("invalid code point")));
+                return Err(PyErr::new(e));
+            }
+        }
+    }
+    return Ok(s);
+}
+
+#[cfg(not(py_sys_config="Py_UNICODE_SIZE_4"))]
+fn unicode_buf_to_str<'p>(p: Python<'p>, u: &[ffi::Py_UNICODE])
+         -> Result<String, PyErr<'p> >  {
+    let mut s = String::with_capacity(u.len());
+    for (i, c) in unicode_str::utf16_items(u).enumerate() {
+        match c {
+            Utf16Item::ScalarValue(c) => s.push(c),
+            Utf16Item::LoneSurrogate(_) => {
+                let e = try!(exc::UnicodeDecodeError::new(
+                    p, cstr!("utf-16"),
+                    u16_as_bytes(u), i .. i+1,
+                    cstr!("invalid code point")));
+                return Err(PyErr::new(e));
+            }
+        }
+    }
+    return Ok(s);
 }
 
 impl <'p, 's> FromPyObject<'p, 's> for Cow<'s, str> {
@@ -126,17 +174,7 @@ impl <'p, 's> FromPyObject<'p, 's> for Cow<'s, str> {
             }
         } else if let Ok(u) = o.cast_as::<PyUnicode>() {
             let u = u.as_slice();
-            let mut s = String::with_capacity(u.len());
-            for (i, &c) in u.iter().enumerate() {
-                match char::from_u32(c) {
-                    Some(c) => s.push(c),
-                    None => {
-                        let e = try!(exc::UnicodeDecodeError::new(
-                            py, cstr!("utf-32"), u32_as_bytes(u), i .. i+1, cstr!("invalid code point")));
-                        return Err(PyErr::new(e));
-                    }
-                }
-            }
+            let s = unicode_buf_to_str(py, u).unwrap();
             Ok(Cow::Owned(s))
         } else {
             Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
@@ -158,4 +196,3 @@ fn test_non_bmp() {
     let py_string = s.to_py_object(py);
     assert_eq!(s, py_string.extract::<Cow<str>>().unwrap());
 }
-
