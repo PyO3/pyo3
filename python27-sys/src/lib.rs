@@ -119,10 +119,10 @@ pub mod structmember;
 
 #[cfg(not(py_sys_config="Py_USING_UNICODE"))]
 #[inline(always)]
-pub fn PyUnicode_Check(op : *mut PyObject) -> c_int { 0 }
+pub fn PyUnicode_Check(op : *mut PyObject) -> libc::c_int { 0 }
 
 #[cfg(not(py_sys_config="Py_USING_UNICODE"))]
 #[inline(always)]
-pub fn PyUnicode_CheckExact(op : *mut PyObject) -> c_int { 0 }
+pub fn PyUnicode_CheckExact(op : *mut PyObject) -> libc::c_int { 0 }
 
 
