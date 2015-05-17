@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::mem::{size_of, transmute, POST_DROP_USIZE};
+use std::mem;
 use libc;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PythonObjectDowncastError, ToPythonPointer};
@@ -37,7 +37,7 @@ impl <'p> Drop for PyObject<'p> {
     #[inline]
     fn drop(&mut self) {
         // TODO: remove if and change Py_XDECREF to Py_DECREF when #[unsafe_no_drop_flag] disappears
-        if self.ptr as usize != POST_DROP_USIZE {
+        if self.ptr as usize != mem::POST_DROP_USIZE {
             unsafe { ffi::Py_XDECREF(self.ptr); }
         }
     }
@@ -107,7 +107,7 @@ impl <'p> ToPythonPointer for PyObject<'p> {
     #[inline]
     fn steal_ptr(self) -> *mut ffi::PyObject {
         let ptr = self.ptr;
-        unsafe { ::std::mem::forget(self); }
+        mem::forget(self);
         ptr
     }
 }
@@ -160,14 +160,14 @@ impl <'p> PyObject<'p> {
     #[inline]
     pub unsafe fn borrow_from_owned_ptr<'a>(py : Python<'p>, ptr : &'a *mut ffi::PyObject) -> &'a PyObject<'p> {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(*ptr) > 0);
-        transmute(ptr)
+        mem::transmute(ptr)
     }
     
     /// Transmutes a slice of owned FFI pointers to `&[PyObject]`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn borrow_from_owned_ptr_slice<'a>(py : Python<'p>, ptr : &'a [*mut ffi::PyObject]) -> &'a [PyObject<'p>] {
-        transmute(ptr)
+        mem::transmute(ptr)
     }
     
     /// Gets the reference count of this python object.
@@ -181,7 +181,7 @@ impl <'p> PyObject<'p> {
     pub fn get_type(&self) -> &PyType<'p> {
         unsafe {
             let t : &*mut ffi::PyTypeObject = &(*self.as_ptr()).ob_type;
-            transmute(t)
+            mem::transmute(t)
         }
     }
     
@@ -243,7 +243,7 @@ impl <'p> Eq for PyObject<'p> { }
 fn test_sizeof() {
     // should be a static_assert, but size_of is not a compile-time const
     // these are necessary for the transmutes in this module
-    assert_eq!(size_of::<PyObject>(), size_of::<*mut ffi::PyObject>());
-    assert_eq!(size_of::<PyType>(), size_of::<*mut ffi::PyTypeObject>());
+    assert_eq!(mem::size_of::<PyObject>(), mem::size_of::<*mut ffi::PyObject>());
+    assert_eq!(mem::size_of::<PyType>(), mem::size_of::<*mut ffi::PyTypeObject>());
 }
 
