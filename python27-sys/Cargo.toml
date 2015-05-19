@@ -22,11 +22,24 @@ exclude = [
 [dependencies]
 libc = "*"
 
-# [build-dependencies]
+[build-dependencies]
 # pkg-config = "0.3"
+regex = "0.1.8"
 
 # TODO: depends on trunk pkg-config for now because we 
 # require 14c4b9, can revert this when alex bumps the 
 # crate release 
 [build-dependencies.pkg-config]
 git = "https://github.com/alexcrichton/pkg-config-rs.git"
+
+[features]
+# This is examined by ./build.rs to determine which python version 
+# to try to bind to.
+#
+# According to PEP 404 there will never be a python 2.8, but maybe
+# one day we could try to support < 2.7 ?
+#
+# Similarly functionality is duplicated in python3-sys/Cargo.toml 
+# where supporting multiple 3.x's is more important.
+default = ["python_2_7"]
+python_2_7 = []

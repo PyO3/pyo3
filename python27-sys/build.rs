@@ -1,7 +1,16 @@
 extern crate pkg_config;
+extern crate regex;
 
 use std::process::Command;
 use std::collections::HashMap;
+use std::env;
+use regex::Regex;
+use std::fs;
+
+struct PythonVersion {
+    major: u8,
+    minor: u8
+}
 
 const CFG_KEY: &'static str = "py_sys_config";
 
@@ -32,7 +41,7 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
     // below are translated into bools as {varname}_{val} 
     //
     // for example, Py_UNICODE_SIZE_2 or Py_UNICODE_SIZE_4
-    "Py_UNICODE_SIZE"
+    "Py_UNICODE_SIZE" // note - not present on python 3.3+, which is always wide
 ];
 
 /// Examine python's compile flags to pass to cfg by launching
@@ -43,7 +52,8 @@ fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, Stri
 config = sysconfig.get_config_vars();".to_owned();
 
     for k in SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()) {
-        script.push_str(&format!("print(config.get('{}', 0))", k));
+        script.push_str(&format!("print(config.get('{}', {}))", k, 
+            if is_value(k) { "None" } else { "0" } ));
         script.push_str(";");
     }
 
@@ -62,18 +72,21 @@ config = sysconfig.get_config_vars();".to_owned();
     }
 
     let stdout = String::from_utf8(out.stdout).unwrap();
-
-    let var_map : HashMap<String, String> = 
-        SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()).zip(stdout.split('\n'))
-            .map(|(&k, v)| (k.to_owned(), v.to_owned()))
-            .collect();
-
-    if var_map.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
+    let split_stdout: Vec<&str> = stdout.trim_right().split('\n').collect();
+    if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
         return Err(
-            "python stdout len didn't return expected number of lines".to_string());
+            format!("python stdout len didn't return expected number of lines:
+{}", split_stdout.len()).to_string());
     }
-
-    return Ok(var_map);
+    let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
+    // let var_map: HashMap<String, String> = HashMap::new();
+    Ok(all_vars.zip(split_stdout.iter())
+        .fold(HashMap::new(), |mut memo: HashMap<String, String>, (&k, &v)| {
+            if !(v.to_owned() == "None" && is_value(k)) {
+                memo.insert(k.to_owned(), v.to_owned());
+            }
+            memo
+        }))
 }
 
 fn is_value(key: &str) -> bool {
@@ -114,11 +127,13 @@ fn run_python_script(script: &str) -> Result<String, String> {
 }
 
 #[cfg(not(target_os="macos"))]
-fn get_rustc_link_lib(enable_shared: bool) -> Result<String, String> {
+fn get_rustc_link_lib(version: &PythonVersion, enable_shared: bool) -> Result<String, String> {
     if enable_shared {
-        Ok("cargo:rustc-link-lib=python2.7".to_owned())
+        Ok(format!("cargo:rustc-link-lib=python{}.{}", version.major,
+            version.minor))
     } else {
-        Ok("cargo:rustc-link-lib=static=python2.7".to_owned())
+        Ok(format!("cargo:rustc-link-lib=static=python{}.{}", version.major,
+            version.minor))
     }
 }
 
@@ -130,13 +145,17 @@ fn get_macos_linkmodel() -> Result<String, String> {
 }
 
 #[cfg(target_os="macos")]
-fn get_rustc_link_lib(_: bool) -> Result<String, String> {
+fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and 
     // Py_ENABLE_SHARED is wrong; framework means shared library
+    let dotted_version = format!("{}.{}", version.major, version.minor);
     match get_macos_linkmodel().unwrap().as_ref() {
-        "static" => Ok("cargo:rustc-link-lib=static=python2.7".to_owned()),
-        "dynamic" => Ok("cargo:rustc-link-lib=python2.7".to_owned()),
-        "framework" => Ok("cargo:rustc-link-lib=python2.7".to_owned()),
+        "static" => Ok(format!("cargo:rustc-link-lib=static=python{}",
+            dotted_version)),
+        "dynamic" => Ok(format!("cargo:rustc-link-lib=python{}",
+            dotted_version)),
+        "framework" => Ok(format!("cargo:rustc-link-lib=python{}", 
+            dotted_version)),
         other => Err(format!("unknown linkmodel {}", other))
     }
 }
@@ -145,7 +164,7 @@ fn get_rustc_link_lib(_: bool) -> Result<String, String> {
 /// cargo vars to stdout.
 ///
 /// Note that if that python isn't version 2.7, this will error.
-fn configure_from_path() -> Result<String, String> {
+fn configure_from_path(expected_version: &PythonVersion) -> Result<String, String> {
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
@@ -158,28 +177,69 @@ print(sys.exec_prefix);";
 
     let exec_prefix: &str = lines[3];
 
-    if version != "(2, 7)" {
-        return Err(format!("'python' is not version 2.7 (is {})", version));
+    if version != format!("({}, {})", 
+            expected_version.major,
+            expected_version.minor) 
+    {
+        return Err(format!("'python' is not version {}.{} (is {})", 
+            expected_version.major, expected_version.minor, version));
     }
 
-    println!("{}", get_rustc_link_lib(enable_shared == "1").unwrap());
+    println!("{}", get_rustc_link_lib(expected_version, 
+        enable_shared == "1").unwrap());
     println!("cargo:rustc-link-search=native={}", libpath);
     return Ok(format!("{}/bin/python", exec_prefix));
 }
 
-/// Deduce configuration from the python-2.7 in pkg-config and print
+/// Deduce configuration from the python-X.X in pkg-config and print
 /// cargo vars to stdout.
-fn configure_from_pkgconfig() -> Result<String, String> {
+fn configure_from_pkgconfig(version: &PythonVersion, pkg_name: &str) 
+        -> Result<String, String> {
     // this emits relevant build info to stdout, which is picked up by the
     // build chain (funny name for something with side-effects!)
-    try!(pkg_config::find_library("python-2.7"));
+    try!(pkg_config::find_library(pkg_name));
 
-    let exec_prefix = pkg_config::Config::get_variable("python-2.7", 
+    // This seems to be a convention - unfortunately pkg-config doesn't
+    // tell you the executable name, but I've noticed at least on 
+    // OS X homebrew the python bin dir for 3.4 doesn't actually contain
+    // a 'python'.
+    let exec_prefix = pkg_config::Config::get_variable(pkg_name, 
         "exec_prefix").unwrap();
-    // assume path to the pkg_config python interpreter is 
-    // {exec_prefix}/bin/python - this might not hold for all platforms, but
-    // the .pc doesn't give us anything else to go on
-    return Ok(format!("{}/bin/python", exec_prefix));
+
+    // try to find the python interpreter in the exec_prefix somewhere.
+    // the .pc doesn't tell us :(
+    let attempts = [
+        format!("/bin/python{}_{}", version.major, version.minor),
+        format!("/bin/python{}", version.major),
+        "/bin/python".to_owned()
+    ];
+    
+    for attempt in attempts.iter() {
+        let possible_exec_name = format!("{}{}", exec_prefix,
+            attempt);
+        match fs::metadata(&possible_exec_name) {
+            Ok(_) => return Ok(possible_exec_name),
+            Err(_) => ()
+        };
+    }
+    return Err("Unable to locate python interpreter".to_owned());
+}
+
+/// Determine the python version we're supposed to be building
+/// from the features passed via the environment.
+fn version_from_env() -> Result<PythonVersion, String> {
+    let re = Regex::new(r"CARGO_FEATURE_PYTHON_(\d+)_(\d+)").unwrap();
+    for (key, _) in env::vars() {
+        match re.captures(&key) {
+            Some(cap) => return Ok(PythonVersion { 
+                major: cap.at(1).unwrap().parse().unwrap(), 
+                minor: cap.at(2).unwrap().parse().unwrap()
+            }),
+            None => ()
+        }
+    }
+    Err("Python version feature was not found. At least one python version \
+         feature must be enabled.".to_owned())
 }
 
 fn main() {
@@ -189,16 +249,22 @@ fn main() {
     //
     // By default, try to use pkgconfig - this seems to be a rust norm.
     //
-    // If you want to use a different python, setting the 
-    // PYTHON_2.7_NO_PKG_CONFIG environment variable will cause the script 
-    // to pick up the python in your PATH (this will work smoothly with an 
-    // activated virtualenv). If you have troubles with your shell accepting
-    // '.' in a var name, try using 'env'.
-    let python_interpreter_path = match configure_from_pkgconfig() {
+    // If you want to use a different python, setting the appropriate
+    // PYTHON_X.X_NO_PKG_CONFIG environment variable will cause the script 
+    // to pick up the python in your PATH; e.g. for python27 X.X is 2.7.
+    // 
+    // This will work smoothly with an activated virtualenv.
+    // 
+    // If you have troubles with your shell accepting '.' in a var name, 
+    // try using 'env' (sorry but this isn't our fault - it just has to 
+    // match the pkg-config package name, which is going to have a . in it).
+    let version = version_from_env().unwrap();
+    let pkg_name = format!("python-{}.{}", version.major, version.minor);
+    let python_interpreter_path = match configure_from_pkgconfig(&version, &pkg_name) {
         Ok(p) => p,
         // no pkgconfig - either it failed or user set the environment 
         // variable "PYTHON_2.7_NO_PKG_CONFIG".
-        Err(_) => configure_from_path().unwrap()
+        Err(_) => configure_from_path(&version).unwrap()
     };
 
     let config_map = get_config_vars(&python_interpreter_path).unwrap();

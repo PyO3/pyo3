@@ -12,6 +12,7 @@ homepage = "https://github.com/dgrunwald/rust-cpython/tree/master/python3-sys"
 repository = "https://github.com/dgrunwald/rust-cpython/tree/master/python3-sys"
 license = "Python-2.0"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+links = "python3"
 build = "build.rs"
 exclude = [
     ".gitignore",
@@ -22,15 +23,18 @@ exclude = [
 libc = "*"
 
 [build-dependencies]
-pkg-config = "0.3"
+# pkg-config = "0.3"
+regex = "0.1.8"
+
+# TODO: depends on trunk pkg-config for now because we 
+# require 14c4b9, can revert this when alex bumps the 
+# crate release 
+[build-dependencies.pkg-config]
+git = "https://github.com/alexcrichton/pkg-config-rs.git"
 
 [features]
-
-default = ["WITH_THREAD"]
-
-Py_TRACE_REFS = []
-WITH_THREAD = []
-
-"python3_3" = []
-"python3_4" = ["python3_3"]
-
+# This is examined by ./build.rs to determine which python version 
+# to try to bind to.
+default = ["python_3_4"]
+python_3_4 = []
+python_3_5 = []

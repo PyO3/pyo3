@@ -26,6 +26,16 @@ build = "build.rs"
 libc="*"
 num="*"
 
+# These features are both optional, but you must pick one to 
+# indicate which python ffi you are trying to bind to.
 [dependencies.python27-sys]
 path="python27-sys"
+optional = true
 
+[dependencies.python3-sys]
+path = "python3-sys"
+optional = true 
+
+[features]
+# Maybe one day python 3 should be the default. But not this day.
+default = ["python27-sys"]

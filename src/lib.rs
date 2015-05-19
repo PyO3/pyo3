@@ -73,7 +73,13 @@
 //! ```
 
 extern crate libc;
+
+#[cfg(feature="python27-sys")]
 extern crate python27_sys as ffi;
+
+#[cfg(feature="python3-sys")]
+extern crate python3_sys as ffi;
+
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
