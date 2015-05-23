@@ -46,6 +46,7 @@ impl <'p> PyModule<'p> {
 
     // Helper method for module_initializer!() macro, do not use directly!
     #[doc(hidden)]
+    #[cfg(feature="python27-sys")]
     pub fn _init<F, R>(py: Python<'p>, name: &CStr, init: F) -> PyResult<'p, R>
       where F: FnOnce(Python<'p>, PyModule<'p>) -> PyResult<'p, R> {
         let module = try!(unsafe {
@@ -65,12 +66,11 @@ impl <'p> PyModule<'p> {
         }
     }
 
-    unsafe fn str_from_ptr<'a>(&'a self, ptr: *mut c_char) -> PyResult<'p, &'a str> {
+    unsafe fn str_from_ptr<'a>(&'a self, ptr: *const c_char) -> PyResult<'p, &'a str> {
         let py = self.python();
-        if ptr == std::ptr::null_mut() {
+        if ptr == std::ptr::null() {
             Err(PyErr::fetch(py))
         } else {
-            let ptr = ptr as *const c_char;
             let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(std::mem::copy_lifetime(self, s)),

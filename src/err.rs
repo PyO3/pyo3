@@ -19,6 +19,7 @@
 use std;
 use python::{PythonObject, Python, ToPythonPointer, PythonObjectDowncastError};
 use objects::{PyObject, PyType, exc};
+#[cfg(feature="python27-sys")]
 use objects::oldstyle::PyClass;
 use ffi;
 use libc;
@@ -105,7 +106,7 @@ impl <'p> PyErr<'p> {
         } else {
             PyErr {
                 ptype: py.get_type::<exc::TypeError>().into_object(),
-                pvalue: Some("exceptions must derive from BaseException".to_py_object(py)),
+                pvalue: Some("exceptions must derive from BaseException".to_py_object(py).into_object()),
                 ptraceback: None
             }
         }
@@ -169,6 +170,7 @@ impl <'p> PyErr<'p> {
     
     /// Retrieves the exception type.
     /// If the exception type is an old-style class, returns `oldstyle::PyClass`.
+    #[cfg(feature="python27-sys")]
     pub fn get_type(&self) -> PyType<'p> {
         let py = self.ptype.python();
         match self.ptype.clone().cast_into::<PyType>() {
@@ -178,6 +180,16 @@ impl <'p> PyErr<'p> {
                     Ok(_)  => py.get_type::<PyClass>(),
                     Err(_) => py.None().get_type().clone()
                 }
+        }
+    }
+    
+    /// Retrieves the exception type.
+    #[cfg(not(feature="python27-sys"))]
+    pub fn get_type(&self) -> PyType<'p> {
+        let py = self.ptype.python();
+        match self.ptype.clone().cast_into::<PyType>() {
+            Ok(t)  => t,
+            Err(_) => py.None().get_type().clone()
         }
     }
 

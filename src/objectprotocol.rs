@@ -23,7 +23,7 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPointer};
-use objects::{PyObject, PyTuple, PyDict};
+use objects::{PyObject, PyTuple, PyDict, PyString};
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};
 
@@ -76,7 +76,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
 
     /// Compares two python objects.
     /// This is equivalent to the python expression 'cmp(self, other)'.
-    #[inline]
+    #[cfg(feature="python27-sys")]
     fn compare<O: ?Sized>(&self, other: &O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
         let py = self.python();
         other.with_borrowed_ptr(py, |other| unsafe {
@@ -114,6 +114,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Compute the unicode string representation of self.
     /// This is equivalent to the python expression 'unistr(self)'.
     #[inline]
+    #[cfg(feature="python27-sys")]
     fn unistr(&self) -> PyResult<'p, PyObject<'p>> {
         unsafe {
             result_from_owned_ptr(self.python(), ffi::PyObject_Unicode(self.as_ptr()))
@@ -251,7 +252,7 @@ impl <'p> fmt::Debug for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
         let repr_obj = try!(self.str().map_err(|_| fmt::Error));
-        let repr = try!(repr_obj.extract::<Cow<str>>().map_err(|_| fmt::Error));
+        let repr = try!(PyString::extract_lossy(&repr_obj).map_err(|_| fmt::Error));
         f.write_str(&*repr)
     }
 }
@@ -260,7 +261,7 @@ impl <'p> fmt::Display for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
         let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
-        let repr = try!(repr_obj.extract::<Cow<str>>().map_err(|_| fmt::Error));
+        let repr = try!(PyString::extract_lossy(&repr_obj).map_err(|_| fmt::Error));
         f.write_str(&*repr)
     }
 }

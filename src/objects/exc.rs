@@ -71,6 +71,7 @@ macro_rules! exc_type(
 
 exc_type!(BaseException, PyExc_BaseException);
 exc_type!(Exception, PyExc_Exception);
+#[cfg(feature="python27-sys")]
 exc_type!(StandardError, PyExc_StandardError);
 exc_type!(LookupError, PyExc_LookupError);
 exc_type!(AssertionError, PyExc_AssertionError);

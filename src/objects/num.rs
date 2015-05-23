@@ -27,10 +27,13 @@ use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, FromPyObject};
 
+#[cfg(feature="python27-sys")]
 pyobject_newtype!(PyInt, PyInt_Check, PyInt_Type);
+
 pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
 pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
+#[cfg(feature="python27-sys")]
 impl <'p> PyInt<'p> {
     /// Creates a new python `int` object.
     pub fn new(py: Python<'p>, val: c_long) -> PyInt<'p> {
@@ -56,12 +59,13 @@ impl <'p> PyFloat<'p> {
 
     /// Gets the value of this float.
     pub fn value(&self) -> c_double {
-        unsafe { ffi::PyFloat_AS_DOUBLE(self.as_ptr()) }
+        unsafe { ffi::PyFloat_AsDouble(self.as_ptr()) }
     }
 }
 
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
+        #[cfg(feature="python27-sys")]
         impl <'p> ToPyObject<'p> for $rust_type {
             type ObjectType = PyInt<'p>;
 
@@ -73,10 +77,38 @@ macro_rules! int_fits_c_long(
             }
         }
 
+        #[cfg(feature="python3-sys")]
+        impl <'p> ToPyObject<'p> for $rust_type {
+            type ObjectType = PyLong<'p>;
+
+            fn to_py_object(&self, py: Python<'p>) -> PyLong<'p> {
+                unsafe {
+                    err::cast_from_owned_ptr_or_panic(py,
+                        ffi::PyLong_FromLong(*self as c_long))
+                }
+            }
+        }
+
+        #[cfg(feature="python27-sys")]
         impl <'p, 's> FromPyObject<'p, 's> for $rust_type {
             fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, $rust_type> {
                 let py = s.python();
                 let val = unsafe { ffi::PyInt_AsLong(s.as_ptr()) };
+                if val == -1 && PyErr::occurred(py) {
+                    return Err(PyErr::fetch(py));
+                }
+                match num::traits::cast::<c_long, $rust_type>(val) {
+                    Some(v) => Ok(v),
+                    None => Err(overflow_error(py))
+                }
+            }
+        }
+        
+        #[cfg(feature="python3-sys")]
+        impl <'p, 's> FromPyObject<'p, 's> for $rust_type {
+            fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, $rust_type> {
+                let py = s.python();
+                let val = unsafe { ffi::PyLong_AsLong(s.as_ptr()) };
                 if val == -1 && PyErr::occurred(py) {
                     return Err(PyErr::fetch(py));
                 }
@@ -141,8 +173,13 @@ int_fits_larger_int!(isize, i64);
 int_fits_larger_int!(usize, u64);
 
 impl <'p> ToPyObject<'p> for u64 {
+    #[cfg(feature="python27-sys")]
     type ObjectType = PyObject<'p>;
 
+    #[cfg(feature="python3-sys")]
+    type ObjectType = PyLong<'p>;
+
+    #[cfg(feature="python27-sys")]
     fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
         unsafe {
             let ptr = match num::traits::cast::<u64, c_long>(*self) {
@@ -150,6 +187,13 @@ impl <'p> ToPyObject<'p> for u64 {
                 None => ffi::PyLong_FromUnsignedLongLong(*self)
             };
             err::from_owned_ptr_or_panic(py, ptr)
+        }
+    }
+
+    #[cfg(feature="python3-sys")]
+    fn to_py_object(&self, py: Python<'p>) -> PyLong<'p> {
+        unsafe {
+            err::cast_from_owned_ptr_or_panic(py, ffi::PyLong_FromUnsignedLongLong(*self))
         }
     }
 }
@@ -165,6 +209,7 @@ fn pylong_as_u64<'p>(obj: &PyObject<'p>) -> PyResult<'p, u64> {
 }
 
 impl <'p, 's> FromPyObject<'p, 's> for u64 {
+    #[cfg(feature="python27-sys")]
     fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, u64> {
         let py = s.python();
         let ptr = s.as_ptr();
@@ -176,6 +221,20 @@ impl <'p, 's> FromPyObject<'p, 's> for u64 {
                     Some(v) => Ok(v),
                     None => Err(overflow_error(py))
                 }
+            } else {
+                let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
+                pylong_as_u64(&num)
+            }
+        }
+    }
+
+    #[cfg(feature="python3-sys")]
+    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, u64> {
+        let py = s.python();
+        let ptr = s.as_ptr();
+        unsafe {
+            if ffi::PyLong_Check(ptr) != 0 {
+                pylong_as_u64(s)
             } else {
                 let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
                 pylong_as_u64(&num)

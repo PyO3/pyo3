@@ -33,7 +33,7 @@ impl <'p> PyList<'p> {
             let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
             let t = err::result_from_owned_ptr(py, ptr).unwrap().unchecked_cast_into::<PyList>();
             for (i, e) in elements.iter().enumerate() {
-                ffi::PyList_SET_ITEM(ptr, i as Py_ssize_t, e.clone().steal_ptr());
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.clone().steal_ptr());
             }
             t
         }
@@ -42,9 +42,9 @@ impl <'p> PyList<'p> {
     /// Gets the length of the list.
     #[inline]
     pub fn len(&self) -> usize {
-        // non-negative Py_ssize_t should always fit into Rust uint
+        // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
-            ffi::PyList_GET_SIZE(self.as_ptr()) as usize
+            ffi::PyList_Size(self.as_ptr()) as usize
         }
     }
 
@@ -54,7 +54,7 @@ impl <'p> PyList<'p> {
     pub fn get_item(&self, index: usize) -> PyObject<'p> {
         assert!(index < self.len());
         unsafe {
-            PyObject::from_borrowed_ptr(self.python(), ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
+            PyObject::from_borrowed_ptr(self.python(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
@@ -65,7 +65,7 @@ impl <'p> PyList<'p> {
         let r = unsafe { ffi::PyList_SetItem(self.as_ptr(), index as Py_ssize_t, item.steal_ptr()) };
         assert!(r == 0);
     }
-    
+
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
@@ -84,7 +84,7 @@ impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
             let t = err::cast_from_owned_ptr_or_panic(py, ptr);
             for (i, e) in self.iter().enumerate() {
                 let obj = e.to_py_object(py);
-                ffi::PyList_SET_ITEM(ptr, i as Py_ssize_t, obj.steal_ptr());
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj.steal_ptr());
             }
             t
         }
@@ -94,6 +94,7 @@ impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
 /*
  This implementation is not possible, because we allow extracting python strings as CowString<'s>,
  but there's no guarantee that the list isn't modified while the CowString borrow exists.
+ Maybe reconsider whether extraction should be able to borrow the contents of the python object?
 impl <'p, 's, T> FromPyObject<'p, 's> for Vec<T> where T: FromPyObject<'p, 's> {
     fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, Vec<T>> {
         let py = s.python();

@@ -33,7 +33,7 @@ impl <'p> PyTuple<'p> {
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
             let t = err::result_from_owned_ptr(py, ptr).unwrap().unchecked_cast_into::<PyTuple>();
             for (i, e) in elements.iter().enumerate() {
-                ffi::PyTuple_SET_ITEM(ptr, i as Py_ssize_t, e.clone().steal_ptr());
+                ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.clone().steal_ptr());
             }
             t
         }
@@ -50,10 +50,22 @@ impl <'p> PyTuple<'p> {
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust uint
         unsafe {
-            ffi::PyTuple_GET_SIZE(self.as_ptr()) as usize
+            ffi::PyTuple_Size(self.as_ptr()) as usize
         }
     }
-    
+
+    /// Gets the item at the specified index.
+    ///
+    /// Panics if the index is out of range.
+    pub fn get_item(&self, index: usize) -> PyObject<'p> {
+        assert!(index < self.len());
+        unsafe {
+            PyObject::from_borrowed_ptr(self.python(), ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
+        }
+    }
+
+    /* Disabled for now; we might want to change the PyObject memory layout for
+       compatiblity with Rust 1.0.
     #[inline]
     pub fn as_slice<'a>(&'a self) -> &'a [PyObject<'p>] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
@@ -66,38 +78,13 @@ impl <'p> PyTuple<'p> {
             })
         }
     }
-    
-    #[inline]
-    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, PyObject<'p>> {
-        self.as_slice().iter()
-    }
+    */
 }
-
-impl<'p> std::ops::Index<usize> for PyTuple<'p> {
-    type Output = PyObject<'p>;
-
-    #[inline]
-    fn index<'a>(&'a self, index: usize) -> &'a PyObject<'p> {
-        // use as_slice() to use the normal Rust bounds checking when indexing
-        &self.as_slice()[index]
-    }
-}
-
-impl<'p, 'a> std::iter::IntoIterator for &'a PyTuple<'p> {
-    type Item = &'a PyObject<'p>;
-    type IntoIter = std::slice::Iter<'a, PyObject<'p>>;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 
 fn wrong_tuple_length<'p>(t: &PyTuple<'p>, expected_length: usize) -> PyErr<'p> {
     let py = t.python();
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len());
-    PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py)))
+    PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py).into_object()))
 }
 
 macro_rules! id (($a:expr) => ($a));
@@ -119,6 +106,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
+    /* TODO: reimplement this without slice matching
     impl <'p, 's, $($T: FromPyObject<'p, 's>),+> FromPyObject<'p, 's> for ($($T,)+) {
         fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, ($($T,)+)> {
             let t = try!(s.cast_as::<PyTuple>());
@@ -130,6 +118,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
     }
+    */
 ));
 
 tuple_conversion!(1, (ref0, 0, A));

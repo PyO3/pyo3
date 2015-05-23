@@ -19,13 +19,25 @@
 pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
-pub use self::string::{PyString, PyUnicode};
+
+pub use self::string::{PyBytes, PyUnicode};
+// Directly exporting self::string::PyString causes a compiler error?
+#[cfg(feature="python27-sys")]
+pub use self::string::PyBytes as PyString;
+#[cfg(feature="python3-sys")]
+pub use self::string::PyUnicode as PyString;
+
+#[cfg(feature="python27-sys")]
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::tuple::PyTuple;
 pub use self::dict::PyDict;
 pub use self::list::PyList;
-pub use self::num::{PyInt, PyLong, PyFloat};
+#[cfg(feature="python27-sys")]
+pub use self::num::PyInt;
+#[cfg(feature="python3-sys")]
+pub use self::num::PyLong as PyInt;
+pub use self::num::{PyLong, PyFloat};
 
 macro_rules! pyobject_newtype(
     ($name: ident) => (
@@ -115,11 +127,14 @@ mod typeobject;
 mod module;
 mod string;
 mod dict;
+#[cfg(feature="python27-sys")]
 mod iterator;
 mod boolobject;
 mod tuple;
 mod list;
 mod num;
 pub mod exc;
+
+#[cfg(feature="python27-sys")]
 pub mod oldstyle;
 
