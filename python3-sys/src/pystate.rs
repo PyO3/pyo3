@@ -19,7 +19,7 @@ extern "C" {
     pub fn _PyThreadState_Init(arg1: *mut PyThreadState) -> ();
     pub fn PyThreadState_Clear(arg1: *mut PyThreadState) -> ();
     pub fn PyThreadState_Delete(arg1: *mut PyThreadState) -> ();
-    #[cfg(feature="WITH_THREAD")]
+    #[cfg(py_sys_config="WITH_THREAD")]
     pub fn PyThreadState_DeleteCurrent() -> ();
     pub fn PyThreadState_Get() -> *mut PyThreadState;
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;

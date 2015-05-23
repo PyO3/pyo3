@@ -5,9 +5,9 @@ use pyport::{Py_ssize_t, Py_hash_t};
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyObject {
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     _ob_next: *mut PyObject,
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -337,7 +337,7 @@ extern "C" {
 // Reference counting macros.
 #[inline(always)]
 pub unsafe fn Py_INCREF(op : *mut PyObject) {
-    if cfg!(feature="Py_REF_DEBUG") {
+    if cfg!(py_sys_config="Py_REF_DEBUG") {
         Py_IncRef(op)
     } else {
         (*op).ob_refcnt += 1
@@ -346,7 +346,7 @@ pub unsafe fn Py_INCREF(op : *mut PyObject) {
 
 #[inline(always)]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
-    if cfg!(feature="Py_REF_DEBUG") {
+    if cfg!(py_sys_config="Py_REF_DEBUG") {
         Py_DecRef(op)
     } else {
         (*op).ob_refcnt -= 1;

@@ -42,16 +42,16 @@ pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;
 
 extern "C" {
-    #[cfg(not(feature="Py_TRACE_REFS"))]
+    #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
     pub fn PyModule_Create2(module: *mut PyModuleDef,
                         apiver: c_int) -> *mut PyObject;
 
-    #[cfg(feature="Py_TRACE_REFS")]
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
     fn PyModule_Create2TraceRefs(module: *mut PyModuleDef,
                         apiver: c_int) -> *mut PyObject;
 }
 
-#[cfg(feature="Py_TRACE_REFS")]
+#[cfg(py_sys_config="Py_TRACE_REFS")]
 #[inline]
 pub unsafe fn PyModule_Create2(module: *mut PyModuleDef,
                         apiver: c_int) -> *mut PyObject {
