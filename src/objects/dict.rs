@@ -18,9 +18,10 @@
 
 use std;
 use ffi;
-use python::{Python, PythonObject};
+use python::{Python, ToPythonPointer, PythonObject};
+use conversion::ToPyObject;
 use objects::PyObject;
-use err::{self, PyResult};
+use err::{self, PyResult, PyErr};
 
 pyobject_newtype!(PyDict, PyDict_Check, PyDict_Type);
 
@@ -33,6 +34,69 @@ impl <'p> PyDict<'p> {
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyDict_New())
         }
+    }
+
+    /// Return a new dictionary that contains the same key-value pairs as self.
+    pub fn copy(&self) -> PyResult<'p, PyDict<'p>> {
+        let py = self.python();
+        unsafe {
+            err::result_cast_from_owned_ptr(py, ffi::PyDict_Copy(self.as_ptr()))
+        }
+    }
+
+    /// Empty an existing dictionary of all key-value pairs.
+    #[inline]
+    pub fn clear(&self) {
+        unsafe { ffi::PyDict_Clear(self.as_ptr()) }
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        unsafe { ffi::PyDict_Size(self.as_ptr()) as usize }
+    }
+
+    /// Determine if the dictionary contains the specified key.
+    /// This is equivalent to the Python expression `key in self`.
+    pub fn contains(&self, key: &PyObject<'p>) -> PyResult<'p, bool> {
+        let py = self.python();
+        unsafe {
+            match ffi::PyDict_Contains(self.as_ptr(), key.as_ptr()) {
+                1 => Ok(true),
+                0 => Ok(false),
+                _ => Err(PyErr::fetch(py))
+            }
+        }
+    }
+
+    /// Gets an item from the dictionary.
+    /// Returns None if the item is not present, or if an error occurs.
+    pub fn get_item<K>(&self, key: K) -> Option<PyObject<'p>> where K: ToPyObject<'p> {
+        let py = self.python();
+        key.with_borrowed_ptr(py, |key| unsafe {
+            PyObject::from_borrowed_ptr_opt(py, 
+                ffi::PyDict_GetItem(self.as_ptr(), key))
+        })
+    }
+
+    /// Sets an item value.
+    /// This is equivalent to the Python expression `self[key] = value`.
+    pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<'p, ()> where K: ToPyObject<'p>, V: ToPyObject<'p> {
+        let py = self.python();
+        key.with_borrowed_ptr(py, move |key|
+            value.with_borrowed_ptr(py, |value| unsafe {
+                err::error_on_minusone(py,
+                    ffi::PyDict_SetItem(self.as_ptr(), key, value))
+            }))
+    }
+
+    /// Deletes an item.
+    /// This is equivalent to the Python expression 'del self[key]'.
+    pub fn del_item<K>(&self, key: K) -> PyResult<'p, ()> where K: ToPyObject<'p> {
+        let py = self.python();
+        key.with_borrowed_ptr(py, |key| unsafe {
+            err::error_on_minusone(py,
+                ffi::PyDict_DelItem(self.as_ptr(), key))
+        })
     }
 }
 

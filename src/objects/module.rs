@@ -96,7 +96,7 @@ impl <'p> PyModule<'p> {
     pub fn name<'a>(&'a self) -> PyResult<'p, &'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
     }
-    
+
     /// Gets the module filename.
     ///
     /// May fail if the module does not have a __file__ attribute.
@@ -114,11 +114,7 @@ impl <'p> PyModule<'p> {
     ///
     /// This is a convenience function which can be used from the module's initialization function.
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<'p, ()> where V: ToPyObject<'p> {
-        let py = self.python();
-        let name = CString::new(name).unwrap();
-        let value = value.into_py_object(py);
-        let r = unsafe { ffi::PyModule_AddObject(self.as_ptr(), name.as_ptr(), value.steal_ptr()) };
-        err::error_on_minusone(py, r)
+        self.dict().set_item(name, value)
     }
 }
 
