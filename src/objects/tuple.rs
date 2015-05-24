@@ -81,6 +81,59 @@ impl <'p> PyTuple<'p> {
     */
 }
 
+impl <'p> IntoIterator for PyTuple<'p> {
+    type Item = PyObject<'p>;
+    type IntoIter = PyTupleIterator<'p>;
+
+    #[inline]
+    fn into_iter(self) -> PyTupleIterator<'p> {
+        PyTupleIterator { index: 0, len: self.len(), tuple: self }
+    }
+}
+
+impl <'a, 'p> IntoIterator for &'a PyTuple<'p> {
+    type Item = PyObject<'p>;
+    type IntoIter = PyTupleIterator<'p>;
+
+    #[inline]
+    fn into_iter(self) -> PyTupleIterator<'p> {
+        PyTupleIterator { index: 0, len: self.len(), tuple: self.clone() }
+    }
+}
+
+pub struct PyTupleIterator<'p> {
+    tuple: PyTuple<'p>,
+    index: usize,
+    len: usize
+}
+
+impl <'p> Iterator for PyTupleIterator<'p> {
+    type Item = PyObject<'p>;
+
+    #[inline]
+    fn next(&mut self) -> Option<PyObject<'p>> {
+        if self.index < self.len {
+            let item = self.tuple.get_item(self.index);
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+
+impl <'p> ExactSizeIterator for PyTupleIterator<'p> {
+    #[inline]
+    fn len(&self) -> usize {
+        return self.len;
+    }
+}
+
 fn wrong_tuple_length<'p>(t: &PyTuple<'p>, expected_length: usize) -> PyErr<'p> {
     let py = t.python();
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len());

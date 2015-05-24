@@ -75,6 +75,49 @@ impl <'p> PyList<'p> {
     }
 }
 
+impl <'p> IntoIterator for PyList<'p> {
+    type Item = PyObject<'p>;
+    type IntoIter = PyListIterator<'p>;
+
+    #[inline]
+    fn into_iter(self) -> PyListIterator<'p> {
+        PyListIterator { list: self, index: 0 }
+    }
+}
+
+impl <'a, 'p> IntoIterator for &'a PyList<'p> {
+    type Item = PyObject<'p>;
+    type IntoIter = PyListIterator<'p>;
+
+    #[inline]
+    fn into_iter(self) -> PyListIterator<'p> {
+        PyListIterator { list: self.clone(), index: 0 }
+    }
+}
+
+pub struct PyListIterator<'p> {
+    list: PyList<'p>,
+    index: usize
+}
+
+impl <'p> Iterator for PyListIterator<'p> {
+    type Item = PyObject<'p>;
+
+    #[inline]
+    fn next(&mut self) -> Option<PyObject<'p>> {
+        if self.index < self.list.len() {
+            let item = self.list.get_item(self.index);
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    // Note: we cannot implement size_hint because the length of the list
+    // might change during the iteration.
+}
+
 impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
     type ObjectType = PyList<'p>;
 
