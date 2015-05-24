@@ -5,7 +5,6 @@ env:
     - secure: g4kCg8twONwKPquuJmYrvGjo2n0lNtWTbyzFOITNn8FgCxNK2j38Qc9/UhErTR3g3rDjVzsTHZ8FTH7TJZrOK1Nzz90tJG6JHqUv77ufkcBlxgwwjilOz84uQhkDTMpLitMEeQDLEynKeWbxrjtc5LIpjEkxOPk5eiqwzKRN14c=
 script:
   - make test extensions PY=2
-  - make test extensions PY=3
 # 'cargo doc' is broken due to https://github.com/rust-lang/cargo/issues/1622
 #  - cargo doc --verbose
 
