@@ -40,11 +40,13 @@ pub struct PyModuleDef_Base {
 impl ::std::clone::Clone for PyModuleDef_Base {
     fn clone(&self) -> PyModuleDef_Base { *self }
 }
-impl ::std::default::Default for PyModuleDef_Base {
-    fn default() -> PyModuleDef_Base {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
+
+pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
+    ob_base: PyObject_HEAD_INIT,
+    m_init: None,
+    m_index: 0,
+    m_copy: 0 as *mut PyObject
+};
 
 #[repr(C)]
 #[derive(Copy)]
@@ -62,7 +64,5 @@ pub struct PyModuleDef {
 impl ::std::clone::Clone for PyModuleDef {
     fn clone(&self) -> PyModuleDef { *self }
 }
-impl ::std::default::Default for PyModuleDef {
-    fn default() -> PyModuleDef { unsafe { ::std::mem::zeroed() } }
-}
+
 

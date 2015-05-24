@@ -23,8 +23,9 @@ exclude = [
 build = "build.rs"
 
 [dependencies]
-libc="*"
-num="*"
+libc = "*"
+num = "*"
+interpolate_idents = "*"
 
 # These features are both optional, but you must pick one to 
 # indicate which python ffi you are trying to bind to.

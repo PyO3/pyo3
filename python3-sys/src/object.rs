@@ -13,6 +13,20 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+#[cfg(py_sys_config="Py_TRACE_REFS")]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    _ob_next: 0 as *mut PyObject,
+    _ob_prev: 0 as *mut PyObject,
+    ob_refcnt: 1,
+    ob_type: 0 as *mut PyTypeObject
+};
+
+#[cfg(not(py_sys_config="Py_TRACE_REFS"))]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    ob_refcnt: 1,
+    ob_type: 0 as *mut PyTypeObject
+};
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyVarObject {

@@ -22,6 +22,8 @@
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send
 #![feature(slice_patterns)] // for tuple_conversion macros
 #![feature(utf8_error)] // for translating Utf8Error to python exception
+#![feature(plugin)]
+#![plugin(interpolate_idents)]
 #![allow(unused_imports, unused_variables)]
 
 //! Rust bindings to the python interpreter.
@@ -129,10 +131,12 @@ pub mod _detail {
 /// # Example
 /// ```
 /// #![crate_type = "dylib"]
+/// #![feature(plugin)]
+/// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PyResult, PyObject, PyTuple};
 ///
-/// py_module_initializer!("example", initexample, |py, m| {
+/// py_module_initializer!(example, |py, m| {
 ///     try!(m.add("__doc__", "Module documentation string"));
 ///     try!(m.add("run", py_func!(py, run)));
 ///     Ok(())
@@ -158,18 +162,55 @@ pub mod _detail {
 /// ```
 /// 
 #[macro_export]
+#[cfg(feature="python27-sys")]
 macro_rules! py_module_initializer {
-    ($name: tt, $init_funcname: ident, $init: expr) => {
-        #[no_mangle]
-        pub extern "C" fn $init_funcname() {
+    ($name: ident, $init: expr) => ( interpolate_idents! {
+        #[[no_mangle]]
+        #[allow(non_snake_case)]
+        pub extern "C" fn [ init $name ]() {
             let py = unsafe { $crate::Python::assume_gil_acquired() };
-            let name = unsafe { ::std::ffi::CStr::from_ptr(concat!($name, "\0").as_ptr() as *const _) };
+            let name = unsafe { ::std::ffi::CStr::from_ptr(concat!(stringify!($name), "\0").as_ptr() as *const _) };
             match $crate::PyModule::_init(py, name, $init) {
                 Ok(()) => (),
                 Err(e) => e.restore()
             }
         }
-    }
+    })
+}
+
+#[macro_export]
+#[cfg(feature="python3-sys")]
+macro_rules! py_module_initializer {
+    ($name: ident, $init: expr) => ( interpolate_idents! {
+        #[[no_mangle]]
+        #[allow(non_snake_case)]
+        pub extern "C" fn [ PyInit_ $name ]() -> *mut $crate::_detail::ffi::PyObject {
+            let py = unsafe { $crate::Python::assume_gil_acquired() };
+            static mut module_def: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
+                m_base: $crate::_detail::ffi::PyModuleDef_HEAD_INIT,
+                m_name: 0 as *const _,
+                m_doc: 0 as *const _,
+                m_size: 0, // we don't use per-module state
+                m_methods: 0 as *mut _,
+                m_reload: None,
+                m_traverse: None,
+                m_clear: None,
+                m_free: None
+            };
+            // We can't convert &'static str to *const c_char within a static initializer,
+            // so we'll do it here in the module initialization:
+            unsafe {
+                module_def.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
+            }
+            match $crate::PyModule::_init(py, unsafe { &mut module_def }, $init) {
+                Ok(m) => $crate::ToPythonPointer::steal_ptr(m),
+                Err(e) => {
+                    e.restore();
+                    return ::std::ptr::null_mut();
+                }
+            }
+        }
+    })
 }
 
 /// Creates a python callable object that invokes a Rust function.

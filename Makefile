@@ -1,18 +1,29 @@
 .PHONY: default build test doc extensions clean
 
+ifndef PY
+PY=3
+endif
+
+ifeq ($(PY),2)
+FEATURES=--features python27-sys --no-default-features
+endif
+ifeq ($(PY),3)
+FEATURES=--features python3-sys --no-default-features
+endif
+
 default: test extensions
 
 build:
-	cargo build
+	cargo build $(FEATURES)
 
 test: build
-	cargo test
+	cargo test $(FEATURES)
 
 doc: build
-	cargo doc --no-deps
+	cargo doc --no-deps $(FEATURES)
 
 extensions: build
-	make -C extensions/
+	make -C extensions/ PY=$(PY)
 
 clean:
 	rm -r target

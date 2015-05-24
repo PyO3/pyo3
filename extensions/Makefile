@@ -3,6 +3,10 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 
 .PHONY: all clean
 
+ifndef PY
+PY=3
+endif
+
 all:
 
 clean:
@@ -13,15 +17,16 @@ clean:
 stamps:
 	mkdir stamps
 
-stamps/rust-cpython: $(call rwildcard,../src,*.rs) Makefile | stamps
-	cd .. && cargo build
+stamps/rust-cpython-$(PY): $(call rwildcard,../src,*.rs) Makefile | stamps
+	-rm stamps/rust-cpython-*
+	cd .. && make build PY=$(PY)
 	touch $@
 
-%.so: %.rs stamps/rust-cpython
+%.so: %.rs stamps/rust-cpython-$(PY)
 	rustc $< -L $(TARGETDIR) -L $(TARGETDIR)/deps -o $@
 
 hello.out: hello.so
-	python -c "import hello; hello.run(hello.val())" 2>&1 | tee $@
+	python$(PY) -c "import hello; hello.run(hello.val())" 2>&1 | tee $@
 
 all: stamps/test-hello
 stamps/test-hello: hello.out
