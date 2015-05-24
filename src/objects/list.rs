@@ -91,21 +91,15 @@ impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
     }
 }
 
-/*
- This implementation is not possible, because we allow extracting python strings as CowString<'s>,
- but there's no guarantee that the list isn't modified while the CowString borrow exists.
- Maybe reconsider whether extraction should be able to borrow the contents of the python object?
-impl <'p, 's, T> FromPyObject<'p, 's> for Vec<T> where T: FromPyObject<'p, 's> {
-    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, Vec<T>> {
+impl <'p, T> FromPyObject<'p> for Vec<T> where T: FromPyObject<'p> {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Vec<T>> {
         let py = s.python();
         let list = try!(s.cast_as::<PyList>());
-        let ptr = list.as_ptr();
         let mut v = Vec::with_capacity(list.len());
-        for i in 0..list.len() {
-            let obj = unsafe { PyObject::from_borrowed_ptr(py, ffi::PyList_GET_ITEM(ptr, i as Py_ssize_t)) };
-            v.push(try!(obj.extract::<T>()));
+        for i in 0 .. list.len() {
+            v.push(try!(list.get_item(i).extract::<T>()));
         }
         Ok(v)
     }
 }
-*/
+

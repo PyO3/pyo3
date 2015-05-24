@@ -205,20 +205,11 @@ impl <'p, 'a> ToPyObject<'p> for &'a str {
     }
 }
 
-/* Let's disable the Cow extraction for now. We might want to avoid "extract" borrowing the input
-   python object, see the (also currently disabled) impl FromPyObject for Vec<T>.
-impl <'p, 's> FromPyObject<'p, 's> for Cow<'s, str> {
-    fn from_py_object(o: &'s PyObject<'p>) -> PyResult<'p, Cow<'s, str>> {
-        PyString::extract(o)
-    }
-}
-*/
-
 /// Allows extracting strings from python objects.
 /// Accepts python `str` and `unicode` objects.
 /// In python 2.7, `str` is expected to be UTF-8 encoded.
-impl <'p, 's> FromPyObject<'p, 's> for String {
-    fn from_py_object(o: &'s PyObject<'p>) -> PyResult<'p, String> {
+impl <'p> FromPyObject<'p> for String {
+    fn from_py_object(o: &PyObject<'p>) -> PyResult<'p, String> {
         PyString::extract(o).map(|s| s.into_owned())
     }
 }

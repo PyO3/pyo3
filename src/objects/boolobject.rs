@@ -36,8 +36,8 @@ impl <'p> ToPyObject<'p> for bool {
     }
 }
 
-impl <'p, 'a> FromPyObject<'p, 'a> for bool {
-    fn from_py_object(s: &'a PyObject<'p>) -> PyResult<'p, bool> {
+impl <'p> FromPyObject<'p> for bool {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, bool> {
         Ok(try!(s.clone().cast_into::<PyBool>()).is_true())
     }
 }

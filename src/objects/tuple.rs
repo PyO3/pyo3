@@ -148,8 +148,8 @@ impl <'p> ToPyObject<'p> for NoArgs {
     }
 }
 
-impl <'p, 's> FromPyObject<'p, 's> for NoArgs {
-    fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, NoArgs> {
+impl <'p> FromPyObject<'p> for NoArgs {
+    fn from_py_object(s : &PyObject<'p>) -> PyResult<'p, NoArgs> {
         let t = try!(s.cast_as::<PyTuple>());
         if t.len() == 0 {
             Ok(NoArgs)

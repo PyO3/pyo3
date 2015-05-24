@@ -90,8 +90,8 @@ macro_rules! int_fits_c_long(
         }
 
         #[cfg(feature="python27-sys")]
-        impl <'p, 's> FromPyObject<'p, 's> for $rust_type {
-            fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, $rust_type> {
+        impl <'p> FromPyObject<'p> for $rust_type {
+            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
                 let py = s.python();
                 let val = unsafe { ffi::PyInt_AsLong(s.as_ptr()) };
                 if val == -1 && PyErr::occurred(py) {
@@ -105,8 +105,8 @@ macro_rules! int_fits_c_long(
         }
         
         #[cfg(feature="python3-sys")]
-        impl <'p, 's> FromPyObject<'p, 's> for $rust_type {
-            fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, $rust_type> {
+        impl <'p> FromPyObject<'p> for $rust_type {
+            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
                 let py = s.python();
                 let val = unsafe { ffi::PyLong_AsLong(s.as_ptr()) };
                 if val == -1 && PyErr::occurred(py) {
@@ -133,8 +133,8 @@ macro_rules! int_fits_larger_int(
             }
         }
 
-        impl <'p, 's> FromPyObject<'p, 's> for $rust_type {
-            fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, $rust_type> {
+        impl <'p> FromPyObject<'p> for $rust_type {
+            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
                 let py = s.python();
                 let val = try!(s.extract::<$larger_type>());
                 match num::traits::cast::<$larger_type, $rust_type>(val) {
@@ -208,9 +208,9 @@ fn pylong_as_u64<'p>(obj: &PyObject<'p>) -> PyResult<'p, u64> {
     }
 }
 
-impl <'p, 's> FromPyObject<'p, 's> for u64 {
+impl <'p> FromPyObject<'p> for u64 {
     #[cfg(feature="python27-sys")]
-    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, u64> {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, u64> {
         let py = s.python();
         let ptr = s.as_ptr();
         unsafe {
@@ -229,7 +229,7 @@ impl <'p, 's> FromPyObject<'p, 's> for u64 {
     }
 
     #[cfg(feature="python3-sys")]
-    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, u64> {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, u64> {
         let py = s.python();
         let ptr = s.as_ptr();
         unsafe {
@@ -251,8 +251,8 @@ impl <'p> ToPyObject<'p> for f64 {
     }
 }
 
-impl <'p, 's> FromPyObject<'p, 's> for f64 {
-    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, f64> {
+impl <'p> FromPyObject<'p> for f64 {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, f64> {
         let py = s.python();
         let v = unsafe { ffi::PyFloat_AsDouble(s.as_ptr()) };
         if v == -1.0 && PyErr::occurred(py) {
@@ -275,8 +275,8 @@ impl <'p> ToPyObject<'p> for f32 {
     }
 }
 
-impl <'p, 's> FromPyObject<'p, 's> for f32 {
-    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, f32> {
+impl <'p, 's> FromPyObject<'p> for f32 {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, f32> {
         Ok(try!(s.extract::<f64>()) as f32)
     }
 }

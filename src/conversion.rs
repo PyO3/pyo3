@@ -71,8 +71,8 @@ pub trait ToPyObject<'p> {
 }
 
 /// FromPyObject is implemented by various types that can be extracted from a python object.
-pub trait FromPyObject<'p, 's> {
-    fn from_py_object(s: &'s PyObject<'p>) -> PyResult<'p, Self>;
+pub trait FromPyObject<'p> {
+    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Self>;
 }
 
 // PyObject, PyModule etc.
@@ -105,9 +105,9 @@ impl <'p, 's> ToPyObject<'p> for PyObject<'s> {
     }
 }
 
-impl <'p, 's, T> FromPyObject<'p, 's> for T where T: PythonObjectWithCheckedDowncast<'p> {
+impl <'p, T> FromPyObject<'p> for T where T: PythonObjectWithCheckedDowncast<'p> {
     #[inline]
-    fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, T> {
+    fn from_py_object(s : &PyObject<'p>) -> PyResult<'p, T> {
         Ok(try!(s.clone().cast_into()))
     }
 }

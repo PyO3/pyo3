@@ -220,7 +220,7 @@ impl <'p> PyObject<'p> {
     /// Extracts some type from the python object.
     /// This is a wrapper function around `FromPyObject::from_py_object()`.
     #[inline]
-    pub fn extract<'s, T>(&'s self) -> Result<T, PyErr<'p>> where T: ::conversion::FromPyObject<'p, 's> {
+    pub fn extract<T>(&self) -> Result<T, PyErr<'p>> where T: ::conversion::FromPyObject<'p> {
         ::conversion::FromPyObject::from_py_object(self)
     }
 }
