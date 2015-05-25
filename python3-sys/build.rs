@@ -9,7 +9,8 @@ use std::fs;
 
 struct PythonVersion {
     major: u8,
-    minor: u8
+    // minor == None means any minor version will do
+    minor: Option<u8>
 }
 
 const CFG_KEY: &'static str = "py_sys_config";
@@ -148,7 +149,7 @@ fn get_macos_linkmodel() -> Result<String, String> {
 fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and 
     // Py_ENABLE_SHARED is wrong; framework means shared library
-    let dotted_version = format!("{}.{}", version.major, version.minor);
+    let dotted_version = format!("{}.{}", version.major, version.minor.unwrap());
     match get_macos_linkmodel().unwrap().as_ref() {
         "static" => Ok(format!("cargo:rustc-link-lib=static=python{}",
             dotted_version)),
@@ -160,10 +161,40 @@ fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String
     }
 }
 
+/// Check that the interpreter's reported version matches expected_version;
+/// if it does, return the specific version the interpreter reports.
+fn get_interpreter_version(line: &str, expected_version: &PythonVersion)
+        -> Result<PythonVersion, String> {
+    let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
+    let interpreter_version = match version_re.captures(&line) {
+        Some(cap) => PythonVersion {
+            major: cap.at(1).unwrap().parse().unwrap(),
+            minor: Some(cap.at(2).unwrap().parse().unwrap())
+        },
+        None => return Err(
+            format!("Unexpected response to version query {}", line))
+    };
+
+    if interpreter_version.major != expected_version.major ||
+        (expected_version.minor.is_some() &&
+            interpreter_version.minor != expected_version.minor)
+    {
+        Err(format!("'python' is not version {}.{} (is {})",
+                    expected_version.major,
+                    match expected_version.minor {
+                        Some(v) => v.to_string(),
+                        None => "*".to_owned()
+                    },
+                    line))
+    } else {
+        Ok(interpreter_version)
+    }
+}
+
 /// Deduce configuration from the 'python' in the current PATH and print
 /// cargo vars to stdout.
 ///
-/// Note that if that python isn't version 2.7, this will error.
+/// Note that if the python doesn't satisfy expected_version, this will error.
 fn configure_from_path(expected_version: &PythonVersion) -> Result<String, String> {
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
@@ -174,18 +205,12 @@ print(sys.exec_prefix);";
     let version: &str = lines[0];
     let libpath: &str = lines[1];
     let enable_shared: &str = lines[2];
-
     let exec_prefix: &str = lines[3];
 
-    if version != format!("({}, {})", 
-            expected_version.major,
-            expected_version.minor) 
-    {
-        return Err(format!("'python' is not version {}.{} (is {})", 
-            expected_version.major, expected_version.minor, version));
-    }
+    let interpreter_version = try!(get_interpreter_version(version,
+        expected_version));
 
-    println!("{}", get_rustc_link_lib(expected_version, 
+    println!("{}", get_rustc_link_lib(&interpreter_version,
         enable_shared == "1").unwrap());
     println!("cargo:rustc-link-search=native={}", libpath);
     return Ok(format!("{}/bin/python", exec_prefix));
@@ -208,12 +233,22 @@ fn configure_from_pkgconfig(version: &PythonVersion, pkg_name: &str)
 
     // try to find the python interpreter in the exec_prefix somewhere.
     // the .pc doesn't tell us :(
-    let attempts = [
-        format!("/bin/python{}_{}", version.major, version.minor),
+
+    let mut attempts = vec![
         format!("/bin/python{}", version.major),
         "/bin/python".to_owned()
     ];
-    
+
+    // Try to seek python(major).(minor) if the user specified a minor.
+    //
+    // Ideally, we'd still do this even if they didn't based off the
+    // specific version of the package located by pkg_config above,
+    // but it's not obvious how to reliably extract that out of the .pc.
+    if version.minor.is_some() {
+        attempts.insert(0, format!("/bin/python{}_{}", version.major,
+            version.minor.unwrap()));
+    }
+
     for attempt in attempts.iter() {
         let possible_exec_name = format!("{}{}", exec_prefix,
             attempt);
@@ -227,13 +262,24 @@ fn configure_from_pkgconfig(version: &PythonVersion, pkg_name: &str)
 
 /// Determine the python version we're supposed to be building
 /// from the features passed via the environment.
+///
+/// The environment variable can choose to omit a minor
+/// version if the user doesn't care.
 fn version_from_env() -> Result<PythonVersion, String> {
-    let re = Regex::new(r"CARGO_FEATURE_PYTHON_(\d+)_(\d+)").unwrap();
-    for (key, _) in env::vars() {
+    let re = Regex::new(r"CARGO_FEATURE_PYTHON_(\d+)(_(\d+))?").unwrap();
+    // sort env::vars so we get more explicit version specifiers first
+    // so if the user passes e.g. the python-3 feature and the python-3-5 
+    // feature, python-3-5 takes priority.
+    let mut vars = env::vars().collect::<Vec<_>>();
+    vars.sort_by(|a, b| b.cmp(a));
+    for (key, _) in vars {
         match re.captures(&key) {
             Some(cap) => return Ok(PythonVersion { 
                 major: cap.at(1).unwrap().parse().unwrap(), 
-                minor: cap.at(2).unwrap().parse().unwrap()
+                minor: match cap.at(3) {
+                    Some(s) => Some(s.parse().unwrap()),
+                    None => None
+                }
             }),
             None => ()
         }
@@ -259,7 +305,11 @@ fn main() {
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).
     let version = version_from_env().unwrap();
-    let pkg_name = format!("python-{}.{}", version.major, version.minor);
+    let pkg_name = match version.minor {
+        Some(minor) => format!("python-{}.{}", version.major, minor),
+        None => format!("python{}", version.major)
+    };
+
     let python_interpreter_path = match configure_from_pkgconfig(&version, &pkg_name) {
         Ok(p) => p,
         // no pkgconfig - either it failed or user set the environment 

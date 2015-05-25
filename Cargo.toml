@@ -40,3 +40,9 @@ optional = true
 [features]
 # Maybe one day python 3 should be the default. But not this day.
 default = ["python27-sys"]
+
+# Optional features to support explicitly specifying python minor version.
+# If you don't care which minor version, just specify python3-sys as a 
+# feature.
+python-3-5 = ["python3-sys/python-3-5"]
+python-3-4 = ["python3-sys/python-3-4"]
