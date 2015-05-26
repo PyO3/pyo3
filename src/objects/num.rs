@@ -339,7 +339,29 @@ mod test {
         assert_eq!(v as u64, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<i32>().is_err());
     }
-
+    
+    #[test]
+    fn test_i64_max() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = std::i64::MAX;
+        let obj = v.to_py_object(py).into_object();
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert_eq!(v as u64, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<u32>().is_err());
+    }
+    
+    #[test]
+    fn test_i64_min() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = std::i64::MIN;
+        let obj = v.to_py_object(py).into_object();
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert!(obj.extract::<i32>().is_err());
+        assert!(obj.extract::<u64>().is_err());
+    }
+    
     #[test]
     fn test_u64_max() {
         let gil = Python::acquire_gil();
