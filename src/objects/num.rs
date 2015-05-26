@@ -103,7 +103,7 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-        
+
         #[cfg(feature="python3-sys")]
         impl <'p> FromPyObject<'p> for $rust_type {
             fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
@@ -172,6 +172,17 @@ int_fits_larger_int!(isize, i64);
 
 int_fits_larger_int!(usize, u64);
 
+fn err_if_invalid_value<'p, T: PartialEq, F: Fn() -> T>
+   (obj: &PyObject<'p>, invalid_value: T, func: F) -> PyResult<'p, T> {
+    let py = obj.python();
+    let v = func();
+    if v == invalid_value && PyErr::occurred(py) {
+        Err(PyErr::fetch(py))
+    } else {
+        Ok(v)
+    }
+}
+
 impl <'p> ToPyObject<'p> for u64 {
     #[cfg(feature="python27-sys")]
     type ObjectType = PyObject<'p>;
@@ -198,24 +209,15 @@ impl <'p> ToPyObject<'p> for u64 {
     }
 }
 
-fn pylong_as_u64<'p>(obj: &PyObject<'p>) -> PyResult<'p, u64> {
-    let py = obj.python();
-    let v = unsafe { ffi::PyLong_AsUnsignedLongLong(obj.as_ptr()) };
-    if v == !0 && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
-    } else {
-        Ok(v)
-    }
-}
-
 impl <'p> FromPyObject<'p> for u64 {
     #[cfg(feature="python27-sys")]
     fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, u64> {
         let py = s.python();
         let ptr = s.as_ptr();
+
         unsafe {
             if ffi::PyLong_Check(ptr) != 0 {
-                pylong_as_u64(s)
+                err_if_invalid_value(s, !0, || ffi::PyLong_AsUnsignedLongLong(s.as_ptr()) )
             } else if ffi::PyInt_Check(ptr) != 0 {
                 match num::traits::cast::<c_long, u64>(ffi::PyInt_AS_LONG(ptr)) {
                     Some(v) => Ok(v),
@@ -223,7 +225,7 @@ impl <'p> FromPyObject<'p> for u64 {
                 }
             } else {
                 let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
-                pylong_as_u64(&num)
+                err_if_invalid_value(&num, !0, || ffi::PyLong_AsUnsignedLongLong(num.as_ptr()) )
             }
         }
     }
@@ -234,10 +236,10 @@ impl <'p> FromPyObject<'p> for u64 {
         let ptr = s.as_ptr();
         unsafe {
             if ffi::PyLong_Check(ptr) != 0 {
-                pylong_as_u64(s)
+                err_if_invalid_value(s, !0, || ffi::PyLong_AsUnsignedLongLong(s.as_ptr()) )
             } else {
                 let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
-                pylong_as_u64(&num)
+                err_if_invalid_value(&num, !0, || ffi::PyLong_AsUnsignedLongLong(num.as_ptr()) )
             }
         }
     }
@@ -340,4 +342,3 @@ mod test {
         assert!(obj.extract::<i64>().is_err());
     }
 }
-
