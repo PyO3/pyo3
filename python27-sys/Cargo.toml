@@ -41,5 +41,5 @@ git = "https://github.com/alexcrichton/pkg-config-rs.git"
 #
 # Similarly functionality is duplicated in python3-sys/Cargo.toml 
 # where supporting multiple 3.x's is more important.
-default = ["python_2_7"]
-python_2_7 = []
+default = ["python-2-7"]
+python-2-7 = []

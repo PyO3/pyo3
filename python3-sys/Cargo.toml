@@ -35,6 +35,11 @@ git = "https://github.com/alexcrichton/pkg-config-rs.git"
 [features]
 # This is examined by ./build.rs to determine which python version 
 # to try to bind to.
-default = ["python_3_4"]
-python_3_4 = []
-python_3_5 = []
+default = ["python-3"]
+
+# Bind to any python 3.x.
+python-3 = []
+
+# Or, bind to a particular minor version.
+python-3-4 = []
+python-3-5 = []
