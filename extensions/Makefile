@@ -4,7 +4,7 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 .PHONY: all clean
 
 ifndef PY
-PY=3
+PY=2
 endif
 
 all:
@@ -33,5 +33,6 @@ stamps/test-hello: hello.out
 	@grep "Rust says: Hello Python!" hello.out >/dev/null
 	@grep "Rust got 42" hello.out >/dev/null
 
+all: inheritance.so
 
 

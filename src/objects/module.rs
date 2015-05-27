@@ -116,6 +116,16 @@ impl <'p> PyModule<'p> {
     pub fn add<V>(&self, name: &str, value: V) -> PyResult<'p, ()> where V: ToPyObject<'p> {
         self.dict().set_item(name, value)
     }
+
+    /// Adds a new extension type to the module.
+    ///
+    /// This is a convenience function that creates a new `PyRustTypeBuilder` and
+    /// sets `new_type.__module__` to this module's name.
+    /// The new type will be added to this module when `finish()` is called on the builder.
+    #[cfg(feature="python27-sys")]
+    pub fn add_type<T>(&self, name: &str) -> ::rustobject::PyRustTypeBuilder<'p, T> {
+        ::rustobject::new_typebuilder_for_module(self, name)
+    }
 }
 
 
