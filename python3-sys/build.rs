@@ -15,6 +15,14 @@ struct PythonVersion {
 
 const CFG_KEY: &'static str = "py_sys_config";
 
+// windows' python writes out lines with the windows crlf sequence;
+// posix platforms and mac os should write out lines with just lf.
+#[cfg(target_os="windows")]
+static NEWLINE_SEQUENCE: &'static str = "\r\n";
+
+#[cfg(not(target_os="windows"))]
+static NEWLINE_SEQUENCE: &'static str = "\n";
+
 // A list of python interpreter compile-time preprocessor defines that 
 // we will pick up and pass to rustc via --cfg=py_sys_config={varname};
 // this allows using them conditional cfg attributes in the .rs files, so
@@ -27,6 +35,7 @@ const CFG_KEY: &'static str = "py_sys_config";
 //
 // (hrm, this is sort of re-implementing what distutils does, except 
 // by passing command line args instead of referring to a python.h)
+#[cfg(not(target_os="windows"))]
 static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "Py_USING_UNICODE",
     "Py_UNICODE_WIDE",
@@ -48,6 +57,7 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
 /// Examine python's compile flags to pass to cfg by launching
 /// the interpreter and printing variables of interest from 
 /// sysconfig.get_config_vars.
+#[cfg(not(target_os="windows"))]
 fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, String>  {
     let mut script = "import sysconfig; \
 config = sysconfig.get_config_vars();".to_owned();
@@ -73,7 +83,7 @@ config = sysconfig.get_config_vars();".to_owned();
     }
 
     let stdout = String::from_utf8(out.stdout).unwrap();
-    let split_stdout: Vec<&str> = stdout.trim_right().split('\n').collect();
+    let split_stdout: Vec<&str> = stdout.trim_right().split(NEWLINE_SEQUENCE).collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
         return Err(
             format!("python stdout len didn't return expected number of lines:
@@ -88,6 +98,35 @@ config = sysconfig.get_config_vars();".to_owned();
             }
             memo
         }))
+}
+
+#[cfg(target_os="windows")]
+fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
+    // sysconfig is missing all the flags on windows, so we can't actually
+    // query the interpreter directly for its build flags. 
+    //
+    // For the time being, this is the flags as defined in the python source's
+    // PC\pyconfig.h. This won't work correctly if someone has built their
+    // python with a modified pyconfig.h - sorry if that is you, you will have
+    // to comment/uncomment the lines below.
+    let mut map: HashMap<String, String> = HashMap::new();
+    map.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
+    map.insert("Py_UNICODE_WIDE".to_owned(), "0".to_owned());
+    map.insert("WITH_THREAD".to_owned(), "1".to_owned());
+    map.insert("Py_UNICODE_SIZE".to_owned(), "2".to_owned());
+
+    // This is defined #ifdef _DEBUG. The visual studio build seems to produce
+    // a specially named pythonXX_d.exe and pythonXX_d.dll when you build the
+    // Debug configuration, which this script doesn't currently support anyway.
+    // map.insert("Py_DEBUG", "1");
+    
+    // Uncomment these manually if your python was built with these and you want
+    // the cfg flags to be set in rust.
+    //
+    // map.insert("Py_REF_DEBUG", "1");
+    // map.insert("Py_TRACE_REFS", "1");
+    // map.insert("COUNT_ALLOCS", 1");
+    Ok(map)
 }
 
 fn is_value(key: &str) -> bool {
@@ -128,6 +167,7 @@ fn run_python_script(script: &str) -> Result<String, String> {
 }
 
 #[cfg(not(target_os="macos"))]
+#[cfg(not(target_os="windows"))]
 fn get_rustc_link_lib(version: &PythonVersion, enable_shared: bool) -> Result<String, String> {
     if enable_shared {
         Ok(format!("cargo:rustc-link-lib=python{}.{}", version.major,
@@ -191,6 +231,16 @@ fn get_interpreter_version(line: &str, expected_version: &PythonVersion)
     }
 }
 
+#[cfg(target_os="windows")]
+fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
+    // Py_ENABLE_SHARED doesn't seem to be present on windows.
+    Ok(format!("cargo:rustc-link-lib=python{}{}", version.major, 
+        match version.minor {
+            Some(minor) => minor.to_string(),
+            None => "".to_owned()
+        }))
+}
+
 /// Deduce configuration from the 'python' in the current PATH and print
 /// cargo vars to stdout.
 ///
@@ -201,7 +251,7 @@ print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
 print(sys.exec_prefix);";
     let out = run_python_script(script).unwrap();
-    let lines: Vec<&str> = out.split("\n").collect();
+    let lines: Vec<&str> = out.split(NEWLINE_SEQUENCE).collect();
     let version: &str = lines[0];
     let libpath: &str = lines[1];
     let enable_shared: &str = lines[2];
@@ -212,8 +262,18 @@ print(sys.exec_prefix);";
 
     println!("{}", get_rustc_link_lib(&interpreter_version,
         enable_shared == "1").unwrap());
-    println!("cargo:rustc-link-search=native={}", libpath);
-    return Ok(format!("{}/bin/python", exec_prefix));
+
+    if libpath != "None" {
+        println!("cargo:rustc-link-search=native={}", libpath);
+    }
+
+    let rel_interpreter_path = if cfg!(target_os="windows") {
+        "/python"
+    } else {
+        "/bin/python"
+    };
+
+    return Ok(format!("{}{}", exec_prefix, rel_interpreter_path));
 }
 
 /// Deduce configuration from the python-X.X in pkg-config and print
@@ -318,6 +378,7 @@ fn main() {
     };
 
     let config_map = get_config_vars(&python_interpreter_path).unwrap();
+
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {
             Some(line) => println!("{}", line),
@@ -347,5 +408,6 @@ fn main() {
             memo
         }
     });
-    println!("cargo:python_flags={}", &flags[..flags.len()-1]);
+    println!("cargo:python_flags={}", 
+        if flags.len() > 0 { &flags[..flags.len()-1] } else { "" });
 }
