@@ -241,7 +241,7 @@ int_fits_larger_int!(u32, u64);
 int_fits_c_long!(i64);
 
 // manual implementation for i64 on systems with 32-bit long
-#[cfg(all(target_pointer_width="32", not(target_os="windows")))]
+#[cfg(any(target_pointer_width="32", target_os="windows"))]
 int_convert_u64_or_i64!(i64, ffi::PyLong_FromLongLong, ffi::PyLong_AsLongLong);
 
 #[cfg(all(target_pointer_width="64", not(target_os="windows")))]
