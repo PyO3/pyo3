@@ -169,12 +169,11 @@ fn run_python_script(script: &str) -> Result<String, String> {
 #[cfg(not(target_os="macos"))]
 #[cfg(not(target_os="windows"))]
 fn get_rustc_link_lib(version: &PythonVersion, enable_shared: bool) -> Result<String, String> {
+    let dotted_version = format!("{}.{}", version.major, version.minor.unwrap());
     if enable_shared {
-        Ok(format!("cargo:rustc-link-lib=python{}.{}", version.major,
-            version.minor))
+        Ok(format!("cargo:rustc-link-lib=python{}", dotted_version))
     } else {
-        Ok(format!("cargo:rustc-link-lib=static=python{}.{}", version.major,
-            version.minor))
+        Ok(format!("cargo:rustc-link-lib=static=python{}", dotted_version))
     }
 }
 
