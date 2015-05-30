@@ -88,6 +88,8 @@ pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonOb
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
+#[cfg(feature="python27-sys")]
+pub use rustobject::{PyRustTypeBuilder, PyRustType, PyRustObject};
 
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr(
@@ -105,6 +107,8 @@ mod conversion;
 mod objects;
 mod objectprotocol;
 mod pythonrun;
+#[cfg(feature="python27-sys")]
+mod rustobject;
 
 /// Private re-exports for macros. Do not use.
 #[doc(hidden)]

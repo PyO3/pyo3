@@ -175,12 +175,12 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Returns the length of the sequence or mapping.
     /// This is equivalent to the python expression: 'len(self)'
     #[inline]
-    fn len(&self) -> PyResult<'p, ffi::Py_ssize_t> {
+    fn len(&self) -> PyResult<'p, usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
             Err(PyErr::fetch(self.python()))
         } else {
-            Ok(v)
+            Ok(v as usize)
         }
     }
     

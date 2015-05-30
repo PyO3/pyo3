@@ -103,7 +103,7 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-        
+
         #[cfg(feature="python3-sys")]
         impl <'p> FromPyObject<'p> for $rust_type {
             fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
@@ -147,6 +147,84 @@ macro_rules! int_fits_larger_int(
 );
 
 
+fn err_if_invalid_value<'p, T: PartialEq, F: Fn() -> T>
+   (obj: &PyObject<'p>, invalid_value: T, func: F) -> PyResult<'p, T> {
+    let py = obj.python();
+    let v = func();
+    if v == invalid_value && PyErr::occurred(py) {
+        Err(PyErr::fetch(py))
+    } else {
+        Ok(v)
+    }
+}
+
+macro_rules! int_convert_u64_or_i64 (
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
+        impl <'p> ToPyObject<'p> for $rust_type {
+            #[cfg(feature="python27-sys")]
+            type ObjectType = PyObject<'p>;
+
+            #[cfg(feature="python3-sys")]
+            type ObjectType = PyLong<'p>;
+
+            #[cfg(feature="python27-sys")]
+            fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
+                unsafe {
+                    let ptr = match num::traits::cast::<$rust_type, c_long>(*self) {
+                        Some(v) => ffi::PyInt_FromLong(v),
+                        None => $pylong_from_ll_or_ull(*self)
+                    };
+                    err::from_owned_ptr_or_panic(py, ptr)
+                }
+            }
+
+            #[cfg(feature="python3-sys")]
+            fn to_py_object(&self, py: Python<'p>) -> PyLong<'p> {
+                unsafe {
+                    err::cast_from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
+                }
+            }
+        }
+
+        impl <'p> FromPyObject<'p> for $rust_type {
+            #[cfg(feature="python27-sys")]
+            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
+                let py = s.python();
+                let ptr = s.as_ptr();
+
+                unsafe {
+                    if ffi::PyLong_Check(ptr) != 0 {
+                        err_if_invalid_value(s, !0, || $pylong_as_ull_or_ull(s.as_ptr()) )
+                    } else if ffi::PyInt_Check(ptr) != 0 {
+                        match num::traits::cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
+                            Some(v) => Ok(v),
+                            None => Err(overflow_error(py))
+                        }
+                    } else {
+                        let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
+                        err_if_invalid_value(&num, !0, || $pylong_as_ull_or_ull(num.as_ptr()) )
+                    }
+                }
+            }
+
+            #[cfg(feature="python3-sys")]
+            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
+                let py = s.python();
+                let ptr = s.as_ptr();
+                unsafe {
+                    if ffi::PyLong_Check(ptr) != 0 {
+                        err_if_invalid_value(s, !0, || $pylong_as_ull_or_ull(s.as_ptr()) )
+                    } else {
+                        let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
+                        err_if_invalid_value(&num, !0, || $pylong_as_ull_or_ull(num.as_ptr()) )
+                    }
+                }
+            }
+        }
+    )
+);
+
+
 int_fits_c_long!(i8);
 int_fits_c_long!(u8);
 int_fits_c_long!(i16);
@@ -161,9 +239,10 @@ int_fits_larger_int!(u32, u64);
 
 #[cfg(all(target_pointer_width="64", not(target_os="windows")))]
 int_fits_c_long!(i64);
-// TODO: manual implementation for i64 on systems with 32-bit long
 
-// u64 has a manual implementation as it never fits into signed long
+// manual implementation for i64 on systems with 32-bit long
+#[cfg(any(target_pointer_width="32", target_os="windows"))]
+int_convert_u64_or_i64!(i64, ffi::PyLong_FromLongLong, ffi::PyLong_AsLongLong);
 
 #[cfg(all(target_pointer_width="64", not(target_os="windows")))]
 int_fits_c_long!(isize);
@@ -172,76 +251,8 @@ int_fits_larger_int!(isize, i64);
 
 int_fits_larger_int!(usize, u64);
 
-impl <'p> ToPyObject<'p> for u64 {
-    #[cfg(feature="python27-sys")]
-    type ObjectType = PyObject<'p>;
-
-    #[cfg(feature="python3-sys")]
-    type ObjectType = PyLong<'p>;
-
-    #[cfg(feature="python27-sys")]
-    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
-        unsafe {
-            let ptr = match num::traits::cast::<u64, c_long>(*self) {
-                Some(v) => ffi::PyInt_FromLong(v),
-                None => ffi::PyLong_FromUnsignedLongLong(*self)
-            };
-            err::from_owned_ptr_or_panic(py, ptr)
-        }
-    }
-
-    #[cfg(feature="python3-sys")]
-    fn to_py_object(&self, py: Python<'p>) -> PyLong<'p> {
-        unsafe {
-            err::cast_from_owned_ptr_or_panic(py, ffi::PyLong_FromUnsignedLongLong(*self))
-        }
-    }
-}
-
-fn pylong_as_u64<'p>(obj: &PyObject<'p>) -> PyResult<'p, u64> {
-    let py = obj.python();
-    let v = unsafe { ffi::PyLong_AsUnsignedLongLong(obj.as_ptr()) };
-    if v == !0 && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
-    } else {
-        Ok(v)
-    }
-}
-
-impl <'p> FromPyObject<'p> for u64 {
-    #[cfg(feature="python27-sys")]
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, u64> {
-        let py = s.python();
-        let ptr = s.as_ptr();
-        unsafe {
-            if ffi::PyLong_Check(ptr) != 0 {
-                pylong_as_u64(s)
-            } else if ffi::PyInt_Check(ptr) != 0 {
-                match num::traits::cast::<c_long, u64>(ffi::PyInt_AS_LONG(ptr)) {
-                    Some(v) => Ok(v),
-                    None => Err(overflow_error(py))
-                }
-            } else {
-                let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
-                pylong_as_u64(&num)
-            }
-        }
-    }
-
-    #[cfg(feature="python3-sys")]
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, u64> {
-        let py = s.python();
-        let ptr = s.as_ptr();
-        unsafe {
-            if ffi::PyLong_Check(ptr) != 0 {
-                pylong_as_u64(s)
-            } else {
-                let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
-                pylong_as_u64(&num)
-            }
-        }
-    }
-}
+// u64 has a manual implementation as it never fits into signed long
+int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
 impl <'p> ToPyObject<'p> for f64 {
     type ObjectType = PyFloat<'p>;
@@ -328,7 +339,29 @@ mod test {
         assert_eq!(v as u64, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<i32>().is_err());
     }
-
+    
+    #[test]
+    fn test_i64_max() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = std::i64::MAX;
+        let obj = v.to_py_object(py).into_object();
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert_eq!(v as u64, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<u32>().is_err());
+    }
+    
+    #[test]
+    fn test_i64_min() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = std::i64::MIN;
+        let obj = v.to_py_object(py).into_object();
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert!(obj.extract::<i32>().is_err());
+        assert!(obj.extract::<u64>().is_err());
+    }
+    
     #[test]
     fn test_u64_max() {
         let gil = Python::acquire_gil();
@@ -340,4 +373,3 @@ mod test {
         assert!(obj.extract::<i64>().is_err());
     }
 }
-

@@ -413,7 +413,6 @@ impl Clone for PyTypeObject {
     #[inline] fn clone(&self) -> PyTypeObject { *self }
 }
 
-/* PyHeapTypeObject omitted, it doesn't seem to be part of the documented API
 #[repr(C)]
 #[derive(Copy)]
 pub struct PyHeapTypeObject {
@@ -426,11 +425,16 @@ pub struct PyHeapTypeObject {
     pub ht_slots: *mut PyObject,
 }
 
-// access macro to the members which are floating "behind" the object
-#define PyHeapType_GET_MEMBERS(etype) \
-    ((PyMemberDef *)(((char *)etype) + Py_TYPE(etype)->tp_basicsize))
-*/
+impl Clone for PyHeapTypeObject {
+    #[inline] fn clone(&self) -> PyHeapTypeObject { *self }
+}
 
+// access macro to the members which are floating "behind" the object
+#[inline]
+pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut ::structmember::PyMemberDef {
+    let basicsize = (*Py_TYPE(etype as *mut PyObject)).tp_basicsize;
+    (etype as *mut u8).offset(basicsize as isize) as *mut ::structmember::PyMemberDef
+}
 
 extern "C" {
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
