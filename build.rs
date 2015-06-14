@@ -23,16 +23,18 @@ fn main() {
         }
     };
 
-    for f in flags.split(",") {
-        // write out flags as --cfg so that the same #cfg blocks can be used
-        // in rust-cpython as in the -sys libs
-        let key_and_val: Vec<&str> = f.split("=").collect();
-        let key = key_and_val[0];
-        let val = key_and_val[1];
-        if key.starts_with("FLAG") {
-            println!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, &key[5..])
-        } else {
-            println!("cargo:rustc-cfg={}=\"{}_{}\"", CFG_KEY, &key[4..], val);
+    if flags.len() > 0 {
+        for f in flags.split(",") {
+            // write out flags as --cfg so that the same #cfg blocks can be used
+            // in rust-cpython as in the -sys libs
+            let key_and_val: Vec<&str> = f.split("=").collect();
+            let key = key_and_val[0];
+            let val = key_and_val[1];
+            if key.starts_with("FLAG") {
+                println!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, &key[5..])
+            } else {
+                println!("cargo:rustc-cfg={}=\"{}_{}\"", CFG_KEY, &key[4..], val);
+            }
         }
     }
 }
