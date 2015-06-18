@@ -23,14 +23,8 @@ exclude = [
 libc = "*"
 
 [build-dependencies]
-# pkg-config = "0.3"
+pkg-config = "0.3.5"
 regex = "0.1.8"
-
-# TODO: depends on trunk pkg-config for now because we 
-# require 14c4b9, can revert this when alex bumps the 
-# crate release 
-[build-dependencies.pkg-config]
-git = "https://github.com/alexcrichton/pkg-config-rs.git"
 
 [features]
 # This is examined by ./build.rs to determine which python version 
