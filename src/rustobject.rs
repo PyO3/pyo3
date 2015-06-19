@@ -27,12 +27,20 @@ use err::{self, PyResult};
 pub trait PythonBaseObject<'p> : PythonObject<'p> {
     /// Gets the size of the object, in bytes.
     fn size() -> usize;
+
+    /// Calls the rust destructor for the object and frees the memory.
+    /// This function is the tp_dealloc implementation.
+    unsafe extern "C" fn dealloc(ptr: *mut ffi::PyObject);
 }
 
 impl <'p> PythonBaseObject<'p> for PyObject<'p> {
     #[inline]
     fn size() -> usize {
         mem::size_of::<ffi::PyObject>()
+    }
+
+    unsafe extern "C" fn dealloc(ptr: *mut ffi::PyObject) {
+        ((*ffi::Py_TYPE(ptr)).tp_free.unwrap())(ptr as *mut libc::c_void);
     }
 }
 
@@ -56,7 +64,7 @@ impl <'p, T, B> PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
         (B::size() + align - 1) / align * align
     }
 
-    /// Gets a reference to this object, 
+    /// Gets a reference to this object, but of the base class type.
     #[inline]
     pub fn base(&self) -> &B {
         unsafe { B::unchecked_downcast_borrow_from(&self.obj) }
@@ -73,14 +81,20 @@ impl <'p, T, B> PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
     }
 }
 
-impl <'p, T, B> PythonBaseObject<'p> for PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
+impl <'p, T, B> PythonBaseObject<'p> for PyRustObject<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     #[inline]
     fn size() -> usize {
         PyRustObject::<T, B>::offset() + mem::size_of::<T>()
     }
+
+    unsafe extern "C" fn dealloc(obj: *mut ffi::PyObject) {
+        let offset = PyRustObject::<T, B>::offset() as isize;
+        ptr::read_and_drop((obj as *mut u8).offset(offset) as *mut T);
+        B::dealloc(obj)
+    }
 }
 
-impl <'p, T, B> Clone for PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
+impl <'p, T, B> Clone for PyRustObject<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     #[inline]
     fn clone(&self) -> Self {
         PyRustObject {
@@ -91,7 +105,7 @@ impl <'p, T, B> Clone for PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObjec
     }
 }
 
-impl <'p, T, B> ToPythonPointer for PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
+impl <'p, T, B> ToPythonPointer for PyRustObject<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.obj.as_ptr()
@@ -103,7 +117,7 @@ impl <'p, T, B> ToPythonPointer for PyRustObject<'p, T, B> where T: 'p, B: Pytho
     }
 }
 
-impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
+impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     #[inline]
     fn as_object(&self) -> &PyObject<'p> {
         &self.obj
@@ -224,26 +238,35 @@ impl <'p, T: 'p> PythonObject<'p> for PyRustType<'p, T> {
 
 #[repr(C)]
 #[must_use]
-pub struct PyRustTypeBuilder<'p, T, B = PyObject<'p>> where T: 'p, B: PythonBaseObject<'p> {
+pub struct PyRustTypeBuilder<'p, T, B = PyObject<'p>> where T: 'p + Send, B: PythonBaseObject<'p> {
     type_obj: PyType<'p>,
     target_module: Option<PyModule<'p>>,
     ht: *mut ffi::PyHeapTypeObject,
     phantom: marker::PhantomData<&'p (B, T)>
 }
 
-pub fn new_typebuilder_for_module<'p, T>(m: &PyModule<'p>, name: &str) -> PyRustTypeBuilder<'p, T> {
+pub fn new_typebuilder_for_module<'p, T>(m: &PyModule<'p>, name: &str) -> PyRustTypeBuilder<'p, T>
+        where T: 'p + Send {
     let b = PyRustTypeBuilder::new(m.python(), name);
     if let Ok(mod_name) = m.name() {
         b.dict().set_item("__module__", mod_name).ok();
     }
     PyRustTypeBuilder { target_module: Some(m.clone()), .. b }
 }
- 
-impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p {
+
+unsafe extern "C" fn disabled_new
+    (subtype: *mut ffi::PyTypeObject, args: *mut ffi::PyObject, kwds: *mut ffi::PyObject)
+    -> *mut ffi::PyObject {
+    ffi::PyErr_SetString(ffi::PyExc_TypeError,
+        b"Cannot initialize rust object from python.\0" as *const u8 as *const libc::c_char);
+    ptr::null_mut()
+}
+
+impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p + Send {
     /// Create a new type builder.
     pub fn new(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T> {
         unsafe {
-            let obj = ffi::PyType_GenericAlloc(&mut ffi::PyType_Type, 0);
+            let obj = (ffi::PyType_Type.tp_alloc.unwrap())(&mut ffi::PyType_Type, 0);
             if obj.is_null() {
                 panic!("Out of memory")
             }
@@ -251,6 +274,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p {
             (*ht).ht_name = PyString::new(py, name.as_bytes()).steal_ptr();
             (*ht).ht_type.tp_name = ffi::PyString_AS_STRING((*ht).ht_name);
             (*ht).ht_type.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HEAPTYPE;
+            (*ht).ht_type.tp_new = Some(disabled_new);
             PyRustTypeBuilder {
                 type_obj: PyType::unchecked_downcast_from(PyObject::from_owned_ptr(py, obj)),
                 target_module: None,
@@ -262,7 +286,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p {
 
     pub fn base<T2, B2>(self, base_type: &PyRustType<'p, T2, B2>)
         -> PyRustTypeBuilder<'p, T, PyRustObject<'p, T2, B2>>
-        where B2: PythonBaseObject<'p>
+        where T2: 'p + Send, B2: PythonBaseObject<'p>
     {
         unsafe {
             ffi::Py_XDECREF((*self.ht).ht_type.tp_base as *mut ffi::PyObject);
@@ -288,11 +312,12 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p {
     }
 }
 
-impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
+impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     pub fn finish(self) -> PyResult<'p, PyRustType<'p, T, B>> {
         let py = self.type_obj.python();
         unsafe {
             (*self.ht).ht_type.tp_basicsize = PyRustObject::<T, B>::size() as ffi::Py_ssize_t;
+            (*self.ht).ht_type.tp_dealloc = Some(PyRustObject::<T, B>::dealloc);
             try!(err::error_on_minusone(py, ffi::PyType_Ready(self.type_obj.as_type_ptr())))
         }
         if let Some(m) = self.target_module {

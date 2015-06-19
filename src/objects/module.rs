@@ -123,7 +123,8 @@ impl <'p> PyModule<'p> {
     /// sets `new_type.__module__` to this module's name.
     /// The new type will be added to this module when `finish()` is called on the builder.
     #[cfg(feature="python27-sys")]
-    pub fn add_type<T>(&self, name: &str) -> ::rustobject::PyRustTypeBuilder<'p, T> {
+    pub fn add_type<T>(&self, name: &str) -> ::rustobject::PyRustTypeBuilder<'p, T>
+            where T: 'p + Send {
         ::rustobject::new_typebuilder_for_module(self, name)
     }
 }

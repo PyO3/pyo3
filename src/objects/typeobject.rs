@@ -17,7 +17,9 @@
 // DEALINGS IN THE SOFTWARE.
 
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, ToPythonPointer};
-use objects::PyObject;
+use conversion::ToPyObject;
+use objects::{PyObject, PyTuple, PyDict};
+use err::{PyResult, result_from_owned_ptr};
 use ffi;
 use libc::c_char;
 use std;
@@ -48,6 +50,17 @@ impl <'p> PyType<'p> {
     #[inline]
     pub fn is_instance(&self, obj : &PyObject<'p>) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
+    }
+
+    /// Calls the type object, thus creating a new instance.
+    /// This is equivalent to the python expression: 'self(*args, **kwargs)'
+    #[inline]
+    pub fn call<A: ?Sized>(&self, args: &A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+      where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
+        let py = self.python();
+        args.with_borrowed_ptr(py, |args| unsafe {
+            result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
+        })
     }
 }
 

@@ -30,7 +30,7 @@ pub use self::string::PyUnicode as PyString;
 #[cfg(feature="python27-sys")]
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
-pub use self::tuple::PyTuple;
+pub use self::tuple::{PyTuple, NoArgs};
 pub use self::dict::PyDict;
 pub use self::list::PyList;
 #[cfg(feature="python27-sys")]
