@@ -16,7 +16,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#![feature(core)] // used for a lot of low-level stuff
 #![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
 #![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send

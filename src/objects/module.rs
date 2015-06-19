@@ -84,7 +84,7 @@ impl <'p> PyModule<'p> {
         } else {
             let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
-                Ok(s) => Ok(std::mem::copy_lifetime(self, s)),
+                Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::new(try!(exc::UnicodeDecodeError::new_utf8(py, slice, e))))
             }
         }
