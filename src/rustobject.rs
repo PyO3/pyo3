@@ -28,9 +28,18 @@ pub trait PythonBaseObject<'p> : PythonObject<'p> {
     /// Gets the size of the object, in bytes.
     fn size() -> usize;
 
-    /// Calls the rust destructor for the object and frees the memory.
-    /// This function is the tp_dealloc implementation.
-    unsafe extern "C" fn dealloc(ptr: *mut ffi::PyObject);
+    type InitType : 'p;
+
+    /// Allocates a new object (usually by calling ty->tp_alloc),
+    /// and initializes it using init_val.
+    /// `ty` must be derived from the Self type, and the resulting object
+    /// must be of type `ty`.
+    unsafe fn alloc(ty: &PyType<'p>, init_val: Self::InitType) -> PyResult<'p, Self>;
+
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
+    unsafe fn dealloc(ptr: *mut ffi::PyObject);
 }
 
 impl <'p> PythonBaseObject<'p> for PyObject<'p> {
@@ -39,7 +48,15 @@ impl <'p> PythonBaseObject<'p> for PyObject<'p> {
         mem::size_of::<ffi::PyObject>()
     }
 
-    unsafe extern "C" fn dealloc(ptr: *mut ffi::PyObject) {
+    type InitType = ();
+
+    unsafe fn alloc(ty: &PyType<'p>, init_val: ()) -> PyResult<'p, PyObject<'p>> {
+        let py = ty.python();
+        let ptr = ((*ty.as_type_ptr()).tp_alloc.unwrap())(ty.as_type_ptr(), 0);
+        err::result_from_owned_ptr(py, ptr)
+    }
+
+    unsafe fn dealloc(ptr: *mut ffi::PyObject) {
         ((*ffi::Py_TYPE(ptr)).tp_free.unwrap())(ptr as *mut libc::c_void);
     }
 }
@@ -87,7 +104,16 @@ impl <'p, T, B> PythonBaseObject<'p> for PyRustObject<'p, T, B> where T: 'p + Se
         PyRustObject::<T, B>::offset() + mem::size_of::<T>()
     }
 
-    unsafe extern "C" fn dealloc(obj: *mut ffi::PyObject) {
+    type InitType = (T, B::InitType);
+
+    unsafe fn alloc(ty: &PyType<'p>, (val, base_val): Self::InitType) -> PyResult<'p, Self> {
+        let obj = try!(B::alloc(ty, base_val));
+        let offset = PyRustObject::<T, B>::offset() as isize;
+        ptr::write((obj.as_ptr() as *mut u8).offset(offset) as *mut T, val);
+        Ok(Self::unchecked_downcast_from(obj.into_object()))
+    }
+
+    unsafe fn dealloc(obj: *mut ffi::PyObject) {
         let offset = PyRustObject::<T, B>::offset() as isize;
         ptr::read_and_drop((obj as *mut u8).offset(offset) as *mut T);
         B::dealloc(obj)
@@ -151,32 +177,22 @@ impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'p + Send, 
 /// Serves as a python type object, and can be used to construct
 /// `PyRustObject<T>` instances.
 #[repr(C)]
-pub struct PyRustType<'p, T, B = PyObject<'p>> where T: 'p, B: PythonBaseObject<'p> {
+pub struct PyRustType<'p, T, B = PyObject<'p>> where T: 'p + Send, B: PythonBaseObject<'p> {
     type_obj: PyType<'p>,
     phantom: marker::PhantomData<&'p (B, T)>
 }
 
-impl <'p, T> PyRustType<'p, T, PyObject<'p>> {
+impl <'p, T, B> PyRustType<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     /// Creates a PyRustObject instance from a value.
-    pub fn create_instance(&self, val: T) -> PyRustObject<'p, T> {
+    pub fn create_instance(&self, val: T, base_val: B::InitType) -> PyRustObject<'p, T, B> {
         let py = self.type_obj.python();
         unsafe {
-            let obj = ffi::PyType_GenericAlloc(self.type_obj.as_type_ptr(), 0);
-            if obj.is_null() {
-                panic!("Out of memory")
-            }
-            let offset = PyRustObject::<T>::offset() as isize;
-            ptr::write((obj as *mut u8).offset(offset) as *mut T, val);
-            PyRustObject {
-                obj: PyObject::from_owned_ptr(py, obj),
-                t: marker::PhantomData,
-                b: marker::PhantomData
-            }
+            PythonBaseObject::alloc(&self.type_obj, (val, base_val)).unwrap()
         }
     }
 }
 
-impl <'p, T, B> ops::Deref for PyRustType<'p, T, B> where T: 'p, B: PythonBaseObject<'p> {
+impl <'p, T, B> ops::Deref for PyRustType<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     type Target = PyType<'p>;
 
     #[inline]
@@ -185,7 +201,7 @@ impl <'p, T, B> ops::Deref for PyRustType<'p, T, B> where T: 'p, B: PythonBaseOb
     }
 }
 
-impl <'p, T: 'p> ToPythonPointer for PyRustType<'p, T> {
+impl <'p, T> ToPythonPointer for PyRustType<'p, T> where T: 'p + Send {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.type_obj.as_ptr()
@@ -197,7 +213,7 @@ impl <'p, T: 'p> ToPythonPointer for PyRustType<'p, T> {
     }
 }
 
-impl <'p, T: 'p> Clone for PyRustType<'p, T> {
+impl <'p, T> Clone for PyRustType<'p, T> where T: 'p + Send {
     #[inline]
     fn clone(&self) -> Self {
         PyRustType {
@@ -207,7 +223,7 @@ impl <'p, T: 'p> Clone for PyRustType<'p, T> {
     }
 }
 
-impl <'p, T: 'p> PythonObject<'p> for PyRustType<'p, T> {
+impl <'p, T> PythonObject<'p> for PyRustType<'p, T> where T: 'p + Send {
     #[inline]
     fn as_object(&self) -> &PyObject<'p> {
         self.type_obj.as_object()
@@ -254,12 +270,19 @@ pub fn new_typebuilder_for_module<'p, T>(m: &PyModule<'p>, name: &str) -> PyRust
     PyRustTypeBuilder { target_module: Some(m.clone()), .. b }
 }
 
-unsafe extern "C" fn disabled_new
+unsafe extern "C" fn disabled_tp_new_callback
     (subtype: *mut ffi::PyTypeObject, args: *mut ffi::PyObject, kwds: *mut ffi::PyObject)
     -> *mut ffi::PyObject {
     ffi::PyErr_SetString(ffi::PyExc_TypeError,
         b"Cannot initialize rust object from python.\0" as *const u8 as *const libc::c_char);
     ptr::null_mut()
+}
+
+unsafe extern "C" fn tp_dealloc_callback<'p, T, B>(obj: *mut ffi::PyObject)
+        where T: 'p + Send, B: PythonBaseObject<'p> {
+    abort_on_panic!({
+        PyRustObject::<T, B>::dealloc(obj)
+    });
 }
 
 impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p + Send {
@@ -274,7 +297,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p + Send {
             (*ht).ht_name = PyString::new(py, name.as_bytes()).steal_ptr();
             (*ht).ht_type.tp_name = ffi::PyString_AS_STRING((*ht).ht_name);
             (*ht).ht_type.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HEAPTYPE;
-            (*ht).ht_type.tp_new = Some(disabled_new);
+            (*ht).ht_type.tp_new = Some(disabled_tp_new_callback);
             PyRustTypeBuilder {
                 type_obj: PyType::unchecked_downcast_from(PyObject::from_owned_ptr(py, obj)),
                 target_module: None,
@@ -313,11 +336,12 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'p + Send {
 }
 
 impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
+
     pub fn finish(self) -> PyResult<'p, PyRustType<'p, T, B>> {
         let py = self.type_obj.python();
         unsafe {
             (*self.ht).ht_type.tp_basicsize = PyRustObject::<T, B>::size() as ffi::Py_ssize_t;
-            (*self.ht).ht_type.tp_dealloc = Some(PyRustObject::<T, B>::dealloc);
+            (*self.ht).ht_type.tp_dealloc = Some(tp_dealloc_callback::<T, B>);
             try!(err::error_on_minusone(py, ffi::PyType_Ready(self.type_obj.as_type_ptr())))
         }
         if let Some(m) = self.target_module {

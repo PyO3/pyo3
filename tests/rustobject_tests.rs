@@ -21,7 +21,7 @@ fn rustobject_calls_drop() {
     let t = PyRustTypeBuilder::<MyObj>::new(py, "TypeWithDrop").finish().unwrap();
 
     let drop_called = Arc::new(AtomicBool::new(false));
-    let inst = t.create_instance(MyObj { drop_called: drop_called.clone() });
+    let inst = t.create_instance(MyObj { drop_called: drop_called.clone() }, ());
     assert!(drop_called.load(Ordering::Relaxed) == false);
     drop(inst);
     assert!(drop_called.load(Ordering::Relaxed) == true);

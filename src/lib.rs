@@ -74,6 +74,9 @@
 
 extern crate libc;
 
+#[macro_use]
+extern crate abort_on_panic;
+
 #[cfg(feature="python27-sys")]
 extern crate python27_sys as ffi;
 
@@ -114,6 +117,7 @@ mod rustobject;
 pub mod _detail {
     pub use ffi;
     pub use libc;
+    pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
 }
 
@@ -171,6 +175,8 @@ macro_rules! py_module_initializer {
         #[[no_mangle]]
         #[allow(non_snake_case)]
         pub extern "C" fn [ init $name ]() {
+            let _guard = $crate::_detail::PanicGuard::with_message(
+                concat!("Rust panic in ", stringify!($name), " module initializer"));
             let py = unsafe { $crate::Python::assume_gil_acquired() };
             let name = unsafe { ::std::ffi::CStr::from_ptr(concat!(stringify!($name), "\0").as_ptr() as *const _) };
             match $crate::PyModule::_init(py, name, $init) {
@@ -188,6 +194,8 @@ macro_rules! py_module_initializer {
         #[[no_mangle]]
         #[allow(non_snake_case)]
         pub extern "C" fn [ PyInit_ $name ]() -> *mut $crate::_detail::ffi::PyObject {
+            let _guard = $crate::_detail::PanicGuard::with_message(
+                concat!("Rust panic in ", stringify!($name), " module initializer"));
             let py = unsafe { $crate::Python::assume_gil_acquired() };
             static mut module_def: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
                 m_base: $crate::_detail::ffi::PyModuleDef_HEAD_INIT,
@@ -234,6 +242,7 @@ macro_rules! py_func {
         unsafe extern "C" fn wrap_py_func
           (_slf: *mut $crate::_detail::ffi::PyObject, args: *mut $crate::_detail::ffi::PyObject)
           -> *mut $crate::_detail::ffi::PyObject {
+            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_func!");
             let py = $crate::Python::assume_gil_acquired();
             let args = $crate::PyObject::from_borrowed_ptr(py, args);
             let args: &$crate::PyTuple = $crate::PythonObject::unchecked_downcast_borrow_from(&args);
