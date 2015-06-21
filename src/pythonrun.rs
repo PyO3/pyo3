@@ -18,7 +18,8 @@
 
 use std::sync::{Once, ONCE_INIT};
 use ffi;
-use python::Python;
+use python::{Python, ToPythonPointer};
+use objects::PyObject;
 
 static START: Once = ONCE_INIT;
 
@@ -89,8 +90,34 @@ impl GILGuard {
     }
 
     /// Retrieves the marker type that proves that the GIL was acquired.
+    #[inline]
     pub fn python<'p>(&'p self) -> Python<'p> {
         unsafe { Python::assume_gil_acquired() }
+    }
+}
+
+/// Mutex-like wrapper object for data that is protected by the python GIL.
+pub struct GILProtected<T> {
+    data: T
+}
+
+unsafe impl<T: Send> Send for GILProtected<T> { }
+unsafe impl<T: Send> Sync for GILProtected<T> { }
+
+impl <T> GILProtected<T> {
+    #[inline]
+    pub const fn new(data: T) -> GILProtected<T> {
+        GILProtected { data: data }
+    }
+
+    #[inline]
+    pub fn get<'p>(&'p self, py: Python<'p>) -> &'p T {
+        &self.data
+    }
+
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.data
     }
 }
 

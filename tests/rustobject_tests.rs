@@ -32,7 +32,22 @@ fn rustobject_calls_drop() {
 fn rustobject_no_init_from_python() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let t = PyRustTypeBuilder::<i32>::new(py, "TypeWithDrop").finish().unwrap();
+    let t = PyRustTypeBuilder::<i32>::new(py, "MyType").finish().unwrap();
     assert!(t.call(&NoArgs, None).is_err());
+}
+
+
+#[test]
+fn rustobject_heaptype_refcount() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let t = PyRustTypeBuilder::<i32>::new(py, "MyType").finish().unwrap();
+    // TODO: investigate why the refcnt isn't 1.
+    //assert_eq!(1, t.as_object().get_refcnt());
+    let old_refcnt = t.as_object().get_refcnt();
+    let inst = t.create_instance(1, ());
+    assert_eq!(old_refcnt + 1, t.as_object().get_refcnt());
+    drop(inst);
+    assert_eq!(old_refcnt, t.as_object().get_refcnt());
 }
 

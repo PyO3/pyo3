@@ -16,6 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+#![feature(const_fn)]
 #![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
 #![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send
@@ -87,11 +88,13 @@ pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, ToPythonPointer};
-pub use pythonrun::{GILGuard, prepare_freethreaded_python};
+pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 #[cfg(feature="python27-sys")]
-pub use rustobject::{PyRustTypeBuilder, PyRustType, PyRustObject};
+pub use rustobject::{PyRustType, PyRustObject};
+#[cfg(feature="python27-sys")]
+pub use rustobject::typebuilder::PyRustTypeBuilder;
 
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr(
