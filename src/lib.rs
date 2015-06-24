@@ -16,7 +16,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#![feature(const_fn)]
 #![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
 #![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send
@@ -96,6 +95,8 @@ pub use rustobject::{PyRustType, PyRustObject};
 #[cfg(feature="python27-sys")]
 pub use rustobject::typebuilder::PyRustTypeBuilder;
 
+use std::ptr;
+
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr(
     ($s: tt) => (
@@ -122,12 +123,20 @@ pub mod _detail {
     pub use libc;
     pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
+
+    /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
+    /// of the referenced variable.
+    /// This is useful in macros to ensure that type inference doesn't set 'p == 'static.
+    #[inline]
+    pub unsafe fn bounded_assume_gil_acquired<T>(_bound: &T) -> super::Python {
+        super::Python::assume_gil_acquired()
+    }
 }
 
 /// Expands to an `extern "C"` function that allows python to load
 /// the rust code as a python extension module.
 ///
-/// The macro takes three arguments:
+/// Macro syntax: `py_module_initializer!($name, |$py, $m| $body)`
 ///
 /// 1. The module name as a string literal.
 /// 2. The name of the init function as an identifier.
@@ -148,7 +157,7 @@ pub mod _detail {
 ///
 /// py_module_initializer!(example, |py, m| {
 ///     try!(m.add("__doc__", "Module documentation string"));
-///     try!(m.add("run", py_func!(py, run)));
+///     try!(m.add("run", py_fn!(run)));
 ///     Ok(())
 /// });
 /// 
@@ -174,18 +183,42 @@ pub mod _detail {
 #[macro_export]
 #[cfg(feature="python27-sys")]
 macro_rules! py_module_initializer {
-    ($name: ident, $init: expr) => ( interpolate_idents! {
+    ($name: ident, |$py_id: ident, $m_id: ident| $body: expr) => ( interpolate_idents! {
         #[[no_mangle]]
         #[allow(non_snake_case)]
-        pub extern "C" fn [ init $name ]() {
-            let _guard = $crate::_detail::PanicGuard::with_message(
-                concat!("Rust panic in ", stringify!($name), " module initializer"));
-            let py = unsafe { $crate::Python::assume_gil_acquired() };
-            let name = unsafe { ::std::ffi::CStr::from_ptr(concat!(stringify!($name), "\0").as_ptr() as *const _) };
-            match $crate::PyModule::_init(py, name, $init) {
-                Ok(()) => (),
-                Err(e) => e.restore()
+        pub unsafe extern "C" fn [ init $name ]() {
+            // Nest init function so that $body isn't in unsafe context
+            fn init<'pmisip>($py_id: $crate::Python<'pmisip>, $m_id: &$crate::PyModule<'pmisip>) -> $crate::PyResult<'pmisip, ()> {
+                $body
             }
+            let name = concat!(stringify!($name), "\0").as_ptr() as *const _;
+            $crate::py_module_initializer_impl(name, init)
+        }
+    })
+}
+
+
+#[doc(hidden)]
+#[cfg(feature="python27-sys")]
+pub unsafe fn py_module_initializer_impl(
+    name: *const libc::c_char,
+    init: for<'p> fn(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()>
+) {
+    abort_on_panic!({
+        let py = Python::assume_gil_acquired();
+        let module = ffi::Py_InitModule(name, ptr::null_mut());
+        if module.is_null() { return; }
+
+        let module = match PyObject::from_borrowed_ptr(py, module).cast_into::<PyModule>() {
+            Ok(m) => m,
+            Err(e) => {
+                PyErr::from(e).restore();
+                return;
+            }
+        };
+        match init(py, &module) {
+            Ok(()) => (),
+            Err(e) => e.restore()
         }
     })
 }
@@ -193,13 +226,14 @@ macro_rules! py_module_initializer {
 #[macro_export]
 #[cfg(feature="python3-sys")]
 macro_rules! py_module_initializer {
-    ($name: ident, $init: expr) => ( interpolate_idents! {
+    ($name: ident, |$py_id: ident, $m_id: ident| $body: expr) => ( interpolate_idents! {
         #[[no_mangle]]
         #[allow(non_snake_case)]
-        pub extern "C" fn [ PyInit_ $name ]() -> *mut $crate::_detail::ffi::PyObject {
-            let _guard = $crate::_detail::PanicGuard::with_message(
-                concat!("Rust panic in ", stringify!($name), " module initializer"));
-            let py = unsafe { $crate::Python::assume_gil_acquired() };
+        pub unsafe extern "C" fn [ PyInit_ $name ]() -> *mut $crate::_detail::ffi::PyObject {
+            // Nest init function so that $body isn't in unsafe context
+            fn init<'pmisip>($py_id: $crate::Python<'pmisip>, $m_id: &$crate::PyModule<'pmisip>) -> $crate::PyResult<'pmisip, ()> {
+                $body
+            }
             static mut module_def: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
                 m_base: $crate::_detail::ffi::PyModuleDef_HEAD_INIT,
                 m_name: 0 as *const _,
@@ -213,15 +247,36 @@ macro_rules! py_module_initializer {
             };
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
-            unsafe {
-                module_def.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
+            module_def.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
+            $crate::py_module_initializer_impl(&mut module_def, init)
+        }
+    })
+}
+
+
+#[doc(hidden)]
+#[cfg(feature="python3-sys")]
+pub unsafe fn py_module_initializer_impl(
+    def: *mut ffi::PyModuleDef,
+    init: for<'p> fn(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()>
+) -> *mut ffi::PyObject {
+    abort_on_panic!({
+        let py = Python::assume_gil_acquired();
+        let module = ffi::PyModule_Create(def);
+        if module.is_null() { return module; }
+
+        let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>() {
+            Ok(m) => m,
+            Err(e) => {
+                PyErr::from(e).restore();
+                return ptr::null_mut();
             }
-            match $crate::PyModule::_init(py, unsafe { &mut module_def }, $init) {
-                Ok(m) => $crate::ToPythonPointer::steal_ptr(m),
-                Err(e) => {
-                    e.restore();
-                    return ::std::ptr::null_mut();
-                }
+        };
+        match init(py, &module) {
+            Ok(()) => module.steal_ptr(),
+            Err(e) => {
+                e.restore();
+                return ptr::null_mut();
             }
         }
     })
@@ -229,27 +284,26 @@ macro_rules! py_module_initializer {
 
 /// Creates a python callable object that invokes a Rust function.
 ///
-/// Arguments:
+/// As arguments, takes the name of a rust function with the signature
+/// `<'p>(Python<'p>, &PyTuple<'p>) -> PyResult<'p, T>`
+/// for some `T` that implements `ToPyObject`.
 ///
-/// 1. The `Python<'p>` marker, to ensure this macro is only used while holding the GIL.
-/// 2. A Rust function with the signature `<'p>(Python<'p>, &PyTuple<'p>) -> PyResult<'p, T>`
-///    for some `T` that implements `ToPyObject`.
-/// 
+/// Returns a type that implements `ToPyObject` by producing a python callable.
+///
 /// See `py_module_initializer!` for example usage.
-///
-/// # Panic
-/// May panic when python runs out of memory.
 #[macro_export]
-macro_rules! py_func {
-    ($py: expr, $f: expr) => ({
-        unsafe extern "C" fn wrap_py_func
-          (_slf: *mut $crate::_detail::ffi::PyObject, args: *mut $crate::_detail::ffi::PyObject)
-          -> *mut $crate::_detail::ffi::PyObject {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_func!");
-            let py = $crate::Python::assume_gil_acquired();
+macro_rules! py_fn {
+    ($f: ident) => ( interpolate_idents! {{
+        unsafe extern "C" fn [ wrap_ $f ](
+            _slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_fn!");
+            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
             let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args: &$crate::PyTuple = $crate::PythonObject::unchecked_downcast_borrow_from(&args);
-            match $f(py, args) {
+            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
+            match $f(py, &args) {
                 Ok(val) => {
                     let obj = $crate::ToPyObject::into_py_object(val, py);
                     return $crate::ToPythonPointer::steal_ptr(obj);
@@ -260,18 +314,34 @@ macro_rules! py_func {
                 }
             }
         }
-        static mut method_def: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
+        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
             //ml_name: bytes!(stringify!($f), "\0"),
             ml_name: b"<rust function>\0" as *const u8 as *const $crate::_detail::libc::c_char,
-            ml_meth: Some(wrap_py_func),
+            ml_meth: Some([ wrap_ $f ]),
             ml_flags: $crate::_detail::ffi::METH_VARARGS,
             ml_doc: 0 as *const $crate::_detail::libc::c_char
         };
-        let py: Python = $py;
+        unsafe { $crate::PyRustFunctionHandle::new(&mut [ method_def_ $f ]) }
+    }})
+}
+
+#[doc(hidden)]
+pub struct PyRustFunctionHandle(*mut ffi::PyMethodDef);
+
+impl PyRustFunctionHandle {
+    #[inline]
+    pub unsafe fn new(p: *mut ffi::PyMethodDef) -> PyRustFunctionHandle {
+        PyRustFunctionHandle(p)
+    }
+}
+
+impl <'p> ToPyObject<'p> for PyRustFunctionHandle {
+    type ObjectType = PyObject<'p>;
+
+    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
         unsafe {
-            let obj = $crate::_detail::ffi::PyCFunction_New(&mut method_def, ::std::ptr::null_mut());
-            $crate::_detail::from_owned_ptr_or_panic(py, obj)
+            err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(self.0, ptr::null_mut()))
         }
-    })
+    }
 }
 

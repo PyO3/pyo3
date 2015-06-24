@@ -70,6 +70,7 @@ pub struct GILGuard {
 /// GILGuard is not Send because the GIL must be released
 /// by the same thread that acquired it.
 impl !Send for GILGuard {}
+impl !Sync for GILGuard {}
 
 /// The Drop implementation for GILGuard will release the GIL.
 impl Drop for GILGuard {
@@ -106,7 +107,7 @@ unsafe impl<T: Send> Sync for GILProtected<T> { }
 
 impl <T> GILProtected<T> {
     #[inline]
-    pub const fn new(data: T) -> GILProtected<T> {
+    pub fn new(data: T) -> GILProtected<T> {
         GILProtected { data: data }
     }
 

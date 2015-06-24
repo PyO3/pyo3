@@ -44,29 +44,6 @@ impl <'p> PyModule<'p> {
         }
     }
 
-    // Helper method for module_initializer!() macro, do not use directly!
-    #[doc(hidden)]
-    #[cfg(feature="python27-sys")]
-    pub fn _init<F>(py: Python<'p>, name: &CStr, init: F) -> PyResult<'p, ()>
-      where F: FnOnce(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()> {
-        let module = try!(unsafe {
-            err::result_from_borrowed_ptr(py, ffi::Py_InitModule(name.as_ptr(), std::ptr::null_mut()))
-        });
-        let module = try!(module.cast_into::<PyModule>());
-        init(py, &module)
-    }
-
-    #[doc(hidden)]
-    #[cfg(feature="python3-sys")]
-    pub fn _init<F>(py: Python<'p>, def: *mut ffi::PyModuleDef, init: F) -> PyResult<'p, PyModule<'p>>
-      where F: FnOnce(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()> {
-        let module: PyModule = try!(unsafe {
-            err::result_cast_from_owned_ptr(py, ffi::PyModule_Create(def))
-        });
-        try!(init(py, &module));
-        Ok(module)
-    }
-
     /// Return the dictionary object that implements module‘s namespace;
     /// this object is the same as the __dict__ attribute of the module object.
     pub fn dict(&self) -> PyDict<'p> {
