@@ -113,6 +113,7 @@ mod conversion;
 mod objects;
 mod objectprotocol;
 mod pythonrun;
+mod function;
 #[cfg(feature="python27-sys")]
 mod rustobject;
 
@@ -123,6 +124,9 @@ pub mod _detail {
     pub use libc;
     pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
+    pub use function::py_fn_impl;
+    #[cfg(feature="python27-sys")]
+    pub use rustobject::method::py_method_impl;
 
     /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
     /// of the referenced variable.
@@ -280,68 +284,5 @@ pub unsafe fn py_module_initializer_impl(
             }
         }
     })
-}
-
-/// Creates a python callable object that invokes a Rust function.
-///
-/// As arguments, takes the name of a rust function with the signature
-/// `<'p>(Python<'p>, &PyTuple<'p>) -> PyResult<'p, T>`
-/// for some `T` that implements `ToPyObject`.
-///
-/// Returns a type that implements `ToPyObject` by producing a python callable.
-///
-/// See `py_module_initializer!` for example usage.
-#[macro_export]
-macro_rules! py_fn {
-    ($f: ident) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
-            _slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject)
-        -> *mut $crate::_detail::ffi::PyObject
-        {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_fn!");
-            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
-            match $f(py, &args) {
-                Ok(val) => {
-                    let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::ToPythonPointer::steal_ptr(obj);
-                }
-                Err(e) => {
-                    e.restore();
-                    return ::std::ptr::null_mut();
-                }
-            }
-        }
-        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
-            //ml_name: bytes!(stringify!($f), "\0"),
-            ml_name: b"<rust function>\0" as *const u8 as *const $crate::_detail::libc::c_char,
-            ml_meth: Some([ wrap_ $f ]),
-            ml_flags: $crate::_detail::ffi::METH_VARARGS,
-            ml_doc: 0 as *const $crate::_detail::libc::c_char
-        };
-        unsafe { $crate::PyRustFunctionHandle::new(&mut [ method_def_ $f ]) }
-    }})
-}
-
-#[doc(hidden)]
-pub struct PyRustFunctionHandle(*mut ffi::PyMethodDef);
-
-impl PyRustFunctionHandle {
-    #[inline]
-    pub unsafe fn new(p: *mut ffi::PyMethodDef) -> PyRustFunctionHandle {
-        PyRustFunctionHandle(p)
-    }
-}
-
-impl <'p> ToPyObject<'p> for PyRustFunctionHandle {
-    type ObjectType = PyObject<'p>;
-
-    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
-        unsafe {
-            err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(self.0, ptr::null_mut()))
-        }
-    }
 }
 

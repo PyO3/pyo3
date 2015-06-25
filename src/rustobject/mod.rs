@@ -25,7 +25,9 @@ use std::{mem, ops, ptr, marker};
 use err::{self, PyResult};
 
 pub mod typebuilder;
-mod method;
+pub mod method;
+#[cfg(test)]
+mod tests;
 
 /// A PythonObject that is usable as a base type with PyTypeBuilder::base().
 pub trait PythonBaseObject<'p> : PythonObject<'p> {

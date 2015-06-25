@@ -33,6 +33,8 @@ stamps/test-hello: hello.out
 	@grep "Rust says: Hello Python!" hello.out >/dev/null
 	@grep "Rust got 42" hello.out >/dev/null
 
+all: custom_type.so
+
 all: inheritance.so
 
 
