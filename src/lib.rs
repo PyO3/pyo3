@@ -126,7 +126,7 @@ pub mod _detail {
     pub use err::from_owned_ptr_or_panic;
     pub use function::py_fn_impl;
     #[cfg(feature="python27-sys")]
-    pub use rustobject::method::py_method_impl;
+    pub use rustobject::method::{py_method_impl, py_class_method_impl};
 
     /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
     /// of the referenced variable.

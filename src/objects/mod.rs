@@ -41,10 +41,9 @@ pub use self::num::{PyLong, PyFloat};
 
 macro_rules! pyobject_newtype(
     ($name: ident) => (
-        #[repr(C)]
         #[derive(Clone)]
         pub struct $name<'p>(::objects::object::PyObject<'p>);
-        
+
         impl <'p> ::python::ToPythonPointer for $name<'p> {
             #[inline]
             fn as_ptr(&self) -> *mut ::ffi::PyObject {
@@ -56,7 +55,7 @@ macro_rules! pyobject_newtype(
                 ::python::ToPythonPointer::steal_ptr(self.0)
             }
         }
-        
+
         impl <'p> ::python::PythonObject<'p> for $name<'p> {
             #[inline]
             fn as_object(&self) -> &::objects::object::PyObject<'p> {

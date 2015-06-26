@@ -20,6 +20,7 @@ use std::{ptr, marker};
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyType};
 use conversion::ToPyObject;
+use super::{PythonBaseObject, PyRustObject, PyRustType};
 use super::typebuilder::TypeMember;
 use ffi;
 use err;
@@ -27,10 +28,10 @@ use err;
 /// Creates a python instance method descriptor that invokes a Rust function.
 ///
 /// As arguments, takes the name of a rust function with the signature
-/// `for<'p> fn(&PyRustObject<'p, _>, &PyTuple<'p>) -> PyResult<'p, T>`
-/// for some `T` that implements `ToPyObject`.
+/// `for<'p> fn(&PyRustObject<'p, T>, &PyTuple<'p>) -> PyResult<'p, R>`
+/// for some `R` that implements `ToPyObject`.
 ///
-/// Returns a type that implements `pythonobject::TypeMember<PyRustObject<_>>`
+/// Returns a type that implements `typebuilder::TypeMember<PyRustObject<T>>`
 /// by producing an instance method descriptor.
 ///
 /// # Example
@@ -113,6 +114,96 @@ impl <'p, T> TypeMember<'p, T> for MethodDescriptor<T> where T: PythonObject<'p>
         unsafe {
             err::from_owned_ptr_or_panic(ty.python(),
                 ffi::PyDescr_NewMethod(ty.as_type_ptr(), self.0))
+        }
+    }
+}
+
+
+/// Creates a python class method descriptor that invokes a Rust function.
+///
+/// As arguments, takes the name of a rust function with the signature
+/// `for<'p> fn(&PyType<'p>, &PyTuple<'p>) -> PyResult<'p, T>`
+/// for some `T` that implements `ToPyObject`.
+///
+/// Returns a type that implements `typebuilder::TypeMember<PyRustObject<_>>`
+/// by producing an class method descriptor.
+///
+/// # Example
+/// ```
+/// #![feature(plugin)]
+/// #![plugin(interpolate_idents)]
+/// #[macro_use] extern crate cpython;
+/// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol,
+///               PyTuple, PyType, PyRustTypeBuilder, NoArgs};
+/// use cpython::{exc};
+///
+/// fn method<'p>(ty: &PyType<'p>, args: &PyTuple<'p>) -> PyResult<'p, i32> {
+///     Ok(42)
+/// }
+///
+/// fn main() {
+///     let gil = Python::acquire_gil();
+///     let my_type = PyRustTypeBuilder::<i32>::new(gil.python(), "MyType")
+///       .add("method", py_class_method!(method))
+///       .finish().unwrap();
+///     let result = my_type.as_object().call_method("method", &NoArgs, None).unwrap();
+///     assert_eq!(42, result.extract::<i32>().unwrap());
+/// }
+/// ```
+#[macro_export]
+macro_rules! py_class_method {
+    ($f: ident) => ( interpolate_idents! {{
+        unsafe extern "C" fn [ wrap_ $f ](
+            slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_method!");
+            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
+            let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
+            let slf = <$crate::PyType as $crate::PythonObject>::unchecked_downcast_from(slf);
+            let args = $crate::PyObject::from_borrowed_ptr(py, args);
+            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
+            match $f(&slf, &args) {
+                Ok(val) => {
+                    let obj = $crate::ToPyObject::into_py_object(val, py);
+                    return $crate::ToPythonPointer::steal_ptr(obj);
+                }
+                Err(e) => {
+                    e.restore();
+                    return ::std::ptr::null_mut();
+                }
+            }
+        }
+        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
+            //ml_name: bytes!(stringify!($f), "\0"),
+            ml_name: b"<rust method>\0" as *const u8 as *const $crate::_detail::libc::c_char,
+            ml_meth: Some([ wrap_ $f ]),
+            ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_CLASS,
+            ml_doc: 0 as *const $crate::_detail::libc::c_char
+        };
+        unsafe { $crate::_detail::py_class_method_impl(&mut [ method_def_ $f ], $f) }
+    }})
+}
+
+pub struct ClassMethodDescriptor(*mut ffi::PyMethodDef);
+
+// py_method_impl takes fn(&T) to ensure that the T in MethodDescriptor<T>
+// corresponds to the T in the function signature.
+pub unsafe fn py_class_method_impl<'p, R>(
+    def: *mut ffi::PyMethodDef,
+    _f: fn(&PyType<'p>, &PyTuple<'p>) -> err::PyResult<'p, R>
+) -> ClassMethodDescriptor
+{
+    ClassMethodDescriptor(def)
+}
+
+impl <'p, T> TypeMember<'p, T> for ClassMethodDescriptor where T: PythonObject<'p> {
+    #[inline]
+    fn into_descriptor(self, ty: &PyType<'p>, name: &str) -> PyObject<'p> {
+        unsafe {
+            err::from_owned_ptr_or_panic(ty.python(),
+                ffi::PyDescr_NewClassMethod(ty.as_type_ptr(), self.0))
         }
     }
 }

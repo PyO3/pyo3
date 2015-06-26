@@ -154,6 +154,26 @@ impl <'p, T, B> ToPythonPointer for PyRustObject<'p, T, B> where T: 'static + Se
     }
 }
 
+impl <'p, 's, T, B> ToPyObject<'p> for PyRustObject<'s, T, B> where T: 'static + Send, B: PythonBaseObject<'s> {
+    type ObjectType = PyObject<'p>;
+
+    #[inline]
+    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
+        self.as_object().to_py_object(py)
+    }
+
+    #[inline]
+    fn into_py_object(self, py: Python<'p>) -> PyObject<'p> {
+        self.into_object().into_py_object(py)
+    }
+
+    #[inline]
+    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+      where F: FnOnce(*mut ffi::PyObject) -> R {
+        f(self.as_ptr())
+    }
+}
+
 impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
     #[inline]
     fn as_object(&self) -> &PyObject<'p> {
