@@ -88,7 +88,7 @@ pub struct PyRustObject<'p, T, B = PyObject<'p>> where T: 'static, B: PythonBase
 impl <'p, T, B> PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
     #[inline] // this function can usually be reduced to a compile-time constant
     fn offset() -> usize {
-        let align = mem::min_align_of::<T>();
+        let align = mem::align_of::<T>();
         // round B::size() up to next multiple of align
         (B::size() + align - 1) / align * align
     }
