@@ -32,7 +32,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
     #[inline]
-    fn hasattr<N: ?Sized>(&self, attr_name: &N) -> PyResult<'p, bool> where N: ToPyObject<'p> {
+    fn hasattr<N>(&self, attr_name: N) -> PyResult<'p, bool> where N: ToPyObject<'p> {
         attr_name.with_borrowed_ptr(self.python(), |attr_name| unsafe {
             Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
         })
@@ -41,7 +41,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-    fn getattr<N: ?Sized>(&self, attr_name: &N) -> PyResult<'p, PyObject<'p>> where N: ToPyObject<'p> {
+    fn getattr<N>(&self, attr_name: N) -> PyResult<'p, PyObject<'p>> where N: ToPyObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             result_from_owned_ptr(py,
@@ -52,7 +52,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     #[inline]
-    fn setattr<N: ?Sized, V: ?Sized>(&self, attr_name: &N, value: &V) -> PyResult<'p, ()>
+    fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<'p, ()>
         where N: ToPyObject<'p>, V: ToPyObject<'p>
     {
         let py = self.python();
@@ -66,7 +66,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
     #[inline]
-    fn delattr<N: ?Sized>(&self, attr_name: &N) -> PyResult<'p, ()> where N: ToPyObject<'p> {
+    fn delattr<N>(&self, attr_name: N) -> PyResult<'p, ()> where N: ToPyObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             error_on_minusone(py,
@@ -77,10 +77,10 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Compares two python objects.
     /// This is equivalent to the python expression 'cmp(self, other)'.
     #[cfg(feature="python27-sys")]
-    fn compare<O: ?Sized>(&self, other: &O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
+    fn compare<O>(&self, other: O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
         let py = self.python();
         other.with_borrowed_ptr(py, |other| unsafe {
-            let mut result : libc::c_int = std::mem::uninitialized();
+            let mut result : libc::c_int = -1;
             try!(error_on_minusone(py,
                 ffi::PyObject_Cmp(self.as_ptr(), other, &mut result)));
             Ok(if result < 0 {
@@ -101,7 +101,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             result_from_owned_ptr(self.python(), ffi::PyObject_Repr(self.as_ptr()))
         }
     }
-    
+
     /// Compute the string representation of self.
     /// This is equivalent to the python expression 'str(self)'.
     #[inline]
@@ -110,7 +110,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             result_from_owned_ptr(self.python(), ffi::PyObject_Str(self.as_ptr()))
         }
     }
-    
+
     /// Compute the unicode string representation of self.
     /// This is equivalent to the python expression 'unistr(self)'.
     #[inline]
@@ -120,7 +120,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             result_from_owned_ptr(self.python(), ffi::PyObject_Unicode(self.as_ptr()))
         }
     }
-    
+
     /// Determines whether this object is callable.
     #[inline]
     fn is_callable(&self) -> bool {
@@ -128,26 +128,26 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             ffi::PyCallable_Check(self.as_ptr()) != 0
         }
     }
-    
+
     /// Calls the object.
     /// This is equivalent to the python expression: 'self(*args, **kwargs)'
     #[inline]
-    fn call<A: ?Sized>(&self, args: &A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+    fn call<A>(&self, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         let py = self.python();
         args.with_borrowed_ptr(py, |args| unsafe {
             result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
         })
     }
-    
+
     /// Calls a method on the object.
     /// This is equivalent to the python expression: 'self.name(*args, **kwargs)'
     #[inline]
-    fn call_method<A: ?Sized>(&self, name: &str, args: &A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         try!(self.getattr(name)).call(args, kwargs)
     }
-    
+
     /// Retrieves the hash code of the object.
     /// This is equivalent to the python expression: 'hash(self)'
     #[inline]
