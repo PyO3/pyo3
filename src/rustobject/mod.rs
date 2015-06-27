@@ -74,10 +74,10 @@ impl <'p> PythonBaseObject<'p> for PyObject<'p> {
     }
 }
 
-/// A python object that contains a rust value of type T,
+/// A Python object that contains a rust value of type T,
 /// and is derived from base class B.
 /// Note that this type effectively acts like `Rc<T>`,
-/// except that the reference counting is done by the python runtime.
+/// except that the reference counting is done by the Python runtime.
 #[repr(C)]
 pub struct PyRustObject<'p, T, B = PyObject<'p>> where T: 'static, B: PythonBaseObject<'p> {
     obj: PyObject<'p>,
@@ -99,7 +99,7 @@ impl <'p, T, B> PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObj
         unsafe { B::unchecked_downcast_borrow_from(&self.obj) }
     }
 
-    /// Gets a reference to the rust value stored in this python object.
+    /// Gets a reference to the rust value stored in this Python object.
     #[inline]
     pub fn get(&self) -> &T {
         let offset = PyRustObject::<T, B>::offset() as isize;
@@ -191,8 +191,8 @@ impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'static + S
     }
 }
 
-/// A python class that contains rust values of type T.
-/// Serves as a python type object, and can be used to construct
+/// A Python class that contains rust values of type T.
+/// Serves as a Python type object, and can be used to construct
 /// `PyRustObject<T>` instances.
 #[repr(C)]
 pub struct PyRustType<'p, T, B = PyObject<'p>> where T: 'p + Send, B: PythonBaseObject<'p> {

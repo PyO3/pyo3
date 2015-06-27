@@ -25,7 +25,7 @@ use super::typebuilder::TypeMember;
 use ffi;
 use err;
 
-/// Creates a python instance method descriptor that invokes a Rust function.
+/// Creates a Python instance method descriptor that invokes a Rust function.
 ///
 /// As arguments, takes the name of a rust function with the signature
 /// `for<'p> fn(&PyRustObject<'p, T>, &PyTuple<'p>) -> PyResult<'p, R>`
@@ -119,7 +119,7 @@ impl <'p, T> TypeMember<'p, T> for MethodDescriptor<T> where T: PythonObject<'p>
 }
 
 
-/// Creates a python class method descriptor that invokes a Rust function.
+/// Creates a Python class method descriptor that invokes a Rust function.
 ///
 /// As arguments, takes the name of a rust function with the signature
 /// `for<'p> fn(&PyType<'p>, &PyTuple<'p>) -> PyResult<'p, T>`

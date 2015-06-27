@@ -23,6 +23,23 @@ use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObject
 use objects::PyType;
 use err::{PyErr, PyResult};
 
+/// Represents a reference to a Python object.
+///
+/// Python objects are reference counted.
+/// Calling `clone()` on a `PyObject` will return a new reference to the same object
+/// (thus incrementing the reference count).
+/// The `Drop` implementation will decrement the reference count.
+///
+/// `PyObject` can be used with all Python objects, since all python types
+/// derive from `object`. This crate also contains other, more specific types
+/// that serve as references to Python objects (e.g. `PyTuple` for Python tuples, etc.).
+///
+/// You can convert from any Python object to `PyObject` by calling `as_object()` or `into_object`
+/// from the [PythonObject trait](trait.PythonObject.html).
+/// In the other direction, you can call `cast_as` or `cast_into`
+/// on `PyObject` to convert to more specific object types.
+///
+/// Most of the interesting methods are provided by the [ObjectProtocol trait](trait.ObjectProtocol.html).
 #[unsafe_no_drop_flag]
 #[repr(C)]
 pub struct PyObject<'p> {
@@ -43,7 +60,8 @@ impl <'p> Drop for PyObject<'p> {
     }
 }
 
-/// Cloning a `PyObject` increments the reference count on the object by 1.
+/// Clone returns another reference to the Python object,
+/// thus incrementing the reference count by 1.
 impl <'p> Clone for PyObject<'p> {
     #[inline]
     fn clone(&self) -> PyObject<'p> {
@@ -172,13 +190,13 @@ impl <'p> PyObject<'p> {
         mem::transmute(ptr)
     }
     
-    /// Gets the reference count of this python object.
+    /// Gets the reference count of this Python object.
     #[inline]
     pub fn get_refcnt(&self) -> usize {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) as usize }
     }
 
-    /// Gets the python type object for this object's type.
+    /// Gets the Python type object for this object's type.
     #[inline]
     pub fn get_type(&self) -> &PyType<'p> {
         unsafe {
@@ -187,7 +205,7 @@ impl <'p> PyObject<'p> {
         }
     }
     
-    /// Casts the PyObject to a concrete python object type.
+    /// Casts the PyObject to a concrete Python object type.
     /// Causes undefined behavior if the object is not of the expected type.
     /// This is a wrapper function around `PythonObject::unchecked_downcast_from()`.
     #[inline]
@@ -195,31 +213,31 @@ impl <'p> PyObject<'p> {
         PythonObject::unchecked_downcast_from(self)
     }
     
-    /// Casts the PyObject to a concrete python object type.
-    /// Returns a python `TypeError` if the object is not of the expected type.
+    /// Casts the PyObject to a concrete Python object type.
+    /// Fails with `PythonObjectDowncastError` if the object is not of the expected type.
     /// This is a wrapper function around `PythonObjectWithCheckedDowncast::downcast_from()`.
     #[inline]
     pub fn cast_into<T>(self) -> Result<T, PythonObjectDowncastError<'p>> where T: PythonObjectWithCheckedDowncast<'p> {
         PythonObjectWithCheckedDowncast::downcast_from(self)
     }
-    
-    /// Casts the PyObject to a concrete python object type.
+
+    /// Casts the PyObject to a concrete Python object type.
     /// Causes undefined behavior if the object is not of the expected type.
     /// This is a wrapper function around `PythonObject::unchecked_downcast_borrow_from()`.
     #[inline]
     pub unsafe fn unchecked_cast_as<'s, T>(&'s self) -> &'s T where T: PythonObject<'p> {
         PythonObject::unchecked_downcast_borrow_from(self)
     }
-    
-    /// Casts the PyObject to a concrete python object type.
-    /// Returns a python `TypeError` if the object is not of the expected type.
+
+    /// Casts the PyObject to a concrete Python object type.
+    /// Fails with `PythonObjectDowncastError` if the object is not of the expected type.
     /// This is a wrapper function around `PythonObjectWithCheckedDowncast::downcast_borrow_from()`.
     #[inline]
     pub fn cast_as<'s, T>(&'s self) -> Result<&'s T, PythonObjectDowncastError<'p>> where T: PythonObjectWithCheckedDowncast<'p> {
         PythonObjectWithCheckedDowncast::downcast_borrow_from(self)
     }
     
-    /// Extracts some type from the python object.
+    /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::from_py_object()`.
     #[inline]
     pub fn extract<T>(&self) -> Result<T, PyErr<'p>> where T: ::conversion::FromPyObject<'p> {
@@ -228,7 +246,7 @@ impl <'p> PyObject<'p> {
 }
 
 /// PyObject implements the `==` operator using reference equality:
-/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in python.
+/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in Python.
 impl <'p> PartialEq for PyObject<'p> {
     #[inline]
     fn eq(&self, o : &PyObject<'p>) -> bool {
@@ -237,7 +255,7 @@ impl <'p> PartialEq for PyObject<'p> {
 }
 
 /// PyObject implements the `==` operator using reference equality:
-/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in python.
+/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in Python.
 impl <'p> Eq for PyObject<'p> { }
 
 impl <'p> ToPythonPointer for PyObject<'p> {

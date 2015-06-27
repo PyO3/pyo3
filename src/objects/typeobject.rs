@@ -24,10 +24,13 @@ use ffi;
 use libc::c_char;
 use std;
 
+/// Represents a reference to a Python type object.
+pub struct PyType<'p>(PyObject<'p>);
+
 pyobject_newtype!(PyType, PyType_Check, PyType_Type);
 
 impl <'p> PyType<'p> {
-    /// Retrieves the underlying FFI pointer associated with this python object.
+    /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
         self.0.as_ptr() as *mut ffi::PyTypeObject
@@ -53,9 +56,9 @@ impl <'p> PyType<'p> {
     }
 
     /// Calls the type object, thus creating a new instance.
-    /// This is equivalent to the python expression: 'self(*args, **kwargs)'
+    /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     #[inline]
-    pub fn call<A: ?Sized>(&self, args: &A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+    pub fn call<A>(&self, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         let py = self.python();
         args.with_borrowed_ptr(py, |args| unsafe {

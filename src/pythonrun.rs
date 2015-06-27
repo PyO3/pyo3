@@ -23,31 +23,45 @@ use objects::PyObject;
 
 static START: Once = ONCE_INIT;
 
-/// Prepares the use of python in a free-threaded context.
+/// Prepares the use of Python in a free-threaded context.
 ///
-/// If the python interpreter is not already initialized, this function
+/// If the Python interpreter is not already initialized, this function
 /// will initialize it with disabled signal handling
-/// (python will not raise the `KeyboardInterrupt` exception).
+/// (Python will not raise the `KeyboardInterrupt` exception).
 /// Python signal handling depends on the notion of a 'main thread', which must be
-/// the thread that initializes the python interpreter.
+/// the thread that initializes the Python interpreter.
+///
+/// If both the Python interpreter and Python threading are already initialized,
+/// this function has no effect.
+///
+/// # Panic
+/// If the Python interpreter is initialized but Python threading is not,
+/// a panic occurs.
+/// It is not possible to safely access the Python runtime unless the main
+/// thread (the thread which originally initialized Python) also initializes
+/// threading.
+///
+/// When writing an extension module, the `py_module_initializer!` macro
+/// will ensure that Python threading is initialized.
+///
 pub fn prepare_freethreaded_python() {
-    // Protect against race conditions when python is not yet initialized
+    // Protect against race conditions when Python is not yet initialized
     // and multiple threads concurrently call 'prepare_freethreaded_python()'.
-    // Note that we do not protect against concurrent initialization of the python runtime
-    // by other users of the python C API.
+    // Note that we do not protect against concurrent initialization of the Python runtime
+    // by other users of the Python C API.
     START.call_once(|| unsafe {
         if ffi::Py_IsInitialized() != 0 {
-            // If python is already initialized, we expect python threading to also be initialized,
-            // as we can't make the existing python main thread acquire the GIL.
+            // If Python is already initialized, we expect Python threading to also be initialized,
+            // as we can't make the existing Python main thread acquire the GIL.
             assert!(ffi::PyEval_ThreadsInitialized() != 0);
         } else {
-            // If python isn't initialized yet, we expect that python threading isn't initialized either.
+            // If Python isn't initialized yet, we expect that Python threading isn't initialized either.
             assert!(ffi::PyEval_ThreadsInitialized() == 0);
-            // Initialize python.
+            // Initialize Python.
             // We use Py_InitializeEx() with initsigs=0 to disable Python signal handling.
             // Signal handling depends on the notion of a 'main thread', which doesn't exist in this case.
-            // Note that the 'main thread' notion in python isn't documented properly;
-            // and running python without one is not officially supported.
+            // Note that the 'main thread' notion in Python isn't documented properly;
+            // and running Python without one is not officially supported.
             ffi::Py_InitializeEx(0);
             ffi::PyEval_InitThreads();
             // PyEval_InitThreads() will acquire the GIL,
@@ -55,13 +69,23 @@ pub fn prepare_freethreaded_python() {
             // (it's not acquired in the other code paths)
             // So immediately release the GIL:
             let _thread_state = ffi::PyEval_SaveThread();
-            // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the python runtime,
+            // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the Python runtime,
             // and will be restored by PyGILState_Ensure.
         }
     });
 }
 
 /// RAII type that represents an acquired GIL.
+///
+/// # Example
+/// ```
+/// use cpython::Python;
+///
+/// {
+///     let gil_guard = Python::acquire_gil();
+///     let py = gil_guard.python();
+/// } // GIL is released when gil_guard is dropped
+/// ```
 #[must_use]
 pub struct GILGuard {
     gstate: ffi::PyGILState_STATE
@@ -70,6 +94,9 @@ pub struct GILGuard {
 /// GILGuard is not Send because the GIL must be released
 /// by the same thread that acquired it.
 impl !Send for GILGuard {}
+
+/// GILGuard is not Sync because only the thread that
+/// acquired the GIL may access the Python interpreter.
 impl !Sync for GILGuard {}
 
 /// The Drop implementation for GILGuard will release the GIL.
@@ -81,9 +108,9 @@ impl Drop for GILGuard {
 
 impl GILGuard {
     /// Acquires the global interpreter lock, which allows access to the Python runtime.
-    /// If the python runtime is not already initialized, this function will initialize it.
-    /// Note that in this case, the python runtime will not have any main thread, and will
-    /// not deliver signals like KeyboardInterrupt.
+    ///
+    /// If the Python runtime is not already initialized, this function will initialize it.
+    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
     pub fn acquire() -> GILGuard {
         ::pythonrun::prepare_freethreaded_python();
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
@@ -97,25 +124,49 @@ impl GILGuard {
     }
 }
 
-/// Mutex-like wrapper object for data that is protected by the python GIL.
+/// Mutex-like wrapper object for data that is protected by the Python GIL.
+///
+/// # Example
+/// ```
+/// use std::cell::Cell;
+/// use cpython::{Python, GILProtected};
+///
+/// let data = GILProtected::new(Cell::new(0));
+///
+/// {
+///     let gil_guard = Python::acquire_gil();
+///     let cell = data.get(gil_guard.python());
+///     cell.set(cell.get() + 1);
+/// }
+/// ```
 pub struct GILProtected<T> {
     data: T
 }
 
 unsafe impl<T: Send> Send for GILProtected<T> { }
+
+/// Because `GILProtected` ensures that the contained data
+/// is only accessed while the GIL is acquired,
+/// it can implement `Sync` even if the contained data
+/// does not.
 unsafe impl<T: Send> Sync for GILProtected<T> { }
 
 impl <T> GILProtected<T> {
+    /// Creates a new instance of `GILProtected`.
     #[inline]
     pub fn new(data: T) -> GILProtected<T> {
         GILProtected { data: data }
     }
 
+    /// Returns a shared reference to the data stored in the `GILProtected`.
+    ///
+    /// Requires a `Python` instance as proof that the GIL is acquired.
     #[inline]
-    pub fn get<'p>(&'p self, py: Python<'p>) -> &'p T {
+    pub fn get<'a>(&'a self, py: Python<'a>) -> &'a T {
         &self.data
     }
 
+    /// Consumes the `GILProtected`, returning the wrapped value.
     #[inline]
     pub fn into_inner(self) -> T {
         self.data

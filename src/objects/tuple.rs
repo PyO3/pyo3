@@ -24,14 +24,18 @@ use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, FromPyObject};
 
+/// Represents a Python tuple object.
+pub struct PyTuple<'p>(PyObject<'p>);
+
 pyobject_newtype!(PyTuple, PyTuple_Check, PyTuple_Type);
 
 impl <'p> PyTuple<'p> {
+    /// Construct a new tuple with the given elements.
     pub fn new(py: Python<'p>, elements: &[PyObject<'p>]) -> PyTuple<'p> {
         unsafe {
             let len = elements.len();
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
-            let t = err::result_from_owned_ptr(py, ptr).unwrap().unchecked_cast_into::<PyTuple>();
+            let t = err::result_cast_from_owned_ptr::<PyTuple>(py, ptr).unwrap();
             for (i, e) in elements.iter().enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.clone().steal_ptr());
             }
@@ -42,10 +46,11 @@ impl <'p> PyTuple<'p> {
     /// Retrieves the empty tuple.
     pub fn empty(py: Python<'p>) -> PyTuple<'p> {
         unsafe {
-            err::result_from_owned_ptr(py, ffi::PyTuple_New(0)).unwrap().unchecked_cast_into::<PyTuple>()
+            err::result_cast_from_owned_ptr::<PyTuple>(py, ffi::PyTuple_New(0)).unwrap()
         }
     }
 
+    /// Gets the length of the tuple.
     #[inline]
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust uint
@@ -65,7 +70,7 @@ impl <'p> PyTuple<'p> {
     }
 
     /* Disabled for now; we might want to change the PyObject memory layout for
-       compatiblity with Rust 1.0.
+       compatiblity with stable Rust.
     #[inline]
     pub fn as_slice<'a>(&'a self) -> &'a [PyObject<'p>] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
@@ -101,6 +106,7 @@ impl <'a, 'p> IntoIterator for &'a PyTuple<'p> {
     }
 }
 
+/// Used by `impl IntoIterator for &PyTuple`.
 pub struct PyTupleIterator<'p> {
     tuple: PyTuple<'p>,
     index: usize,
@@ -191,8 +197,19 @@ tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
 
 // Empty tuple:
 
+/// An empty struct that represents the empty argument list.
+/// Corresponds to the empty tuple `()` in Python.
+///
+/// # Example
+/// ```
+/// let gil_guard = cpython::Python::acquire_gil();
+/// let py = gil_guard.python();
+/// let os = py.import("os").unwrap();
+/// let pid = os.call("get_pid", cpython::NoArgs, None);
+/// ```
 pub struct NoArgs;
 
+/// Converts `NoArgs` to an empty Python tuple.
 impl <'p> ToPyObject<'p> for NoArgs {
     type ObjectType = PyTuple<'p>;
 
@@ -201,6 +218,8 @@ impl <'p> ToPyObject<'p> for NoArgs {
     }
 }
 
+/// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
+/// Otherwise, returns an error.
 impl <'p> FromPyObject<'p> for NoArgs {
     fn from_py_object(s : &PyObject<'p>) -> PyResult<'p, NoArgs> {
         let t = try!(s.cast_as::<PyTuple>());

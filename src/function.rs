@@ -24,13 +24,13 @@ use conversion::ToPyObject;
 use ffi;
 use err;
 
-/// Creates a python callable object that invokes a Rust function.
+/// Creates a Python callable object that invokes a Rust function.
 ///
 /// As arguments, takes the name of a rust function with the signature
 /// `for<'p> fn(Python<'p>, &PyTuple<'p>) -> PyResult<'p, T>`
 /// for some `T` that implements `ToPyObject`.
 ///
-/// Returns a type that implements `ToPyObject` by producing a python callable.
+/// Returns a type that implements `ToPyObject` by producing a Python callable.
 ///
 /// See `py_module_initializer!` for example usage.
 #[macro_export]

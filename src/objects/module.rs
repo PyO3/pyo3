@@ -20,15 +20,19 @@ use std;
 use ffi;
 use libc::c_char;
 use python::{Python, PythonObject, ToPythonPointer};
+use objectprotocol::ObjectProtocol;
 use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyDict, exc};
+use objects::{PyObject, PyType, PyTuple, PyDict, exc};
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
+
+/// Represents a Python module object.
+pub struct PyModule<'p>(PyObject<'p>);
 
 pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
 
 impl <'p> PyModule<'p> {
-    /// Create a new module object with the __name__ attribute set to name.
+    /// Create a new module object with the `__name__` attribute set to name.
     pub fn new(py: Python<'p>, name: &str) -> PyResult<'p, PyModule<'p>> {
         let name = CString::new(name).unwrap();
         unsafe {
@@ -36,7 +40,7 @@ impl <'p> PyModule<'p> {
         }
     }
 
-    /// Import the python module with the specified name.
+    /// Import the Python module with the specified name.
     pub fn import(py: Python<'p>, name: &str) -> PyResult<'p, PyModule<'p>> {
         let name = CString::new(name).unwrap();
         unsafe {
@@ -44,8 +48,8 @@ impl <'p> PyModule<'p> {
         }
     }
 
-    /// Return the dictionary object that implements module‘s namespace;
-    /// this object is the same as the __dict__ attribute of the module object.
+    /// Return the dictionary object that implements module's namespace;
+    /// this object is the same as the `__dict__` attribute of the module object.
     pub fn dict(&self) -> PyDict<'p> {
         let py = self.python();
         unsafe {
@@ -69,22 +73,29 @@ impl <'p> PyModule<'p> {
 
     /// Gets the module name.
     ///
-    /// May fail if the module does not have a __name__ attribute.
+    /// May fail if the module does not have a `__name__` attribute.
     pub fn name<'a>(&'a self) -> PyResult<'p, &'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
     }
 
     /// Gets the module filename.
     ///
-    /// May fail if the module does not have a __file__ attribute.
+    /// May fail if the module does not have a `__file__` attribute.
     pub fn filename<'a>(&'a self) -> PyResult<'p, &'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
     }
 
     /// Gets a member from the module.
+    /// This is equivalent to the Python expression: `getattr(module, name)`
     pub fn get(&self, name: &str) -> PyResult<'p, PyObject<'p>> {
-        use objectprotocol::ObjectProtocol;
         self.as_object().getattr(name)
+    }
+
+    /// Calls a function in the module.
+    /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
+      where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
+        try!(self.as_object().getattr(name)).call(args, kwargs)
     }
 
     /// Adds a member to the module.

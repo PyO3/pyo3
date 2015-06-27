@@ -31,8 +31,10 @@ use super::typeobject::PyType;
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
+        pub struct $name<'p>(PyObject<'p>);
+
         pyobject_newtype!($name);
-        
+
         impl <'p> PythonObjectWithCheckedDowncast<'p> for $name<'p> {
             #[inline]
             fn downcast_from(obj : PyObject<'p>) -> Result<$name<'p>, PythonObjectDowncastError<'p>> {
@@ -44,7 +46,7 @@ macro_rules! exc_type(
                     }
                 }
             }
-            
+
             #[inline]
             fn downcast_borrow_from<'a>(obj : &'a ::objects::object::PyObject<'p>) -> Result<&'a $name<'p>, PythonObjectDowncastError<'p>> {
                 unsafe {
@@ -56,7 +58,7 @@ macro_rules! exc_type(
                 }
             }
         }
-        
+
         impl <'p> PythonObjectWithTypeObject<'p> for $name<'p> {
             #[inline]
             fn type_object(py: Python<'p>) -> PyType<'p> {

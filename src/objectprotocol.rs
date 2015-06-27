@@ -74,8 +74,8 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         })
     }
 
-    /// Compares two python objects.
-    /// This is equivalent to the python expression 'cmp(self, other)'.
+    /// Compares two Python objects.
+    /// This is equivalent to the Python expression 'cmp(self, other)'.
     #[cfg(feature="python27-sys")]
     fn compare<O>(&self, other: O) -> PyResult<'p, Ordering> where O: ToPyObject<'p> {
         let py = self.python();
@@ -94,7 +94,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
 
     /// Compute the string representation of self.
-    /// This is equivalent to the python expression 'repr(self)'.
+    /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
     fn repr(&self) -> PyResult<'p, PyObject<'p>> {
         unsafe {
@@ -103,7 +103,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
 
     /// Compute the string representation of self.
-    /// This is equivalent to the python expression 'str(self)'.
+    /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
     fn str(&self) -> PyResult<'p, PyObject<'p>> {
         unsafe {
@@ -112,7 +112,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
 
     /// Compute the unicode string representation of self.
-    /// This is equivalent to the python expression 'unistr(self)'.
+    /// This is equivalent to the Python expression 'unistr(self)'.
     #[inline]
     #[cfg(feature="python27-sys")]
     fn unistr(&self) -> PyResult<'p, PyObject<'p>> {
@@ -130,7 +130,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
 
     /// Calls the object.
-    /// This is equivalent to the python expression: 'self(*args, **kwargs)'
+    /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
     #[inline]
     fn call<A>(&self, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
@@ -141,7 +141,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
 
     /// Calls a method on the object.
-    /// This is equivalent to the python expression: 'self.name(*args, **kwargs)'
+    /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     #[inline]
     fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
@@ -149,7 +149,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
 
     /// Retrieves the hash code of the object.
-    /// This is equivalent to the python expression: 'hash(self)'
+    /// This is equivalent to the Python expression: 'hash(self)'
     #[inline]
     fn hash(&self) -> PyResult<'p, libc::c_long> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
@@ -161,7 +161,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
     
     /// Returns whether the object is considered to be true.
-    /// This is equivalent to the python expression: 'not not self'
+    /// This is equivalent to the Python expression: 'not not self'
     #[inline]
     fn is_true(&self) -> PyResult<'p, bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
@@ -173,7 +173,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     }
     
     /// Returns the length of the sequence or mapping.
-    /// This is equivalent to the python expression: 'len(self)'
+    /// This is equivalent to the Python expression: 'len(self)'
     #[inline]
     fn len(&self) -> PyResult<'p, usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
@@ -184,7 +184,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         }
     }
     
-    /// This is equivalent to the python expression: 'self[key]'
+    /// This is equivalent to the Python expression: 'self[key]'
     #[inline]
     fn get_item<K>(&self, key: K) -> PyResult<'p, PyObject<'p>> where K: ToPyObject<'p> {
         let py = self.python();

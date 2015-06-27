@@ -24,6 +24,9 @@ use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, FromPyObject};
 
+/// Represents a Python `list`.
+pub struct PyList<'p>(PyObject<'p>);
+
 pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 
 impl <'p> PyList<'p> {
@@ -95,6 +98,7 @@ impl <'a, 'p> IntoIterator for &'a PyList<'p> {
     }
 }
 
+/// Used by `impl IntoIterator for &PyList`.
 pub struct PyListIterator<'p> {
     list: PyList<'p>,
     index: usize

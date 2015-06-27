@@ -21,6 +21,8 @@ use objects::PyObject;
 use err::{PyErr, PyResult};
 use ffi;
 
+pub struct PyIterator<'p>(PyObject<'p>);
+
 pyobject_newtype!(PyIterator, PyIter_Check);
 
 impl <'p> PyIterator<'p> {

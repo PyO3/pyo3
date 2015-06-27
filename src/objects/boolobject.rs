@@ -4,6 +4,9 @@ use err::PyResult;
 use super::PyObject;
 use conversion::{FromPyObject, ToPyObject};
 
+/// Represents a Python `bool`.
+pub struct PyBool<'p>(PyObject<'p>);
+
 pyobject_newtype!(PyBool, PyBool_Check, PyBool_Type);
 
 impl <'p> PyBool<'p> {
@@ -13,12 +16,14 @@ impl <'p> PyBool<'p> {
         if val { py.True() } else { py.False() }
     }
 
+    /// Gets whether this boolean is `true`.
     #[inline]
     pub fn is_true(&self) -> bool {
         self.as_ptr() == unsafe { ::ffi::Py_True() }
     }
 }
 
+/// Converts a rust `bool` to a Python `bool`.
 impl <'p> ToPyObject<'p> for bool {
     type ObjectType = PyBool<'p>;
 
@@ -36,6 +41,9 @@ impl <'p> ToPyObject<'p> for bool {
     }
 }
 
+/// Converts a Python `bool` to a rust `bool`.
+///
+/// Fails with `TypeError` if the input is not a Python `bool`.
 impl <'p> FromPyObject<'p> for bool {
     fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, bool> {
         Ok(try!(s.clone().cast_into::<PyBool>()).is_true())

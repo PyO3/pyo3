@@ -27,15 +27,45 @@ use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, FromPyObject};
 
+/// Represents a Python `int` object.
+///
+/// Note that in Python 2.x, `int` and `long` are different types.
+/// When rust-cpython is compiled for Python 3.x,
+/// `PyInt` and `PyLong` are aliases for the same type, which
+/// corresponds to a Python `int`.
+///
+/// You can usually avoid directly working with this type
+/// by using [ToPyObject](trait.ToPyObject.html)
+/// and [extract](struct.PyObject.html#method.extract)
+/// with the primitive Rust integer types.
+#[cfg(feature="python27-sys")]
+pub struct PyInt<'p>(PyObject<'p>);
 #[cfg(feature="python27-sys")]
 pyobject_newtype!(PyInt, PyInt_Check, PyInt_Type);
 
+/// In Python 2.x, represents a Python `long` object.
+/// In Python 3.x, represents a Python `int` object.
+/// Both `PyInt` and `PyLong` refer to the same type on Python 3.x.
+///
+/// You can usually avoid directly working with this type
+/// by using [ToPyObject](trait.ToPyObject.html)
+/// and [extract](struct.PyObject.html#method.extract)
+/// with the primitive Rust integer types.
+pub struct PyLong<'p>(PyObject<'p>);
 pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
+
+/// Represents a Python `float` object.
+///
+/// You can usually avoid directly working with this type
+/// by using [ToPyObject](trait.ToPyObject.html)
+/// and [extract](struct.PyObject.html#method.extract)
+/// with `f32`/`f64`.
+pub struct PyFloat<'p>(PyObject<'p>);
 pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 #[cfg(feature="python27-sys")]
 impl <'p> PyInt<'p> {
-    /// Creates a new python `int` object.
+    /// Creates a new Python `int` object.
     pub fn new(py: Python<'p>, val: c_long) -> PyInt<'p> {
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(val))
@@ -50,7 +80,7 @@ impl <'p> PyInt<'p> {
 
 
 impl <'p> PyFloat<'p> {
-    /// Creates a new python `float` object.
+    /// Creates a new Python `float` object.
     pub fn new(py: Python<'p>, val: c_double) -> PyFloat<'p> {
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val))
@@ -286,7 +316,7 @@ impl <'p> ToPyObject<'p> for f32 {
     }
 }
 
-impl <'p, 's> FromPyObject<'p> for f32 {
+impl <'p> FromPyObject<'p> for f32 {
     fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, f32> {
         Ok(try!(s.extract::<f64>()) as f32)
     }

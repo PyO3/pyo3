@@ -41,8 +41,14 @@ pub use self::num::{PyLong, PyFloat};
 
 macro_rules! pyobject_newtype(
     ($name: ident) => (
-        #[derive(Clone)]
-        pub struct $name<'p>(::objects::object::PyObject<'p>);
+        /// Clone returns another reference to the Python object,
+        /// thus incrementing the reference count by 1.
+        impl <'p> Clone for $name<'p> {
+            #[inline]
+            fn clone(&self) -> Self {
+                $name(self.0.clone())
+            }
+        }
 
         impl <'p> ::python::PythonObject<'p> for $name<'p> {
             #[inline]

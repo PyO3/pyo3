@@ -163,9 +163,9 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
 }
 
 
-/// Represents something that can be added as a member to a python class/type.
+/// Represents something that can be added as a member to a Python class/type.
 ///
-/// T: type of rust class used for instances of the python class/type.
+/// T: type of rust class used for instances of the Python class/type.
 pub trait TypeMember<'p, T> where T: PythonObject<'p> {
     fn into_descriptor(self, ty: &PyType<'p>, name: &str) -> PyObject<'p>;
 }

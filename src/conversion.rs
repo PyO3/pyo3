@@ -22,14 +22,14 @@ use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPoin
 use objects::{exc, PyObject, PyBool, PyTuple};
 use err::{self, PyErr, PyResult};
 
-/// Conversion trait that allows various objects to be converted into python objects.
+/// Conversion trait that allows various objects to be converted into Python objects.
 pub trait ToPyObject<'p> {
     type ObjectType : PythonObject<'p> = PyObject<'p>;
 
-    /// Converts self into a python object.
+    /// Converts self into a Python object.
     fn to_py_object(&self, py: Python<'p>) -> Self::ObjectType;
 
-    /// Converts self into a python object.
+    /// Converts self into a Python object.
     ///
     /// May be more efficient than `to_py_object` in some cases because
     /// it can move out of the input object.
@@ -39,11 +39,11 @@ pub trait ToPyObject<'p> {
         self.to_py_object(py)
     }
 
-    /// Converts self into a python object and calls the specified closure
-    /// on the native FFI pointer underlying the python object.
+    /// Converts self into a Python object and calls the specified closure
+    /// on the native FFI pointer underlying the Python object.
     ///
     /// May be more efficient than `to_py_object` because it does not need
-    /// to touch any reference counts when the input object already is a python object.
+    /// to touch any reference counts when the input object already is a Python object.
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
@@ -58,7 +58,7 @@ pub trait ToPyObject<'p> {
     // 2) input is PyObject
     //   -> with_borrowed_ptr() just forwards to the closure
     // 3) input is &str, int, ...
-    //   -> to_py_object() allocates new python object; FFI call happens; PyObject::drop() calls Py_DECREF()
+    //   -> to_py_object() allocates new Python object; FFI call happens; PyObject::drop() calls Py_DECREF()
     
     // FFI functions that steal a reference will use:
     //   let input = try!(input.into_py_object()); ffi::Call(input.steal_ptr())
@@ -67,18 +67,18 @@ pub trait ToPyObject<'p> {
     // 2) input is PyObject
     //   -> into_py_object() is no-op
     // 3) input is &str, int, ...
-    //   -> into_py_object() allocates new python object
+    //   -> into_py_object() allocates new Python object
 }
 
-/// FromPyObject is implemented by various types that can be extracted from a python object.
+/// FromPyObject is implemented by various types that can be extracted from a Python object.
 pub trait FromPyObject<'p> {
     fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Self>;
 }
 
 // PyObject, PyModule etc.
 // We support FromPyObject and ToPyObject for owned python references.
-// This allows using existing python objects in code that generically expects a value
-// convertible to a python object.
+// This allows using existing Python objects in code that generically expects a value
+// convertible to a Python object.
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `ToPyObject` is expected.
@@ -114,25 +114,25 @@ impl <'p, T> FromPyObject<'p> for T where T: PythonObjectWithCheckedDowncast<'p>
 
 // &PyObject, &PyModule etc.
 // We support FromPyObject and ToPyObject for borrowed python references.
-// This allows using existing python objects in code that generically expects a value
-// convertible to a python object.
-impl <'p, 's, T> ToPyObject<'p> for &'s T where T : ToPyObject<'p> {
+// This allows using existing Python objects in code that generically expects a value
+// convertible to a Python object.
+impl <'p, 's, T: ?Sized> ToPyObject<'p> for &'s T where T: ToPyObject<'p> {
     type ObjectType = T::ObjectType;
 
     #[inline]
     fn to_py_object(&self, py: Python<'p>) -> T::ObjectType {
-        (**self).to_py_object(py)
+        <T as ToPyObject>::to_py_object(*self, py)
     }
 
     #[inline]
     fn into_py_object(self, py: Python<'p>) -> T::ObjectType {
-        (*self).to_py_object(py)
+        <T as ToPyObject>::to_py_object(self, py)
     }
 
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
-        (**self).with_borrowed_ptr(py, f)
+        <T as ToPyObject>::with_borrowed_ptr(*self, py, f)
     }
 }
 
