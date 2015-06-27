@@ -210,6 +210,7 @@ pub unsafe fn py_module_initializer_impl(
 ) {
     abort_on_panic!({
         let py = Python::assume_gil_acquired();
+        ffi::PyEval_InitThreads();
         let module = ffi::Py_InitModule(name, ptr::null_mut());
         if module.is_null() { return; }
 
@@ -266,6 +267,7 @@ pub unsafe fn py_module_initializer_impl(
 ) -> *mut ffi::PyObject {
     abort_on_panic!({
         let py = Python::assume_gil_acquired();
+        ffi::PyEval_InitThreads();
         let module = ffi::PyModule_Create(def);
         if module.is_null() { return module; }
 
