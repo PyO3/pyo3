@@ -264,6 +264,8 @@ print(sys.exec_prefix);";
 
     if libpath != "None" {
         println!("cargo:rustc-link-search=native={}", libpath);
+    } else if cfg!(target_os="windows") {
+        println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
     }
 
     let rel_interpreter_path = if cfg!(target_os="windows") {

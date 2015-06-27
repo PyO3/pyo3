@@ -1,0 +1,22 @@
+version: 0.0.{build}
+environment:
+  CARGO_TARGET: x86_64-pc-windows-gnu
+  matrix:
+  - TARGET: x86_64-pc-windows-msvc
+install:
+  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rustc-nightly-${env:TARGET}.tar.gz"
+  - ps: Start-FileDownload "https://static.rust-lang.org/cargo-dist/cargo-nightly-${env:CARGO_TARGET}.tar.gz"
+  - 7z x rustc-nightly-%TARGET%.tar.gz > nul
+  - 7z x rustc-nightly-%TARGET%.tar > nul
+  - 7z x cargo-nightly-%CARGO_TARGET%.tar.gz > nul
+  - 7z x cargo-nightly-%CARGO_TARGET%.tar > nul
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64
+  - set PATH=%PATH%;%cd%/rustc-nightly-%TARGET%/rustc/bin
+  - set PATH=%PATH%;%cd%/cargo-nightly-%CARGO_TARGET%/cargo/bin
+  - rustc -V
+  - cargo -V
+build_script:
+ - cargo build --verbose
+test: false
+#test_script:
+# - cargo test --verbose
