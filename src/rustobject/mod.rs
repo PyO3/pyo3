@@ -20,7 +20,7 @@ use libc;
 use ffi;
 use python::{Python, ToPythonPointer, PythonObject};
 use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyString, PyModule, PyDict};
+use objects::{PyObject, PyType};
 use std::{mem, ops, ptr, marker};
 use err::{self, PyResult};
 
@@ -56,7 +56,7 @@ impl <'p> PythonBaseObject<'p> for PyObject<'p> {
 
     type InitType = ();
 
-    unsafe fn alloc(ty: &PyType<'p>, init_val: ()) -> PyResult<'p, PyObject<'p>> {
+    unsafe fn alloc(ty: &PyType<'p>, _init_val: ()) -> PyResult<'p, PyObject<'p>> {
         let py = ty.python();
         let ptr = ((*ty.as_type_ptr()).tp_alloc.unwrap())(ty.as_type_ptr(), 0);
         err::result_from_owned_ptr(py, ptr)
@@ -156,7 +156,7 @@ impl <'p, 's, T, B> ToPyObject<'p> for PyRustObject<'s, T, B> where T: 'static +
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
         f(self.as_ptr())
     }
@@ -203,7 +203,6 @@ pub struct PyRustType<'p, T, B = PyObject<'p>> where T: 'p + Send, B: PythonBase
 impl <'p, T, B> PyRustType<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
     /// Creates a PyRustObject instance from a value.
     pub fn create_instance(&self, val: T, base_val: B::InitType) -> PyRustObject<'p, T, B> {
-        let py = self.type_obj.python();
         unsafe {
             PythonBaseObject::alloc(&self.type_obj, (val, base_val)).unwrap()
         }

@@ -16,11 +16,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std;
 use python::{Python, PythonObject, ToPythonPointer};
-use err::{self, PyResult, PyErr};
+use err::{self, PyResult};
 use super::object::PyObject;
-use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, FromPyObject};
 
@@ -140,7 +138,6 @@ impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
 
 impl <'p, T> FromPyObject<'p> for Vec<T> where T: FromPyObject<'p> {
     fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Vec<T>> {
-        let py = s.python();
         let list = try!(s.cast_as::<PyList>());
         let mut v = Vec::with_capacity(list.len());
         for i in 0 .. list.len() {

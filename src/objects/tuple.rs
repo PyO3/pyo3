@@ -16,7 +16,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std;
 use python::{Python, PythonObject, ToPythonPointer};
 use err::{self, PyResult, PyErr};
 use super::object::PyObject;

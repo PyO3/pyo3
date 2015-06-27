@@ -16,11 +16,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::{ptr, marker};
-use python::{Python, PythonObject};
+use std::marker;
+use python::PythonObject;
 use objects::{PyObject, PyTuple, PyType};
-use conversion::ToPyObject;
-use super::{PythonBaseObject, PyRustObject, PyRustType};
 use super::typebuilder::TypeMember;
 use ffi;
 use err;
@@ -110,7 +108,7 @@ pub unsafe fn py_method_impl<'p, T, R>(
 
 impl <'p, T> TypeMember<'p, T> for MethodDescriptor<T> where T: PythonObject<'p> {
     #[inline]
-    fn into_descriptor(self, ty: &PyType<'p>, name: &str) -> PyObject<'p> {
+    fn into_descriptor(self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
         unsafe {
             err::from_owned_ptr_or_panic(ty.python(),
                 ffi::PyDescr_NewMethod(ty.as_type_ptr(), self.0))
@@ -200,7 +198,7 @@ pub unsafe fn py_class_method_impl<'p, R>(
 
 impl <'p, T> TypeMember<'p, T> for ClassMethodDescriptor where T: PythonObject<'p> {
     #[inline]
-    fn into_descriptor(self, ty: &PyType<'p>, name: &str) -> PyObject<'p> {
+    fn into_descriptor(self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
         unsafe {
             err::from_owned_ptr_or_panic(ty.python(),
                 ffi::PyDescr_NewClassMethod(ty.as_type_ptr(), self.0))

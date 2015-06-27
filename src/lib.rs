@@ -23,7 +23,7 @@
 #![feature(utf8_error)] // for translating Utf8Error to Python exception
 #![feature(plugin)]
 #![plugin(interpolate_idents)]
-#![allow(unused_imports, unused_variables)]
+#![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 
 //! Rust bindings to the Python interpreter.
 //!

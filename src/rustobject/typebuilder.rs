@@ -16,12 +16,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+use std::{ptr, marker};
 use libc;
 use ffi;
 use python::{Python, ToPythonPointer, PythonObject};
 use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyString, PyModule, PyDict};
-use std::{mem, ops, ptr, marker};
 use err::{self, PyResult};
 use super::{PythonBaseObject, PyRustObject, PyRustType};
 
@@ -44,7 +44,7 @@ pub fn new_typebuilder_for_module<'p, T>(m: &PyModule<'p>, name: &str) -> PyRust
 }
 
 unsafe extern "C" fn disabled_tp_new_callback
-    (subtype: *mut ffi::PyTypeObject, args: *mut ffi::PyObject, kwds: *mut ffi::PyObject)
+    (_subtype: *mut ffi::PyTypeObject, _args: *mut ffi::PyObject, _kwds: *mut ffi::PyObject)
     -> *mut ffi::PyObject {
     ffi::PyErr_SetString(ffi::PyExc_TypeError,
         b"Cannot initialize rust object from python.\0" as *const u8 as *const libc::c_char);
@@ -173,15 +173,8 @@ pub trait TypeMember<'p, T> where T: PythonObject<'p> {
 // TODO: does this cause trouble for coherence?
 impl <'p, T, S> TypeMember<'p, T> for S where T: PythonObject<'p>, S: ToPyObject<'p> {
     #[inline]
-    fn into_descriptor(self, ty: &PyType<'p>, name: &str) -> PyObject<'p> {
+    fn into_descriptor(self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
         self.into_py_object(ty.python()).into_object()
     }
 }
-
-impl <'p, T> TypeMember<'p, T> for fn(&T) where T: PythonObject<'p> {
-    fn into_descriptor(self, ty: &PyType<'p>, name: &str) -> PyObject<'p> {
-        unimplemented!()
-    }
-}
-
 

@@ -16,13 +16,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std;
-use std::{fmt, string};
-use std::borrow::Cow;
+use std::fmt;
 use std::cmp::Ordering;
 use ffi;
 use libc;
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPointer};
+use python::{PythonObject, ToPythonPointer};
 use objects::{PyObject, PyTuple, PyDict, PyString};
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};

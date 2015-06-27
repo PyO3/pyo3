@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std;
-use std::{char, str};
+use std::str;
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use libc::c_char;

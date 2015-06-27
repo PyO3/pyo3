@@ -33,7 +33,7 @@ impl <'p> ToPyObject<'p> for bool {
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         // Avoid unnecessary Py_INCREF/Py_DECREF pair

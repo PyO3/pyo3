@@ -19,12 +19,11 @@
 extern crate num;
 
 use libc::{c_long, c_double};
-use std;
 use python::{Python, PythonObject, ToPythonPointer};
 use err::{self, PyResult, PyErr};
 use super::object::PyObject;
 use super::exc;
-use ffi::{self, Py_ssize_t};
+use ffi;
 use conversion::{ToPyObject, FromPyObject};
 
 /// Represents a Python `int` object.

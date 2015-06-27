@@ -24,7 +24,7 @@ use objects::oldstyle::PyClass;
 use ffi;
 use libc;
 use conversion::ToPyObject;
-use std::ffi::{CString, CStr};
+use std::ffi::CString;
 
 /// Represents a Python exception that was raised.
 #[derive(Clone, Debug)]
@@ -244,7 +244,7 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
     }
 }
 
-fn panic_after_error(py: Python) -> ! {
+fn panic_after_error(_py: Python) -> ! {
     unsafe { ffi::PyErr_Print(); }
     panic!("Python API called failed");
 }
@@ -291,8 +291,8 @@ pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
 #[cfg(test)]
 mod tests {
     use {Python, PyErr};
-    use objects::{PyObject, exc};
-    
+    use objects::exc;
+
     #[test]
     fn set_typeerror() {
         let gil = Python::acquire_gil();

@@ -22,7 +22,7 @@ use libc::c_char;
 use python::{Python, PythonObject, ToPythonPointer};
 use objectprotocol::ObjectProtocol;
 use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyTuple, PyDict, exc};
+use objects::{PyObject, PyTuple, PyDict, exc};
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
 

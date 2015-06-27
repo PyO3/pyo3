@@ -17,11 +17,10 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std::mem;
-use libc;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PythonObjectDowncastError, ToPythonPointer};
 use objects::PyType;
-use err::{PyErr, PyResult};
+use err::PyErr;
 
 /// Represents a reference to a Python object.
 ///
@@ -175,6 +174,7 @@ impl <'p> PyObject<'p> {
         ptr
     }
 
+/*
     /// Transmutes an owned FFI pointer to `&PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
@@ -189,7 +189,8 @@ impl <'p> PyObject<'p> {
     pub unsafe fn borrow_from_owned_ptr_slice<'a>(py : Python<'p>, ptr : &'a [*mut ffi::PyObject]) -> &'a [PyObject<'p>] {
         mem::transmute(ptr)
     }
-    
+*/
+
     /// Gets the reference count of this Python object.
     #[inline]
     pub fn get_refcnt(&self) -> usize {

@@ -19,8 +19,8 @@
 use std;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPointer};
-use objects::{exc, PyObject, PyBool, PyTuple};
-use err::{self, PyErr, PyResult};
+use objects::PyObject;
+use err::PyResult;
 
 /// Conversion trait that allows various objects to be converted into Python objects.
 pub trait ToPyObject<'p> {
@@ -91,7 +91,7 @@ impl <'p, 's> ToPyObject<'p> for PyObject<'s> {
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyObject<'p> {
+    fn into_py_object(self, _py: Python<'p>) -> PyObject<'p> {
         // Transmute the lifetime.
         // This is safe, because both lifetime variables represent the same lifetime:
         // that of the python GIL acquisition.
@@ -99,7 +99,7 @@ impl <'p, 's> ToPyObject<'p> for PyObject<'s> {
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
         f(self.as_ptr())
     }

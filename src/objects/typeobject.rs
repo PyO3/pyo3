@@ -16,13 +16,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, ToPythonPointer};
+use python::{Python, PythonObject, ToPythonPointer};
 use conversion::ToPyObject;
 use objects::{PyObject, PyTuple, PyDict};
 use err::{PyResult, result_from_owned_ptr};
 use ffi;
-use libc::c_char;
-use std;
 
 /// Represents a reference to a Python type object.
 pub struct PyType<'p>(PyObject<'p>);

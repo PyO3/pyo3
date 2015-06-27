@@ -18,8 +18,7 @@
 
 use std::sync::{Once, ONCE_INIT};
 use ffi;
-use python::{Python, ToPythonPointer};
-use objects::PyObject;
+use python::Python;
 
 static START: Once = ONCE_INIT;
 
@@ -162,7 +161,7 @@ impl <T> GILProtected<T> {
     ///
     /// Requires a `Python` instance as proof that the GIL is acquired.
     #[inline]
-    pub fn get<'a>(&'a self, py: Python<'a>) -> &'a T {
+    pub fn get<'a>(&'a self, _py: Python<'a>) -> &'a T {
         &self.data
     }
 
