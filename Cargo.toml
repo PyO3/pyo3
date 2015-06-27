@@ -39,8 +39,7 @@ path = "python3-sys"
 optional = true 
 
 [features]
-# Maybe one day python 3 should be the default. But not this day.
-default = ["python27-sys"]
+default = ["python3-sys"]
 
 # Optional features to support explicitly specifying python minor version.
 # If you don't care which minor version, just specify python3-sys as a 
