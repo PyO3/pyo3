@@ -78,7 +78,7 @@ macro_rules! py_method {
             match $f(&slf, &args) {
                 Ok(val) => {
                     let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::ToPythonPointer::steal_ptr(obj);
+                    return $crate::PythonObject::into_object(obj).steal_ptr();
                 }
                 Err(e) => {
                     e.restore();
@@ -167,7 +167,7 @@ macro_rules! py_class_method {
             match $f(&slf, &args) {
                 Ok(val) => {
                     let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::ToPythonPointer::steal_ptr(obj);
+                    return $crate::PythonObject::into_object(obj).steal_ptr();
                 }
                 Err(e) => {
                     e.restore();

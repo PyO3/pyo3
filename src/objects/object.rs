@@ -98,21 +98,6 @@ impl <'p> PythonObjectWithTypeObject<'p> for PyObject<'p> {
     }
 }
 
-impl <'p> ToPythonPointer for PyObject<'p> {
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.ptr
-    }
-    
-    #[inline]
-    fn steal_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.ptr;
-        mem::forget(self);
-        ptr
-    }
-}
-
-
 impl <'p> PyObject<'p> {
     /// Creates a PyObject instance for the given FFI pointer.
     /// This moves ownership over the pointer into the PyObject.
@@ -154,7 +139,24 @@ impl <'p> PyObject<'p> {
             Some(PyObject::from_borrowed_ptr(py, ptr))
         }
     }
-    
+
+    /// Gets the underlying FFI pointer.
+    /// Returns a borrowed pointer.
+    #[inline]
+    pub fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.ptr
+    }
+
+    /// Gets the underlying FFI pointer.
+    /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.
+    #[inline]
+    #[must_use]
+    pub fn steal_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.ptr;
+        mem::forget(self);
+        ptr
+    }
+
     /// Transmutes an owned FFI pointer to `&PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
@@ -237,6 +239,19 @@ impl <'p> PartialEq for PyObject<'p> {
 /// PyObject implements the `==` operator using reference equality:
 /// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in python.
 impl <'p> Eq for PyObject<'p> { }
+
+impl <'p> ToPythonPointer for PyObject<'p> {
+    // forward to inherit methods
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        PyObject::as_ptr(self)
+    }
+    
+    #[inline]
+    fn steal_ptr(self) -> *mut ffi::PyObject {
+        PyObject::steal_ptr(self)
+    }
+}
 
 
 #[test]

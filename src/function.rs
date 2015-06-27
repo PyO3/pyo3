@@ -48,7 +48,7 @@ macro_rules! py_fn {
             match $f(py, &args) {
                 Ok(val) => {
                     let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::ToPythonPointer::steal_ptr(obj);
+                    return $crate::PythonObject::into_object(obj).steal_ptr();
                 }
                 Err(e) => {
                     e.restore();

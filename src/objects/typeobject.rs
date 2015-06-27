@@ -30,7 +30,7 @@ impl <'p> PyType<'p> {
     /// Retrieves the underlying FFI pointer associated with this python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
-        self.as_ptr() as *mut ffi::PyTypeObject
+        self.0.as_ptr() as *mut ffi::PyTypeObject
     }
 
     /// Retrieves the PyType instance for the given FFI pointer.
@@ -59,7 +59,7 @@ impl <'p> PyType<'p> {
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         let py = self.python();
         args.with_borrowed_ptr(py, |args| unsafe {
-            result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
+            result_from_owned_ptr(py, ffi::PyObject_Call(self.0.as_ptr(), args, kwargs.as_ptr()))
         })
     }
 }

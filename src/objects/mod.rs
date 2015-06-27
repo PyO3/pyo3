@@ -44,18 +44,6 @@ macro_rules! pyobject_newtype(
         #[derive(Clone)]
         pub struct $name<'p>(::objects::object::PyObject<'p>);
 
-        impl <'p> ::python::ToPythonPointer for $name<'p> {
-            #[inline]
-            fn as_ptr(&self) -> *mut ::ffi::PyObject {
-                ::python::ToPythonPointer::as_ptr(&self.0)
-            }
-            
-            #[inline]
-            fn steal_ptr(self) -> *mut ::ffi::PyObject {
-                ::python::ToPythonPointer::steal_ptr(self.0)
-            }
-        }
-
         impl <'p> ::python::PythonObject<'p> for $name<'p> {
             #[inline]
             fn as_object(&self) -> &::objects::object::PyObject<'p> {

@@ -47,8 +47,8 @@ pub trait ToPyObject<'p> {
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
-        let obj = self.to_py_object(py);
-        f(ToPythonPointer::as_ptr(&obj))
+        let obj = self.to_py_object(py).into_object();
+        f(obj.as_ptr())
     }
 
     // FFI functions that accept a borrowed reference will use:

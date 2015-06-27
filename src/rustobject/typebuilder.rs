@@ -92,7 +92,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
         unsafe {
             ffi::Py_XDECREF((*self.ht).ht_type.tp_base as *mut ffi::PyObject);
             (*self.ht).ht_type.tp_base = base_type.as_type_ptr();
-            ffi::Py_INCREF(base_type.as_ptr());
+            ffi::Py_INCREF(base_type.as_object().as_ptr());
         }
         PyRustTypeBuilder {
             type_obj: self.type_obj,

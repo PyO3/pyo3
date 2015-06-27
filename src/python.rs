@@ -50,10 +50,10 @@ pub trait ToPythonPointer {
 }
 
 /// Trait implemented by all python object types.
-pub trait PythonObject<'p> : 'p + Clone + ToPythonPointer {
+pub trait PythonObject<'p> : 'p + Clone {
     /// Casts the python object to PyObject.
     fn as_object(&self) -> &PyObject<'p>;
-    
+
     /// Casts the python object to PyObject.
     fn into_object(self) -> PyObject<'p>;
 
@@ -94,15 +94,14 @@ pub trait PythonObjectWithTypeObject<'p> : PythonObjectWithCheckedDowncast<'p> {
 impl <'a, 'p, T> ToPythonPointer for &'a T where T: PythonObject<'p> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        (**self).as_ptr()
+        self.as_object().as_ptr()
     }
     
     #[inline]
     fn steal_ptr(self) -> *mut ffi::PyObject {
-        (*self).clone().steal_ptr()
+        self.as_object().clone().steal_ptr()
     }
 }
-
 
 /// Convert None into a null pointer.
 impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {

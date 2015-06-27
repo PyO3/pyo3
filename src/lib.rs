@@ -86,7 +86,7 @@ extern crate python3_sys as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
-pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, ToPythonPointer};
+pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
@@ -277,7 +277,7 @@ pub unsafe fn py_module_initializer_impl(
             }
         };
         match init(py, &module) {
-            Ok(()) => module.steal_ptr(),
+            Ok(()) => module.into_object().steal_ptr(),
             Err(e) => {
                 e.restore();
                 return ptr::null_mut();

@@ -121,7 +121,7 @@ impl <'p, T, B> PythonBaseObject<'p> for PyRustObject<'p, T, B> where T: 'static
     unsafe fn alloc(ty: &PyType<'p>, (val, base_val): Self::InitType) -> PyResult<'p, Self> {
         let obj = try!(B::alloc(ty, base_val));
         let offset = PyRustObject::<T, B>::offset() as isize;
-        ptr::write((obj.as_ptr() as *mut u8).offset(offset) as *mut T, val);
+        ptr::write((obj.as_object().as_ptr() as *mut u8).offset(offset) as *mut T, val);
         Ok(Self::unchecked_downcast_from(obj.into_object()))
     }
 
@@ -139,18 +139,6 @@ impl <'p, T, B> Clone for PyRustObject<'p, T, B> where T: 'static + Send, B: Pyt
             obj: self.obj.clone(), 
             t: marker::PhantomData
         }
-    }
-}
-
-impl <'p, T, B> ToPythonPointer for PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.obj.as_ptr()
-    }
-
-    #[inline]
-    fn steal_ptr(self) -> *mut ffi::PyObject {
-        self.obj.steal_ptr()
     }
 }
 
@@ -228,18 +216,6 @@ impl <'p, T, B> ops::Deref for PyRustType<'p, T, B> where T: 'p + Send, B: Pytho
     #[inline]
     fn deref(&self) -> &PyType<'p> {
         &self.type_obj
-    }
-}
-
-impl <'p, T> ToPythonPointer for PyRustType<'p, T> where T: 'p + Send {
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.type_obj.as_ptr()
-    }
-
-    #[inline]
-    fn steal_ptr(self) -> *mut ffi::PyObject {
-        self.type_obj.steal_ptr()
     }
 }
 
