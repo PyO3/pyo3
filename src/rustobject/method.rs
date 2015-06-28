@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std::marker;
-use python::PythonObject;
+use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyType};
 use super::typebuilder::TypeMember;
 use ffi;
@@ -108,11 +108,16 @@ pub unsafe fn py_method_impl<'p, T, R>(
 
 impl <'p, T> TypeMember<'p, T> for MethodDescriptor<T> where T: PythonObject<'p> {
     #[inline]
-    fn into_descriptor(self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
+    fn to_descriptor(&self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
         unsafe {
             err::from_owned_ptr_or_panic(ty.python(),
                 ffi::PyDescr_NewMethod(ty.as_type_ptr(), self.0))
         }
+    }
+
+    #[inline]
+    fn into_box(self, _py: Python<'p>) -> Box<TypeMember<'p, T> + 'p> {
+        Box::new(self)
     }
 }
 
@@ -198,11 +203,16 @@ pub unsafe fn py_class_method_impl<'p, R>(
 
 impl <'p, T> TypeMember<'p, T> for ClassMethodDescriptor where T: PythonObject<'p> {
     #[inline]
-    fn into_descriptor(self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
+    fn to_descriptor(&self, ty: &PyType<'p>, _name: &str) -> PyObject<'p> {
         unsafe {
             err::from_owned_ptr_or_panic(ty.python(),
                 ffi::PyDescr_NewClassMethod(ty.as_type_ptr(), self.0))
         }
+    }
+
+    #[inline]
+    fn into_box(self, _py: Python<'p>) -> Box<TypeMember<'p, T> + 'p> {
+        Box::new(self)
     }
 }
 

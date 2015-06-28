@@ -90,9 +90,7 @@ pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonOb
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
-#[cfg(feature="python27-sys")]
 pub use rustobject::{PyRustType, PyRustObject};
-#[cfg(feature="python27-sys")]
 pub use rustobject::typebuilder::PyRustTypeBuilder;
 
 use std::ptr;
@@ -114,7 +112,6 @@ mod objects;
 mod objectprotocol;
 mod pythonrun;
 mod function;
-#[cfg(feature="python27-sys")]
 mod rustobject;
 
 /// Private re-exports for macros. Do not use.
@@ -125,14 +122,13 @@ pub mod _detail {
     pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
     pub use function::py_fn_impl;
-    #[cfg(feature="python27-sys")]
     pub use rustobject::method::{py_method_impl, py_class_method_impl};
 
     /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
     /// of the referenced variable.
     /// This is useful in macros to ensure that type inference doesn't set 'p == 'static.
     #[inline]
-    pub unsafe fn bounded_assume_gil_acquired<T>(_bound: &T) -> super::Python {
+    pub unsafe fn bounded_assume_gil_acquired<'p, T>(_bound: &'p T) -> super::Python<'p> {
         super::Python::assume_gil_acquired()
     }
 }

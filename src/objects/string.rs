@@ -265,6 +265,23 @@ impl <'p> ToPyObject<'p> for str {
     }
 }
 
+/// Converts rust `String` to Python object:
+/// ASCII-only strings are converted to Python `str` objects;
+/// other strings are converted to Python `unicode` objects.
+///
+/// Note that `str::ObjectType` differs based on Python version:
+/// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
+/// In Python 3.x, it is `PyUnicode`.
+impl <'p> ToPyObject<'p> for String {
+    type ObjectType = <str as ToPyObject<'p>>::ObjectType;
+
+    #[inline]
+    fn to_py_object(&self, py: Python<'p>) -> Self::ObjectType {
+        <str as ToPyObject>::to_py_object(self, py)
+    }
+}
+
+
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 /// In Python 2.7, `str` is expected to be UTF-8 encoded.

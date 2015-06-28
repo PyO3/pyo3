@@ -58,17 +58,22 @@ impl <'p> PythonBaseObject<'p> for PyObject<'p> {
 
     unsafe fn alloc(ty: &PyType<'p>, _init_val: ()) -> PyResult<'p, PyObject<'p>> {
         let py = ty.python();
-        let ptr = ((*ty.as_type_ptr()).tp_alloc.unwrap())(ty.as_type_ptr(), 0);
+        let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
         err::result_from_owned_ptr(py, ptr)
     }
 
     unsafe fn dealloc(ptr: *mut ffi::PyObject) {
+        // Unfortunately, there is no PyType_GenericFree, so
+        // we have to manually un-do the work of PyType_GenericAlloc:
         let ty = ffi::Py_TYPE(ptr);
-        ((*ty).tp_free.unwrap())(ptr as *mut libc::c_void);
-        // For heap types, tp_alloc calls INCREF on the type objects,
-        // but tp_free points directly to the memory deallocator and does not call DECREF.
-        // So we'll do that manually here:
-        if ((*ty).tp_flags & ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+        if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del(ptr as *mut libc::c_void);
+        } else {
+            ffi::PyObject_Free(ptr as *mut libc::c_void);
+        }
+        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+        // so we need to call DECREF here:
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
             ffi::Py_DECREF(ty as *mut ffi::PyObject);
         }
     }
