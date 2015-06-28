@@ -146,9 +146,9 @@ fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
     }
 }
 
-/// Run a python script using the 'python' located by PATH.
-fn run_python_script(script: &str) -> Result<String, String> {
-    let mut cmd = Command::new("python");
+/// Run a python script using the specified interpreter binary.
+fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> {
+    let mut cmd = Command::new(interpreter);
     cmd.arg("-c").arg(script);
 
     let out = try!(cmd.output().map_err(|e| {
@@ -166,36 +166,48 @@ fn run_python_script(script: &str) -> Result<String, String> {
     return Ok(out);
 }
 
+fn run_python_script_try_interpreters(version: &PythonVersion, script: &str) -> Result<String, String> {
+    if let Some(minor) = version.minor {
+        let interpreter = format!("python{}.{}", version.major, minor);
+        if let Ok(r) = run_python_script(&interpreter, script) {
+            return Ok(r);
+        }
+    }
+    let interpreter = format!("python{}", version.major);
+    if let Ok(r) = run_python_script(&interpreter, script) {
+        return Ok(r);
+    }
+    run_python_script("python", script)
+}
+
 #[cfg(not(target_os="macos"))]
 #[cfg(not(target_os="windows"))]
-fn get_rustc_link_lib(version: &PythonVersion, enable_shared: bool) -> Result<String, String> {
-    let dotted_version = format!("{}.{}", version.major, version.minor.unwrap());
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) -> Result<String, String> {
     if enable_shared {
-        Ok(format!("cargo:rustc-link-lib=python{}", dotted_version))
+        Ok(format!("cargo:rustc-link-lib=python{}", ld_version))
     } else {
-        Ok(format!("cargo:rustc-link-lib=static=python{}", dotted_version))
+        Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version))
     }
 }
 
 #[cfg(target_os="macos")]
 fn get_macos_linkmodel() -> Result<String, String> {
     let script = "import MacOS; print MacOS.linkmodel;";
-    let out = run_python_script(script).unwrap();
+    let out = run_python_script("python", script).unwrap();
     Ok(out.trim_right().to_owned())
 }
 
 #[cfg(target_os="macos")]
-fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and 
     // Py_ENABLE_SHARED is wrong; framework means shared library
-    let dotted_version = format!("{}.{}", version.major, version.minor.unwrap());
     match get_macos_linkmodel().unwrap().as_ref() {
         "static" => Ok(format!("cargo:rustc-link-lib=static=python{}",
-            dotted_version)),
+            ld_version)),
         "dynamic" => Ok(format!("cargo:rustc-link-lib=python{}",
-            dotted_version)),
+            ld_version)),
         "framework" => Ok(format!("cargo:rustc-link-lib=python{}", 
-            dotted_version)),
+            ld_version)),
         other => Err(format!("unknown linkmodel {}", other))
     }
 }
@@ -231,7 +243,7 @@ fn get_interpreter_version(line: &str, expected_version: &PythonVersion)
 }
 
 #[cfg(target_os="windows")]
-fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
     Ok(format!("cargo:rustc-link-lib=python{}{}", version.major, 
         match version.minor {
@@ -248,19 +260,20 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
+print(sysconfig.get_config_var('LDVERSION')); \
 print(sys.exec_prefix);";
-    let out = run_python_script(script).unwrap();
+    let out = run_python_script_try_interpreters(expected_version, script).unwrap();
     let lines: Vec<&str> = out.split(NEWLINE_SEQUENCE).collect();
     let version: &str = lines[0];
     let libpath: &str = lines[1];
     let enable_shared: &str = lines[2];
-    let exec_prefix: &str = lines[3];
+    let ld_version: &str = lines[3];
+    let exec_prefix: &str = lines[4];
 
-    let interpreter_version = try!(get_interpreter_version(version,
-        expected_version));
+    let interpreter_version = try!(get_interpreter_version(version, expected_version));
 
     println!("{}", get_rustc_link_lib(&interpreter_version,
-        enable_shared == "1").unwrap());
+        ld_version, enable_shared == "1").unwrap());
 
     if libpath != "None" {
         println!("cargo:rustc-link-search=native={}", libpath);
