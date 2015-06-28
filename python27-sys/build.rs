@@ -295,6 +295,10 @@ print(sys.exec_prefix);";
 /// cargo vars to stdout.
 fn configure_from_pkgconfig(version: &PythonVersion, pkg_name: &str) 
         -> Result<String, String> {
+    if env::var("PYTHON_27_NO_PKG_CONFIG").is_ok() {
+        return Err("PYTHON_27_NO_PKG_CONFIG set".to_owned());
+    }
+
     // this emits relevant build info to stdout, which is picked up by the
     // build chain (funny name for something with side-effects!)
     try!(pkg_config::find_library(pkg_name));
@@ -371,8 +375,8 @@ fn main() {
     // By default, try to use pkgconfig - this seems to be a rust norm.
     //
     // If you want to use a different python, setting the appropriate
-    // PYTHON_X.X_NO_PKG_CONFIG environment variable will cause the script 
-    // to pick up the python in your PATH; e.g. for python27 X.X is 2.7.
+    // PYTHON_27_NO_PKG_CONFIG environment variable will cause the script 
+    // to pick up the python in your PATH.
     // 
     // This will work smoothly with an activated virtualenv.
     // 
@@ -388,7 +392,7 @@ fn main() {
     let python_interpreter_path = match configure_from_pkgconfig(&version, &pkg_name) {
         Ok(p) => p,
         // no pkgconfig - either it failed or user set the environment 
-        // variable "PYTHON_2.7_NO_PKG_CONFIG".
+        // variable "PYTHON_27_NO_PKG_CONFIG".
         Err(_) => configure_from_path(&version).unwrap()
     };
 

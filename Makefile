@@ -1,7 +1,7 @@
 .PHONY: default build test doc extensions clean
 
 ifndef PY
-PY=3
+PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
 endif
 
 ifeq ($(PY),2)

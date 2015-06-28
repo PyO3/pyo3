@@ -1,8 +1,16 @@
 version: 0.0.{build}
 environment:
   CARGO_TARGET: x86_64-pc-windows-gnu
-  matrix:
-  - TARGET: x86_64-pc-windows-msvc
+  TARGET: x86_64-pc-windows-msvc
+#  matrix:
+#  - TARGET: x86_64-pc-windows-msvc
+#    PY: 2
+#    PYTHONPATH: C:\Python27-x64
+#    FEATURES: python27-sys
+#  - TARGET: x86_64-pc-windows-msvc
+#    PY: 3
+#    PYTHONPATH: C:\Python34-x64
+#    FEATURES: python3-sys
 install:
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rustc-nightly-${env:TARGET}.tar.gz"
   - ps: Start-FileDownload "https://static.rust-lang.org/cargo-dist/cargo-nightly-${env:CARGO_TARGET}.tar.gz"
@@ -13,10 +21,13 @@ install:
   - call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64
   - set PATH=%PATH%;%cd%/rustc-nightly-%TARGET%/rustc/bin
   - set PATH=%PATH%;%cd%/cargo-nightly-%CARGO_TARGET%/cargo/bin
+  - SET PATH=%PYTHONPATH%;%PATH%
   - rustc -V
   - cargo -V
+  - python --version
 build_script:
- - cargo build --verbose
+ - set PATH=C:\Python27-x64;%PATH%&& cargo build --verbose --features python27-sys --no-default-features
+ - set PATH=C:\Python34-x64;%PATH%&& cargo build --verbose --features python3-sys --no-default-features
 test: false
 #test_script:
 # - cargo test --verbose

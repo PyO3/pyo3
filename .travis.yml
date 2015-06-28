@@ -1,10 +1,20 @@
-language: rust
-rust: nightly
+language: python
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
 env:
-  global:
-    - secure: g4kCg8twONwKPquuJmYrvGjo2n0lNtWTbyzFOITNn8FgCxNK2j38Qc9/UhErTR3g3rDjVzsTHZ8FTH7TJZrOK1Nzz90tJG6JHqUv77ufkcBlxgwwjilOz84uQhkDTMpLitMEeQDLEynKeWbxrjtc5LIpjEkxOPk5eiqwzKRN14c=
+  - RUST_VERSION=nightly
+install:
+  - mkdir ~/rust-installer
+  - curl -sL https://static.rust-lang.org/rustup.sh -o ~/rust-installer/rustup.sh
+  - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y --disable-sudo
+  - export PATH="$HOME/rust/bin:$PATH"
+  - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+  - export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
+  - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
+  - export PYTHON_3_NO_PKG_CONFIG=1
+  - rustc -V
 script:
-  - make test extensions PY=2
-# 'cargo doc' is broken due to https://github.com/rust-lang/cargo/issues/1622
-#  - cargo doc --verbose
+  - make test extensions
 
