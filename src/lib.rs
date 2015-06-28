@@ -93,6 +93,14 @@ pub use objectprotocol::{ObjectProtocol};
 pub use rustobject::{PyRustType, PyRustObject};
 pub use rustobject::typebuilder::PyRustTypeBuilder;
 
+#[cfg(feature="python27-sys")]
+#[allow(non_camel_case_types)]
+pub type Py_hash_t = libc::c_long;
+
+#[cfg(feature="python3-sys")]
+#[allow(non_camel_case_types)]
+pub type Py_hash_t = ffi::Py_hash_t;
+
 use std::ptr;
 
 /// Constructs a `&'static CStr` literal.

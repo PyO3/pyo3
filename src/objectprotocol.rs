@@ -149,7 +149,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: 'hash(self)'
     #[inline]
-    fn hash(&self) -> PyResult<'p, libc::c_long> {
+    fn hash(&self) -> PyResult<'p, ::Py_hash_t> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
             Err(PyErr::fetch(self.python()))
