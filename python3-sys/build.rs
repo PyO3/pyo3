@@ -6,11 +6,24 @@ use std::collections::HashMap;
 use std::env;
 use regex::Regex;
 use std::fs;
+use std::fmt;
 
 struct PythonVersion {
     major: u8,
     // minor == None means any minor version will do
     minor: Option<u8>
+}
+
+impl fmt::Display for PythonVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        try!(self.major.fmt(f));
+        try!(f.write_str("."));
+        match self.minor {
+            Some(minor) => try!(minor.fmt(f)),
+            None => try!(f.write_str("*"))
+        };
+        Ok(())
+    }
 }
 
 const CFG_KEY: &'static str = "py_sys_config";
@@ -166,20 +179,6 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
     return Ok(out);
 }
 
-fn run_python_script_try_interpreters(version: &PythonVersion, script: &str) -> Result<String, String> {
-    if let Some(minor) = version.minor {
-        let interpreter = format!("python{}.{}", version.major, minor);
-        if let Ok(r) = run_python_script(&interpreter, script) {
-            return Ok(r);
-        }
-    }
-    let interpreter = format!("python{}", version.major);
-    if let Ok(r) = run_python_script(&interpreter, script) {
-        return Ok(r);
-    }
-    run_python_script("python", script)
-}
-
 #[cfg(not(target_os="macos"))]
 #[cfg(not(target_os="windows"))]
 fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) -> Result<String, String> {
@@ -212,33 +211,16 @@ fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<St
     }
 }
 
-/// Check that the interpreter's reported version matches expected_version;
-/// if it does, return the specific version the interpreter reports.
-fn get_interpreter_version(line: &str, expected_version: &PythonVersion)
-        -> Result<PythonVersion, String> {
+/// Parse string as interpreter version.
+fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
-    let interpreter_version = match version_re.captures(&line) {
-        Some(cap) => PythonVersion {
+    match version_re.captures(&line) {
+        Some(cap) => Ok(PythonVersion {
             major: cap.at(1).unwrap().parse().unwrap(),
             minor: Some(cap.at(2).unwrap().parse().unwrap())
-        },
-        None => return Err(
+        }),
+        None => Err(
             format!("Unexpected response to version query {}", line))
-    };
-
-    if interpreter_version.major != expected_version.major ||
-        (expected_version.minor.is_some() &&
-            interpreter_version.minor != expected_version.minor)
-    {
-        Err(format!("'python' is not version {}.{} (is {})",
-                    expected_version.major,
-                    match expected_version.minor {
-                        Some(v) => v.to_string(),
-                        None => "*".to_owned()
-                    },
-                    line))
-    } else {
-        Ok(interpreter_version)
     }
 }
 
@@ -252,25 +234,61 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
         }))
 }
 
+fn matching_version(expected_version: &PythonVersion, actual_version: &PythonVersion) -> bool {
+    actual_version.major == expected_version.major &&
+        (expected_version.minor.is_none() ||
+            actual_version.minor == expected_version.minor)
+}
+
+fn find_interpreter_and_get_config(expected_version: &PythonVersion) -> Result<(PythonVersion, Vec<String>), String> {
+    let (interpreter_version, lines) = try!(get_config_from_interpreter("python"));
+    if matching_version(expected_version, &interpreter_version) {
+        return Ok((interpreter_version, lines));
+    }
+    {
+        let (interpreter_version, lines) = try!(get_config_from_interpreter(
+            &format!("python{}", expected_version.major)));
+        if matching_version(expected_version, &interpreter_version) {
+            return Ok((interpreter_version, lines));
+        }
+    }
+    if let Some(minor) = expected_version.minor {
+        let (interpreter_version, lines) = try!(get_config_from_interpreter(
+            &format!("python{}.{}", expected_version.major, minor)));
+        if matching_version(expected_version, &interpreter_version) {
+            return Ok((interpreter_version, lines));
+        }
+    }
+    Err(format!("'python' is not version {} (is {})",
+            expected_version, interpreter_version))
+}
+
 /// Deduce configuration from the 'python' in the current PATH and print
 /// cargo vars to stdout.
 ///
 /// Note that if the python doesn't satisfy expected_version, this will error.
-fn configure_from_path(expected_version: &PythonVersion) -> Result<String, String> {
+fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<String>), String> {
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
 print(sysconfig.get_config_var('LDVERSION')); \
 print(sys.exec_prefix);";
-    let out = run_python_script_try_interpreters(expected_version, script).unwrap();
-    let lines: Vec<&str> = out.split(NEWLINE_SEQUENCE).collect();
-    let version: &str = lines[0];
-    let libpath: &str = lines[1];
-    let enable_shared: &str = lines[2];
-    let ld_version: &str = lines[3];
-    let exec_prefix: &str = lines[4];
+    let out = try!(run_python_script(interpreter, script));
+    let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
+    let interpreter_version = try!(get_interpreter_version(&lines[0]));
+    Ok((interpreter_version, lines))
+}
 
-    let interpreter_version = try!(get_interpreter_version(version, expected_version));
+/// Deduce configuration from the 'python' in the current PATH and print
+/// cargo vars to stdout.
+///
+/// Note that if the python doesn't satisfy expected_version, this will error.
+fn configure_from_path(expected_version: &PythonVersion) -> Result<String, String> {
+    let (interpreter_version, lines) = try!(find_interpreter_and_get_config(expected_version));
+    let libpath: &str = &lines[1];
+    let enable_shared: &str = &lines[2];
+    let ld_version: &str = &lines[3];
+    let exec_prefix: &str = &lines[4];
 
     println!("{}", get_rustc_link_lib(&interpreter_version,
         ld_version, enable_shared == "1").unwrap());
