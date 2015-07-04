@@ -1,8 +1,8 @@
 [package]
 
 name = "cpython"
-version = "0.0.1"
-description = "Bindings to Python 2.7"
+version = "0.0.2"
+description = "Bindings to Python"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 readme = "README.md"
 keywords = [
@@ -17,6 +17,8 @@ license = "MIT"
 exclude = [
     ".gitignore",
     ".travis.yml",
+    "appveyor.yml",
+    ".cargo/config",
     "python27-sys",
     "python32-sys",
 ]
@@ -31,12 +33,10 @@ abort_on_panic = "1.0"
 # These features are both optional, but you must pick one to 
 # indicate which python ffi you are trying to bind to.
 [dependencies.python27-sys]
-path="python27-sys"
 optional = true
 
 [dependencies.python3-sys]
-path = "python3-sys"
-optional = true 
+optional = true
 
 [features]
 default = ["python3-sys"]

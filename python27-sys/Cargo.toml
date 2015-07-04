@@ -8,8 +8,8 @@ keywords = [
     "cpython",
     "libpython27",
 ]
-homepage = "https://github.com/dgrunwald/rust-python27-sys"
-repository = "https://github.com/dgrunwald/rust-python27-sys.git"
+homepage = "https://github.com/dgrunwald/rust-cpython/tree/master/python27-sys"
+repository = "https://github.com/dgrunwald/rust-cpython/tree/master/python27-sys"
 license = "Python-2.0"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 links = "python27"
