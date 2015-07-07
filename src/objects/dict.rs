@@ -19,7 +19,7 @@
 use ffi;
 use python::{Python, ToPythonPointer, PythonObject};
 use conversion::ToPyObject;
-use objects::PyObject;
+use objects::{PyObject, PyList};
 use err::{self, PyResult, PyErr};
 
 /// Represents a Python `dict`.
@@ -77,7 +77,7 @@ impl <'p> PyDict<'p> {
     pub fn get_item<K>(&self, key: K) -> Option<PyObject<'p>> where K: ToPyObject<'p> {
         let py = self.python();
         key.with_borrowed_ptr(py, |key| unsafe {
-            PyObject::from_borrowed_ptr_opt(py, 
+            PyObject::from_borrowed_ptr_opt(py,
                 ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }
@@ -102,5 +102,14 @@ impl <'p> PyDict<'p> {
                 ffi::PyDict_DelItem(self.as_ptr(), key))
         })
     }
-}
 
+    // List of dict items.
+    // This is equivalent to the `dict.items()` method.
+    pub fn items(&self) -> PyList {
+        let py = self.python();
+        unsafe {
+            let pyobj = PyObject::from_borrowed_ptr(py, ffi::PyDict_Items(self.as_ptr()));
+            pyobj.unchecked_cast_into::<PyList>()
+        }
+    }
+}
