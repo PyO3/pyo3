@@ -108,8 +108,7 @@ impl <'p> PyDict<'p> {
     pub fn items(&self) -> PyList {
         let py = self.python();
         unsafe {
-            let pyobj = PyObject::from_borrowed_ptr(py, ffi::PyDict_Items(self.as_ptr()));
-            pyobj.unchecked_cast_into::<PyList>()
+            err::cast_from_owned_ptr_or_panic(py, ffi::PyDict_Items(self.as_ptr()))
         }
     }
 }
