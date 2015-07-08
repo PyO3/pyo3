@@ -24,7 +24,7 @@ use err::PyResult;
 
 /// Conversion trait that allows various objects to be converted into Python objects.
 pub trait ToPyObject<'p> {
-    type ObjectType : PythonObject<'p> = PyObject<'p>;
+    type ObjectType : PythonObject<'p>;
 
     /// Converts self into a Python object.
     fn to_py_object(&self, py: Python<'p>) -> Self::ObjectType;
