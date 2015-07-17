@@ -21,6 +21,9 @@ use python::{Python, ToPythonPointer, PythonObject};
 use conversion::ToPyObject;
 use objects::{PyObject, PyList};
 use err::{self, PyResult, PyErr};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::cmp::Eq;
 
 /// Represents a Python `dict`.
 pub struct PyDict<'p>(PyObject<'p>);
@@ -110,5 +113,22 @@ impl <'p> PyDict<'p> {
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyDict_Items(self.as_ptr()))
         }
+    }
+}
+
+// TODO: use macros to make implementations for different maps
+impl <'p, K, V> ToPyObject<'p> for HashMap<K, V> where K: Hash+Eq+ToPyObject<'p>, V: ToPyObject<'p> {
+    type ObjectType = PyDict<'p>;
+
+    fn to_py_object(&self, py: Python<'p>) -> PyDict<'p> {
+        let ptr = unsafe { ffi::PyDict_New() };
+        let t = unsafe { err::cast_from_owned_ptr_or_panic(py, ptr) };
+        for (key, value) in self.iter() {
+            key.with_borrowed_ptr(py, move |key|
+                value.with_borrowed_ptr(py, |value| unsafe {
+                    ffi::PyDict_SetItem(ptr, key, value);
+                }))
+        };
+        t
     }
 }
