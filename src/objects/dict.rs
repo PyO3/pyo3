@@ -121,14 +121,10 @@ impl <'p, K, V> ToPyObject<'p> for HashMap<K, V> where K: Hash+Eq+ToPyObject<'p>
     type ObjectType = PyDict<'p>;
 
     fn to_py_object(&self, py: Python<'p>) -> PyDict<'p> {
-        let ptr = unsafe { ffi::PyDict_New() };
-        let t = unsafe { err::cast_from_owned_ptr_or_panic(py, ptr) };
+        let dict = PyDict::new(py);
         for (key, value) in self.iter() {
-            key.with_borrowed_ptr(py, move |key|
-                value.with_borrowed_ptr(py, |value| unsafe {
-                    ffi::PyDict_SetItem(ptr, key, value);
-                }))
+            dict.set_item(key, value).unwrap();
         };
-        t
+        dict
     }
 }

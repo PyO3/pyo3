@@ -55,7 +55,7 @@ macro_rules! pyobject_newtype(
             fn as_object(&self) -> &::objects::object::PyObject<'p> {
                 &self.0
             }
-            
+
             #[inline]
             fn into_object(self) -> ::objects::object::PyObject<'p> {
                 self.0
@@ -67,7 +67,7 @@ macro_rules! pyobject_newtype(
             unsafe fn unchecked_downcast_from(obj: ::objects::object::PyObject<'p>) -> Self {
                 $name(obj)
             }
-            
+
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
@@ -78,7 +78,7 @@ macro_rules! pyobject_newtype(
     );
     ($name: ident, $checkfunction: ident) => (
         pyobject_newtype!($name);
-        
+
         impl <'p> ::python::PythonObjectWithCheckedDowncast<'p> for $name<'p> {
             #[inline]
             fn downcast_from(obj : ::objects::object::PyObject<'p>) -> Result<$name<'p>, ::python::PythonObjectDowncastError<'p>> {
@@ -90,7 +90,7 @@ macro_rules! pyobject_newtype(
                     }
                 }
             }
-            
+
             #[inline]
             fn downcast_borrow_from<'a>(obj : &'a ::objects::object::PyObject<'p>) -> Result<&'a $name<'p>, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
@@ -105,7 +105,7 @@ macro_rules! pyobject_newtype(
     );
     ($name: ident, $checkfunction: ident, $typeobject: ident) => (
         pyobject_newtype!($name, $checkfunction);
-        
+
         impl <'p> ::python::PythonObjectWithTypeObject<'p> for $name<'p> {
             #[inline]
             fn type_object(py: ::python::Python<'p>) -> ::objects::typeobject::PyType<'p> {
@@ -131,3 +131,4 @@ pub mod exc;
 #[cfg(feature="python27-sys")]
 pub mod oldstyle;
 
+mod tests;
