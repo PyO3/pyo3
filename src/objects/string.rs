@@ -25,7 +25,7 @@ use ffi;
 use python::{Python, PythonObject, ToPythonPointer};
 use super::{exc, PyObject};
 use err::{self, PyResult, PyErr};
-use conversion::{FromPyObject, ToPyObject};
+use conversion::{ExtractPyObject, ToPyObject};
 
 /// Represents a Python byte string.
 /// Corresponds to `str` in Python 2, and `bytes` in Python 3.
@@ -281,21 +281,57 @@ impl <'p> ToPyObject<'p> for String {
     }
 }
 
+/// Allows extracting strings from Python objects.
+/// Accepts Python `str` and `unicode` objects.
+/// In Python 2.7, `str` is expected to be UTF-8 encoded.
+extract!(obj to String => {
+    PyString::extract(obj).map(|s| s.into_owned())
+});
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 /// In Python 2.7, `str` is expected to be UTF-8 encoded.
-impl <'p> FromPyObject<'p> for String {
-    fn from_py_object(o: &PyObject<'p>) -> PyResult<'p, String> {
-        PyString::extract(o).map(|s| s.into_owned())
+extract!(obj to Cow<'source, str> => {
+    PyString::extract(obj)
+});
+
+impl <'python, 'source, 'prepared> ExtractPyObject<'python, 'source, 'prepared> for &'prepared str {
+
+    type Prepared = Cow<'source, str>;
+
+    #[inline]
+    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
+        PyString::extract(obj)
+    }
+
+    #[inline]
+    fn extract(cow: &'prepared Cow<'source, str>) -> PyResult<'python, Self> {
+        Ok(cow)
     }
 }
 
-#[test]
-fn test_non_bmp() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let s = "\u{1F30F}";
-    let py_string = s.to_py_object(py).into_object();
-    assert_eq!(s, py_string.extract::<String>().unwrap());
+#[cfg(test)]
+mod test {
+    use python::{Python, PythonObject};
+    use conversion::{ToPyObject, ExtractPyObject};
+
+    #[test]
+    fn test_non_bmp() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let s = "\u{1F30F}";
+        let py_string = s.to_py_object(py).into_object();
+        assert_eq!(s, py_string.extract::<String>().unwrap());
+    }
+
+    #[test]
+    fn test_extract_str() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let s = "Hello Python";
+        let py_string = s.to_py_object(py).into_object();
+        let prepared = <&str>::prepare_extract(&py_string).unwrap();
+        assert_eq!(s, <&str>::extract(&prepared).unwrap());
+    }
 }
+

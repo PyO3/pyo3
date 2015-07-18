@@ -151,6 +151,27 @@ macro_rules! pyobject_newtype(
     );
 );
 
+macro_rules! extract(
+    ($obj:ident to $t:ty => $body: block) => {
+        impl <'python, 'source, 'prepared>
+            ::conversion::ExtractPyObject<'python, 'source, 'prepared>
+            for $t
+        {
+
+            type Prepared = &'source PyObject<'python>;
+
+            #[inline]
+            fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
+                Ok(obj)
+            }
+
+            fn extract(&$obj: &'prepared &'source PyObject<'python>) -> PyResult<'python, Self> {
+                $body
+            }
+        }
+    }
+);
+
 mod object;
 mod typeobject;
 mod module;

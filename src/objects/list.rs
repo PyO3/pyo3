@@ -20,7 +20,7 @@ use python::{Python, PythonObject, ToPythonPointer};
 use err::{self, PyResult};
 use super::object::PyObject;
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python `list`.
 pub struct PyList<'p>(PyObject<'p>);
@@ -136,9 +136,19 @@ impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
     }
 }
 
-impl <'p, T> FromPyObject<'p> for Vec<T> where T: FromPyObject<'p> {
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Vec<T>> {
-        let list = try!(s.cast_as::<PyList>());
+impl <'python, 'source, 'prepared, T> ExtractPyObject<'python, 'source, 'prepared>
+    for Vec<T> where T: for<'s, 'p> ExtractPyObject<'python, 's, 'p> {
+
+    type Prepared = &'source PyObject<'python>;
+
+    #[inline]
+    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
+        Ok(obj)
+    }
+
+    #[inline]
+    fn extract(&&ref obj: &'prepared Self::Prepared) -> PyResult<'python, Vec<T>> {
+        let list = try!(obj.cast_as::<PyList>());
         let mut v = Vec::with_capacity(list.len());
         for i in 0 .. list.len() {
             v.push(try!(list.get_item(i).extract::<T>()));

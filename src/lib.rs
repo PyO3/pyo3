@@ -88,7 +88,7 @@ pub use err::{PyErr, PyResult};
 pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, ToPyObject};
+pub use conversion::{ExtractPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 pub use rustobject::{PyRustType, PyRustObject};
 pub use rustobject::typebuilder::PyRustTypeBuilder;

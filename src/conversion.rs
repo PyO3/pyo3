@@ -71,14 +71,45 @@ pub trait ToPyObject<'p> {
 }
 
 /// FromPyObject is implemented by various types that can be extracted from a Python object.
-pub trait FromPyObject<'p> {
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Self>;
+///
+/// Usage:
+/// ```let obj: PyObject = ...;
+/// let prepared = <TargetType as FromPyObject>::prepare_extract(&obj);
+/// let extracted = try!(extract(&prepared));```
+/// 
+/// Note: depending on the implementation, the lifetime of the extracted result may
+/// depend on the lifetime of the `obj` or the `prepared` variable.
+///
+/// For example, when extracting `&str` from a python byte string, the resulting string slice will
+/// point to the existing string data (lifetime: `'source`).
+/// On the other hand, when extracting `&str` from a python unicode string, the preparation step
+/// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
+/// Since only which of these cases applies depends on the runtime type of the python object,
+/// both the `obj` and `prepared` variables must outlive the resulting string slice.
+///
+/// In cases where the result does not depend on the `'prepared` lifetime,
+/// the inherent method `PyObject::extract()` can be used.
+pub trait ExtractPyObject<'python, 'source, 'prepared> {
+    type Prepared;
+
+    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared>;
+
+    fn extract(prepared: &'prepared Self::Prepared) -> PyResult<'python, Self>;
 }
 
-impl <'p, T> FromPyObject<'p> for T where T: PythonObjectWithCheckedDowncast<'p> {
+impl <'python, 'source, 'prepared, T> ExtractPyObject<'python, 'source, 'prepared>
+    for T where T: PythonObjectWithCheckedDowncast<'python> {
+
+    type Prepared = &'source PyObject<'python>;
+
     #[inline]
-    fn from_py_object(s : &PyObject<'p>) -> PyResult<'p, T> {
-        Ok(try!(s.clone().cast_into()))
+    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
+        Ok(obj)
+    }
+
+    #[inline]
+    fn extract(&&ref obj: &'prepared Self::Prepared) -> PyResult<'python, T> {
+        Ok(try!(obj.clone().cast_into()))
     }
 }
 

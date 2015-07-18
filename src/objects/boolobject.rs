@@ -2,7 +2,7 @@ use ffi;
 use python::{Python, ToPythonPointer};
 use err::PyResult;
 use super::PyObject;
-use conversion::{FromPyObject, ToPyObject};
+use conversion::{ExtractPyObject, ToPyObject};
 
 /// Represents a Python `bool`.
 pub struct PyBool<'p>(PyObject<'p>);
@@ -44,9 +44,7 @@ impl <'p> ToPyObject<'p> for bool {
 /// Converts a Python `bool` to a rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-impl <'p> FromPyObject<'p> for bool {
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, bool> {
-        Ok(try!(s.clone().cast_into::<PyBool>()).is_true())
-    }
-}
+extract!(obj to bool => {
+    Ok(try!(obj.cast_as::<PyBool>()).is_true())
+});
 

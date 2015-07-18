@@ -21,7 +21,7 @@ use err::{self, PyResult, PyErr};
 use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python tuple object.
 pub struct PyTuple<'p>(PyObject<'p>);
@@ -219,14 +219,12 @@ impl <'p> ToPyObject<'p> for NoArgs {
 
 /// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
 /// Otherwise, returns an error.
-impl <'p> FromPyObject<'p> for NoArgs {
-    fn from_py_object(s : &PyObject<'p>) -> PyResult<'p, NoArgs> {
-        let t = try!(s.cast_as::<PyTuple>());
-        if t.len() == 0 {
-            Ok(NoArgs)
-        } else {
-            Err(wrong_tuple_length(t, 0))
-        }
+extract!(obj to NoArgs => {
+    let t = try!(obj.cast_as::<PyTuple>());
+    if t.len() == 0 {
+        Ok(NoArgs)
+    } else {
+        Err(wrong_tuple_length(t, 0))
     }
-}
+});
 

@@ -24,7 +24,7 @@ use err::{self, PyResult, PyErr};
 use super::object::PyObject;
 use super::exc;
 use ffi;
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python `int` object.
 ///
@@ -118,35 +118,17 @@ macro_rules! int_fits_c_long(
             }
         }
 
-        #[cfg(feature="python27-sys")]
-        impl <'p> FromPyObject<'p> for $rust_type {
-            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
-                let py = s.python();
-                let val = unsafe { ffi::PyInt_AsLong(s.as_ptr()) };
-                if val == -1 && PyErr::occurred(py) {
-                    return Err(PyErr::fetch(py));
-                }
-                match num::traits::cast::<c_long, $rust_type>(val) {
-                    Some(v) => Ok(v),
-                    None => Err(overflow_error(py))
-                }
+        extract!(obj to $rust_type => {
+            let py = obj.python();
+            let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
+            if val == -1 && PyErr::occurred(py) {
+                return Err(PyErr::fetch(py));
             }
-        }
-
-        #[cfg(feature="python3-sys")]
-        impl <'p> FromPyObject<'p> for $rust_type {
-            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
-                let py = s.python();
-                let val = unsafe { ffi::PyLong_AsLong(s.as_ptr()) };
-                if val == -1 && PyErr::occurred(py) {
-                    return Err(PyErr::fetch(py));
-                }
-                match num::traits::cast::<c_long, $rust_type>(val) {
-                    Some(v) => Ok(v),
-                    None => Err(overflow_error(py))
-                }
+            match num::traits::cast::<c_long, $rust_type>(val) {
+                Some(v) => Ok(v),
+                None => Err(overflow_error(py))
             }
-        }
+        });
     )
 );
 
@@ -162,16 +144,14 @@ macro_rules! int_fits_larger_int(
             }
         }
 
-        impl <'p> FromPyObject<'p> for $rust_type {
-            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
-                let py = s.python();
-                let val = try!(s.extract::<$larger_type>());
-                match num::traits::cast::<$larger_type, $rust_type>(val) {
-                    Some(v) => Ok(v),
-                    None => Err(overflow_error(py))
-                }
+        extract!(obj to $rust_type => {
+            let py = obj.python();
+            let val = try!(obj.extract::<$larger_type>());
+            match num::traits::cast::<$larger_type, $rust_type>(val) {
+                Some(v) => Ok(v),
+                None => Err(overflow_error(py))
             }
-        }
+        });
     )
 );
 
@@ -215,15 +195,24 @@ macro_rules! int_convert_u64_or_i64 (
             }
         }
 
-        impl <'p> FromPyObject<'p> for $rust_type {
+        impl <'python, 'source, 'prepared>
+            ExtractPyObject<'python, 'source, 'prepared> for $rust_type
+        {
+            type Prepared = &'source PyObject<'python>;
+
+            #[inline]
+            fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
+                Ok(obj)
+            }
+
             #[cfg(feature="python27-sys")]
-            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
-                let py = s.python();
-                let ptr = s.as_ptr();
+            fn extract(&obj: &'prepared &'source PyObject<'python>) -> PyResult<'python, $rust_type> {
+                let py = obj.python();
+                let ptr = obj.as_ptr();
 
                 unsafe {
                     if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(s, !0, || $pylong_as_ull_or_ull(s.as_ptr()) )
+                        err_if_invalid_value(&obj, !0, || $pylong_as_ull_or_ull(obj.as_ptr()) )
                     } else if ffi::PyInt_Check(ptr) != 0 {
                         match num::traits::cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
                             Some(v) => Ok(v),
@@ -237,12 +226,12 @@ macro_rules! int_convert_u64_or_i64 (
             }
 
             #[cfg(feature="python3-sys")]
-            fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, $rust_type> {
-                let py = s.python();
-                let ptr = s.as_ptr();
+            fn extract(&obj: &'prepared &'source PyObject<'python>) -> PyResult<'python, $rust_type> {
+                let py = obj.python();
+                let ptr = obj.as_ptr();
                 unsafe {
                     if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(s, !0, || $pylong_as_ull_or_ull(s.as_ptr()) )
+                        err_if_invalid_value(&obj, !0, || $pylong_as_ull_or_ull(obj.as_ptr()) )
                     } else {
                         let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
                         err_if_invalid_value(&num, !0, || $pylong_as_ull_or_ull(num.as_ptr()) )
@@ -291,17 +280,15 @@ impl <'p> ToPyObject<'p> for f64 {
     }
 }
 
-impl <'p> FromPyObject<'p> for f64 {
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, f64> {
-        let py = s.python();
-        let v = unsafe { ffi::PyFloat_AsDouble(s.as_ptr()) };
-        if v == -1.0 && PyErr::occurred(py) {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(v)
-        }
+extract!(obj to f64 => {
+    let py = obj.python();
+    let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
+    if v == -1.0 && PyErr::occurred(py) {
+        Err(PyErr::fetch(py))
+    } else {
+        Ok(v)
     }
-}
+});
 
 fn overflow_error(py: Python) -> PyErr {
     PyErr::new_lazy_init(py.get_type::<exc::OverflowError>(), None)
@@ -315,11 +302,9 @@ impl <'p> ToPyObject<'p> for f32 {
     }
 }
 
-impl <'p> FromPyObject<'p> for f32 {
-    fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, f32> {
-        Ok(try!(s.extract::<f64>()) as f32)
-    }
-}
+extract!(obj to f32 => {
+    Ok(try!(obj.extract::<f64>()) as f32)
+});
 
 #[cfg(test)]
 mod test {
