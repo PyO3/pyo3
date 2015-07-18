@@ -47,12 +47,12 @@ macro_rules! pyobject_to_pyobject(
             type ObjectType = $name<'p>;
 
             #[inline]
-            fn to_py_object(&self, py: Python<'p>) -> $name<'p> {
+            fn to_py_object(&self, py: ::python::Python<'p>) -> $name<'p> {
                 self.clone().into_py_object(py)
             }
 
             #[inline]
-            fn into_py_object(self, _py: Python<'p>) -> $name<'p> {
+            fn into_py_object(self, _py: ::python::Python<'p>) -> $name<'p> {
                 // Transmute the lifetime.
                 // This is safe, because both lifetime variables represent the same lifetime:
                 // that of the python GIL acquisition.
@@ -60,7 +60,7 @@ macro_rules! pyobject_to_pyobject(
             }
 
             #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
+            fn with_borrowed_ptr<F, R>(&self, _py: ::python::Python<'p>, f: F) -> R
               where F: FnOnce(*mut ffi::PyObject) -> R {
                 f(self.as_ptr())
             }
@@ -107,7 +107,7 @@ macro_rules! pyobject_newtype(
             }
 
             #[inline]
-            fn python(&self) -> Python<'p> {
+            fn python(&self) -> ::python::Python<'p> {
                 self.0.python()
             }
         }
