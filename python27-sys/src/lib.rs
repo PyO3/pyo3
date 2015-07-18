@@ -35,9 +35,14 @@ pub use classobject::*;
 pub use fileobject::*;
 pub use cobject::*;
 pub use pycapsule::*;
-
+pub use traceback::*;
+pub use sliceobject::*;
+pub use cellobject::*;
+pub use iterobject::*;
+pub use genobject::*;
 pub use descrobject::*;
 pub use warnings::*;
+pub use weakrefobject::*;
 pub use pyarena::*;
 pub use modsupport::*;
 pub use pythonrun::*;
@@ -78,14 +83,14 @@ mod classobject;
 mod fileobject;
 mod cobject;
 mod pycapsule;
-// mod traceback; // TODO: incomplete
-// mod sliceobject; // TODO: incomplete
-// mod cellobject; // TODO: incomplete
-// mod iterobject; // TODO: incomplete
-// mod genobject; // TODO: incomplete
-mod descrobject; // TODO: incomplete
+mod traceback;
+mod sliceobject;
+mod cellobject;
+mod iterobject;
+mod genobject;
+mod descrobject;
 mod warnings;
-// mod weakrefobject; // TODO: incomplete
+mod weakrefobject;
 
 // mod codecs; // TODO: incomplete
 mod pyerrors;
