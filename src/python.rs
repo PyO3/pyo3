@@ -46,7 +46,7 @@ pub trait ToPythonPointer {
 }
 
 /// Trait implemented by all Python object types.
-pub trait PythonObject<'p> : 'p + Clone {
+pub trait PythonObject<'p> : 'p + Clone + ::conversion::ToPyObject<'p> {
     /// Casts the Python object to PyObject.
     fn as_object(&self) -> &PyObject<'p>;
 

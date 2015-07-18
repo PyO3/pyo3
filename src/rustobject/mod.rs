@@ -233,6 +233,26 @@ impl <'p, T> Clone for PyRustType<'p, T> where T: 'p + Send {
     }
 }
 
+impl <'p, 's, T> ToPyObject<'p> for PyRustType<'s, T> where T: 's + Send {
+    type ObjectType = PyType<'p>;
+
+    #[inline]
+    fn to_py_object(&self, py: Python<'p>) -> PyType<'p> {
+        self.type_obj.to_py_object(py)
+    }
+
+    #[inline]
+    fn into_py_object(self, py: Python<'p>) -> PyType<'p> {
+        self.type_obj.into_py_object(py)
+    }
+
+    #[inline]
+    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
+      where F: FnOnce(*mut ffi::PyObject) -> R {
+        f(self.as_ptr())
+    }
+}
+
 impl <'p, T> PythonObject<'p> for PyRustType<'p, T> where T: 'p + Send {
     #[inline]
     fn as_object(&self) -> &PyObject<'p> {

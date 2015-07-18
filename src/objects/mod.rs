@@ -39,6 +39,35 @@ pub use self::num::PyInt;
 pub use self::num::PyLong as PyInt;
 pub use self::num::{PyLong, PyFloat};
 
+/// Identity conversion: allows using existing `PyObject` instances where
+/// `T: ToPyObject` is expected.
+macro_rules! pyobject_to_pyobject(
+    ($name: ident) => (
+        impl <'p, 's> ::conversion::ToPyObject<'p> for $name<'s> {
+            type ObjectType = $name<'p>;
+
+            #[inline]
+            fn to_py_object(&self, py: Python<'p>) -> $name<'p> {
+                self.clone().into_py_object(py)
+            }
+
+            #[inline]
+            fn into_py_object(self, _py: Python<'p>) -> $name<'p> {
+                // Transmute the lifetime.
+                // This is safe, because both lifetime variables represent the same lifetime:
+                // that of the python GIL acquisition.
+                unsafe { ::std::mem::transmute(self) }
+            }
+
+            #[inline]
+            fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
+              where F: FnOnce(*mut ffi::PyObject) -> R {
+                f(self.as_ptr())
+            }
+        }
+    )
+);
+
 macro_rules! pyobject_newtype(
     ($name: ident) => (
         /// Clone returns another reference to the Python object,
@@ -49,6 +78,8 @@ macro_rules! pyobject_newtype(
                 $name(self.0.clone())
             }
         }
+
+        pyobject_to_pyobject!($name);
 
         impl <'p> ::python::PythonObject<'p> for $name<'p> {
             #[inline]
@@ -73,6 +104,11 @@ macro_rules! pyobject_newtype(
             #[inline]
             unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a ::objects::object::PyObject<'p>) -> &'a Self {
                 ::std::mem::transmute(obj)
+            }
+
+            #[inline]
+            fn python(&self) -> Python<'p> {
+                self.0.python()
             }
         }
     );

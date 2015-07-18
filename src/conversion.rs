@@ -75,36 +75,6 @@ pub trait FromPyObject<'p> {
     fn from_py_object(s: &PyObject<'p>) -> PyResult<'p, Self>;
 }
 
-// PyObject, PyModule etc.
-// We support FromPyObject and ToPyObject for owned python references.
-// This allows using existing Python objects in code that generically expects a value
-// convertible to a Python object.
-
-/// Identity conversion: allows using existing `PyObject` instances where
-/// `ToPyObject` is expected.
-impl <'p, 's> ToPyObject<'p> for PyObject<'s> {
-    type ObjectType = PyObject<'p>;
-
-    #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
-        self.clone().into_py_object(py)
-    }
-
-    #[inline]
-    fn into_py_object(self, _py: Python<'p>) -> PyObject<'p> {
-        // Transmute the lifetime.
-        // This is safe, because both lifetime variables represent the same lifetime:
-        // that of the python GIL acquisition.
-        unsafe { std::mem::transmute(self) }
-    }
-
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
-      where F: FnOnce(*mut ffi::PyObject) -> R {
-        f(self.as_ptr())
-    }
-}
-
 impl <'p, T> FromPyObject<'p> for T where T: PythonObjectWithCheckedDowncast<'p> {
     #[inline]
     fn from_py_object(s : &PyObject<'p>) -> PyResult<'p, T> {
@@ -112,10 +82,7 @@ impl <'p, T> FromPyObject<'p> for T where T: PythonObjectWithCheckedDowncast<'p>
     }
 }
 
-// &PyObject, &PyModule etc.
-// We support FromPyObject and ToPyObject for borrowed python references.
-// This allows using existing Python objects in code that generically expects a value
-// convertible to a Python object.
+// ToPyObject for references
 impl <'p, 's, T: ?Sized> ToPyObject<'p> for &'s T where T: ToPyObject<'p> {
     type ObjectType = T::ObjectType;
 

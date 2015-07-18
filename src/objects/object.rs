@@ -69,6 +69,8 @@ impl <'p> Clone for PyObject<'p> {
     }
 }
 
+pyobject_to_pyobject!(PyObject);
+
 impl <'p> PythonObject<'p> for PyObject<'p> {
     #[inline]
     fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
