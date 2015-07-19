@@ -100,7 +100,7 @@ impl <'p> PyUnicode<'p> {
         };
         match str::from_utf8(bytes.as_slice()) {
             Ok(s) => Ok(Cow::Owned(s.to_owned())),
-            Err(e) => Err(PyErr::new(try!(exc::UnicodeDecodeError::new_utf8(py, bytes.as_slice(), e))))
+            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, bytes.as_slice(), e))))
         }
     }
 
@@ -216,7 +216,7 @@ impl <'p> PyString<'p> {
         let py = self.python();
         match str::from_utf8(self.as_slice()) {
             Ok(s) => Ok(Cow::Borrowed(s)),
-            Err(e) => Err(PyErr::new(try!(exc::UnicodeDecodeError::new_utf8(py, self.as_slice(), e))))
+            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, self.as_slice(), e))))
         }
     }
 

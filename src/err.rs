@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std;
-use python::{PythonObject, Python, ToPythonPointer, PythonObjectDowncastError};
+use python::{PythonObject, Python, ToPythonPointer, PythonObjectDowncastError, PythonObjectWithTypeObject};
 use objects::{PyObject, PyType, exc};
 #[cfg(feature="python27-sys")]
 use objects::oldstyle::PyClass;
@@ -80,16 +80,39 @@ impl <'p> PyErr<'p> {
         }
     }
 
-    /// Creates a new PyErr.
+    /// Creates a new PyErr of type `T`.
     ///
-    /// If `obj` is a Python exception instance, the PyErr will use that instance.
-    /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new instance of that type.
-    /// Otherwise, a `TypeError` is created instead.
-    pub fn new<O>(obj: O) -> PyErr<'p> where O: PythonObject<'p> {
-        PyErr::new_from_object(obj.into_object())
+    /// `value` can be:
+    /// * `NoArgs`: the exception instance will be created using python `T()`
+    /// * a tuple: the exception instance will be created using python `T(*tuple)`
+    /// * any other value: the exception instance will be created using python `T(value)`
+    ///
+    /// Panics if `T` is not a python class derived from `BaseException`.
+    pub fn new<T, V>(py: Python<'p>, value: V) -> PyErr<'p>
+        where T: PythonObjectWithTypeObject<'p>, V: ToPyObject<'p>
+    {
+        PyErr::new_helper(py.get_type::<T>(), value.to_py_object(py).into_object())
     }
 
-    fn new_from_object(obj: PyObject<'p>) -> PyErr<'p> {
+    fn new_helper(ty: PyType<'p>, value: PyObject<'p>) -> PyErr<'p> {
+        assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_object().as_ptr()) } != 0);
+        PyErr {
+            ptype: ty.into_object(),
+            pvalue: Some(value),
+            ptraceback: None
+        }
+    }
+
+    /// Creates a new PyErr.
+    ///
+    /// `obj` must be an Python exception instance, the PyErr will use that instance.
+    /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new instance of that type.
+    /// Otherwise, a `TypeError` is created instead.
+    pub fn from_instance<O>(obj: O) -> PyErr<'p> where O: PythonObject<'p> {
+        PyErr::from_instance_helper(obj.into_object())
+    }
+
+    fn from_instance_helper(obj: PyObject<'p>) -> PyErr<'p> {
         let py = obj.python();
         if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {

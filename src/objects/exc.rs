@@ -66,9 +66,6 @@ macro_rules! exc_type(
             }
         }
     );
-    ($name:ident : $base:ident) => (
-        exc_type!($name);
-    );
 );
 
 exc_type!(BaseException, PyExc_BaseException);
