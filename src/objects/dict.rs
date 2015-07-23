@@ -21,9 +21,7 @@ use python::{Python, ToPythonPointer, PythonObject};
 use conversion::ToPyObject;
 use objects::{PyObject, PyList};
 use err::{self, PyResult, PyErr};
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::cmp::Eq;
+use std::{mem, collections, hash, cmp};
 
 /// Represents a Python `dict`.
 pub struct PyDict<'p>(PyObject<'p>);
@@ -107,17 +105,38 @@ impl <'p> PyDict<'p> {
     }
 
     // List of dict items.
-    // This is equivalent to the `dict.items()` method.
-    pub fn items(&self) -> PyList {
+    // This is equivalent to the python expression `list(dict.items())`.
+    pub fn items_list(&self) -> PyList<'p> {
         let py = self.python();
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyDict_Items(self.as_ptr()))
         }
     }
+
+    /// Returns the list of (key,value) pairs in this dictionary.
+    pub fn items(&self) -> Vec<(PyObject<'p>, PyObject<'p>)> {
+        // Note that we don't provide an iterator because
+        // PyDict_Next() is unsafe to use when the dictionary might be changed
+        // by other python code.
+        let py = self.python();
+        let mut vec = Vec::with_capacity(self.len());
+        unsafe {
+            let mut pos = 0;
+            let mut key: *mut ffi::PyObject = mem::uninitialized();
+            let mut value: *mut ffi::PyObject = mem::uninitialized();
+            while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
+                vec.push((PyObject::from_borrowed_ptr(py, key),
+                          PyObject::from_borrowed_ptr(py, value)));
+            }
+        }
+        vec
+    }
 }
 
-// TODO: use macros to make implementations for different maps
-impl <'p, K, V> ToPyObject<'p> for HashMap<K, V> where K: Hash+Eq+ToPyObject<'p>, V: ToPyObject<'p> {
+impl <'p, K, V> ToPyObject<'p> for collections::HashMap<K, V>
+    where K: hash::Hash+cmp::Eq+ToPyObject<'p>,
+          V: ToPyObject<'p>
+{
     type ObjectType = PyDict<'p>;
 
     fn to_py_object(&self, py: Python<'p>) -> PyDict<'p> {
@@ -128,3 +147,4 @@ impl <'p, K, V> ToPyObject<'p> for HashMap<K, V> where K: Hash+Eq+ToPyObject<'p>
         dict
     }
 }
+
