@@ -62,13 +62,20 @@
 //! extern crate cpython;
 //!
 //! use cpython::{PythonObject, Python};
-//! 
+//! use cpython::ObjectProtocol; //for call method
+//!
 //! fn main() {
-//!     let gil_guard = Python::acquire_gil();
-//!     let py = gil_guard.python();
+//!     let gil = Python::acquire_gil();
+//!     let py = gil.python();
+//!
 //!     let sys = py.import("sys").unwrap();
-//!     let version = sys.get("version").unwrap().extract::<String>().unwrap();
-//!     println!("Hello Python {}", version);
+//!     let version: String = sys.get("version").unwrap().extract().unwrap();
+//!
+//!     let os = py.import("os").unwrap();
+//!     let getenv = os.get("getenv").unwrap();
+//!     let user: String = getenv.call(("USER",), None).unwrap().extract().unwrap();
+//!
+//!     println!("Hello {}, I'm Python {}", user, version);
 //! }
 //! ```
 
@@ -168,7 +175,7 @@ pub mod _detail {
 ///     try!(m.add("run", py_fn!(run)));
 ///     Ok(())
 /// });
-/// 
+///
 /// fn run<'p>(py: Python<'p>, args: &PyTuple<'p>) -> PyResult<'p, PyObject<'p>> {
 ///     println!("Rust says: Hello Python!");
 ///     Ok(py.None())
@@ -187,7 +194,7 @@ pub mod _detail {
 /// >>> example.run()
 /// Rust says: Hello Python!
 /// ```
-/// 
+///
 #[macro_export]
 #[cfg(feature="python27-sys")]
 macro_rules! py_module_initializer {
