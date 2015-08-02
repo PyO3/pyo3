@@ -126,6 +126,7 @@ mod conversion;
 mod objects;
 mod objectprotocol;
 mod pythonrun;
+pub mod argparse;
 mod function;
 mod rustobject;
 
@@ -168,15 +169,15 @@ pub mod _detail {
 /// #![feature(plugin)]
 /// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
-/// use cpython::{Python, PyResult, PyObject, PyTuple};
+/// use cpython::{Python, PyResult, PyObject};
 ///
 /// py_module_initializer!(example, |py, m| {
 ///     try!(m.add("__doc__", "Module documentation string"));
-///     try!(m.add("run", py_fn!(run)));
+///     try!(m.add("run", py_fn!(run())));
 ///     Ok(())
 /// });
 ///
-/// fn run<'p>(py: Python<'p>, args: &PyTuple<'p>) -> PyResult<'p, PyObject<'p>> {
+/// fn run<'p>(py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
 ///     println!("Rust says: Hello Python!");
 ///     Ok(py.None())
 /// }

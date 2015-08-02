@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! This module contains logic for parsing a python argument list.
+//! See also the macros `py_argparse!`, `py_fn` and `py_method`.
 
 use std::ptr;
 use python::{Python, PythonObject};
@@ -25,19 +26,22 @@ use conversion::ToPyObject;
 use ffi;
 use err::{self, PyResult};
 
+/// Description of a python parameter; used for `parse_args()`.
 pub struct ParamDescription<'a> {
-    name: &'a str,
-    is_optional: bool
+    /// The name of the parameter.
+    pub name: &'a str,
+    /// Whether the parameter is optional.
+    pub is_optional: bool
 }
 
 /// Parse argument list
 ///
-/// fname:  Name of the current function
-/// params: Declared parameters of the function
-/// args:   Positional arguments
-/// kwargs: Keyword arguments
-/// output: Output array that receives the arguments.
-///         Must have same length as `params` and must be initialized to `None`.
+/// * fname:  Name of the current function
+/// * params: Declared parameters of the function
+/// * args:   Positional arguments
+/// * kwargs: Keyword arguments
+/// * output: Output array that receives the arguments.
+///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_args<'p>(
     fname: Option<&str>, params: &[ParamDescription],
     args: &PyTuple<'p>, kwargs: Option<&PyDict<'p>>,
@@ -99,10 +103,12 @@ pub fn parse_args<'p>(
     Ok(())
 }
 
-macro_rules! argparse_extract {
-    ( ( ) $body:block ) => { $body };
-    ( ( $pname:ident : $ptype:ty ) $body:block) => {
-        match <$ptype as $crate::ExtractPyObject>::prepare_extract($pname.as_ref().unwrap()) {
+#[doc(hidden)]
+#[macro_export]
+macro_rules! py_argparse_extract {
+    ( $iter:expr, ( ) $body:block ) => { $body };
+    ( $iter:expr, ( $pname:ident : $ptype:ty ) $body:block) => {
+        match <$ptype as $crate::ExtractPyObject>::prepare_extract($iter.next().unwrap().as_ref().unwrap()) {
             Ok(prepared) => {
                 match <$ptype as $crate::ExtractPyObject>::extract(&prepared) {
                     Ok($pname) => $body,
@@ -112,18 +118,37 @@ macro_rules! argparse_extract {
             Err(e) => Err(e)
         }
     };
-    ( ( $pname:ident : $ptype:ty , $($r:tt)+ ) $body:block) => {
-        argparse_extract!(($pname: $ptype) {
-            argparse_extract!( ( $($r)* ) $body)
+    ( $iter:expr, ( $pname:ident : $ptype:ty , $($r:tt)+ ) $body:block) => {
+        py_argparse_extract!($iter, ($pname: $ptype) {
+            py_argparse_extract!( $iter, ( $($r)* ) $body)
         })
     }
 }
 
-macro_rules! argparse_snd {
-    ( $fst:expr, $snd:expr) => { $snd }
+#[doc(hidden)]
+#[macro_export]
+macro_rules! py_argparse_snd {
+    ( $fst:expr, $snd:expr ) => { $snd }
 }
 
-macro_rules! argparse {
+/// This macro is used to parse a parameter list into a set of variables.
+/// 
+/// Syntax: `py_argparse!(fname, args, kwargs, (parameter-list) { body })`
+///
+/// * `fname`: expression of type `Option<&str>`: Name of the function used in error messages.
+/// * `args`: expression of type `&PyTuple`: The position arguments
+/// * `kwargs`: expression of type `Option<&PyDict>`: The named arguments
+/// * `parameter-list`: a comma-separated list of Rust parameter declarations (`name: type`).
+///   The types used must implement the `ExtractPyObject` trait.
+/// * `body`: expression of type `PyResult<_>`.
+///
+/// `py_argparse!()` expands to code that extracts values from `args` and `kwargs` and assigns
+/// them to the parameters. If the extraction is successful, `py_argparse!()` evaluates
+/// the body expression (where the extracted parameters are available) and returns the result
+/// value of the body expression.
+/// If extraction fails, `py_argparse!()` returns a failed `PyResult` without evaluating `body`.
+#[macro_export]
+macro_rules! py_argparse {
     ($fname:expr, $args:expr, $kwargs:expr, ($( $pname:ident : $ptype:ty ),*) $body:block) => {{
         const PARAMS: &'static [$crate::argparse::ParamDescription<'static>] = &[
             $(
@@ -133,11 +158,15 @@ macro_rules! argparse {
                 }
             ),*
         ];
-        let mut output = [$( argparse_snd!($pname, None) ),*];
+        let mut output = [$( py_argparse_snd!($pname, None) ),*];
         match $crate::argparse::parse_args($fname, PARAMS, $args, $kwargs, &mut output) {
             Ok(()) => {
-                let &[$(ref $pname),*] = &output;
-                argparse_extract!( ( $( $pname : $ptype ),* ) $body )
+                // We can't use experimental slice pattern syntax in macros
+                //let &[$(ref $pname),*] = &output;
+                let mut iter = output.iter();
+                let ret = py_argparse_extract!( iter, ( $( $pname : $ptype ),* ) $body );
+                assert!(iter.next() == None);
+                ret
             },
             Err(e) => Err(e)
         }
@@ -155,7 +184,7 @@ mod test {
         let py = gil_guard.python();
         let mut called = false;
         let tuple = ("abc", 42).to_py_object(py);
-        argparse!(None, &tuple, None, (x: &str, y: i32) {
+        py_argparse!(None, &tuple, None, (x: &str, y: i32) {
             assert_eq!(x, "abc");
             assert_eq!(y, 42);
             called = true;

@@ -17,11 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std::ptr;
-use python::Python;
-use objects::PyObject;
+use python::{Python, PythonObject};
+use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::ToPyObject;
 use ffi;
-use err;
+use err::{self, PyResult};
 
 /// Creates a Python callable object that invokes a Rust function.
 ///
@@ -37,14 +37,19 @@ macro_rules! py_fn {
     ($f: ident) => ( interpolate_idents! {{
         unsafe extern "C" fn [ wrap_ $f ](
             _slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject)
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
         -> *mut $crate::_detail::ffi::PyObject
         {
             let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_fn!");
             let py = $crate::_detail::bounded_assume_gil_acquired(&args);
             let args = $crate::PyObject::from_borrowed_ptr(py, args);
             let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
-            match $f(py, &args) {
+            let kwargs = match $crate::PyObject::from_borrowed_ptr_opt(py, kwargs) {
+                Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
+                None => None
+            };
+            match $f(py, &args, kwargs.as_ref()) {
                 Ok(val) => {
                     let obj = $crate::ToPyObject::into_py_object(val, py);
                     return $crate::PythonObject::into_object(obj).steal_ptr();
@@ -58,20 +63,68 @@ macro_rules! py_fn {
         static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
             //ml_name: bytes!(stringify!($f), "\0"),
             ml_name: 0 as *const $crate::_detail::libc::c_char,
-            ml_meth: Some([ wrap_ $f ]),
-            ml_flags: $crate::_detail::ffi::METH_VARARGS,
+            ml_meth: None,
+            ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS,
             ml_doc: 0 as *const $crate::_detail::libc::c_char
         };
         unsafe {
-            [ method_def_ $f ].ml_name =
-                concat!(stringify!($f), "\0").as_ptr() as *const _;
+            [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
+            [ method_def_ $f ].ml_meth = Some(
+                std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
+                                      $crate::_detail::ffi::PyCFunction>([ wrap_ $f ])
+            );
             $crate::_detail::py_fn_impl(&mut [ method_def_ $f ])
         }
-    }})
+    }});
+    ($f: ident ( $( $pname:ident : $ptype:ty ),* ) ) => ( interpolate_idents! {{
+        unsafe extern "C" fn [ wrap_ $f ](
+            _slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_fn!");
+            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
+            let args = $crate::PyObject::from_borrowed_ptr(py, args);
+            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
+            let kwargs = match $crate::PyObject::from_borrowed_ptr_opt(py, kwargs) {
+                Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
+                None => None
+            };
+            match py_argparse!(Some(stringify!($f)), &args, kwargs.as_ref(),
+                    ( $($pname : $ptype),* ) { $f( py, $($pname),* ) })
+            {
+                Ok(val) => {
+                    let obj = $crate::ToPyObject::into_py_object(val, py);
+                    return $crate::PythonObject::into_object(obj).steal_ptr();
+                }
+                Err(e) => {
+                    e.restore();
+                    return ::std::ptr::null_mut();
+                }
+            }
+        }
+        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
+            //ml_name: bytes!(stringify!($f), "\0"),
+            ml_name: 0 as *const $crate::_detail::libc::c_char,
+            ml_meth: None,
+            ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS,
+            ml_doc: 0 as *const $crate::_detail::libc::c_char
+        };
+        unsafe {
+            [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
+            [ method_def_ $f ].ml_meth = Some(
+                std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
+                                      $crate::_detail::ffi::PyCFunction>([ wrap_ $f ])
+            );
+            $crate::_detail::py_fn_impl(&mut [ method_def_ $f ])
+        }
+    }});
 }
 
 pub struct PyFn(*mut ffi::PyMethodDef);
 
+#[inline]
 pub unsafe fn py_fn_impl(def: *mut ffi::PyMethodDef) -> PyFn {
     PyFn(def)
 }
@@ -85,4 +138,5 @@ impl <'p> ToPyObject<'p> for PyFn {
         }
     }
 }
+
 

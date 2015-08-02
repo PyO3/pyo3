@@ -74,7 +74,7 @@ pub trait ToPyObject<'p> {
 ///
 /// Usage:
 /// ```let obj: PyObject = ...;
-/// let prepared = <TargetType as FromPyObject>::prepare_extract(&obj);
+/// let prepared = <TargetType as ExtractPyObject>::prepare_extract(&obj);
 /// let extracted = try!(extract(&prepared));```
 /// 
 /// Note: depending on the implementation, the lifetime of the extracted result may
