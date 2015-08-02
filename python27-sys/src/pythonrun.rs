@@ -12,6 +12,10 @@ pub const PyCF_SOURCE_IS_UTF8 : c_int = 0x0100;
 pub const PyCF_DONT_IMPLY_DEDENT : c_int = 0x0200;
 pub const PyCF_ONLY_AST : c_int = 0x0400;
 
+pub const Py_single_input: c_int = 256;
+pub const Py_file_input: c_int = 257;
+pub const Py_eval_input: c_int = 258;
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCompilerFlags {

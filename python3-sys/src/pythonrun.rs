@@ -2,6 +2,16 @@ use libc::{c_char, c_int, wchar_t};
 use object::*;
 use pystate::PyThreadState;
 
+pub const Py_single_input: c_int = 256;
+pub const Py_file_input: c_int = 257;
+pub const Py_eval_input: c_int = 258;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCompilerFlags {
+    cf_flags : c_int
+}
+
 extern "C" {
     pub fn Py_SetProgramName(arg1: *mut wchar_t) -> ();
     pub fn Py_GetProgramName() -> *mut wchar_t;
@@ -40,7 +50,11 @@ extern "C" {
     //                                     arg3: c_int,
     //                                     arg4: c_int)
     // -> *mut _node;
-    
+
+    pub fn PyRun_StringFlags(code: *const c_char, start: c_int,
+                             globals: *mut PyObject, locals: *mut PyObject,
+                             flags: *mut PyCompilerFlags) -> *mut PyObject;
+
     pub fn Py_CompileString(arg1: *const c_char,
                             arg2: *const c_char, arg3: c_int)
      -> *mut PyObject;
