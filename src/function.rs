@@ -63,6 +63,8 @@ macro_rules! py_fn {
             ml_doc: 0 as *const $crate::_detail::libc::c_char
         };
         unsafe {
+            [ method_def_ $f ].ml_name =
+                concat!(stringify!($f), "\0").as_ptr() as *const _;
             $crate::_detail::py_fn_impl(&mut [ method_def_ $f ])
         }
     }})
