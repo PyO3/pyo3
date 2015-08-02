@@ -12,6 +12,10 @@ Copyright (c) 2015 Daniel Grunwald.
 Rust-cpython is licensed under the [MIT license](http://opensource.org/licenses/MIT).
 Python is licensed under the [Python License](https://docs.python.org/2/license.html).
 
+Supported Python versions:
+* Python 2.7
+* Python 3.3
+* Python 3.4
 
 # Usage
 
