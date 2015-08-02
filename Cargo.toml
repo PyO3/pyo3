@@ -27,7 +27,7 @@ build = "build.rs"
 [dependencies]
 libc = "*"
 num = "*"
-interpolate_idents = "*"
+interpolate_idents = {git = "https://github.com/dgrunwald/interpolate_idents.git"}
 abort_on_panic = "1.0"
 
 # These features are both optional, but you must pick one to 
