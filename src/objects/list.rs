@@ -23,7 +23,7 @@ use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList<'p>(PyObject<'p>);
+pub struct PyList<'p>(pub PyObject<'p>);
 
 pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 

@@ -24,7 +24,7 @@ use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python tuple object.
-pub struct PyTuple<'p>(PyObject<'p>);
+pub struct PyTuple<'p>(pub PyObject<'p>);
 
 pyobject_newtype!(PyTuple, PyTuple_Check, PyTuple_Type);
 

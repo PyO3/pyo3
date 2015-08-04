@@ -38,6 +38,7 @@ pub use self::num::PyInt;
 #[cfg(feature="python3-sys")]
 pub use self::num::PyLong as PyInt;
 pub use self::num::{PyLong, PyFloat};
+pub use self::sequence::PySequence;
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
@@ -184,6 +185,7 @@ mod boolobject;
 mod tuple;
 mod list;
 mod num;
+mod sequence;
 pub mod exc;
 
 #[cfg(feature="python27-sys")]
