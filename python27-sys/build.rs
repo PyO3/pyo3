@@ -205,7 +205,7 @@ fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String
     match get_macos_linkmodel().unwrap().as_ref() {
         "static" => Ok(format!("cargo:rustc-link-lib=static=python{}",
             dotted_version)),
-        "dynamic" => Ok(format!("cargo:rustc-link-lib=python{}",
+        "shared" => Ok(format!("cargo:rustc-link-lib=python{}",
             dotted_version)),
         "framework" => Ok(format!("cargo:rustc-link-lib=python{}", 
             dotted_version)),
@@ -241,33 +241,42 @@ fn matching_version(expected_version: &PythonVersion, actual_version: &PythonVer
             actual_version.minor == expected_version.minor)
 }
 
-fn find_interpreter_and_get_config(expected_version: &PythonVersion) -> Result<(PythonVersion, Vec<String>), String> {
-    let (interpreter_version, lines) = try!(get_config_from_interpreter("python"));
-    if matching_version(expected_version, &interpreter_version) {
-        return Ok((interpreter_version, lines));
+/// Locate a suitable python interpreter and extract config from it.
+/// Tries to execute the interpreter as "python", "python{major version}",
+/// "python{major version}.{minor version}" in order until one
+/// is of the version we are expecting. 
+fn find_interpreter_and_get_config(expected_version: &PythonVersion) -> 
+        Result<(PythonVersion, String, Vec<String>), String> {
+    {
+        let interpreter_path = "python";
+        let (interpreter_version, lines) =
+            try!(get_config_from_interpreter(interpreter_path));
+        if matching_version(expected_version, &interpreter_version) {
+            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+        }
     }
     {
+        let major_interpreter_path = &format!("python{}", expected_version.major);
         let (interpreter_version, lines) = try!(get_config_from_interpreter(
-            &format!("python{}", expected_version.major)));
+            major_interpreter_path));
         if matching_version(expected_version, &interpreter_version) {
-            return Ok((interpreter_version, lines));
+            return Ok((interpreter_version, major_interpreter_path.to_owned(), lines));
         }
     }
     if let Some(minor) = expected_version.minor {
+        let minor_interpreter_path = &format!("python{}.{}", 
+            expected_version.major, minor);
         let (interpreter_version, lines) = try!(get_config_from_interpreter(
-            &format!("python{}.{}", expected_version.major, minor)));
+            minor_interpreter_path));
         if matching_version(expected_version, &interpreter_version) {
-            return Ok((interpreter_version, lines));
+            return Ok((interpreter_version, minor_interpreter_path.to_owned(), lines));
         }
     }
-    Err(format!("'python' is not version {} (is {})",
-            expected_version, interpreter_version))
+    Err(format!("No python interpreter found of version {}",
+            expected_version))
 }
 
-/// Deduce configuration from the 'python' in the current PATH and print
-/// cargo vars to stdout.
-///
-/// Note that if the python doesn't satisfy expected_version, this will error.
+/// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<String>), String> {
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
@@ -284,7 +293,8 @@ print(sys.exec_prefix);";
 ///
 /// Note that if the python doesn't satisfy expected_version, this will error.
 fn configure_from_path(expected_version: &PythonVersion) -> Result<String, String> {
-    let (interpreter_version, lines) = try!(find_interpreter_and_get_config(expected_version));
+    let (interpreter_version, interpreter_path, lines) = 
+        try!(find_interpreter_and_get_config(expected_version));
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
     let exec_prefix: &str = &lines[3];
@@ -298,61 +308,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
     }
 
-    let rel_interpreter_path = if cfg!(target_os="windows") {
-        "/python"
-    } else {
-        "/bin/python"
-    };
-
-    return Ok(format!("{}{}", exec_prefix, rel_interpreter_path));
-}
-
-/// Deduce configuration from the python-X.X in pkg-config and print
-/// cargo vars to stdout.
-fn configure_from_pkgconfig(version: &PythonVersion, pkg_name: &str) 
-        -> Result<String, String> {
-    if env::var("PYTHON_27_NO_PKG_CONFIG").is_ok() {
-        return Err("PYTHON_27_NO_PKG_CONFIG set".to_owned());
-    }
-
-    // this emits relevant build info to stdout, which is picked up by the
-    // build chain (funny name for something with side-effects!)
-    try!(pkg_config::find_library(pkg_name));
-
-    // This seems to be a convention - unfortunately pkg-config doesn't
-    // tell you the executable name, but I've noticed at least on 
-    // OS X homebrew the python bin dir for 3.4 doesn't actually contain
-    // a 'python'.
-    let exec_prefix = pkg_config::Config::get_variable(pkg_name, 
-        "exec_prefix").unwrap();
-
-    // try to find the python interpreter in the exec_prefix somewhere.
-    // the .pc doesn't tell us :(
-
-    let mut attempts = vec![
-        format!("/bin/python{}", version.major),
-        "/bin/python".to_owned()
-    ];
-
-    // Try to seek python(major).(minor) if the user specified a minor.
-    //
-    // Ideally, we'd still do this even if they didn't based off the
-    // specific version of the package located by pkg_config above,
-    // but it's not obvious how to reliably extract that out of the .pc.
-    if version.minor.is_some() {
-        attempts.insert(0, format!("/bin/python{}_{}", version.major,
-            version.minor.unwrap()));
-    }
-
-    for attempt in attempts.iter() {
-        let possible_exec_name = format!("{}{}", exec_prefix,
-            attempt);
-        match fs::metadata(&possible_exec_name) {
-            Ok(_) => return Ok(possible_exec_name),
-            Err(_) => ()
-        };
-    }
-    return Err("Unable to locate python interpreter".to_owned());
+    return Ok(interpreter_path);
 }
 
 /// Determine the python version we're supposed to be building
@@ -388,32 +344,15 @@ fn main() {
     // library based on the python interpeter's compilation flags. This is 
     // necessary for e.g. matching the right unicode and threading interfaces.
     //
-    // By default, try to use pkgconfig - this seems to be a rust norm.
+    // This locates the python interpreter based on the PATH, which should
+    // work smoothly with an activated virtualenv.
     //
-    // If you want to use a different python, setting the appropriate
-    // PYTHON_27_NO_PKG_CONFIG environment variable will cause the script 
-    // to pick up the python in your PATH.
-    // 
-    // This will work smoothly with an activated virtualenv.
-    // 
     // If you have troubles with your shell accepting '.' in a var name, 
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).
     let version = version_from_env().unwrap();
-    let pkg_name = match version.minor {
-        Some(minor) => format!("python-{}.{}", version.major, minor),
-        None => format!("python{}", version.major)
-    };
-
-    let python_interpreter_path = match configure_from_pkgconfig(&version, &pkg_name) {
-        Ok(p) => p,
-        // no pkgconfig - either it failed or user set the environment 
-        // variable "PYTHON_27_NO_PKG_CONFIG".
-        Err(_) => configure_from_path(&version).unwrap()
-    };
-
+    let python_interpreter_path = configure_from_path(&version).unwrap();
     let config_map = get_config_vars(&python_interpreter_path).unwrap();
-
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {
             Some(line) => println!("{}", line),
