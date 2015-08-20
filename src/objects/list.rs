@@ -137,7 +137,10 @@ impl <'p, T> ToPyObject<'p> for [T] where T: ToPyObject<'p> {
 }
 
 impl <'python, 'source, 'prepared, T> ExtractPyObject<'python, 'source, 'prepared>
-    for Vec<T> where T: for<'s, 'p> ExtractPyObject<'python, 's, 'p> {
+    for Vec<T>
+    where T: for<'s, 'p> ExtractPyObject<'python, 's, 'p>,
+          'python : 'source
+{
 
     type Prepared = &'source PyObject<'python>;
 
@@ -147,7 +150,7 @@ impl <'python, 'source, 'prepared, T> ExtractPyObject<'python, 'source, 'prepare
     }
 
     #[inline]
-    fn extract(&&ref obj: &'prepared Self::Prepared) -> PyResult<'python, Vec<T>> {
+    fn extract(&obj: &'prepared &'source PyObject<'python>) -> PyResult<'python, Vec<T>> {
         let list = try!(obj.cast_as::<PyList>());
         let mut v = Vec::with_capacity(list.len());
         for i in 0 .. list.len() {

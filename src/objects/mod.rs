@@ -156,6 +156,7 @@ macro_rules! extract(
         impl <'python, 'source, 'prepared>
             ::conversion::ExtractPyObject<'python, 'source, 'prepared>
             for $t
+            where 'python: 'source
         {
 
             type Prepared = &'source PyObject<'python>;

@@ -197,6 +197,7 @@ macro_rules! int_convert_u64_or_i64 (
 
         impl <'python, 'source, 'prepared>
             ExtractPyObject<'python, 'source, 'prepared> for $rust_type
+            where 'python: 'source
         {
             type Prepared = &'source PyObject<'python>;
 
