@@ -90,7 +90,7 @@ pub trait ToPyObject<'p> {
 /// In cases where the result does not depend on the `'prepared` lifetime,
 /// the inherent method `PyObject::extract()` can be used.
 pub trait ExtractPyObject<'python, 'source, 'prepared> : Sized {
-    type Prepared;
+    type Prepared : 'source;
 
     fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared>;
 
