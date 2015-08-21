@@ -5,7 +5,6 @@ use std::process::Command;
 use std::collections::HashMap;
 use std::env;
 use regex::Regex;
-use std::fs;
 use std::fmt;
 
 struct PythonVersion {
