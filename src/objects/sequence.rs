@@ -28,6 +28,7 @@ pub struct PySequence<'p>(PyObject<'p>);
 pyobject_newtype!(PySequence, PySequence_Check);
 
 impl <'p> PySequence<'p> {
+    /// Returns the number of objects in sequence.
     #[inline]
     pub fn size(&self) -> PyResult<'p, usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
@@ -38,15 +39,13 @@ impl <'p> PySequence<'p> {
         }
     }
 
+    /// Returns the number of objects in sequence. Same as size but included for completeness.
     #[inline]
-    pub fn length(&self) -> usize {
-        let v = unsafe { ffi::PySequence_Length(self.as_ptr()) };
-        if v == -1 {
-            panic!("Received an unexpected error finding the length of a PySequence")
-        }
-        v as usize
+    pub fn length(&self) -> PyResult<'p, usize> {
+        self.size()
     }
 
+    /// Return the concatenation of o1 and o2. Equivalent to python `o1 + o2`
     #[inline]
     pub fn concat(&self, other: &PySequence<'p>) -> PyResult<'p, PySequence> {
         let seq = try!(unsafe {
@@ -56,6 +55,8 @@ impl <'p> PySequence<'p> {
         Ok(PySequence(seq))
     }
 
+    /// Return the result of repeating sequence object o count times.
+    /// Equivalent to python `o * count`
     #[inline]
     pub fn repeat(&self, count: usize) -> PyResult<'p, PySequence> {
         let seq = try!(unsafe {
@@ -65,6 +66,7 @@ impl <'p> PySequence<'p> {
         Ok(PySequence(seq))
     }
 
+    /// Return the concatenation of o1 and o2 on success. Equivalent to python `o1 += o2`
     #[inline]
     pub fn in_place_concat(&self, other: &PySequence<'p>) -> PyResult<'p, PySequence> {
         let seq = try!(unsafe {
@@ -74,47 +76,56 @@ impl <'p> PySequence<'p> {
         Ok(PySequence(seq))
     }
 
+    /// Return the result of repeating sequence object o count times.
+    /// Equivalent to python `o *= count`
     #[inline]
     pub fn in_place_repeat(&self, count: usize) -> PyResult<'p, PySequence> {
         let seq = try!(unsafe {
             let py = self.python();
-            result_from_owned_ptr(py, 
+            result_from_owned_ptr(py,
                 ffi::PySequence_InPlaceRepeat(self.as_ptr(), count as Py_ssize_t))
         });
         Ok(PySequence(seq))
     }
 
+    /// Return the ith element of the Sequence. Equivalent to python `o[index]`
     #[inline]
     pub fn get_item(&self, index: usize) -> PyObject<'p> {
-        assert!(index < self.length());
+        assert!(index < self.length().unwrap());
         unsafe {
             let py = self.python();
             PyObject::from_borrowed_ptr(py, ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
+    /// Return the slice of sequence object o between begin and end.
+    /// This is the equivalent of the Python expression `o[begin:end]`
     #[inline]
-    pub fn get_slice(&self, index: usize) -> PyResult<'p, PySequence> {
+    pub fn get_slice(&self, begin : usize, end : usize) -> PyResult<'p, PySequence> {
         let slice = try!(unsafe {
             let py = self.python();
-            result_from_owned_ptr(py, 
-                ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
+            result_from_owned_ptr(py,
+                ffi::PySequence_GetSlice(self.as_ptr(), begin as Py_ssize_t, end as Py_ssize_t))
         });
         Ok(PySequence(slice))
     }
 
+    /// Assign object v to the ith element of o.
+    /// Equivalent to Python statement `o[i] = v`
     #[inline]
     pub fn set_item(&self, i: usize, v: &PyObject<'p>) -> PyResult<'p, ()> {
-        let v = unsafe { 
-            ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr()) 
+        let v = unsafe {
+            ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr())
         };
         if v == -1 {
             Err(PyErr::fetch(self.python()))
-        } else{ 
+        } else{
             Ok(())
         }
     }
 
+    /// Delete the ith element of object o.
+    /// Python statement `del o[i]`
     #[inline]
     pub fn del_item(&self, i: usize) -> PyResult<'p, ()> {
         let v = unsafe { ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t) };
@@ -125,18 +136,22 @@ impl <'p> PySequence<'p> {
         }
     }
 
+    /// Assign the sequence object v to the slice in sequence object o from i1 to i2.
+    /// This is the equivalent of the Python statement `o[i1:i2] = v`
     #[inline]
     pub fn set_slice(&self, i1: usize, i2: usize, v: &PyObject<'p>) -> PyResult<'p, ()> {
-        let v = unsafe { 
-            ffi::PySequence_SetSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t, v.as_ptr()) 
+        let v = unsafe {
+            ffi::PySequence_SetSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t, v.as_ptr())
         };
         if v == -1 {
             Err(PyErr::fetch(self.python()))
-        } else{ 
+        } else{
             Ok(())
         }
     }
 
+    /// Delete the slice in sequence object o from i1 to i2.
+    /// equivalent of the Python statement `del o[i1:i2]`
     #[inline]
     pub fn del_slice(&self, i1: i64, i2: i64) -> PyResult<'p, ()> {
         let v = unsafe { ffi::PySequence_DelSlice(self.as_ptr(), i1, i2) };
@@ -147,6 +162,8 @@ impl <'p> PySequence<'p> {
         }
     }
 
+    /// Return the number of occurrences of value in o, that is, return the number of keys for
+    /// which `o[key] == value`
     #[inline]
     pub fn count(&self, v: &PyObject<'p>) -> PyResult<'p, usize> {
         let v = unsafe { ffi::PySequence_Count(self.as_ptr(), v.as_ptr()) };
@@ -157,6 +174,7 @@ impl <'p> PySequence<'p> {
         }
     }
 
+   /// Determine if o contains value. this is equivalent to the Python expression `value in o`
     #[inline]
     pub fn contains(&self, v: &PyObject<'p>) -> PyResult<'p, bool> {
         let v = unsafe { ffi::PySequence_Contains(self.as_ptr(), v.as_ptr()) };
@@ -167,6 +185,8 @@ impl <'p> PySequence<'p> {
         }
     }
 
+    /// Return the first index i for which o[i] == value.
+    /// This is equivalent to the Python expression `o.index(value)`
     #[inline]
     pub fn index(&self, v: &PyObject<'p>) -> PyResult<'p, usize> {
         let v = unsafe { ffi::PySequence_Index(self.as_ptr(), v.as_ptr()) };
@@ -177,18 +197,20 @@ impl <'p> PySequence<'p> {
         }
     }
 
+    /// Return a fresh list based on the Sequence.
     #[inline]
     pub fn list(&self) -> PyResult<'p, PyList> {
-        let v = try!(unsafe { 
+        let v = try!(unsafe {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_List(self.as_ptr()))
         });
         Ok(unsafe { v.unchecked_cast_into::<PyList>() } )
     }
 
+    /// Return a fresh tuple based on the Sequence.
     #[inline]
     pub fn tuple(&self) -> PyResult<'p, PyTuple> {
-        let v = try!(unsafe { 
+        let v = try!(unsafe {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_Tuple(self.as_ptr()))
         });
@@ -226,12 +248,12 @@ impl <'p> Iterator for PySequenceIterator<'p> {
     #[inline]
     fn next(&mut self) -> Option<PyObject<'p>> {
         // can't report any errors in underlying size check so we panic.
-        let len = self.sequence.length();
+        let len = self.sequence.length().unwrap();
         if self.index < len {
             let item = self.sequence.get_item(self.index) ;
             self.index += 1;
             Some(item)
-        } else { 
+        } else {
             None
         }
     }
@@ -265,7 +287,7 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        assert_eq!(0, seq.length());
+        assert_eq!(0, seq.length().unwrap());
         assert_eq!(0, seq.size().unwrap());
 
         let needle = 7i32.to_py_object(py).into_object();
@@ -278,7 +300,7 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        assert_eq!(6, seq.length());
+        assert_eq!(6, seq.length().unwrap());
         assert_eq!(6, seq.size().unwrap());
 
         let bad_needle = 7i32.to_py_object(py).into_object();
@@ -304,6 +326,33 @@ mod test {
         assert_eq!(5, seq.get_item(4).extract::<i32>().unwrap());
         assert_eq!(8, seq.get_item(5).extract::<i32>().unwrap());
         //assert!(seq.get_item(5).extract::<i32>().is_err()); // panics.
+    }
+
+    // fn test_get_slice() {}
+    // fn test_set_slice() {}
+    // fn test_del_slice() {}
+
+    #[test]
+    fn test_seq_del_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert!(seq.del_item(10).is_err());
+        assert_eq!(1, seq.get_item(0).extract::<i32>().unwrap());
+        assert!(seq.del_item(0).is_ok());
+        assert_eq!(1, seq.get_item(0).extract::<i32>().unwrap());
+        assert!(seq.del_item(0).is_ok());
+        assert_eq!(2, seq.get_item(0).extract::<i32>().unwrap());
+        assert!(seq.del_item(0).is_ok());
+        assert_eq!(3, seq.get_item(0).extract::<i32>().unwrap());
+        assert!(seq.del_item(0).is_ok());
+        assert_eq!(5, seq.get_item(0).extract::<i32>().unwrap());
+        assert!(seq.del_item(0).is_ok());
+        assert_eq!(8, seq.get_item(0).extract::<i32>().unwrap());
+        assert!(seq.del_item(0).is_ok());
+        assert_eq!(0, seq.length().unwrap());
+        assert!(seq.del_item(0).is_err());
     }
 
     #[test]
@@ -381,10 +430,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v : Vec<i32> = vec![1, 2, 3];
-        let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let concat_seq = seq.concat(&seq).unwrap();
-        assert_eq!(6, concat_seq.length());
+        assert_eq!(6, concat_seq.length().unwrap());
+        //let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
         //assert_eq!(concat_v, concat_seq.into_object().extract::<Vec<i32>>().unwrap());
     }
 
@@ -393,10 +442,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "string";
-        let concat_v = "stringstring";
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let concat_seq = seq.concat(&seq).unwrap();
-        assert_eq!(12, concat_seq.length());
+        assert_eq!(12, concat_seq.length().unwrap());
+        //let concat_v = "stringstring";
         //assert_eq!(concat_v, concat_seq.into_object().extract::<String>().unwrap());
     }
 
@@ -405,10 +454,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec!["foo", "bar"];
-        let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let repeat_seq = seq.repeat(3).unwrap();
-        assert_eq!(6, repeat_seq.length());
+        assert_eq!(6, repeat_seq.length().unwrap());
+        //let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
         //assert_eq!(repeated, repeat_seq.into_object().extract::<Vec<String>>().unwrap());
     }
 
