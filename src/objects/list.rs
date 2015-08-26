@@ -172,7 +172,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![1,2,3,4];
-        let list = v.to_py_object(py).into_object().cast_into::<PyList>().unwrap();
+        let list = v.to_py_object(py);
         assert_eq!(4, list.len());
     }
 
@@ -181,7 +181,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = v.to_py_object(py).into_object().cast_into::<PyList>().unwrap();
+        let list = v.to_py_object(py);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -193,7 +193,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = v.to_py_object(py).into_object().cast_into::<PyList>().unwrap();
+        let list = v.to_py_object(py);
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         list.set_item(0, val);
@@ -205,7 +205,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = v.to_py_object(py).into_object().cast_into::<PyList>().unwrap();
+        let list = v.to_py_object(py);
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(4, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
@@ -220,7 +220,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = v.to_py_object(py).into_object().cast_into::<PyList>().unwrap();
+        let list = v.to_py_object(py);
         let mut idx = 0;
         for el in list {
             assert_eq!(v[idx], el.extract::<i32>().unwrap());
@@ -234,7 +234,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = v.to_py_object(py).into_object().cast_into::<PyList>().unwrap();
+        let list = v.to_py_object(py);
         let mut idx = 0;
         for el in list.into_iter() {
             assert_eq!(v[idx], el.extract::<i32>().unwrap());
@@ -242,4 +242,14 @@ mod test {
         }
         assert_eq!(idx, v.len());
     }
+    
+    /*#[test]
+    fn test_extract() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let list = v.to_py_object(py);
+        let v2 = list.into_object().extract::<Vec<i32>>().unwrap();
+        assert_eq!(v, v2);
+    }*/
 }
