@@ -42,21 +42,6 @@ impl <'p> PyTuple<'p> {
         }
     }
 
-    /// Construct a tuple from an existing object.
-    #[inline]
-    pub fn from_object(obj: PyObject<'p>) -> PyResult<'p, PyTuple> {
-        let py = obj.python();
-        let ptr = obj.as_ptr();
-        unsafe {
-            if ffi::PyTuple_Check(ptr) != 0{
-                Ok(PyTuple(obj))
-            } else {
-                Err(PyErr::fetch(py))
-            }
-        }
-    }
-
-
     /// Retrieves the empty tuple.
     pub fn empty(py: Python<'p>) -> PyTuple<'p> {
         unsafe {

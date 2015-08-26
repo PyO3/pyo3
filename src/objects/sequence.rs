@@ -28,20 +28,6 @@ pub struct PySequence<'p>(PyObject<'p>);
 pyobject_newtype!(PySequence, PySequence_Check);
 
 impl <'p> PySequence<'p> {
-    /// Construct a Sequence from an existing object.
-    #[inline]
-    pub fn from_object(obj: PyObject<'p>) -> PyResult<'p, PySequence> {
-        let py = obj.python();
-        let ptr = obj.as_ptr();
-        unsafe {
-            if ffi::PySequence_Check(ptr) != 0{
-                Ok(PySequence(obj))
-            } else {
-                Err(PyErr::fetch(py))
-            }
-        }
-    }
-
     #[inline]
     pub fn size(&self) -> PyResult<'p, usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
@@ -197,7 +183,7 @@ impl <'p> PySequence<'p> {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_List(self.as_ptr()))
         });
-        PyList::from_object(v)
+        Ok(unsafe { v.unchecked_cast_into::<PyList>() } )
     }
 
     #[inline]
@@ -206,7 +192,7 @@ impl <'p> PySequence<'p> {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_Tuple(self.as_ptr()))
         });
-        PyTuple::from_object(v)
+        Ok(unsafe {v.unchecked_cast_into::<PyTuple>() } )
     }
 }
 
@@ -256,17 +242,14 @@ mod test {
     use std;
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
-    use objects::PySequence;
+    use objects::{PySequence, PyList, PyTuple};
 
     #[test]
     fn test_numbers_are_not_sequences() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = 42i32;
-        match PySequence::from_object(v.to_py_object(py).into_object()) {
-            Ok(_) => panic!(), // We shouldn't be able to make a sequence from a number!
-            Err(_) => assert!(true)
-        };
+        assert!(v.to_py_object(py).into_object().cast_into::<PySequence>().is_err());
     }
 
     #[test]
@@ -274,17 +257,14 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "London Calling";
-        match PySequence::from_object(v.to_py_object(py).into_object()) {
-            Ok(_) => assert!(true),
-            Err(_) => panic!()
-        };
+        assert!(v.to_py_object(py).into_object().cast_into::<PySequence>().is_ok());
     }
     #[test]
     fn test_seq_empty() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v : Vec<i32> = vec![];
-        let seq = PySequence::from_object(v.to_py_object(py).into_object()).unwrap();
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         assert_eq!(0, seq.length());
         assert_eq!(0, seq.size().unwrap());
 
@@ -293,11 +273,11 @@ mod test {
     }
 
     #[test]
-    fn test_seq_filled() {
+    fn test_seq_contains() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let seq = PySequence::from_object(v.to_py_object(py).into_object()).unwrap();
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         assert_eq!(6, seq.length());
         assert_eq!(6, seq.size().unwrap());
 
@@ -312,11 +292,82 @@ mod test {
     }
 
     #[test]
+    fn test_seq_get_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert_eq!(1, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(1, seq.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(2, seq.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(3, seq.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(5, seq.get_item(4).extract::<i32>().unwrap());
+        assert_eq!(8, seq.get_item(5).extract::<i32>().unwrap());
+        //assert!(seq.get_item(5).extract::<i32>().is_err()); // panics.
+    }
+
+    #[test]
+    fn test_seq_index() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert_eq!(0, seq.index(&1i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(2, seq.index(&2i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(3, seq.index(&3i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(4, seq.index(&5i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(5, seq.index(&8i32.to_py_object(py).into_object()).unwrap());
+        assert!(seq.index(&42i32.to_py_object(py).into_object()).is_err());
+    }
+
+    #[test]
+    fn test_seq_count() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert_eq!(2, seq.count(&1i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(1, seq.count(&2i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(1, seq.count(&3i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(1, seq.count(&5i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(1, seq.count(&8i32.to_py_object(py).into_object()).unwrap());
+        assert_eq!(0, seq.count(&42i32.to_py_object(py).into_object()).unwrap());
+    }
+
+    #[test]
+    fn test_seq_iter() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        let mut idx = 0;
+        for el in seq {
+            assert_eq!(v[idx], el.extract::<i32>().unwrap());
+            idx += 1;
+        }
+        assert_eq!(idx, v.len());
+    }
+
+    #[test]
+    fn test_seq_into_iter() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        let mut idx = 0;
+        for el in seq.into_iter() {
+            assert_eq!(v[idx], el.extract::<i32>().unwrap());
+            idx += 1;
+        }
+        assert_eq!(idx, v.len());
+    }
+
+    #[test]
     fn test_seq_strings() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec!["It", "was", "the", "worst", "of", "times"];
-        let seq = PySequence::from_object(v.to_py_object(py).into_object()).unwrap();
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
 
         let bad_needle = "blurst".to_py_object(py).into_object();
         assert_eq!(false, seq.contains(&bad_needle).unwrap());
@@ -331,10 +382,10 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 2, 3];
         let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
-        let seq = PySequence::from_object(v.to_py_object(py).into_object()).unwrap();
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let concat_seq = seq.concat(&seq).unwrap();
         assert_eq!(6, concat_seq.length());
-        assert_eq!(concat_v, concat_seq.into_object().extract::<Vec<i32>>().unwrap());
+        //assert_eq!(concat_v, concat_seq.into_object().extract::<Vec<i32>>().unwrap());
     }
 
     #[test]
@@ -343,12 +394,11 @@ mod test {
         let py = gil.python();
         let v = "string";
         let concat_v = "stringstring";
-        let seq = PySequence::from_object(v.to_py_object(py).into_object()).unwrap();
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let concat_seq = seq.concat(&seq).unwrap();
         assert_eq!(12, concat_seq.length());
         //assert_eq!(concat_v, concat_seq.into_object().extract::<String>().unwrap());
     }
-
 
     #[test]
     fn test_seq_repeat() {
@@ -356,9 +406,45 @@ mod test {
         let py = gil.python();
         let v = vec!["foo", "bar"];
         let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
-        let seq = PySequence::from_object(v.to_py_object(py).into_object()).unwrap();
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let repeat_seq = seq.repeat(3).unwrap();
         assert_eq!(6, repeat_seq.length());
         //assert_eq!(repeated, repeat_seq.into_object().extract::<Vec<String>>().unwrap());
+    }
+
+    #[test]
+    fn test_list_coercion() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec!["foo", "bar"];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert!(seq.list().is_ok());
+    }
+
+    #[test]
+    fn test_strings_coerce_to_lists() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = "foo";
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert!(seq.list().is_ok());
+    }
+
+    #[test]
+    fn test_tuple_coercion() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = ("foo", "bar");
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert!(seq.tuple().is_ok());
+    }
+
+    #[test]
+    fn test_lists_coerce_to_tuples() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec!["foo", "bar"];
+        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
+        assert!(seq.tuple().is_ok());
     }
 }

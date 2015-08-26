@@ -40,21 +40,6 @@ impl <'p> PyList<'p> {
         }
     }
 
-    /// Construct a list from an existing object.
-    #[inline]
-    pub fn from_object(obj: PyObject<'p>) -> PyResult<'p, PyList> {
-        let py = obj.python();
-        let ptr = obj.as_ptr();
-        unsafe {
-            if ffi::PyList_Check(ptr) != 0{
-                Ok(PyList(obj))
-            } else {
-                Err(PyErr::fetch(py))
-            }
-        }
-    }
-
-
     /// Gets the length of the list.
     #[inline]
     pub fn len(&self) -> usize {
