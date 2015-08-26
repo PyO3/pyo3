@@ -17,13 +17,13 @@
 // DEALINGS IN THE SOFTWARE.
 
 use python::{Python, PythonObject, ToPythonPointer};
-use err::{self, PyResult};
+use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList<'p>(pub PyObject<'p>);
+pub struct PyList<'p>(PyObject<'p>);
 
 pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 
@@ -39,6 +39,21 @@ impl <'p> PyList<'p> {
             t
         }
     }
+
+    /// Construct a list from an existing object.
+    #[inline]
+    pub fn from_object(obj: PyObject<'p>) -> PyResult<'p, PyList> {
+        let py = obj.python();
+        let ptr = obj.as_ptr();
+        unsafe {
+            if ffi::PyList_Check(ptr) != 0{
+                Ok(PyList(obj))
+            } else {
+                Err(PyErr::fetch(py))
+            }
+        }
+    }
+
 
     /// Gets the length of the list.
     #[inline]

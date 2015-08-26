@@ -17,14 +17,14 @@
 // DEALINGS IN THE SOFTWARE.
 
 use python::{Python, PythonObject, ToPythonPointer};
-use err::{self, PyResult, PyErr};
+use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, ExtractPyObject};
 
 /// Represents a Python tuple object.
-pub struct PyTuple<'p>(pub PyObject<'p>);
+pub struct PyTuple<'p>(PyObject<'p>);
 
 pyobject_newtype!(PyTuple, PyTuple_Check, PyTuple_Type);
 
@@ -41,6 +41,21 @@ impl <'p> PyTuple<'p> {
             t
         }
     }
+
+    /// Construct a tuple from an existing object.
+    #[inline]
+    pub fn from_object(obj: PyObject<'p>) -> PyResult<'p, PyTuple> {
+        let py = obj.python();
+        let ptr = obj.as_ptr();
+        unsafe {
+            if ffi::PyTuple_Check(ptr) != 0{
+                Ok(PyTuple(obj))
+            } else {
+                Err(PyErr::fetch(py))
+            }
+        }
+    }
+
 
     /// Retrieves the empty tuple.
     pub fn empty(py: Python<'p>) -> PyTuple<'p> {
