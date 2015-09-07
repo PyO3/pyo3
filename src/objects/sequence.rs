@@ -41,24 +41,22 @@ impl <'p> PySequence<'p> {
 
     /// Return the concatenation of o1 and o2. Equivalent to python `o1 + o2`
     #[inline]
-    pub fn concat(&self, other: &PySequence<'p>) -> PyResult<'p, PySequence> {
-        let seq = try!(unsafe {
+    pub fn concat(&self, other: &PySequence<'p>) -> PyObject<'p> {
+        unsafe {
             let py = self.python();
-            result_from_owned_ptr(py, ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
-        });
-        Ok(PySequence(seq))
+            PyObject::from_owned_ptr(py, ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
+        }
     }
 
     /// Return the result of repeating sequence object o count times.
     /// Equivalent to python `o * count`
     /// NB: Python accepts negative counts; it returns an empty Sequence.
     #[inline]
-    pub fn repeat(&self, count: isize) -> PyResult<'p, PySequence> {
-        let seq = try!(unsafe {
+    pub fn repeat(&self, count: isize) -> PyObject<'p> {
+        unsafe {
             let py = self.python();
-            result_from_owned_ptr(py, ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
-        });
-        Ok(PySequence(seq))
+            PyObject::from_owned_ptr(py, ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
+        }
     }
 
     /// Return the concatenation of o1 and o2 on success. Equivalent to python `o1 += o2`
@@ -86,11 +84,10 @@ impl <'p> PySequence<'p> {
 
     /// Return the ith element of the Sequence. Equivalent to python `o[index]`
     #[inline]
-    pub fn get_item(&self, index: isize) -> PyObject<'p> {
-        assert!(index < self.len().unwrap());
+    pub fn get_item(&self, index: isize) -> PyResult<'p, PyObject<'p>> {
+        let py = self.python();
         unsafe {
-            let py = self.python();
-            PyObject::from_owned_ptr(py,
+            result_from_owned_ptr(py,
                 ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
@@ -249,9 +246,13 @@ impl <'p> Iterator for PySequenceIterator<'p> {
         // can't report any errors in underlying size check so we panic.
         let len = self.sequence.len().unwrap();
         if self.index < len {
-            let item = self.sequence.get_item(self.index);
-            self.index += 1;
-            Some(item)
+            match self.sequence.get_item(self.index) {
+                Ok(item) => {
+                    self.index += 1;
+                    Some(item)
+                },
+                Err(_) => None
+            }
         } else {
             None
         }
@@ -316,18 +317,18 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        assert_eq!(1, seq.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(1, seq.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(2, seq.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(3, seq.get_item(3).extract::<i32>().unwrap());
-        assert_eq!(5, seq.get_item(4).extract::<i32>().unwrap());
-        assert_eq!(8, seq.get_item(5).extract::<i32>().unwrap());
-        assert_eq!(8, seq.get_item(-1).extract::<i32>().unwrap());
-        assert_eq!(5, seq.get_item(-2).extract::<i32>().unwrap());
-        assert_eq!(3, seq.get_item(-3).extract::<i32>().unwrap());
-        assert_eq!(2, seq.get_item(-4).extract::<i32>().unwrap());
-        assert_eq!(1, seq.get_item(-5).extract::<i32>().unwrap());
-        //assert!(seq.get_item(5).extract::<i32>().is_err()); // panics.
+        assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
+        assert_eq!(1, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, seq.get_item(2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, seq.get_item(3).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, seq.get_item(4).unwrap().extract::<i32>().unwrap());
+        assert_eq!(8, seq.get_item(5).unwrap().extract::<i32>().unwrap());
+        assert_eq!(8, seq.get_item(-1).unwrap().extract::<i32>().unwrap());
+        assert_eq!(5, seq.get_item(-2).unwrap().extract::<i32>().unwrap());
+        assert_eq!(3, seq.get_item(-3).unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, seq.get_item(-4).unwrap().extract::<i32>().unwrap());
+        assert_eq!(1, seq.get_item(-5).unwrap().extract::<i32>().unwrap());
+        //assert!(seq.get_item(5).unwrap().extract::<i32>().is_err()); // panics.
     }
 
     // fn test_get_slice() {}
@@ -341,17 +342,17 @@ mod test {
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         assert!(seq.del_item(10).is_err());
-        assert_eq!(1, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
         assert!(seq.del_item(0).is_ok());
-        assert_eq!(1, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(1, seq.get_item(0).unwrap().extract::<i32>().unwrap());
         assert!(seq.del_item(0).is_ok());
-        assert_eq!(2, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(2, seq.get_item(0).unwrap().extract::<i32>().unwrap());
         assert!(seq.del_item(0).is_ok());
-        assert_eq!(3, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, seq.get_item(0).unwrap().extract::<i32>().unwrap());
         assert!(seq.del_item(0).is_ok());
-        assert_eq!(5, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(5, seq.get_item(0).unwrap().extract::<i32>().unwrap());
         assert!(seq.del_item(0).is_ok());
-        assert_eq!(8, seq.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(8, seq.get_item(0).unwrap().extract::<i32>().unwrap());
         assert!(seq.del_item(0).is_ok());
         assert_eq!(0, seq.len().unwrap());
         assert!(seq.del_item(0).is_err());
@@ -433,10 +434,13 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 2, 3];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let concat_seq = seq.concat(&seq).unwrap();
+        let concat_seq = seq.concat(&seq).cast_into::<PySequence>().unwrap();
         assert_eq!(6, concat_seq.len().unwrap());
-        //let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
-        //assert_eq!(concat_v, concat_seq.into_object().extract::<Vec<i32>>().unwrap());
+        let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
+        for (el, cc) in seq.into_iter().zip(concat_v) {
+            assert_eq!(cc, el.extract::<i32>().unwrap());
+        }
+
     }
 
     #[test]
@@ -445,10 +449,13 @@ mod test {
         let py = gil.python();
         let v = "string";
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let concat_seq = seq.concat(&seq).unwrap();
+        let concat_seq = seq.concat(&seq).cast_into::<PySequence>().unwrap();
         assert_eq!(12, concat_seq.len().unwrap());
-        //let concat_v = "stringstring";
-        //assert_eq!(concat_v, concat_seq.into_object().extract::<String>().unwrap());
+        let concat_v = "stringstring".to_owned();
+        for (el, cc) in seq.into_iter().zip(concat_v.as_bytes().into_iter()) {
+            // This fails as extract doesn't support &str as it wants a numeric type.
+            //assert_eq!(*cc, el.extract::<u8>().unwrap());
+        }
     }
 
     #[test]
@@ -457,10 +464,12 @@ mod test {
         let py = gil.python();
         let v = vec!["foo", "bar"];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let repeat_seq = seq.repeat(3).unwrap();
+        let repeat_seq = seq.repeat(3).cast_into::<PySequence>().unwrap();
         assert_eq!(6, repeat_seq.len().unwrap());
-        //let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
-        //assert_eq!(repeated, repeat_seq.into_object().extract::<Vec<String>>().unwrap());
+        let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
+        for (el, rpt) in seq.into_iter().zip(repeated.iter()) {
+            assert_eq!(*rpt, el.extract::<String>().unwrap());
+        }
     }
 
     #[test]
