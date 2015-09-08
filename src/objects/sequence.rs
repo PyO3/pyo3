@@ -21,6 +21,7 @@ use ffi;
 use python::{PythonObject, ToPythonPointer};
 use objects::{PyObject, PyList, PyTuple};
 use ffi::Py_ssize_t;
+use err;
 use err::{PyErr, PyResult, result_from_owned_ptr};
 
 pub struct PySequence<'p>(PyObject<'p>);
@@ -108,13 +109,9 @@ impl <'p> PySequence<'p> {
     /// Equivalent to Python statement `o[i] = v`
     #[inline]
     pub fn set_item(&self, i: isize, v: &PyObject<'p>) -> PyResult<'p, ()> {
-        let v = unsafe {
-            ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr())
-        };
-        if v == -1 {
-            Err(PyErr::fetch(self.python()))
-        } else{
-            Ok(())
+        unsafe {
+            err::error_on_minusone(self.python(),
+                ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr()))
         }
     }
 
@@ -122,11 +119,9 @@ impl <'p> PySequence<'p> {
     /// Python statement `del o[i]`
     #[inline]
     pub fn del_item(&self, i: isize) -> PyResult<'p, ()> {
-        let v = unsafe { ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t) };
-        if v == -1 {
-            Err(PyErr::fetch(self.python()))
-        } else {
-            Ok(())
+        unsafe { 
+            err::error_on_minusone(self.python(),
+                ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t))
         }
     }
 
@@ -134,13 +129,9 @@ impl <'p> PySequence<'p> {
     /// This is the equivalent of the Python statement `o[i1:i2] = v`
     #[inline]
     pub fn set_slice(&self, i1: isize, i2: isize, v: &PyObject<'p>) -> PyResult<'p, ()> {
-        let v = unsafe {
-            ffi::PySequence_SetSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t, v.as_ptr())
-        };
-        if v == -1 {
-            Err(PyErr::fetch(self.python()))
-        } else{
-            Ok(())
+        unsafe {
+            err::error_on_minusone(self.python(),
+                ffi::PySequence_SetSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t, v.as_ptr()))
         }
     }
 
@@ -148,13 +139,9 @@ impl <'p> PySequence<'p> {
     /// equivalent of the Python statement `del o[i1:i2]`
     #[inline]
     pub fn del_slice(&self, i1: isize, i2: isize) -> PyResult<'p, ()> {
-        let v = unsafe { 
-            ffi::PySequence_DelSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t) 
-        };
-        if v == -1 {
-            Err(PyErr::fetch(self.python()))
-        } else {
-            Ok(())
+        unsafe { 
+            err::error_on_minusone(self.python(),
+                ffi::PySequence_DelSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t))
         }
     }
 
@@ -451,11 +438,13 @@ mod test {
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
         let concat_seq = seq.concat(&seq).cast_into::<PySequence>().unwrap();
         assert_eq!(12, concat_seq.len().unwrap());
+        /*
         let concat_v = "stringstring".to_owned();
         for (el, cc) in seq.into_iter().zip(concat_v.as_bytes().into_iter()) {
             // This fails as extract doesn't support &str as it wants a numeric type.
-            //assert_eq!(*cc, el.extract::<u8>().unwrap());
+            assert_eq!(*cc, el.extract::<u8>().unwrap());
         }
+        */
     }
 
     #[test]
