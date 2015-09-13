@@ -29,7 +29,7 @@ pub struct PySequence<'p>(PyObject<'p>);
 pyobject_newtype!(PySequence, PySequence_Check);
 
 impl <'p> PySequence<'p> {
-    /// Returns the number of objects in sequence. This is equivalent to Python `size` or `length`.
+    /// Returns the number of objects in sequence. This is equivalent to Python `len()`.
     #[inline]
     pub fn len(&self) -> PyResult<'p, isize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
@@ -42,10 +42,10 @@ impl <'p> PySequence<'p> {
 
     /// Return the concatenation of o1 and o2. Equivalent to python `o1 + o2`
     #[inline]
-    pub fn concat(&self, other: &PySequence<'p>) -> PyObject<'p> {
+    pub fn concat(&self, other: &PySequence<'p>) -> PyResult<'p, PyObject<'p>> {
         unsafe {
             let py = self.python();
-            PyObject::from_owned_ptr(py, ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
+            err::result_from_owned_ptr(py, ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
         }
     }
 
@@ -53,34 +53,32 @@ impl <'p> PySequence<'p> {
     /// Equivalent to python `o * count`
     /// NB: Python accepts negative counts; it returns an empty Sequence.
     #[inline]
-    pub fn repeat(&self, count: isize) -> PyObject<'p> {
+    pub fn repeat(&self, count: isize) -> PyResult<'p, PyObject<'p>> {
         unsafe {
             let py = self.python();
-            PyObject::from_owned_ptr(py, ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
+            err::result_from_owned_ptr(py, ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
         }
     }
 
     /// Return the concatenation of o1 and o2 on success. Equivalent to python `o1 += o2`
     #[inline]
-    pub fn in_place_concat(&self, other: &PySequence<'p>) -> PyResult<'p, PySequence> {
-        let seq = try!(unsafe {
+    pub fn in_place_concat(&self, other: &PySequence<'p>) -> PyResult<'p, PyObject<'p>> {
+        unsafe {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()))
-        });
-        Ok(PySequence(seq))
+        }
     }
 
     /// Return the result of repeating sequence object o count times.
     /// Equivalent to python `o *= count`
     /// NB: Python accepts negative counts; it empties the Sequence.
     #[inline]
-    pub fn in_place_repeat(&self, count: isize) -> PyResult<'p, PySequence> {
-        let seq = try!(unsafe {
+    pub fn in_place_repeat(&self, count: isize) -> PyResult<'p, PyObject<'p>> {
+        unsafe {
             let py = self.python();
             result_from_owned_ptr(py,
                 ffi::PySequence_InPlaceRepeat(self.as_ptr(), count as Py_ssize_t))
-        });
-        Ok(PySequence(seq))
+        }
     }
 
     /// Return the ith element of the Sequence. Equivalent to python `o[index]`
@@ -96,13 +94,12 @@ impl <'p> PySequence<'p> {
     /// Return the slice of sequence object o between begin and end.
     /// This is the equivalent of the Python expression `o[begin:end]`
     #[inline]
-    pub fn get_slice(&self, begin : isize, end : isize) -> PyResult<'p, PySequence> {
-        let slice = try!(unsafe {
+    pub fn get_slice(&self, begin : isize, end : isize) -> PyResult<'p, PyObject<'p>> {
+        unsafe {
             let py = self.python();
             result_from_owned_ptr(py,
                 ffi::PySequence_GetSlice(self.as_ptr(), begin as Py_ssize_t, end as Py_ssize_t))
-        });
-        Ok(PySequence(slice))
+        }
     }
 
     /// Assign object v to the ith element of o.
@@ -182,7 +179,7 @@ impl <'p> PySequence<'p> {
 
     /// Return a fresh list based on the Sequence.
     #[inline]
-    pub fn list(&self) -> PyResult<'p, PyList> {
+    pub fn list(&self) -> PyResult<'p, PyList<'p>> {
         let v = try!(unsafe {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_List(self.as_ptr()))
@@ -192,7 +189,7 @@ impl <'p> PySequence<'p> {
 
     /// Return a fresh tuple based on the Sequence.
     #[inline]
-    pub fn tuple(&self) -> PyResult<'p, PyTuple> {
+    pub fn tuple(&self) -> PyResult<'p, PyTuple<'p>> {
         let v = try!(unsafe {
             let py = self.python();
             result_from_owned_ptr(py, ffi::PySequence_Tuple(self.as_ptr()))
@@ -226,6 +223,7 @@ impl <'a, 'p> IntoIterator for &'a PySequence<'p> {
 }
 
 impl <'p> Iterator for PySequenceIterator<'p> {
+    // TODO: reconsider error reporting; maybe this should be Item = PyResult<PyObject>?
     type Item = PyObject<'p>;
 
     #[inline]
@@ -421,7 +419,7 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 2, 3];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let concat_seq = seq.concat(&seq).cast_into::<PySequence>().unwrap();
+        let concat_seq = seq.concat(&seq).unwrap().cast_into::<PySequence>().unwrap();
         assert_eq!(6, concat_seq.len().unwrap());
         let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
         for (el, cc) in seq.into_iter().zip(concat_v) {
@@ -436,7 +434,7 @@ mod test {
         let py = gil.python();
         let v = "string";
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let concat_seq = seq.concat(&seq).cast_into::<PySequence>().unwrap();
+        let concat_seq = seq.concat(&seq).unwrap().cast_into::<PySequence>().unwrap();
         assert_eq!(12, concat_seq.len().unwrap());
         /*
         let concat_v = "stringstring".to_owned();
@@ -453,7 +451,7 @@ mod test {
         let py = gil.python();
         let v = vec!["foo", "bar"];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let repeat_seq = seq.repeat(3).cast_into::<PySequence>().unwrap();
+        let repeat_seq = seq.repeat(3).unwrap().cast_into::<PySequence>().unwrap();
         assert_eq!(6, repeat_seq.len().unwrap());
         let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
         for (el, rpt) in seq.into_iter().zip(repeated.iter()) {
