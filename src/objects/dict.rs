@@ -148,3 +148,152 @@ impl <'p, K, V> ToPyObject<'p> for collections::HashMap<K, V>
     }
 }
 
+impl <'p, K, V> ToPyObject<'p> for collections::BTreeMap<K, V>
+    where K: cmp::Eq+ToPyObject<'p>,
+          V: ToPyObject<'p>
+{
+    type ObjectType = PyDict<'p>;
+
+    fn to_py_object(&self, py: Python<'p>) -> PyDict<'p> {
+        let dict = PyDict::new(py);
+        for (key, value) in self.iter() {
+            dict.set_item(key, value).unwrap();
+        };
+        dict
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std;
+    use python::{Python, PythonObject};
+    use conversion::ToPyObject;
+    use objects::{PyDict, PyTuple};
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_len() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        let dict = v.to_py_object(py);
+        assert_eq!(0, dict.len());
+        v.insert(7, 32);
+        let dict2 = v.to_py_object(py);
+        assert_eq!(1, dict2.len());
+    }
+
+    #[test]
+    fn test_contains() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        let dict = v.to_py_object(py);
+        assert_eq!(true, dict.contains(7i32).unwrap());
+        assert_eq!(false, dict.contains(8i32).unwrap());
+    }
+
+    #[test]
+    fn test_get_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        let dict = v.to_py_object(py);
+        assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
+        assert_eq!(None, dict.get_item(8i32));
+    }
+
+    #[test]
+    fn test_set_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        let dict = v.to_py_object(py);
+        assert!(dict.set_item(7i32, 42i32).is_ok()); // change
+        assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
+        assert_eq!(42i32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
+        assert_eq!(123i32, dict.get_item(8i32).unwrap().extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_set_item_does_not_update_original_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        let dict = v.to_py_object(py);
+        assert!(dict.set_item(7i32, 42i32).is_ok()); // change
+        assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
+        assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
+        assert_eq!(None, v.get(&8i32));
+    }
+
+
+    #[test]
+    fn test_del_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        let dict = v.to_py_object(py);
+        assert!(dict.del_item(7i32).is_ok());
+        assert_eq!(0, dict.len());
+        assert_eq!(None, dict.get_item(7i32));
+    }
+
+    #[test]
+    fn test_del_item_does_not_update_original_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        let dict = v.to_py_object(py);
+        assert!(dict.del_item(7i32).is_ok()); // change
+        assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
+    }
+
+    #[test]
+    fn test_items_list() {
+    let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let dict = v.to_py_object(py);
+        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+        let mut key_sum = 0;
+        let mut value_sum = 0;
+        for el in dict.items_list().into_iter() {
+            let tuple = el.cast_into::<PyTuple>().unwrap();
+            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
+            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
+        }
+        assert_eq!(7 + 8 + 9, key_sum);
+        assert_eq!(32 + 42 + 123, value_sum);
+    }
+
+    #[test]
+    fn test_items() {
+    let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let dict = v.to_py_object(py);
+        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+        let mut key_sum = 0;
+        let mut value_sum = 0;
+        for (key, value)  in dict.items().into_iter() {
+            key_sum += key.extract::<i32>().unwrap();
+            value_sum += value.extract::<i32>().unwrap();
+        }
+        assert_eq!(7 + 8 + 9, key_sum);
+        assert_eq!(32 + 42 + 123, value_sum);
+    }
+
+}
