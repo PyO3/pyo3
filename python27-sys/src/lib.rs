@@ -50,6 +50,7 @@ pub use ceval::*;
 pub use import::*;
 pub use objectabstract::*;
 pub use code::*;
+pub use compile::*;
 pub use eval::*;
 pub use structmember::PyMemberDef;
 
@@ -108,7 +109,7 @@ mod import;
 mod objectabstract;
 
 mod code;
-// mod compile; // TODO: incomplete
+mod compile;
 mod eval;
 
 // mod pyctype; // TODO: incomplete
@@ -121,6 +122,9 @@ mod eval;
 // Additional headers that are not exported by Python.h
 pub mod structmember;
 
+pub const Py_single_input: libc::c_int = 256;
+pub const Py_file_input: libc::c_int = 257;
+pub const Py_eval_input: libc::c_int = 258;
 
 #[cfg(not(py_sys_config="Py_USING_UNICODE"))]
 #[inline(always)]
