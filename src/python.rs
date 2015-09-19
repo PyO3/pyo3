@@ -17,10 +17,12 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std;
+use std::ffi::CString;
 use std::marker::PhantomData;
+use libc::c_int;
 use ffi;
-use objects::{PyObject, PyType, PyBool, PyModule};
-use err::PyResult;
+use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
+use err::{self, PyErr, PyResult};
 use pythonrun::GILGuard;
 
 /// Marker type that indicates that the GIL is currently held.
@@ -150,6 +152,62 @@ impl<'p> Python<'p> {
         result
     }
 
+    /// Evaluates a Python expression in the given context and returns the result.
+    ///
+    /// If `globals` is `None`, it defaults to Python module `__main__`.
+    /// If `locals` is `None`, it defaults to the value of `globals`.
+    pub fn eval(self, code: &str, globals: Option<&PyDict<'p>>,
+                locals: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>> {
+        self.run_code(code, ffi::Py_eval_input, globals, locals)
+    }
+
+    /// Executes one or more Python statements in the given context.
+    ///
+    /// If `globals` is `None`, it defaults to Python module `__main__`.
+    /// If `locals` is `None`, it defaults to the value of `globals`.
+    pub fn run(self, code: &str, globals: Option<&PyDict<'p>>,
+                locals: Option<&PyDict<'p>>) -> PyResult<'p, ()> {
+        try!(self.run_code(code, ffi::Py_file_input, globals, locals));
+        Ok(())
+    }
+
+    /// Runs code in the given context.
+    /// `start` indicates the type of input expected:
+    /// one of `Py_single_input`, `Py_file_input`, or `Py_eval_input`.
+    ///
+    /// If `globals` is `None`, it defaults to Python module `__main__`.
+    /// If `locals` is `None`, it defaults to the value of `globals`.
+    fn run_code(self, code: &str, start: c_int,
+                globals: Option<&PyDict<'p>>, locals: Option<&PyDict<'p>>)
+                -> PyResult<'p, PyObject<'p>> {
+        let code = CString::new(code).unwrap();
+
+        unsafe {
+            let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
+
+            if mptr.is_null() {
+                return Err(PyErr::fetch(self));
+            }
+
+            let mdict = ffi::PyModule_GetDict(mptr);
+
+            let globals = match globals {
+                Some(g) => g.as_ptr(),
+                None => mdict,
+            };
+
+            let locals = match locals {
+                Some(l) => l.as_ptr(),
+                None => globals
+            };
+
+            let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
+                start, globals, locals, 0 as *mut _);
+
+            err::result_from_owned_ptr(self, res_ptr)
+        }
+    }
+
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -188,3 +246,27 @@ impl <'p> std::fmt::Debug for PythonObjectDowncastError<'p> {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use {Python, PyDict};
+
+    #[test]
+    fn test_eval() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // Make sure builtin names are accessible
+        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract().unwrap();
+
+        assert_eq!(v, 1);
+
+        let d = PyDict::new(py);
+
+        d.set_item("foo", 13).unwrap();
+
+        // Inject our own local namespace
+        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract().unwrap();
+
+        assert_eq!(v, 42);
+    }
+}
