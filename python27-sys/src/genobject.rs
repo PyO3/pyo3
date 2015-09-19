@@ -1,6 +1,7 @@
 use libc::c_int;
 use pyport::Py_ssize_t;
 use object::*;
+use frameobject::PyFrameObject;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -11,7 +12,7 @@ pub struct PyGenObject {
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
-    pub gi_frame: *mut ::PyFrameObject,
+    pub gi_frame: *mut PyFrameObject,
     pub gi_running: c_int,
     pub gi_code: *mut PyObject,
     pub gi_weakreflist: *mut PyObject
@@ -32,7 +33,7 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern "C" {
-    pub fn PyGen_New(frame: *mut ::PyFrameObject) -> *mut PyObject;
+    pub fn PyGen_New(frame: *mut PyFrameObject) -> *mut PyObject;
     pub fn PyGen_NeedsFinalizing(op: *mut PyGenObject) -> c_int;
 }
 

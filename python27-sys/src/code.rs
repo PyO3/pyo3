@@ -1,8 +1,33 @@
-use libc::{c_char, c_int};
+use libc::{c_char, c_int, c_void};
+use pyport::Py_ssize_t;
 use object::*;
 
-#[allow(missing_copy_implementations)]
-pub enum PyCodeObject { /* hidden representation */ }
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyCodeObject {
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
+    pub _ob_next: *mut PyObject,
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
+    pub _ob_prev: *mut PyObject,
+    pub ob_refcnt: Py_ssize_t,
+    pub ob_type: *mut PyTypeObject,
+    pub co_argcount: c_int,
+    pub co_nlocals: c_int,
+    pub co_stacksize: c_int,
+    pub co_flags: c_int,
+    pub co_code: *mut PyObject,
+    pub co_consts: *mut PyObject,
+    pub co_names: *mut PyObject,
+    pub co_varnames: *mut PyObject,
+    pub co_freevars: *mut PyObject,
+    pub co_cellvars: *mut PyObject,
+    pub co_filename: *mut PyObject,
+    pub co_name: *mut PyObject,
+    pub co_firstlineno: c_int,
+    pub co_lnotab: *mut PyObject,
+    pub co_zombieframe: *mut c_void,
+    pub co_weakreflist: *mut PyObject,
+}
 
 /* Masks for co_flags */
 pub const CO_OPTIMIZED : c_int = 0x0001;
@@ -23,6 +48,8 @@ pub const CO_FUTURE_ABSOLUTE_IMPORT : c_int = 0x4000; /* do absolute imports by 
 pub const CO_FUTURE_WITH_STATEMENT : c_int = 0x8000;
 pub const CO_FUTURE_PRINT_FUNCTION : c_int = 0x10000;
 pub const CO_FUTURE_UNICODE_LITERALS : c_int = 0x20000;
+
+pub const CO_MAXBLOCKS : usize = 20;
 
 extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
@@ -50,7 +77,11 @@ extern "C" {
 
 #[inline(always)]
 pub unsafe fn PyCode_Check(op : *mut PyObject) -> c_int {
-    let u : *mut PyTypeObject = &mut PyCode_Type;
-    (Py_TYPE(op) == u) as c_int
+    (Py_TYPE(op) == &mut PyCode_Type) as c_int
+}
+
+#[inline]
+pub unsafe fn PyCode_GetNumFree(op : *mut PyCodeObject) -> Py_ssize_t {
+    ::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }
 

@@ -1,6 +1,7 @@
 use libc::c_int;
 use object::*;
 use pyport::Py_ssize_t;
+use frameobject::PyFrameObject;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -12,13 +13,13 @@ pub struct PyTracebackObject {
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
     pub tb_next: *mut PyTracebackObject,
-    pub tb_frame: *mut ::PyFrameObject,
+    pub tb_frame: *mut PyFrameObject,
     pub tb_lasti: c_int,
     pub tb_lineno: c_int
 }
 
 extern "C" {
-    pub fn PyTraceBack_Here(arg1: *mut ::PyFrameObject) -> c_int;
+    pub fn PyTraceBack_Here(arg1: *mut PyFrameObject) -> c_int;
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject)
      -> c_int;
      

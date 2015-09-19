@@ -53,6 +53,7 @@ pub use code::*;
 pub use compile::*;
 pub use eval::*;
 pub use structmember::PyMemberDef;
+pub use frameobject::PyFrameObject;
 
 mod pyport;
 mod pymem;
@@ -121,6 +122,7 @@ mod eval;
 
 // Additional headers that are not exported by Python.h
 pub mod structmember;
+pub mod frameobject;
 
 pub const Py_single_input: libc::c_int = 256;
 pub const Py_file_input: libc::c_int = 257;

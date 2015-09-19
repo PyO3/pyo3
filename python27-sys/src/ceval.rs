@@ -1,7 +1,8 @@
 use libc::{c_void, c_char, c_int};
 use pyport::Py_ssize_t;
 use object::PyObject;
-use pystate::{PyFrameObject, PyThreadState, Py_tracefunc};
+use frameobject::PyFrameObject;
+use pystate::{PyThreadState, Py_tracefunc};
 use pythonrun::PyCompilerFlags;
 
 extern "C" {

@@ -1,11 +1,8 @@
 use libc::{c_int, c_long};
 use object::PyObject;
+use frameobject::PyFrameObject;
 
-#[allow(missing_copy_implementations)]
 pub enum PyInterpreterState { }
-
-#[allow(missing_copy_implementations)]
-pub enum PyFrameObject { }
 
 pub type Py_tracefunc =
     unsafe extern "C" fn
