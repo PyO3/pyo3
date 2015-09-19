@@ -20,7 +20,7 @@ exclude = [
     "appveyor.yml",
     ".cargo/config",
     "python27-sys",
-    "python32-sys",
+    "python3-sys",
 ]
 build = "build.rs"
 
@@ -46,3 +46,6 @@ default = ["python3-sys"]
 # feature.
 python-3-5 = ["python3-sys/python-3-5"]
 python-3-4 = ["python3-sys/python-3-4"]
+
+#pep-384 = ["python3-sys/pep-384"]
+

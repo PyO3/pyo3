@@ -85,6 +85,78 @@ pub type objobjargproc =
     unsafe extern "C" fn
                               (arg1: *mut PyObject, arg2: *mut PyObject,
                                arg3: *mut PyObject) -> c_int;
+
+#[cfg(not(Py_LIMITED_API))]
+mod bufferinfo {
+    use libc::{c_void, c_int, c_char};
+    use pyport::Py_ssize_t;
+
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct Py_buffer {
+        pub buf: *mut c_void,
+        pub obj: *mut ::object::PyObject,
+        pub len: Py_ssize_t,
+        pub itemsize: Py_ssize_t,
+        pub readonly: c_int,
+        pub ndim: c_int,
+        pub format: *mut c_char,
+        pub shape: *mut Py_ssize_t,
+        pub strides: *mut Py_ssize_t,
+        pub suboffsets: *mut Py_ssize_t,
+        pub internal: *mut c_void,
+    }
+    impl Clone for Py_buffer {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for Py_buffer {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+
+    pub type getbufferproc =
+        extern "C" fn(arg1: *mut ::object::PyObject,
+                                            arg2: *mut Py_buffer,
+                                            arg3: c_int)
+                                  -> c_int;
+    pub type releasebufferproc =
+        extern "C" fn(arg1: *mut ::object::PyObject,
+                                            arg2: *mut Py_buffer) -> ();
+
+    /// Maximum number of dimensions
+    pub const PyBUF_MAX_NDIM : c_int = 64;
+
+    /* Flags for getting buffers */
+    pub const PyBUF_SIMPLE : c_int = 0;
+    pub const PyBUF_WRITABLE : c_int = 0x0001;
+    /*  we used to include an E, backwards compatible alias  */
+    pub const PyBUF_WRITEABLE : c_int = PyBUF_WRITABLE;
+    pub const PyBUF_FORMAT : c_int = 0x0004;
+    pub const PyBUF_ND : c_int = 0x0008;
+    pub const PyBUF_STRIDES : c_int = (0x0010 | PyBUF_ND);
+    pub const PyBUF_C_CONTIGUOUS : c_int = (0x0020 | PyBUF_STRIDES);
+    pub const PyBUF_F_CONTIGUOUS : c_int = (0x0040 | PyBUF_STRIDES);
+    pub const PyBUF_ANY_CONTIGUOUS : c_int = (0x0080 | PyBUF_STRIDES);
+    pub const PyBUF_INDIRECT : c_int = (0x0100 | PyBUF_STRIDES);
+
+    pub const PyBUF_CONTIG : c_int = (PyBUF_ND | PyBUF_WRITABLE);
+    pub const PyBUF_CONTIG_RO : c_int = (PyBUF_ND);
+
+    pub const PyBUF_STRIDED : c_int = (PyBUF_STRIDES | PyBUF_WRITABLE);
+    pub const PyBUF_STRIDED_RO : c_int = (PyBUF_STRIDES);
+
+    pub const PyBUF_RECORDS : c_int = (PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT);
+    pub const PyBUF_RECORDS_RO : c_int = (PyBUF_STRIDES | PyBUF_FORMAT);
+
+    pub const PyBUF_FULL : c_int = (PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT);
+    pub const PyBUF_FULL_RO : c_int = (PyBUF_INDIRECT | PyBUF_FORMAT);
+
+
+    pub const PyBUF_READ  : c_int = 0x100;
+    pub const PyBUF_WRITE : c_int = 0x200;
+}
+#[cfg(not(Py_LIMITED_API))]
+pub use self::bufferinfo::*;
+
 pub type objobjproc =
     unsafe extern "C" fn
                               (arg1: *mut PyObject, arg2: *mut PyObject)
@@ -97,10 +169,14 @@ pub type traverseproc =
     unsafe extern "C" fn
                               (slf: *mut PyObject, visit: visitproc,
                                arg: *mut c_void) -> c_int;
+
 pub type freefunc =
     unsafe extern "C" fn(arg1: *mut c_void);
 pub type destructor =
     unsafe extern "C" fn(arg1: *mut PyObject);
+#[cfg(not(Py_LIMITED_API))]
+pub type printfunc =
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
 pub type getattrfunc =
     unsafe extern "C" fn
                               (arg1: *mut PyObject, arg2: *mut c_char)
@@ -155,7 +231,228 @@ pub type allocfunc =
                               (arg1: *mut PyTypeObject,
                                arg2: Py_ssize_t) -> *mut PyObject;
 
+#[cfg(Py_LIMITED_API)]
 pub enum PyTypeObject { }
+
+#[cfg(not(Py_LIMITED_API))]
+mod typeobject {
+    use libc::{c_void, c_char, c_ulong, c_uint};
+    use pyport::Py_ssize_t;
+
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct PyNumberMethods {
+        pub nb_add: Option<::object::binaryfunc>,
+        pub nb_subtract: Option<::object::binaryfunc>,
+        pub nb_multiply: Option<::object::binaryfunc>,
+        pub nb_remainder: Option<::object::binaryfunc>,
+        pub nb_divmod: Option<::object::binaryfunc>,
+        pub nb_power: Option<::object::ternaryfunc>,
+        pub nb_negative: Option<::object::unaryfunc>,
+        pub nb_positive: Option<::object::unaryfunc>,
+        pub nb_absolute: Option<::object::unaryfunc>,
+        pub nb_bool: Option<::object::inquiry>,
+        pub nb_invert: Option<::object::unaryfunc>,
+        pub nb_lshift: Option<::object::binaryfunc>,
+        pub nb_rshift: Option<::object::binaryfunc>,
+        pub nb_and: Option<::object::binaryfunc>,
+        pub nb_xor: Option<::object::binaryfunc>,
+        pub nb_or: Option<::object::binaryfunc>,
+        pub nb_int: Option<::object::unaryfunc>,
+        pub nb_reserved: *mut c_void,
+        pub nb_float: Option<::object::unaryfunc>,
+        pub nb_inplace_add: Option<::object::binaryfunc>,
+        pub nb_inplace_subtract: Option<::object::binaryfunc>,
+        pub nb_inplace_multiply: Option<::object::binaryfunc>,
+        pub nb_inplace_remainder: Option<::object::binaryfunc>,
+        pub nb_inplace_power: Option<::object::ternaryfunc>,
+        pub nb_inplace_lshift: Option<::object::binaryfunc>,
+        pub nb_inplace_rshift: Option<::object::binaryfunc>,
+        pub nb_inplace_and: Option<::object::binaryfunc>,
+        pub nb_inplace_xor: Option<::object::binaryfunc>,
+        pub nb_inplace_or: Option<::object::binaryfunc>,
+        pub nb_floor_divide: Option<::object::binaryfunc>,
+        pub nb_true_divide: Option<::object::binaryfunc>,
+        pub nb_inplace_floor_divide: Option<::object::binaryfunc>,
+        pub nb_inplace_true_divide: Option<::object::binaryfunc>,
+        pub nb_index: Option<::object::unaryfunc>,
+        #[cfg(Py_3_5)]
+        pub nb_matrix_multiply: Option<::object::binaryfunc>,
+        #[cfg(Py_3_5)]
+        pub nb_inplace_matrix_multiply: Option<::object::binaryfunc>,
+    }
+    impl Clone for PyNumberMethods {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for PyNumberMethods {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct PySequenceMethods {
+        pub sq_length: Option<::object::lenfunc>,
+        pub sq_concat: Option<::object::binaryfunc>,
+        pub sq_repeat: Option<::object::ssizeargfunc>,
+        pub sq_item: Option<::object::ssizeargfunc>,
+        pub was_sq_slice: *mut c_void,
+        pub sq_ass_item: Option<::object::ssizeobjargproc>,
+        pub was_sq_ass_slice: *mut c_void,
+        pub sq_contains: Option<::object::objobjproc>,
+        pub sq_inplace_concat: Option<::object::binaryfunc>,
+        pub sq_inplace_repeat: Option<::object::ssizeargfunc>,
+    }
+    impl Clone for PySequenceMethods {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for PySequenceMethods {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct PyMappingMethods {
+        pub mp_length: Option<::object::lenfunc>,
+        pub mp_subscript: Option<::object::binaryfunc>,
+        pub mp_ass_subscript: Option<::object::objobjargproc>,
+    }
+    impl Clone for PyMappingMethods {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for PyMappingMethods {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+    #[repr(C)]
+    #[derive(Copy)]
+    #[cfg(Py_3_5)]
+    pub struct PyAsyncMethods {
+        pub am_await: Option<::object::unaryfunc>,
+        pub am_aiter: Option<::object::unaryfunc>,
+        pub am_anext: Option<::object::unaryfunc>,
+    }
+    #[cfg(Py_3_5)]
+    impl Clone for PyAsyncMethods {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    #[cfg(Py_3_5)]
+    impl Default for PyAsyncMethods {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct PyBufferProcs {
+        pub bf_getbuffer: Option<::object::getbufferproc>,
+        pub bf_releasebuffer: Option<::object::releasebufferproc>,
+    }
+    impl Clone for PyBufferProcs {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for PyBufferProcs {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct PyTypeObject {
+        pub ob_base: ::object::PyVarObject,
+        pub tp_name: *const c_char,
+        pub tp_basicsize: Py_ssize_t,
+        pub tp_itemsize: Py_ssize_t,
+        pub tp_dealloc: Option<::object::destructor>,
+        pub tp_print: Option<::object::printfunc>,
+        pub tp_getattr: Option<::object::getattrfunc>,
+        pub tp_setattr: Option<::object::setattrfunc>,
+        #[cfg(Py_3_5)]
+        pub tp_as_async: *mut PyAsyncMethods,
+        #[cfg(not(Py_3_5))]
+        pub tp_reserved: *mut c_void,
+        pub tp_repr: Option<::object::reprfunc>,
+        pub tp_as_number: *mut PyNumberMethods,
+        pub tp_as_sequence: *mut PySequenceMethods,
+        pub tp_as_mapping: *mut PyMappingMethods,
+        pub tp_hash: Option<::object::hashfunc>,
+        pub tp_call: Option<::object::ternaryfunc>,
+        pub tp_str: Option<::object::reprfunc>,
+        pub tp_getattro: Option<::object::getattrofunc>,
+        pub tp_setattro: Option<::object::setattrofunc>,
+        pub tp_as_buffer: *mut PyBufferProcs,
+        pub tp_flags: c_ulong,
+        pub tp_doc: *const c_char,
+        pub tp_traverse: Option<::object::traverseproc>,
+        pub tp_clear: Option<::object::inquiry>,
+        pub tp_richcompare: Option<::object::richcmpfunc>,
+        pub tp_weaklistoffset: Py_ssize_t,
+        pub tp_iter: Option<::object::getiterfunc>,
+        pub tp_iternext: Option<::object::iternextfunc>,
+        pub tp_methods: *mut ::methodobject::PyMethodDef,
+        pub tp_members: *mut ::structmember::PyMemberDef,
+        pub tp_getset: *mut ::descrobject::PyGetSetDef,
+        pub tp_base: *mut PyTypeObject,
+        pub tp_dict: *mut ::object::PyObject,
+        pub tp_descr_get: Option<::object::descrgetfunc>,
+        pub tp_descr_set: Option<::object::descrsetfunc>,
+        pub tp_dictoffset: Py_ssize_t,
+        pub tp_init: Option<::object::initproc>,
+        pub tp_alloc: Option<::object::allocfunc>,
+        pub tp_new: Option<::object::newfunc>,
+        pub tp_free: Option<::object::freefunc>,
+        pub tp_is_gc: Option<::object::inquiry>,
+        pub tp_bases: *mut ::object::PyObject,
+        pub tp_mro: *mut ::object::PyObject,
+        pub tp_cache: *mut ::object::PyObject,
+        pub tp_subclasses: *mut ::object::PyObject,
+        pub tp_weaklist: *mut ::object::PyObject,
+        pub tp_del: Option<::object::destructor>,
+        pub tp_version_tag: c_uint,
+        #[cfg(Py_3_4)]
+        pub tp_finalize: Option<::object::destructor>,
+        #[cfg(py_sys_config="COUNT_ALLOCS")]
+        pub tp_allocs: Py_ssize_t,
+        #[cfg(py_sys_config="COUNT_ALLOCS")]
+        pub tp_frees: Py_ssize_t,
+        #[cfg(py_sys_config="COUNT_ALLOCS")]
+        pub tp_maxalloc: Py_ssize_t,
+        #[cfg(py_sys_config="COUNT_ALLOCS")]
+        pub tp_prev: *mut PyTypeObject,
+        #[cfg(py_sys_config="COUNT_ALLOCS")]
+        pub tp_next: *mut PyTypeObject,
+    }
+    impl Clone for PyTypeObject {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for PyTypeObject {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+
+    #[repr(C)]
+    #[derive(Copy)]
+    pub struct PyHeapTypeObject {
+        pub ht_type: PyTypeObject,
+        #[cfg(Py_3_5)]
+        pub as_async: PyAsyncMethods,
+        pub as_number: PyNumberMethods,
+        pub as_mapping: PyMappingMethods,
+        pub as_sequence: PySequenceMethods,
+        pub as_buffer: PyBufferProcs,
+        pub ht_name: *mut ::object::PyObject,
+        pub ht_slots: *mut ::object::PyObject,
+        pub ht_qualname: *mut ::object::PyObject,
+        pub ht_cached_keys: *mut c_void,
+    }
+    impl Clone for PyHeapTypeObject {
+        #[inline] fn clone(&self) -> Self { *self }
+    }
+    impl Default for PyHeapTypeObject {
+        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    }
+
+    #[inline]
+    pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut ::structmember::PyMemberDef {
+        (etype as *mut c_char).offset(
+            (*::object::Py_TYPE(etype as *mut ::object::PyObject)).tp_basicsize as isize
+        ) as *mut ::structmember::PyMemberDef
+    }
+}
+#[cfg(not(Py_LIMITED_API))]
+pub use self::typeobject::*;
 
 #[repr(C)]
 #[derive(Copy)]
@@ -189,11 +486,11 @@ impl ::std::default::Default for PyType_Spec {
 extern "C" {
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
-    #[cfg(feature = "python3_3")]
+    //#[cfg(Py_3_3)]
     pub fn PyType_FromSpecWithBases(arg1: *mut PyType_Spec, arg2: *mut PyObject)
         -> *mut PyObject;
 
-    #[cfg(feature = "python3_4")]
+    #[cfg(Py_3_4)]
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int)
         -> *mut c_void;
 }
@@ -237,6 +534,8 @@ extern "C" {
     pub fn PyType_ClearCache() -> c_uint;
     pub fn PyType_Modified(t: *mut PyTypeObject);
     
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
     pub fn PyObject_Repr(o: *mut PyObject) -> *mut PyObject;
     pub fn PyObject_Str(o: *mut PyObject) -> *mut PyObject;
     pub fn PyObject_ASCII(arg1: *mut PyObject) -> *mut PyObject;
@@ -284,6 +583,12 @@ extern "C" {
     pub fn PyObject_Not(arg1: *mut PyObject) -> c_int;
     pub fn PyCallable_Check(arg1: *mut PyObject) -> c_int;
     pub fn PyObject_ClearWeakRefs(arg1: *mut PyObject) -> ();
+    #[cfg(Py_3_4)]
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn PyObject_CallFinalizer(arg1: *mut PyObject) -> ();
+    #[cfg(Py_3_4)]
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
     pub fn PyObject_Dir(arg1: *mut PyObject) -> *mut PyObject;
     pub fn Py_ReprEnter(arg1: *mut PyObject) -> c_int;
@@ -335,8 +640,15 @@ pub const Py_TPFLAGS_DEFAULT : c_ulong = (
 pub const Py_TPFLAGS_HAVE_FINALIZE        : c_ulong = (1<<0);
 
 #[inline(always)]
+#[cfg(Py_LIMITED_API)]
 pub unsafe fn PyType_HasFeature(t : *mut PyTypeObject, f : c_ulong) -> c_int {
     ((PyType_GetFlags(t) & f) != 0) as c_int
+}
+
+#[inline(always)]
+#[cfg(not(Py_LIMITED_API))]
+pub unsafe fn PyType_HasFeature(t : *mut PyTypeObject, f : c_ulong) -> c_int {
+    (((*t).tp_flags & f) != 0) as c_int
 }
 
 #[inline(always)]

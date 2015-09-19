@@ -1,6 +1,6 @@
 [package]
 name = "python3-sys"
-version = "0.1.1"
+version = "0.1.2"
 description = "FFI Declarations for Python 3"
 readme = "README.md"
 keywords = [
@@ -20,10 +20,9 @@ exclude = [
 ]
 
 [dependencies]
-libc = "*"
+libc = "0.1"
 
 [build-dependencies]
-pkg-config = "0.3.5"
 regex = "0.1.8"
 
 [features]
@@ -37,3 +36,7 @@ python-3 = []
 # Or, bind to a particular minor version.
 python-3-4 = []
 python-3-5 = []
+
+# Restrict to PEP-384 stable ABI
+pep-384 = []
+

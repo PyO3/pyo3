@@ -1,4 +1,3 @@
-extern crate pkg_config;
 extern crate regex;
 
 use std::process::Command;
@@ -301,6 +300,17 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
 
     println!("{}", get_rustc_link_lib(&interpreter_version,
         ld_version, enable_shared == "1").unwrap());
+
+    let is_pep_384 = env::var_os("CARGO_FEATURE_PEP_384").is_some();
+    if is_pep_384 {
+        println!("cargo:rustc-cfg=Py_LIMITED_API");
+    }
+
+    if let PythonVersion { major: 3, minor: Some(minor)} = interpreter_version {
+        for i in 4..(minor+1) {
+            println!("cargo:rustc-cfg=Py_3_{}", i);
+        }
+    }
 
     if libpath != "None" {
         println!("cargo:rustc-link-search=native={}", libpath);

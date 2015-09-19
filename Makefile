@@ -5,22 +5,28 @@ PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
 endif
 
 ifeq ($(PY),2)
-FEATURES=--features python27-sys --no-default-features
+FEATURES := python27-sys
 endif
 ifeq ($(PY),3)
-FEATURES=--features python3-sys --no-default-features
+FEATURES := python3-sys
+ifdef PEP384
+export PEP384=1
+FEATURES := $(FEATURES),pep-384
 endif
+endif
+
+CARGO_FLAGS := --features $(FEATURES) --no-default-features
 
 default: test extensions
 
 build:
-	cargo build $(FEATURES)
+	cargo build $(CARGO_FLAGS)
 
 test: build
-	cargo test $(FEATURES)
+	cargo test $(CARGO_FLAGS)
 
 doc: build
-	cargo doc --no-deps $(FEATURES)
+	cargo doc --no-deps $(CARGO_FLAGS)
 
 extensions: build
 	make -C extensions/ PY=$(PY)
