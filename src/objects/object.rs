@@ -176,22 +176,20 @@ impl <'p> PyObject<'p> {
         ptr
     }
 
-/*
     /// Transmutes an owned FFI pointer to `&PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn borrow_from_owned_ptr<'a>(py : Python<'p>, ptr : &'a *mut ffi::PyObject) -> &'a PyObject<'p> {
+    pub unsafe fn borrow_from_owned_ptr<'a>(_py : Python<'p>, ptr : &'a *mut ffi::PyObject) -> &'a PyObject<'p> {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(*ptr) > 0);
         mem::transmute(ptr)
     }
-    
+
     /// Transmutes a slice of owned FFI pointers to `&[PyObject]`.
-    /// Undefined behavior if the pointer is NULL or invalid.
+    /// Undefined behavior if any pointer in the slice is NULL or invalid.
     #[inline]
-    pub unsafe fn borrow_from_owned_ptr_slice<'a>(py : Python<'p>, ptr : &'a [*mut ffi::PyObject]) -> &'a [PyObject<'p>] {
+    pub unsafe fn borrow_from_owned_ptr_slice<'a>(_py : Python<'p>, ptr : &'a [*mut ffi::PyObject]) -> &'a [PyObject<'p>] {
         mem::transmute(ptr)
     }
-*/
 
     /// Gets the reference count of this Python object.
     #[inline]

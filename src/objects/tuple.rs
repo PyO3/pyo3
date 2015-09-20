@@ -22,6 +22,7 @@ use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, ExtractPyObject};
+use std::slice;
 
 /// Represents a Python tuple object.
 pub struct PyTuple<'p>(PyObject<'p>);
@@ -54,7 +55,7 @@ impl <'p> PyTuple<'p> {
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust uint
         unsafe {
-            ffi::PyTuple_Size(self.as_ptr()) as usize
+            ffi::PyTuple_GET_SIZE(self.as_ptr()) as usize
         }
     }
 
@@ -64,25 +65,22 @@ impl <'p> PyTuple<'p> {
     pub fn get_item(&self, index: usize) -> PyObject<'p> {
         assert!(index < self.len());
         unsafe {
-            PyObject::from_borrowed_ptr(self.python(), ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t))
+            PyObject::from_borrowed_ptr(self.python(), ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
-    /* Disabled for now; we might want to change the PyObject memory layout for
-       compatiblity with stable Rust.
     #[inline]
     pub fn as_slice<'a>(&'a self) -> &'a [PyObject<'p>] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            std::mem::transmute(std::raw::Slice {
-                data: (*ptr).ob_item.as_ptr(),
-                len: self.len()
-            })
+            PyObject::borrow_from_owned_ptr_slice(self.python(),
+                slice::from_raw_parts(
+                    (*ptr).ob_item.as_ptr(),
+                    self.len()))
         }
     }
-    */
 }
 
 impl <'p> IntoIterator for PyTuple<'p> {
@@ -91,7 +89,7 @@ impl <'p> IntoIterator for PyTuple<'p> {
 
     #[inline]
     fn into_iter(self) -> PyTupleIterator<'p> {
-        PyTupleIterator { index: 0, len: self.len(), tuple: self }
+        PyTupleIterator { index: 0, end: self.len(), tuple: self }
     }
 }
 
@@ -101,7 +99,7 @@ impl <'a, 'p> IntoIterator for &'a PyTuple<'p> {
 
     #[inline]
     fn into_iter(self) -> PyTupleIterator<'p> {
-        PyTupleIterator { index: 0, len: self.len(), tuple: self.clone() }
+        PyTupleIterator { index: 0, end: self.len(), tuple: self.clone() }
     }
 }
 
@@ -109,7 +107,7 @@ impl <'a, 'p> IntoIterator for &'a PyTuple<'p> {
 pub struct PyTupleIterator<'p> {
     tuple: PyTuple<'p>,
     index: usize,
-    len: usize
+    end: usize
 }
 
 impl <'p> Iterator for PyTupleIterator<'p> {
@@ -117,7 +115,7 @@ impl <'p> Iterator for PyTupleIterator<'p> {
 
     #[inline]
     fn next(&mut self) -> Option<PyObject<'p>> {
-        if self.index < self.len {
+        if self.index < self.end {
             let item = self.tuple.get_item(self.index);
             self.index += 1;
             Some(item)
@@ -128,14 +126,14 @@ impl <'p> Iterator for PyTupleIterator<'p> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
+        (self.len(), Some(self.len()))
     }
 }
 
 impl <'p> ExactSizeIterator for PyTupleIterator<'p> {
     #[inline]
     fn len(&self) -> usize {
-        return self.len;
+        self.end - self.index
     }
 }
 
