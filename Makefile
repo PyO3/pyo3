@@ -24,6 +24,7 @@ build:
 
 test: build
 	cargo test $(CARGO_FLAGS)
+	python$(PY) tests/check_symbols.py
 
 doc: build
 	cargo doc --no-deps $(CARGO_FLAGS)

@@ -6,7 +6,6 @@ extern "C" {
     pub static mut PyList_Type: PyTypeObject;
     pub static mut PyListIter_Type: PyTypeObject;
     pub static mut PyListRevIter_Type: PyTypeObject;
-    pub static mut PySortWrapper_Type: PyTypeObject;
 }
 
 #[inline(always)]

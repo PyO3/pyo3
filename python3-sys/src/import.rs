@@ -1,5 +1,5 @@
 use libc::{c_char, c_int, c_long};
-use object::{PyObject, PyTypeObject};
+use object::PyObject;
 
 extern "C" {
     pub fn PyImport_GetMagicNumber() -> c_long;
@@ -60,8 +60,6 @@ extern "C" {
      -> c_int;
     pub fn PyImport_ImportFrozenModule(name: *const c_char)
      -> c_int;
-     
-    pub static mut PyNullImporter_Type: *mut PyTypeObject;
 
     pub fn PyImport_AppendInittab(name: *const c_char,
                                   initfunc:

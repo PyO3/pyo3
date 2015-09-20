@@ -68,8 +68,6 @@ extern "C" {
 
     pub fn PyBuffer_GetPointer(view: *mut Py_buffer, indices: *mut Py_ssize_t)
      -> *mut c_void;
-    pub fn PyBuffer_SizeFromFormat(arg1: *const c_char)
-     -> c_int;
     pub fn PyBuffer_ToContiguous(buf: *mut c_void,
                                  view: *mut Py_buffer, len: Py_ssize_t,
                                  fort: c_char) -> c_int;

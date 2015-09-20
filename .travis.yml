@@ -5,15 +5,17 @@ python:
   - "3.4"
 env:
   - RUST_VERSION=nightly
+sudo: false
 install:
+  - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
   - mkdir ~/rust-installer
   - curl -sL https://static.rust-lang.org/rustup.sh -o ~/rust-installer/rustup.sh
   - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y --disable-sudo
   - export PATH="$HOME/rust/bin:$PATH"
   - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+  - find $PYTHON_LIB
   - export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
-  - export PYTHON_3_NO_PKG_CONFIG=1
   - rustc -V
 script:
   - make test extensions

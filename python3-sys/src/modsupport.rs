@@ -2,6 +2,7 @@ use libc::{c_char, c_int, c_long};
 use pyport::Py_ssize_t;
 use object::PyObject;
 use moduleobject::PyModuleDef;
+use methodobject::PyMethodDef;
 
 extern "C" {
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...)

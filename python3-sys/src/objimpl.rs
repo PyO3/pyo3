@@ -10,6 +10,7 @@ extern "C" {
      -> *mut c_void;
     pub fn PyObject_Free(ptr: *mut c_void) -> ();
 
+    #[cfg(Py_3_4)]
     pub fn _Py_GetAllocatedBlocks() -> Py_ssize_t;
     pub fn PyObject_Init(arg1: *mut PyObject, arg2: *mut PyTypeObject)
      -> *mut PyObject;

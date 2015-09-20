@@ -4,7 +4,6 @@ use object::*;
 extern "C" {
     pub static mut PySeqIter_Type: PyTypeObject;
     pub static mut PyCallIter_Type: PyTypeObject;
-    pub static mut PyCmpWrapper_Type: PyTypeObject;
 
     pub fn PySeqIter_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyCallIter_New(arg1: *mut PyObject, arg2: *mut PyObject)
