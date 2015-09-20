@@ -17,6 +17,9 @@ Supported Python versions:
 * Python 3.3
 * Python 3.4
 
+Supported Rust version:
+* Rust nightly only :(
+
 # Usage
 
 [`cpython` is available on crates.io](https://crates.io/crates/cpython) so you can use it like this (in your `Cargo.toml`):

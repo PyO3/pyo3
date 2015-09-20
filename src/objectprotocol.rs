@@ -79,7 +79,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let py = self.python();
         other.with_borrowed_ptr(py, |other| unsafe {
             let mut result : libc::c_int = -1;
-            try!(error_on_minusone(py,
+            try!(err::error_on_minusone(py,
                 ffi::PyObject_Cmp(self.as_ptr(), other, &mut result)));
             Ok(if result < 0 {
                 Ordering::Less
@@ -113,7 +113,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// This is equivalent to the Python expression 'unistr(self)'.
     #[inline]
     #[cfg(feature="python27-sys")]
-    fn unistr(&self) -> PyResult<'p, PyUnicode<'p>> {
+    fn unistr(&self) -> PyResult<'p, ::objects::PyUnicode<'p>> {
         unsafe {
             err::result_cast_from_owned_ptr(self.python(), ffi::PyObject_Unicode(self.as_ptr()))
         }
