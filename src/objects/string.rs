@@ -92,8 +92,8 @@ impl <'p> PyUnicode<'p> {
     /// Convert the `PyUnicode` into a rust string.
     ///
     /// Returns a `UnicodeDecodeError` if the input contains invalid code points.
+    #[cfg(feature="python27-sys")]
     pub fn to_string(&self) -> PyResult<'p, Cow<str>> {
-        // TODO: use PyUnicode_AsUTF8AndSize if available
         let py = self.python();
         let bytes: PyBytes = unsafe {
             try!(err::result_cast_from_owned_ptr(py, ffi::PyUnicode_AsUTF8String(self.as_ptr())))
@@ -107,8 +107,8 @@ impl <'p> PyUnicode<'p> {
     /// Convert the `PyUnicode` into a rust string.
     ///
     /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
+    #[cfg(feature="python27-sys")]
     pub fn to_string_lossy(&self) -> Cow<str> {
-        // TODO: use PyUnicode_AsUTF8AndSize if available
         // TODO: test how this function handles lone surrogates or otherwise invalid code points
         let py = self.python();
         let bytes: PyBytes = unsafe {
@@ -116,6 +116,41 @@ impl <'p> PyUnicode<'p> {
                 .ok().expect("Error in PyUnicode_AsUTF8String")
         };
         Cow::Owned(String::from_utf8_lossy(bytes.as_slice()).into_owned())
+    }
+
+    #[cfg(feature="python3-sys")]
+    fn to_utf8_bytes(&self) -> PyResult<'p, &[u8]> {
+        unsafe {
+            let mut length = 0;
+            let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut length);
+            if data.is_null() {
+                Err(PyErr::fetch(self.python()))
+            } else {
+                Ok(std::slice::from_raw_parts(data as *const u8, length as usize))
+            }
+        }
+    }
+
+    /// Convert the `PyUnicode` into a rust string.
+    ///
+    /// Returns a `UnicodeDecodeError` if the input contains invalid code points.
+    #[cfg(feature="python3-sys")]
+    pub fn to_string(&self) -> PyResult<'p, Cow<str>> {
+        let py = self.python();
+        let bytes = try!(self.to_utf8_bytes());
+        match str::from_utf8(bytes) {
+            Ok(s) => Ok(Cow::Borrowed(s)),
+            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, bytes, e))))
+        }
+    }
+
+    /// Convert the `PyUnicode` into a rust string.
+    ///
+    /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
+    #[cfg(feature="python3-sys")]
+    pub fn to_string_lossy(&self) -> Cow<str> {
+        let bytes = self.to_utf8_bytes().expect("Error in PyUnicode_AsUTF8AndSize");
+        String::from_utf8_lossy(bytes)
     }
 }
 

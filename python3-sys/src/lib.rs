@@ -88,9 +88,9 @@ mod typeslots;
 
 mod pydebug;
 
-mod bytearrayobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod bytesobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod unicodeobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+mod bytearrayobject;
+mod bytesobject;
+mod unicodeobject;
 mod longobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 // mod longintrepr; TODO excluded by PEP-384
 mod boolobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
