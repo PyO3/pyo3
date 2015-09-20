@@ -72,4 +72,16 @@ pub const Py_tp_traverse : c_int = 71;
 pub const Py_tp_members : c_int = 72;
 pub const Py_tp_getset : c_int = 73;
 pub const Py_tp_free : c_int = 74;
+#[cfg(Py_3_5)]
+pub const Py_nb_matrix_multiply : c_int = 75;
+#[cfg(Py_3_5)]
+pub const Py_nb_inplace_matrix_multiply : c_int = 76;
+#[cfg(Py_3_5)]
+pub const Py_am_await : c_int = 77;
+#[cfg(Py_3_5)]
+pub const Py_am_aiter : c_int = 78;
+#[cfg(Py_3_5)]
+pub const Py_am_anext : c_int = 79;
+#[cfg(Py_3_5)]
+pub const Py_tp_finalize : c_int = 80;
 

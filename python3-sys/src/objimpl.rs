@@ -4,6 +4,8 @@ use object::*;
 
 extern "C" {
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
+    #[cfg(Py_3_5)]
+    pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
     pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t)
      -> *mut c_void;
     pub fn PyObject_Free(ptr: *mut c_void) -> ();
@@ -20,6 +22,33 @@ extern "C" {
     pub fn PyGC_Collect() -> Py_ssize_t;
 }
 
+#[repr(C)]
+#[derive(Copy)]
+#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+pub struct PyObjectArenaAllocator {
+    pub ctx: *mut c_void,
+    pub alloc: Option<extern "C" fn(ctx: *mut c_void,
+                                                   size: size_t)
+                                         -> *mut c_void>,
+    pub free: Option<extern "C" fn(ctx: *mut c_void,
+                                                  ptr: *mut c_void,
+                                                  size: size_t) -> ()>,
+}
+#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+impl Clone for PyObjectArenaAllocator {
+    #[inline] fn clone(&self) -> Self { *self }
+}
+#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+impl Default for PyObjectArenaAllocator {
+    #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+}
+#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+extern "C" {
+    pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator)
+     -> ();
+    pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator)
+     -> ();
+}
 
 /// Test if a type has a GC head
 #[inline(always)]
@@ -27,9 +56,9 @@ pub unsafe fn PyType_IS_GC(t : *mut PyTypeObject) -> c_int {
     PyType_HasFeature((t), Py_TPFLAGS_HAVE_GC)
 }
 
-/*
 /// Test if an object has a GC head
 #[inline(always)]
+#[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyObject_IS_GC(o : *mut PyObject) -> c_int {
     (PyType_IS_GC(Py_TYPE(o)) != 0 &&
     match (*Py_TYPE(o)).tp_is_gc {
@@ -37,13 +66,14 @@ pub unsafe fn PyObject_IS_GC(o : *mut PyObject) -> c_int {
         None => true
     }) as c_int
 }
-*/
 
 extern "C" {
     pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t)
      -> *mut PyVarObject;
 
-    pub fn _PyObject_GC_Malloc(arg1: size_t) -> *mut PyObject;
+    pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
+    #[cfg(Py_3_5)]
+    pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t)
      -> *mut PyVarObject;
@@ -52,17 +82,17 @@ extern "C" {
     pub fn PyObject_GC_Del(arg1: *mut c_void) -> ();
 }
 
-/*
 /// Test if a type supports weak references
 #[inline(always)]
+#[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t : *mut PyTypeObject) -> c_int {
     ((*t).tp_weaklistoffset > 0) as c_int
 }
 
 #[inline(always)]
+#[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o : *mut PyObject) -> *mut *mut PyObject {
     let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset as isize;
-    (o as *mut c_char).offset(weaklistoffset) as *mut *mut PyObject
+    (o as *mut u8).offset(weaklistoffset) as *mut *mut PyObject
 }
-*/
 

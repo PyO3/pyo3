@@ -16,6 +16,9 @@ pub use pymem::*;
 pub use object::*;
 pub use objimpl::*;
 pub use typeslots::*;
+#[cfg(Py_3_4)] pub use pyhash::*;
+
+pub use pydebug::*;
 
 pub use bytearrayobject::*;
 pub use bytesobject::*;
@@ -64,6 +67,7 @@ pub use compile::*;
 pub use eval::*;
 
 pub use pystrtod::*;
+pub use frameobject::PyFrameObject;
 
 mod pyport;
 // mod pymacro; contains nothing of interest for Rust
@@ -78,11 +82,11 @@ mod pyport;
 mod pymem;
 
 mod object;
-mod objimpl; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod typeslots; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-// mod pyhash; new in 3.4; contains nothing of interest
+mod objimpl;
+mod typeslots;
+#[cfg(Py_3_4)] mod pyhash;
 
-// mod pydebug; TODO excluded by PEP-384
+mod pydebug;
 
 mod bytearrayobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod bytesobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
@@ -151,5 +155,10 @@ mod pystrtod; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and
 // Additional headers that are not exported by Python.h
 pub mod structmember; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
-pub enum PyFrameObject {}
+#[cfg(not(Py_LIMITED_API))]
+pub mod frameobject;
+#[cfg(Py_LIMITED_API)]
+pub mod frameobject {
+    pub enum PyFrameObject {}
+}
 

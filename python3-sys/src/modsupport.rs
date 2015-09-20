@@ -34,6 +34,16 @@ extern "C" {
                                       arg2: *const c_char,
                                       arg3: *const c_char)
      -> c_int;
+    #[cfg(Py_3_5)]
+    pub fn PyModule_SetDocString(arg1: *mut PyObject,
+                                 arg2: *const c_char)
+     -> c_int;
+    #[cfg(Py_3_5)]
+    pub fn PyModule_AddFunctions(arg1: *mut PyObject, arg2: *mut PyMethodDef)
+     -> c_int;
+    #[cfg(Py_3_5)]
+    pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef)
+     -> c_int;
 }
 
 pub const Py_CLEANUP_SUPPORTED: i32 = 0x20000;
@@ -49,6 +59,20 @@ extern "C" {
     #[cfg(py_sys_config="Py_TRACE_REFS")]
     fn PyModule_Create2TraceRefs(module: *mut PyModuleDef,
                         apiver: c_int) -> *mut PyObject;
+
+    #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
+    #[cfg(Py_3_5)]
+    pub fn PyModule_FromDefAndSpec2(def: *mut PyModuleDef,
+                                    spec: *mut PyObject,
+                                    module_api_version: c_int)
+     -> *mut PyObject;
+
+    #[cfg(py_sys_config="Py_TRACE_REFS")]
+    #[cfg(Py_3_5)]
+    fn PyModule_FromDefAndSpec2TraceRefs(def: *mut PyModuleDef,
+                                    spec: *mut PyObject,
+                                    module_api_version: c_int)
+     -> *mut PyObject;
 }
 
 #[cfg(py_sys_config="Py_TRACE_REFS")]
@@ -58,8 +82,24 @@ pub unsafe fn PyModule_Create2(module: *mut PyModuleDef,
     PyModule_Create2TraceRefs(arg1, apiver)
 }
 
+#[cfg(py_sys_config="Py_TRACE_REFS")]
+#[cfg(Py_3_5)]
+#[inline]
+pub unsafe fn PyModule_FromDefAndSpec2(def: *mut PyModuleDef,
+                                spec: *mut PyObject,
+                                module_api_version: c_int)
+ -> *mut PyObject {
+    PyModule_FromDefAndSpec2TraceRefs(def, spec, module_api_version)
+}
+
 #[inline]
 pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
-    PyModule_Create2(module, PYTHON_ABI_VERSION)
+    PyModule_Create2(module, if cfg!(Py_LIMITED_API) { PYTHON_ABI_VERSION } else { PYTHON_API_VERSION })
+}
+
+#[inline]
+#[cfg(Py_3_5)]
+pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject {
+    PyModule_FromDefAndSpec2(def, spec, if cfg!(Py_LIMITED_API) { PYTHON_ABI_VERSION } else { PYTHON_API_VERSION })
 }
 
