@@ -23,7 +23,7 @@ use libc;
 use python::{PythonObject, ToPythonPointer};
 use objects::{PyObject, PyTuple, PyDict, PyString};
 use conversion::ToPyObject;
-use err::{PyErr, PyResult, result_from_owned_ptr, error_on_minusone};
+use err::{PyErr, PyResult, self};
 
 /// Trait that contains methods 
 pub trait ObjectProtocol<'p> : PythonObject<'p> {
@@ -35,14 +35,14 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
         })
     }
-    
+
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
     fn getattr<N>(&self, attr_name: N) -> PyResult<'p, PyObject<'p>> where N: ToPyObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
-            result_from_owned_ptr(py,
+            err::result_from_owned_ptr(py,
                 ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
         })
     }
@@ -56,7 +56,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, move |attr_name|
             value.with_borrowed_ptr(py, |value| unsafe {
-                error_on_minusone(py,
+                err::error_on_minusone(py,
                     ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value))
             }))
     }
@@ -67,7 +67,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     fn delattr<N>(&self, attr_name: N) -> PyResult<'p, ()> where N: ToPyObject<'p> {
         let py = self.python();
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
-            error_on_minusone(py,
+            err::error_on_minusone(py,
                 ffi::PyObject_DelAttr(self.as_ptr(), attr_name))
         })
     }
@@ -94,18 +94,18 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
-    fn repr(&self) -> PyResult<'p, PyObject<'p>> {
+    fn repr(&self) -> PyResult<'p, PyString<'p>> {
         unsafe {
-            result_from_owned_ptr(self.python(), ffi::PyObject_Repr(self.as_ptr()))
+            err::result_cast_from_owned_ptr(self.python(), ffi::PyObject_Repr(self.as_ptr()))
         }
     }
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
-    fn str(&self) -> PyResult<'p, PyObject<'p>> {
+    fn str(&self) -> PyResult<'p, PyString<'p>> {
         unsafe {
-            result_from_owned_ptr(self.python(), ffi::PyObject_Str(self.as_ptr()))
+            err::result_cast_from_owned_ptr(self.python(), ffi::PyObject_Str(self.as_ptr()))
         }
     }
 
@@ -113,9 +113,9 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     /// This is equivalent to the Python expression 'unistr(self)'.
     #[inline]
     #[cfg(feature="python27-sys")]
-    fn unistr(&self) -> PyResult<'p, PyObject<'p>> {
+    fn unistr(&self) -> PyResult<'p, PyUnicode<'p>> {
         unsafe {
-            result_from_owned_ptr(self.python(), ffi::PyObject_Unicode(self.as_ptr()))
+            err::result_cast_from_owned_ptr(self.python(), ffi::PyObject_Unicode(self.as_ptr()))
         }
     }
 
@@ -134,7 +134,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
       where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
         let py = self.python();
         args.with_borrowed_ptr(py, |args| unsafe {
-            result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
+            err::result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
         })
     }
 
@@ -157,7 +157,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             Ok(v)
         }
     }
-    
+
     /// Returns whether the object is considered to be true.
     /// This is equivalent to the Python expression: 'not not self'
     #[inline]
@@ -169,7 +169,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             Ok(v != 0)
         }
     }
-    
+
     /// Returns the length of the sequence or mapping.
     /// This is equivalent to the Python expression: 'len(self)'
     #[inline]
@@ -181,13 +181,13 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
             Ok(v as usize)
         }
     }
-    
+
     /// This is equivalent to the Python expression: 'self[key]'
     #[inline]
     fn get_item<K>(&self, key: K) -> PyResult<'p, PyObject<'p>> where K: ToPyObject<'p> {
         let py = self.python();
         key.with_borrowed_ptr(py, |key| unsafe {
-            result_from_owned_ptr(py,
+            err::result_from_owned_ptr(py,
                 ffi::PyObject_GetItem(self.as_ptr(), key))
         })
     }
@@ -199,7 +199,7 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
         let py = self.python();
         key.with_borrowed_ptr(py, move |key|
             value.with_borrowed_ptr(py, |value| unsafe {
-                error_on_minusone(py,
+                err::error_on_minusone(py,
                     ffi::PyObject_SetItem(self.as_ptr(), key, value))
             }))
     }
@@ -210,58 +210,62 @@ pub trait ObjectProtocol<'p> : PythonObject<'p> {
     fn del_item<K>(&self, key: K) -> PyResult<'p, ()> where K: ToPyObject<'p> {
         let py = self.python();
         key.with_borrowed_ptr(py, |key| unsafe {
-            error_on_minusone(py,
+            err::error_on_minusone(py,
                 ffi::PyObject_DelItem(self.as_ptr(), key))
         })
     }
-    /*
+
     /// Takes an object and returns an iterator for it.
     /// This is typically a new iterator but if the argument
     /// is an iterator, this returns itself.
+    #[cfg(feature="python27-sys")]
     #[inline]
-    fn iter(&self) -> PyResult<'p, PyPtr<'p, PyIterator<'p>>> {
-        let it = try!(unsafe {
-            result_from_owned_ptr(self.python(), ffi::PyObject_GetIter(self.as_ptr()))
-        });
-        it.downcast_into()
-    }*/
+    fn iter(&self) -> PyResult<'p, ::objects::PyIterator<'p>> {
+        unsafe {
+            err::result_cast_from_owned_ptr(self.python(), ffi::PyObject_GetIter(self.as_ptr()))
+        }
+    }
 }
 
 impl <'p> ObjectProtocol<'p> for PyObject<'p> {}
 
-/*
-pub struct PyIterator<'p>(PyObject<'p>);
-
-impl <'p> PythonObject<'p> for PyIterator<'p> {
-    #[inline]
-    fn as_object<'a>(&'a self) -> &'a PyObject<'p> {
-        &self.0
-    }
-    
-    #[inline]
-    unsafe fn unchecked_downcast_from<'a>(o: &'a PyObject<'p>) -> &'a PyIterator<'p> {
-        std::mem::transmute(o)
-    }
-}
-
-*/
-
 impl <'p> fmt::Debug for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
-        let repr_obj = try!(self.str().map_err(|_| fmt::Error));
-        let repr = try!(PyString::extract_lossy(&repr_obj).map_err(|_| fmt::Error));
-        f.write_str(&*repr)
+        let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
+        f.write_str(&repr_obj.to_string_lossy())
     }
 }
 
 impl <'p> fmt::Display for PyObject<'p> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use objectprotocol::ObjectProtocol;
-        let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
-        let repr = try!(PyString::extract_lossy(&repr_obj).map_err(|_| fmt::Error));
-        f.write_str(&*repr)
+        let str_obj = try!(self.str().map_err(|_| fmt::Error));
+        f.write_str(&str_obj.to_string_lossy())
     }
 }
 
+#[cfg(test)]
+mod test {
+    use std;
+    use python::{Python, PythonObject};
+    use conversion::ToPyObject;
+    use objects::{PySequence, PyList, PyTuple};
+
+    #[test]
+    fn test_debug_string() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = "Hello\n".to_py_object(py).into_object();
+        assert_eq!(format!("{:?}", v), "'Hello\\n'");
+    }
+
+    #[test]
+    fn test_display_string() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = "Hello\n".to_py_object(py).into_object();
+        assert_eq!(format!("{}", v), "Hello\n");
+    }
+}
 
