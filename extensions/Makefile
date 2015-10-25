@@ -4,7 +4,7 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 .PHONY: all clean
 
 ifndef PY
-PY=2
+PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
 endif
 
 all:

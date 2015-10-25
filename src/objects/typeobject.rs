@@ -23,11 +23,11 @@ use err::{PyResult, result_from_owned_ptr};
 use ffi;
 
 /// Represents a reference to a Python type object.
-pub struct PyType<'p>(PyObject<'p>);
+pub struct PyType(PyObject);
 
 pyobject_newtype!(PyType, PyType_Check, PyType_Type);
 
-impl <'p> PyType<'p> {
+impl PyType {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
@@ -37,39 +37,39 @@ impl <'p> PyType<'p> {
     /// Retrieves the PyType instance for the given FFI pointer.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_type_ptr<'a>(py: Python<'p>, p: *mut ffi::PyTypeObject) -> PyType<'p> {
+    pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> PyType {
         PyObject::from_borrowed_ptr(py, p as *mut ffi::PyObject).unchecked_cast_into::<PyType>()
     }
 
     /// Return true if self is a subtype of b.
     #[inline]
-    pub fn is_subtype_of(&self, b : &PyType<'p>) -> bool {
+    pub fn is_subtype_of(&self, b : &PyType, _: Python) -> bool {
         unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
     }
 
     /// Return true if obj is an instance of self.
     #[inline]
-    pub fn is_instance(&self, obj : &PyObject<'p>) -> bool {
+    pub fn is_instance(&self, obj : &PyObject, _: Python) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
     }
 
     /// Calls the type object, thus creating a new instance.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     #[inline]
-    pub fn call<A>(&self, args: A, kwargs: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>>
-      where A: ToPyObject<'p, ObjectType=PyTuple<'p>> {
-        let py = self.python();
+    pub fn call<A>(&self, args: A, kwargs: Option<&PyDict>, py: Python) -> PyResult<PyObject>
+        where A: ToPyObject<ObjectType=PyTuple>
+    {
         args.with_borrowed_ptr(py, |args| unsafe {
             result_from_owned_ptr(py, ffi::PyObject_Call(self.0.as_ptr(), args, kwargs.as_ptr()))
         })
     }
 }
 
-impl <'p> PartialEq for PyType<'p> {
+impl PartialEq for PyType {
     #[inline]
-    fn eq(&self, o : &PyType<'p>) -> bool {
+    fn eq(&self, o : &PyType) -> bool {
         self.as_type_ptr() == o.as_type_ptr()
     }
 }
-impl <'p> Eq for PyType<'p> { }
+impl Eq for PyType { }
 

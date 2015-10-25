@@ -16,20 +16,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{PythonObject, ToPythonPointer};
+use python::{Python, PythonObject, ToPythonPointer};
 use objects::PyObject;
 use err::{PyErr, PyResult};
 use ffi;
 
-pub struct PyIterator<'p>(PyObject<'p>);
+pub struct PyIterator(PyObject);
 
 pyobject_newtype!(PyIterator, PyIter_Check);
 
-impl <'p> PyIterator<'p> {
+impl PyIterator {
     /// Retrieves the next item from an iterator.
     /// Returns `None` when the iterator is exhausted.
-    pub fn iter_next(&self) -> PyResult<'p, Option<PyObject<'p>>> {
-        let py = self.python();
+    pub fn iter_next(&self, py: Python) -> PyResult<Option<PyObject>> {
         match unsafe { PyObject::from_owned_ptr_opt(py, ffi::PyIter_Next(self.as_ptr())) } {
             Some(obj) => Ok(Some(obj)),
             None => {

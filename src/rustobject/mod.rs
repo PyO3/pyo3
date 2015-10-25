@@ -18,7 +18,7 @@
 
 use libc;
 use ffi;
-use python::{Python, ToPythonPointer, PythonObject};
+use python::{Python, ToPythonPointer, PythonObject, PyClone};
 use conversion::ToPyObject;
 use objects::{PyObject, PyType};
 use std::{mem, ops, ptr, marker};
@@ -30,25 +30,25 @@ pub mod method;
 mod tests;
 
 /// A PythonObject that is usable as a base type with PyTypeBuilder::base().
-pub trait PythonBaseObject<'p> : PythonObject<'p> {
+pub trait PythonBaseObject : PythonObject {
     /// Gets the size of the object, in bytes.
     fn size() -> usize;
 
-    type InitType : 'p;
+    type InitType;
 
     /// Allocates a new object (usually by calling ty->tp_alloc),
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(ty: &PyType<'p>, init_val: Self::InitType) -> PyResult<'p, Self>;
+    unsafe fn alloc(ty: &PyType, init_val: Self::InitType, py: Python) -> PyResult<Self>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(ptr: *mut ffi::PyObject);
+    unsafe fn dealloc(ptr: *mut ffi::PyObject, py: Python);
 }
 
-impl <'p> PythonBaseObject<'p> for PyObject<'p> {
+impl PythonBaseObject for PyObject {
     #[inline]
     fn size() -> usize {
         mem::size_of::<ffi::PyObject>()
@@ -56,13 +56,12 @@ impl <'p> PythonBaseObject<'p> for PyObject<'p> {
 
     type InitType = ();
 
-    unsafe fn alloc(ty: &PyType<'p>, _init_val: ()) -> PyResult<'p, PyObject<'p>> {
-        let py = ty.python();
+    unsafe fn alloc(ty: &PyType, _init_val: (), py: Python) -> PyResult<PyObject> {
         let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
         err::result_from_owned_ptr(py, ptr)
     }
 
-    unsafe fn dealloc(ptr: *mut ffi::PyObject) {
+    unsafe fn dealloc(ptr: *mut ffi::PyObject, _py: Python) {
         // Unfortunately, there is no PyType_GenericFree, so
         // we have to manually un-do the work of PyType_GenericAlloc:
         let ty = ffi::Py_TYPE(ptr);
@@ -84,13 +83,13 @@ impl <'p> PythonBaseObject<'p> for PyObject<'p> {
 /// Note that this type effectively acts like `Rc<T>`,
 /// except that the reference counting is done by the Python runtime.
 #[repr(C)]
-pub struct PyRustObject<'p, T, B = PyObject<'p>> where T: 'static, B: PythonBaseObject<'p> {
-    obj: PyObject<'p>,
+pub struct PyRustObject<T, B = PyObject> where T: 'static + Send, B: PythonBaseObject {
+    obj: PyObject,
     /// The PyRustObject acts like a shared reference to the contained T.
-    t: marker::PhantomData<&'p (T, B)>
+    t: marker::PhantomData<&'static (T, B)>
 }
 
-impl <'p, T, B> PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
+impl <T, B> PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
     #[inline] // this function can usually be reduced to a compile-time constant
     fn offset() -> usize {
         let align = mem::align_of::<T>();
@@ -100,13 +99,21 @@ impl <'p, T, B> PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObj
 
     /// Gets a reference to this object, but of the base class type.
     #[inline]
-    pub fn base(&self) -> &B {
+    pub fn as_base(&self) -> &B {
         unsafe { B::unchecked_downcast_borrow_from(&self.obj) }
+    }
+
+    /// Gets a reference to this object, but of the base class type.
+    #[inline]
+    pub fn into_base(self) -> B {
+        unsafe { B::unchecked_downcast_from(self.obj) }
     }
 
     /// Gets a reference to the rust value stored in this Python object.
     #[inline]
-    pub fn get(&self) -> &T {
+    pub fn get<'a>(&'a self, _py: Python<'a>) -> &'a T {
+        // We require the `Python` token to access the contained value,
+        // because `PyRustObject` is `Sync` even if `T` is `!Sync`.
         let offset = PyRustObject::<T, B>::offset() as isize;
         unsafe {
             let ptr = (self.obj.as_ptr() as *mut u8).offset(offset) as *mut T;
@@ -115,7 +122,7 @@ impl <'p, T, B> PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObj
     }
 }
 
-impl <'p, T, B> PythonBaseObject<'p> for PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
+impl <T, B> PythonBaseObject for PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
     #[inline]
     fn size() -> usize {
         PyRustObject::<T, B>::offset() + mem::size_of::<T>()
@@ -123,65 +130,55 @@ impl <'p, T, B> PythonBaseObject<'p> for PyRustObject<'p, T, B> where T: 'static
 
     type InitType = (T, B::InitType);
 
-    unsafe fn alloc(ty: &PyType<'p>, (val, base_val): Self::InitType) -> PyResult<'p, Self> {
-        let obj = try!(B::alloc(ty, base_val));
+    unsafe fn alloc(ty: &PyType, (val, base_val): Self::InitType, py: Python) -> PyResult<Self> {
+        let obj = try!(B::alloc(ty, base_val, py));
         let offset = PyRustObject::<T, B>::offset() as isize;
         ptr::write((obj.as_object().as_ptr() as *mut u8).offset(offset) as *mut T, val);
         Ok(Self::unchecked_downcast_from(obj.into_object()))
     }
 
-    unsafe fn dealloc(obj: *mut ffi::PyObject) {
+    unsafe fn dealloc(obj: *mut ffi::PyObject, py: Python) {
         let offset = PyRustObject::<T, B>::offset() as isize;
         ptr::read_and_drop((obj as *mut u8).offset(offset) as *mut T);
-        B::dealloc(obj)
+        B::dealloc(obj, py)
     }
 }
 
-impl <'p, T, B> Clone for PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
-    #[inline]
-    fn clone(&self) -> Self {
-        PyRustObject {
-            obj: self.obj.clone(), 
-            t: marker::PhantomData
-        }
-    }
-}
-
-impl <'p, 's, T, B> ToPyObject<'p> for PyRustObject<'s, T, B> where T: 'static + Send, B: PythonBaseObject<'s> {
-    type ObjectType = PyObject<'p>;
+impl <T, B> ToPyObject for PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
+    type ObjectType = PyObject;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
-        self.as_object().to_py_object(py)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        self.obj.clone_ref(py)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyObject<'p> {
-        self.into_object().into_py_object(py)
+    fn into_py_object(self, _py: Python) -> PyObject {
+        self.into_object()
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
-        f(self.as_ptr())
+        f(self.obj.as_ptr())
     }
 }
 
-impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'static + Send, B: PythonBaseObject<'p> {
+impl <T, B> PythonObject for PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
     #[inline]
-    fn as_object(&self) -> &PyObject<'p> {
+    fn as_object(&self) -> &PyObject {
         &self.obj
     }
 
     #[inline]
-    fn into_object(self) -> PyObject<'p> {
+    fn into_object(self) -> PyObject {
         self.obj
     }
 
     /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
     #[inline]
-    unsafe fn unchecked_downcast_from(obj: PyObject<'p>) -> Self {
+    unsafe fn unchecked_downcast_from(obj: PyObject) -> Self {
         PyRustObject {
             obj: obj,
             t: marker::PhantomData
@@ -191,7 +188,7 @@ impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'static + S
     /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
     #[inline]
-    unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a PyObject<'p>) -> &'a Self {
+    unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a PyObject) -> &'a Self {
         mem::transmute(obj)
     }
 }
@@ -200,74 +197,64 @@ impl <'p, T, B> PythonObject<'p> for PyRustObject<'p, T, B> where T: 'static + S
 /// Serves as a Python type object, and can be used to construct
 /// `PyRustObject<T>` instances.
 #[repr(C)]
-pub struct PyRustType<'p, T, B = PyObject<'p>> where T: 'p + Send, B: PythonBaseObject<'p> {
-    type_obj: PyType<'p>,
-    phantom: marker::PhantomData<&'p (B, T)>
+pub struct PyRustType<T, B = PyObject> where T: 'static + Send, B: PythonBaseObject {
+    type_obj: PyType,
+    phantom: marker::PhantomData<&'static (B, T)>
 }
 
-impl <'p, T, B> PyRustType<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
+impl <T, B> PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
     /// Creates a PyRustObject instance from a value.
-    pub fn create_instance(&self, val: T, base_val: B::InitType) -> PyRustObject<'p, T, B> {
+    pub fn create_instance(&self, val: T, base_val: B::InitType, py: Python) -> PyRustObject<T, B> {
         unsafe {
-            PythonBaseObject::alloc(&self.type_obj, (val, base_val)).unwrap()
+            PythonBaseObject::alloc(&self.type_obj, (val, base_val), py).unwrap()
         }
     }
 }
 
-impl <'p, T, B> ops::Deref for PyRustType<'p, T, B> where T: 'p + Send, B: PythonBaseObject<'p> {
-    type Target = PyType<'p>;
+impl <T, B> ops::Deref for PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
+    type Target = PyType;
 
     #[inline]
-    fn deref(&self) -> &PyType<'p> {
+    fn deref(&self) -> &PyType {
         &self.type_obj
     }
 }
 
-impl <'p, T> Clone for PyRustType<'p, T> where T: 'p + Send {
-    #[inline]
-    fn clone(&self) -> Self {
-        PyRustType {
-            type_obj: self.type_obj.clone(), 
-            phantom: marker::PhantomData
-        }
-    }
-}
-
-impl <'p, 's, T> ToPyObject<'p> for PyRustType<'s, T> where T: 's + Send {
-    type ObjectType = PyType<'p>;
+impl <T, B> ToPyObject for PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
+    type ObjectType = PyType;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> PyType<'p> {
-        self.type_obj.to_py_object(py)
+    fn to_py_object(&self, py: Python) -> PyType {
+        self.type_obj.clone_ref(py)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> PyType<'p> {
-        self.type_obj.into_py_object(py)
+    fn into_py_object(self, _py: Python) -> PyType {
+        self.type_obj
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python<'p>, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
       where F: FnOnce(*mut ffi::PyObject) -> R {
-        f(self.as_ptr())
+        f(self.as_object().as_ptr())
     }
 }
 
-impl <'p, T> PythonObject<'p> for PyRustType<'p, T> where T: 'p + Send {
+impl <T, B> PythonObject for PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
     #[inline]
-    fn as_object(&self) -> &PyObject<'p> {
+    fn as_object(&self) -> &PyObject {
         self.type_obj.as_object()
     }
 
     #[inline]
-    fn into_object(self) -> PyObject<'p> {
+    fn into_object(self) -> PyObject {
         self.type_obj.into_object()
     }
 
     /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
     #[inline]
-    unsafe fn unchecked_downcast_from(obj: PyObject<'p>) -> Self {
+    unsafe fn unchecked_downcast_from(obj: PyObject) -> Self {
         PyRustType {
             type_obj: PyType::unchecked_downcast_from(obj),
             phantom: marker::PhantomData
@@ -277,7 +264,7 @@ impl <'p, T> PythonObject<'p> for PyRustType<'p, T> where T: 'p + Send {
     /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
     #[inline]
-    unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a PyObject<'p>) -> &'a Self {
+    unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a PyObject) -> &'a Self {
         mem::transmute(obj)
     }
 }

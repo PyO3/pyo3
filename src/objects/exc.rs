@@ -24,44 +24,48 @@ use std::str::Utf8Error;
 use std::mem;
 use std::ffi::CStr;
 use ffi;
-use python::{Python, ToPythonPointer, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
 use err::{self, PyResult};
 use super::object::PyObject;
 use super::typeobject::PyType;
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
-        pub struct $name<'p>(PyObject<'p>);
+        pub struct $name(PyObject);
 
         pyobject_newtype!($name);
 
-        impl <'p> PythonObjectWithCheckedDowncast<'p> for $name<'p> {
+        impl PythonObjectWithCheckedDowncast for $name {
             #[inline]
-            fn downcast_from(obj : PyObject<'p>) -> Result<$name<'p>, PythonObjectDowncastError<'p>> {
+            fn downcast_from<'p>(obj : PyObject, py: Python<'p>)
+                -> Result<$name, PythonObjectDowncastError<'p>>
+            {
                 unsafe {
                     if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) != 0 {
                         Ok(PythonObject::unchecked_downcast_from(obj))
                     } else {
-                        Err(PythonObjectDowncastError(obj.python()))
+                        Err(PythonObjectDowncastError(py))
                     }
                 }
             }
 
             #[inline]
-            fn downcast_borrow_from<'a>(obj : &'a ::objects::object::PyObject<'p>) -> Result<&'a $name<'p>, PythonObjectDowncastError<'p>> {
+            fn downcast_borrow_from<'a, 'p>(obj: &'a PyObject, py: Python<'p>)
+                -> Result<&'a $name, PythonObjectDowncastError<'p>>
+            {
                 unsafe {
                     if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) != 0 {
                         Ok(PythonObject::unchecked_downcast_borrow_from(obj))
                     } else {
-                        Err(PythonObjectDowncastError(obj.python()))
+                        Err(PythonObjectDowncastError(py))
                     }
                 }
             }
         }
 
-        impl <'p> PythonObjectWithTypeObject<'p> for $name<'p> {
+        impl PythonObjectWithTypeObject for $name {
             #[inline]
-            fn type_object(py: Python<'p>) -> PyType<'p> {
+            fn type_object(py: Python) -> PyType {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }
@@ -103,8 +107,8 @@ exc_type!(UnicodeDecodeError, PyExc_UnicodeDecodeError);
 exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
 exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 
-impl<'p> UnicodeDecodeError<'p> {
-    pub fn new(py: Python<'p>, encoding: &CStr, input: &[u8], range: Range<usize>, reason: &CStr) -> PyResult<'p, UnicodeDecodeError<'p>> {
+impl UnicodeDecodeError {
+    pub fn new(py: Python, encoding: &CStr, input: &[u8], range: Range<usize>, reason: &CStr) -> PyResult<UnicodeDecodeError> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
             err::result_cast_from_owned_ptr(py,
@@ -113,7 +117,7 @@ impl<'p> UnicodeDecodeError<'p> {
         }
     }
     
-    pub fn new_utf8(py: Python<'p>, input: &[u8], err: Utf8Error) -> PyResult<'p, UnicodeDecodeError<'p>> {
+    pub fn new_utf8(py: Python, input: &[u8], err: Utf8Error) -> PyResult<UnicodeDecodeError> {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. input.len(), cstr!("invalid utf-8"))
     }

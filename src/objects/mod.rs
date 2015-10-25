@@ -44,26 +44,24 @@ pub use self::sequence::PySequence;
 /// `T: ToPyObject` is expected.
 macro_rules! pyobject_to_pyobject(
     ($name: ident) => (
-        impl <'p, 's> ::conversion::ToPyObject<'p> for $name<'s> {
-            type ObjectType = $name<'p>;
+        impl ::conversion::ToPyObject for $name {
+            type ObjectType = $name;
 
             #[inline]
-            fn to_py_object(&self, py: ::python::Python<'p>) -> $name<'p> {
-                self.clone().into_py_object(py)
+            fn to_py_object(&self, py: ::python::Python) -> $name {
+                ::python::PyClone::clone_ref(self, py)
             }
 
             #[inline]
-            fn into_py_object(self, _py: ::python::Python<'p>) -> $name<'p> {
-                // Transmute the lifetime.
-                // This is safe, because both lifetime variables represent the same lifetime:
-                // that of the python GIL acquisition.
-                unsafe { ::std::mem::transmute(self) }
+            fn into_py_object(self, _py: ::python::Python) -> $name {
+                self
             }
 
             #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: ::python::Python<'p>, f: F) -> R
-              where F: FnOnce(*mut ffi::PyObject) -> R {
-                f(self.as_ptr())
+            fn with_borrowed_ptr<F, R>(&self, _py: ::python::Python, f: F) -> R
+                where F: FnOnce(*mut ffi::PyObject) -> R
+            {
+                f(::python::PythonObject::as_object(self).as_ptr())
             }
         }
     )
@@ -71,70 +69,56 @@ macro_rules! pyobject_to_pyobject(
 
 macro_rules! pyobject_newtype(
     ($name: ident) => (
-        /// Clone returns another reference to the Python object,
-        /// thus incrementing the reference count by 1.
-        impl <'p> Clone for $name<'p> {
-            #[inline]
-            fn clone(&self) -> Self {
-                $name(self.0.clone())
-            }
-        }
-
         pyobject_to_pyobject!($name);
 
-        impl <'p> ::python::PythonObject<'p> for $name<'p> {
+        impl ::python::PythonObject for $name {
             #[inline]
-            fn as_object(&self) -> &::objects::object::PyObject<'p> {
+            fn as_object(&self) -> &::objects::object::PyObject {
                 &self.0
             }
 
             #[inline]
-            fn into_object(self) -> ::objects::object::PyObject<'p> {
+            fn into_object(self) -> ::objects::object::PyObject {
                 self.0
             }
 
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
-            unsafe fn unchecked_downcast_from(obj: ::objects::object::PyObject<'p>) -> Self {
+            unsafe fn unchecked_downcast_from(obj: ::objects::object::PyObject) -> Self {
                 $name(obj)
             }
 
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
-            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a ::objects::object::PyObject<'p>) -> &'a Self {
+            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a ::objects::object::PyObject) -> &'a Self {
                 ::std::mem::transmute(obj)
-            }
-
-            #[inline]
-            fn python(&self) -> ::python::Python<'p> {
-                self.0.python()
             }
         }
     );
     ($name: ident, $checkfunction: ident) => (
         pyobject_newtype!($name);
 
-        impl <'p> ::python::PythonObjectWithCheckedDowncast<'p> for $name<'p> {
+        impl ::python::PythonObjectWithCheckedDowncast for $name {
             #[inline]
-            fn downcast_from(obj : ::objects::object::PyObject<'p>) -> Result<$name<'p>, ::python::PythonObjectDowncastError<'p>> {
+            fn downcast_from<'p>(obj: ::objects::object::PyObject, py: ::python::Python<'p>) -> Result<$name, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
-                    if ::ffi::$checkfunction(::python::ToPythonPointer::as_ptr(&obj)) != 0 {
+                    if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
                         Ok($name(obj))
                     } else {
-                        Err(::python::PythonObjectDowncastError(::python::PythonObject::python(&obj)))
+                        Err(::python::PythonObjectDowncastError(py))
                     }
                 }
             }
 
             #[inline]
-            fn downcast_borrow_from<'a>(obj : &'a ::objects::object::PyObject<'p>) -> Result<&'a $name<'p>, ::python::PythonObjectDowncastError<'p>> {
+            fn downcast_borrow_from<'a, 'p>(obj: &'a ::objects::object::PyObject, py: ::python::Python<'p>) -> Result<&'a $name, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
-                    if ::ffi::$checkfunction(::python::ToPythonPointer::as_ptr(obj)) != 0 {
+                    if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
                         Ok(::std::mem::transmute(obj))
                     } else {
-                        Err(::python::PythonObjectDowncastError(::python::PythonObject::python(obj)))
+                        Err(::python::PythonObjectDowncastError(py))
                     }
                 }
             }
@@ -143,9 +127,9 @@ macro_rules! pyobject_newtype(
     ($name: ident, $checkfunction: ident, $typeobject: ident) => (
         pyobject_newtype!($name, $checkfunction);
 
-        impl <'p> ::python::PythonObjectWithTypeObject<'p> for $name<'p> {
+        impl ::python::PythonObjectWithTypeObject for $name {
             #[inline]
-            fn type_object(py: ::python::Python<'p>) -> ::objects::typeobject::PyType<'p> {
+            fn type_object(py: ::python::Python) -> ::objects::typeobject::PyType {
                 unsafe { ::objects::typeobject::PyType::from_type_ptr(py, &mut ::ffi::$typeobject) }
             }
         }
@@ -153,21 +137,18 @@ macro_rules! pyobject_newtype(
 );
 
 macro_rules! extract(
-    ($obj:ident to $t:ty => $body: block) => {
-        impl <'python, 'source, 'prepared>
-            ::conversion::ExtractPyObject<'python, 'source, 'prepared>
+    ($obj:ident to $t:ty; $py:ident => $body: block) => {
+        impl <'prepared> ::conversion::ExtractPyObject<'prepared>
             for $t
-            where 'python: 'source
         {
-
-            type Prepared = &'source PyObject<'python>;
+            type Prepared = PyObject;
 
             #[inline]
-            fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
-                Ok(obj)
+            fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+                Ok(::python::PyClone::clone_ref(obj, py))
             }
 
-            fn extract(&$obj: &'prepared &'source PyObject<'python>) -> PyResult<'python, Self> {
+            fn extract($obj: &'prepared PyObject, $py: Python) -> PyResult<Self> {
                 $body
             }
         }
@@ -192,3 +173,4 @@ pub mod exc;
 pub mod oldstyle;
 
 mod tests;
+

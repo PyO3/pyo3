@@ -18,24 +18,25 @@
 
 use std;
 use ffi;
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, ToPythonPointer};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PyClone};
 use objects::PyObject;
 use err::PyResult;
 
 /// Conversion trait that allows various objects to be converted into Python objects.
-pub trait ToPyObject<'p> {
-    type ObjectType : PythonObject<'p>;
+pub trait ToPyObject {
+    type ObjectType : PythonObject;
 
     /// Converts self into a Python object.
-    fn to_py_object(&self, py: Python<'p>) -> Self::ObjectType;
+    fn to_py_object(&self, py: Python) -> Self::ObjectType;
 
     /// Converts self into a Python object.
     ///
     /// May be more efficient than `to_py_object` in some cases because
     /// it can move out of the input object.
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> Self::ObjectType
-      where Self: Sized {
+    fn into_py_object(self, py: Python) -> Self::ObjectType
+      where Self: Sized
+    {
         self.to_py_object(py)
     }
 
@@ -45,8 +46,9 @@ pub trait ToPyObject<'p> {
     /// May be more efficient than `to_py_object` because it does not need
     /// to touch any reference counts when the input object already is a Python object.
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
-      where F: FnOnce(*mut ffi::PyObject) -> R {
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+        where F: FnOnce(*mut ffi::PyObject) -> R
+    {
         let obj = self.to_py_object(py).into_object();
         f(obj.as_ptr())
     }
@@ -89,49 +91,48 @@ pub trait ToPyObject<'p> {
 ///
 /// In cases where the result does not depend on the `'prepared` lifetime,
 /// the inherent method `PyObject::extract()` can be used.
-pub trait ExtractPyObject<'python, 'source, 'prepared> : Sized {
-    type Prepared : 'source;
+pub trait ExtractPyObject<'prepared> : Sized {
+    type Prepared : 'static;
 
-    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared>;
+    fn prepare_extract<'a, 'p>(obj: &'a PyObject, py: Python<'p>) -> PyResult<Self::Prepared>;
 
-    fn extract(prepared: &'prepared Self::Prepared) -> PyResult<'python, Self>;
+    fn extract<'p>(prepared: &'prepared Self::Prepared, py: Python<'p>) -> PyResult<Self>;
 }
 
-impl <'python, 'source, 'prepared, T> ExtractPyObject<'python, 'source, 'prepared> for T
-where T: PythonObjectWithCheckedDowncast<'python>,
-      'python: 'source
+impl <'prepared, T> ExtractPyObject<'prepared> for T
+where T: PythonObjectWithCheckedDowncast
 {
-
-    type Prepared = &'source PyObject<'python>;
+    type Prepared = PyObject;
 
     #[inline]
-    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
-        Ok(obj)
+    fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+        Ok(obj.clone_ref(py))
     }
 
     #[inline]
-    fn extract(&obj: &'prepared &'source PyObject<'python>) -> PyResult<'python, T> {
-        Ok(try!(obj.clone().cast_into()))
+    fn extract(obj: &'prepared Self::Prepared, py: Python) -> PyResult<T> {
+        Ok(try!(obj.clone_ref(py).cast_into(py)))
     }
 }
 
 // ToPyObject for references
-impl <'p, 's, T: ?Sized> ToPyObject<'p> for &'s T where T: ToPyObject<'p> {
+impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
     type ObjectType = T::ObjectType;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> T::ObjectType {
+    fn to_py_object(&self, py: Python) -> T::ObjectType {
         <T as ToPyObject>::to_py_object(*self, py)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python<'p>) -> T::ObjectType {
+    fn into_py_object(self, py: Python) -> T::ObjectType {
         <T as ToPyObject>::to_py_object(self, py)
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python<'p>, f: F) -> R
-      where F: FnOnce(*mut ffi::PyObject) -> R {
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+        where F: FnOnce(*mut ffi::PyObject) -> R
+    {
         <T as ToPyObject>::with_borrowed_ptr(*self, py, f)
     }
 }

@@ -19,7 +19,7 @@
 //! This module contains support for old-style classes. Only available in Python 2.x.
 
 use ffi;
-use python::{PythonObject, ToPythonPointer};
+use python::{Python, PythonObject, ToPythonPointer};
 use conversion::ToPyObject;
 use err::{self, PyResult};
 use super::object::PyObject;
@@ -29,36 +29,37 @@ use super::dict::PyDict;
 /// Represents an old-style Python class.
 ///
 /// Only available with Python 2.x.
-pub struct PyClass<'p>(PyObject<'p>);
+pub struct PyClass(PyObject);
 pyobject_newtype!(PyClass, PyClass_Check, PyClass_Type);
 
 /// Represents an old-style Python instance.
 ///
 /// Only available with Python 2.x.
-pub struct PyInstance<'p>(PyObject<'p>);
+pub struct PyInstance(PyObject);
 pyobject_newtype!(PyInstance, PyInstance_Check, PyInstance_Type);
 
-impl <'p> PyClass<'p> {
+impl PyClass {
     /// Return true if self is a subclass of base.
-    pub fn is_subclass_of(&self, base: &PyClass<'p>) -> bool {
+    pub fn is_subclass_of(&self, base: &PyClass, _py: Python) -> bool {
         unsafe { ffi::PyClass_IsSubclass(self.as_ptr(), base.as_ptr()) != 0 }
     }
 
     /// Create a new instance of the class.
     /// The parameters args and kw are used as the positional and keyword parameters to the object’s constructor.
-    pub fn create_instance<T>(&self, args: T, kw: Option<&PyDict<'p>>) -> PyResult<'p, PyInstance<'p>>
-      where T: ToPyObject<'p, ObjectType=PyTuple<'p>> {
-        args.with_borrowed_ptr(self.python(), |args| unsafe {
-            err::result_cast_from_owned_ptr(self.python(),
+    pub fn create_instance<T>(&self, args: T, kw: Option<&PyDict>, py: Python) -> PyResult<PyInstance>
+        where T: ToPyObject<ObjectType=PyTuple>
+    {
+        args.with_borrowed_ptr(py, |args| unsafe {
+            err::result_cast_from_owned_ptr(py,
                 ffi::PyInstance_New(self.as_ptr(), args, kw.as_ptr()))
         })
     }
 
     /// Create a new instance of a specific class without calling its constructor.
     /// The dict parameter will be used as the object’s __dict__.
-    pub fn create_instance_raw(&self, dict: PyDict<'p>) -> PyResult<'p, PyInstance<'p>> {
+    pub fn create_instance_raw(&self, dict: &PyDict, py: Python) -> PyResult<PyInstance> {
         unsafe {
-            err::result_cast_from_owned_ptr(self.python(),
+            err::result_cast_from_owned_ptr(py,
                 ffi::PyInstance_NewRaw(self.as_ptr(), dict.as_object().as_ptr()))
         }
     }

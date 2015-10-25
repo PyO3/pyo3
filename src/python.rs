@@ -38,66 +38,121 @@ use pythonrun::GILGuard;
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
-/// This trait allows retrieving the underlying FFI pointer from Python objects.
-pub trait ToPythonPointer {
-    /// Retrieves the underlying FFI pointer (as a borrowed pointer).
-    fn as_ptr(&self) -> *mut ffi::PyObject;
-
-    /// Retrieves the underlying FFI pointer as a "stolen pointer".
-    fn steal_ptr(self) -> *mut ffi::PyObject;
-}
-
 /// Trait implemented by all Python object types.
-pub trait PythonObject<'p> : 'p + Clone + ::conversion::ToPyObject<'p> {
+pub trait PythonObject : ::conversion::ToPyObject + Sized + 'static {
     /// Casts the Python object to PyObject.
-    fn as_object(&self) -> &PyObject<'p>;
+    fn as_object(&self) -> &PyObject;
 
     /// Casts the Python object to PyObject.
-    fn into_object(self) -> PyObject<'p>;
+    fn into_object(self) -> PyObject;
 
     /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
-    unsafe fn unchecked_downcast_from(PyObject<'p>) -> Self;
+    unsafe fn unchecked_downcast_from(PyObject) -> Self;
 
     /// Unchecked downcast from PyObject to Self.
     /// Undefined behavior if the input object does not have the expected type.
-    unsafe fn unchecked_downcast_borrow_from<'a>(&'a PyObject<'p>) -> &'a Self;
-
-    /// Retrieve Python instance from an existing Python object.
-    #[inline]
-    fn python(&self) -> Python<'p> {
-        self.as_object().python()
-    }
+    unsafe fn unchecked_downcast_borrow_from(&PyObject) -> &Self;
 }
 
 // Marker type that indicates an error while downcasting
 pub struct PythonObjectDowncastError<'p>(pub Python<'p>);
 
 /// Trait implemented by Python object types that allow a checked downcast.
-pub trait PythonObjectWithCheckedDowncast<'p> : PythonObject<'p> {
+pub trait PythonObjectWithCheckedDowncast : PythonObject {
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from(PyObject<'p>) -> Result<Self, PythonObjectDowncastError<'p>>;
-    
+    fn downcast_from<'p>(PyObject, Python<'p>) -> Result<Self, PythonObjectDowncastError<'p>>;
+
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_borrow_from<'a>(&'a PyObject<'p>) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
+    fn downcast_borrow_from<'a, 'p>(&'a PyObject, Python<'p>) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
 }
 
 /// Trait implemented by Python object types that have a corresponding type object.
-pub trait PythonObjectWithTypeObject<'p> : PythonObjectWithCheckedDowncast<'p> {
+pub trait PythonObjectWithTypeObject : PythonObjectWithCheckedDowncast {
     /// Retrieves the type object for this Python object type.
-    fn type_object(Python<'p>) -> PyType<'p>;
+    fn type_object(Python) -> PyType;
+}
+
+pub trait PyClone : Sized {
+    fn clone_ref(&self, Python) -> Self;
+}
+
+impl <T> PyClone for T where T: PythonObject {
+    #[inline]
+    fn clone_ref(&self, py: Python) -> T {
+        let ptr = self.as_object().as_ptr();
+        unsafe {
+            T::unchecked_downcast_from(PyObject::from_borrowed_ptr(py, ptr))
+        }
+    }
+}
+
+impl <T> PyClone for Option<T> where T: PyClone {
+    #[inline]
+    fn clone_ref(&self, py: Python) -> Option<T> {
+        match *self {
+            Some(ref v) => Some(v.clone_ref(py)),
+            None => None
+        }
+    }
+}
+
+pub trait PyDrop : Sized {
+    fn release_ref(self, Python);
+}
+
+impl <T> PyDrop for T where T: PythonObject {
+    #[inline]
+    fn release_ref(self, _py: Python) {
+        let ptr = self.into_object().steal_ptr();
+        unsafe {
+            ffi::Py_DECREF(ptr);
+        }
+    }
+}
+
+impl <T> PyDrop for Option<T> where T: PyDrop {
+    #[inline]
+    fn release_ref(self, py: Python) {
+        match self {
+            Some(v) => v.release_ref(py),
+            None => {}
+        }
+    }
+}
+
+/// This trait allows retrieving the underlying FFI pointer from Python objects.
+pub trait ToPythonPointer {
+    /// Retrieves the underlying FFI pointer (as a borrowed pointer).
+    fn as_ptr(&self) -> *mut ffi::PyObject;
+
+    /// Retrieves the underlying FFI pointer as a "stolen pointer".
+    fn steal_ptr(self, py: Python) -> *mut ffi::PyObject;
 }
 
 /// ToPythonPointer for borrowed Python pointers.
-impl <'a, 'p, T> ToPythonPointer for &'a T where T: PythonObject<'p> {
+impl ToPythonPointer for PyObject {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.as_ptr()
+    }
+
+    #[inline]
+    fn steal_ptr(self, _py: Python) -> *mut ffi::PyObject {
+        self.steal_ptr()
+    }
+}
+
+/// ToPythonPointer for borrowed Python pointers.
+impl <'a, T> ToPythonPointer for &'a T where T: PythonObject {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.as_object().as_ptr()
     }
-    
+
     #[inline]
-    fn steal_ptr(self) -> *mut ffi::PyObject {
-        self.as_object().clone().steal_ptr()
+    fn steal_ptr(self, py: Python) -> *mut ffi::PyObject {
+        self.as_object().clone_ref(py).steal_ptr()
     }
 }
 
@@ -110,11 +165,11 @@ impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
             None => std::ptr::null_mut()
         }
     }
-    
+
     #[inline]
-    fn steal_ptr(self) -> *mut ffi::PyObject {
+    fn steal_ptr(self, py: Python) -> *mut ffi::PyObject {
         match self {
-            Some(t) => t.steal_ptr(),
+            Some(t) => t.steal_ptr(py),
             None => std::ptr::null_mut()
         }
     }
@@ -141,23 +196,24 @@ impl<'p> Python<'p> {
         GILGuard::acquire()
     }
 
-    /// Releases the GIL and allows the use of Python on other threads.
-    /// Unsafe because we do not ensure that existing references to Python objects
-    /// are not accessed within the closure.
-    pub unsafe fn allow_threads<T, F>(self, f: F) -> T where F : FnOnce() -> T {
-        // TODO: we should use a type with destructor to be panic-safe, and avoid the unnecessary closure
-        let save = ffi::PyEval_SaveThread();
-        let result = f();
-        ffi::PyEval_RestoreThread(save);
-        result
+    /// Temporarily releases the GIL, thus allowing other Python threads to run.
+    pub fn allow_threads<T, F>(self, f: F) -> T where F : Send + FnOnce() -> T {
+        // The `Send` bound on the closure prevents the user from
+        // transferring the `Python` token into the closure.
+        unsafe {
+            let save = ffi::PyEval_SaveThread();
+            let result = f();
+            ffi::PyEval_RestoreThread(save);
+            result
+        }
     }
 
     /// Evaluates a Python expression in the given context and returns the result.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
-    pub fn eval(self, code: &str, globals: Option<&PyDict<'p>>,
-                locals: Option<&PyDict<'p>>) -> PyResult<'p, PyObject<'p>> {
+    pub fn eval(self, code: &str, globals: Option<&PyDict>,
+                locals: Option<&PyDict>) -> PyResult<PyObject> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -165,8 +221,8 @@ impl<'p> Python<'p> {
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
-    pub fn run(self, code: &str, globals: Option<&PyDict<'p>>,
-                locals: Option<&PyDict<'p>>) -> PyResult<'p, ()> {
+    pub fn run(self, code: &str, globals: Option<&PyDict>,
+                locals: Option<&PyDict>) -> PyResult<()> {
         try!(self.run_code(code, ffi::Py_file_input, globals, locals));
         Ok(())
     }
@@ -178,8 +234,8 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
-                globals: Option<&PyDict<'p>>, locals: Option<&PyDict<'p>>)
-                -> PyResult<'p, PyObject<'p>> {
+                globals: Option<&PyDict>, locals: Option<&PyDict>)
+                -> PyResult<PyObject> {
         let code = CString::new(code).unwrap();
 
         unsafe {
@@ -211,31 +267,31 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObject<'p> {
+    pub fn None(self) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> PyBool<'p> {
+    pub fn True(self) -> PyBool {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_True()).unchecked_cast_into::<PyBool>() }
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> PyBool<'p> {
+    pub fn False(self) -> PyBool {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_False()).unchecked_cast_into::<PyBool>() }
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> PyType<'p> where T: PythonObjectWithTypeObject<'p> {
+    pub fn get_type<T>(self) -> PyType where T: PythonObjectWithTypeObject {
         T::type_object(self)
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<'p, PyModule<'p>> {
+    pub fn import(self, name : &str) -> PyResult<PyModule> {
         PyModule::import(self, name)
     }
 }
@@ -256,16 +312,16 @@ mod test {
         let py = gil.python();
 
         // Make sure builtin names are accessible
-        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract().unwrap();
+        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract(py).unwrap();
 
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
 
-        d.set_item("foo", 13).unwrap();
+        d.set_item("foo", 13, py).unwrap();
 
         // Inject our own local namespace
-        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract().unwrap();
+        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract(py).unwrap();
 
         assert_eq!(v, 42);
     }

@@ -69,11 +69,11 @@
 //!     let py = gil.python();
 //!
 //!     let sys = py.import("sys").unwrap();
-//!     let version: String = sys.get("version").unwrap().extract().unwrap();
+//!     let version: String = sys.get("version", py).unwrap().extract(py).unwrap();
 //!
 //!     let os = py.import("os").unwrap();
-//!     let getenv = os.get("getenv").unwrap();
-//!     let user: String = getenv.call(("USER",), None).unwrap().extract().unwrap();
+//!     let getenv = os.get("getenv", py).unwrap();
+//!     let user: String = getenv.call(("USER",), None, py).unwrap().extract(py).unwrap();
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //! }
@@ -93,7 +93,7 @@ extern crate python3_sys as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
-pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject};
+pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{ExtractPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
@@ -172,12 +172,12 @@ pub mod _detail {
 /// use cpython::{Python, PyResult, PyObject};
 ///
 /// py_module_initializer!(example, |py, m| {
-///     try!(m.add("__doc__", "Module documentation string"));
-///     try!(m.add("run", py_fn!(run())));
+///     try!(m.add("__doc__", "Module documentation string", py));
+///     try!(m.add("run", py_fn!(run()), py));
 ///     Ok(())
 /// });
 ///
-/// fn run<'p>(py: Python<'p>) -> PyResult<'p, PyObject<'p>> {
+/// fn run(py: Python) -> PyResult<PyObject> {
 ///     println!("Rust says: Hello Python!");
 ///     Ok(py.None())
 /// }
@@ -204,7 +204,7 @@ macro_rules! py_module_initializer {
         #[allow(non_snake_case)]
         pub unsafe extern "C" fn [ init $name ]() {
             // Nest init function so that $body isn't in unsafe context
-            fn init<'pmisip>($py_id: $crate::Python<'pmisip>, $m_id: &$crate::PyModule<'pmisip>) -> $crate::PyResult<'pmisip, ()> {
+            fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
             }
             let name = concat!(stringify!($name), "\0").as_ptr() as *const _;
@@ -218,7 +218,7 @@ macro_rules! py_module_initializer {
 #[cfg(feature="python27-sys")]
 pub unsafe fn py_module_initializer_impl(
     name: *const libc::c_char,
-    init: for<'p> fn(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()>
+    init: fn(Python, &PyModule) -> PyResult<()>
 ) {
     abort_on_panic!({
         let py = Python::assume_gil_acquired();
@@ -226,16 +226,16 @@ pub unsafe fn py_module_initializer_impl(
         let module = ffi::Py_InitModule(name, ptr::null_mut());
         if module.is_null() { return; }
 
-        let module = match PyObject::from_borrowed_ptr(py, module).cast_into::<PyModule>() {
+        let module = match PyObject::from_borrowed_ptr(py, module).cast_into::<PyModule>(py) {
             Ok(m) => m,
             Err(e) => {
-                PyErr::from(e).restore();
+                PyErr::from(e).restore(py);
                 return;
             }
         };
         match init(py, &module) {
             Ok(()) => (),
-            Err(e) => e.restore()
+            Err(e) => e.restore(py)
         }
     })
 }
@@ -248,7 +248,7 @@ macro_rules! py_module_initializer {
         #[allow(non_snake_case)]
         pub unsafe extern "C" fn [ PyInit_ $name ]() -> *mut $crate::_detail::ffi::PyObject {
             // Nest init function so that $body isn't in unsafe context
-            fn init<'pmisip>($py_id: $crate::Python<'pmisip>, $m_id: &$crate::PyModule<'pmisip>) -> $crate::PyResult<'pmisip, ()> {
+            fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
             }
             static mut module_def: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
@@ -275,7 +275,7 @@ macro_rules! py_module_initializer {
 #[cfg(feature="python3-sys")]
 pub unsafe fn py_module_initializer_impl(
     def: *mut ffi::PyModuleDef,
-    init: for<'p> fn(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()>
+    init: fn(Python, &PyModule) -> PyResult<()>
 ) -> *mut ffi::PyObject {
     abort_on_panic!({
         let py = Python::assume_gil_acquired();
@@ -283,17 +283,17 @@ pub unsafe fn py_module_initializer_impl(
         let module = ffi::PyModule_Create(def);
         if module.is_null() { return module; }
 
-        let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>() {
+        let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>(py) {
             Ok(m) => m,
             Err(e) => {
-                PyErr::from(e).restore();
+                PyErr::from(e).restore(py);
                 return ptr::null_mut();
             }
         };
         match init(py, &module) {
             Ok(()) => module.into_object().steal_ptr(),
             Err(e) => {
-                e.restore();
+                e.restore(py);
                 return ptr::null_mut();
             }
         }

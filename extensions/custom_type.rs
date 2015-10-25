@@ -4,18 +4,18 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{PythonObject, PyObject, PyRustObject, PyResult};
+use cpython::{Python, PyObject, PyRustObject, PyResult};
 
-py_module_initializer!(custom_type, |_py, m| {
-    try!(m.add("__doc__", "Module documentation string"));
-    try!(m.add_type::<i32>("MyType")
+py_module_initializer!(custom_type, |py, m| {
+    try!(m.add("__doc__", "Module documentation string", py));
+    try!(m.add_type::<i32>("MyType", py)
         .add("a", py_method!(a()))
         .finish());
     Ok(())
 });
 
-fn a<'p>(slf: &PyRustObject<'p, i32>) -> PyResult<'p, PyObject<'p>> {
-    println!("a() was called with self={:?}", slf.get());
-    Ok(slf.python().None())
+fn a(py: Python, slf: &PyRustObject<i32>) -> PyResult<PyObject> {
+    println!("a() was called with self={:?}", slf.get(py));
+    Ok(py.None())
 }
 

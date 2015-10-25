@@ -22,18 +22,18 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use libc::c_char;
 use ffi;
-use python::{Python, PythonObject, ToPythonPointer};
+use python::{Python, PythonObject, PyClone, ToPythonPointer};
 use super::{exc, PyObject};
 use err::{self, PyResult, PyErr};
 use conversion::{ExtractPyObject, ToPyObject};
 
 /// Represents a Python byte string.
 /// Corresponds to `str` in Python 2, and `bytes` in Python 3.
-pub struct PyBytes<'p>(PyObject<'p>);
+pub struct PyBytes(PyObject);
 
 /// Represents a Python unicode string.
 /// Corresponds to `unicode` in Python 2, and `str` in Python 3.
-pub struct PyUnicode<'p>(PyObject<'p>);
+pub struct PyUnicode(PyObject);
 
 pyobject_newtype!(PyBytes, PyBytes_Check, PyBytes_Type);
 pyobject_newtype!(PyUnicode, PyUnicode_Check, PyUnicode_Type);
@@ -43,12 +43,12 @@ pub use PyBytes as PyString;
 #[cfg(feature="python3-sys")]
 pub use PyUnicode as PyString;
 
-impl <'p> PyBytes<'p> {
+impl PyBytes {
     /// Creates a new Python byte string object.
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(py: Python<'p>, s: &[u8]) -> PyBytes<'p> {
+    pub fn new(py: Python, s: &[u8]) -> PyBytes {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
@@ -58,7 +58,7 @@ impl <'p> PyBytes<'p> {
     }
 
     /// Gets the Python string data as byte slice.
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn as_slice(&self, _py: Python) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
@@ -67,9 +67,9 @@ impl <'p> PyBytes<'p> {
     }
 }
 
-impl <'p> PyUnicode<'p> {
+impl PyUnicode {
     /// Creates a new unicode string object from the Rust string.
-    pub fn new(py: Python<'p>, s: &str) -> PyUnicode<'p> {
+    pub fn new(py: Python, s: &str) -> PyUnicode {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
@@ -81,7 +81,7 @@ impl <'p> PyUnicode<'p> {
     /* Note: 'as_slice removed temporarily, we need to reconsider
     // whether we really should expose the platform-dependent Py_UNICODE to user code.
     #[cfg(feature="python27-sys")]
-    pub fn as_slice(&self) -> &[ffi::Py_UNICODE] {
+    pub fn as_slice(&self, py: Python) -> &[ffi::Py_UNICODE] {
         unsafe {
             let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr()) as *const _;
             let length = ffi::PyUnicode_GET_SIZE(self.as_ptr()) as usize;
@@ -93,14 +93,13 @@ impl <'p> PyUnicode<'p> {
     ///
     /// Returns a `UnicodeDecodeError` if the input contains invalid code points.
     #[cfg(feature="python27-sys")]
-    pub fn to_string(&self) -> PyResult<'p, Cow<str>> {
-        let py = self.python();
+    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
         let bytes: PyBytes = unsafe {
             try!(err::result_cast_from_owned_ptr(py, ffi::PyUnicode_AsUTF8String(self.as_ptr())))
         };
-        match str::from_utf8(bytes.as_slice()) {
+        match str::from_utf8(bytes.as_slice(py)) {
             Ok(s) => Ok(Cow::Owned(s.to_owned())),
-            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, bytes.as_slice(), e))))
+            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, bytes.as_slice(py), e)), py))
         }
     }
 
@@ -108,23 +107,22 @@ impl <'p> PyUnicode<'p> {
     ///
     /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
     #[cfg(feature="python27-sys")]
-    pub fn to_string_lossy(&self) -> Cow<str> {
+    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
         // TODO: test how this function handles lone surrogates or otherwise invalid code points
-        let py = self.python();
         let bytes: PyBytes = unsafe {
             err::result_cast_from_owned_ptr(py, ffi::PyUnicode_AsUTF8String(self.as_ptr()))
                 .ok().expect("Error in PyUnicode_AsUTF8String")
         };
-        Cow::Owned(String::from_utf8_lossy(bytes.as_slice()).into_owned())
+        Cow::Owned(String::from_utf8_lossy(bytes.as_slice(py)).into_owned())
     }
 
     #[cfg(feature="python3-sys")]
-    fn to_utf8_bytes(&self) -> PyResult<'p, &[u8]> {
+    fn to_utf8_bytes(&self, py: Python) -> PyResult<&[u8]> {
         unsafe {
             let mut length = 0;
             let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut length);
             if data.is_null() {
-                Err(PyErr::fetch(self.python()))
+                Err(PyErr::fetch(py))
             } else {
                 Ok(std::slice::from_raw_parts(data as *const u8, length as usize))
             }
@@ -135,12 +133,11 @@ impl <'p> PyUnicode<'p> {
     ///
     /// Returns a `UnicodeDecodeError` if the input contains invalid code points.
     #[cfg(feature="python3-sys")]
-    pub fn to_string(&self) -> PyResult<'p, Cow<str>> {
-        let py = self.python();
-        let bytes = try!(self.to_utf8_bytes());
+    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
+        let bytes = try!(self.to_utf8_bytes(py));
         match str::from_utf8(bytes) {
             Ok(s) => Ok(Cow::Borrowed(s)),
-            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, bytes, e))))
+            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, bytes, e)), py))
         }
     }
 
@@ -148,15 +145,15 @@ impl <'p> PyUnicode<'p> {
     ///
     /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
     #[cfg(feature="python3-sys")]
-    pub fn to_string_lossy(&self) -> Cow<str> {
-        let bytes = self.to_utf8_bytes().expect("Error in PyUnicode_AsUTF8AndSize");
+    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
+        let bytes = self.to_utf8_bytes(py).expect("Error in PyUnicode_AsUTF8AndSize");
         String::from_utf8_lossy(bytes)
     }
 }
 
 // On PyString (i.e. PyBytes in 2.7, PyUnicode otherwise), put static methods
 // for extraction as Cow<str>:
-impl <'p> PyString<'p> {
+impl PyString {
     /// Extract a rust string from the Python object.
     ///
     /// In Python 2.7, accepts both byte strings and unicode strings.
@@ -167,12 +164,11 @@ impl <'p> PyString<'p> {
     /// Returns `TypeError` if the input is not one of the accepted types.
     /// Returns `UnicodeDecodeError` if the input is not valid unicode.
     #[cfg(feature="python27-sys")]
-    pub fn extract<'a>(o: &'a PyObject<'p>) -> PyResult<'p, Cow<'a, str>> {
-        let py = o.python();
-        if let Ok(s) = o.cast_as::<PyBytes>() {
-            s.to_string()
-        } else if let Ok(u) = o.cast_as::<PyUnicode>() {
-            u.to_string()
+    pub fn extract<'a>(o: &'a PyObject, py: Python) -> PyResult<Cow<'a, str>> {
+        if let Ok(s) = o.cast_as::<PyBytes>(py) {
+            s.to_string(py)
+        } else if let Ok(u) = o.cast_as::<PyUnicode>(py) {
+            u.to_string(py)
         } else {
             Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
         }
@@ -188,12 +184,11 @@ impl <'p> PyString<'p> {
     /// Returns `TypeError` if the input is not one of the accepted types.
     /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
     #[cfg(feature="python27-sys")]
-    pub fn extract_lossy<'a>(o: &'a PyObject<'p>) -> PyResult<'p, Cow<'a, str>> {
-        let py = o.python();
-        if let Ok(s) = o.cast_as::<PyBytes>() {
-            Ok(s.to_string_lossy())
-        } else if let Ok(u) = o.cast_as::<PyUnicode>() {
-            Ok(u.to_string_lossy())
+    pub fn extract_lossy<'a>(o: &'a PyObject, py: Python) -> PyResult<Cow<'a, str>> {
+        if let Ok(s) = o.cast_as::<PyBytes>(py) {
+            Ok(s.to_string_lossy(py))
+        } else if let Ok(u) = o.cast_as::<PyUnicode>(py) {
+            Ok(u.to_string_lossy(py))
         } else {
             Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
         }
@@ -209,10 +204,9 @@ impl <'p> PyString<'p> {
     /// Returns `TypeError` if the input is not one of the accepted types.
     /// Returns `UnicodeDecodeError` if the input is not valid unicode.
     #[cfg(feature="python3-sys")]
-    pub fn extract<'a>(o: &'a PyObject<'p>) -> PyResult<'p, Cow<'a, str>> {
-        let py = o.python();
-        if let Ok(u) = o.cast_as::<PyUnicode>() {
-            u.to_string()
+    pub fn extract<'a>(o: &'a PyObject, py: Python) -> PyResult<Cow<'a, str>> {
+        if let Ok(u) = o.cast_as::<PyUnicode>(py) {
+            u.to_string(py)
         } else {
             Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
         }
@@ -228,10 +222,9 @@ impl <'p> PyString<'p> {
     /// Returns `TypeError` if the input is not one of the accepted types.
     /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
     #[cfg(feature="python3-sys")]
-    pub fn extract_lossy<'a>(o: &'a PyObject<'p>) -> PyResult<'p, Cow<'a, str>> {
-        let py = o.python();
-        if let Ok(u) = o.cast_as::<PyUnicode>() {
-            Ok(u.to_string_lossy())
+    pub fn extract_lossy<'a>(o: &'a PyObject, py: Python) -> PyResult<Cow<'a, str>> {
+        if let Ok(u) = o.cast_as::<PyUnicode>(py) {
+            Ok(u.to_string_lossy(py))
         } else {
             Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
         }
@@ -247,11 +240,10 @@ impl <'p> PyString<'p> {
     ///
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode.
     #[cfg(feature="python27-sys")]
-    pub fn to_string(&self) -> PyResult<'p, Cow<str>> {
-        let py = self.python();
-        match str::from_utf8(self.as_slice()) {
+    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
+        match str::from_utf8(self.as_slice(py)) {
             Ok(s) => Ok(Cow::Borrowed(s)),
-            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, self.as_slice(), e))))
+            Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, self.as_slice(py), e)), py))
         }
     }
 
@@ -262,8 +254,8 @@ impl <'p> PyString<'p> {
     ///
     /// Any invalid UTF-8 sequences are replaced with U+FFFD REPLACEMENT CHARACTER.
     #[cfg(feature="python27-sys")]
-    pub fn to_string_lossy(&self) -> Cow<str> {
-        String::from_utf8_lossy(self.as_slice())
+    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
+        String::from_utf8_lossy(self.as_slice(py))
     }
 }
 
@@ -277,15 +269,15 @@ impl <'p> PyString<'p> {
 /// Note that `str::ObjectType` differs based on Python version:
 /// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
 /// In Python 3.x, it is `PyUnicode`.
-impl <'p> ToPyObject<'p> for str {
+impl ToPyObject for str {
     #[cfg(feature="python27-sys")]
-    type ObjectType = PyObject<'p>;
+    type ObjectType = PyObject;
 
     #[cfg(feature="python3-sys")]
-    type ObjectType = PyUnicode<'p>;
+    type ObjectType = PyUnicode;
 
     #[cfg(feature="python27-sys")]
-    fn to_py_object(&self, py : Python<'p>) -> PyObject<'p> {
+    fn to_py_object(&self, py : Python) -> PyObject {
         if self.is_ascii() {
             PyBytes::new(py, self.as_bytes()).into_object()
         } else {
@@ -295,7 +287,7 @@ impl <'p> ToPyObject<'p> for str {
 
     #[cfg(feature="python3-sys")]
     #[inline]
-    fn to_py_object(&self, py : Python<'p>) -> PyUnicode<'p> {
+    fn to_py_object(&self, py : Python) -> PyUnicode {
         PyUnicode::new(py, self)
     }
 }
@@ -307,11 +299,11 @@ impl <'p> ToPyObject<'p> for str {
 /// Note that `str::ObjectType` differs based on Python version:
 /// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
 /// In Python 3.x, it is `PyUnicode`.
-impl <'p> ToPyObject<'p> for String {
-    type ObjectType = <str as ToPyObject<'p>>::ObjectType;
+impl ToPyObject for String {
+    type ObjectType = <str as ToPyObject>::ObjectType;
 
     #[inline]
-    fn to_py_object(&self, py: Python<'p>) -> Self::ObjectType {
+    fn to_py_object(&self, py: Python) -> Self::ObjectType {
         <str as ToPyObject>::to_py_object(self, py)
     }
 }
@@ -319,29 +311,42 @@ impl <'p> ToPyObject<'p> for String {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 /// In Python 2.7, `str` is expected to be UTF-8 encoded.
-extract!(obj to String => {
-    PyString::extract(obj).map(|s| s.into_owned())
+extract!(obj to String; py => {
+    PyString::extract(obj, py).map(|s| s.into_owned())
 });
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 /// In Python 2.7, `str` is expected to be UTF-8 encoded.
-extract!(obj to Cow<'source, str> => {
-    PyString::extract(obj)
+extract!(obj to Cow<'prepared, str>; py => {
+    PyString::extract(obj, py)
 });
 
-impl <'python, 'source, 'prepared> ExtractPyObject<'python, 'source, 'prepared> for &'prepared str {
+enum PreparedString {
+    Extracted(String),
+    BorrowFrom(PyObject)
+}
 
-    type Prepared = Cow<'source, str>;
+impl <'prepared> ExtractPyObject<'prepared> for &'prepared str {
+    type Prepared = PreparedString;
 
-    #[inline]
-    fn prepare_extract(obj: &'source PyObject<'python>) -> PyResult<'python, Self::Prepared> {
-        PyString::extract(obj)
+    fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+        match try!(PyString::extract(obj, py)) {
+            Cow::Owned(s) => Ok(PreparedString::Extracted(s)),
+            Cow::Borrowed(_) => Ok(PreparedString::BorrowFrom(obj.clone_ref(py)))
+        }
     }
 
-    #[inline]
-    fn extract(cow: &'prepared Cow<'source, str>) -> PyResult<'python, Self> {
-        Ok(cow)
+    fn extract(prepared: &'prepared PreparedString, py: Python) -> PyResult<Self> {
+        match *prepared {
+            PreparedString::Extracted(ref s) => Ok(s),
+            PreparedString::BorrowFrom(ref obj) => {
+                match try!(PyString::extract(obj, py)) {
+                    Cow::Owned(_) => panic!("Failed to borrow from python object"),
+                    Cow::Borrowed(s) => Ok(s)
+                }
+            }
+        }
     }
 }
 
@@ -356,7 +361,7 @@ mod test {
         let py = gil.python();
         let s = "\u{1F30F}";
         let py_string = s.to_py_object(py).into_object();
-        assert_eq!(s, py_string.extract::<String>().unwrap());
+        assert_eq!(s, py_string.extract::<String>(py).unwrap());
     }
 
     #[test]
@@ -365,8 +370,8 @@ mod test {
         let py = gil.python();
         let s = "Hello Python";
         let py_string = s.to_py_object(py).into_object();
-        let prepared = <&str>::prepare_extract(&py_string).unwrap();
-        assert_eq!(s, <&str>::extract(&prepared).unwrap());
+        let prepared = <&str>::prepare_extract(&py_string, py).unwrap();
+        assert_eq!(s, <&str>::extract(&prepared, py).unwrap());
     }
 }
 

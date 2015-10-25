@@ -55,7 +55,7 @@ macro_rules! py_fn {
                     return $crate::PythonObject::into_object(obj).steal_ptr();
                 }
                 Err(e) => {
-                    e.restore();
+                    e.restore(py);
                     return ::std::ptr::null_mut();
                 }
             }
@@ -91,7 +91,7 @@ macro_rules! py_fn {
                 Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
                 None => None
             };
-            match py_argparse!(Some(stringify!($f)), &args, kwargs.as_ref(),
+            match py_argparse!(Some(stringify!($f)), &args, kwargs.as_ref(), py,
                     ( $($pname : $ptype),* ) { $f( py, $($pname),* ) })
             {
                 Ok(val) => {
@@ -99,7 +99,7 @@ macro_rules! py_fn {
                     return $crate::PythonObject::into_object(obj).steal_ptr();
                 }
                 Err(e) => {
-                    e.restore();
+                    e.restore(py);
                     return ::std::ptr::null_mut();
                 }
             }
@@ -122,6 +122,9 @@ macro_rules! py_fn {
     }});
 }
 
+/// Result type of the `py_fn!()` macro.
+///
+/// Use the `ToPyObject` implementation to create a python callable object.
 pub struct PyFn(*mut ffi::PyMethodDef);
 
 #[inline]
@@ -129,10 +132,10 @@ pub unsafe fn py_fn_impl(def: *mut ffi::PyMethodDef) -> PyFn {
     PyFn(def)
 }
 
-impl <'p> ToPyObject<'p> for PyFn {
-    type ObjectType = PyObject<'p>;
+impl ToPyObject for PyFn {
+    type ObjectType = PyObject;
 
-    fn to_py_object(&self, py: Python<'p>) -> PyObject<'p> {
+    fn to_py_object(&self, py: Python) -> PyObject {
         unsafe {
             err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(self.0, ptr::null_mut()))
         }
