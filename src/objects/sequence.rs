@@ -43,7 +43,7 @@ impl PySequence {
 
     /// Return the concatenation of o1 and o2. Equivalent to python `o1 + o2`
     #[inline]
-    pub fn concat(&self, other: &PySequence, py: Python) -> PyResult<PyObject> {
+    pub fn concat(&self, py: Python, other: &PySequence) -> PyResult<PyObject> {
         unsafe {
             err::result_from_owned_ptr(py, ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
         }
@@ -53,7 +53,7 @@ impl PySequence {
     /// Equivalent to python `o * count`
     /// NB: Python accepts negative counts; it returns an empty Sequence.
     #[inline]
-    pub fn repeat(&self, count: isize, py: Python) -> PyResult<PyObject> {
+    pub fn repeat(&self, py: Python, count: isize) -> PyResult<PyObject> {
         unsafe {
             err::result_from_owned_ptr(py, ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
         }
@@ -61,7 +61,7 @@ impl PySequence {
 
     /// Return the concatenation of o1 and o2 on success. Equivalent to python `o1 += o2`
     #[inline]
-    pub fn in_place_concat(&self, other: &PySequence, py: Python) -> PyResult<PyObject> {
+    pub fn in_place_concat(&self, py: Python, other: &PySequence) -> PyResult<PyObject> {
         unsafe {
             result_from_owned_ptr(py, ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr()))
         }
@@ -71,7 +71,7 @@ impl PySequence {
     /// Equivalent to python `o *= count`
     /// NB: Python accepts negative counts; it empties the Sequence.
     #[inline]
-    pub fn in_place_repeat(&self, count: isize, py: Python) -> PyResult<PyObject> {
+    pub fn in_place_repeat(&self, py: Python, count: isize) -> PyResult<PyObject> {
         unsafe {
             result_from_owned_ptr(py,
                 ffi::PySequence_InPlaceRepeat(self.as_ptr(), count as Py_ssize_t))
@@ -80,7 +80,7 @@ impl PySequence {
 
     /// Return the ith element of the Sequence. Equivalent to python `o[index]`
     #[inline]
-    pub fn get_item(&self, index: isize, py: Python) -> PyResult<PyObject> {
+    pub fn get_item(&self, py: Python, index: isize) -> PyResult<PyObject> {
         unsafe {
             result_from_owned_ptr(py,
                 ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -90,7 +90,7 @@ impl PySequence {
     /// Return the slice of sequence object o between begin and end.
     /// This is the equivalent of the Python expression `o[begin:end]`
     #[inline]
-    pub fn get_slice(&self, begin : isize, end : isize, py: Python) -> PyResult<PyObject> {
+    pub fn get_slice(&self, py: Python, begin : isize, end : isize) -> PyResult<PyObject> {
         unsafe {
             result_from_owned_ptr(py,
                 ffi::PySequence_GetSlice(self.as_ptr(), begin as Py_ssize_t, end as Py_ssize_t))
@@ -100,7 +100,7 @@ impl PySequence {
     /// Assign object v to the ith element of o.
     /// Equivalent to Python statement `o[i] = v`
     #[inline]
-    pub fn set_item(&self, i: isize, v: &PyObject, py: Python) -> PyResult<()> {
+    pub fn set_item(&self, py: Python, i: isize, v: &PyObject) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(py,
                 ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr()))
@@ -110,7 +110,7 @@ impl PySequence {
     /// Delete the ith element of object o.
     /// Python statement `del o[i]`
     #[inline]
-    pub fn del_item(&self, i: isize, py: Python) -> PyResult<()> {
+    pub fn del_item(&self, py: Python, i: isize) -> PyResult<()> {
         unsafe { 
             err::error_on_minusone(py,
                 ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t))
@@ -120,7 +120,7 @@ impl PySequence {
     /// Assign the sequence object v to the slice in sequence object o from i1 to i2.
     /// This is the equivalent of the Python statement `o[i1:i2] = v`
     #[inline]
-    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyObject, py: Python) -> PyResult<()> {
+    pub fn set_slice(&self, py: Python, i1: isize, i2: isize, v: &PyObject) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(py,
                 ffi::PySequence_SetSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t, v.as_ptr()))
@@ -130,7 +130,7 @@ impl PySequence {
     /// Delete the slice in sequence object o from i1 to i2.
     /// equivalent of the Python statement `del o[i1:i2]`
     #[inline]
-    pub fn del_slice(&self, i1: isize, i2: isize, py: Python) -> PyResult<()> {
+    pub fn del_slice(&self, py: Python, i1: isize, i2: isize) -> PyResult<()> {
         unsafe { 
             err::error_on_minusone(py,
                 ffi::PySequence_DelSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t))
@@ -140,7 +140,7 @@ impl PySequence {
     /// Return the number of occurrences of value in o, that is, return the number of keys for
     /// which `o[key] == value`
     #[inline]
-    pub fn count<V>(&self, value: V, py: Python) -> PyResult<usize>
+    pub fn count<V>(&self, py: Python, value: V) -> PyResult<usize>
         where V: ToPyObject
     {
         let r = value.with_borrowed_ptr(py, |ptr| unsafe {
@@ -155,7 +155,7 @@ impl PySequence {
 
    /// Determine if o contains value. this is equivalent to the Python expression `value in o`
     #[inline]
-    pub fn contains<V>(&self, value: V, py: Python) -> PyResult<bool>
+    pub fn contains<V>(&self, py: Python, value: V) -> PyResult<bool>
         where V: ToPyObject
     {
         let r = value.with_borrowed_ptr(py, |ptr| unsafe {
@@ -171,7 +171,7 @@ impl PySequence {
     /// Return the first index i for which o[i] == value.
     /// This is equivalent to the Python expression `o.index(value)`
     #[inline]
-    pub fn index<V>(&self, value: V, py: Python) -> PyResult<usize>
+    pub fn index<V>(&self, py: Python, value: V) -> PyResult<usize>
         where V: ToPyObject
     {
         let r = value.with_borrowed_ptr(py, |ptr| unsafe {
@@ -233,7 +233,7 @@ impl <'p> Iterator for PySequenceIterator<'p> {
         // can't report any errors in underlying size check so we panic.
         let len = self.sequence.len(self.py).unwrap();
         if self.index < len {
-            match self.sequence.get_item(self.index, self.py) {
+            match self.sequence.get_item(self.py, self.index) {
                 Ok(item) => {
                     self.index += 1;
                     Some(item)
@@ -277,7 +277,7 @@ mod test {
         assert_eq!(0, seq.len(py).unwrap());
 
         let needle = 7i32.to_py_object(py).into_object();
-        assert_eq!(false, seq.contains(&needle, py).unwrap());
+        assert_eq!(false, seq.contains(py, &needle).unwrap());
     }
 
     #[test]
@@ -289,13 +289,13 @@ mod test {
         assert_eq!(6, seq.len(py).unwrap());
 
         let bad_needle = 7i32.to_py_object(py).into_object();
-        assert_eq!(false, seq.contains(&bad_needle, py).unwrap());
+        assert_eq!(false, seq.contains(py, &bad_needle).unwrap());
 
         let good_needle = 8i32.to_py_object(py).into_object();
-        assert_eq!(true, seq.contains(&good_needle, py).unwrap());
+        assert_eq!(true, seq.contains(py, &good_needle).unwrap());
 
         let type_coerced_needle = 8f32.to_py_object(py).into_object();
-        assert_eq!(true, seq.contains(&type_coerced_needle, py).unwrap());
+        assert_eq!(true, seq.contains(py, &type_coerced_needle).unwrap());
     }
 
     #[test]
@@ -304,18 +304,18 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        assert_eq!(1, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(1, seq.get_item(1, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(2, seq.get_item(2, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(3, seq.get_item(3, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(5, seq.get_item(4, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(8, seq.get_item(5, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(8, seq.get_item(-1, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(5, seq.get_item(-2, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(3, seq.get_item(-3, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(2, seq.get_item(-4, py).unwrap().extract::<i32>(py).unwrap());
-        assert_eq!(1, seq.get_item(-5, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.get_item(10, py).is_err());
+        assert_eq!(1, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(1, seq.get_item(py, 1).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(2, seq.get_item(py, 2).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(3, seq.get_item(py, 3).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(5, seq.get_item(py, 4).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(8, seq.get_item(py, 5).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(8, seq.get_item(py, -1).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(5, seq.get_item(py, -2).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(3, seq.get_item(py, -3).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(2, seq.get_item(py, -4).unwrap().extract::<i32>(py).unwrap());
+        assert_eq!(1, seq.get_item(py, -5).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.get_item(py, 10).is_err());
     }
 
     // fn test_get_slice() {}
@@ -328,21 +328,21 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        assert!(seq.del_item(10, py).is_err());
-        assert_eq!(1, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.del_item(0, py).is_ok());
-        assert_eq!(1, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.del_item(0, py).is_ok());
-        assert_eq!(2, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.del_item(0, py).is_ok());
-        assert_eq!(3, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.del_item(0, py).is_ok());
-        assert_eq!(5, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.del_item(0, py).is_ok());
-        assert_eq!(8, seq.get_item(0, py).unwrap().extract::<i32>(py).unwrap());
-        assert!(seq.del_item(0, py).is_ok());
+        assert!(seq.del_item(py, 10).is_err());
+        assert_eq!(1, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.del_item(py, 0).is_ok());
+        assert_eq!(1, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.del_item(py, 0).is_ok());
+        assert_eq!(2, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.del_item(py, 0).is_ok());
+        assert_eq!(3, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.del_item(py, 0).is_ok());
+        assert_eq!(5, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.del_item(py, 0).is_ok());
+        assert_eq!(8, seq.get_item(py, 0).unwrap().extract::<i32>(py).unwrap());
+        assert!(seq.del_item(py, 0).is_ok());
         assert_eq!(0, seq.len(py).unwrap());
-        assert!(seq.del_item(0, py).is_err());
+        assert!(seq.del_item(py, 0).is_err());
     }
 
     #[test]
@@ -351,12 +351,12 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        assert_eq!(0, seq.index(1i32, py).unwrap());
-        assert_eq!(2, seq.index(2i32, py).unwrap());
-        assert_eq!(3, seq.index(3i32, py).unwrap());
-        assert_eq!(4, seq.index(5i32, py).unwrap());
-        assert_eq!(5, seq.index(8i32, py).unwrap());
-        assert!(seq.index(42i32, py).is_err());
+        assert_eq!(0, seq.index(py, 1i32).unwrap());
+        assert_eq!(2, seq.index(py, 2i32).unwrap());
+        assert_eq!(3, seq.index(py, 3i32).unwrap());
+        assert_eq!(4, seq.index(py, 5i32).unwrap());
+        assert_eq!(5, seq.index(py, 8i32).unwrap());
+        assert!(seq.index(py, 42i32).is_err());
     }
 
     #[test]
@@ -365,17 +365,17 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        assert_eq!(2, seq.count(1i32, py).unwrap());
-        assert_eq!(1, seq.count(2i32, py).unwrap());
-        assert_eq!(1, seq.count(3i32, py).unwrap());
-        assert_eq!(1, seq.count(5i32, py).unwrap());
-        assert_eq!(1, seq.count(8i32, py).unwrap());
-        assert_eq!(0, seq.count(42i32, py).unwrap());
+        assert_eq!(2, seq.count(py, 1i32).unwrap());
+        assert_eq!(1, seq.count(py, 2i32).unwrap());
+        assert_eq!(1, seq.count(py, 3i32).unwrap());
+        assert_eq!(1, seq.count(py, 5i32).unwrap());
+        assert_eq!(1, seq.count(py, 8i32).unwrap());
+        assert_eq!(0, seq.count(py, 42i32).unwrap());
     }
 
 /*
     #[test]
-    fn test_seq_iter() {
+    fn test_seq_iter() { TODO
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
@@ -411,10 +411,10 @@ mod test {
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
 
         let bad_needle = "blurst".to_py_object(py);
-        assert_eq!(false, seq.contains(bad_needle, py).unwrap());
+        assert_eq!(false, seq.contains(py, bad_needle).unwrap());
 
         let good_needle = "worst".to_py_object(py);
-        assert_eq!(true, seq.contains(good_needle, py).unwrap());
+        assert_eq!(true, seq.contains(py, good_needle).unwrap());
     }
 
     #[test]
@@ -423,7 +423,7 @@ mod test {
         let py = gil.python();
         let v : Vec<i32> = vec![1, 2, 3];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        let concat_seq = seq.concat(&seq, py).unwrap().cast_into::<PySequence>(py).unwrap();
+        let concat_seq = seq.concat(py, &seq).unwrap().cast_into::<PySequence>(py).unwrap();
         assert_eq!(6, concat_seq.len(py).unwrap());
         let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
         for (el, cc) in seq.into_iter(py).zip(concat_v) {
@@ -437,7 +437,7 @@ mod test {
         let py = gil.python();
         let v = "string";
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        let concat_seq = seq.concat(&seq, py).unwrap().cast_into::<PySequence>(py).unwrap();
+        let concat_seq = seq.concat(py, &seq).unwrap().cast_into::<PySequence>(py).unwrap();
         assert_eq!(12, concat_seq.len(py).unwrap());
         /*let concat_v = "stringstring".to_owned();
         for (el, cc) in seq.into_iter(py).zip(concat_v.chars()) {
@@ -451,7 +451,7 @@ mod test {
         let py = gil.python();
         let v = vec!["foo", "bar"];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
-        let repeat_seq = seq.repeat(3, py).unwrap().cast_into::<PySequence>(py).unwrap();
+        let repeat_seq = seq.repeat(py, 3).unwrap().cast_into::<PySequence>(py).unwrap();
         assert_eq!(6, repeat_seq.len(py).unwrap());
         let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
         for (el, rpt) in seq.into_iter(py).zip(repeated.iter()) {

@@ -30,7 +30,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
     #[inline]
-    fn hasattr<N>(&self, attr_name: N, py: Python) -> PyResult<bool> where N: ToPyObject {
+    fn hasattr<N>(&self, py: Python, attr_name: N) -> PyResult<bool> where N: ToPyObject {
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
         })
@@ -39,7 +39,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-    fn getattr<N>(&self, attr_name: N, py: Python) -> PyResult<PyObject> where N: ToPyObject {
+    fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject> where N: ToPyObject {
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             err::result_from_owned_ptr(py,
                 ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
@@ -49,7 +49,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     #[inline]
-    fn setattr<N, V>(&self, attr_name: N, value: V, py: Python) -> PyResult<()>
+    fn setattr<N, V>(&self, py: Python, attr_name: N, value: V) -> PyResult<()>
         where N: ToPyObject, V: ToPyObject
     {
         attr_name.with_borrowed_ptr(py, move |attr_name|
@@ -62,7 +62,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
     #[inline]
-    fn delattr<N>(&self, attr_name: N, py: Python) -> PyResult<()> where N: ToPyObject {
+    fn delattr<N>(&self, py: Python, attr_name: N) -> PyResult<()> where N: ToPyObject {
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             err::error_on_minusone(py,
                 ffi::PyObject_DelAttr(self.as_ptr(), attr_name))
@@ -72,7 +72,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Compares two Python objects.
     /// This is equivalent to the Python expression 'cmp(self, other)'.
     #[cfg(feature="python27-sys")]
-    fn compare<O>(&self, other: O, py: Python) -> PyResult<Ordering> where O: ToPyObject {
+    fn compare<O>(&self, py: Python, other: O) -> PyResult<Ordering> where O: ToPyObject {
         other.with_borrowed_ptr(py, |other| unsafe {
             let mut result : libc::c_int = -1;
             try!(err::error_on_minusone(py,
@@ -126,7 +126,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
     #[inline]
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>, py: Python) -> PyResult<PyObject>
+    fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
         where A: ToPyObject<ObjectType=PyTuple>
     {
         args.with_borrowed_ptr(py, |args| unsafe {
@@ -137,10 +137,10 @@ pub trait ObjectProtocol : PythonObject {
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     #[inline]
-    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>, py: Python) -> PyResult<PyObject>
+    fn call_method<A>(&self, py: Python, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
         where A: ToPyObject<ObjectType=PyTuple>
     {
-        try!(self.getattr(name, py)).call(args, kwargs, py)
+        try!(self.getattr(py, name)).call(py, args, kwargs)
     }
 
     /// Retrieves the hash code of the object.
@@ -181,7 +181,7 @@ pub trait ObjectProtocol : PythonObject {
 
     /// This is equivalent to the Python expression: 'self[key]'
     #[inline]
-    fn get_item<K>(&self, key: K, py: Python) -> PyResult<PyObject> where K: ToPyObject {
+    fn get_item<K>(&self, py: Python, key: K) -> PyResult<PyObject> where K: ToPyObject {
         key.with_borrowed_ptr(py, |key| unsafe {
             err::result_from_owned_ptr(py,
                 ffi::PyObject_GetItem(self.as_ptr(), key))
@@ -191,7 +191,7 @@ pub trait ObjectProtocol : PythonObject {
     /// Sets an item value.
     /// This is equivalent to the Python expression 'self[key] = value'.
     #[inline]
-    fn set_item<K, V>(&self, key: K, value: V, py: Python) -> PyResult<()> where K: ToPyObject, V: ToPyObject {
+    fn set_item<K, V>(&self, py: Python, key: K, value: V) -> PyResult<()> where K: ToPyObject, V: ToPyObject {
         key.with_borrowed_ptr(py, move |key|
             value.with_borrowed_ptr(py, |value| unsafe {
                 err::error_on_minusone(py,
@@ -202,14 +202,14 @@ pub trait ObjectProtocol : PythonObject {
     /// Deletes an item.
     /// This is equivalent to the Python expression 'del self[key]'.
     #[inline]
-    fn del_item<K>(&self, key: K, py: Python) -> PyResult<()> where K: ToPyObject {
+    fn del_item<K>(&self, py: Python, key: K) -> PyResult<()> where K: ToPyObject {
         key.with_borrowed_ptr(py, |key| unsafe {
             err::error_on_minusone(py,
                 ffi::PyObject_DelItem(self.as_ptr(), key))
         })
     }
 
-/*    /// Takes an object and returns an iterator for it.
+/*  TODO  /// Takes an object and returns an iterator for it.
     /// This is typically a new iterator but if the argument
     /// is an iterator, this returns itself.
     #[cfg(feature="python27-sys")]
@@ -248,7 +248,7 @@ mod test {
     use std;
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
-    use objects::{/*PySequence, */PyList, PyTuple};
+    use objects::{PyList, PyTuple};
 
     #[test]
     fn test_debug_string() {

@@ -54,8 +54,8 @@ use err;
 ///     let multiplier_type = PyRustTypeBuilder::<i32>::new(py, "Multiplier")
 ///       .add("mul", py_method!(mul(arg: i32)))
 ///       .finish().unwrap();
-///     let obj = multiplier_type.create_instance(3, (), py).into_object();
-///     let result = obj.call_method("mul", &(4,), None, py).unwrap().extract::<i32>(py).unwrap();
+///     let obj = multiplier_type.create_instance(py, 3, ()).into_object();
+///     let result = obj.call_method(py, "mul", &(4,), None).unwrap().extract::<i32>(py).unwrap();
 ///     assert_eq!(result, 12);
 /// }
 /// ```
@@ -127,7 +127,7 @@ macro_rules! py_method {
                 None => None
             };
             let ret: $crate::PyResult<_> =
-                py_argparse!(Some(stringify!($f)), &args, kwargs.as_ref(), py,
+                py_argparse!(py, Some(stringify!($f)), &args, kwargs.as_ref(),
                     ( $($pname : $ptype),* ) { $f( py, &slf, $($pname),* ) });
             $crate::PyDrop::release_ref(kwargs, py);
             $crate::PyDrop::release_ref(args, py);
@@ -233,7 +233,7 @@ pub mod py_method_impl {
 
 impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
     #[inline]
-    fn to_descriptor(&self, ty: &PyType, _name: &str, py: Python) -> PyObject {
+    fn to_descriptor(&self, py: Python, ty: &PyType, _name: &str) -> PyObject {
         unsafe {
             err::from_owned_ptr_or_panic(py,
                 ffi::PyDescr_NewMethod(ty.as_type_ptr(), self.0))
@@ -250,7 +250,7 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
 /// Creates a Python class method descriptor that invokes a Rust function.
 ///
 /// As arguments, takes the name of a rust function with the signature
-/// `fn(&PyType, &PyTuple, Python) -> PyResult<T>`
+/// `fn(Python, &PyType, &PyTuple, Option<&PyDict>) -> PyResult<T>`
 /// for some `T` that implements `ToPyObject`.
 ///
 /// Returns a type that implements `typebuilder::TypeMember<PyRustObject<_>>`
@@ -261,9 +261,8 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
 /// #![feature(plugin)]
 /// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
-/// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol,
-///               PyTuple, PyType, PyRustTypeBuilder, NoArgs};
-/// use cpython::{exc};
+/// use cpython::{Python, PythonObject, PyResult, ObjectProtocol,
+///               PyRustTypeBuilder, NoArgs};
 ///
 /// fn method(py: Python) -> PyResult<i32> {
 ///     Ok(42)
@@ -275,7 +274,7 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
 ///     let my_type = PyRustTypeBuilder::<i32>::new(py, "MyType")
 ///       .add("method", py_class_method!(method()))
 ///       .finish().unwrap();
-///     let result = my_type.as_object().call_method("method", NoArgs, None, py).unwrap();
+///     let result = my_type.as_object().call_method(py, "method", NoArgs, None).unwrap();
 ///     assert_eq!(42, result.extract::<i32>(py).unwrap());
 /// }
 /// ```
@@ -298,7 +297,7 @@ macro_rules! py_class_method {
                 Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
                 None => None
             };
-            let ret: $crate::PyResult<_> = $f(&slf, &args, kwargs.as_ref(), py);
+            let ret: $crate::PyResult<_> = $f(py, &slf, &args, kwargs.as_ref());
             $crate::PyDrop::release_ref(kwargs, py);
             $crate::PyDrop::release_ref(args, py);
             $crate::PyDrop::release_ref(slf, py);
@@ -349,7 +348,7 @@ macro_rules! py_class_method {
                 None => None
             };
             let ret: $crate::PyResult<_> =
-                py_argparse!(Some(stringify!($f)), &args, kwargs.as_ref(), py,
+                py_argparse!(py, Some(stringify!($f)), &args, kwargs.as_ref(),
                     ( $($pname : $ptype),* ) { $f( py, $($pname),* ) });
             $crate::PyDrop::release_ref(kwargs, py);
             $crate::PyDrop::release_ref(args, py);
@@ -394,7 +393,7 @@ pub unsafe fn py_class_method_impl(def: *mut ffi::PyMethodDef) -> ClassMethodDes
 
 impl <T> TypeMember<T> for ClassMethodDescriptor where T: PythonObject {
     #[inline]
-    fn to_descriptor(&self, ty: &PyType, _name: &str, py: Python) -> PyObject {
+    fn to_descriptor(&self, py: Python, ty: &PyType, _name: &str) -> PyObject {
         unsafe {
             err::from_owned_ptr_or_panic(py,
                 ffi::PyDescr_NewClassMethod(ty.as_type_ptr(), self.0))

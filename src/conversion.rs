@@ -94,9 +94,9 @@ pub trait ToPyObject {
 pub trait ExtractPyObject<'prepared> : Sized {
     type Prepared : 'static;
 
-    fn prepare_extract<'a, 'p>(obj: &'a PyObject, py: Python<'p>) -> PyResult<Self::Prepared>;
+    fn prepare_extract<'a, 'p>(py: Python<'p>, obj: &'a PyObject) -> PyResult<Self::Prepared>;
 
-    fn extract<'p>(prepared: &'prepared Self::Prepared, py: Python<'p>) -> PyResult<Self>;
+    fn extract<'p>(py: Python<'p>, prepared: &'prepared Self::Prepared) -> PyResult<Self>;
 }
 
 impl <'prepared, T> ExtractPyObject<'prepared> for T
@@ -105,12 +105,12 @@ where T: PythonObjectWithCheckedDowncast
     type Prepared = PyObject;
 
     #[inline]
-    fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+    fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
         Ok(obj.clone_ref(py))
     }
 
     #[inline]
-    fn extract(obj: &'prepared Self::Prepared, py: Python) -> PyResult<T> {
+    fn extract(py: Python, obj: &'prepared Self::Prepared) -> PyResult<T> {
         Ok(try!(obj.clone_ref(py).cast_into(py)))
     }
 }

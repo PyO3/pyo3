@@ -91,10 +91,10 @@ impl PyErr {
     pub fn new<T, V>(py: Python, value: V) -> PyErr
         where T: PythonObjectWithTypeObject, V: ToPyObject
     {
-        PyErr::new_helper(py.get_type::<T>(), value.to_py_object(py).into_object())
+        PyErr::new_helper(py, py.get_type::<T>(), value.to_py_object(py).into_object())
     }
 
-    fn new_helper(ty: PyType, value: PyObject) -> PyErr {
+    fn new_helper(_py: Python, ty: PyType, value: PyObject) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_object().as_ptr()) } != 0);
         PyErr {
             ptype: ty.into_object(),
@@ -108,11 +108,11 @@ impl PyErr {
     /// `obj` must be an Python exception instance, the PyErr will use that instance.
     /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new instance of that type.
     /// Otherwise, a `TypeError` is created instead.
-    pub fn from_instance<O>(obj: O, py: Python) -> PyErr where O: PythonObject {
-        PyErr::from_instance_helper(obj.into_object(), py)
+    pub fn from_instance<O>(py: Python, obj: O) -> PyErr where O: PythonObject {
+        PyErr::from_instance_helper(py, obj.into_object())
     }
 
-    fn from_instance_helper(obj: PyObject, py: Python) -> PyErr {
+    fn from_instance_helper(py: Python, obj: PyObject) -> PyErr {
         if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {
                 ptype: unsafe { PyObject::from_borrowed_ptr(py, ffi::PyExceptionInstance_Class(obj.as_ptr())) },
@@ -162,7 +162,7 @@ impl PyErr {
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
     #[inline]
-    pub fn matches(&self, exc: &PyObject, _py: Python) -> bool {
+    pub fn matches(&self, _py: Python, exc: &PyObject) -> bool {
         unsafe { ffi::PyErr_GivenExceptionMatches(self.ptype.as_ptr(), exc.as_ptr()) != 0 }
     }
 
@@ -175,7 +175,7 @@ impl PyErr {
         }
         // This is safe as long as normalized() doesn't unwind due to a panic.
     }
-    
+
     /// Helper function for normalizing the error by deconstructing and reconstructing the PyErr.
     /// Must not panic for safety in normalize()
     fn into_normalized(self, py: Python) -> PyErr {

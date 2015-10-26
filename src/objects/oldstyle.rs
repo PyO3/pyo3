@@ -40,13 +40,13 @@ pyobject_newtype!(PyInstance, PyInstance_Check, PyInstance_Type);
 
 impl PyClass {
     /// Return true if self is a subclass of base.
-    pub fn is_subclass_of(&self, base: &PyClass, _py: Python) -> bool {
+    pub fn is_subclass_of(&self, _py: Python, base: &PyClass) -> bool {
         unsafe { ffi::PyClass_IsSubclass(self.as_ptr(), base.as_ptr()) != 0 }
     }
 
     /// Create a new instance of the class.
     /// The parameters args and kw are used as the positional and keyword parameters to the object’s constructor.
-    pub fn create_instance<T>(&self, args: T, kw: Option<&PyDict>, py: Python) -> PyResult<PyInstance>
+    pub fn create_instance<T>(&self, py: Python, args: T, kw: Option<&PyDict>) -> PyResult<PyInstance>
         where T: ToPyObject<ObjectType=PyTuple>
     {
         args.with_borrowed_ptr(py, |args| unsafe {
@@ -57,7 +57,7 @@ impl PyClass {
 
     /// Create a new instance of a specific class without calling its constructor.
     /// The dict parameter will be used as the object’s __dict__.
-    pub fn create_instance_raw(&self, dict: &PyDict, py: Python) -> PyResult<PyInstance> {
+    pub fn create_instance_raw(&self, py: Python, dict: &PyDict) -> PyResult<PyInstance> {
         unsafe {
             err::result_cast_from_owned_ptr(py,
                 ffi::PyInstance_NewRaw(self.as_ptr(), dict.as_object().as_ptr()))

@@ -48,3 +48,5 @@ extract!(obj to bool; py => {
     Ok(try!(obj.cast_as::<PyBool>(py)).is_true())
 });
 
+// TODO: mod tests
+

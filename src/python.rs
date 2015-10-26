@@ -61,10 +61,10 @@ pub struct PythonObjectDowncastError<'p>(pub Python<'p>);
 /// Trait implemented by Python object types that allow a checked downcast.
 pub trait PythonObjectWithCheckedDowncast : PythonObject {
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from<'p>(PyObject, Python<'p>) -> Result<Self, PythonObjectDowncastError<'p>>;
+    fn downcast_from<'p>(Python<'p>, PyObject) -> Result<Self, PythonObjectDowncastError<'p>>;
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_borrow_from<'a, 'p>(&'a PyObject, Python<'p>) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
+    fn downcast_borrow_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
 }
 
 /// Trait implemented by Python object types that have a corresponding type object.
@@ -318,7 +318,7 @@ mod test {
 
         let d = PyDict::new(py);
 
-        d.set_item("foo", 13, py).unwrap();
+        d.set_item(py, "foo", 13).unwrap();
 
         // Inject our own local namespace
         let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract(py).unwrap();

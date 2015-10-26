@@ -196,12 +196,12 @@ macro_rules! int_convert_u64_or_i64 (
             type Prepared = PyObject;
 
             #[inline]
-            fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+            fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
                 Ok(obj.clone_ref(py))
             }
 
             #[cfg(feature="python27-sys")]
-            fn extract(obj: &'prepared PyObject, py: Python) -> PyResult<$rust_type> {
+            fn extract(py: Python, obj: &'prepared PyObject) -> PyResult<$rust_type> {
                 let ptr = obj.as_ptr();
 
                 unsafe {
@@ -220,7 +220,7 @@ macro_rules! int_convert_u64_or_i64 (
             }
 
             #[cfg(feature="python3-sys")]
-            fn extract(obj: &'prepared PyObject, py: Python) -> PyResult<$rust_type> {
+            fn extract(py: Python, obj: &'prepared PyObject) -> PyResult<$rust_type> {
                 let ptr = obj.as_ptr();
                 unsafe {
                     if ffi::PyLong_Check(ptr) != 0 {

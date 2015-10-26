@@ -20,7 +20,6 @@
 #![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send
 #![feature(slice_patterns)] // for tuple_conversion macros
-#![feature(utf8_error)] // for translating Utf8Error to Python exception
 #![feature(plugin)]
 #![plugin(interpolate_idents)]
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
@@ -31,28 +30,25 @@
 //! In Python, all objects are implicitly reference counted.
 //! In rust, we will use the `PyObject` type to represent a reference to a Python object.
 //!
+//! The method `clone_ref()` (from trait `PyClone`) can be used to create additional
+//! references to the same Python object.
+//!
 //! Because all Python objects potentially have multiple owners, the concept
-//! concept of rust mutability does not apply to Python objects.
+//! concept of Rust mutability does not apply to Python objects.
 //! As a result, this API will allow mutating Python objects even if they are not stored
-//! in a mutable rust variable.
+//! in a mutable Rust variable.
 //!
 //! The Python interpreter uses a global interpreter lock (GIL)
 //! to ensure thread-safety.
-//! This API uses the lifetime parameter `PyObject<'p>` to ensure that Python objects cannot
-//! be accessed without holding the GIL.
-//! Throughout this library, the lifetime `'p` always refers to the lifetime of the Python interpreter.
+//! This API uses a zero-sized `struct Python<'p>` as a token to indicate
+//! that a function can assume that the GIL is held.
 //!
-//! When accessing existing objects, the lifetime on `PyObject<'p>` is sufficient to ensure that the GIL
-//! is held by the current code. But we also need to ensure that the GIL is held when creating new objects.
-//! For this purpose, this library uses the marker type `Python<'p>`,
-//! which acts like a reference to the whole Python interpreter.
-//!
-//! You can obtain a `Python<'p>` instance by acquiring the GIL, or by calling `Python()`
-//! on any existing Python object.
+//! You obtain a `Python` instance by acquiring the GIL,
+//! and have to pass it into all operations that call into the Python runtime.
 //!
 //! # Error Handling
-//! The vast majority of operations in this library will return `PyResult<'p, ...>`.
-//! This is an alias for the type `Result<..., PyErr<'p>>`.
+//! The vast majority of operations in this library will return `PyResult<...>`.
+//! This is an alias for the type `Result<..., PyErr>`.
 //!
 //! A `PyErr` represents a Python exception. Errors within the rust-cpython library are
 //! also exposed as Python exceptions.
@@ -66,14 +62,14 @@
 //!
 //! fn main() {
 //!     let gil = Python::acquire_gil();
-//!     let py = gil.python();
+//!     let py = gil.python(); // obtain `Python` token
 //!
 //!     let sys = py.import("sys").unwrap();
-//!     let version: String = sys.get("version", py).unwrap().extract(py).unwrap();
+//!     let version: String = sys.get(py, "version").unwrap().extract(py).unwrap();
 //!
 //!     let os = py.import("os").unwrap();
-//!     let getenv = os.get("getenv", py).unwrap();
-//!     let user: String = getenv.call(("USER",), None, py).unwrap().extract(py).unwrap();
+//!     let getenv = os.get(py, "getenv").unwrap();
+//!     let user: String = getenv.call(py, ("USER",), None).unwrap().extract(py).unwrap();
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //! }
@@ -142,7 +138,7 @@ pub mod _detail {
 
     /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
     /// of the referenced variable.
-    /// This is useful in macros to ensure that type inference doesn't set 'p == 'static.
+    /// This is useful in macros to ensure that type inference doesn't set `'p` == `'static`.
     #[inline]
     pub unsafe fn bounded_assume_gil_acquired<'p, T>(_bound: &'p T) -> super::Python<'p> {
         super::Python::assume_gil_acquired()
@@ -154,12 +150,8 @@ pub mod _detail {
 ///
 /// Macro syntax: `py_module_initializer!($name, |$py, $m| $body)`
 ///
-/// 1. The module name as a string literal.
-/// 2. The name of the init function as an identifier.
-///    The function must be named `init$module_name` so that Python 2.7 can load the module.
-///    Note: this parameter will be removed in a future version
-///    (once Rust supports `concat_ident!` as function name).
-/// 3. A function or lambda of type `Fn(Python<'p>, &PyModule<'p>) -> PyResult<'p, ()>`.
+/// 1. `name`: The module name as a Rust identifier.
+/// 2. A lambda of type `Fn(Python, &PyModule) -> PyResult<()>`.
 ///    This function will be called when the module is imported, and is responsible
 ///    for adding the module's members.
 ///
@@ -172,8 +164,8 @@ pub mod _detail {
 /// use cpython::{Python, PyResult, PyObject};
 ///
 /// py_module_initializer!(example, |py, m| {
-///     try!(m.add("__doc__", "Module documentation string", py));
-///     try!(m.add("run", py_fn!(run()), py));
+///     try!(m.add(py, "__doc__", "Module documentation string"));
+///     try!(m.add(py, "run", py_fn!(run())));
 ///     Ok(())
 /// });
 ///

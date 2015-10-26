@@ -19,6 +19,7 @@
 use {Python, PyDict, ToPyObject, PyInt};
 use std::collections::{BTreeMap, HashMap};
 
+// TODO: move these tests into the dict module
 #[test]
 fn test_hashmap_to_python() {
     let gil = Python::acquire_gil();
@@ -30,7 +31,7 @@ fn test_hashmap_to_python() {
     let py_map = map.to_py_object(py);
 
     assert!(py_map.len(py) == 1);
-    assert!( py_map.get_item(1, py).unwrap().extract::<i32>(py).unwrap() == 1);
+    assert!( py_map.get_item(py, 1).unwrap().extract::<i32>(py).unwrap() == 1);
 }
 
 #[test]
@@ -44,6 +45,6 @@ fn test_btreemap_to_python() {
     let py_map = map.to_py_object(py);
 
     assert!(py_map.len(py) == 1);
-    assert!( py_map.get_item(1, py).unwrap().extract::<i32>(py).unwrap() == 1);
+    assert!( py_map.get_item(py, 1).unwrap().extract::<i32>(py).unwrap() == 1);
 }
 

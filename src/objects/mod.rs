@@ -102,7 +102,7 @@ macro_rules! pyobject_newtype(
 
         impl ::python::PythonObjectWithCheckedDowncast for $name {
             #[inline]
-            fn downcast_from<'p>(obj: ::objects::object::PyObject, py: ::python::Python<'p>) -> Result<$name, ::python::PythonObjectDowncastError<'p>> {
+            fn downcast_from<'p>(py: ::python::Python<'p>, obj: ::objects::object::PyObject) -> Result<$name, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
                     if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
                         Ok($name(obj))
@@ -113,7 +113,7 @@ macro_rules! pyobject_newtype(
             }
 
             #[inline]
-            fn downcast_borrow_from<'a, 'p>(obj: &'a ::objects::object::PyObject, py: ::python::Python<'p>) -> Result<&'a $name, ::python::PythonObjectDowncastError<'p>> {
+            fn downcast_borrow_from<'a, 'p>(py: ::python::Python<'p>, obj: &'a ::objects::object::PyObject) -> Result<&'a $name, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
                     if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
                         Ok(::std::mem::transmute(obj))
@@ -144,11 +144,11 @@ macro_rules! extract(
             type Prepared = PyObject;
 
             #[inline]
-            fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+            fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
                 Ok(::python::PyClone::clone_ref(obj, py))
             }
 
-            fn extract($obj: &'prepared PyObject, $py: Python) -> PyResult<Self> {
+            fn extract($py: Python, $obj: &'prepared PyObject) -> PyResult<Self> {
                 $body
             }
         }

@@ -57,14 +57,14 @@ impl PyModule {
         }
     }
 
-    unsafe fn str_from_ptr<'a>(&'a self, ptr: *const c_char, py: Python) -> PyResult<&'a str> {
-        if ptr == std::ptr::null() {
+    unsafe fn str_from_ptr<'a>(&'a self, py: Python, ptr: *const c_char) -> PyResult<&'a str> {
+        if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
             let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(s),
-                Err(e) => Err(PyErr::from_instance(try!(exc::UnicodeDecodeError::new_utf8(py, slice, e)), py))
+                Err(e) => Err(PyErr::from_instance(py, try!(exc::UnicodeDecodeError::new_utf8(py, slice, e))))
             }
         }
     }
@@ -73,35 +73,35 @@ impl PyModule {
     ///
     /// May fail if the module does not have a `__name__` attribute.
     pub fn name<'a>(&'a self, py: Python) -> PyResult<&'a str> {
-        unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.0.as_ptr()), py) }
+        unsafe { self.str_from_ptr(py, ffi::PyModule_GetName(self.0.as_ptr())) }
     }
 
     /// Gets the module filename.
     ///
     /// May fail if the module does not have a `__file__` attribute.
     pub fn filename<'a>(&'a self, py: Python) -> PyResult<&'a str> {
-        unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.0.as_ptr()), py) }
+        unsafe { self.str_from_ptr(py, ffi::PyModule_GetFilename(self.0.as_ptr())) }
     }
 
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
-    pub fn get(&self, name: &str, py: Python) -> PyResult<PyObject> {
-        self.as_object().getattr(name, py)
+    pub fn get(&self, py: Python, name: &str) -> PyResult<PyObject> {
+        self.as_object().getattr(py, name)
     }
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>, py: Python) -> PyResult<PyObject>
+    pub fn call<A>(&self, py: Python, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
         where A: ToPyObject<ObjectType=PyTuple>
     {
-        try!(self.as_object().getattr(name, py)).call(args, kwargs, py)
+        try!(self.as_object().getattr(py, name)).call(py, args, kwargs)
     }
 
     /// Adds a member to the module.
     ///
     /// This is a convenience function which can be used from the module's initialization function.
-    pub fn add<V>(&self, name: &str, value: V, py: Python) -> PyResult<()> where V: ToPyObject {
-        self.as_object().setattr(name, value, py)
+    pub fn add<V>(&self, py: Python, name: &str, value: V) -> PyResult<()> where V: ToPyObject {
+        self.as_object().setattr(py, name, value)
     }
 
     /// Adds a new extension type to the module.
@@ -109,9 +109,9 @@ impl PyModule {
     /// This is a convenience function that creates a new `PyRustTypeBuilder` and
     /// sets `new_type.__module__` to this module's name.
     /// The new type will be added to this module when `finish()` is called on the builder.
-    pub fn add_type<'p, T>(&self, name: &str, py: Python<'p>) -> ::rustobject::typebuilder::PyRustTypeBuilder<'p, T>
+    pub fn add_type<'p, T>(&self, py: Python<'p>, name: &str) -> ::rustobject::typebuilder::PyRustTypeBuilder<'p, T>
             where T: 'static + Send {
-        ::rustobject::typebuilder::new_typebuilder_for_module(self, name, py)
+        ::rustobject::typebuilder::new_typebuilder_for_module(py, self, name)
     }
 }
 

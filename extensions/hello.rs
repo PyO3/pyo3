@@ -7,9 +7,9 @@
 use cpython::{PyObject, PyResult, Python, PyTuple, PyDict};
 
 py_module_initializer!(hello, |py, m| {
-    try!(m.add("__doc__", "Module documentation string", py));
-    try!(m.add("run", py_fn!(run), py));
-    try!(m.add("val", py_fn!(val()), py));
+    try!(m.add(py, "__doc__", "Module documentation string"));
+    try!(m.add(py, "run", py_fn!(run)));
+    try!(m.add(py, "val", py_fn!(val())));
     Ok(())
 });
 

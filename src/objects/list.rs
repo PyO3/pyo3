@@ -52,7 +52,8 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize, py: Python) -> PyObject {
+    pub fn get_item(&self, py: Python, index: usize) -> PyObject {
+        // TODO: do we really want to panic here?
         assert!(index < self.len(py));
         unsafe {
             PyObject::from_borrowed_ptr(py, ffi::PyList_GetItem(self.0.as_ptr(), index as Py_ssize_t))
@@ -62,7 +63,7 @@ impl PyList {
     /// Sets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn set_item(&self, index: usize, item: PyObject, _py: Python) {
+    pub fn set_item(&self, _py: Python, index: usize, item: PyObject) {
         let r = unsafe { ffi::PyList_SetItem(self.0.as_ptr(), index as Py_ssize_t, item.steal_ptr()) };
         assert!(r == 0);
     }
@@ -70,7 +71,7 @@ impl PyList {
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn insert_item(&self, index: usize, item: PyObject, _py: Python) {
+    pub fn insert_item(&self, _py: Python, index: usize, item: PyObject) {
         let r = unsafe { ffi::PyList_Insert(self.0.as_ptr(), index as Py_ssize_t, item.as_ptr()) };
         assert!(r == 0);
     }
@@ -98,7 +99,7 @@ impl <'a, 'p> IntoIterator for &'a PyList {
 }
 
 /// Used by `impl IntoIterator for &PyList`.
-pub struct PyListIterator<'p> {
+TODO pub struct PyListIterator<'p> {
     list: PyList,
     index: usize
 }
@@ -143,20 +144,20 @@ impl <'prepared, T> ExtractPyObject<'prepared> for Vec<T>
 {
     type Prepared = Vec<T::Prepared>;
 
-    fn prepare_extract(obj: &PyObject, py: Python) -> PyResult<Self::Prepared> {
+    fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
         let list = try!(obj.cast_as::<PyList>(py));
         let len = list.len(py);
         let mut v = Vec::with_capacity(len);
         for i in 0 .. len {
-            v.push(try!(T::prepare_extract(&list.get_item(i, py), py)));
+            v.push(try!(T::prepare_extract(py, &list.get_item(py, i))));
         }
         Ok(v)
     }
 
-    fn extract(prepared: &'prepared Self::Prepared, py: Python) -> PyResult<Vec<T>> {
+    fn extract(py: Python, prepared: &'prepared Self::Prepared) -> PyResult<Vec<T>> {
         let mut v = Vec::with_capacity(prepared.len());
         for prepared_elem in prepared {
-            v.push(try!(T::extract(prepared_elem, py)));
+            v.push(try!(T::extract(py, prepared_elem)));
          }
          Ok(v)
      }
@@ -184,10 +185,10 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = v.to_py_object(py);
-        assert_eq!(2, list.get_item(0, py).extract::<i32>(py).unwrap());
-        assert_eq!(3, list.get_item(1, py).extract::<i32>(py).unwrap());
-        assert_eq!(5, list.get_item(2, py).extract::<i32>(py).unwrap());
-        assert_eq!(7, list.get_item(3, py).extract::<i32>(py).unwrap());
+        assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
+        assert_eq!(3, list.get_item(py, 1).extract::<i32>(py).unwrap());
+        assert_eq!(5, list.get_item(py, 2).extract::<i32>(py).unwrap());
+        assert_eq!(7, list.get_item(py, 3).extract::<i32>(py).unwrap());
     }
 
     #[test]
@@ -197,9 +198,9 @@ mod test {
         let v = vec![2, 3, 5, 7];
         let list = v.to_py_object(py);
         let val = 42i32.to_py_object(py).into_object();
-        assert_eq!(2, list.get_item(0, py).extract::<i32>(py).unwrap());
-        list.set_item(0, val, py);
-        assert_eq!(42, list.get_item(0, py).extract::<i32>(py).unwrap());
+        assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
+        list.set_item(py, 0, val);
+        assert_eq!(42, list.get_item(py, 0).extract::<i32>(py).unwrap());
     }
 
     #[test]
@@ -210,16 +211,16 @@ mod test {
         let list = v.to_py_object(py);
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(4, list.len(py));
-        assert_eq!(2, list.get_item(0, py).extract::<i32>(py).unwrap());
-        list.insert_item(0, val, py);
+        assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
+        list.insert_item(py, 0, val);
         assert_eq!(5, list.len(py));
-        assert_eq!(42, list.get_item(0, py).extract::<i32>(py).unwrap());
-        assert_eq!(2, list.get_item(1, py).extract::<i32>(py).unwrap());
+        assert_eq!(42, list.get_item(py, 0).extract::<i32>(py).unwrap());
+        assert_eq!(2, list.get_item(py, 1).extract::<i32>(py).unwrap());
     }
 
 /*
     #[test]
-    fn test_iter() {
+    fn test_iter() { TODO
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
@@ -246,14 +247,14 @@ mod test {
         assert_eq!(idx, v.len());
     }
     */
-    
-    /*#[test]
+
+    #[test]
     fn test_extract() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = v.to_py_object(py);
-        let v2 = list.into_object().extract::<Vec<i32>>().unwrap();
+        let v2 = list.into_object().extract::<Vec<i32>>(py).unwrap();
         assert_eq!(v, v2);
-    }*/
+    }
 }

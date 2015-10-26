@@ -43,10 +43,10 @@ pub struct ParamDescription<'a> {
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_args(
+    py: Python,
     fname: Option<&str>, params: &[ParamDescription],
     args: &PyTuple, kwargs: Option<&PyDict>,
-    output: &mut[Option<PyObject>],
-    py: Python
+    output: &mut[Option<PyObject>]
 ) -> PyResult<()>
 {
     assert!(params.len() == output.len());
@@ -65,7 +65,7 @@ pub fn parse_args(
     let mut used_keywords = 0;
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(p.name, py)) {
+        match kwargs.and_then(|d| d.get_item(py, p.name)) {
             Some(kwarg) => {
                 *out = Some(kwarg);
                 used_keywords += 1;
@@ -77,7 +77,7 @@ pub fn parse_args(
             },
             None => {
                 if i < nargs {
-                    *out = Some(args.get_item(i, py));
+                    *out = Some(args.get_item(py, i));
                 } else {
                     *out = None;
                     if !p.is_optional {
@@ -92,7 +92,7 @@ pub fn parse_args(
     if used_keywords != nkeywords {
         // check for extraneous keyword arguments
         for (key, _value) in kwargs.unwrap().items(py) {
-            let key = try!(PyString::extract(&key, py));
+            let key = try!(PyString::extract(py, &key));
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(py,
                     format!("'{}' is an invalid keyword argument for this function",
@@ -106,11 +106,11 @@ pub fn parse_args(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! py_argparse_extract {
-    ( $iter:expr, $py:ident, ( ) $body:block ) => { $body };
-    ( $iter:expr, $py:ident, ( $pname:ident : $ptype:ty ) $body:block) => {
-        match <$ptype as $crate::ExtractPyObject>::prepare_extract($iter.next().unwrap().as_ref().unwrap(), $py) {
+    ( $py:ident, $iter:expr, ( ) $body:block ) => { $body };
+    ( $py:ident, $iter:expr, ( $pname:ident : $ptype:ty ) $body:block) => {
+        match <$ptype as $crate::ExtractPyObject>::prepare_extract($py, $iter.next().unwrap().as_ref().unwrap()) {
             Ok(prepared) => {
-                match <$ptype as $crate::ExtractPyObject>::extract(&prepared, $py) {
+                match <$ptype as $crate::ExtractPyObject>::extract($py, &prepared) {
                     Ok($pname) => $body,
                     Err(e) => Err(e)
                 }
@@ -118,9 +118,9 @@ macro_rules! py_argparse_extract {
             Err(e) => Err(e)
         }
     };
-    ( $iter:expr, $py: ident, ( $pname:ident : $ptype:ty , $($r:tt)+ ) $body:block) => {
-        py_argparse_extract!($iter, $py, ($pname: $ptype) {
-            py_argparse_extract!( $iter, $py, ( $($r)* ) $body)
+    ( $py: ident, $iter:expr, ( $pname:ident : $ptype:ty , $($r:tt)+ ) $body:block) => {
+        py_argparse_extract!($py, $iter, ($pname: $ptype) {
+            py_argparse_extract!( $py, $iter, ( $($r)* ) $body)
         })
     }
 }
@@ -133,8 +133,9 @@ macro_rules! py_argparse_snd {
 
 /// This macro is used to parse a parameter list into a set of variables.
 /// 
-/// Syntax: `py_argparse!(fname, args, kwargs, (parameter-list) { body })`
+/// Syntax: `py_argparse!(py, fname, args, kwargs, (parameter-list) { body })`
 ///
+/// * `py`: the `Python` token
 /// * `fname`: expression of type `Option<&str>`: Name of the function used in error messages.
 /// * `args`: expression of type `&PyTuple`: The position arguments
 /// * `kwargs`: expression of type `Option<&PyDict>`: The named arguments
@@ -149,7 +150,7 @@ macro_rules! py_argparse_snd {
 /// If extraction fails, `py_argparse!()` returns a failed `PyResult` without evaluating `body`.
 #[macro_export]
 macro_rules! py_argparse {
-    ($fname:expr, $args:expr, $kwargs:expr, $py:expr, ($( $pname:ident : $ptype:ty ),*) $body:block) => {{
+    ($py:expr, $fname:expr, $args:expr, $kwargs:expr, ($( $pname:ident : $ptype:ty ),*) $body:block) => {{
         const PARAMS: &'static [$crate::argparse::ParamDescription<'static>] = &[
             $(
                 $crate::argparse::ParamDescription {
@@ -160,12 +161,12 @@ macro_rules! py_argparse {
         ];
         let py: $crate::Python = $py;
         let mut output = [$( py_argparse_snd!($pname, None) ),*];
-        match $crate::argparse::parse_args($fname, PARAMS, $args, $kwargs, &mut output, py) {
+        match $crate::argparse::parse_args(py, $fname, PARAMS, $args, $kwargs, &mut output) {
             Ok(()) => {
                 // We can't use experimental slice pattern syntax in macros
                 //let &[$(ref $pname),*] = &output;
                 let mut iter = output.iter();
-                let ret = py_argparse_extract!( iter, py, ( $( $pname : $ptype ),* ) $body );
+                let ret = py_argparse_extract!( py, iter, ( $( $pname : $ptype ),* ) $body );
                 assert!(iter.next() == None);
                 ret
             },
@@ -185,7 +186,7 @@ mod test {
         let py = gil_guard.python();
         let mut called = false;
         let tuple = ("abc", 42).to_py_object(py);
-        py_argparse!(None, &tuple, None, py, (x: &str, y: i32) {
+        py_argparse!(py, None, &tuple, None, (x: &str, y: i32) {
             assert_eq!(x, "abc");
             assert_eq!(y, 42);
             called = true;

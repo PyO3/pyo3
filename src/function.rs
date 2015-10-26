@@ -91,7 +91,7 @@ macro_rules! py_fn {
                 Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
                 None => None
             };
-            match py_argparse!(Some(stringify!($f)), &args, kwargs.as_ref(), py,
+            match py_argparse!(py, Some(stringify!($f)), &args, kwargs.as_ref(),
                     ( $($pname : $ptype),* ) { $f( py, $($pname),* ) })
             {
                 Ok(val) => {

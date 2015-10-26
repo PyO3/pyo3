@@ -25,17 +25,20 @@ use err::PyResult;
 /// Represents a reference to a Python object.
 ///
 /// Python objects are reference counted.
-/// Calling `clone()` on a `PyObject` will return a new reference to the same object
+/// Calling `clone_ref()` on a `PyObject` will return a new reference to the same object
 /// (thus incrementing the reference count).
-/// The `Drop` implementation will decrement the reference count.
+/// The `Drop` implementation will automatically decrement the reference count.
+/// You can also call `release_ref()` to explicitly decrement the reference count.
+/// This is slightly faster than relying on automatic drop, because `release_ref`
+/// does not need to check whether the GIL needs to be acquired.
 ///
 /// `PyObject` can be used with all Python objects, since all python types
 /// derive from `object`. This crate also contains other, more specific types
 /// that serve as references to Python objects (e.g. `PyTuple` for Python tuples, etc.).
 ///
-/// You can convert from any Python object to `PyObject` by calling `as_object()` or `into_object`
+/// You can convert from any Python object to `PyObject` by calling `as_object()` or `into_object()`
 /// from the [PythonObject trait](trait.PythonObject.html).
-/// In the other direction, you can call `cast_as` or `cast_into`
+/// In the other direction, you can call `cast_as()` or `cast_into()`
 /// on `PyObject` to convert to more specific object types.
 ///
 /// Most of the interesting methods are provided by the [ObjectProtocol trait](trait.ObjectProtocol.html).
@@ -85,12 +88,12 @@ impl PythonObject for PyObject {
 
 impl PythonObjectWithCheckedDowncast for PyObject {
     #[inline]
-    fn downcast_from<'p>(obj: PyObject, _py: Python<'p>) -> Result<PyObject, PythonObjectDowncastError<'p>> {
+    fn downcast_from<'p>(_py: Python<'p>, obj: PyObject) -> Result<PyObject, PythonObjectDowncastError<'p>> {
         Ok(obj)
     }
 
     #[inline]
-    fn downcast_borrow_from<'a, 'p>(obj: &'a PyObject, _py: Python<'p>) -> Result<&'a PyObject, PythonObjectDowncastError<'p>> {
+    fn downcast_borrow_from<'a, 'p>(_py: Python<'p>, obj: &'a PyObject) -> Result<&'a PyObject, PythonObjectDowncastError<'p>> {
         Ok(obj)
     }
 }
@@ -209,7 +212,7 @@ impl PyObject {
     pub fn cast_into<'p, T>(self, py: Python<'p>) -> Result<T, PythonObjectDowncastError<'p>>
         where T: PythonObjectWithCheckedDowncast
     {
-        PythonObjectWithCheckedDowncast::downcast_from(self, py)
+        PythonObjectWithCheckedDowncast::downcast_from(py, self)
     }
 
     /// Casts the PyObject to a concrete Python object type.
@@ -229,7 +232,7 @@ impl PyObject {
     pub fn cast_as<'s, 'p, T>(&'s self, py: Python<'p>) -> Result<&'s T, PythonObjectDowncastError<'p>>
         where T: PythonObjectWithCheckedDowncast
     {
-        PythonObjectWithCheckedDowncast::downcast_borrow_from(self, py)
+        PythonObjectWithCheckedDowncast::downcast_borrow_from(py, self)
     }
 
     /// Extracts some type from the Python object.
@@ -238,8 +241,8 @@ impl PyObject {
     pub fn extract<T>(&self, py: Python) -> PyResult<T>
         where T: for<'prep> ::conversion::ExtractPyObject<'prep>
     {
-        let prepared = try!(<T as ::conversion::ExtractPyObject>::prepare_extract(self, py));
-        <T as ::conversion::ExtractPyObject>::extract(&prepared, py)
+        let prepared = try!(<T as ::conversion::ExtractPyObject>::prepare_extract(py, self));
+        <T as ::conversion::ExtractPyObject>::extract(py, &prepared)
     }
 }
 

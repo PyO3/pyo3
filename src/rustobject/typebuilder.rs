@@ -68,7 +68,7 @@ pub struct PyRustTypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: Py
     phantom: marker::PhantomData<&'p (B, T)>
 }
 
-pub fn new_typebuilder_for_module<'p, T>(m: &PyModule, name: &str, py: Python<'p>) -> PyRustTypeBuilder<'p, T>
+pub fn new_typebuilder_for_module<'p, T>(py: Python<'p>, m: &PyModule, name: &str) -> PyRustTypeBuilder<'p, T>
         where T: 'static + Send {
     let b = PyRustTypeBuilder::new(py, name);
     PyRustTypeBuilder { target_module: Some(m.clone_ref(py)), .. b }
@@ -86,7 +86,7 @@ unsafe extern "C" fn tp_dealloc_callback<T, B>(obj: *mut ffi::PyObject)
         where T: 'static + Send, B: PythonBaseObject {
     abort_on_panic!({
         let py = Python::assume_gil_acquired();
-        PyRustObject::<T, B>::dealloc(obj, py)
+        PyRustObject::<T, B>::dealloc(py, obj)
     });
 }
 
@@ -213,7 +213,7 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
     pub fn add<M>(mut self, name: &str, val: M) -> Self
             where M: TypeMember<PyRustObject<T, B>> {
         self.can_change_base = false;
-        self.dict().set_item(name, val.to_descriptor(&self.type_obj, name, self.py), self.py).unwrap();
+        self.dict().set_item(self.py, name, val.to_descriptor(self.py, &self.type_obj, name)).unwrap();
         self
     }
 
@@ -241,11 +241,11 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
         if let Some(m) = self.target_module {
             // Set module name for new type
             if let Ok(mod_name) = m.name(py) {
-                try!(self.type_obj.as_object().setattr("__module__", mod_name, py));
+                try!(self.type_obj.as_object().setattr(py, "__module__", mod_name));
             }
             // Register the new type in the target module
             let name = unsafe { PyObject::from_borrowed_ptr(py, (*self.ht).ht_name) };
-            try!(m.dict(py).set_item(name, self.type_obj.as_object(), py));
+            try!(m.dict(py).set_item(py, name, self.type_obj.as_object()));
         }
         Ok(PyRustType {
             type_obj: self.type_obj,
@@ -278,13 +278,13 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
             self.py, &self.name, PyRustObject::<T, B>::size(),
             self.flags, &mut self.slots) });
         for (name, member) in self.members {
-            let descr = member.to_descriptor(&type_obj, &name, self.py);
-            try!(type_obj.as_object().setattr(name, descr, self.py));
+            let descr = member.to_descriptor(self.py, &type_obj, &name);
+            try!(type_obj.as_object().setattr(self.py, name, descr));
         }
         if let Some(m) = self.target_module {
             // Set module name for new type
             if let Ok(mod_name) = m.name(self.py) {
-                try!(type_obj.as_object().setattr("__module__", mod_name, self.py));
+                try!(type_obj.as_object().setattr(self.py, "__module__", mod_name));
             }
             // Register the new type in the target module
             unsafe {
@@ -353,7 +353,7 @@ unsafe fn create_type_from_slots<'p>(
 pub trait TypeMember<T> where T: PythonObject {
     /// Convert the type member into a python object
     /// that can be stored in the type dict.
-    fn to_descriptor(&self, ty: &PyType, name: &str, py: Python) -> PyObject;
+    fn to_descriptor(&self, py: Python, ty: &PyType, name: &str) -> PyObject;
 
     /// Put the type member into a box with lifetime `'p` so that
     /// it can be used at a later point in time.
@@ -367,7 +367,7 @@ pub trait TypeMember<T> where T: PythonObject {
 
 impl <T, S> TypeMember<T> for S where T: PythonObject, S: ToPyObject {
     #[inline]
-    fn to_descriptor(&self, _ty: &PyType, _name: &str, py: Python) -> PyObject {
+    fn to_descriptor(&self, py: Python, _ty: &PyType, _name: &str) -> PyObject {
         self.to_py_object(py).into_object()
     }
 

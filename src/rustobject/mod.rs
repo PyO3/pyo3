@@ -40,12 +40,12 @@ pub trait PythonBaseObject : PythonObject {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(ty: &PyType, init_val: Self::InitType, py: Python) -> PyResult<Self>;
+    unsafe fn alloc(py: Python, ty: &PyType, init_val: Self::InitType) -> PyResult<Self>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(ptr: *mut ffi::PyObject, py: Python);
+    unsafe fn dealloc(py: Python, ptr: *mut ffi::PyObject);
 }
 
 impl PythonBaseObject for PyObject {
@@ -56,12 +56,12 @@ impl PythonBaseObject for PyObject {
 
     type InitType = ();
 
-    unsafe fn alloc(ty: &PyType, _init_val: (), py: Python) -> PyResult<PyObject> {
+    unsafe fn alloc(py: Python, ty: &PyType, _init_val: ()) -> PyResult<PyObject> {
         let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
         err::result_from_owned_ptr(py, ptr)
     }
 
-    unsafe fn dealloc(ptr: *mut ffi::PyObject, _py: Python) {
+    unsafe fn dealloc(_py: Python, ptr: *mut ffi::PyObject) {
         // Unfortunately, there is no PyType_GenericFree, so
         // we have to manually un-do the work of PyType_GenericAlloc:
         let ty = ffi::Py_TYPE(ptr);
@@ -130,17 +130,17 @@ impl <T, B> PythonBaseObject for PyRustObject<T, B> where T: 'static + Send, B: 
 
     type InitType = (T, B::InitType);
 
-    unsafe fn alloc(ty: &PyType, (val, base_val): Self::InitType, py: Python) -> PyResult<Self> {
-        let obj = try!(B::alloc(ty, base_val, py));
+    unsafe fn alloc(py: Python, ty: &PyType, (val, base_val): Self::InitType) -> PyResult<Self> {
+        let obj = try!(B::alloc(py, ty, base_val));
         let offset = PyRustObject::<T, B>::offset() as isize;
         ptr::write((obj.as_object().as_ptr() as *mut u8).offset(offset) as *mut T, val);
         Ok(Self::unchecked_downcast_from(obj.into_object()))
     }
 
-    unsafe fn dealloc(obj: *mut ffi::PyObject, py: Python) {
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         let offset = PyRustObject::<T, B>::offset() as isize;
         ptr::read_and_drop((obj as *mut u8).offset(offset) as *mut T);
-        B::dealloc(obj, py)
+        B::dealloc(py, obj)
     }
 }
 
@@ -204,9 +204,9 @@ pub struct PyRustType<T, B = PyObject> where T: 'static + Send, B: PythonBaseObj
 
 impl <T, B> PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
     /// Creates a PyRustObject instance from a value.
-    pub fn create_instance(&self, val: T, base_val: B::InitType, py: Python) -> PyRustObject<T, B> {
+    pub fn create_instance(&self, py: Python, val: T, base_val: B::InitType) -> PyRustObject<T, B> {
         unsafe {
-            PythonBaseObject::alloc(&self.type_obj, (val, base_val), py).unwrap()
+            PythonBaseObject::alloc(py, &self.type_obj, (val, base_val)).unwrap()
         }
     }
 }

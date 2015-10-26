@@ -53,7 +53,7 @@ impl PyTuple {
     /// Gets the length of the tuple.
     #[inline]
     pub fn len(&self) -> usize {
-        // Safe despite not taking a `Python`, because tuples are immutable.
+        // Safe despite not taking a `Python` token, because tuples are immutable.
         unsafe {
             // non-negative Py_ssize_t should always fit into Rust uint
             ffi::PyTuple_GET_SIZE(self.0.as_ptr()) as usize
@@ -63,7 +63,9 @@ impl PyTuple {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize, py: Python) -> PyObject {
+    pub fn get_item(&self, py: Python, index: usize) -> PyObject {
+        // TODO: reconsider whether we should panic
+        // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
             PyObject::from_borrowed_ptr(py, ffi::PyTuple_GET_ITEM(self.0.as_ptr(), index as Py_ssize_t))
@@ -84,8 +86,10 @@ impl PyTuple {
     }
 }
 
+// TODO impl Index for PyTuple
+
 /*
-impl IntoIterator for PyTuple {
+impl IntoIterator for PyTuple { TODO
     type Item = PyObject;
     type IntoIter = PyTupleIterator;
 
@@ -140,7 +144,7 @@ impl <'p> ExactSizeIterator for PyTupleIterator<'p> {
 }
 */
 
-fn wrong_tuple_length(t: &PyTuple, expected_length: usize, py: Python) -> PyErr {
+fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len());
     PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py).into_object()))
 }
@@ -203,7 +207,7 @@ tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
 /// let gil_guard = cpython::Python::acquire_gil();
 /// let py = gil_guard.python();
 /// let os = py.import("os").unwrap();
-/// let pid = os.call("get_pid", cpython::NoArgs, None, py);
+/// let pid = os.call(py, "get_pid", cpython::NoArgs, None);
 /// ```
 #[derive(Copy, Clone, Debug)]
 pub struct NoArgs;
@@ -224,7 +228,7 @@ extract!(obj to NoArgs; py => {
     if t.len() == 0 {
         Ok(NoArgs)
     } else {
-        Err(wrong_tuple_length(t, 0, py))
+        Err(wrong_tuple_length(py, t, 0))
     }
 });
 

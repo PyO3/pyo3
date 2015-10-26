@@ -35,28 +35,29 @@ impl PyType {
     }
 
     /// Retrieves the PyType instance for the given FFI pointer.
+    /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> PyType {
         PyObject::from_borrowed_ptr(py, p as *mut ffi::PyObject).unchecked_cast_into::<PyType>()
     }
 
-    /// Return true if self is a subtype of b.
+    /// Return true if `self` is a subtype of `b`.
     #[inline]
-    pub fn is_subtype_of(&self, b : &PyType, _: Python) -> bool {
+    pub fn is_subtype_of(&self, _: Python, b : &PyType) -> bool {
         unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
     }
 
-    /// Return true if obj is an instance of self.
+    /// Return true if `obj` is an instance of `self`.
     #[inline]
-    pub fn is_instance(&self, obj : &PyObject, _: Python) -> bool {
+    pub fn is_instance(&self, _: Python, obj : &PyObject) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
     }
 
     /// Calls the type object, thus creating a new instance.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     #[inline]
-    pub fn call<A>(&self, args: A, kwargs: Option<&PyDict>, py: Python) -> PyResult<PyObject>
+    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
         where A: ToPyObject<ObjectType=PyTuple>
     {
         args.with_borrowed_ptr(py, |args| unsafe {
