@@ -136,7 +136,7 @@ mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 an
 mod intrcheck; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod import; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
-mod objectabstract; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+mod objectabstract;
 mod bltinmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 #[cfg(Py_LIMITED_API)] mod code {}

@@ -27,7 +27,6 @@ pub use self::string::PyBytes as PyString;
 #[cfg(feature="python3-sys")]
 pub use self::string::PyUnicode as PyString;
 
-#[cfg(feature="python27-sys")]
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::tuple::{PyTuple, NoArgs};
@@ -160,7 +159,6 @@ mod typeobject;
 mod module;
 mod string;
 mod dict;
-#[cfg(feature="python27-sys")]
 mod iterator;
 mod boolobject;
 mod tuple;

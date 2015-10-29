@@ -209,16 +209,16 @@ pub trait ObjectProtocol : PythonObject {
         })
     }
 
-/*  TODO  /// Takes an object and returns an iterator for it.
+    /// Takes an object and returns an iterator for it.
     /// This is typically a new iterator but if the argument
     /// is an iterator, this returns itself.
-    #[cfg(feature="python27-sys")]
     #[inline]
-    fn iter(&self, py: Python) -> PyResult<::objects::PyIterator<'p>> {
-        unsafe {
-            err::result_cast_from_owned_ptr(self.python(), ffi::PyObject_GetIter(self.as_ptr()))
-        }
-    }*/
+    fn iter<'p>(&self, py: Python<'p>) -> PyResult<::objects::PyIterator<'p>> {
+        let obj = try!(unsafe {
+            err::result_from_owned_ptr(py, ffi::PyObject_GetIter(self.as_ptr()))
+        });
+        Ok(try!(::objects::PyIterator::from_object(py, obj)))
+    }
 }
 
 impl ObjectProtocol for PyObject {}

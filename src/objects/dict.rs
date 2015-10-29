@@ -158,7 +158,6 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
 
 #[cfg(test)]
 mod test {
-    use std;
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
     use objects::{PyDict, PyTuple};
@@ -248,9 +247,8 @@ mod test {
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
 
-/*
     #[test]
-TODO    fn test_items_list() {
+    fn test_items_list() {
     let gil = Python::acquire_gil();
         let py = gil.python();
         let mut v = HashMap::new();
@@ -261,15 +259,14 @@ TODO    fn test_items_list() {
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
-        for el in dict.items_list(py) {
-            let tuple = el.cast_into::<PyTuple>().unwrap();
-            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
-            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
+        for el in dict.items_list(py).iter(py) {
+            let tuple = el.cast_into::<PyTuple>(py).unwrap();
+            key_sum += tuple.get_item(py, 0).extract::<i32>(py).unwrap();
+            value_sum += tuple.get_item(py, 1).extract::<i32>(py).unwrap();
         }
         assert_eq!(7 + 8 + 9, key_sum);
         assert_eq!(32 + 42 + 123, value_sum);
     }
-*/
 
     #[test]
     fn test_items() {

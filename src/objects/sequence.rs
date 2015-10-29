@@ -20,7 +20,7 @@ use std::mem;
 use ffi;
 use python::{Python, PythonObject, ToPythonPointer, PyClone};
 use conversion::ToPyObject;
-use objects::{PyObject, PyList, PyTuple};
+use objects::{PyObject, PyList, PyTuple, PyIterator};
 use ffi::Py_ssize_t;
 use err;
 use err::{PyErr, PyResult, result_from_owned_ptr, result_cast_from_owned_ptr};
@@ -199,50 +199,11 @@ impl PySequence {
             result_cast_from_owned_ptr(py, ffi::PySequence_Tuple(self.as_ptr()))
         }
     }
-    
+
     #[inline]
-    pub fn iter<'p>(&self, py: Python<'p>) -> PySequenceIterator<'p> {
-        PySequenceIterator {
-            sequence: self.clone_ref(py),
-            index: 0,
-            py: py
-        }
-    }
-    
-    #[inline]
-    pub fn into_iter<'p>(self, py: Python<'p>) -> PySequenceIterator<'p> {
-        PySequenceIterator {
-            sequence: self,
-            index: 0,
-            py: py
-        }
-    }
-}
-
-pub struct PySequenceIterator<'p> {
-    sequence : PySequence,
-    index : isize,
-    py : Python<'p>
-}
-
-impl <'p> Iterator for PySequenceIterator<'p> {
-    // TODO: reconsider error reporting; maybe this should be Item = PyResult<PyObject>?
-    type Item = PyObject;
-
-    fn next(&mut self) -> Option<PyObject> {
-        // can't report any errors in underlying size check so we panic.
-        let len = self.sequence.len(self.py).unwrap();
-        if self.index < len {
-            match self.sequence.get_item(self.py, self.index) {
-                Ok(item) => {
-                    self.index += 1;
-                    Some(item)
-                },
-                Err(_) => None
-            }
-        } else {
-            None
-        }
+    pub fn iter<'p>(&self, py: Python<'p>) -> PyResult<PyIterator<'p>> {
+        use objectprotocol::ObjectProtocol;
+        self.as_object().iter(py)
     }
 }
 
@@ -251,7 +212,7 @@ mod test {
     use std;
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
-    use objects::{PySequence, PyList, PyTuple};
+    use objects::{PySequence, PyList, PyTuple, PyIterator};
 
     #[test]
     fn test_numbers_are_not_sequences() {
@@ -373,35 +334,19 @@ mod test {
         assert_eq!(0, seq.count(py, 42i32).unwrap());
     }
 
-/*
     #[test]
-    fn test_seq_iter() { TODO
+    fn test_seq_iter() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
         let mut idx = 0;
-        for el in seq {
-            assert_eq!(v[idx], el.extract::<i32>(py).unwrap());
+        for el in seq.iter(py).unwrap() {
+            assert_eq!(v[idx], el.unwrap().extract::<i32>(py).unwrap());
             idx += 1;
         }
         assert_eq!(idx, v.len());
     }
-
-    #[test]
-    fn test_seq_into_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v : Vec<i32> = vec![1, 1, 2, 3, 5, 8];
-        let seq = v.to_py_object(py).into_object().cast_into::<PySequence>().unwrap();
-        let mut idx = 0;
-        for el in seq.into_iter() {
-            assert_eq!(v[idx], el.extract::<i32>().unwrap());
-            idx += 1;
-        }
-        assert_eq!(idx, v.len());
-    }
-*/
 
     #[test]
     fn test_seq_strings() {
@@ -426,8 +371,8 @@ mod test {
         let concat_seq = seq.concat(py, &seq).unwrap().cast_into::<PySequence>(py).unwrap();
         assert_eq!(6, concat_seq.len(py).unwrap());
         let concat_v : Vec<i32> = vec![1, 2, 3, 1, 2, 3];
-        for (el, cc) in seq.into_iter(py).zip(concat_v) {
-            assert_eq!(cc, el.extract::<i32>(py).unwrap());
+        for (el, cc) in seq.iter(py).unwrap().zip(concat_v) {
+            assert_eq!(cc, el.unwrap().extract::<i32>(py).unwrap());
         }
     }
 
@@ -454,8 +399,8 @@ mod test {
         let repeat_seq = seq.repeat(py, 3).unwrap().cast_into::<PySequence>(py).unwrap();
         assert_eq!(6, repeat_seq.len(py).unwrap());
         let repeated = vec!["foo", "bar", "foo", "bar", "foo", "bar"];
-        for (el, rpt) in seq.into_iter(py).zip(repeated.iter()) {
-            assert_eq!(*rpt, el.extract::<String>(py).unwrap());
+        for (el, rpt) in seq.iter(py).unwrap().zip(repeated.iter()) {
+            assert_eq!(*rpt, el.unwrap().extract::<String>(py).unwrap());
         }
     }
 

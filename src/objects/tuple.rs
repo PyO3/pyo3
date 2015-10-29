@@ -84,45 +84,52 @@ impl PyTuple {
                     self.len()))
         }
     }
-}
-
-// TODO impl Index for PyTuple
-
-/*
-impl IntoIterator for PyTuple { TODO
-    type Item = PyObject;
-    type IntoIter = PyTupleIterator;
 
     #[inline]
-    fn into_iter(self) -> PyTupleIterator {
-        PyTupleIterator { index: 0, end: self.len(), tuple: self }
+    pub fn iter<'a, 'p>(&'a self, py: Python<'p>) -> PyTupleIterator<'a, 'p> {
+        PyTupleIterator {
+            py: py,
+            tuple: self,
+            index: 0,
+            end: self.len()
+        }
+    }
+}
+
+impl ::std::ops::Index<usize> for PyTuple {
+    type Output = PyObject;
+
+    #[inline]
+    fn index(&self, index: usize) -> &PyObject {
+        &self.as_slice()[index]
     }
 }
 
 impl <'a> IntoIterator for &'a PyTuple {
-    type Item = PyObject<'p>;
-    type IntoIter = PyTupleIterator<'p>;
+    type Item = &'a PyObject;
+    type IntoIter = slice::Iter<'a, PyObject>;
 
     #[inline]
-    fn into_iter(self) -> PyTupleIterator<'p> {
-        PyTupleIterator { index: 0, end: self.len(), tuple: self.clone() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.as_slice().iter()
     }
 }
 
-/// Used by `impl IntoIterator for &PyTuple`.
-pub struct PyTupleIterator<'p> {
-    tuple: PyTuple<'p>,
+/// Used by `PyTuple::iter()`.
+pub struct PyTupleIterator<'a, 'p> {
+    py: Python<'p>,
+    tuple: &'a PyTuple,
     index: usize,
     end: usize
 }
 
-impl <'p> Iterator for PyTupleIterator<'p> {
-    type Item = PyObject<'p>;
+impl <'a, 'p> Iterator for PyTupleIterator<'a, 'p> {
+    type Item = PyObject;
 
     #[inline]
-    fn next(&mut self) -> Option<PyObject<'p>> {
+    fn next(&mut self) -> Option<PyObject> {
         if self.index < self.end {
-            let item = self.tuple.get_item(self.index);
+            let item = self.tuple.get_item(self.py, self.index);
             self.index += 1;
             Some(item)
         } else {
@@ -136,13 +143,12 @@ impl <'p> Iterator for PyTupleIterator<'p> {
     }
 }
 
-impl <'p> ExactSizeIterator for PyTupleIterator<'p> {
+impl <'a, 'p> ExactSizeIterator for PyTupleIterator<'a, 'p> {
     #[inline]
     fn len(&self) -> usize {
         self.end - self.index
     }
 }
-*/
 
 fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len());
@@ -231,4 +237,20 @@ extract!(obj to NoArgs; py => {
         Err(wrong_tuple_length(py, t, 0))
     }
 });
+
+
+
+#[cfg(test)]
+mod test {
+    use python::{Python, PythonObject};
+    use conversion::ToPyObject;
+
+    #[test]
+    fn test_len() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let tuple = (1, 2, 3).to_py_object(py);
+        assert_eq!(3, tuple.len());
+    }
+}
 

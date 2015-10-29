@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer};
+use python::{Python, PythonObject, ToPythonPointer, PyClone};
 use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use ffi::{self, Py_ssize_t};
@@ -75,42 +75,27 @@ impl PyList {
         let r = unsafe { ffi::PyList_Insert(self.0.as_ptr(), index as Py_ssize_t, item.as_ptr()) };
         assert!(r == 0);
     }
-}
-
-/*
-impl <'p> IntoIterator for PyList {
-    type Item = PyObject;
-    type IntoIter = PyListIterator<'p>;
 
     #[inline]
-    fn into_iter(self) -> PyListIterator<'p> {
-        PyListIterator { list: self, index: 0 }
+    pub fn iter<'a, 'p>(&'a self, py: Python<'p>) -> PyListIterator<'a, 'p> {
+        PyListIterator { py: py, list: self, index: 0 }
     }
 }
 
-impl <'a, 'p> IntoIterator for &'a PyList {
-    type Item = PyObject;
-    type IntoIter = PyListIterator<'p>;
-
-    #[inline]
-    fn into_iter(self) -> PyListIterator<'p> {
-        PyListIterator { list: self.clone(), index: 0 }
-    }
-}
-
-/// Used by `impl IntoIterator for &PyList`.
-TODO pub struct PyListIterator<'p> {
-    list: PyList,
+/// Used by `PyList::iter()`.
+pub struct PyListIterator<'a, 'p> {
+    py: Python<'p>,
+    list: &'a PyList,
     index: usize
 }
 
-impl <'p> Iterator for PyListIterator<'p> {
+impl <'a, 'p> Iterator for PyListIterator<'a, 'p> {
     type Item = PyObject;
 
     #[inline]
     fn next(&mut self) -> Option<PyObject> {
-        if self.index < self.list.len() {
-            let item = self.list.get_item(self.index);
+        if self.index < self.list.len(self.py) {
+            let item = self.list.get_item(self.py, self.index);
             self.index += 1;
             Some(item)
         } else {
@@ -121,7 +106,6 @@ impl <'p> Iterator for PyListIterator<'p> {
     // Note: we cannot implement size_hint because the length of the list
     // might change during the iteration.
 }
-*/
 
 impl <T> ToPyObject for [T] where T: ToPyObject {
     type ObjectType = PyList;
@@ -165,7 +149,6 @@ impl <'prepared, T> ExtractPyObject<'prepared> for Vec<T>
 
 #[cfg(test)]
 mod test {
-    use std;
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
     use objects::PyList;
@@ -218,35 +201,19 @@ mod test {
         assert_eq!(2, list.get_item(py, 1).extract::<i32>(py).unwrap());
     }
 
-/*
     #[test]
-    fn test_iter() { TODO
+    fn test_iter() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = v.to_py_object(py);
         let mut idx = 0;
-        for el in list {
+        for el in list.iter(py) {
             assert_eq!(v[idx], el.extract::<i32>(py).unwrap());
             idx += 1;
         }
         assert_eq!(idx, v.len());
     }
-
-    #[test]
-    fn test_into_iter() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = v.to_py_object(py);
-        let mut idx = 0;
-        for el in list.into_iter() {
-            assert_eq!(v[idx], el.extract::<i32>().unwrap());
-            idx += 1;
-        }
-        assert_eq!(idx, v.len());
-    }
-    */
 
     #[test]
     fn test_extract() {

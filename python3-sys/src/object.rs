@@ -570,6 +570,10 @@ extern "C" {
                                arg2: *mut Struct__Py_Identifier)
      -> c_int;*/
     pub fn PyObject_SelfIter(arg1: *mut PyObject) -> *mut PyObject;
+
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject;
+
     pub fn PyObject_GenericGetAttr(arg1: *mut PyObject, arg2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyObject_GenericSetAttr(arg1: *mut PyObject, arg2: *mut PyObject,

@@ -48,5 +48,26 @@ extract!(obj to bool; py => {
     Ok(try!(obj.cast_as::<PyBool>(py)).is_true())
 });
 
-// TODO: mod tests
+#[cfg(test)]
+mod test {
+    use python::{Python, PythonObject};
+    use conversion::ToPyObject;
 
+    #[test]
+    fn test_true() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        assert!(py.True().is_true());
+        assert_eq!(true, py.True().as_object().extract(py).unwrap());
+        assert!(true.to_py_object(py).as_object() == py.True().as_object());
+    }
+
+    #[test]
+    fn test_false() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        assert!(!py.False().is_true());
+        assert_eq!(false, py.False().as_object().extract(py).unwrap());
+        assert!(false.to_py_object(py).as_object() == py.False().as_object());
+    }
+}

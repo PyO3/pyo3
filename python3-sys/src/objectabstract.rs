@@ -42,6 +42,10 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
 }
 
 extern "C" {
+    #[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+    pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t)
+     -> Py_ssize_t;
+
     pub fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject)
      -> *mut PyObject;
     pub fn PyObject_SetItem(o: *mut PyObject, key: *mut PyObject,
@@ -64,16 +68,57 @@ extern "C" {
                                   buffer: *mut *mut c_void,
                                   buffer_len: *mut Py_ssize_t)
      -> c_int;
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[inline]
+pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
+    let tp_as_buffer = (*(*o).ob_type).tp_as_buffer;
+    (!tp_as_buffer.is_null() && (*tp_as_buffer).bf_getbuffer.is_some()) as c_int
+}
+
+#[cfg(not(Py_LIMITED_API))]
+extern "C" {
+    pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer,
+                              flags: c_int) -> c_int;
+    pub fn PyBuffer_GetPointer(view: *mut Py_buffer, indices: *mut Py_ssize_t)
+     -> *mut c_void;
+    pub fn PyBuffer_ToContiguous(buf: *mut c_void,
+                                 view: *mut Py_buffer, len: Py_ssize_t,
+                                 order: c_char) -> c_int;
+    pub fn PyBuffer_FromContiguous(view: *mut Py_buffer,
+                                   buf: *mut c_void, len: Py_ssize_t,
+                                   order: c_char) -> c_int;
+    pub fn PyObject_CopyData(dest: *mut PyObject, src: *mut PyObject)
+     -> c_int;
+    pub fn PyBuffer_IsContiguous(view: *const Py_buffer, fort: c_char)
+     -> c_int;
+    pub fn PyBuffer_FillContiguousStrides(ndims: c_int,
+                                          shape: *mut Py_ssize_t,
+                                          strides: *mut Py_ssize_t,
+                                          itemsize: c_int,
+                                          fort: c_char) -> ();
+    pub fn PyBuffer_FillInfo(view: *mut Py_buffer, o: *mut PyObject,
+                             buf: *mut c_void, len: Py_ssize_t,
+                             readonly: c_int, flags: c_int)
+     -> c_int;
+    pub fn PyBuffer_Release(view: *mut Py_buffer) -> ();
+}
+
+extern "C" {
     pub fn PyObject_Format(obj: *mut PyObject, format_spec: *mut PyObject)
      -> *mut PyObject;
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
-/* not available in limited ABI
-#define PyIter_Check(obj) \
-    ((obj)->ob_type->tp_iternext != NULL && \
-     (obj)->ob_type->tp_iternext != &_PyObject_NextNotImplemented)
-*/
+#[cfg(not(Py_LIMITED_API))]
+#[inline]
+pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
+    (match (*(*o).ob_type).tp_iternext {
+        Some(tp_iternext) => tp_iternext as *const c_void != ::object::_PyObject_NextNotImplemented as *const c_void,
+        None => false
+    }) as c_int
+}
 
 extern "C" {
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
@@ -84,6 +129,9 @@ extern "C" {
     pub fn PyNumber_Subtract(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_Multiply(o1: *mut PyObject, o2: *mut PyObject)
+     -> *mut PyObject;
+    #[cfg(Py_3_5)]
+    pub fn PyNumber_MatrixMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_FloorDivide(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
@@ -110,11 +158,12 @@ extern "C" {
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
 }
 
-/*
-#define PyIndex_Check(obj) \
-   ((obj)->ob_type->tp_as_number != NULL && \
-    (obj)->ob_type->tp_as_number->nb_index != NULL)
-*/
+#[cfg(not(Py_LIMITED_API))]
+#[inline]
+pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
+    let tp_as_number = (*(*o).ob_type).tp_as_number;
+    (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
+}
 
 extern "C" {
     pub fn PyNumber_Index(o: *mut PyObject) -> *mut PyObject;
@@ -127,6 +176,9 @@ extern "C" {
     pub fn PyNumber_InPlaceSubtract(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_InPlaceMultiply(o1: *mut PyObject, o2: *mut PyObject)
+     -> *mut PyObject;
+    #[cfg(Py_3_5)]
+    pub fn PyNumber_InPlaceMatrixMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_InPlaceFloorDivide(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
@@ -180,6 +232,7 @@ extern "C" {
     pub fn PySequence_List(o: *mut PyObject) -> *mut PyObject;
     pub fn PySequence_Fast(o: *mut PyObject, m: *const c_char)
      -> *mut PyObject;
+    // TODO: PySequence_Fast macros
     pub fn PySequence_Count(o: *mut PyObject, value: *mut PyObject)
      -> Py_ssize_t;
     pub fn PySequence_Contains(seq: *mut PyObject, ob: *mut PyObject)

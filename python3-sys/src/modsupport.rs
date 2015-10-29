@@ -2,6 +2,7 @@ use libc::{c_char, c_int, c_long};
 use pyport::Py_ssize_t;
 use object::PyObject;
 use moduleobject::PyModuleDef;
+#[cfg(Py_3_5)]
 use methodobject::PyMethodDef;
 
 extern "C" {
