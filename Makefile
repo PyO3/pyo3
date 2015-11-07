@@ -11,7 +11,7 @@ ifeq ($(PY),3)
 FEATURES := python3-sys
 ifdef PEP384
 export PEP384=1
-FEATURES := $(FEATURES),pep-384
+FEATURES := $(FEATURES) pep-384
 endif
 endif
 

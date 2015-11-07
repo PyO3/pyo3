@@ -52,8 +52,7 @@ impl PyTuple {
 
     /// Gets the length of the tuple.
     #[inline]
-    pub fn len(&self) -> usize {
-        // Safe despite not taking a `Python` token, because tuples are immutable.
+    pub fn len(&self, _py: Python) -> usize {
         unsafe {
             // non-negative Py_ssize_t should always fit into Rust uint
             ffi::PyTuple_GET_SIZE(self.0.as_ptr()) as usize
@@ -66,7 +65,7 @@ impl PyTuple {
     pub fn get_item(&self, py: Python, index: usize) -> PyObject {
         // TODO: reconsider whether we should panic
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
-        assert!(index < self.len());
+        assert!(index < self.len(py));
         unsafe {
             PyObject::from_borrowed_ptr(py, ffi::PyTuple_GET_ITEM(self.0.as_ptr(), index as Py_ssize_t))
         }
@@ -76,12 +75,14 @@ impl PyTuple {
     pub fn as_slice<'a>(&'a self) -> &'a [PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
+        // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.0.as_ptr() as *mut ffi::PyTupleObject;
             PyObject::borrow_from_owned_ptr_slice(
                 slice::from_raw_parts(
                     (*ptr).ob_item.as_ptr(),
-                    self.len()))
+                    ffi::PyTuple_GET_SIZE(self.0.as_ptr()) as usize
+                ))
         }
     }
 
@@ -91,7 +92,7 @@ impl PyTuple {
             py: py,
             tuple: self,
             index: 0,
-            end: self.len()
+            end: self.len(py)
         }
     }
 }
@@ -151,7 +152,7 @@ impl <'a, 'p> ExactSizeIterator for PyTupleIterator<'a, 'p> {
 }
 
 fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr {
-    let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len());
+    let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len(py));
     PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py).into_object()))
 }
 
@@ -231,7 +232,7 @@ impl ToPyObject for NoArgs {
 /// Otherwise, returns an error.
 extract!(obj to NoArgs; py => {
     let t = try!(obj.cast_as::<PyTuple>(py));
-    if t.len() == 0 {
+    if t.len(py) == 0 {
         Ok(NoArgs)
     } else {
         Err(wrong_tuple_length(py, t, 0))
@@ -250,7 +251,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let tuple = (1, 2, 3).to_py_object(py);
-        assert_eq!(3, tuple.len());
+        assert_eq!(3, tuple.len(py));
     }
 }
 

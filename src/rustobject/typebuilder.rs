@@ -172,7 +172,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
         where T2: 'static + Send, B2: PythonBaseObject
     {
         // Ensure we can't change the base after any callbacks are registered.
-        assert!(self.can_change_base && self.members.len() == 0,
+        assert!(self.can_change_base && self.members.is_empty(),
             "base() must be called before any members are added to the type");
         let base_type_obj: &PyType = base_type;
         PyRustTypeBuilder {

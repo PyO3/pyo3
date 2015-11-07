@@ -50,7 +50,7 @@ pub fn parse_args(
 ) -> PyResult<()>
 {
     assert!(params.len() == output.len());
-    let nargs = args.len();
+    let nargs = args.len(py);
     let nkeywords = kwargs.map_or(0, |d| d.len(py));
     if nargs + nkeywords > params.len() {
         return Err(err::PyErr::new::<exc::TypeError, _>(py,

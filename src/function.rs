@@ -142,4 +142,5 @@ impl ToPyObject for PyFn {
     }
 }
 
+// Tests for this file are in tests/test_function.rs
 
