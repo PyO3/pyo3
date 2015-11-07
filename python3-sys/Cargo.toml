@@ -20,7 +20,7 @@ exclude = [
 ]
 
 [dependencies]
-libc = "0.1"
+libc = "0.2"
 
 [build-dependencies]
 regex = "0.1.8"

@@ -22,11 +22,11 @@ Supported Rust version:
 
 # Usage
 
-[`cpython` is available on crates.io](https://crates.io/crates/cpython) so you can use it like this (in your `Cargo.toml`):
+To use `cpython`, add this to your `Cargo.toml`:
 
 ```toml
-[dependencies.cpython]
-version = "*"
+[dependencies]
+cpython = { git = "https://github.com/dgrunwald/cpython.git" }
 ```
 
 Example program displaying the value of `sys.version`:
