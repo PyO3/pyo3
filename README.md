@@ -26,7 +26,7 @@ To use `cpython`, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cpython = { git = "https://github.com/dgrunwald/cpython.git" }
+cpython = { git = "https://github.com/dgrunwald/rust-cpython.git" }
 ```
 
 Example program displaying the value of `sys.version`:
