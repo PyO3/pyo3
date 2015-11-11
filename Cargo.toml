@@ -34,9 +34,11 @@ abort_on_panic = "1.0"
 # indicate which python ffi you are trying to bind to.
 [dependencies.python27-sys]
 optional = true
+path = "python27-sys"
 
 [dependencies.python3-sys]
 optional = true
+path = "python3-sys"
 
 [features]
 default = ["python3-sys"]
