@@ -11,7 +11,7 @@ environment:
 #    PYTHONPATH: C:\Python34-x64
 #    FEATURES: python3-sys
 install:
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-nightly-%TARGET%.msi"
+  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-nightly-${env:TARGET}.msi"
   - start /wait msiexec /i rust-nightly-%TARGET%.msi INSTALLDIR="%CD%\rust-nightly-%TARGET%" /quiet /qn /norestart
   - call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64
   - set PATH=%PATH%;%CD%/rust-nightly-%TARGET%/bin
