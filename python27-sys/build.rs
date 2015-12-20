@@ -1,4 +1,3 @@
-extern crate pkg_config;
 extern crate regex;
 
 use std::process::Command;
