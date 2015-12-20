@@ -322,7 +322,8 @@ extract!(obj to Cow<'prepared, str>; py => {
     PyString::extract(py, obj)
 });
 
-enum PreparedString {
+/// Used in `impl ExtractPyObject for &str`.
+pub enum PreparedString {
     Extracted(String),
     BorrowFrom(PyObject)
 }
