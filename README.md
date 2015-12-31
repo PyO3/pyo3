@@ -34,7 +34,7 @@ Example program displaying the value of `sys.version`:
 ```rust
 extern crate cpython;
 
-use cpython::{PythonObject, Python};
+use cpython::Python;
 use cpython::ObjectProtocol; //for call method
 
 fn main() {
@@ -42,11 +42,11 @@ fn main() {
     let py = gil.python();
 
     let sys = py.import("sys").unwrap();
-    let version: String = sys.get("version", py).unwrap().extract(py).unwrap();
+    let version: String = sys.get(py, "version").unwrap().extract(py).unwrap();
 
     let os = py.import("os").unwrap();
-    let getenv = os.get("getenv", py).unwrap();
-    let user: String = getenv.call(("USER",), None, py).unwrap().extract(py).unwrap();
+    let getenv = os.get(py, "getenv").unwrap();
+    let user: String = getenv.call(py, ("USER",), None).unwrap().extract(py).unwrap();
 
     println!("Hello {}, I'm Python {}", user, version);
 }
