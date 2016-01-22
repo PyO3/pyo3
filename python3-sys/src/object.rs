@@ -1,4 +1,4 @@
-use std::ptr;
+use core::ptr;
 use libc::{c_void, c_int, c_uint, c_ulong, c_char};
 use pyport::{Py_ssize_t, Py_hash_t};
 
@@ -110,7 +110,7 @@ mod bufferinfo {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for Py_buffer {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
 
     pub type getbufferproc =
@@ -285,7 +285,7 @@ mod typeobject {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for PyNumberMethods {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
     #[repr(C)]
     #[derive(Copy)]
@@ -305,7 +305,7 @@ mod typeobject {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for PySequenceMethods {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
     #[repr(C)]
     #[derive(Copy)]
@@ -318,7 +318,7 @@ mod typeobject {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for PyMappingMethods {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
     #[repr(C)]
     #[derive(Copy)]
@@ -334,7 +334,7 @@ mod typeobject {
     }
     #[cfg(Py_3_5)]
     impl Default for PyAsyncMethods {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
     #[repr(C)]
     #[derive(Copy)]
@@ -346,7 +346,7 @@ mod typeobject {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for PyBufferProcs {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
 
     #[repr(C)]
@@ -419,7 +419,7 @@ mod typeobject {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for PyTypeObject {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
 
     #[repr(C)]
@@ -441,7 +441,7 @@ mod typeobject {
         #[inline] fn clone(&self) -> Self { *self }
     }
     impl Default for PyHeapTypeObject {
-        #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
 
     #[inline]
@@ -463,8 +463,8 @@ pub struct PyType_Slot {
 impl Clone for PyType_Slot {
     fn clone(&self) -> PyType_Slot { *self }
 }
-impl ::std::default::Default for PyType_Slot {
-    fn default() -> PyType_Slot { unsafe { ::std::mem::zeroed() } }
+impl Default for PyType_Slot {
+    fn default() -> PyType_Slot { unsafe { ::core::mem::zeroed() } }
 }
 
 #[repr(C)]
@@ -479,8 +479,8 @@ pub struct PyType_Spec {
 impl Clone for PyType_Spec {
     fn clone(&self) -> PyType_Spec { *self }
 }
-impl ::std::default::Default for PyType_Spec {
-    fn default() -> PyType_Spec { unsafe { ::std::mem::zeroed() } }
+impl Default for PyType_Spec {
+    fn default() -> PyType_Spec { unsafe { ::core::mem::zeroed() } }
 }
 
 extern "C" {

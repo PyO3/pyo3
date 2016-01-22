@@ -1,4 +1,4 @@
-use std::ptr;
+use core::ptr;
 use libc::{c_void, c_int, c_uint, c_long, c_char, c_double, FILE};
 use pyport::Py_ssize_t;
 use methodobject::PyMethodDef;

@@ -1,5 +1,5 @@
 use libc::{c_char, c_int, c_long};
-use std::ptr;
+use core::ptr;
 use pyport::Py_ssize_t;
 use object::PyObject;
 use methodobject::PyMethodDef;

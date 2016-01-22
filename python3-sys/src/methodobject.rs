@@ -1,4 +1,5 @@
 use libc::{c_char, c_int};
+use core::{mem, ptr};
 use object::{PyObject, PyTypeObject, Py_TYPE};
 
 extern "C" {
@@ -42,13 +43,13 @@ pub struct PyMethodDef {
 impl Clone for PyMethodDef {
     #[inline] fn clone(&self) -> PyMethodDef { *self }
 }
-impl ::std::default::Default for PyMethodDef {
-    fn default() -> PyMethodDef { unsafe { ::std::mem::zeroed() } }
+impl Default for PyMethodDef {
+    fn default() -> PyMethodDef { unsafe { mem::zeroed() } }
 }
 
 #[inline(always)]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
-    PyCFunction_NewEx(ml, slf, ::std::ptr::null_mut())
+    PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }
 
 extern "C" {

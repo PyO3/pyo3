@@ -29,7 +29,7 @@ impl Clone for PyCodeObject {
     #[inline] fn clone(&self) -> Self { *self }
 }
 impl Default for PyCodeObject {
-    #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
 }
 
 /* Masks for co_flags */

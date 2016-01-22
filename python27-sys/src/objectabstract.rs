@@ -1,6 +1,6 @@
 use libc::{c_void, c_char, c_int};
 use pyport::Py_ssize_t;
-use std::ptr;
+use core::ptr;
 use object::*;
 
 #[inline]

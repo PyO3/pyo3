@@ -15,7 +15,7 @@ impl Clone for PyHash_FuncDef {
     #[inline] fn clone(&self) -> Self { *self }
 }
 impl Default for PyHash_FuncDef {
-    #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
+    #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
 }
 
 extern "C" {

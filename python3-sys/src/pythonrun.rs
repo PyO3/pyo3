@@ -1,5 +1,5 @@
 use libc::{c_char, c_int, wchar_t, FILE};
-use std::ptr;
+use core::ptr;
 use object::*;
 use pystate::PyThreadState;
 #[cfg(not(Py_LIMITED_API))]
@@ -177,7 +177,7 @@ extern "C" {
                          arg3: *mut PyObject) -> ();
 
     // TODO: these moved to pylifecycle.h
-    pub fn Py_AtExit(func: ::std::option::Option<extern "C" fn() -> ()>)
+    pub fn Py_AtExit(func: Option<extern "C" fn() -> ()>)
      -> c_int;
     pub fn Py_Exit(arg1: c_int) -> ();
     pub fn Py_Main(argc: c_int, argv: *mut *mut wchar_t)

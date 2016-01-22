@@ -11,7 +11,7 @@ extern "C" {
 
 #[inline]
 pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut PyObject {
-    PyEval_CallObjectWithKeywords(func, arg, ::std::ptr::null_mut())
+    PyEval_CallObjectWithKeywords(func, arg, ::core::ptr::null_mut())
 }
 
 extern "C" {
@@ -26,10 +26,7 @@ extern "C" {
     pub fn PyEval_GetGlobals() -> *mut PyObject;
     pub fn PyEval_GetLocals() -> *mut PyObject;
     pub fn PyEval_GetFrame() -> *mut ::PyFrameObject;
-    pub fn Py_AddPendingCall(func:
-                                 ::std::option::Option<extern "C" fn(arg1:
-                                                                         *mut c_void)
-                                                           -> c_int>,
+    pub fn Py_AddPendingCall(func: Option<extern "C" fn(arg1: *mut c_void) -> c_int>,
                              arg: *mut c_void) -> c_int;
     pub fn Py_MakePendingCalls() -> c_int;
     pub fn Py_SetRecursionLimit(arg1: c_int) -> ();

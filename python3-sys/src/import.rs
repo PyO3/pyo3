@@ -62,10 +62,7 @@ extern "C" {
      -> c_int;
 
     pub fn PyImport_AppendInittab(name: *const c_char,
-                                  initfunc:
-                                      ::std::option::Option<extern "C" fn()
-                                                                ->
-                                                                    *mut PyObject>)
+                                  initfunc: Option<extern "C" fn() -> *mut PyObject>)
      -> c_int;
 }
 

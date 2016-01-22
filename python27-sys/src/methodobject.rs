@@ -1,4 +1,5 @@
 use libc::{c_char, c_int};
+use core::ptr;
 //use pyport::Py_ssize_t;
 use object::{PyObject, PyTypeObject, Py_TYPE};
 
@@ -103,6 +104,6 @@ extern "C" {
 
 #[inline(always)]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
-    PyCFunction_NewEx(ml, slf, ::std::ptr::null_mut())
+    PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }
 

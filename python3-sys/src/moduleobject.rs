@@ -37,7 +37,7 @@ pub struct PyModuleDef_Base {
     pub m_index: Py_ssize_t,
     pub m_copy: *mut PyObject,
 }
-impl ::std::clone::Clone for PyModuleDef_Base {
+impl Clone for PyModuleDef_Base {
     fn clone(&self) -> PyModuleDef_Base { *self }
 }
 
@@ -61,7 +61,7 @@ pub struct PyModuleDef {
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
 }
-impl ::std::clone::Clone for PyModuleDef {
+impl Clone for PyModuleDef {
     fn clone(&self) -> PyModuleDef { *self }
 }
 
