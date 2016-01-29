@@ -33,7 +33,7 @@
 //! The method `clone_ref()` (from trait `PyClone`) can be used to create additional
 //! references to the same Python object.
 //!
-//! Because all Python objects potentially have multiple owners, the concept
+//! Because all Python objects potentially have multiple owners, the
 //! concept of Rust mutability does not apply to Python objects.
 //! As a result, this API will allow mutating Python objects even if they are not stored
 //! in a mutable Rust variable.
@@ -291,4 +291,3 @@ pub unsafe fn py_module_initializer_impl(
         }
     })
 }
-
