@@ -17,11 +17,13 @@
 // DEALINGS IN THE SOFTWARE.
 
 #![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
-#![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag
-#![feature(optin_builtin_traits)] // for opting out of Sync/Send
-#![feature(slice_patterns)] // for tuple_conversion macros
-#![feature(plugin)]
-#![plugin(interpolate_idents)]
+#![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag (#5016)
+#![feature(optin_builtin_traits)] // for opting out of Sync/Send (#13231)
+#![feature(stmt_expr_attributes)] // easier python 2.x/3.x distinction (#15701)
+
+#![feature(plugin)]            // necessary because `fn concat_idents!(...)()` is 
+#![plugin(interpolate_idents)] // not supported by the current macro system.
+
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 
 //! Rust bindings to the Python interpreter.
