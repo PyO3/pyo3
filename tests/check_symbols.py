@@ -5,7 +5,8 @@ import json
 import os
 import sys
 
-os.chdir(os.path.dirname(__file__))
+if os.path.dirname(__file__):
+    os.chdir(os.path.dirname(__file__))
 
 so_files = [
     sysconfig.get_config_var("LIBDIR")+"/"+sysconfig.get_config_var("LDLIBRARY"),
@@ -55,24 +56,26 @@ for name in interesting_config_values:
 json_output = subprocess.check_output(['rustc', '-Z', 'ast-json', '../{}/src/lib.rs'.format(sys_lib)] + cfgs)
 doc = json.loads(json_output.decode('utf-8'))
 foreign_symbols = set()
-def visit(node):
+def visit(node, foreign):
     if isinstance(node, dict):
         node_node = node.get('node', None)
-        if isinstance(node_node, dict) and node_node.get('variant') in ('ForeignItemStatic', 'ForeignItemFn'):
+        if isinstance(node_node, dict) and node_node.get('variant') in ('Static', 'Fn') and foreign:
             foreign_symbols.add(node['ident'])
+        if isinstance(node_node, dict) and node_node.get('variant') == 'ForeignMod':
+            foreign = True
         for v in node.values():
-            visit(v)
+            visit(v, foreign)
     elif isinstance(node, list):
         for v in node:
-            visit(v)
+            visit(v, foreign)
     elif isinstance(node, (int, type(u''), bool, type(None))):
         pass
     else:
         raise Exception('Unsupported node type {}'.format(type(node)))
-visit(doc)
+visit(doc, foreign=False)
 
-assert 'PyList_Type' in foreign_symbols
-assert 'PyList_New' in foreign_symbols
+assert 'PyList_Type' in foreign_symbols, "Failed getting statics from rustc -Z ast-json"
+assert 'PyList_New' in foreign_symbols, "Failed getting functions from rustc -Z ast-json"
 
 names = sorted(foreign_symbols - so_symbols)
 if names:
