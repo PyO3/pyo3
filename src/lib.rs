@@ -129,8 +129,12 @@ mod rustobject;
 /// Private re-exports for macros. Do not use.
 #[doc(hidden)]
 pub mod _detail {
-    pub use ffi;
-    pub use libc;
+    pub mod ffi {
+        pub use ::ffi::*;
+    }
+    pub mod libc {
+        pub use ::libc::c_char;
+    }
     pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
     pub use function::py_fn_impl;
