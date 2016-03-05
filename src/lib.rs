@@ -21,6 +21,7 @@
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send (#13231)
 #![feature(stmt_expr_attributes)] // easier python 2.x/3.x distinction (#15701)
 #![feature(const_fn)] // for GILProtected::new (#24111)
+#![feature(shared)] // for std::ptr::Shared (#27730)
 
 #![feature(plugin)]            // necessary because `fn concat_idents!(...)()` is 
 #![plugin(interpolate_idents)] // not supported by the current macro system.

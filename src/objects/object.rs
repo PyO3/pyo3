@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::mem;
+use std::{mem, ptr};
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PythonObjectDowncastError};
 use objects::PyType;
@@ -47,7 +47,7 @@ use err::PyResult;
 pub struct PyObject {
     // PyObject owns one reference to the *PyObject
     // ptr is not null
-    ptr: *mut ffi::PyObject
+    ptr: ptr::Shared<ffi::PyObject>
 }
 
 // PyObject is thread-safe, because all operations on it require a Python<'p> token.
@@ -59,9 +59,9 @@ impl Drop for PyObject {
     #[inline]
     fn drop(&mut self) {
         // TODO: remove `if` when #[unsafe_no_drop_flag] disappears
-        if self.ptr as usize != mem::POST_DROP_USIZE {
+        if *self.ptr as usize != mem::POST_DROP_USIZE {
             let _gil_guard = Python::acquire_gil();
-            unsafe { ffi::Py_DECREF(self.ptr); }
+            unsafe { ffi::Py_DECREF(*self.ptr); }
         }
     }
 }
@@ -116,7 +116,7 @@ impl PyObject {
     #[inline]
     pub unsafe fn from_owned_ptr(_py : Python, ptr : *mut ffi::PyObject) -> PyObject {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
-        PyObject { ptr: ptr }
+        PyObject { ptr: ptr::Shared::new(ptr) }
     }
 
     /// Creates a PyObject instance for the given FFI pointer.
@@ -126,7 +126,7 @@ impl PyObject {
     pub unsafe fn from_borrowed_ptr(_py : Python, ptr : *mut ffi::PyObject) -> PyObject {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
-        PyObject { ptr: ptr }
+        PyObject { ptr: ptr::Shared::new(ptr) }
     }
 
     /// Creates a PyObject instance for the given FFI pointer.
@@ -155,7 +155,7 @@ impl PyObject {
     /// Returns a borrowed pointer.
     #[inline]
     pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.ptr
+        *self.ptr
     }
 
     /// Gets the underlying FFI pointer.
@@ -163,7 +163,7 @@ impl PyObject {
     #[inline]
     #[must_use]
     pub fn steal_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.ptr;
+        let ptr = self.as_ptr();
         mem::forget(self);
         ptr
     }
@@ -186,14 +186,14 @@ impl PyObject {
     /// Gets the reference count of this Python object.
     #[inline]
     pub fn get_refcnt(&self, _py: Python) -> usize {
-        unsafe { ffi::Py_REFCNT(self.ptr) as usize }
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) as usize }
     }
 
     /// Gets the Python type object for this object's type.
     #[inline]
     pub fn get_type(&self) -> &PyType {
         unsafe {
-            let t : &*mut ffi::PyTypeObject = &(*self.ptr).ob_type;
+            let t : &*mut ffi::PyTypeObject = &(*self.as_ptr()).ob_type;
             let t : &*mut ffi::PyObject = mem::transmute(t);
             PyObject::borrow_from_owned_ptr(t).unchecked_cast_as()
         }
@@ -255,7 +255,7 @@ impl PyObject {
 impl PartialEq for PyObject {
     #[inline]
     fn eq(&self, o : &PyObject) -> bool {
-        self.ptr == o.ptr
+        self.as_ptr() == o.as_ptr()
     }
 }
 
