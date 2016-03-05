@@ -16,11 +16,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::sync::{Once, ONCE_INIT};
+use std::{sync, rc, marker};
 use ffi;
 use python::Python;
 
-static START: Once = ONCE_INIT;
+static START: sync::Once = sync::ONCE_INIT;
 
 /// Prepares the use of Python in a free-threaded context.
 ///
@@ -87,16 +87,11 @@ pub fn prepare_freethreaded_python() {
 /// ```
 #[must_use]
 pub struct GILGuard {
-    gstate: ffi::PyGILState_STATE
+    gstate: ffi::PyGILState_STATE,
+    // hack to opt out of Send on stable rust, which doesn't
+    // have negative impls
+    no_send: marker::PhantomData<rc::Rc<()>>
 }
-
-/// GILGuard is not Send because the GIL must be released
-/// by the same thread that acquired it.
-impl !Send for GILGuard {}
-
-/// GILGuard is not Sync because only the thread that
-/// acquired the GIL may access the Python interpreter.
-impl !Sync for GILGuard {}
 
 /// The Drop implementation for GILGuard will release the GIL.
 impl Drop for GILGuard {
@@ -113,7 +108,7 @@ impl GILGuard {
     pub fn acquire() -> GILGuard {
         ::pythonrun::prepare_freethreaded_python();
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-        GILGuard { gstate: gstate }
+        GILGuard { gstate: gstate, no_send: marker::PhantomData }
     }
 
     /// Retrieves the marker type that proves that the GIL was acquired.
