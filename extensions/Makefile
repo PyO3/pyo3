@@ -3,11 +3,18 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 
 .PHONY: all clean
 
+SHELL=/bin/bash -o pipefail
+
 ifndef PY
 PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
 endif
-
-SHELL=/bin/bash -o pipefail
+ifndef NIGHTLY
+ifeq ($(word 3, $(subst -, ,$(shell rustc --version 2>&1))),nightly)
+NIGHTLY := 1
+else
+NIGHTLY := 0
+endif
+endif
 
 all:
 
@@ -35,13 +42,14 @@ stamps/test-hello: hello.out
 	@grep "Rust says: Hello Python!" hello.out >/dev/null
 	@grep "Rust got 42" hello.out >/dev/null
 
+ifeq ($(NIGHTLY),1)
 custom_type.out: custom_type.so
 	python$(PY) -c "import custom_type; custom_type.MyType(42).a()" 2>&1 | tee $@
 
 all: stamps/test-custom_type
 stamps/test-custom_type: custom_type.out
 	@grep "a() was called with self=42" custom_type.out >/dev/null
-
+endif
 
 all: inheritance.so
 

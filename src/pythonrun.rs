@@ -153,7 +153,15 @@ unsafe impl<T: Send> Sync for GILProtected<T> { }
 impl <T> GILProtected<T> {
     /// Creates a new instance of `GILProtected`.
     #[inline]
+    #[cfg(feature="nightly")]
     pub const fn new(data: T) -> GILProtected<T> {
+        GILProtected { data: data }
+    }
+
+    /// Creates a new instance of `GILProtected`.
+    #[inline]
+    #[cfg(not(feature="nightly"))]
+    pub fn new(data: T) -> GILProtected<T> {
         GILProtected { data: data }
     }
 

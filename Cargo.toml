@@ -44,6 +44,9 @@ version = "0.1.2"
 [features]
 default = ["python3-sys"]
 
+# Enable additional features that require nightly rust
+nightly = []
+
 # Optional features to support explicitly specifying python minor version.
 # If you don't care which minor version, just specify python3-sys as a 
 # feature.

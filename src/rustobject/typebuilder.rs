@@ -97,40 +97,51 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
     /// py: proof that the GIL is held by the current thread.
     /// name: name of the new type
     pub fn new(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T> {
-        #[cfg(feature="python27-sys")] unsafe {
-            let obj = (ffi::PyType_Type.tp_alloc.unwrap())(&mut ffi::PyType_Type, 0);
-            if obj.is_null() {
-                panic!("Out of memory")
+        #[cfg(feature="python27-sys")]
+        fn new_impl<'p, T>(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T>
+            where T: 'static + Send
+        {
+            unsafe {
+                let obj = (ffi::PyType_Type.tp_alloc.unwrap())(&mut ffi::PyType_Type, 0);
+                if obj.is_null() {
+                    panic!("Out of memory")
+                }
+                debug_assert!(ffi::Py_REFCNT(obj) == 1);
+                let ht = obj as *mut ffi::PyHeapTypeObject;
+                // flags must be set first, before the GC traverses the object
+                (*ht).ht_type.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HEAPTYPE;
+                (*ht).ht_name = PyString::new(py, name.as_bytes()).steal_ptr(py);
+                (*ht).ht_type.tp_name = ffi::PyString_AS_STRING((*ht).ht_name);
+                (*ht).ht_type.tp_new = Some(disabled_tp_new_callback);
+                return PyRustTypeBuilder {
+                    type_obj: PyType::unchecked_downcast_from(PyObject::from_owned_ptr(py, obj)),
+                    doc_str: None,
+                    target_module: None,
+                    ht: ht,
+                    can_change_base: true,
+                    py: py,
+                    phantom: marker::PhantomData
+                }
             }
-            debug_assert!(ffi::Py_REFCNT(obj) == 1);
-            let ht = obj as *mut ffi::PyHeapTypeObject;
-            // flags must be set first, before the GC traverses the object
-            (*ht).ht_type.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HEAPTYPE;
-            (*ht).ht_name = PyString::new(py, name.as_bytes()).steal_ptr(py);
-            (*ht).ht_type.tp_name = ffi::PyString_AS_STRING((*ht).ht_name);
-            (*ht).ht_type.tp_new = Some(disabled_tp_new_callback);
-            return PyRustTypeBuilder {
-                type_obj: PyType::unchecked_downcast_from(PyObject::from_owned_ptr(py, obj)),
-                doc_str: None,
+        }
+        #[cfg(feature="python3-sys")]
+        fn new_impl<'p, T>(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T>
+            where T: 'static + Send
+        {
+            PyRustTypeBuilder {
+                name: CString::new(name).unwrap(),
+                flags: ffi::Py_TPFLAGS_DEFAULT as libc::c_uint,
+                slots: Vec::new(),
+                tp_base: None,
+                members: Vec::new(),
                 target_module: None,
-                ht: ht,
+                doc_str: None,
                 can_change_base: true,
                 py: py,
                 phantom: marker::PhantomData
             }
         }
-        #[cfg(feature="python3-sys")] PyRustTypeBuilder {
-            name: CString::new(name).unwrap(),
-            flags: ffi::Py_TPFLAGS_DEFAULT as libc::c_uint,
-            slots: Vec::new(),
-            tp_base: None,
-            members: Vec::new(),
-            target_module: None,
-            doc_str: None,
-            can_change_base: true,
-            py: py,
-            phantom: marker::PhantomData
-        }
+        new_impl(py, name)
     }
 
     /// Sets the base class that this type is inheriting from.
@@ -141,37 +152,46 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
         // Ensure we can't change the base after any callbacks are registered.
         assert!(self.can_change_base,
             "base() must be called before any members are added to the type");
-        #[cfg(feature="python27-sys")] {
+        #[cfg(feature="python27-sys")]
+        fn base_impl<'p, T, T2, B2>(slf: PyRustTypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
+            -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
+            where T: 'static + Send, T2: 'static + Send, B2: PythonBaseObject
+        {
             unsafe {
-                ffi::Py_XDECREF((*self.ht).ht_type.tp_base as *mut ffi::PyObject);
-                (*self.ht).ht_type.tp_base = base_type.as_type_ptr();
+                ffi::Py_XDECREF((*slf.ht).ht_type.tp_base as *mut ffi::PyObject);
+                (*slf.ht).ht_type.tp_base = base_type.as_type_ptr();
                 ffi::Py_INCREF(base_type.as_object().as_ptr());
             }
             return PyRustTypeBuilder {
-                type_obj: self.type_obj,
-                doc_str: self.doc_str,
-                target_module: self.target_module,
-                ht: self.ht,
+                type_obj: slf.type_obj,
+                doc_str: slf.doc_str,
+                target_module: slf.target_module,
+                ht: slf.ht,
                 can_change_base: false,
-                py: self.py,
+                py: slf.py,
                 phantom: marker::PhantomData
             }
         }
-        #[cfg(feature="python3-sys")] {
+        #[cfg(feature="python3-sys")]
+        fn base_impl<'p, T, T2, B2>(slf: PyRustTypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
+            -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
+            where T: 'static + Send, T2: 'static + Send, B2: PythonBaseObject
+        {
             let base_type_obj: &PyType = base_type;
             return PyRustTypeBuilder {
-                name: self.name,
-                flags: self.flags,
-                slots: self.slots,
-                tp_base: Some(base_type_obj.clone_ref(self.py)),
+                name: slf.name,
+                flags: slf.flags,
+                slots: slf.slots,
+                tp_base: Some(base_type_obj.clone_ref(slf.py)),
                 members: Vec::new(),
-                target_module: self.target_module,
-                doc_str: self.doc_str,
+                target_module: slf.target_module,
+                doc_str: slf.doc_str,
                 can_change_base: false,
-                py: self.py,
+                py: slf.py,
                 phantom: marker::PhantomData
             }
         }
+        base_impl(self, base_type)
     }
 }
 
@@ -195,104 +215,122 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
 
     /// Adds a new member to the type.
     pub fn add<M>(mut self, name: &str, val: M) -> Self
-            where M: TypeMember<PyRustObject<T, B>> + 'static {
+        where M: TypeMember<PyRustObject<T, B>> + 'static
+    {
         self.can_change_base = false;
-        #[cfg(feature="python27-sys")] {
-            self.dict().set_item(self.py, name, val.to_descriptor(self.py, &self.type_obj, name)).unwrap();
-        }
-        #[cfg(feature="python3-sys")] {
-            self.members.push((name.to_owned(), Box::new(val)));
-        }
+        self.add_impl(name, val);
         self
+    }
+
+    #[cfg(feature="python27-sys")]
+    fn add_impl<M>(&mut self, name: &str, val: M)
+        where M: TypeMember<PyRustObject<T, B>> + 'static
+    {
+        self.dict().set_item(self.py, name, val.to_descriptor(self.py, &self.type_obj, name)).unwrap();
+    }
+
+    #[cfg(feature="python3-sys")]
+    fn add_impl<M>(&mut self, name: &str, val: M)
+        where M: TypeMember<PyRustObject<T, B>> + 'static
+    {
+        self.members.push((name.to_owned(), Box::new(val)));
     }
 
     /// Sets the constructor (__new__ method)
     ///
     /// As `new` argument, use either the `py_fn!()` or the `py_class_method!()` macro.
     pub fn set_new<N>(mut self, new: N) -> Self where N: TypeConstructor {
-        let tp_new = new.tp_new();
+        self.set_new_impl(new.tp_new());
+        self
+    }
 
-        #[cfg(feature="python27-sys")] unsafe {
+    #[cfg(feature="python27-sys")]
+    fn set_new_impl(&mut self, tp_new: ffi::newfunc) {
+        unsafe {
             (*self.ht).ht_type.tp_new = Some(tp_new);
         }
-
-        #[cfg(feature="python3-sys")]
+    }
+    #[cfg(feature="python3-sys")]
+    fn set_new_impl(&mut self, tp_new: ffi::newfunc) {
         self.slots.push(ffi::PyType_Slot {
             slot: ffi::Py_tp_new,
             pfunc: tp_new as *mut libc::c_void
         });
-        self
     }
 
     /// Finalize construction of the new type.
     pub fn finish(mut self) -> PyResult<PyRustType<T, B>> {
         let py = self.py;
-        let type_obj;
-        #[cfg(feature="python27-sys")] {
-            unsafe {
-                (*self.ht).ht_type.tp_basicsize = PyRustObject::<T, B>::size() as ffi::Py_ssize_t;
-                (*self.ht).ht_type.tp_dealloc = Some(tp_dealloc_callback::<T, B>);
-                if let Some(s) = self.doc_str {
-                    (*self.ht).ht_type.tp_doc = copy_str_to_py_malloc_heap(&s);
-                }
-                try!(err::error_on_minusone(py, ffi::PyType_Ready(self.type_obj.as_type_ptr())))
-            }
-            type_obj = self.type_obj;
-        }
-        #[cfg(feature="python3-sys")] {
-            // push some more slots
-            self.slots.push(ffi::PyType_Slot {
-                slot: ffi::Py_tp_dealloc,
-                pfunc: tp_dealloc_callback::<T, B> as ffi::destructor as *mut libc::c_void
-            });
-            if let Some(s) = self.doc_str {
-                self.slots.push(ffi::PyType_Slot {
-                    slot: ffi::Py_tp_doc,
-                    pfunc: copy_str_to_py_malloc_heap(&s) as *mut libc::c_void
-                });
-            }
-            if let Some(base_type) = self.tp_base {
-                self.slots.push(ffi::PyType_Slot {
-                    slot: ffi::Py_tp_base,
-                    pfunc: base_type.as_type_ptr() as *mut libc::c_void
-                });
-            }
-            
-            type_obj = try!(unsafe { create_type_from_slots(
-                py, &self.name, PyRustObject::<T, B>::size(),
-                self.flags, &mut self.slots) });
-            for (name, member) in self.members {
-                let descr = member.to_descriptor(py, &type_obj, &name);
-                try!(type_obj.as_object().setattr(py, name, descr));
-            }
-        }
+        let type_obj = try!(self.build_type());
 
-
-        if let Some(m) = self.target_module {
+        if let Some(ref m) = self.target_module {
             // Set module name for new type
             if let Ok(mod_name) = m.name(py) {
                 try!(type_obj.as_object().setattr(py, "__module__", mod_name));
             }
             // Register the new type in the target module
-            #[cfg(feature="python27-sys")] {
-                let name = unsafe { PyObject::from_borrowed_ptr(py, (*self.ht).ht_name) };
-                try!(m.dict(py).set_item(py, name, type_obj.as_object()));
-            }
-            #[cfg(feature="python3-sys")] {
-                unsafe {
-                    try!(err::error_on_minusone(py,
-                        ffi::PyDict_SetItemString(
-                            m.dict(py).as_object().as_ptr(), 
-                            self.name.as_ptr(),
-                            type_obj.as_object().as_ptr())
-                    ));
-                }
-            }
+            try!(m.dict(py).set_item(py, self.name(), &type_obj));
         }
         Ok(PyRustType {
             type_obj: type_obj,
             phantom: marker::PhantomData
         })
+    }
+
+    #[cfg(feature="python27-sys")]
+    fn name(&self) -> PyObject {
+        unsafe {
+            PyObject::from_borrowed_ptr(self.py, (*self.ht).ht_name)
+        }
+    }
+
+    #[cfg(feature="python3-sys")]
+    fn name(&self) -> PyString {
+        self.name.to_str().unwrap().to_py_object(self.py)
+    }
+
+    #[cfg(feature="python27-sys")]
+    fn build_type(&mut self) -> PyResult<PyType> {
+        let py = self.py;
+        unsafe {
+            (*self.ht).ht_type.tp_basicsize = PyRustObject::<T, B>::size() as ffi::Py_ssize_t;
+            (*self.ht).ht_type.tp_dealloc = Some(tp_dealloc_callback::<T, B>);
+            if let Some(ref s) = self.doc_str {
+                (*self.ht).ht_type.tp_doc = copy_str_to_py_malloc_heap(s);
+            }
+            try!(err::error_on_minusone(py, ffi::PyType_Ready(self.type_obj.as_type_ptr())))
+        }
+        Ok(self.type_obj.clone_ref(py))
+    }
+    #[cfg(feature="python3-sys")]
+    fn build_type(&mut self) -> PyResult<PyType> {
+        let py = self.py;
+        // push some more slots
+        self.slots.push(ffi::PyType_Slot {
+            slot: ffi::Py_tp_dealloc,
+            pfunc: tp_dealloc_callback::<T, B> as ffi::destructor as *mut libc::c_void
+        });
+        if let Some(ref s) = self.doc_str {
+            self.slots.push(ffi::PyType_Slot {
+                slot: ffi::Py_tp_doc,
+                pfunc: copy_str_to_py_malloc_heap(s) as *mut libc::c_void
+            });
+        }
+        if let Some(ref base_type) = self.tp_base {
+            self.slots.push(ffi::PyType_Slot {
+                slot: ffi::Py_tp_base,
+                pfunc: base_type.as_type_ptr() as *mut libc::c_void
+            });
+        }
+        
+        let type_obj = try!(unsafe { create_type_from_slots(
+            py, &self.name, PyRustObject::<T, B>::size(),
+            self.flags, &mut self.slots) });
+        for &(ref name, ref member) in &self.members {
+            let descr = member.to_descriptor(py, &type_obj, &name);
+            try!(type_obj.as_object().setattr(py, name, descr));
+        }
+        Ok(type_obj)
     }
 
 }

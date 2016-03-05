@@ -19,9 +19,10 @@
 #![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
 #![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag (#5016)
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send (#13231)
-#![feature(stmt_expr_attributes)] // easier python 2.x/3.x distinction (#15701)
-#![feature(const_fn)] // for GILProtected::new (#24111)
-#![feature(shared)] // for std::ptr::Shared (#27730)
+#![cfg_attr(feature="nightly", feature(
+    const_fn, // for GILProtected::new (#24111)
+    shared, // for std::ptr::Shared (#27730)
+))]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 
