@@ -25,6 +25,7 @@ use ffi::Py_ssize_t;
 use err;
 use err::{PyErr, PyResult, result_from_owned_ptr, result_cast_from_owned_ptr};
 
+/// Represents a reference to a python object supporting the sequence protocol.
 pub struct PySequence(PyObject);
 
 pyobject_newtype!(PySequence, PySequence_Check);

@@ -259,9 +259,6 @@ impl PyString {
     }
 }
 
-// When converting strings to/from Python, we need to copy the string data.
-// This means we can implement ToPyObject for str, but FromPyObject only for (Cow)String.
-
 /// Converts rust `str` to Python object:
 /// ASCII-only strings are converted to Python `str` objects;
 /// other strings are converted to Python `unicode` objects.

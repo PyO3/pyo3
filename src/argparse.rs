@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! This module contains logic for parsing a python argument list.
-//! See also the macros `py_argparse!`, `py_fn` and `py_method`.
+//! See also the macros `py_argparse!`, `py_fn!` and `py_method!`.
 
 use std::ptr;
 use python::{Python, PythonObject};

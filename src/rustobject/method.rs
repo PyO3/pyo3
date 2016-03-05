@@ -138,6 +138,7 @@ pub mod py_method_impl {
     }
 
     #[macro_export]
+    #[doc(hidden)]
     macro_rules! py_method_call_impl {
         ( $def:expr, $f:ident ( ) )
             => { $crate::_detail::py_method_impl::py_method_impl_0($def, $f) };

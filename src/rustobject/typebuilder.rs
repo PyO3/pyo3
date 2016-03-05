@@ -63,6 +63,7 @@ pub struct PyRustTypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: Py
     /// The module to which the new type should be added.
     target_module: Option<PyModule>,
     /// Whether PyTypeBuilder::base() might be called
+    /// Gets set to false when members depending on type B are added.
     can_change_base: bool,
     py: Python<'p>,
     phantom: marker::PhantomData<&'p (B, T)>

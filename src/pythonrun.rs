@@ -74,7 +74,7 @@ pub fn prepare_freethreaded_python() {
     });
 }
 
-/// RAII type that represents an acquired GIL.
+/// RAII type that represents the Global Interpreter Lock acquisition.
 ///
 /// # Example
 /// ```
