@@ -1,7 +1,7 @@
 [package]
 
 name = "cpython"
-version = "0.0.4"
+version = "0.0.5"
 description = "Bindings to Python"
 authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
 readme = "README.md"
@@ -27,7 +27,7 @@ build = "build.rs"
 [dependencies]
 libc = "0.2"
 num = "0.1"
-interpolate_idents = { git = "https://github.com/dgrunwald/interpolate_idents.git" }
+interpolate_idents = ">=0.0.7"
 abort_on_panic = "1.0"
 
 # These features are both optional, but you must pick one to 
@@ -35,10 +35,12 @@ abort_on_panic = "1.0"
 [dependencies.python27-sys]
 optional = true
 path = "python27-sys"
+version = "0.1.1"
 
 [dependencies.python3-sys]
 optional = true
 path = "python3-sys"
+version = "0.1.2"
 
 [features]
 default = ["python3-sys"]
