@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::marker;
+use std::{marker, mem};
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyType};
 use super::typebuilder::TypeMember;
@@ -192,7 +192,7 @@ pub mod py_method_impl {
         ( $def:expr, $f:ident ( $n1:ident : $t1:ty, $n2:ident : $t2:ty, $n3:ident : $t3:ty ) )
             => { $crate::_detail::py_method_impl::py_method_impl_3($def, $f) };
         ( $def:expr, $f:ident ( $n1:ident : $t1:ty, $n2:ident : $t2:ty, $n3:ident : $t3:ty, $n4:ident : $t4:ty ) )
-            => { $crate::_detail::py_method_impl::py_method_impl_3($def, $f) };
+            => { $crate::_detail::py_method_impl::py_method_impl_4($def, $f) };
     }
 
     pub unsafe fn py_method_impl_0<T, R>(
@@ -239,11 +239,6 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
                 ffi::PyDescr_NewMethod(ty.as_type_ptr(), self.0))
         }
     }
-
-    #[inline]
-    fn into_box(self, _py: Python) -> Box<TypeMember<T>> {
-        Box::new(self)
-    }
 }
 
 
@@ -287,7 +282,7 @@ macro_rules! py_class_method {
             kwargs: *mut $crate::_detail::ffi::PyObject)
         -> *mut $crate::_detail::ffi::PyObject
         {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_method!");
+            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_class_method!");
             let py = $crate::_detail::bounded_assume_gil_acquired(&args);
             let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
             let slf = <$crate::PyType as $crate::PythonObject>::unchecked_downcast_from(slf);
@@ -337,7 +332,7 @@ macro_rules! py_class_method {
             kwargs: *mut $crate::_detail::ffi::PyObject)
         -> *mut $crate::_detail::ffi::PyObject
         {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_method!");
+            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_class_method!");
             let py = $crate::_detail::bounded_assume_gil_acquired(&args);
             let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
             let slf = <$crate::PyType as $crate::PythonObject>::unchecked_downcast_from(slf);
@@ -391,6 +386,12 @@ pub unsafe fn py_class_method_impl(def: *mut ffi::PyMethodDef) -> ClassMethodDes
     ClassMethodDescriptor(def)
 }
 
+pub fn class_method_as_tp_new(c: &ClassMethodDescriptor) -> Option<ffi::newfunc> {
+    unsafe {
+        mem::transmute::<Option<ffi::PyCFunction>, Option<ffi::newfunc>>((*c.0).ml_meth)
+    }
+}
+
 impl <T> TypeMember<T> for ClassMethodDescriptor where T: PythonObject {
     #[inline]
     fn to_descriptor(&self, py: Python, ty: &PyType, _name: &str) -> PyObject {
@@ -398,11 +399,6 @@ impl <T> TypeMember<T> for ClassMethodDescriptor where T: PythonObject {
             err::from_owned_ptr_or_panic(py,
                 ffi::PyDescr_NewClassMethod(ty.as_type_ptr(), self.0))
         }
-    }
-
-    #[inline]
-    fn into_box(self, _py: Python) -> Box<TypeMember<T>> {
-        Box::new(self)
     }
 }
 

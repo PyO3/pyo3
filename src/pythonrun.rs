@@ -153,7 +153,7 @@ unsafe impl<T: Send> Sync for GILProtected<T> { }
 impl <T> GILProtected<T> {
     /// Creates a new instance of `GILProtected`.
     #[inline]
-    pub fn new(data: T) -> GILProtected<T> {
+    pub const fn new(data: T) -> GILProtected<T> {
         GILProtected { data: data }
     }
 

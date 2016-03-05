@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::{ptr, marker};
+use std::{ptr, mem, marker};
 use std::ffi::{CStr, CString};
 use libc;
 use ffi;
@@ -25,7 +25,7 @@ use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyString, PyModule, PyDict};
 use err::{self, PyResult};
 use objectprotocol::ObjectProtocol;
-use super::{PythonBaseObject, PyRustObject, PyRustType};
+use super::{PythonBaseObject, PyRustObject, PyRustType, method};
 
 #[repr(C)]
 #[must_use]
@@ -194,14 +194,30 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
 
     /// Adds a new member to the type.
     pub fn add<M>(mut self, name: &str, val: M) -> Self
-            where M: TypeMember<PyRustObject<T, B>> {
+            where M: TypeMember<PyRustObject<T, B>> + 'static {
         self.can_change_base = false;
         #[cfg(feature="python27-sys")] {
             self.dict().set_item(self.py, name, val.to_descriptor(self.py, &self.type_obj, name)).unwrap();
         }
         #[cfg(feature="python3-sys")] {
-            self.members.push((name.to_owned(), val.into_box(self.py)));
+            self.members.push((name.to_owned(), Box::new(val)));
         }
+        self
+    }
+
+    /// Sets the constructor (__new__ method)
+    pub fn set_new(mut self, new: method::ClassMethodDescriptor) -> Self {
+        let tp_new = method::class_method_as_tp_new(&new);
+
+        #[cfg(feature="python27-sys")] unsafe {
+            (*self.ht).ht_type.tp_new = tp_new;
+        }
+
+        #[cfg(feature="python3-sys")]
+        self.slots.push(ffi::PyType_Slot {
+            slot: ffi::Py_tp_new,
+            pfunc: tp_new.unwrap() as *mut libc::c_void
+        });
         self
     }
 
@@ -328,13 +344,6 @@ pub trait TypeMember<T> where T: PythonObject {
     /// Convert the type member into a python object
     /// that can be stored in the type dict.
     fn to_descriptor(&self, py: Python, ty: &PyType, name: &str) -> PyObject;
-
-    /// Put the type member into a box with lifetime `'p` so that
-    /// it can be used at a later point in time.
-    ///
-    /// `PyRustTypeBuilder:add()` may use this function to store the member,
-    /// with `into_descriptor()` being called from the `finish()` method.
-    fn into_box(self, py: Python) -> Box<TypeMember<T>>;
 }
 
 // TODO: does this cause trouble for coherence?
@@ -343,11 +352,6 @@ impl <T, S> TypeMember<T> for S where T: PythonObject, S: ToPyObject {
     #[inline]
     fn to_descriptor(&self, py: Python, _ty: &PyType, _name: &str) -> PyObject {
         self.to_py_object(py).into_object()
-    }
-
-    #[inline]
-    fn into_box(self, py: Python) -> Box<TypeMember<T>> {
-        Box::new(self.into_py_object(py).into_object())
     }
 }
 

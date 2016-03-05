@@ -20,6 +20,7 @@
 #![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag (#5016)
 #![feature(optin_builtin_traits)] // for opting out of Sync/Send (#13231)
 #![feature(stmt_expr_attributes)] // easier python 2.x/3.x distinction (#15701)
+#![feature(const_fn)] // for GILProtected::new (#24111)
 
 #![feature(plugin)]            // necessary because `fn concat_idents!(...)()` is 
 #![plugin(interpolate_idents)] // not supported by the current macro system.

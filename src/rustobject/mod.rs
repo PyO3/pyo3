@@ -24,6 +24,8 @@ use objects::{PyObject, PyType};
 use std::{mem, ops, ptr, marker};
 use err::{self, PyResult};
 
+// note: because rustobject isn't public, these modules aren't visible
+// outside the crate
 pub mod typebuilder;
 pub mod method;
 #[cfg(test)]

@@ -50,6 +50,10 @@ pub struct PyObject {
     ptr: *mut ffi::PyObject
 }
 
+// PyObject is thread-safe, because all operations on it require a Python<'p> token.
+unsafe impl Send for PyObject {}
+unsafe impl Sync for PyObject {}
+
 /// Dropping a `PyObject` decrements the reference count on the object by 1.
 impl Drop for PyObject {
     #[inline]
