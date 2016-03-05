@@ -5,7 +5,7 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{Python, PyObject, PyType, PyRustObject, PyRustType, PyResult, GILProtected};
+use cpython::{Python, PyObject, PyRustObject, PyRustType, PyResult, GILProtected};
 use std::cell::RefCell;
 
 static MY_TYPE: GILProtected<RefCell<Option<PyRustType<i32>>>> = GILProtected::new(RefCell::new(None));

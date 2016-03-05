@@ -208,7 +208,7 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
     /// Sets the constructor (__new__ method)
     ///
     /// As `new` argument, use either the `py_fn!()` or the `py_class_method!()` macro.
-    pub fn set_new(mut self, new: T) -> Self where T: TypeConstructor {
+    pub fn set_new<N>(mut self, new: N) -> Self where N: TypeConstructor {
         let tp_new = new.tp_new();
 
         #[cfg(feature="python27-sys")] unsafe {
