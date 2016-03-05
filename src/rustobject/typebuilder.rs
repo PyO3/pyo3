@@ -206,17 +206,19 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBa
     }
 
     /// Sets the constructor (__new__ method)
-    pub fn set_new(mut self, new: method::ClassMethodDescriptor) -> Self {
-        let tp_new = method::class_method_as_tp_new(&new);
+    ///
+    /// As `new` argument, use either the `py_fn!()` or the `py_class_method!()` macro.
+    pub fn set_new(mut self, new: T) -> Self where T: TypeConstructor {
+        let tp_new = new.tp_new();
 
         #[cfg(feature="python27-sys")] unsafe {
-            (*self.ht).ht_type.tp_new = tp_new;
+            (*self.ht).ht_type.tp_new = Some(tp_new);
         }
 
         #[cfg(feature="python3-sys")]
         self.slots.push(ffi::PyType_Slot {
             slot: ffi::Py_tp_new,
-            pfunc: tp_new.unwrap() as *mut libc::c_void
+            pfunc: tp_new as *mut libc::c_void
         });
         self
     }
@@ -335,6 +337,14 @@ unsafe fn create_type_from_slots<'p>(
     };
     err::result_cast_from_owned_ptr(py,
         ffi::PyType_FromSpec(&mut spec))
+}
+
+/// Represents something that can be used as a constructor (tp_new)
+/// for a PyRustType.
+///
+/// Implemented by the result types of the `py_fn!()` and `py_class_method!()` macros.
+pub unsafe trait TypeConstructor {
+    fn tp_new(&self) -> ffi::newfunc;
 }
 
 /// Represents something that can be added as a member to a Python class/type.

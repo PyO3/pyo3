@@ -14,12 +14,12 @@ py_module_initializer!(custom_type, |py, m| {
     try!(m.add(py, "__doc__", "Module documentation string"));
     *MY_TYPE.get(py).borrow_mut() = Some(try!(m.add_type::<i32>(py, "MyType")
         .add("a", py_method!(a()))
-        .set_new(py_class_method!(new(arg: i32)))
+        .set_new(py_fn!(new(arg: i32)))
         .finish()));
     Ok(())
 });
 
-fn new(py: Python, _ty: &PyType, arg: i32) -> PyResult<PyRustObject<i32>> {
+fn new(py: Python, arg: i32) -> PyResult<PyRustObject<i32>> {
     Ok(MY_TYPE.get(py).borrow().as_ref().unwrap().create_instance(py, arg, ()))
 }
 

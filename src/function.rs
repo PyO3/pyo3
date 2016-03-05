@@ -20,6 +20,7 @@ use std::{mem, ptr};
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::ToPyObject;
+use rustobject::typebuilder;
 use ffi;
 use err::{self, PyResult};
 
@@ -163,6 +164,14 @@ impl ToPyObject for PyFn {
     fn to_py_object(&self, py: Python) -> PyObject {
         unsafe {
             err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(self.0, ptr::null_mut()))
+        }
+    }
+}
+
+unsafe impl typebuilder::TypeConstructor for PyFn {
+    fn tp_new(&self) -> ffi::newfunc {
+        unsafe {
+            mem::transmute::<ffi::PyCFunction, ffi::newfunc>((*self.0).ml_meth.unwrap())
         }
     }
 }

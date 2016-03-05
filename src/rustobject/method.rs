@@ -19,7 +19,7 @@
 use std::{marker, mem};
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyType};
-use super::typebuilder::TypeMember;
+use super::typebuilder;
 use ffi;
 use err;
 
@@ -187,7 +187,7 @@ pub mod py_method_impl {
     }
 }
 
-impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
+impl <T> typebuilder::TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
     #[inline]
     fn to_descriptor(&self, py: Python, ty: &PyType, _name: &str) -> PyObject {
         unsafe {
@@ -290,18 +290,20 @@ pub unsafe fn py_class_method_impl(def: *mut ffi::PyMethodDef) -> ClassMethodDes
     ClassMethodDescriptor(def)
 }
 
-pub fn class_method_as_tp_new(c: &ClassMethodDescriptor) -> Option<ffi::newfunc> {
-    unsafe {
-        mem::transmute::<Option<ffi::PyCFunction>, Option<ffi::newfunc>>((*c.0).ml_meth)
-    }
-}
-
-impl <T> TypeMember<T> for ClassMethodDescriptor where T: PythonObject {
+impl <T> typebuilder::TypeMember<T> for ClassMethodDescriptor where T: PythonObject {
     #[inline]
     fn to_descriptor(&self, py: Python, ty: &PyType, _name: &str) -> PyObject {
         unsafe {
             err::from_owned_ptr_or_panic(py,
                 ffi::PyDescr_NewClassMethod(ty.as_type_ptr(), self.0))
+        }
+    }
+}
+
+unsafe impl typebuilder::TypeConstructor for ClassMethodDescriptor {
+    fn tp_new(&self) -> ffi::newfunc {
+        unsafe {
+            mem::transmute::<ffi::PyCFunction, ffi::newfunc>((*self.0).ml_meth.unwrap())
         }
     }
 }
