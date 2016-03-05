@@ -23,7 +23,7 @@ exclude = [
 libc = "0.2"
 
 [build-dependencies]
-regex = "0.1.8"
+regex = "0.1"
 
 [features]
 # This is examined by ./build.rs to determine which python version 
