@@ -23,14 +23,46 @@ use super::typebuilder::TypeMember;
 use ffi;
 use err;
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_method_wrap {
+    // * $f: function name, used as part of wrapper function name
+    // * |py, slf, args, kwargs| { body }
+    ($f: ident, | $py: ident, $slf: ident, $args: ident, $kwargs: ident | $body: block) => ( interpolate_idents! {{
+        unsafe extern "C" fn [ wrap_ $f ](
+            slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            let _guard = $crate::_detail::PanicGuard::with_message(
+                concat!("Rust panic in py_method!(", stringify!($f), ")"));
+            let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&args);
+            let $slf: &$crate::PyObject = $crate::PyObject::borrow_from_ptr(&slf);
+            let $args: &$crate::PyTuple = $crate::PyObject::borrow_from_ptr(&args).unchecked_cast_as();
+            let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
+            $crate::_detail::result_to_ptr($py, $body)
+        }
+        [ wrap_ $f ]
+    }});
+}
+
 /// Creates a Python instance method descriptor that invokes a Rust function.
+
+/// There are two forms of this macro:
+/// 1) py_method!(f)
+///     `f` is the name of a rust function with the signature
+///     `fn(Python, &SelfType, &PyTuple, Option<&PyDict>) -> PyResult<R>`
+///      for some `R` that implements `ToPyObject`.
 ///
-/// As arguments, takes the name of a rust function with the signature
-/// `fn(&PyRustObject<T>, &PyTuple, Python) -> PyResult<R>`
-/// for some `R` that implements `ToPyObject`.
+/// 2) py_method!(f(parameter_list))
+///     This form automatically converts the arguments into
+///     the Rust types specified in the parameter list,
+///     and then calls `f(Python, &SelfType, Parameters)`.
+///     See `py_argparse!()` for details on argument parsing.
 ///
-/// Returns a type that implements `typebuilder::TypeMember<PyRustObject<T>>`
-/// by producing an instance method descriptor.
+/// Returns an unspecified type that implements `typebuilder::TypeMember<SelfType>`.
+/// When the member is added to a type, it results in an instance method descriptor.
 ///
 /// # Example
 /// ```
@@ -38,7 +70,7 @@ use err;
 /// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol,
-///               PyTuple, PyRustObject, PyRustTypeBuilder};
+///               PyRustObject, PyRustTypeBuilder};
 /// use cpython::{exc};
 ///
 /// fn mul(py: Python, slf: &PyRustObject<i32>, arg: i32) -> PyResult<i32> {
@@ -61,104 +93,28 @@ use err;
 /// ```
 #[macro_export]
 macro_rules! py_method {
-    ($f: ident) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
-            slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject,
-            kwargs: *mut $crate::_detail::ffi::PyObject)
-        -> *mut $crate::_detail::ffi::PyObject
-        {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_method!");
-            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
-            let slf = $crate::PythonObject::unchecked_downcast_from(slf);
-            let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
-            let kwargs = match $crate::PyObject::from_borrowed_ptr_opt(py, kwargs) {
-                Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
-                None => None
-            };
-            let ret: $crate::PyResult<_> = $f(py, &slf, &args, kwargs.as_ref());
-            $crate::PyDrop::release_ref(kwargs, py);
-            $crate::PyDrop::release_ref(args, py);
-            $crate::PyDrop::release_ref(slf, py);
-            match ret {
-                Ok(val) => {
-                    let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::PythonObject::into_object(obj).steal_ptr();
-                }
-                Err(e) => {
-                    e.restore();
-                    return ::std::ptr::null_mut();
-                }
-            }
-        }
-        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
-            //ml_name: bytes!(stringify!($f), "\0"),
-            ml_name: 0 as *const $crate::_detail::libc::c_char,
-            ml_meth: None,
-            ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS,
-            ml_doc: 0 as *const $crate::_detail::libc::c_char
-        };
+    ($f: ident) => ({
+        let wrap = py_method_wrap!($f, |py, slf, args, kwargs| {
+            let slf = slf.unchecked_cast_as();
+            $f(py, slf, args, kwargs)
+        });
         unsafe {
-            [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
-            [ method_def_ $f ].ml_meth = Some(
-                std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
-                                      $crate::_detail::ffi::PyCFunction>([ wrap_ $f ])
-            );
-            $crate::_detail::py_method_impl::py_method_impl(&mut [ method_def_ $f ], $f)
+            $crate::_detail::py_method_impl::py_method_impl(
+                py_method_def!($f, 0, wrap), $f)
         }
-    }});
-    ($f: ident ( $( $pname:ident : $ptype:ty ),* ) ) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
-            slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject,
-            kwargs: *mut $crate::_detail::ffi::PyObject)
-        -> *mut $crate::_detail::ffi::PyObject
-        {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_method!");
-            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
-            let slf = $crate::PythonObject::unchecked_downcast_from(slf);
-            let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
-            let kwargs = match $crate::PyObject::from_borrowed_ptr_opt(py, kwargs) {
-                Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
-                None => None
-            };
-            let ret: $crate::PyResult<_> =
-                py_argparse!(py, Some(stringify!($f)), &args, kwargs.as_ref(),
-                    ( $($pname : $ptype),* ) { $f( py, &slf, $($pname),* ) });
-            $crate::PyDrop::release_ref(kwargs, py);
-            $crate::PyDrop::release_ref(args, py);
-            $crate::PyDrop::release_ref(slf, py);
-            match ret {
-                Ok(val) => {
-                    let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::PythonObject::into_object(obj).steal_ptr();
-                }
-                Err(e) => {
-                    e.restore(py);
-                    return ::std::ptr::null_mut();
-                }
-            }
-        }
-        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
-            //ml_name: bytes!(stringify!($f), "\0"),
-            ml_name: 0 as *const $crate::_detail::libc::c_char,
-            ml_meth: None,
-            ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS,
-            ml_doc: 0 as *const $crate::_detail::libc::c_char
-        };
+    });
+    ($f: ident ( $( $pname:ident : $ptype:ty ),* ) ) => ({
+        let wrap = py_method_wrap!($f, |py, slf, args, kwargs| {
+            let slf = slf.unchecked_cast_as();
+            py_argparse!(py, Some(stringify!($f)), args, kwargs,
+                ( $($pname : $ptype),* ) { $f( py, slf, $($pname),* ) })
+        });
         unsafe {
-            [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
-            [ method_def_ $f ].ml_meth = Some(
-                std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
-                                      $crate::_detail::ffi::PyCFunction>([ wrap_ $f ])
-            );
-            py_method_call_impl!(&mut [ method_def_ $f ], $f ( $($pname : $ptype),* ) )
+            py_method_call_impl!(
+                py_method_def!($f, 0, wrap),
+                $f ( $($pname : $ptype),* ) )
         }
-    }})
+    })
 }
 
 pub struct MethodDescriptor<T>(*mut ffi::PyMethodDef, marker::PhantomData<fn(&T)>);
@@ -241,14 +197,45 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
     }
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_method_wrap {
+    // * $f: function name, used as part of wrapper function name
+    // * |py, cls, args, kwargs| { body }
+    ($f: ident, | $py: ident, $slf: ident, $args: ident, $kwargs: ident | $body: block) => ( interpolate_idents! {{
+        unsafe extern "C" fn [ wrap_ $f ](
+            slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            let _guard = $crate::_detail::PanicGuard::with_message(
+                concat!("Rust panic in py_class_method!(", stringify!($f), ")"));
+            let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&args);
+            let $slf: &$crate::PyType = $crate::PyObject::borrow_from_ptr(&slf).unchecked_cast_as();
+            let $args: &$crate::PyTuple = $crate::PyObject::borrow_from_ptr(&args).unchecked_cast_as();
+            let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
+            $crate::_detail::result_to_ptr($py, $body)
+        }
+        [ wrap_ $f ]
+    }});
+}
 
 /// Creates a Python class method descriptor that invokes a Rust function.
 ///
-/// As arguments, takes the name of a rust function with the signature
-/// `fn(Python, &PyType, &PyTuple, Option<&PyDict>) -> PyResult<T>`
-/// for some `T` that implements `ToPyObject`.
+/// There are two forms of this macro:
+/// 1) py_class_method!(f)
+///     `f` is the name of a rust function with the signature
+///     `fn(Python, &PyType, &PyTuple, Option<&PyDict>) -> PyResult<R>`
+///      for some `R` that implements `ToPyObject`.
 ///
-/// Returns a type that implements `typebuilder::TypeMember<PyRustObject<_>>`
+/// 2) py_class_method!(f(parameter_list))
+///     This form automatically converts the arguments into
+///     the Rust types specified in the parameter list,
+///     and then calls `f(Python, &PyType, Parameters)`.
+///     See `py_argparse!()` for details on argument parsing.
+///
+/// Returns a type that implements `typebuilder::TypeMember`
 /// by producing an class method descriptor.
 ///
 /// # Example
@@ -256,10 +243,10 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
 /// #![feature(plugin)]
 /// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
-/// use cpython::{Python, PythonObject, PyResult, ObjectProtocol,
+/// use cpython::{Python, PythonObject, PyResult, ObjectProtocol, PyType,
 ///               PyRustTypeBuilder, NoArgs};
 ///
-/// fn method(py: Python) -> PyResult<i32> {
+/// fn method(py: Python, cls: &PyType) -> PyResult<i32> {
 ///     Ok(42)
 /// }
 ///
@@ -275,108 +262,25 @@ impl <T> TypeMember<T> for MethodDescriptor<T> where T: PythonObject {
 /// ```
 #[macro_export]
 macro_rules! py_class_method {
-    ($f: ident) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
-            slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject,
-            kwargs: *mut $crate::_detail::ffi::PyObject)
-        -> *mut $crate::_detail::ffi::PyObject
-        {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_class_method!");
-            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
-            let slf = <$crate::PyType as $crate::PythonObject>::unchecked_downcast_from(slf);
-            let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
-            let kwargs = match $crate::PyObject::from_borrowed_ptr_opt(py, kwargs) {
-                Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
-                None => None
-            };
-            let ret: $crate::PyResult<_> = $f(py, &slf, &args, kwargs.as_ref());
-            $crate::PyDrop::release_ref(kwargs, py);
-            $crate::PyDrop::release_ref(args, py);
-            $crate::PyDrop::release_ref(slf, py);
-            match ret {
-                Ok(val) => {
-                    let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::PythonObject::into_object(obj).steal_ptr();
-                }
-                Err(e) => {
-                    e.restore();
-                    return ::std::ptr::null_mut();
-                }
-            }
-        }
-        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
-            //ml_name: bytes!(stringify!($f), "\0"),
-            ml_name: 0 as *const $crate::_detail::libc::c_char,
-            ml_meth: None,
-            ml_flags: $crate::_detail::ffi::METH_VARARGS
-                    | $crate::_detail::ffi::METH_KEYWORDS
-                    | $crate::_detail::ffi::METH_CLASS,
-            ml_doc: 0 as *const $crate::_detail::libc::c_char
-        };
+    ($f: ident) => ({
+        let wrap = py_class_method_wrap!($f, |py, cls, args, kwargs| {
+            $f(py, cls, args, kwargs)
+        });
         unsafe {
-            [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
-            [ method_def_ $f ].ml_meth = Some(
-                std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
-                                      $crate::_detail::ffi::PyCFunction>([ wrap_ $f ])
-            );
-            $crate::_detail::py_class_method_impl(&mut [ method_def_ $f ])
+            $crate::_detail::py_class_method_impl(
+                py_method_def!($f, $crate::_detail::ffi::METH_CLASS, wrap))
         }
-    }});
-    ($f: ident ( $( $pname:ident : $ptype:ty ),* ) ) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
-            slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject,
-            kwargs: *mut $crate::_detail::ffi::PyObject)
-        -> *mut $crate::_detail::ffi::PyObject
-        {
-            let _guard = $crate::_detail::PanicGuard::with_message("Rust panic in py_class_method!");
-            let py = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let slf = $crate::PyObject::from_borrowed_ptr(py, slf);
-            let slf = <$crate::PyType as $crate::PythonObject>::unchecked_downcast_from(slf);
-            let args = $crate::PyObject::from_borrowed_ptr(py, args);
-            let args = <$crate::PyTuple as $crate::PythonObject>::unchecked_downcast_from(args);
-            let kwargs = match $crate::PyObject::from_borrowed_ptr_opt(py, kwargs) {
-                Some(kwargs) => Some(<$crate::PyDict as $crate::PythonObject>::unchecked_downcast_from(kwargs)),
-                None => None
-            };
-            let ret: $crate::PyResult<_> =
-                py_argparse!(py, Some(stringify!($f)), &args, kwargs.as_ref(),
-                    ( $($pname : $ptype),* ) { $f( py, $($pname),* ) });
-            $crate::PyDrop::release_ref(kwargs, py);
-            $crate::PyDrop::release_ref(args, py);
-            $crate::PyDrop::release_ref(slf, py);
-            match ret {
-                Ok(val) => {
-                    let obj = $crate::ToPyObject::into_py_object(val, py);
-                    return $crate::PythonObject::into_object(obj).steal_ptr();
-                }
-                Err(e) => {
-                    e.restore(py);
-                    return ::std::ptr::null_mut();
-                }
-            }
-        }
-        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
-            //ml_name: bytes!(stringify!($f), "\0"),
-            ml_name: 0 as *const $crate::_detail::libc::c_char,
-            ml_meth: None,
-            ml_flags: $crate::_detail::ffi::METH_VARARGS
-                    | $crate::_detail::ffi::METH_KEYWORDS
-                    | $crate::_detail::ffi::METH_CLASS,
-            ml_doc: 0 as *const $crate::_detail::libc::c_char
-        };
+    });
+    ($f: ident ( $( $pname:ident : $ptype:ty ),* ) ) => ({
+        let wrap = py_class_method_wrap!($f, |py, cls, args, kwargs| {
+            py_argparse!(py, Some(stringify!($f)), args, kwargs,
+                    ( $($pname : $ptype),* ) { $f( py, cls, $($pname),* ) })
+        });
         unsafe {
-            [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
-            [ method_def_ $f ].ml_meth = Some(
-                std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
-                                      $crate::_detail::ffi::PyCFunction>([ wrap_ $f ])
-            );
-            $crate::_detail::py_class_method_impl(&mut [ method_def_ $f ])
+            $crate::_detail::py_class_method_impl(
+                py_method_def!($f, $crate::_detail::ffi::METH_CLASS, wrap))
         }
-    }})
+    });
 }
 
 pub struct ClassMethodDescriptor(*mut ffi::PyMethodDef);

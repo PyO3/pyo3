@@ -168,11 +168,11 @@ impl PyObject {
         ptr
     }
 
-    /// Transmutes an owned FFI pointer to `&PyObject`.
+    /// Transmutes an FFI pointer to `&PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn borrow_from_owned_ptr<'a>(ptr : &'a *mut ffi::PyObject) -> &'a PyObject {
-        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(*ptr) > 0);
+    pub unsafe fn borrow_from_ptr<'a>(ptr : &'a *mut ffi::PyObject) -> &'a PyObject {
+        debug_assert!(!ptr.is_null());
         mem::transmute(ptr)
     }
 
@@ -195,7 +195,7 @@ impl PyObject {
         unsafe {
             let t : &*mut ffi::PyTypeObject = &(*self.as_ptr()).ob_type;
             let t : &*mut ffi::PyObject = mem::transmute(t);
-            PyObject::borrow_from_owned_ptr(t).unchecked_cast_as()
+            PyObject::borrow_from_ptr(t).unchecked_cast_as()
         }
     }
 

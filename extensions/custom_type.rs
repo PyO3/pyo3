@@ -5,7 +5,7 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{Python, PyObject, PyRustObject, PyRustType, PyResult, GILProtected};
+use cpython::{Python, PyObject, PyType, PyRustObject, PyRustType, PyResult, GILProtected};
 use std::cell::RefCell;
 
 static MY_TYPE: GILProtected<RefCell<Option<PyRustType<i32>>>> = GILProtected::new(RefCell::new(None));
@@ -19,7 +19,7 @@ py_module_initializer!(custom_type, |py, m| {
     Ok(())
 });
 
-fn new(py: Python, arg: i32) -> PyResult<PyRustObject<i32>> {
+fn new(py: Python, _ty: &PyType, arg: i32) -> PyResult<PyRustObject<i32>> {
     Ok(MY_TYPE.get(py).borrow().as_ref().unwrap().create_instance(py, arg, ()))
 }
 
