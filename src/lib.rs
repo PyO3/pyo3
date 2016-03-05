@@ -81,6 +81,7 @@
 
 extern crate libc;
 
+#[macro_use]
 extern crate abort_on_panic;
 
 #[cfg(feature="python27-sys")]
