@@ -28,8 +28,8 @@ use err;
 macro_rules! py_method_wrap {
     // * $f: function name, used as part of wrapper function name
     // * |py, slf, args, kwargs| { body }
-    ($f: ident, | $py: ident, $slf: ident, $args: ident, $kwargs: ident | $body: block) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
+    ($f: ident, | $py: ident, $slf: ident, $args: ident, $kwargs: ident | $body: block) => {{
+        unsafe extern "C" fn wrap<DUMMY>(
             slf: *mut $crate::_detail::ffi::PyObject,
             args: *mut $crate::_detail::ffi::PyObject,
             kwargs: *mut $crate::_detail::ffi::PyObject)
@@ -43,8 +43,8 @@ macro_rules! py_method_wrap {
             let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
             $crate::_detail::result_to_ptr($py, $body)
         }
-        [ wrap_ $f ]
-    }});
+        wrap::<()>
+    }};
 }
 
 /// Creates a Python instance method descriptor that invokes a Rust function.
@@ -66,8 +66,6 @@ macro_rules! py_method_wrap {
 ///
 /// # Example
 /// ```
-/// #![feature(plugin)]
-/// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol,
 ///               PyRustObject, PyRustTypeBuilder};
@@ -203,8 +201,8 @@ impl <T> typebuilder::TypeMember<T> for MethodDescriptor<T> where T: PythonObjec
 macro_rules! py_class_method_wrap {
     // * $f: function name, used as part of wrapper function name
     // * |py, cls, args, kwargs| { body }
-    ($f: ident, | $py: ident, $slf: ident, $args: ident, $kwargs: ident | $body: block) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
+    ($f: ident, | $py: ident, $slf: ident, $args: ident, $kwargs: ident | $body: block) => {{
+        unsafe extern "C" fn wrap<DUMMY>(
             slf: *mut $crate::_detail::ffi::PyObject,
             args: *mut $crate::_detail::ffi::PyObject,
             kwargs: *mut $crate::_detail::ffi::PyObject)
@@ -218,8 +216,8 @@ macro_rules! py_class_method_wrap {
             let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
             $crate::_detail::result_to_ptr($py, $body)
         }
-        [ wrap_ $f ]
-    }});
+        wrap::<()>
+    }};
 }
 
 /// Creates a Python class method descriptor that invokes a Rust function.
@@ -241,8 +239,6 @@ macro_rules! py_class_method_wrap {
 ///
 /// # Example
 /// ```
-/// #![feature(plugin)]
-/// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PythonObject, PyResult, ObjectProtocol, PyType,
 ///               PyRustTypeBuilder, NoArgs};

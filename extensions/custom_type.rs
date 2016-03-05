@@ -1,7 +1,5 @@
 #![crate_type = "dylib"]
 #![feature(const_fn)]
-#![feature(plugin)]
-#![plugin(interpolate_idents)]
 
 #[macro_use] extern crate cpython;
 
@@ -10,7 +8,7 @@ use std::cell::RefCell;
 
 static MY_TYPE: GILProtected<RefCell<Option<PyRustType<i32>>>> = GILProtected::new(RefCell::new(None));
 
-py_module_initializer!(custom_type, |py, m| {
+py_module_initializer!(custom_type, initcustom_type, PyInit_custom_type, |py, m| {
     try!(m.add(py, "__doc__", "Module documentation string"));
     *MY_TYPE.get(py).borrow_mut() = Some(try!(m.add_type::<i32>(py, "MyType")
         .add("a", py_method!(a()))

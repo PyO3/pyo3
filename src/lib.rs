@@ -23,9 +23,6 @@
 #![feature(const_fn)] // for GILProtected::new (#24111)
 #![feature(shared)] // for std::ptr::Shared (#27730)
 
-#![feature(plugin)]            // necessary because `fn concat_idents!(...)()` is 
-#![plugin(interpolate_idents)] // not supported by the current macro system.
-
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 
 //! Rust bindings to the Python interpreter.
@@ -156,22 +153,22 @@ pub mod _detail {
 /// Expands to an `extern "C"` function that allows Python to load
 /// the rust code as a Python extension module.
 ///
-/// Macro syntax: `py_module_initializer!($name, |$py, $m| $body)`
+/// Macro syntax: `py_module_initializer!($name, $py2_init, $py3_init, |$py, $m| $body)`
 ///
 /// 1. `name`: The module name as a Rust identifier.
-/// 2. A lambda of type `Fn(Python, &PyModule) -> PyResult<()>`.
+/// 2. `py2_init`: "init" + $name. Necessary because macros can't use concat_idents!().
+/// 3. `py3_init`: "PyInit_" + $name. Necessary because macros can't use concat_idents!().
+/// 4. A lambda of type `Fn(Python, &PyModule) -> PyResult<()>`.
 ///    This function will be called when the module is imported, and is responsible
 ///    for adding the module's members.
 ///
 /// # Example
 /// ```
 /// #![crate_type = "dylib"]
-/// #![feature(plugin)]
-/// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PyResult, PyObject};
 ///
-/// py_module_initializer!(example, |py, m| {
+/// py_module_initializer!(example, initexample, PyInit_example, |py, m| {
 ///     try!(m.add(py, "__doc__", "Module documentation string"));
 ///     try!(m.add(py, "run", py_fn!(run())));
 ///     Ok(())
@@ -199,10 +196,10 @@ pub mod _detail {
 #[macro_export]
 #[cfg(feature="python27-sys")]
 macro_rules! py_module_initializer {
-    ($name: ident, |$py_id: ident, $m_id: ident| $body: expr) => ( interpolate_idents! {
-        #[[no_mangle]]
+    ($name: ident, $py2: ident, $py3: ident, |$py_id: ident, $m_id: ident| $body: expr) => {
+        #[no_mangle]
         #[allow(non_snake_case)]
-        pub unsafe extern "C" fn [ init $name ]() {
+        pub unsafe extern "C" fn $py2() {
             // Nest init function so that $body isn't in unsafe context
             fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
@@ -210,7 +207,7 @@ macro_rules! py_module_initializer {
             let name = concat!(stringify!($name), "\0").as_ptr() as *const _;
             $crate::py_module_initializer_impl(name, init)
         }
-    })
+    }
 }
 
 
@@ -243,10 +240,10 @@ pub unsafe fn py_module_initializer_impl(
 #[macro_export]
 #[cfg(feature="python3-sys")]
 macro_rules! py_module_initializer {
-    ($name: ident, |$py_id: ident, $m_id: ident| $body: expr) => ( interpolate_idents! {
-        #[[no_mangle]]
+    ($name: ident, $py2: ident, $py3: ident, |$py_id: ident, $m_id: ident| $body: expr) => {
+        #[no_mangle]
         #[allow(non_snake_case)]
-        pub unsafe extern "C" fn [ PyInit_ $name ]() -> *mut $crate::_detail::ffi::PyObject {
+        pub unsafe extern "C" fn $py3() -> *mut $crate::_detail::ffi::PyObject {
             // Nest init function so that $body isn't in unsafe context
             fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
@@ -267,7 +264,7 @@ macro_rules! py_module_initializer {
             module_def.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
             $crate::py_module_initializer_impl(&mut module_def, init)
         }
-    })
+    }
 }
 
 

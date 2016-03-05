@@ -27,7 +27,6 @@ build = "build.rs"
 [dependencies]
 libc = "0.2"
 num = "0.1"
-interpolate_idents = ">=0.0.7"
 abort_on_panic = "1.0"
 
 # These features are both optional, but you must pick one to 

@@ -1,10 +1,8 @@
 #![crate_type = "dylib"]
-#![feature(plugin)]
-#![plugin(interpolate_idents)]
 
 #[macro_use] extern crate cpython;
 
-py_module_initializer!(inheritance, |py, m| {
+py_module_initializer!(inheritance, initinheritance, PyInit_inheritance, |py, m| {
     try!(m.add(py, "__doc__", "Module documentation string"));
     let base_class = try!(
         m.add_type::<()>(py, "BaseClass")

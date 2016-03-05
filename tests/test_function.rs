@@ -1,5 +1,3 @@
-#![feature(plugin)]
-#![plugin(interpolate_idents)]
 #[macro_use] extern crate cpython;
 
 use cpython::{PyResult, Python, NoArgs, ToPyObject, ObjectProtocol, PyDict, PyTuple};

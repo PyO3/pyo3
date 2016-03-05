@@ -27,21 +27,21 @@ use err::{self, PyResult};
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_method_def {
-    ($f: ident, $flags: expr, $wrap: expr) => ( interpolate_idents! {{
-        static mut [ method_def_ $f ]: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
+    ($f: ident, $flags: expr, $wrap: expr) => {{
+        static mut method_def: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
             //ml_name: bytes!(stringify!($f), "\0"),
             ml_name: 0 as *const $crate::_detail::libc::c_char,
             ml_meth: None,
             ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS | $flags,
             ml_doc: 0 as *const $crate::_detail::libc::c_char
         };
-        [ method_def_ $f ].ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
-        [ method_def_ $f ].ml_meth = Some(
+        method_def.ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
+        method_def.ml_meth = Some(
             std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
                                   $crate::_detail::ffi::PyCFunction>($wrap)
         );
-        &mut [ method_def_ $f ]
-    }})
+        &mut method_def
+    }}
 }
 
 #[macro_export]
@@ -49,8 +49,8 @@ macro_rules! py_method_def {
 macro_rules! py_fn_wrap {
     // * $f: function name, used as part of wrapper function name
     // * |py, args, kwargs| { body }
-    ($f: ident, | $py: ident, $args: ident, $kwargs: ident | $body: block) => ( interpolate_idents! {{
-        unsafe extern "C" fn [ wrap_ $f ](
+    ($f: ident, | $py: ident, $args: ident, $kwargs: ident | $body: block) => {{
+        unsafe extern "C" fn wrap<DUMMY>(
             _slf: *mut $crate::_detail::ffi::PyObject,
             args: *mut $crate::_detail::ffi::PyObject,
             kwargs: *mut $crate::_detail::ffi::PyObject)
@@ -63,8 +63,8 @@ macro_rules! py_fn_wrap {
             let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
             $crate::_detail::result_to_ptr($py, $body)
         }
-        [ wrap_ $f ]
-    }});
+        wrap::<()>
+    }};
 }
 
 #[inline]
@@ -110,8 +110,6 @@ pub fn result_to_ptr<T>(py: Python, result: PyResult<T>) -> *mut ffi::PyObject
 ///
 /// # Example
 /// ```
-/// #![feature(plugin)]
-/// #![plugin(interpolate_idents)]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PyResult, PyErr, PyDict};
 /// use cpython::{exc};
