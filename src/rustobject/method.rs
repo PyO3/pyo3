@@ -78,7 +78,7 @@ macro_rules! py_method_wrap {
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol};
 /// use cpython::{exc};
-/// use cpython::rustobject::{PyRustObject, PyRustTypeBuilder};
+/// use cpython::rustobject::{PyRustObject, TypeBuilder};
 ///
 /// fn mul(py: Python, slf: &PyRustObject<i32>, arg: i32) -> PyResult<i32> {
 ///     match slf.get(py).checked_mul(arg) {
@@ -90,7 +90,7 @@ macro_rules! py_method_wrap {
 /// fn main() {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     let multiplier_type = PyRustTypeBuilder::<i32>::new(py, "Multiplier")
+///     let multiplier_type = TypeBuilder::<i32>::new(py, "Multiplier")
 ///       .add("mul", py_method!(mul(arg: i32)))
 ///       .finish().unwrap();
 ///     let obj = multiplier_type.create_instance(py, 3, ()).into_object();
@@ -260,7 +260,7 @@ macro_rules! py_class_method_wrap {
 /// ```
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PythonObject, PyResult, ObjectProtocol, PyType, NoArgs};
-/// use cpython::rustobject::PyRustTypeBuilder;
+/// use cpython::rustobject::TypeBuilder;
 ///
 /// fn method(py: Python, cls: &PyType) -> PyResult<i32> {
 ///     Ok(42)
@@ -269,7 +269,7 @@ macro_rules! py_class_method_wrap {
 /// fn main() {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     let my_type = PyRustTypeBuilder::<i32>::new(py, "MyType")
+///     let my_type = TypeBuilder::<i32>::new(py, "MyType")
 ///       .add("method", py_class_method!(method()))
 ///       .finish().unwrap();
 ///     let result = my_type.as_object().call_method(py, "method", NoArgs, None).unwrap();

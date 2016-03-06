@@ -34,7 +34,7 @@ fn rustobject_calls_drop() {
 
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let t = rustobject::PyRustTypeBuilder::<MyObj>::new(py, "TypeWithDrop")
+    let t = rustobject::TypeBuilder::<MyObj>::new(py, "TypeWithDrop")
         .finish().unwrap();
 
     let drop_called = Arc::new(AtomicBool::new(false));
@@ -49,7 +49,7 @@ fn rustobject_calls_drop() {
 fn no_init_from_python() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let t = rustobject::PyRustTypeBuilder::<i32>::new(py, "MyType")
+    let t = rustobject::TypeBuilder::<i32>::new(py, "MyType")
         .finish().unwrap();
     assert!(t.call(py, &NoArgs, None).is_err());
 }
@@ -59,7 +59,7 @@ fn no_init_from_python() {
 fn heaptype_refcount() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let t = rustobject::PyRustTypeBuilder::<i32>::new(py, "MyType")
+    let t = rustobject::TypeBuilder::<i32>::new(py, "MyType")
         .finish().unwrap();
     // TODO: investigate why the refcnt isn't 1.
     //assert_eq!(1, t.as_object().get_refcnt());

@@ -34,7 +34,7 @@ pub use self::typebuilder::*;
 pub use self::method::*;
 pub use self::class::*;
 
-/// A PythonObject that is usable as a base type with `PyRustTypeBuilder::base()`.
+/// A PythonObject that is usable as a base type with `TypeBuilder::base()`.
 pub trait BaseObject : PythonObject {
     /// Gets the size of the object, in bytes.
     fn size() -> usize;

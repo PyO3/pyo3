@@ -113,7 +113,7 @@ macro_rules! py_class_impl {
                     }
                 }
                 fn init($py: Python) -> $crate::PyResult<$crate::PyType> {
-                    let b = $crate::rustobject::PyRustTypeBuilder::<$name>::new(
+                    let b = $crate::rustobject::TypeBuilder::<$name>::new(
                         $py, stringify!($name));
                     //let b = b.base(); TODO inheritance
                     //py_class_parse_body!($py, b, $( $body )* );

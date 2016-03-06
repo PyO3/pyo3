@@ -106,10 +106,10 @@ impl PyModule {
 
     /// Adds a new extension type to the module.
     ///
-    /// This is a convenience function that creates a new `PyRustTypeBuilder` and
+    /// This is a convenience function that creates a new `TypeBuilder` and
     /// sets `new_type.__module__` to this module's name.
     /// The new type will be added to this module when `finish()` is called on the builder.
-    pub fn add_type<'p, T>(&self, py: Python<'p>, name: &str) -> ::rustobject::PyRustTypeBuilder<'p, T>
+    pub fn add_type<'p, T>(&self, py: Python<'p>, name: &str) -> ::rustobject::TypeBuilder<'p, T>
             where T: 'static + Send {
         ::rustobject::new_typebuilder_for_module(py, self, name)
     }

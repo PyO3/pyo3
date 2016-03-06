@@ -29,7 +29,7 @@ use super::{BaseObject, PyRustObject, PyRustType, method};
 
 #[repr(C)]
 #[must_use]
-pub struct PyRustTypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: BaseObject {
+pub struct TypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: BaseObject {
     // In Python 2.7, we can create a new PyHeapTypeObject and fill it.
 
     /// The python type object under construction.
@@ -69,10 +69,10 @@ pub struct PyRustTypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: Ba
     phantom: marker::PhantomData<&'p (B, T)>
 }
 
-pub fn new_typebuilder_for_module<'p, T>(py: Python<'p>, m: &PyModule, name: &str) -> PyRustTypeBuilder<'p, T>
+pub fn new_typebuilder_for_module<'p, T>(py: Python<'p>, m: &PyModule, name: &str) -> TypeBuilder<'p, T>
         where T: 'static + Send {
-    let b = PyRustTypeBuilder::new(py, name);
-    PyRustTypeBuilder { target_module: Some(m.clone_ref(py)), .. b }
+    let b = TypeBuilder::new(py, name);
+    TypeBuilder { target_module: Some(m.clone_ref(py)), .. b }
 }
 
 unsafe extern "C" fn disabled_tp_new_callback
@@ -91,14 +91,14 @@ unsafe extern "C" fn tp_dealloc_callback<T, B>(obj: *mut ffi::PyObject)
     });
 }
 
-impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
+impl <'p, T> TypeBuilder<'p, T> where T: 'static + Send {
     /// Create a new type builder.
     ///
     /// py: proof that the GIL is held by the current thread.
     /// name: name of the new type
-    pub fn new(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T> {
+    pub fn new(py: Python<'p>, name: &str) -> TypeBuilder<'p, T> {
         #[cfg(feature="python27-sys")]
-        fn new_impl<'p, T>(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T>
+        fn new_impl<'p, T>(py: Python<'p>, name: &str) -> TypeBuilder<'p, T>
             where T: 'static + Send
         {
             unsafe {
@@ -113,7 +113,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
                 (*ht).ht_name = PyString::new(py, name.as_bytes()).steal_ptr(py);
                 (*ht).ht_type.tp_name = ffi::PyString_AS_STRING((*ht).ht_name);
                 (*ht).ht_type.tp_new = Some(disabled_tp_new_callback);
-                return PyRustTypeBuilder {
+                return TypeBuilder {
                     type_obj: PyType::unchecked_downcast_from(PyObject::from_owned_ptr(py, obj)),
                     doc_str: None,
                     target_module: None,
@@ -125,10 +125,10 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
             }
         }
         #[cfg(feature="python3-sys")]
-        fn new_impl<'p, T>(py: Python<'p>, name: &str) -> PyRustTypeBuilder<'p, T>
+        fn new_impl<'p, T>(py: Python<'p>, name: &str) -> TypeBuilder<'p, T>
             where T: 'static + Send
         {
-            PyRustTypeBuilder {
+            TypeBuilder {
                 name: CString::new(name).unwrap(),
                 flags: ffi::Py_TPFLAGS_DEFAULT as libc::c_uint,
                 slots: Vec::new(),
@@ -146,15 +146,15 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
 
     /// Sets the base class that this type is inheriting from.
     pub fn base<T2, B2>(self, base_type: &PyRustType<T2, B2>)
-        -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
+        -> TypeBuilder<'p, T, PyRustObject<T2, B2>>
         where T2: 'static + Send, B2: BaseObject
     {
         // Ensure we can't change the base after any callbacks are registered.
         assert!(self.can_change_base,
             "base() must be called before any members are added to the type");
         #[cfg(feature="python27-sys")]
-        fn base_impl<'p, T, T2, B2>(slf: PyRustTypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
-            -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
+        fn base_impl<'p, T, T2, B2>(slf: TypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
+            -> TypeBuilder<'p, T, PyRustObject<T2, B2>>
             where T: 'static + Send, T2: 'static + Send, B2: BaseObject
         {
             unsafe {
@@ -162,7 +162,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
                 (*slf.ht).ht_type.tp_base = base_type.as_type_ptr();
                 ffi::Py_INCREF(base_type.as_object().as_ptr());
             }
-            return PyRustTypeBuilder {
+            return TypeBuilder {
                 type_obj: slf.type_obj,
                 doc_str: slf.doc_str,
                 target_module: slf.target_module,
@@ -173,12 +173,12 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
             }
         }
         #[cfg(feature="python3-sys")]
-        fn base_impl<'p, T, T2, B2>(slf: PyRustTypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
-            -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
+        fn base_impl<'p, T, T2, B2>(slf: TypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
+            -> TypeBuilder<'p, T, PyRustObject<T2, B2>>
             where T: 'static + Send, T2: 'static + Send, B2: BaseObject
         {
             let base_type_obj: &PyType = base_type;
-            return PyRustTypeBuilder {
+            return TypeBuilder {
                 name: slf.name,
                 flags: slf.flags,
                 slots: slf.slots,
@@ -195,7 +195,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
     }
 }
 
-impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: BaseObject {
+impl <'p, T, B> TypeBuilder<'p, T, B> where T: 'static + Send, B: BaseObject {
 
     /// Retrieves the type dictionary of the type being built.
     #[cfg(feature="python27-sys")]
@@ -210,7 +210,7 @@ impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: BaseObje
 
     /// Set the doc string on the type being built.
     pub fn doc(self, doc_str: &str) -> Self {
-        PyRustTypeBuilder { doc_str: Some(CString::new(doc_str).unwrap()), .. self }
+        TypeBuilder { doc_str: Some(CString::new(doc_str).unwrap()), .. self }
     }
 
     /// Adds a new member to the type.
