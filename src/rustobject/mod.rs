@@ -24,15 +24,18 @@ use objects::{PyObject, PyType};
 use std::{mem, ops, ptr, marker};
 use err::{self, PyResult};
 
-// note: because rustobject isn't public, these modules aren't visible
-// outside the crate
-pub mod typebuilder;
-pub mod method;
+mod typebuilder;
+mod method;
+mod class;
 #[cfg(test)]
 mod tests;
 
-/// A PythonObject that is usable as a base type with PyTypeBuilder::base().
-pub trait PythonBaseObject : PythonObject {
+pub use self::typebuilder::*;
+pub use self::method::*;
+pub use self::class::*;
+
+/// A PythonObject that is usable as a base type with `PyRustTypeBuilder::base()`.
+pub trait BaseObject : PythonObject {
     /// Gets the size of the object, in bytes.
     fn size() -> usize;
 
@@ -50,7 +53,7 @@ pub trait PythonBaseObject : PythonObject {
     unsafe fn dealloc(py: Python, ptr: *mut ffi::PyObject);
 }
 
-impl PythonBaseObject for PyObject {
+impl BaseObject for PyObject {
     #[inline]
     fn size() -> usize {
         mem::size_of::<ffi::PyObject>()
@@ -85,13 +88,13 @@ impl PythonBaseObject for PyObject {
 /// Note that this type effectively acts like `Rc<T>`,
 /// except that the reference counting is done by the Python runtime.
 #[repr(C)]
-pub struct PyRustObject<T, B = PyObject> where T: 'static + Send, B: PythonBaseObject {
+pub struct PyRustObject<T, B = PyObject> where T: 'static + Send, B: BaseObject {
     obj: PyObject,
     /// The PyRustObject acts like a shared reference to the contained T.
     t: marker::PhantomData<&'static (T, B)>
 }
 
-impl <T, B> PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> PyRustObject<T, B> where T: 'static + Send, B: BaseObject {
     #[inline] // this function can usually be reduced to a compile-time constant
     fn offset() -> usize {
         let align = mem::align_of::<T>();
@@ -124,7 +127,7 @@ impl <T, B> PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
     }
 }
 
-impl <T, B> PythonBaseObject for PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> BaseObject for PyRustObject<T, B> where T: 'static + Send, B: BaseObject {
     #[inline]
     fn size() -> usize {
         PyRustObject::<T, B>::offset() + mem::size_of::<T>()
@@ -153,7 +156,7 @@ impl <T, B> PythonBaseObject for PyRustObject<T, B> where T: 'static + Send, B: 
     }
 }
 
-impl <T, B> ToPyObject for PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> ToPyObject for PyRustObject<T, B> where T: 'static + Send, B: BaseObject {
     type ObjectType = PyObject;
 
     #[inline]
@@ -173,7 +176,7 @@ impl <T, B> ToPyObject for PyRustObject<T, B> where T: 'static + Send, B: Python
     }
 }
 
-impl <T, B> PythonObject for PyRustObject<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> PythonObject for PyRustObject<T, B> where T: 'static + Send, B: BaseObject {
     #[inline]
     fn as_object(&self) -> &PyObject {
         &self.obj
@@ -206,21 +209,22 @@ impl <T, B> PythonObject for PyRustObject<T, B> where T: 'static + Send, B: Pyth
 /// Serves as a Python type object, and can be used to construct
 /// `PyRustObject<T>` instances.
 #[repr(C)]
-pub struct PyRustType<T, B = PyObject> where T: 'static + Send, B: PythonBaseObject {
+pub struct PyRustType<T, B = PyObject> where T: 'static + Send, B: BaseObject {
     type_obj: PyType,
     phantom: marker::PhantomData<&'static (B, T)>
 }
 
-impl <T, B> PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> PyRustType<T, B> where T: 'static + Send, B: BaseObject {
     /// Creates a PyRustObject instance from a value.
     pub fn create_instance(&self, py: Python, val: T, base_val: B::InitType) -> PyRustObject<T, B> {
         unsafe {
-            PythonBaseObject::alloc(py, &self.type_obj, (val, base_val)).unwrap()
+            BaseObject::alloc(py, &self.type_obj, (val, base_val))
+                .expect("Allocation failure")
         }
     }
 }
 
-impl <T, B> ops::Deref for PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> ops::Deref for PyRustType<T, B> where T: 'static + Send, B: BaseObject {
     type Target = PyType;
 
     #[inline]
@@ -229,7 +233,7 @@ impl <T, B> ops::Deref for PyRustType<T, B> where T: 'static + Send, B: PythonBa
     }
 }
 
-impl <T, B> ToPyObject for PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> ToPyObject for PyRustType<T, B> where T: 'static + Send, B: BaseObject {
     type ObjectType = PyType;
 
     #[inline]
@@ -249,7 +253,7 @@ impl <T, B> ToPyObject for PyRustType<T, B> where T: 'static + Send, B: PythonBa
     }
 }
 
-impl <T, B> PythonObject for PyRustType<T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <T, B> PythonObject for PyRustType<T, B> where T: 'static + Send, B: BaseObject {
     #[inline]
     fn as_object(&self) -> &PyObject {
         self.type_obj.as_object()

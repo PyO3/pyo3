@@ -93,12 +93,10 @@ extern crate python3_sys as ffi;
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
-pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PyClone, PyDrop};
+pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{ExtractPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
-pub use rustobject::{PyRustType, PyRustObject};
-pub use rustobject::typebuilder::PyRustTypeBuilder;
 
 #[cfg(feature="python27-sys")]
 #[allow(non_camel_case_types)]
@@ -128,7 +126,7 @@ mod objectprotocol;
 mod pythonrun;
 pub mod argparse;
 mod function;
-mod rustobject;
+pub mod rustobject;
 
 /// Private re-exports for macros. Do not use.
 #[doc(hidden)]
@@ -142,7 +140,6 @@ pub mod _detail {
     pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
     pub use function::{get_kwargs, result_to_ptr, py_fn_impl};
-    pub use rustobject::method::{py_method_impl, py_class_method_impl};
 
     /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
     /// of the referenced variable.

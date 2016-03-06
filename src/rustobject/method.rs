@@ -76,9 +76,9 @@ macro_rules! py_method_wrap {
 /// # Example
 /// ```
 /// #[macro_use] extern crate cpython;
-/// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol,
-///               PyRustObject, PyRustTypeBuilder};
+/// use cpython::{Python, PythonObject, PyResult, PyErr, ObjectProtocol};
 /// use cpython::{exc};
+/// use cpython::rustobject::{PyRustObject, PyRustTypeBuilder};
 ///
 /// fn mul(py: Python, slf: &PyRustObject<i32>, arg: i32) -> PyResult<i32> {
 ///     match slf.get(py).checked_mul(arg) {
@@ -106,7 +106,7 @@ macro_rules! py_method {
             $f(py, slf, args, kwargs)
         });
         unsafe {
-            $crate::_detail::py_method_impl::py_method_impl(
+            $crate::rustobject::py_method_impl::py_method_impl(
                 py_method_def!($f, 0, wrap), $f)
         }
     });
@@ -124,6 +124,7 @@ macro_rules! py_method {
     })
 }
 
+/// Return value of `py_method!()` macro.
 pub struct MethodDescriptor<T>(*mut ffi::PyMethodDef, marker::PhantomData<fn(&T)>);
 
 #[doc(hidden)]
@@ -148,15 +149,15 @@ pub mod py_method_impl {
     #[doc(hidden)]
     macro_rules! py_method_call_impl {
         ( $def:expr, $f:ident ( ) )
-            => { $crate::_detail::py_method_impl::py_method_impl_0($def, $f) };
+            => { $crate::rustobject::py_method_impl::py_method_impl_0($def, $f) };
         ( $def:expr, $f:ident ( $n1:ident : $t1:ty ) )
-            => { $crate::_detail::py_method_impl::py_method_impl_1($def, $f) };
+            => { $crate::rustobject::py_method_impl::py_method_impl_1($def, $f) };
         ( $def:expr, $f:ident ( $n1:ident : $t1:ty, $n2:ident : $t2:ty ) )
-            => { $crate::_detail::py_method_impl::py_method_impl_2($def, $f) };
+            => { $crate::rustobject::py_method_impl::py_method_impl_2($def, $f) };
         ( $def:expr, $f:ident ( $n1:ident : $t1:ty, $n2:ident : $t2:ty, $n3:ident : $t3:ty ) )
-            => { $crate::_detail::py_method_impl::py_method_impl_3($def, $f) };
+            => { $crate::rustobject::py_method_impl::py_method_impl_3($def, $f) };
         ( $def:expr, $f:ident ( $n1:ident : $t1:ty, $n2:ident : $t2:ty, $n3:ident : $t3:ty, $n4:ident : $t4:ty ) )
-            => { $crate::_detail::py_method_impl::py_method_impl_4($def, $f) };
+            => { $crate::rustobject::py_method_impl::py_method_impl_4($def, $f) };
     }
 
     pub unsafe fn py_method_impl_0<T, R>(
@@ -258,8 +259,8 @@ macro_rules! py_class_method_wrap {
 /// # Example
 /// ```
 /// #[macro_use] extern crate cpython;
-/// use cpython::{Python, PythonObject, PyResult, ObjectProtocol, PyType,
-///               PyRustTypeBuilder, NoArgs};
+/// use cpython::{Python, PythonObject, PyResult, ObjectProtocol, PyType, NoArgs};
+/// use cpython::rustobject::PyRustTypeBuilder;
 ///
 /// fn method(py: Python, cls: &PyType) -> PyResult<i32> {
 ///     Ok(42)
@@ -282,7 +283,7 @@ macro_rules! py_class_method {
             $f(py, cls, args, kwargs)
         });
         unsafe {
-            $crate::_detail::py_class_method_impl(
+            $crate::rustobject::py_class_method_impl(
                 py_method_def!($f, $crate::_detail::ffi::METH_CLASS, wrap))
         }
     });
@@ -292,15 +293,17 @@ macro_rules! py_class_method {
                     ( $($pname : $ptype),* ) { $f( py, cls, $($pname),* ) })
         });
         unsafe {
-            $crate::_detail::py_class_method_impl(
+            $crate::rustobject::py_class_method_impl(
                 py_method_def!($f, $crate::_detail::ffi::METH_CLASS, wrap))
         }
     });
 }
 
+/// The return type of the `py_class_method!()` macro.
 pub struct ClassMethodDescriptor(*mut ffi::PyMethodDef);
 
 #[inline]
+#[doc(hidden)]
 pub unsafe fn py_class_method_impl(def: *mut ffi::PyMethodDef) -> ClassMethodDescriptor {
     ClassMethodDescriptor(def)
 }

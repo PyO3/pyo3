@@ -20,7 +20,7 @@ use std::{mem, ptr};
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::ToPyObject;
-use rustobject::typebuilder;
+use rustobject::{PyRustTypeBuilder, TypeConstructor};
 use ffi;
 use err::{self, PyResult};
 
@@ -173,7 +173,7 @@ impl ToPyObject for PyFn {
     }
 }
 
-unsafe impl typebuilder::TypeConstructor for PyFn {
+unsafe impl TypeConstructor for PyFn {
     fn tp_new(&self) -> ffi::newfunc {
         unsafe {
             mem::transmute::<ffi::PyCFunction, ffi::newfunc>((*self.0).ml_meth.unwrap())

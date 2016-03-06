@@ -51,6 +51,13 @@ stamps/test-custom_type: custom_type.out
 	@grep "a() was called with self=42" custom_type.out >/dev/null
 endif
 
+custom_class.out: custom_class.so
+	python$(PY) -c "import custom_class; custom_class.MyType(42).a()" 2>&1 | tee $@
+
+all: stamps/test-custom_class
+stamps/test-custom_class: custom_class.out
+	@grep "a() was called with self=42" custom_class.out >/dev/null
+
 all: inheritance.so
 
 

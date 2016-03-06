@@ -20,16 +20,16 @@ use std::{ptr, mem, marker};
 use std::ffi::{CStr, CString};
 use libc;
 use ffi;
-use python::{Python, ToPythonPointer, PythonObject, PyClone};
+use python::{self, Python, ToPythonPointer, PythonObject, PyClone};
 use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyString, PyModule, PyDict};
 use err::{self, PyResult};
 use objectprotocol::ObjectProtocol;
-use super::{PythonBaseObject, PyRustObject, PyRustType, method};
+use super::{BaseObject, PyRustObject, PyRustType, method};
 
 #[repr(C)]
 #[must_use]
-pub struct PyRustTypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: PythonBaseObject {
+pub struct PyRustTypeBuilder<'p, T, B = PyObject> where T: 'static + Send, B: BaseObject {
     // In Python 2.7, we can create a new PyHeapTypeObject and fill it.
 
     /// The python type object under construction.
@@ -84,7 +84,7 @@ unsafe extern "C" fn disabled_tp_new_callback
 }
 
 unsafe extern "C" fn tp_dealloc_callback<T, B>(obj: *mut ffi::PyObject)
-        where T: 'static + Send, B: PythonBaseObject {
+        where T: 'static + Send, B: BaseObject {
     abort_on_panic!({
         let py = Python::assume_gil_acquired();
         PyRustObject::<T, B>::dealloc(py, obj)
@@ -147,7 +147,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
     /// Sets the base class that this type is inheriting from.
     pub fn base<T2, B2>(self, base_type: &PyRustType<T2, B2>)
         -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
-        where T2: 'static + Send, B2: PythonBaseObject
+        where T2: 'static + Send, B2: BaseObject
     {
         // Ensure we can't change the base after any callbacks are registered.
         assert!(self.can_change_base,
@@ -155,7 +155,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
         #[cfg(feature="python27-sys")]
         fn base_impl<'p, T, T2, B2>(slf: PyRustTypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
             -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
-            where T: 'static + Send, T2: 'static + Send, B2: PythonBaseObject
+            where T: 'static + Send, T2: 'static + Send, B2: BaseObject
         {
             unsafe {
                 ffi::Py_XDECREF((*slf.ht).ht_type.tp_base as *mut ffi::PyObject);
@@ -175,7 +175,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
         #[cfg(feature="python3-sys")]
         fn base_impl<'p, T, T2, B2>(slf: PyRustTypeBuilder<'p, T>, base_type: &PyRustType<T2, B2>)
             -> PyRustTypeBuilder<'p, T, PyRustObject<T2, B2>>
-            where T: 'static + Send, T2: 'static + Send, B2: PythonBaseObject
+            where T: 'static + Send, T2: 'static + Send, B2: BaseObject
         {
             let base_type_obj: &PyType = base_type;
             return PyRustTypeBuilder {
@@ -195,7 +195,7 @@ impl <'p, T> PyRustTypeBuilder<'p, T> where T: 'static + Send {
     }
 }
 
-impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: PythonBaseObject {
+impl <'p, T, B> PyRustTypeBuilder<'p, T, B> where T: 'static + Send, B: BaseObject {
 
     /// Retrieves the type dictionary of the type being built.
     #[cfg(feature="python27-sys")]
