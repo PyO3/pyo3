@@ -5,7 +5,7 @@ python:
   - "3.4"
   - "3.5"
 env:
-  - RUST_VERSION=1.7
+  - RUST_VERSION=1.7.0
   - RUST_VERSION=nightly
 sudo: false
 install:
