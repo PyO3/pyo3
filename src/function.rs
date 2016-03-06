@@ -52,27 +52,37 @@ macro_rules! py_fn_wrap {
     ($f: ident, | $py: ident, $args: ident, $kwargs: ident | $body: block) => {{
         unsafe extern "C" fn wrap<DUMMY>(
             _slf: *mut $crate::_detail::ffi::PyObject,
-            args: *mut $crate::_detail::ffi::PyObject,
-            kwargs: *mut $crate::_detail::ffi::PyObject)
+            $args: *mut $crate::_detail::ffi::PyObject,
+            $kwargs: *mut $crate::_detail::ffi::PyObject)
         -> *mut $crate::_detail::ffi::PyObject
         {
-            let _guard = $crate::_detail::PanicGuard::with_message(
-                concat!("Rust panic in py_fn!(", stringify!($f), ")"));
-            let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, args).unchecked_cast_into();
-            let kwargs: Option<$crate::PyDict> = $crate::_detail::get_kwargs($py, kwargs);
-            let ret = {
-                let $args = &args;
-                let $kwargs = kwargs.as_ref();
-                $crate::_detail::result_to_ptr($py, $body)
-            };
-            $crate::PyDrop::release_ref(args, $py);
-            $crate::PyDrop::release_ref(kwargs, $py);
-            ret
+            py_wrap_body!($py, concat!("Rust panic in py_fn!(", stringify!($f), ")"),
+                $args, $kwargs, { $body })
         }
         wrap::<()>
     }};
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_wrap_body {
+    ($py: ident, $location: expr, $args: ident, $kwargs: ident, $body: block) => {{
+        let _guard = $crate::_detail::PanicGuard::with_message(
+            concat!("Rust panic in ", $location));
+        let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&$args);
+        let $args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, $args).unchecked_cast_into();
+        let $kwargs: Option<$crate::PyDict> = $crate::_detail::get_kwargs($py, $kwargs);
+        let ret = {
+            let $args = &$args;
+            let $kwargs = $kwargs.as_ref();
+            $crate::_detail::result_to_ptr($py, $body)
+        };
+        $crate::PyDrop::release_ref($args, $py);
+        $crate::PyDrop::release_ref($kwargs, $py);
+        ret
+    }}
+}
+
 
 #[inline]
 pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {

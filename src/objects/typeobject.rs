@@ -21,6 +21,8 @@ use conversion::ToPyObject;
 use objects::{PyObject, PyTuple, PyDict};
 use err::{PyResult, result_from_owned_ptr};
 use ffi;
+use std::ffi::CStr;
+use std::borrow::Cow;
 
 /// Represents a reference to a Python type object.
 pub struct PyType(PyObject);
@@ -40,6 +42,13 @@ impl PyType {
     #[inline]
     pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> PyType {
         PyObject::from_borrowed_ptr(py, p as *mut ffi::PyObject).unchecked_cast_into::<PyType>()
+    }
+
+    /// Gets the name of the PyType.
+    pub fn name<'a>(&'a self, _py: Python<'a>) -> Cow<'a, str> {
+        unsafe {
+            CStr::from_ptr((*self.as_type_ptr()).tp_name).to_string_lossy()
+        }
     }
 
     /// Return true if `self` is a subtype of `b`.

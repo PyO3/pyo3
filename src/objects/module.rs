@@ -19,10 +19,11 @@
 use std;
 use ffi;
 use libc::c_char;
-use python::{Python, PythonObject};
+use python::{Python, PythonObject, PyDrop};
 use objectprotocol::ObjectProtocol;
 use conversion::ToPyObject;
 use objects::{PyObject, PyTuple, PyDict, exc};
+use rustobject::PythonObjectFromPyClassMacro;
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
 
@@ -102,6 +103,20 @@ impl PyModule {
     /// This is a convenience function which can be used from the module's initialization function.
     pub fn add<V>(&self, py: Python, name: &str, value: V) -> PyResult<()> where V: ToPyObject {
         self.as_object().setattr(py, name, value)
+    }
+
+    /// Adds a new extension type to the module.
+    ///
+    /// This is a convenience function that initializes the `py_class!()`,
+    /// sets `new_type.__module__` to this module's name,
+    //  and adds the type to this module.
+    pub fn add_class<'p, T>(&self, py: Python<'p>) -> PyResult<()>
+        where T: PythonObjectFromPyClassMacro
+    {
+        let type_obj = try!(T::initialize(py));
+        try!(self.as_object().setattr(py, type_obj.name(py), &type_obj));
+        type_obj.release_ref(py);
+        Ok(())
     }
 
     /// Adds a new extension type to the module.

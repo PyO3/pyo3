@@ -90,9 +90,9 @@ macro_rules! py_method_wrap {
 /// fn main() {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     let multiplier_type = TypeBuilder::<i32>::new(py, "Multiplier")
-///       .add("mul", py_method!(mul(arg: i32)))
-///       .finish().unwrap();
+///     let mut b = TypeBuilder::<i32>::new(py, "Multiplier");
+///     b.add("mul", py_method!(mul(arg: i32)));
+///     let multiplier_type = b.finish().unwrap();
 ///     let obj = multiplier_type.create_instance(py, 3, ()).into_object();
 ///     let result = obj.call_method(py, "mul", &(4,), None).unwrap().extract::<i32>(py).unwrap();
 ///     assert_eq!(result, 12);
@@ -135,6 +135,10 @@ pub mod py_method_impl {
     use objects::{PyTuple, PyDict};
     use super::MethodDescriptor;
     use std::marker;
+
+    pub unsafe fn create_without_type_check<T>(def: *mut ffi::PyMethodDef) -> MethodDescriptor<T> {
+        MethodDescriptor(def, marker::PhantomData)    
+    }
 
     // py_method_impl takes fn(&T) to ensure that the T in MethodDescriptor<T>
     // corresponds to the T in the function signature.
@@ -269,9 +273,9 @@ macro_rules! py_class_method_wrap {
 /// fn main() {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     let my_type = TypeBuilder::<i32>::new(py, "MyType")
-///       .add("method", py_class_method!(method()))
-///       .finish().unwrap();
+///     let mut b = TypeBuilder::<i32>::new(py, "MyType");
+///     b.add("method", py_class_method!(method()));
+///     let my_type = b.finish().unwrap();
 ///     let result = my_type.as_object().call_method(py, "method", NoArgs, None).unwrap();
 ///     assert_eq!(42, result.extract::<i32>(py).unwrap());
 /// }

@@ -11,10 +11,10 @@ static MY_TYPE: GILProtected<RefCell<Option<PyRustType<i32>>>> = GILProtected::n
 
 py_module_initializer!(custom_type, initcustom_type, PyInit_custom_type, |py, m| {
     try!(m.add(py, "__doc__", "Module documentation string"));
-    *MY_TYPE.get(py).borrow_mut() = Some(try!(m.add_type::<i32>(py, "MyType")
-        .add("a", py_method!(a()))
-        .set_new(py_fn!(new(arg: i32)))
-        .finish()));
+    let mut b = m.add_type::<i32>(py, "MyType");
+    b.add("a", py_method!(a()));
+    b.set_new(py_fn!(new(arg: i32)));
+    *MY_TYPE.get(py).borrow_mut() = Some(try!(b.finish()));
     Ok(())
 });
 

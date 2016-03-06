@@ -110,6 +110,7 @@ impl <'p, T> TypeBuilder<'p, T> where T: 'static + Send {
                 let ht = obj as *mut ffi::PyHeapTypeObject;
                 // flags must be set first, before the GC traverses the object
                 (*ht).ht_type.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HEAPTYPE;
+                // PyString::new() here may already cause the first GC
                 (*ht).ht_name = PyString::new(py, name.as_bytes()).steal_ptr(py);
                 (*ht).ht_type.tp_name = ffi::PyString_AS_STRING((*ht).ht_name);
                 (*ht).ht_type.tp_new = Some(disabled_tp_new_callback);
@@ -209,17 +210,16 @@ impl <'p, T, B> TypeBuilder<'p, T, B> where T: 'static + Send, B: BaseObject {
     }
 
     /// Set the doc string on the type being built.
-    pub fn doc(self, doc_str: &str) -> Self {
-        TypeBuilder { doc_str: Some(CString::new(doc_str).unwrap()), .. self }
+    pub fn doc(&mut self, doc_str: &str) {
+        self.doc_str = Some(CString::new(doc_str).unwrap());
     }
 
     /// Adds a new member to the type.
-    pub fn add<M>(mut self, name: &str, val: M) -> Self
+    pub fn add<M>(&mut self, name: &str, val: M)
         where M: TypeMember<PyRustObject<T, B>> + 'static
     {
         self.can_change_base = false;
         self.add_impl(name, val);
-        self
     }
 
     #[cfg(feature="python27-sys")]
@@ -239,9 +239,8 @@ impl <'p, T, B> TypeBuilder<'p, T, B> where T: 'static + Send, B: BaseObject {
     /// Sets the constructor (__new__ method)
     ///
     /// As `new` argument, use either the `py_fn!()` or the `py_class_method!()` macro.
-    pub fn set_new<N>(mut self, new: N) -> Self where N: TypeConstructor {
+    pub fn set_new<N>(&mut self, new: N) where N: TypeConstructor {
         self.set_new_impl(new.tp_new());
-        self
     }
 
     #[cfg(feature="python27-sys")]
@@ -368,7 +367,7 @@ unsafe fn create_type_from_slots<'p>(
     }
     slots.push(ffi::PyType_Slot::default()); // sentinel
     let mut spec = ffi::PyType_Spec {
-        name: name.as_ptr(),
+        name: copy_str_to_py_malloc_heap(name),
         basicsize: basicsize as libc::c_int,
         itemsize: 0,
         flags: flags,
@@ -384,6 +383,10 @@ unsafe fn create_type_from_slots<'p>(
 /// Implemented by the result types of the `py_fn!()` and `py_class_method!()` macros.
 pub unsafe trait TypeConstructor {
     fn tp_new(&self) -> ffi::newfunc;
+}
+
+unsafe impl TypeConstructor for ffi::newfunc {
+    fn tp_new(&self) -> ffi::newfunc { *self }
 }
 
 /// Represents something that can be added as a member to a Python class/type.

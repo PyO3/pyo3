@@ -63,10 +63,12 @@ impl BaseObject for PyObject {
 
     unsafe fn alloc(py: Python, ty: &PyType, _init_val: ()) -> PyResult<PyObject> {
         let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
+        //println!("BaseObject::alloc({:?}) = {:?}", ty.as_type_ptr(), ptr);
         err::result_from_owned_ptr(py, ptr)
     }
 
     unsafe fn dealloc(_py: Python, ptr: *mut ffi::PyObject) {
+        //println!("BaseObject::dealloc({:?})", ptr);
         // Unfortunately, there is no PyType_GenericFree, so
         // we have to manually un-do the work of PyType_GenericAlloc:
         let ty = ffi::Py_TYPE(ptr);

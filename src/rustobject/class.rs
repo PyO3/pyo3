@@ -19,6 +19,7 @@
 use python::{self, Python};
 use objects::PyType;
 use err::PyResult;
+use ffi;
 
 /// Trait implemented by the types produced by the `py_class!()` macro.
 pub trait PythonObjectFromPyClassMacro : python::PythonObjectWithTypeObject {
@@ -29,17 +30,24 @@ pub trait PythonObjectFromPyClassMacro : python::PythonObjectWithTypeObject {
 # Example
 ```
 #[macro_use] extern crate cpython;
-use cpython::Python;
+use cpython::{Python, PyResult, PyType, PyDict};
 
-py_class!(pub class MyType, data: i32, |py| {
-    
+py_class!(class MyType, data: i32, |py| {
+    def __new__(_cls: &PyType, arg: i32) -> PyResult<MyType> {
+        Ok(MyType::create_instance(py, arg))
+    }
+    def half(&self) -> PyResult<i32> {
+        println!("half() was called with self={:?}", self.data(py));
+        Ok(self.data(py) / 2)
+    }
 });
 
 fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let type_obj = py.get_type::<MyType>();
-    MyType::create_instance(py, 42);
+    let dict = PyDict::new(py);
+    dict.set_item(py, "MyType", py.get_type::<MyType>()).unwrap();
+    py.run("assert MyType(42).half() == 21", None, Some(&dict)).unwrap();
 }
 ``` */
 #[macro_export]
@@ -106,6 +114,7 @@ macro_rules! py_class_impl {
                             let result = init(py);
                             if let Ok(ref ty) = result {
                                 type_ptr = ty.as_type_ptr();
+                                $crate::_detail::ffi::Py_INCREF(type_ptr as *mut $crate::_detail::ffi::PyObject);
                             }
                             init_active = false;
                             result
@@ -113,12 +122,12 @@ macro_rules! py_class_impl {
                     }
                 }
                 fn init($py: Python) -> $crate::PyResult<$crate::PyType> {
-                    let b = $crate::rustobject::TypeBuilder::<$name>::new(
+                    let mut b = $crate::rustobject::TypeBuilder::<$data_ty>::new(
                         $py, stringify!($name));
                     //let b = b.base(); TODO inheritance
-                    //py_class_parse_body!($py, b, $( $body )* );
-                    ///b.finish()
-                    unimplemented!()
+                    py_class_parse_body!($name, $py, b, $( $body )* );
+                    let ty = try!(b.finish());
+                    Ok($crate::ToPyObject::into_py_object(ty, $py))
                 }
 
                 py_class_create_instance_impl!(py, $name, $init_val)
@@ -226,10 +235,80 @@ macro_rules! py_class_impl_py_object {
     )
 }
 
+// AST coercion macro (https://danielkeep.github.io/tlborm/book/blk-ast-coercion.html)
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_coerce_expr { ($s:expr) => {$s} }
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_parse_body {
-    () => (
+    ($class: ident, $py: ident, $b: ident, ) => ( );
+    ($class: ident, $py: ident, $b: ident,
+        def __new__ ($cls:ident : $cls_type:ty $( , $pname:ident : $ptype:ty )*)
+            -> $res_type:ty { $( $body:tt )* } $($remainder:tt)*
+    ) => (
+        impl $class {
+            pub fn __new__ ($py: Python, $cls: $cls_type $( , $pname : $ptype )*) -> $res_type {
+                py_coerce_expr!({$( $body )*})
+            }
+        }
+        {
+            unsafe extern "C" fn wrap_new(
+                cls: *mut $crate::_detail::ffi::PyTypeObject,
+                args: *mut $crate::_detail::ffi::PyObject,
+                kwargs: *mut $crate::_detail::ffi::PyObject)
+            -> *mut $crate::_detail::ffi::PyObject
+            {
+                py_wrap_body!(py, concat!(stringify!($class), ".__new__()"), args, kwargs, {
+                    let cls = $crate::PyType::from_type_ptr(py, cls);
+                    let ret = {
+                        let cls: &$crate::PyType = &cls;
+                        py_argparse!(py, Some(concat!(stringify!($class), ".__new__()")), args, kwargs,
+                            ( $($pname : $ptype),* ) { $class::__new__( py, cls, $($pname),* ) })
+                    };
+                    $crate::PyDrop::release_ref(cls, py);
+                    ret
+                })
+            }
+            $b.set_new(wrap_new as $crate::_detail::ffi::newfunc);
+        }
+        py_class_parse_body!($class, $py, $b, $($remainder)*);
+    );
+    ($class: ident, $py: ident, $b: ident,
+        def $name:ident(&$slf:ident $( , $pname:ident : $ptype:ty )*)
+            -> $res_type:ty { $( $body:tt )* } $($remainder:tt)*
+    ) => (
+        impl $class {
+            pub fn $name(&$slf, $py: Python $( , $pname : $ptype )*) -> $res_type {
+                py_coerce_expr!({$( $body )*})
+            }
+        }
+        {
+            unsafe extern "C" fn wrap<DUMMY>(
+                slf: *mut $crate::_detail::ffi::PyObject,
+                args: *mut $crate::_detail::ffi::PyObject,
+                kwargs: *mut $crate::_detail::ffi::PyObject)
+            -> *mut $crate::_detail::ffi::PyObject
+            {
+                py_wrap_body!(py, concat!(stringify!($class), ".", stringify!($name), "()"), args, kwargs, {
+                    let slf: $class = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into();
+                    let ret = {
+                        let slf: &$class = &slf;
+                        py_argparse!(py, Some(concat!(stringify!($class), ".", stringify!($name), "()")), args, kwargs,
+                            ( $($pname : $ptype),* ) { $class::$name( slf, py, $($pname),* ) })
+                    };
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+            }
+            unsafe {
+                let method_def = py_method_def!($name, 0, wrap::<()>);
+                $b.add(stringify!($name),
+                    $crate::rustobject::py_method_impl::create_without_type_check(method_def));
+            }
+        }
+        py_class_parse_body!($class, $py, $b, $($remainder)*);
     );
 }
 

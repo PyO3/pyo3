@@ -289,6 +289,21 @@ impl ToPyObject for str {
     }
 }
 
+/// Converts rust `Cow<str>` to Python object:
+/// ASCII-only strings are converted to Python `str` objects;
+/// other strings are converted to Python `unicode` objects.
+///
+/// Note that `str::ObjectType` differs based on Python version:
+/// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
+/// In Python 3.x, it is `PyUnicode`.
+impl <'a> ToPyObject for Cow<'a, str> {
+    type ObjectType = <str as ToPyObject>::ObjectType;
+
+    fn to_py_object(&self, py: Python) -> Self::ObjectType {
+        <str as ToPyObject>::to_py_object(self, py)
+    }
+}
+
 /// Converts rust `String` to Python object:
 /// ASCII-only strings are converted to Python `str` objects;
 /// other strings are converted to Python `unicode` objects.

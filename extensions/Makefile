@@ -32,7 +32,10 @@ stamps/rust-cpython-$(PY): $(call rwildcard,../src,*.rs) Makefile | stamps
 	touch $@
 
 %.so: %.rs stamps/rust-cpython-$(PY)
-	rustc $< -L $(TARGETDIR) -L $(TARGETDIR)/deps -o $@
+	rustc $< -g -L $(TARGETDIR) -L $(TARGETDIR)/deps -o $@
+
+%_expanded.rs: %.rs stamps/rust-cpython-$(PY)
+	rustc $< -g -L $(TARGETDIR) -L $(TARGETDIR)/deps -Z unstable-options --pretty=expanded -o $@
 
 hello.out: hello.so
 	python$(PY) -c "import hello; hello.run(hello.val())" 2>&1 | tee $@
@@ -54,7 +57,7 @@ endif
 custom_class.out: custom_class.so
 	python$(PY) -c "import custom_class; custom_class.MyType(42).a()" 2>&1 | tee $@
 
-all: stamps/test-custom_class
+all: stamps/test-custom_class custom_class_expanded.rs
 stamps/test-custom_class: custom_class.out
 	@grep "a() was called with self=42" custom_class.out >/dev/null
 
