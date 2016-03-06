@@ -28,6 +28,7 @@
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 
+
 //! Rust bindings to the Python interpreter.
 //!
 //! # Ownership and Lifetimes
@@ -117,6 +118,13 @@ macro_rules! cstr(
         }
     );
 );
+
+// AST coercion macros (https://danielkeep.github.io/tlborm/book/blk-ast-coercion.html)
+#[macro_export] #[doc(hidden)]
+macro_rules! py_coerce_expr { ($s:expr) => {$s} }
+#[macro_export] #[doc(hidden)]
+macro_rules! py_coerce_item { ($s:item) => {$s} }
+
 
 mod python;
 mod err;

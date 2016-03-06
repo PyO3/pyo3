@@ -235,52 +235,28 @@ macro_rules! py_class_impl_py_object {
     )
 }
 
-// AST coercion macro (https://danielkeep.github.io/tlborm/book/blk-ast-coercion.html)
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_coerce_expr { ($s:expr) => {$s} }
-
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_parse_body {
     ($class: ident, $py: ident, $b: ident, ) => ( );
     ($class: ident, $py: ident, $b: ident,
-        def __new__ ($cls:ident : $cls_type:ty $( , $pname:ident : $ptype:ty )*)
+        def __new__ ($cls:ident : $cls_type:ty, $( $plist:tt )*)
             -> $res_type:ty { $( $body:tt )* } $($remainder:tt)*
     ) => (
-        impl $class {
-            fn __new__ ($py: Python, $cls: $cls_type $( , $pname : $ptype )*) -> $res_type {
-                py_coerce_expr!({$( $body )*})
-            }
-        }
-        {
-            unsafe extern "C" fn wrap_new(
-                cls: *mut $crate::_detail::ffi::PyTypeObject,
-                args: *mut $crate::_detail::ffi::PyObject,
-                kwargs: *mut $crate::_detail::ffi::PyObject)
-            -> *mut $crate::_detail::ffi::PyObject
-            {
-                py_wrap_argparse!(py, concat!(stringify!($class), ".__new__()"), args, kwargs,
-                    ( $($pname : $ptype),* ) {
-                        let cls = $crate::PyType::from_type_ptr(py, cls);
-                        let ret = $class::__new__( py, &cls, $($pname),* );
-                        $crate::PyDrop::release_ref(cls, py);
-                        ret
-                    })
-            }
-            $b.set_new(wrap_new as $crate::_detail::ffi::newfunc);
-        }
+        py_class_new!($class, $py, $b, $cls:$cls_type,
+            (,$($plist)*,) -> $res_type; { $($body)* });
         py_class_parse_body!($class, $py, $b, $($remainder)*);
     );
     ($class: ident, $py: ident, $b: ident,
-        def $name:ident(&$slf:ident $( , $pname:ident : $ptype:ty )*)
+        def $name:ident(&$slf:ident $( $plist:tt )*)
             -> $res_type:ty { $( $body:tt )* } $($remainder:tt)*
     ) => (
-        impl $class {
-            fn $name(&$slf, $py: Python $( , $pname : $ptype )*) -> $res_type {
-                py_coerce_expr!({$( $body )*})
-            }
-        }
+        py_argparse_declare_item_in_impl!{{impl $class} 
+            {fn $name} (&$slf, $py: Python) ($($plist)*,) {
+                -> $res_type {
+                    py_coerce_expr!({$( $body )*})
+                }
+            }}
         {
             unsafe extern "C" fn wrap<DUMMY>(
                 slf: *mut $crate::_detail::ffi::PyObject,
@@ -289,9 +265,10 @@ macro_rules! py_class_parse_body {
             -> *mut $crate::_detail::ffi::PyObject
             {
                 py_wrap_argparse!(py, concat!(stringify!($class), ".", stringify!($name), "()"), args, kwargs,
-                    ( $($pname : $ptype),* ) {
+                    ( $($plist)*, ) {
                         let slf: $class = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into();
-                        let ret = $class::$name( &slf, py, $($pname),* );
+                        //let ret = $class::$name( &slf, py $(,$pname)* );
+                        let ret = py_argparse_call_with_names!($class::$name, (&slf, py) ($($plist)*,));
                         $crate::PyDrop::release_ref(slf, py);
                         ret
                     })
@@ -303,6 +280,35 @@ macro_rules! py_class_parse_body {
             }
         }
         py_class_parse_body!($class, $py, $b, $($remainder)*);
+    );
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_new {
+    ($class: ident, $py: ident, $b: ident, $cls:ident : $cls_type:ty,
+        $plist: tt -> $res_type:ty; $body:block) => (
+        py_argparse_declare_item_in_impl!{{impl $class}
+            {fn __new__} ($py: Python, $cls: $cls_type) $plist { -> $res_type $body }
+        }
+        {
+            unsafe extern "C" fn wrap_new(
+                cls: *mut $crate::_detail::ffi::PyTypeObject,
+                args: *mut $crate::_detail::ffi::PyObject,
+                kwargs: *mut $crate::_detail::ffi::PyObject)
+            -> *mut $crate::_detail::ffi::PyObject
+            {
+                py_wrap_argparse!(py, concat!(stringify!($class), ".__new__()"),
+                    args, kwargs, $plist {
+                        let cls = $crate::PyType::from_type_ptr(py, cls);
+                        //let ret = $class::__new__( py, &cls, $($pname),* );
+                        let ret = py_argparse_call_with_names!($class::__new__, (py, &cls) $plist);
+                        $crate::PyDrop::release_ref(cls, py);
+                        ret
+                    })
+            }
+            $b.set_new(wrap_new as $crate::_detail::ffi::newfunc);
+        }
     );
 }
 

@@ -150,6 +150,7 @@ macro_rules! py_argparse_snd {
 /// If extraction fails, `py_argparse!()` returns a failed `PyResult` without evaluating `body`.
 #[macro_export]
 macro_rules! py_argparse {
+    // main py_argparse!() macro
     ($py:expr, $fname:expr, $args:expr, $kwargs:expr, ($( $pname:ident : $ptype:ty ),*) $body:block) => {{
         const PARAMS: &'static [$crate::argparse::ParamDescription<'static>] = &[
             $(
@@ -172,7 +173,40 @@ macro_rules! py_argparse {
             },
             Err(e) => Err(e)
         }
-    }}
+    }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_declare_item_in_impl {
+    // argparse_declare_item_in_impl!({implhead} {head} (params) (,plist,) {tail} )
+    //   = implhead { head(params, pname:ptype...) tail }
+
+    { {$($implhead:tt)*} {$($head:tt)*} $params:tt ( $(,)* ) {$($tail:tt)*} } => {
+        py_coerce_item!{ 
+            $($implhead)* {
+                $($head)* $params $($tail)*
+            }
+        }
+    };
+    { $implhead:tt $head:tt ($($params:tt)*) ( ,$pname:ident : $ptype:ty, $($r:tt)* ) $tail:tt } => {
+        py_argparse_declare_item_in_impl!( $implhead $head ($($params)* , $pname : $ptype) ( ,$($r)* ) $tail)
+    };
+}
+
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_call_with_names {
+    // py_argparse_call_with_names!(f, (lhs) (,plist,))
+    //   = f(lhs, pnames...)
+
+    ( $f:expr, $lhs:tt ( $(,)* )) => (
+        py_coerce_expr!{ $f $lhs }
+    );
+    ( $f:expr, ($($lhs:tt)*) ( ,$pname:ident : $ptype:ty, $($r:tt)* )) => {
+        py_argparse_call_with_names!( $f, ($($lhs)* , $pname) ( ,$($r)* ))
+    };
 }
 
 #[cfg(test)]

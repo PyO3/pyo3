@@ -21,6 +21,7 @@ all:
 clean:
 	-rm *.so
 	-rm *.out
+	-rm *_expanded.rs
 	-rm -r stamps
 
 stamps:

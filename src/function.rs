@@ -87,13 +87,13 @@ macro_rules! py_wrap_body {
 #[doc(hidden)] // combines py_wrap_body with py_argparse
 macro_rules! py_wrap_argparse {
     ($py: ident, $location: expr, $args: expr, $kwargs: expr,
-        ($( $pname:ident : $ptype:ty ),*) $body:block
+        ($( $plist:tt )*) $body:block
     ) => {{
         let args = $args;
         let kwargs = $kwargs;
         py_wrap_body!($py, $location, args, kwargs, {
             py_argparse!($py, Some($location), args, kwargs,
-                ( $($pname : $ptype),* ) $body)
+                ( $($plist)* ) $body)
         })
     }}
 }
@@ -168,10 +168,12 @@ macro_rules! py_fn {
         });
         unsafe { $crate::_detail::py_fn_impl(py_method_def!($f, 0, wrap)) }
     });
-    ($f: ident ( $( $pname:ident : $ptype:ty ),* ) ) => ({
+    ($f: ident ( $($plist:tt)* ) ) => ({
         let wrap = py_fn_wrap!($f, |py, args, kwargs| {
             py_argparse!(py, Some(stringify!($f)), args, kwargs,
-                    ( $($pname : $ptype),* ) { $f( py, $($pname),* ) })
+                    ( $($plist)* ) {
+                        py_argparse_call_with_names!($f, (py) ( , $($plist)* , ) )
+                    })
         });
         unsafe { $crate::_detail::py_fn_impl(py_method_def!($f, 0, wrap)) }
     });
