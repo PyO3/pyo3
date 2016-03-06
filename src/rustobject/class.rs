@@ -249,7 +249,7 @@ macro_rules! py_class_parse_body {
             -> $res_type:ty { $( $body:tt )* } $($remainder:tt)*
     ) => (
         impl $class {
-            pub fn __new__ ($py: Python, $cls: $cls_type $( , $pname : $ptype )*) -> $res_type {
+            fn __new__ ($py: Python, $cls: $cls_type $( , $pname : $ptype )*) -> $res_type {
                 py_coerce_expr!({$( $body )*})
             }
         }
@@ -260,16 +260,13 @@ macro_rules! py_class_parse_body {
                 kwargs: *mut $crate::_detail::ffi::PyObject)
             -> *mut $crate::_detail::ffi::PyObject
             {
-                py_wrap_body!(py, concat!(stringify!($class), ".__new__()"), args, kwargs, {
-                    let cls = $crate::PyType::from_type_ptr(py, cls);
-                    let ret = {
-                        let cls: &$crate::PyType = &cls;
-                        py_argparse!(py, Some(concat!(stringify!($class), ".__new__()")), args, kwargs,
-                            ( $($pname : $ptype),* ) { $class::__new__( py, cls, $($pname),* ) })
-                    };
-                    $crate::PyDrop::release_ref(cls, py);
-                    ret
-                })
+                py_wrap_argparse!(py, concat!(stringify!($class), ".__new__()"), args, kwargs,
+                    ( $($pname : $ptype),* ) {
+                        let cls = $crate::PyType::from_type_ptr(py, cls);
+                        let ret = $class::__new__( py, &cls, $($pname),* );
+                        $crate::PyDrop::release_ref(cls, py);
+                        ret
+                    })
             }
             $b.set_new(wrap_new as $crate::_detail::ffi::newfunc);
         }
@@ -280,7 +277,7 @@ macro_rules! py_class_parse_body {
             -> $res_type:ty { $( $body:tt )* } $($remainder:tt)*
     ) => (
         impl $class {
-            pub fn $name(&$slf, $py: Python $( , $pname : $ptype )*) -> $res_type {
+            fn $name(&$slf, $py: Python $( , $pname : $ptype )*) -> $res_type {
                 py_coerce_expr!({$( $body )*})
             }
         }
@@ -291,16 +288,13 @@ macro_rules! py_class_parse_body {
                 kwargs: *mut $crate::_detail::ffi::PyObject)
             -> *mut $crate::_detail::ffi::PyObject
             {
-                py_wrap_body!(py, concat!(stringify!($class), ".", stringify!($name), "()"), args, kwargs, {
-                    let slf: $class = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into();
-                    let ret = {
-                        let slf: &$class = &slf;
-                        py_argparse!(py, Some(concat!(stringify!($class), ".", stringify!($name), "()")), args, kwargs,
-                            ( $($pname : $ptype),* ) { $class::$name( slf, py, $($pname),* ) })
-                    };
-                    $crate::PyDrop::release_ref(slf, py);
-                    ret
-                })
+                py_wrap_argparse!(py, concat!(stringify!($class), ".", stringify!($name), "()"), args, kwargs,
+                    ( $($pname : $ptype),* ) {
+                        let slf: $class = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into();
+                        let ret = $class::$name( &slf, py, $($pname),* );
+                        $crate::PyDrop::release_ref(slf, py);
+                        ret
+                    })
             }
             unsafe {
                 let method_def = py_method_def!($name, 0, wrap::<()>);

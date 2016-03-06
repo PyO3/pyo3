@@ -64,7 +64,7 @@ macro_rules! py_fn_wrap {
 }
 
 #[macro_export]
-#[doc(hidden)]
+#[doc(hidden)] // TODO: eliminate this macro
 macro_rules! py_wrap_body {
     ($py: ident, $location: expr, $args: ident, $kwargs: ident, $body: block) => {{
         let _guard = $crate::_detail::PanicGuard::with_message(
@@ -83,6 +83,20 @@ macro_rules! py_wrap_body {
     }}
 }
 
+#[macro_export]
+#[doc(hidden)] // combines py_wrap_body with py_argparse
+macro_rules! py_wrap_argparse {
+    ($py: ident, $location: expr, $args: expr, $kwargs: expr,
+        ($( $pname:ident : $ptype:ty ),*) $body:block
+    ) => {{
+        let args = $args;
+        let kwargs = $kwargs;
+        py_wrap_body!($py, $location, args, kwargs, {
+            py_argparse!($py, Some($location), args, kwargs,
+                ( $($pname : $ptype),* ) $body)
+        })
+    }}
+}
 
 #[inline]
 pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
