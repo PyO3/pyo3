@@ -199,7 +199,7 @@ impl PyErr {
             Err(_) =>
                 match self.ptype.cast_as::<PyClass>(py) {
                     Ok(_)  => py.get_type::<PyClass>(),
-                    Err(_) => py.None().get_type().clone_ref(py)
+                    Err(_) => py.None().get_type(py)
                 }
         }
     }
@@ -209,7 +209,7 @@ impl PyErr {
     pub fn get_type(&self, py: Python) -> PyType {
         match self.ptype.cast_as::<PyType>(py) {
             Ok(t)  => t.clone_ref(py),
-            Err(_) => py.None().get_type().clone_ref(py)
+            Err(_) => py.None().get_type(py)
         }
     }
 

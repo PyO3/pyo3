@@ -38,10 +38,19 @@ macro_rules! py_method_wrap {
             let _guard = $crate::_detail::PanicGuard::with_message(
                 concat!("Rust panic in py_method!(", stringify!($f), ")"));
             let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let $slf: &$crate::PyObject = $crate::PyObject::borrow_from_ptr(&slf);
-            let $args: &$crate::PyTuple = $crate::PyObject::borrow_from_ptr(&args).unchecked_cast_as();
-            let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
-            $crate::_detail::result_to_ptr($py, $body)
+            let slf: $crate::PyObject = $crate::PyObject::from_borrowed_ptr($py, slf);
+            let args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, args).unchecked_cast_into();
+            let kwargs: Option<$crate::PyDict> = $crate::_detail::get_kwargs($py, kwargs);
+            let ret = {
+                let $slf = &slf;
+                let $args = &args;
+                let $kwargs = kwargs.as_ref();
+                $crate::_detail::result_to_ptr($py, $body)
+            };
+            $crate::PyDrop::release_ref(slf, $py);
+            $crate::PyDrop::release_ref(args, $py);
+            $crate::PyDrop::release_ref(kwargs, $py);
+            ret
         }
         wrap::<()>
     }};
@@ -211,10 +220,19 @@ macro_rules! py_class_method_wrap {
             let _guard = $crate::_detail::PanicGuard::with_message(
                 concat!("Rust panic in py_class_method!(", stringify!($f), ")"));
             let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let $slf: &$crate::PyType = $crate::PyObject::borrow_from_ptr(&slf).unchecked_cast_as();
-            let $args: &$crate::PyTuple = $crate::PyObject::borrow_from_ptr(&args).unchecked_cast_as();
-            let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
-            $crate::_detail::result_to_ptr($py, $body)
+            let slf: $crate::PyType = $crate::PyObject::from_borrowed_ptr($py, slf).unchecked_cast_into();
+            let args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, args).unchecked_cast_into();
+            let kwargs: Option<$crate::PyDict> = $crate::_detail::get_kwargs($py, kwargs);
+            let ret = {
+                let $slf = &slf;
+                let $args = &args;
+                let $kwargs = kwargs.as_ref();
+                $crate::_detail::result_to_ptr($py, $body)
+            };
+            $crate::PyDrop::release_ref(slf, $py);
+            $crate::PyDrop::release_ref(args, $py);
+            $crate::PyDrop::release_ref(kwargs, $py);
+            ret
         }
         wrap::<()>
     }};

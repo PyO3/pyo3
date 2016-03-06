@@ -140,8 +140,15 @@ impl <T, B> PythonBaseObject for PyRustObject<T, B> where T: 'static + Send, B: 
     }
 
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+        // drop_in_place() isn't available in 1.7 stable;
+        // it'll be stabilized in 1.8
+        #[cfg(not(feature="nightly"))]
+        use std::ptr::read as drop_ptr_target;
+        #[cfg(feature="nightly")]
+        use std::ptr::drop_in_place as drop_ptr_target;
+
         let offset = PyRustObject::<T, B>::offset() as isize;
-        ptr::read_and_drop((obj as *mut u8).offset(offset) as *mut T);
+        drop_ptr_target((obj as *mut u8).offset(offset) as *mut T);
         B::dealloc(py, obj)
     }
 }

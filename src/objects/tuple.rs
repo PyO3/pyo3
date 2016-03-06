@@ -72,6 +72,7 @@ impl PyTuple {
     }
 
     #[inline]
+    #[cfg(feature="nightly")] // needs unsafe_no_drop_flag
     pub fn as_slice<'a>(&'a self) -> &'a [PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -97,6 +98,7 @@ impl PyTuple {
     }
 }
 
+#[cfg(feature="nightly")] // needs unsafe_no_drop_flag
 impl ::std::ops::Index<usize> for PyTuple {
     type Output = PyObject;
 
@@ -106,6 +108,7 @@ impl ::std::ops::Index<usize> for PyTuple {
     }
 }
 
+#[cfg(feature="nightly")] // needs unsafe_no_drop_flag
 impl <'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyObject;
     type IntoIter = slice::Iter<'a, PyObject>;

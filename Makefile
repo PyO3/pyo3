@@ -34,7 +34,10 @@ build:
 
 test: build
 	cargo test $(CARGO_FLAGS)
+ifeq ($(NIGHTLY),1)
+# ast-json output is only supported on nightly
 	python$(PY) tests/check_symbols.py
+endif
 
 doc: build
 	cargo doc --no-deps $(CARGO_FLAGS)

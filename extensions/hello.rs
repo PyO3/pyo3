@@ -13,7 +13,7 @@ py_module_initializer!(hello, inithello, PyInit_hello, |py, m| {
 
 fn run(py: Python, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
     println!("Rust says: Hello Python!");
-    for arg in args.as_slice() {
+    for arg in args.iter(py) {
         println!("Rust got {}", arg);
     }
     if let Some(kwargs) = kwargs {

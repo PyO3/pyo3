@@ -59,20 +59,27 @@ macro_rules! py_fn_wrap {
             let _guard = $crate::_detail::PanicGuard::with_message(
                 concat!("Rust panic in py_fn!(", stringify!($f), ")"));
             let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&args);
-            let $args: &$crate::PyTuple = $crate::PyObject::borrow_from_ptr(&args).unchecked_cast_as();
-            let $kwargs: Option<&$crate::PyDict> = $crate::_detail::get_kwargs(&kwargs);
-            $crate::_detail::result_to_ptr($py, $body)
+            let args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, args).unchecked_cast_into();
+            let kwargs: Option<$crate::PyDict> = $crate::_detail::get_kwargs($py, kwargs);
+            let ret = {
+                let $args = &args;
+                let $kwargs = kwargs.as_ref();
+                $crate::_detail::result_to_ptr($py, $body)
+            };
+            $crate::PyDrop::release_ref(args, $py);
+            $crate::PyDrop::release_ref(kwargs, $py);
+            ret
         }
         wrap::<()>
     }};
 }
 
 #[inline]
-pub unsafe fn get_kwargs(ptr: &*mut ffi::PyObject) -> Option<&PyDict> {
+pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
     if ptr.is_null() {
         None
     } else {
-        Some(PyObject::borrow_from_ptr(ptr).unchecked_cast_as())
+        Some(PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into())
     }
 }
 

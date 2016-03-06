@@ -16,9 +16,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#![feature(unsafe_no_drop_flag)] // crucial so that PyObject<'p> is binary compatible with *mut ffi::PyObject
-#![feature(filling_drop)] // necessary to avoid segfault with unsafe_no_drop_flag (#5016)
 #![cfg_attr(feature="nightly", feature(
+    unsafe_no_drop_flag, filling_drop, // (#5016)
+    // ^ These two are crucial so that PyObject<'p> is binary compatible with
+    //   `*mut ffi::PyObject`, which we use for efficient slice access and in
+    //   some other cases.
+
     const_fn, // for GILProtected::new (#24111)
     shared, // for std::ptr::Shared (#27730)
 ))]
