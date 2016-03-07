@@ -125,6 +125,10 @@ macro_rules! py_coerce_expr { ($s:expr) => {$s} }
 #[macro_export] #[doc(hidden)]
 macro_rules! py_coerce_item { ($s:item) => {$s} }
 
+#[macro_export] #[doc(hidden)]
+macro_rules! py_replace_expr {
+    ($_t:tt $sub:expr) => {$sub};
+}
 
 mod python;
 mod err;
@@ -147,15 +151,7 @@ pub mod _detail {
     }
     pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
-    pub use function::{get_kwargs, result_to_ptr, py_fn_impl};
-
-    /// assume_gil_acquired(), but the returned Python<'p> is bounded by the scope
-    /// of the referenced variable.
-    /// This is useful in macros to ensure that type inference doesn't set `'p` == `'static`.
-    #[inline]
-    pub unsafe fn bounded_assume_gil_acquired<'p, T>(_bound: &'p T) -> super::Python<'p> {
-        super::Python::assume_gil_acquired()
-    }
+    pub use function::{handle_callback, py_fn_impl};
 }
 
 /// Expands to an `extern "C"` function that allows Python to load

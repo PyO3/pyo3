@@ -103,34 +103,6 @@ pub fn parse_args(
     Ok(())
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! py_argparse_extract {
-    ( $py:ident, $iter:expr, ( ) $body:block ) => { $body };
-    ( $py:ident, $iter:expr, ( $pname:ident : $ptype:ty ) $body:block) => {
-        match <$ptype as $crate::ExtractPyObject>::prepare_extract($py, $iter.next().unwrap().as_ref().unwrap()) {
-            Ok(prepared) => {
-                match <$ptype as $crate::ExtractPyObject>::extract($py, &prepared) {
-                    Ok($pname) => $body,
-                    Err(e) => Err(e)
-                }
-            },
-            Err(e) => Err(e)
-        }
-    };
-    ( $py: ident, $iter:expr, ( $pname:ident : $ptype:ty , $($r:tt)+ ) $body:block) => {
-        py_argparse_extract!($py, $iter, ($pname: $ptype) {
-            py_argparse_extract!( $py, $iter, ( $($r)* ) $body)
-        })
-    }
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! py_argparse_snd {
-    ( $fst:expr, $snd:expr ) => { $snd }
-}
-
 /// This macro is used to parse a parameter list into a set of variables.
 /// 
 /// Syntax: `py_argparse!(py, fname, args, kwargs, (parameter-list) { body })`
@@ -139,43 +111,227 @@ macro_rules! py_argparse_snd {
 /// * `fname`: expression of type `Option<&str>`: Name of the function used in error messages.
 /// * `args`: expression of type `&PyTuple`: The position arguments
 /// * `kwargs`: expression of type `Option<&PyDict>`: The named arguments
-/// * `parameter-list`: a comma-separated list of Rust parameter declarations (`name: type`).
+/// * `parameter-list`: a comma-separated list of parameter declarations.
+///   Parameter declarations have one of these formats:
+///    1. `name`
+///    2. `name: ty`
+///    3. `name: ty = default_value`
+///    4. `*name`
+///    5. `*name : ty`
+///    6. `**name`
+///    7. `**name : ty`
 ///   The types used must implement the `ExtractPyObject` trait.
+///   If no type is specified, the parameter implicitly uses
+///   `&PyObject` (format 1), `&PyTuple` (format 4) or `&PyDict` (format 6).
+///   If a default value is specified, it must be a compile-time constant
+//    of type `ty`.
 /// * `body`: expression of type `PyResult<_>`.
+///     The extracted argument values are available in this scope.
 ///
 /// `py_argparse!()` expands to code that extracts values from `args` and `kwargs` and assigns
 /// them to the parameters. If the extraction is successful, `py_argparse!()` evaluates
-/// the body expression (where the extracted parameters are available) and returns the result
-/// value of the body expression.
+/// the body expression and returns of that evaluation.
 /// If extraction fails, `py_argparse!()` returns a failed `PyResult` without evaluating `body`.
 #[macro_export]
 macro_rules! py_argparse {
-    // main py_argparse!() macro
-    ($py:expr, $fname:expr, $args:expr, $kwargs:expr, ($( $pname:ident : $ptype:ty ),*) $body:block) => {{
+    ($py:expr, $fname:expr, $args:expr, $kwargs:expr, $plist:tt $body:block) => {
+        py_argparse_parse_plist! { py_argparse_impl { $py, $fname, $args, $kwargs, $body, } $plist }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_parse_plist {
+    // Parses a parameter-list into a format more suitable for consumption by Rust macros.
+    // py_argparse_parse_plist! { callback { initial_args } (plist) }
+    //  = callback! { initial_args [{ {**} pname:ptype = {default-value} } ...] }
+    // The braces around the *s and the default-value are used even if they are empty.
+
+    // Special-case entry-point for empty parameter list:
+    { $callback:ident { $($initial_arg:tt)* } ( ) } => {
+        $callback! { $($initial_arg)* [] }
+    };
+    // Regular entry point for non-empty parameter list:
+    { $callback:ident $initial_args:tt ( $( $p:tt )+ ) } => {
+        // add trailing comma to plist so that the parsing step can assume every
+        // parameter ends with a comma.
+        py_argparse_parse_plist_impl! { $callback $initial_args [] ( $($p)*, ) }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_parse_plist_impl {
+    // TT muncher macro that does the main work for py_argparse_parse_plist!.
+
+    // Base case: all parameters handled
+    { $callback:ident { $($initial_arg:tt)* } $output:tt ( ) } => {
+        $callback! { $($initial_arg)* $output }
+    };
+    // Kwargs parameter
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( ** $name:ident : $t:ty , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {**} $name:$t = {} } ]
+            ($($tail)*)
+        }
+    };
+    // Kwargs parameter with implicit type
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( ** $name:ident , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {**} $name:&$crate::PyDict = {} } ]
+            ($($tail)*)
+        }
+    };
+    // Varargs parameter
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( * $name:ident : $t:ty , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {*} $name:$t = {} } ]
+            ($($tail)*)
+        }
+    };
+    // Varargs parameter with implicit type
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( * $name:ident , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {*} $name:&$crate::PyTuple = {} } ]
+            ($($tail)*)
+        }
+    };
+    // Simple parameter
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( $name:ident : $t:ty , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {} $name:$t = {} } ]
+            ($($tail)*)
+        }
+    };
+    // Simple parameter with implicit type
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( $name:ident , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {} $name:&$crate::PyObject = {} } ]
+            ($($tail)*)
+        }
+    };
+    // Optional parameter
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( $name:ident : $t:ty = $default:expr , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { {} $name:$t = {$default} } ]
+            ($($tail)*)
+        }
+    };
+}
+
+// The main py_argparse!() macro, except that it expects the parameter-list
+// in the output format of py_argparse_parse_plist!().
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_impl {
+    ($py:expr, $fname:expr, $args:expr, $kwargs:expr, $body:block,
+        [ $( { $stars:tt $pname:ident : $ptype:ty = $default:tt } )* ]
+    ) => {{
         const PARAMS: &'static [$crate::argparse::ParamDescription<'static>] = &[
             $(
-                $crate::argparse::ParamDescription {
-                    name: stringify!($pname),
-                    is_optional: false
-                }
+                py_argparse_param_description! { $stars $pname : $ptype = $default }
             ),*
         ];
         let py: $crate::Python = $py;
-        let mut output = [$( py_argparse_snd!($pname, None) ),*];
+        let mut output = [$( py_replace_expr!($pname None) ),*];
         match $crate::argparse::parse_args(py, $fname, PARAMS, $args, $kwargs, &mut output) {
             Ok(()) => {
-                // We can't use experimental slice pattern syntax in macros
-                //let &[$(ref $pname),*] = &output;
-                let mut iter = output.iter();
-                let ret = py_argparse_extract!( py, iter, ( $( $pname : $ptype ),* ) $body );
-                assert!(iter.next() == None);
-                ret
+                // Experimental slice pattern syntax would be really nice here (#23121)
+                //let [$(ref $pname),*] = output;
+                // We'll use an iterator instead.
+                let mut _iter = output.iter();
+                // We'll have to generate a bunch of nested `match` statements
+                // (at least until we can use ? + catch, assuming that will be hygienic wrt. macros),
+                // so use a recursive helper macro for that:
+                py_argparse_extract!( py, _iter, $body,
+                    [ $( { $stars $pname : $ptype = $default } )* ])
             },
             Err(e) => Err(e)
         }
     }};
 }
 
+// Like py_argparse_impl!(), but accepts `*mut ffi::PyObject` for $args and $kwargs.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_raw {
+    ($py:ident, $fname:expr, $args:expr, $kwargs:expr, $plist:tt $body:block) => {{
+        let args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, $args).unchecked_cast_into();
+        let kwargs: Option<$crate::PyDict> = $crate::argparse::get_kwargs($py, $kwargs);
+        let ret = py_argparse_impl!($py, $fname, &args, kwargs.as_ref(), $body, $plist);
+        $crate::PyDrop::release_ref(args, $py);
+        $crate::PyDrop::release_ref(kwargs, $py);
+        ret
+    }};
+}
+
+#[inline]
+#[doc(hidden)]
+pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
+    if ptr.is_null() {
+        None
+    } else {
+        Some(PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into())
+    }
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_param_description {
+    // normal parameter
+    { {} $pname:ident : $ptype:ty = {} } => (
+        $crate::argparse::ParamDescription {
+            name: stringify!($pname),
+            is_optional: false
+        }
+    );
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_argparse_extract {
+    // base case
+    ( $py:expr, $iter:expr, $body:block, [] ) => { $body };
+    // normal parameter
+    ( $py:expr, $iter:expr, $body:block,
+        [ { {} $pname:ident : $ptype:ty = {} } $($tail:tt)* ]
+    ) => {
+        // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
+        // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
+        match <$ptype as $crate::ExtractPyObject>::prepare_extract($py, $iter.next().unwrap().as_ref().unwrap()) {
+            Ok(prepared) => {
+                match <$ptype as $crate::ExtractPyObject>::extract($py, &prepared) {
+                    Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
+                    Err(e) => Err(e)
+                }
+            },
+            Err(e) => Err(e)
+        }
+    };
+}
+
+/*
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_argparse_declare_item_in_impl {
@@ -208,6 +364,7 @@ macro_rules! py_argparse_call_with_names {
         py_argparse_call_with_names!( $f, ($($lhs)* , $pname) ( ,$($r)* ))
     };
 }
+*/
 
 #[cfg(test)]
 mod test {

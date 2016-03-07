@@ -27,15 +27,15 @@ use err::{self, PyResult};
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_method_def {
-    ($f: ident, $flags: expr, $wrap: expr) => {{
+    ($name: expr, $flags: expr, $wrap: expr) => {{
         static mut method_def: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
-            //ml_name: bytes!(stringify!($f), "\0"),
+            //ml_name: bytes!(stringify!($name), "\0"),
             ml_name: 0 as *const $crate::_detail::libc::c_char,
             ml_meth: None,
             ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS | $flags,
             ml_doc: 0 as *const $crate::_detail::libc::c_char
         };
-        method_def.ml_name = concat!(stringify!($f), "\0").as_ptr() as *const _;
+        method_def.ml_name = concat!($name, "\0").as_ptr() as *const _;
         method_def.ml_meth = Some(
             std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
                                   $crate::_detail::ffi::PyCFunction>($wrap)
@@ -44,100 +44,32 @@ macro_rules! py_method_def {
     }}
 }
 
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_fn_wrap {
-    // * $f: function name, used as part of wrapper function name
-    // * |py, args, kwargs| { body }
-    ($f: ident, | $py: ident, $args: ident, $kwargs: ident | $body: block) => {{
-        unsafe extern "C" fn wrap<DUMMY>(
-            _slf: *mut $crate::_detail::ffi::PyObject,
-            $args: *mut $crate::_detail::ffi::PyObject,
-            $kwargs: *mut $crate::_detail::ffi::PyObject)
-        -> *mut $crate::_detail::ffi::PyObject
-        {
-            py_wrap_body!($py, concat!("Rust panic in py_fn!(", stringify!($f), ")"),
-                $args, $kwargs, { $body })
-        }
-        wrap::<()>
-    }};
-}
-
-#[macro_export]
-#[doc(hidden)] // TODO: eliminate this macro
-macro_rules! py_wrap_body {
-    ($py: ident, $location: expr, $args: ident, $kwargs: ident, $body: block) => {{
-        let _guard = $crate::_detail::PanicGuard::with_message(
-            concat!("Rust panic in ", $location));
-        let $py: $crate::Python = $crate::_detail::bounded_assume_gil_acquired(&$args);
-        let $args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, $args).unchecked_cast_into();
-        let $kwargs: Option<$crate::PyDict> = $crate::_detail::get_kwargs($py, $kwargs);
-        let ret = {
-            let $args = &$args;
-            let $kwargs = $kwargs.as_ref();
-            $crate::_detail::result_to_ptr($py, $body)
-        };
-        $crate::PyDrop::release_ref($args, $py);
-        $crate::PyDrop::release_ref($kwargs, $py);
-        ret
-    }}
-}
-
-#[macro_export]
-#[doc(hidden)] // combines py_wrap_body with py_argparse
-macro_rules! py_wrap_argparse {
-    ($py: ident, $location: expr, $args: expr, $kwargs: expr,
-        ($( $plist:tt )*) $body:block
-    ) => {{
-        let args = $args;
-        let kwargs = $kwargs;
-        py_wrap_body!($py, $location, args, kwargs, {
-            py_argparse!($py, Some($location), args, kwargs,
-                ( $($plist)* ) $body)
-        })
-    }}
-}
-
-#[inline]
-pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
-    if ptr.is_null() {
-        None
-    } else {
-        Some(PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into())
-    }
-}
-
-pub fn result_to_ptr<T>(py: Python, result: PyResult<T>) -> *mut ffi::PyObject
-    where T: ToPyObject
-{
-    match result {
-        Ok(val) => {
-            return val.into_py_object(py).into_object().steal_ptr();
-        }
-        Err(e) => {
-            e.restore(py);
-            return ptr::null_mut();
-        }
-    }
-}
-
 /// Creates a Python callable object that invokes a Rust function.
 ///
 /// There are two forms of this macro:
-/// 1) py_fn!(f)
-///     `f` is the name of a rust function with the signature
-///     `fn(Python, &PyTuple, Option<&PyDict>) -> PyResult<R>`
-///      for some `R` that implements `ToPyObject`.
+/// 1) `py_fn!(py, f(parameter_list))`
+/// 2) `py_fn!(py, f(parameter_list) -> PyResult<T> { body })`
 ///
-/// 2) py_fn!(f(parameter_list))
-///     This form automatically converts the arguments into
-///     the Rust types specified in the parameter list,
-///     and then calls `f(Python, Parameters)`.
-///     See `py_argparse!()` for details on argument parsing.
+/// All three forms return a value of type `PyObject`.
+/// This python object is a callable object that invokes
+/// the Rust function when called.
 ///
-/// The macro returns an unspecified type that implements `ToPyObject`.
-/// The resulting python object is a callable object that invokes
-/// the Rust function.
+/// When called, the arguments are converted into
+/// the Rust types specified in the parameter list.
+/// See `py_argparse!()` for details on argument parsing.
+///
+/// Form 1: 
+/// * `py` must be an expression of type `Python`
+/// * `f` must be the name of a function that is compatible with the specified
+///    parameter list, except that a single parameter of type `Python` is prepended.
+///    The function must return `PyResult<T>` for some `T` that implements `ToPyObject`.
+///
+/// Form 2:
+/// * `py` must be an identifier refers to a `Python` value.
+///   The function body will also have access to a `Python` variable of this name.
+/// * `f` must be an identifier.
+/// * The function return type must be `PyResult<T>` for some `T` that
+///   implements `ToPyObject`.
 ///
 /// # Example
 /// ```
@@ -156,55 +88,68 @@ pub fn result_to_ptr<T>(py: Python, result: PyResult<T>) -> *mut ffi::PyObject
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
 ///     let dict = PyDict::new(py);
-///     dict.set_item(py, "multiply", py_fn!(multiply(lhs: i32, rhs: i32))).unwrap();
+///     dict.set_item(py, "multiply", py_fn!(py, multiply(lhs: i32, rhs: i32))).unwrap();
 ///     py.run("print(multiply(6, 7))", None, Some(&dict)).unwrap();
 /// }
 /// ```
 #[macro_export]
 macro_rules! py_fn {
-    ($f: ident) => ({
-        let wrap = py_fn_wrap!($f, |py, args, kwargs| {
-            $f(py, args, kwargs)
-        });
-        unsafe { $crate::_detail::py_fn_impl(py_method_def!($f, 0, wrap)) }
-    });
-    ($f: ident ( $($plist:tt)* ) ) => ({
-        let wrap = py_fn_wrap!($f, |py, args, kwargs| {
-            py_argparse!(py, Some(stringify!($f)), args, kwargs,
-                    ( $($plist)* ) {
-                        py_argparse_call_with_names!($f, (py) ( , $($plist)* , ) )
-                    })
-        });
-        unsafe { $crate::_detail::py_fn_impl(py_method_def!($f, 0, wrap)) }
-    });
+    ($py:expr, $f:ident $plist:tt ) => {
+        py_argparse_parse_plist! { py_fn_impl { $py, $f } $plist }
+    };
+    ($py:expr, $f:ident $plist:tt -> $ret:ty { $($body:tt)* } ) => {
+        py_argparse_parse_plist! { py_fn_impl { $py, $f, $ret, { $($body)* } } $plist }
+    };
 }
 
-/// Result type of the `py_fn!()` macro.
-///
-/// Use the `ToPyObject` implementation to create a python callable object.
-pub struct PyFn(*mut ffi::PyMethodDef);
-
-#[inline]
-pub unsafe fn py_fn_impl(def: *mut ffi::PyMethodDef) -> PyFn {
-    PyFn(def)
-}
-
-impl ToPyObject for PyFn {
-    type ObjectType = PyObject;
-
-    fn to_py_object(&self, py: Python) -> PyObject {
-        unsafe {
-            err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(self.0, ptr::null_mut()))
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_fn_impl {
+    { $py:expr, $f:ident [ $( { $stars:tt $pname:ident : $ptype:ty = $default:tt } )* ] } => {{
+        // <DUMMY> is workaround for rust issue #26201
+        unsafe extern "C" fn wrap<DUMMY>(
+            _slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            $crate::_detail::handle_callback(
+                stringify!($f),
+                |py| {
+                    py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,
+                        [ $( { $stars $pname : $ptype= $default } )* ]
+                        {
+                            $f(py $(, $pname )* )
+                        })
+                })
         }
-    }
+        unsafe {
+            $crate::_detail::py_fn_impl($py,
+                py_method_def!(stringify!($f), 0, wrap::<()>))
+        }
+    }};
 }
 
-unsafe impl TypeConstructor for PyFn {
-    fn tp_new(&self) -> ffi::newfunc {
-        unsafe {
-            mem::transmute::<ffi::PyCFunction, ffi::newfunc>((*self.0).ml_meth.unwrap())
+pub unsafe fn handle_callback<F, T>(_location: &str, f: F) -> *mut ffi::PyObject
+    where F: FnOnce(Python) -> PyResult<T>,
+          T: ToPyObject
+{
+    abort_on_panic!({
+        let py = Python::assume_gil_acquired();
+        match f(py) {
+            Ok(val) => {
+                val.into_py_object(py).into_object().steal_ptr()
+            }
+            Err(e) => {
+                e.restore(py);
+                ptr::null_mut()
+            }
         }
-    }
+    })
+}
+
+pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObject {
+    err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
 }
 
 // Tests for this file are in tests/test_function.rs

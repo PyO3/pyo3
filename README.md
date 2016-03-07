@@ -8,7 +8,7 @@ rust-cpython [![Build Status](https://travis-ci.org/dgrunwald/rust-cpython.svg?b
 
 ---
 
-Copyright (c) 2015 Daniel Grunwald.
+Copyright (c) 2015-2016 Daniel Grunwald.
 Rust-cpython is licensed under the [MIT license](http://opensource.org/licenses/MIT).
 Python is licensed under the [Python License](https://docs.python.org/2/license.html).
 
@@ -19,7 +19,7 @@ Supported Python versions:
 * Python 3.5
 
 Supported Rust version:
-* Rust nightly only :(
+* Rust 1.7.0 or later
 
 # Usage
 
