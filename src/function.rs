@@ -97,7 +97,7 @@ macro_rules! py_fn {
     ($py:expr, $f:ident $plist:tt ) => {
         py_argparse_parse_plist! { py_fn_impl { $py, $f } $plist }
     };
-    ($py:expr, $f:ident $plist:tt -> $ret:ty { $($body:tt)* } ) => {
+    ($py:ident, $f:ident $plist:tt -> $ret:ty { $($body:tt)* } ) => {
         py_argparse_parse_plist! { py_fn_impl { $py, $f, $ret, { $($body)* } } $plist }
     };
 }
@@ -105,7 +105,8 @@ macro_rules! py_fn {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_fn_impl {
-    { $py:expr, $f:ident [ $( { $stars:tt $pname:ident : $ptype:ty = $default:tt } )* ] } => {{
+    // Form 1: reference existing function
+    { $py:expr, $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ] } => {{
         // <DUMMY> is workaround for rust issue #26201
         unsafe extern "C" fn wrap<DUMMY>(
             _slf: *mut $crate::_detail::ffi::PyObject,
@@ -117,7 +118,7 @@ macro_rules! py_fn_impl {
                 stringify!($f),
                 |py| {
                     py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,
-                        [ $( { $stars $pname : $ptype= $default } )* ]
+                        [ $( { $pname : $ptype= $detail } )* ]
                         {
                             $f(py $(, $pname )* )
                         })
@@ -128,6 +129,11 @@ macro_rules! py_fn_impl {
                 py_method_def!(stringify!($f), 0, wrap::<()>))
         }
     }};
+    // Form 2: inline function definition
+    { $py:ident, $f:ident, $ret:ty, $body:block [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ] } => {{
+        fn $f($py: $crate::Python $( , $pname : $ptype )* ) -> $ret $body
+        py_fn_impl!($py, $f [ $( { $pname : $ptype = $detail } )* ])
+    }}
 }
 
 pub unsafe fn handle_callback<F, T>(_location: &str, f: F) -> *mut ffi::PyObject

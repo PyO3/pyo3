@@ -52,6 +52,19 @@ fn one_arg() {
     assert!(obj.call(py, NoArgs, Some(&dict)).is_err());
 }
 
+#[test]
+fn inline_two_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let obj = py_fn!(py, f(a: i32, b: i32) -> PyResult<i32> {
+        drop(py); // avoid unused variable warning
+        Ok(a * b)
+    });
+
+    assert!(obj.call(py, NoArgs, None).is_err());
+    assert_eq!(obj.call(py, (6, 7), None).unwrap().extract::<i32>(py).unwrap(), 42);
+}
+
 /* TODO: reimplement flexible sig support
 #[test]
 fn flexible_sig() {
