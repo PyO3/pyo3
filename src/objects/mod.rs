@@ -39,60 +39,86 @@ pub use self::num::PyLong as PyInt;
 pub use self::num::{PyLong, PyFloat};
 pub use self::sequence::PySequence;
 
-/// Identity conversion: allows using existing `PyObject` instances where
-/// `T: ToPyObject` is expected.
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_to_pyobject(
     ($name: ident) => (
-        impl ::conversion::ToPyObject for $name {
+        /// Identity conversion: allows using existing `PyObject` instances where
+        /// `T: ToPyObject` is expected.
+        impl $crate::ToPyObject for $name {
             type ObjectType = $name;
 
             #[inline]
-            fn to_py_object(&self, py: ::python::Python) -> $name {
-                ::python::PyClone::clone_ref(self, py)
+            fn to_py_object(&self, py: $crate::Python) -> $name {
+                $crate::PyClone::clone_ref(self, py)
             }
 
             #[inline]
-            fn into_py_object(self, _py: ::python::Python) -> $name {
+            fn into_py_object(self, _py: $crate::Python) -> $name {
                 self
             }
 
             #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: ::python::Python, f: F) -> R
-                where F: FnOnce(*mut ffi::PyObject) -> R
+            fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
+                where F: FnOnce(*mut $crate::_detail::ffi::PyObject) -> R
             {
-                f(::python::PythonObject::as_object(self).as_ptr())
+                f($crate::PythonObject::as_object(self).as_ptr())
             }
         }
     )
 );
 
+#[doc(hidden)]
+#[macro_export]
 macro_rules! pyobject_newtype(
     ($name: ident) => (
         pyobject_to_pyobject!($name);
 
-        impl ::python::PythonObject for $name {
+        impl $crate::PythonObject for $name {
             #[inline]
-            fn as_object(&self) -> &::objects::object::PyObject {
+            fn as_object(&self) -> &$crate::PyObject {
                 &self.0
             }
 
             #[inline]
-            fn into_object(self) -> ::objects::object::PyObject {
+            fn into_object(self) -> $crate::PyObject {
                 self.0
             }
 
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
-            unsafe fn unchecked_downcast_from(obj: ::objects::object::PyObject) -> Self {
+            unsafe fn unchecked_downcast_from(obj: $crate::PyObject) -> Self {
                 $name(obj)
             }
 
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
-            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a ::objects::object::PyObject) -> &'a Self {
+            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a $crate::PyObject) -> &'a Self {
                 ::std::mem::transmute(obj)
+            }
+        }
+    );
+    ($name: ident, downcast using typeobject) => (
+        pyobject_newtype!($name);
+        impl $crate::PythonObjectWithCheckedDowncast for $name {
+            #[inline]
+            fn downcast_from<'p>(py: $crate::Python<'p>, obj: $crate::PyObject) -> Result<$name, $crate::PythonObjectDowncastError<'p>> {
+                if py.get_type::<$name>().is_instance(py, &obj) {
+                    Ok($name(obj))
+                } else {
+                    Err($crate::PythonObjectDowncastError(py))
+                }
+            }
+
+            #[inline]
+            fn downcast_borrow_from<'a, 'p>(py: $crate::Python<'p>, obj: &'a $crate::PyObject) -> Result<&'a $name, $crate::PythonObjectDowncastError<'p>> {
+                if py.get_type::<$name>().is_instance(py, obj) {
+                    unsafe { Ok(::std::mem::transmute(obj)) }
+                } else {
+                    Err($crate::PythonObjectDowncastError(py))
+                }
             }
         }
     );

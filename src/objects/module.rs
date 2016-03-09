@@ -23,7 +23,7 @@ use python::{Python, PythonObject, PyDrop};
 use objectprotocol::ObjectProtocol;
 use conversion::ToPyObject;
 use objects::{PyObject, PyTuple, PyDict, exc};
-use rustobject::PythonObjectFromPyClassMacro;
+use py_class::PythonObjectFromPyClassMacro;
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
 
@@ -117,16 +117,6 @@ impl PyModule {
         try!(self.as_object().setattr(py, type_obj.name(py), &type_obj));
         type_obj.release_ref(py);
         Ok(())
-    }
-
-    /// Adds a new extension type to the module.
-    ///
-    /// This is a convenience function that creates a new `TypeBuilder` and
-    /// sets `new_type.__module__` to this module's name.
-    /// The new type will be added to this module when `finish()` is called on the builder.
-    pub fn add_type<'p, T>(&self, py: Python<'p>, name: &str) -> ::rustobject::TypeBuilder<'p, T>
-            where T: 'static + Send {
-        ::rustobject::new_typebuilder_for_module(py, self, name)
     }
 }
 

@@ -20,7 +20,6 @@ use std::{mem, ptr};
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::ToPyObject;
-use rustobject::{TypeBuilder, TypeConstructor};
 use ffi;
 use err::{self, PyResult};
 

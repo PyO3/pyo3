@@ -138,7 +138,8 @@ mod objectprotocol;
 mod pythonrun;
 pub mod argparse;
 mod function;
-pub mod rustobject;
+//pub mod rustobject;
+pub mod py_class;
 
 /// Private re-exports for macros. Do not use.
 #[doc(hidden)]

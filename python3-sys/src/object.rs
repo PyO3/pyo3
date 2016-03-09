@@ -418,9 +418,106 @@ mod typeobject {
     impl Clone for PyTypeObject {
         #[inline] fn clone(&self) -> Self { *self }
     }
-    impl Default for PyTypeObject {
-        #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
+
+    macro_rules! as_expr { ($e:expr) => {$e} }
+
+    macro_rules! py_type_object_init {
+        ($tp_as_async:ident, $($tail:tt)*) => {
+            as_expr! {
+                PyTypeObject {
+                    ob_base: ::object::PyVarObject {
+                        ob_base: ::object::PyObject_HEAD_INIT,
+                        ob_size: 0
+                    },
+                    tp_name: 0 as *const c_char,
+                    tp_basicsize: 0,
+                    tp_itemsize: 0,
+                    tp_dealloc: None,
+                    tp_print: None,
+                    tp_getattr: None,
+                    tp_setattr: None,
+                    $tp_as_async: 0 as *mut _,
+                    tp_repr: None,
+                    tp_as_number: 0 as *mut PyNumberMethods,
+                    tp_as_sequence: 0 as *mut PySequenceMethods,
+                    tp_as_mapping: 0 as *mut PyMappingMethods,
+                    tp_hash: None,
+                    tp_call: None,
+                    tp_str: None,
+                    tp_getattro: None,
+                    tp_setattro: None,
+                    tp_as_buffer: 0 as *mut PyBufferProcs,
+                    tp_flags: ::object::Py_TPFLAGS_DEFAULT,
+                    tp_doc: 0 as *const c_char,
+                    tp_traverse: None,
+                    tp_clear: None,
+                    tp_richcompare: None,
+                    tp_weaklistoffset: 0,
+                    tp_iter: None,
+                    tp_iternext: None,
+                    tp_methods: 0 as *mut ::methodobject::PyMethodDef,
+                    tp_members: 0 as *mut ::structmember::PyMemberDef,
+                    tp_getset: 0 as *mut ::descrobject::PyGetSetDef,
+                    tp_base: 0 as *mut PyTypeObject,
+                    tp_dict: 0 as *mut ::object::PyObject,
+                    tp_descr_get: None,
+                    tp_descr_set: None,
+                    tp_dictoffset: 0,
+                    tp_init: None,
+                    tp_alloc: None,
+                    tp_new: None,
+                    tp_free: None,
+                    tp_is_gc: None,
+                    tp_bases: 0 as *mut ::object::PyObject,
+                    tp_mro: 0 as *mut ::object::PyObject,
+                    tp_cache: 0 as *mut ::object::PyObject,
+                    tp_subclasses: 0 as *mut ::object::PyObject,
+                    tp_weaklist: 0 as *mut ::object::PyObject,
+                    tp_del: None,
+                    tp_version_tag: 0,
+                    $($tail)*
+                }
+            }
+        }
     }
+
+    #[cfg(py_sys_config="COUNT_ALLOCS")]
+    macro_rules! py_type_object_init_with_count_allocs {
+        ($tp_as_async:ident, $($tail:tt)*) => {
+            py_type_object_init!($tp_as_async,
+                $($tail)*
+                tp_allocs: 0,
+                tp_frees: 0,
+                tp_maxalloc: 0,
+                tp_prev: 0 as *mut PyTypeObject,
+                tp_next: 0 as *mut PyTypeObject,
+            )
+        }
+    }
+
+    #[cfg(not(py_sys_config="COUNT_ALLOCS"))]
+    macro_rules! py_type_object_init_with_count_allocs {
+        ($tp_as_async:ident, $($tail:tt)*) => {
+            py_type_object_init!($tp_as_async, $($tail)*)
+        }
+    }
+
+    #[cfg(Py_3_5)]
+    pub const PyTypeObject_INIT: PyTypeObject = py_type_object_init_with_count_allocs!(
+        tp_as_async,
+        tp_finalize: None,
+    );
+
+    #[cfg(all(Py_3_4, not(Py_3_5)))]
+    pub const PyTypeObject_INIT: PyTypeObject = py_type_object_init_with_count_allocs!(
+        tp_reserved,
+        tp_finalize: None,
+    );
+
+    #[cfg(not(Py_3_4))]
+    pub const PyTypeObject_INIT: PyTypeObject = py_type_object_init_with_count_allocs!(
+        tp_reserved,
+    );
 
     #[repr(C)]
     #[derive(Copy)]
