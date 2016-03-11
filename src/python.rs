@@ -39,7 +39,7 @@ use pythonrun::GILGuard;
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
 /// Trait implemented by all Python object types.
-pub trait PythonObject : ::conversion::ToPyObject + Sized + 'static {
+pub trait PythonObject : ::conversion::ToPyObject + Send + Sized + 'static {
     /// Casts the Python object to PyObject.
     fn as_object(&self) -> &PyObject;
 

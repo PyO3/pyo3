@@ -17,12 +17,13 @@
 // DEALINGS IN THE SOFTWARE.
 
 mod py_class;
-mod slots;
+#[doc(hidden)] pub mod slots;
 
-use std::mem;
-use python::{self, Python};
+use libc;
+use std::{mem, ptr};
+use python::{self, Python, PythonObject};
 use objects::{PyObject, PyType};
-use err::PyResult;
+use err::{self, PyResult};
 use ffi;
 
 /// Trait implemented by the types produced by the `py_class!()` macro.
@@ -47,13 +48,80 @@ pub fn data_new_size<T>(base_size: usize) -> usize {
 #[inline]
 #[doc(hidden)]
 pub unsafe fn data_get<'a, T>(_py: Python<'a>, obj: &'a PyObject, offset: usize) -> &'a T {
-    let ptr = (obj.as_ptr() as *mut u8).offset(offset as isize) as *const T;
+    let ptr = (obj.as_ptr() as *const u8).offset(offset as isize) as *const T;
     &*ptr
+}
+
+#[inline]
+#[doc(hidden)]
+pub unsafe fn data_init<'a, T>(_py: Python<'a>, obj: &'a PyObject, offset: usize, value: T)
+    where T: Send + 'static
+{
+    let ptr = (obj.as_ptr() as *mut u8).offset(offset as isize) as *mut T;
+    ptr::write(ptr, value)
+}
+
+#[inline]
+#[doc(hidden)]
+pub unsafe fn data_drop<'a, T>(_py: Python<'a>, obj: *mut ffi::PyObject, offset: usize) {
+    let ptr = (obj as *mut u8).offset(offset as isize) as *mut T;
+    ptr::drop_in_place(ptr)
 }
 
 #[inline]
 #[doc(hidden)]
 pub fn is_ready(_py: Python, ty: &ffi::PyTypeObject) -> bool {
     (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0
+}
+
+/// A PythonObject that is usable as a base type with the `py_class!()` macro.
+pub trait BaseObject : PythonObject {
+    /// Gets the size of the object, in bytes.
+    fn size() -> usize;
+
+    type InitType;
+
+    /// Allocates a new object (usually by calling ty->tp_alloc),
+    /// and initializes it using init_val.
+    /// `ty` must be derived from the Self type, and the resulting object
+    /// must be of type `ty`.
+    unsafe fn alloc(py: Python, ty: &PyType, init_val: Self::InitType) -> PyResult<PyObject>;
+
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
+}
+
+impl BaseObject for PyObject {
+    #[inline]
+    fn size() -> usize {
+        mem::size_of::<ffi::PyObject>()
+    }
+
+    type InitType = ();
+
+    unsafe fn alloc(py: Python, ty: &PyType, _init_val: ()) -> PyResult<PyObject> {
+        let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
+        //println!("BaseObject::alloc({:?}) = {:?}", ty.as_type_ptr(), ptr);
+        err::result_from_owned_ptr(py, ptr)
+    }
+
+    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
+        //println!("BaseObject::dealloc({:?})", ptr);
+        // Unfortunately, there is no PyType_GenericFree, so
+        // we have to manually un-do the work of PyType_GenericAlloc:
+        let ty = ffi::Py_TYPE(obj);
+        if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del(obj as *mut libc::c_void);
+        } else {
+            ffi::PyObject_Free(obj as *mut libc::c_void);
+        }
+        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+        // so we need to call DECREF here:
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+        }
+    }
 }
 

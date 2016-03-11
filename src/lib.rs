@@ -175,7 +175,7 @@ pub mod _detail {
 ///
 /// py_module_initializer!(example, initexample, PyInit_example, |py, m| {
 ///     try!(m.add(py, "__doc__", "Module documentation string"));
-///     try!(m.add(py, "run", py_fn!(run())));
+///     try!(m.add(py, "run", py_fn!(py, run())));
 ///     Ok(())
 /// });
 ///

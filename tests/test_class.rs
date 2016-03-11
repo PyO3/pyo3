@@ -1,10 +1,11 @@
 #[macro_use] extern crate cpython;
 
-use cpython::{PyResult, Python, NoArgs, ObjectProtocol, PyDict};
+use cpython::{PyResult, Python, NoArgs, ObjectProtocol};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[test]
+#[allow(dead_code)]
 fn empty_class() {
     py_class!(class Empty |py| { });
 
@@ -18,9 +19,9 @@ fn empty_class() {
 #[test]
 fn empty_class_with_new() {
     py_class!(class Empty |py| {
-        /*def __new__(cls) -> PyResult<Empty> {
-            Ok(Empty::create_instance(py))
-        }*/
+        def __new__(_cls) -> PyResult<Empty> {
+            Empty::create_instance(py)
+        }
     });
 
     let gil = Python::acquire_gil();
@@ -30,6 +31,7 @@ fn empty_class_with_new() {
 }
 
 #[test]
+#[allow(dead_code)]
 fn data_is_dropped() {
     struct MyObj {
         drop_called: Arc<AtomicBool>

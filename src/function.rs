@@ -117,7 +117,7 @@ macro_rules! py_fn_impl {
                 stringify!($f),
                 |py| {
                     py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,
-                        [ $( { $pname : $ptype= $detail } )* ]
+                        [ $( { $pname : $ptype = $detail } )* ]
                         {
                             $f(py $(, $pname )* )
                         })
