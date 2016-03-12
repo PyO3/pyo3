@@ -2,7 +2,7 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{Python, PyObject, PyResult, PyType};
+use cpython::{PyObject, PyResult};
 
 py_module_initializer!(custom_class, initcustom_class, PyInit_custom_class, |py, m| {
     try!(m.add(py, "__doc__", "Module documentation string"));
@@ -10,13 +10,14 @@ py_module_initializer!(custom_class, initcustom_class, PyInit_custom_class, |py,
     Ok(())
 });
 
-py_class!(class MyType, data: i32, |py| {
-    def __new__(_cls: &PyType, arg: i32) -> PyResult<MyType> {
-        Ok(MyType::create_instance(py, arg))
+py_class!(class MyType |py| {
+    data data: i32;
+    def __new__(_cls, arg: i32) -> PyResult<MyType> {
+        MyType::create_instance(py, arg)
     }
-    def a(&self) -> PyResult<PyObject> {{
+    def a(&self) -> PyResult<PyObject> {
         println!("a() was called with self={:?}", self.data(py));
         Ok(py.None())
-    }}
+    }
 });
 

@@ -46,22 +46,11 @@ stamps/test-hello: hello.out
 	@grep "Rust says: Hello Python!" hello.out >/dev/null
 	@grep "Rust got 42" hello.out >/dev/null
 
-ifeq ($(NIGHTLY),1)
-custom_type.out: custom_type.so
-	python$(PY) -c "import custom_type; custom_type.MyType(42).a()" 2>&1 | tee $@
-
-all: stamps/test-custom_type
-stamps/test-custom_type: custom_type.out
-	@grep "a() was called with self=42" custom_type.out >/dev/null
-endif
-
 custom_class.out: custom_class.so
 	python$(PY) -c "import custom_class; custom_class.MyType(42).a()" 2>&1 | tee $@
 
 all: stamps/test-custom_class custom_class_expanded.rs
 stamps/test-custom_class: custom_class.out
 	@grep "a() was called with self=42" custom_class.out >/dev/null
-
-all: inheritance.so
 
 

@@ -245,6 +245,26 @@ macro_rules! py_argparse_parse_plist_impl {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_argparse_impl {
+    // special case: function signature is (*args, **kwargs),
+    // so we can directly pass along our inputs without calling parse_args().
+    ($py:expr, $fname:expr, $args:expr, $kwargs:expr, $body:block,
+        [
+            { $pargs:ident   : $pargs_type:ty   = [ {*}  {} ] }
+            { $pkwargs:ident : $pkwargs_type:ty = [ {**} {} ] }
+        ]
+    ) => {{
+        let py: $crate::Python = $py;
+        let $pargs: $pargs_type = $args;
+        let new_dict = if $kwargs.is_none() { Some($crate::PyDict::new(py)) } else { None };
+        let ret = {
+            let $pkwargs: $pkwargs_type = $kwargs.unwrap_or_else(|| new_dict.as_ref().unwrap());
+            $body
+        };
+        $crate::PyDrop::release_ref(new_dict, $py);
+        ret
+    }};
+
+    // normal argparse logic
     ($py:expr, $fname:expr, $args:expr, $kwargs:expr, $body:block,
         [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]
     ) => {{
