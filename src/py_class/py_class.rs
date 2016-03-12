@@ -17,6 +17,19 @@
 // DEALINGS IN THE SOFTWARE.
 
 /**
+Defines new python extension class.
+A `py_class!` macro invocation generates code that declares a new Python class.
+Additionally, it generates a Rust struct of the same name, which allows accessing
+instances of that Python class from Rust.
+
+# Syntax
+`py_class!(class MyType |py| { ... })`
+
+* `MyType` is the name of the Python class.
+* `py` is an identifier that will be made available as a variable of type `Python`
+in all function bodies.
+* `{ ... }` is the class body, described in more detail below.
+
 # Example
 ```
 #[macro_use] extern crate cpython;
@@ -27,10 +40,10 @@ py_class!(class MyType |py| {
     def __new__(_cls, arg: i32) -> PyResult<MyType> {
         MyType::create_instance(py, arg)
     }
-    /*def half(&self) -> PyResult<i32> {
+    def half(&self) -> PyResult<i32> {
         println!("half() was called with self={:?}", self.number(py));
         Ok(self.number(py) / 2)
-    }*/
+    }
 });
 
 fn main() {
@@ -40,7 +53,95 @@ fn main() {
     dict.set_item(py, "MyType", py.get_type::<MyType>()).unwrap();
     py.run("assert MyType(42).half() == 21", None, Some(&dict)).unwrap();
 }
-``` */
+```
+
+# Generated Rust type
+
+The above example generates the following Rust type:
+
+```ignore
+struct MyType { ... }
+
+impl ToPythonObject for MyType { ... }
+impl PythonObject for MyType { ... }
+impl PythonObjectWithCheckedDowncast for MyType { ... }
+impl PythonObjectWithTypeObject for MyType { ... }
+impl PythonObjectFromPyClassMacro for MyType { ... }
+
+impl MyType {
+    fn create_instance(py: Python, number: i32) -> PyResult<MyType> { ... }
+
+    // data accessors
+    fn number<'a>(&'a self, py: Python<'a>) -> &'a i32 { ... }
+
+    // functions callable from python
+    pub fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<MyType> {
+        MyType::create_instance(py, arg)
+    }
+
+    pub fn half(&self, py: Python) -> PyResult<i32> {
+        println!("half() was called with self={:?}", self.number(py));
+        Ok(self.number(py) / 2)
+    }
+}
+```
+
+* The generated type implements a number of traits from the `cpython` crate.
+* The inherent `create_instance` method can create new Python objects
+  given the values for the data fields.
+* Private accessors functions are created for the data fields.
+* All functions callable from Python are also exposed as public Rust functions.
+* To convert from `MyType` to `PyObject`, use `as_object()` or `into_object()` (from the `PythonObject` trait).
+* To convert `PyObject` to `MyType`, use `obj.cast_as::<MyType>(py)` or `obj.cast_into::<MyType>(py)`.
+
+# py_class body
+The body of a `py_class!` supports the following definitions:
+
+## Data declarations
+`data data_name: data_type;`
+
+Declares a data field within the Python class.
+Used to store Rust data directly in the Python object instance.
+
+Because Python code can pass all Python objects to other threads,
+`type` must be `Send + 'static`.
+
+Because Python object instances can be freely shared (Python has no concept of "ownership"),
+data fields cannot be declared as `mut`.
+If mutability is required, you have to use interior mutability (`Cell` or `RefCell`).
+
+Data declarations are not accessible from Python.
+On the Rust side, data is accessed through the automatically generated accessor functions:
+```ignore
+impl MyType {
+    fn data_name<'a>(&'a self, py: Python<'a>) -> &'a data_type { ... }
+}
+```
+
+## Instance methods
+`def method_name(&self, parameter-list) -> PyResult<...> { ... }`
+
+Declares an instance method callable from Python.
+
+* Because Python objects are potentially shared, the self parameter must always
+  be a shared reference (`&self`).
+* For details on `parameter-list`, see the documentation of `py_argparse!()`.
+* The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
+
+## __new__
+`def __new__(cls, parameter-list) -> PyResult<...> { ... }`
+
+Declares a constructor method callable from Python.
+
+* The first parameter is the type object of the class to create.
+  This may be the type object of a derived class declared in Python.
+* If no `__new__` method is declared, object instances can only be created from Rust (via `MyType::create_instance`),
+  but not from Python.
+* For details on `parameter-list`, see the documentation of `py_argparse!()`.
+* The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
+  Usually, `T` will be `MyType`.
+
+*/
 #[macro_export]
 macro_rules! py_class {
     (class $class:ident |$py: ident| { $( $body:tt )* }) => (
@@ -58,7 +159,7 @@ macro_rules! py_class {
                 /* as_sequence */ [ /* slot: expr, */ ]
             }
             /* impls: */ { /* impl body */ }
-            /* members: */ { /* ident: expr, */ };
+            /* members: */ { /* ident = expr; */ };
             $( $body )*
         }
     );
@@ -78,8 +179,55 @@ macro_rules! py_class_impl {
         }
         $slots:tt { $( $imp:item )* } $members:tt;
     } => {
-        struct $class($crate::PyObject);
-        pyobject_newtype!($class, downcast using typeobject);
+        struct $class { _unsafe_inner: $crate::PyObject }
+
+        pyobject_to_pyobject!($class);
+
+        impl $crate::PythonObject for $class {
+            #[inline]
+            fn as_object(&self) -> &$crate::PyObject {
+                &self._unsafe_inner
+            }
+
+            #[inline]
+            fn into_object(self) -> $crate::PyObject {
+                self._unsafe_inner
+            }
+
+            /// Unchecked downcast from PyObject to Self.
+            /// Undefined behavior if the input object does not have the expected type.
+            #[inline]
+            unsafe fn unchecked_downcast_from(obj: $crate::PyObject) -> Self {
+                $class { _unsafe_inner: obj }
+            }
+
+            /// Unchecked downcast from PyObject to Self.
+            /// Undefined behavior if the input object does not have the expected type.
+            #[inline]
+            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a $crate::PyObject) -> &'a Self {
+                ::std::mem::transmute(obj)
+            }
+        }
+
+        impl $crate::PythonObjectWithCheckedDowncast for $class {
+            #[inline]
+            fn downcast_from<'p>(py: $crate::Python<'p>, obj: $crate::PyObject) -> Result<$class, $crate::PythonObjectDowncastError<'p>> {
+                if py.get_type::<$class>().is_instance(py, &obj) {
+                    Ok($class { _unsafe_inner: obj })
+                } else {
+                    Err($crate::PythonObjectDowncastError(py))
+                }
+            }
+
+            #[inline]
+            fn downcast_borrow_from<'a, 'p>(py: $crate::Python<'p>, obj: &'a $crate::PyObject) -> Result<&'a $class, $crate::PythonObjectDowncastError<'p>> {
+                if py.get_type::<$class>().is_instance(py, obj) {
+                    unsafe { Ok(::std::mem::transmute(obj)) }
+                } else {
+                    Err($crate::PythonObjectDowncastError(py))
+                }
+            }
+        }
 
         py_coerce_item! {
             impl $crate::py_class::BaseObject for $class {
@@ -116,7 +264,7 @@ macro_rules! py_class_impl {
                             py, &py.get_type::<$class>(), ( $($data_name,)* )
                         )
                     });
-                    return Ok($class(obj));
+                    return Ok($class { _unsafe_inner: obj });
 
                     // hide statics in create_instance to avoid name conflicts
                     static mut type_object : $crate::_detail::ffi::PyTypeObject
@@ -155,12 +303,15 @@ macro_rules! py_class_impl {
                         }
                     }
 
-                    unsafe fn init(py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
-                        py_class_type_object_dynamic_init!(py, type_object, $class);
-                        if $crate::_detail::ffi::PyType_Ready(&mut type_object) == 0 {
-                            Ok($crate::PyType::from_type_ptr(py, &mut type_object))
-                        } else {
-                            Err($crate::PyErr::fetch(py))
+                    fn init($py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
+                        py_class_type_object_dynamic_init!($class, $py, type_object);
+                        py_class_init_members!($class, $py, type_object, $members);
+                        unsafe {
+                            if $crate::_detail::ffi::PyType_Ready(&mut type_object) == 0 {
+                                Ok($crate::PyType::from_type_ptr($py, &mut type_object))
+                            } else {
+                                Err($crate::PyErr::fetch($py))
+                            }
                         }
                     }
                 }
@@ -199,7 +350,7 @@ macro_rules! py_class_impl {
                     unsafe {
                         $crate::py_class::data_get::<$data_type>(
                             py,
-                            &self.0,
+                            &self._unsafe_inner,
                             $crate::py_class::data_offset::<$data_type>($size)
                         )
                     }
@@ -230,7 +381,7 @@ macro_rules! py_class_impl {
         }
         /* impl: */ {
             $($imp)*
-            py_class_impl_item! { $class, $py, __new__($cls: &$crate::PyType) $res_type; { $($body)* } [] }
+            py_class_impl_item! { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
         }
         $members;
         $($tail)*
@@ -259,11 +410,61 @@ macro_rules! py_class_impl {
         /* impl: */ {
             $($imp)*
             py_argparse_parse_plist_impl!{
-                py_class_impl_item { $class, $py, __new__($cls: &$crate::PyType) $res_type; { $($body)* } }
+                py_class_impl_item { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } }
                 [] ($($p)+,)
             }
         }
         $members;
+        $($tail)*
+    }};
+
+    // def __init__()
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __init__ $($tail:tt)*
+    } => {
+        py_error! { "__init__ is not supported by py_class!; use __new__ instead." }
+    };
+
+    // def instance_method(&self)
+    { $class:ident $py:ident $info:tt $slots:tt
+        { $( $imp:item )* }
+        { $( $member_name:ident = $member_expr:expr; )* };
+        def $name:ident (&$slf:ident)
+            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info $slots
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, $name(&$slf,) $res_type; { $($body)* } [] }
+        }
+        /* members: */ {
+            $( $member_name:ident = $member_expr:expr; )*
+            $name = py_class_instance_method!{$py, $class::$name []};
+        };
+        $($tail)*
+    }};
+    // def instance_method(&self, params)
+    { $class:ident $py:ident $info:tt $slots:tt
+        { $( $imp:item )* }
+        { $( $member_name:ident = $member_expr:expr; )* };
+        def $name:ident (&$slf:ident, $($p:tt)+)
+            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info $slots
+        /* impl: */ {
+            $($imp)*
+            py_argparse_parse_plist_impl!{
+                py_class_impl_item { $class, $py, $name(&$slf,) $res_type; { $($body)* } }
+                [] ($($p)+,)
+            }
+        }
+        /* members: */ {
+            $( $member_name:ident = $member_expr:expr; )*
+            $name = py_argparse_parse_plist_impl!{
+                py_class_instance_method!{$py, $class::$name}
+                [] ($($p)+,)
+            };
+        };
         $($tail)*
     }};
 }
@@ -271,13 +472,13 @@ macro_rules! py_class_impl {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_impl_item {
-    { $class:ident, $py:ident, $name:ident( $( $pname1:ident : $ptype1:ty ),* )
-        $res_type:ty; $body:block [ $( { $pname2:ident : $ptype2:ty = $detail:tt } )* ]
-    } => {
+    { $class:ident, $py:ident, $name:ident( $( $selfarg:tt )* )
+        $res_type:ty; $body:block [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]
+    } => { py_coerce_item! {
         impl $class {
-            pub fn __new__($py: $crate::Python $( , $pname1: $ptype1 )* $( , $pname2: $ptype2 )* )
+            pub fn $name($( $selfarg )* $py: $crate::Python $( , $pname: $ptype )* )
             -> $res_type $body
         }
-    }
+    }}
 }
 

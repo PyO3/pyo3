@@ -42,11 +42,13 @@ macro_rules! py_class_type_object_static_init {
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
     // initialize those fields of PyTypeObject that we couldn't initialize statically
-    ($py:ident, $type_object:ident, $class_name: ident) => {{
-        $type_object.tp_name = concat!(stringify!($class_name), "\0").as_ptr() as *const _;
-        $type_object.tp_basicsize = <$class_name as $crate::py_class::BaseObject>::size()
-                                    as $crate::_detail::ffi::Py_ssize_t;
-    }}
+    ($class: ident, $py:ident, $type_object:ident) => {
+        unsafe {
+            $type_object.tp_name = concat!(stringify!($class), "\0").as_ptr() as *const _;
+            $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
+                                        as $crate::_detail::ffi::Py_ssize_t;
+        }
+    }
 }
 
 pub unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
@@ -69,7 +71,7 @@ macro_rules! py_class_wrap_newfunc {
             kwargs: *mut $crate::_detail::ffi::PyObject)
         -> *mut $crate::_detail::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!(), "()");
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::_detail::handle_callback(
                 LOCATION,
                 |py| {
@@ -77,7 +79,7 @@ macro_rules! py_class_wrap_newfunc {
                         [ $( { $pname : $ptype = $detail } )* ]
                         {
                             let cls = $crate::PyType::from_type_ptr(py, cls);
-                            let ret = $class::$f(py, &cls $(, $pname )* );
+                            let ret = $class::$f(&cls, py $(, $pname )* );
                             $crate::PyDrop::release_ref(cls, py);
                             ret
                         })

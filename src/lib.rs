@@ -148,7 +148,7 @@ pub mod _detail {
     pub mod libc {
         pub use ::libc::c_char;
     }
-    pub use err::from_owned_ptr_or_panic;
+    pub use err::{from_owned_ptr_or_panic, result_from_owned_ptr};
     pub use function::{handle_callback, py_fn_impl, AbortOnDrop};
 }
 

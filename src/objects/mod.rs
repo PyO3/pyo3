@@ -68,8 +68,6 @@ macro_rules! pyobject_to_pyobject(
     )
 );
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! pyobject_newtype(
     ($name: ident) => (
         pyobject_to_pyobject!($name);
@@ -97,28 +95,6 @@ macro_rules! pyobject_newtype(
             #[inline]
             unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a $crate::PyObject) -> &'a Self {
                 ::std::mem::transmute(obj)
-            }
-        }
-    );
-    ($name: ident, downcast using typeobject) => (
-        pyobject_newtype!($name);
-        impl $crate::PythonObjectWithCheckedDowncast for $name {
-            #[inline]
-            fn downcast_from<'p>(py: $crate::Python<'p>, obj: $crate::PyObject) -> Result<$name, $crate::PythonObjectDowncastError<'p>> {
-                if py.get_type::<$name>().is_instance(py, &obj) {
-                    Ok($name(obj))
-                } else {
-                    Err($crate::PythonObjectDowncastError(py))
-                }
-            }
-
-            #[inline]
-            fn downcast_borrow_from<'a, 'p>(py: $crate::Python<'p>, obj: &'a $crate::PyObject) -> Result<&'a $name, $crate::PythonObjectDowncastError<'p>> {
-                if py.get_type::<$name>().is_instance(py, obj) {
-                    unsafe { Ok(::std::mem::transmute(obj)) }
-                } else {
-                    Err($crate::PythonObjectDowncastError(py))
-                }
             }
         }
     );

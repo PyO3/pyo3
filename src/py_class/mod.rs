@@ -18,6 +18,7 @@
 
 mod py_class;
 #[doc(hidden)] pub mod slots;
+#[doc(hidden)] pub mod members;
 
 use libc;
 use std::{mem, ptr};
