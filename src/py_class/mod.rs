@@ -64,9 +64,18 @@ pub unsafe fn data_init<'a, T>(_py: Python<'a>, obj: &'a PyObject, offset: usize
 
 #[inline]
 #[doc(hidden)]
+#[cfg(feature="nightly")]
 pub unsafe fn data_drop<'a, T>(_py: Python<'a>, obj: *mut ffi::PyObject, offset: usize) {
     let ptr = (obj as *mut u8).offset(offset as isize) as *mut T;
     ptr::drop_in_place(ptr)
+}
+
+#[inline]
+#[doc(hidden)]
+#[cfg(not(feature="nightly"))]
+pub unsafe fn data_drop<'a, T>(_py: Python<'a>, obj: *mut ffi::PyObject, offset: usize) {
+    let ptr = (obj as *mut u8).offset(offset as isize) as *mut T;
+    ptr::read(ptr);
 }
 
 #[inline]

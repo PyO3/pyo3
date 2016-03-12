@@ -167,6 +167,7 @@ pub unsafe fn handle_callback<F, T>(location: &str, f: F) -> *mut ffi::PyObject
     ret
 }
 
+#[cfg(feature="nightly")]
 fn handle_panic(_py: Python, _panic: &any::Any) -> *mut ffi::PyObject {
     let msg = cstr!("Rust panic");
     unsafe {
