@@ -16,8 +16,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::{mem, ptr};
-use python::{Python, PythonObject};
+use libc;
+use std::{mem, ptr, io, any};
+use std::ffi::{CString, CStr};
+use python::{Python, PythonObject, PyDrop};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::ToPyObject;
 use ffi;
@@ -135,11 +137,17 @@ macro_rules! py_fn_impl {
     }}
 }
 
-pub unsafe fn handle_callback<F, T>(_location: &str, f: F) -> *mut ffi::PyObject
-    where F: FnOnce(Python) -> PyResult<T>,
+pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObject {
+    err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
+}
+
+#[cfg(feature="nightly")]
+pub unsafe fn handle_callback<F, T>(location: &str, f: F) -> *mut ffi::PyObject
+    where F: FnOnce(Python) -> PyResult<T>, F: ::std::panic::RecoverSafe,
           T: ToPyObject
 {
-    abort_on_panic!({
+    let guard = AbortOnDrop(location);
+    let ret = ::std::panic::recover(|| {
         let py = Python::assume_gil_acquired();
         match f(py) {
             Ok(val) => {
@@ -150,11 +158,51 @@ pub unsafe fn handle_callback<F, T>(_location: &str, f: F) -> *mut ffi::PyObject
                 ptr::null_mut()
             }
         }
-    })
+    });
+    let ret = match ret {
+        Ok(r) => r,
+        Err(ref err) => handle_panic(Python::assume_gil_acquired(), err)
+    };
+    mem::forget(guard);
+    ret
 }
 
-pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObject {
-    err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
+fn handle_panic(_py: Python, _panic: &any::Any) -> *mut ffi::PyObject {
+    let msg = cstr!("Rust panic");
+    unsafe {
+        ffi::PyErr_SetString(ffi::PyExc_SystemError, msg.as_ptr());
+    }
+    ptr::null_mut()
+}
+
+#[cfg(not(feature="nightly"))]
+pub unsafe fn handle_callback<F, T>(location: &str, f: F) -> *mut ffi::PyObject
+    where F: FnOnce(Python) -> PyResult<T>,
+          T: ToPyObject
+{
+    let guard = AbortOnDrop(location);
+    let py = Python::assume_gil_acquired();
+    let ret = match f(py) {
+        Ok(val) => {
+            val.into_py_object(py).into_object().steal_ptr()
+        }
+        Err(e) => {
+            e.restore(py);
+            ptr::null_mut()
+        }
+    };
+    mem::forget(guard);
+    ret
+}
+
+pub struct AbortOnDrop<'a>(pub &'a str);
+
+impl <'a> Drop for AbortOnDrop<'a> {
+    fn drop(&mut self) {
+        use std::io::Write;
+        let _ = writeln!(&mut io::stderr(), "Cannot unwind out of {}", self.0);
+        unsafe { libc::abort() }
+    }
 }
 
 // Tests for this file are in tests/test_function.rs

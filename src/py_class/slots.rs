@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 use ffi;
+use std::mem;
 use python::Python;
 
 #[macro_export]
@@ -51,10 +52,11 @@ macro_rules! py_class_type_object_dynamic_init {
 pub unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where T: super::BaseObject
 {
-    abort_on_panic!({
-        let py = Python::assume_gil_acquired();
-        T::dealloc(py, obj)
-    });
+    let guard = ::function::AbortOnDrop("Cannot unwind out of tp_dealloc");
+    let py = Python::assume_gil_acquired();
+    let r = T::dealloc(py, obj);
+    mem::forget(guard);
+    r
 }
 
 #[macro_export]

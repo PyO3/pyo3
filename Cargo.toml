@@ -27,7 +27,6 @@ build = "build.rs"
 [dependencies]
 libc = "0.2"
 num = "0.1"
-abort_on_panic = "1.0"
 
 # These features are both optional, but you must pick one to 
 # indicate which python ffi you are trying to bind to.

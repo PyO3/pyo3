@@ -24,6 +24,7 @@
 
     const_fn, // for GILProtected::new (#24111)
     shared, // for std::ptr::Shared (#27730)
+    recover, // for converting panics to python exceptions (#27719)
 ))]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
@@ -82,9 +83,6 @@
 
 extern crate libc;
 
-#[macro_use]
-extern crate abort_on_panic;
-
 #[cfg(feature="python27-sys")]
 extern crate python27_sys as ffi;
 
@@ -107,7 +105,7 @@ pub type Py_hash_t = libc::c_long;
 #[allow(non_camel_case_types)]
 pub type Py_hash_t = ffi::Py_hash_t;
 
-use std::ptr;
+use std::{ptr, mem};
 
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr(
@@ -150,9 +148,8 @@ pub mod _detail {
     pub mod libc {
         pub use ::libc::c_char;
     }
-    pub use abort_on_panic::PanicGuard;
     pub use err::from_owned_ptr_or_panic;
-    pub use function::{handle_callback, py_fn_impl};
+    pub use function::{handle_callback, py_fn_impl, AbortOnDrop};
 }
 
 /// Expands to an `extern "C"` function that allows Python to load
@@ -222,24 +219,29 @@ pub unsafe fn py_module_initializer_impl(
     name: *const libc::c_char,
     init: fn(Python, &PyModule) -> PyResult<()>
 ) {
-    abort_on_panic!({
-        let py = Python::assume_gil_acquired();
-        ffi::PyEval_InitThreads();
-        let module = ffi::Py_InitModule(name, ptr::null_mut());
-        if module.is_null() { return; }
+    let guard = function::AbortOnDrop("py_module_initializer");
+    let py = Python::assume_gil_acquired();
+    ffi::PyEval_InitThreads();
+    let module = ffi::Py_InitModule(name, ptr::null_mut());
+    if module.is_null() {
+        mem::forget(guard);
+        return;
+    }
 
-        let module = match PyObject::from_borrowed_ptr(py, module).cast_into::<PyModule>(py) {
-            Ok(m) => m,
-            Err(e) => {
-                PyErr::from(e).restore(py);
-                return;
-            }
-        };
-        match init(py, &module) {
-            Ok(()) => (),
-            Err(e) => e.restore(py)
+    let module = match PyObject::from_borrowed_ptr(py, module).cast_into::<PyModule>(py) {
+        Ok(m) => m,
+        Err(e) => {
+            PyErr::from(e).restore(py);
+            mem::forget(guard);
+            return;
         }
-    })
+    };
+    let ret = match init(py, &module) {
+        Ok(()) => (),
+        Err(e) => e.restore(py)
+    };
+    mem::forget(guard);
+    ret
 }
 
 #[macro_export]
@@ -279,25 +281,31 @@ pub unsafe fn py_module_initializer_impl(
     def: *mut ffi::PyModuleDef,
     init: fn(Python, &PyModule) -> PyResult<()>
 ) -> *mut ffi::PyObject {
-    abort_on_panic!({
-        let py = Python::assume_gil_acquired();
-        ffi::PyEval_InitThreads();
-        let module = ffi::PyModule_Create(def);
-        if module.is_null() { return module; }
+    let guard = function::PanicOnDrop("py_module_initializer");
+    let py = Python::assume_gil_acquired();
+    ffi::PyEval_InitThreads();
+    let module = ffi::PyModule_Create(def);
+    if module.is_null() {
+        mem::forget(guard);
+        return module;
+    }
 
-        let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>(py) {
-            Ok(m) => m,
-            Err(e) => {
-                PyErr::from(e).restore(py);
-                return ptr::null_mut();
-            }
-        };
-        match init(py, &module) {
-            Ok(()) => module.into_object().steal_ptr(),
-            Err(e) => {
-                e.restore(py);
-                return ptr::null_mut();
-            }
+    let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>(py) {
+        Ok(m) => m,
+        Err(e) => {
+            PyErr::from(e).restore(py);
+            mem::forget(guard);
+            return ptr::null_mut();
         }
-    })
+    };
+    let ret = match init(py, &module) {
+        Ok(()) => module.into_object().steal_ptr(),
+        Err(e) => {
+            e.restore(py);
+            ptr::null_mut()
+        }
+    };
+    mem::forget(guard);
+    ret
 }
+
