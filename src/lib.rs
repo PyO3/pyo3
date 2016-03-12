@@ -281,7 +281,7 @@ pub unsafe fn py_module_initializer_impl(
     def: *mut ffi::PyModuleDef,
     init: fn(Python, &PyModule) -> PyResult<()>
 ) -> *mut ffi::PyObject {
-    let guard = function::PanicOnDrop("py_module_initializer");
+    let guard = function::AbortOnDrop("py_module_initializer");
     let py = Python::assume_gil_acquired();
     ffi::PyEval_InitThreads();
     let module = ffi::PyModule_Create(def);

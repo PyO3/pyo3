@@ -425,6 +425,531 @@ macro_rules! py_class_impl {
         py_error! { "__init__ is not supported by py_class!; use __new__ instead." }
     };
 
+    // def __del__()
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __del__ $($tail:tt)*
+    } => {
+        py_error! { "__del__ is not supported by py_class!; Use a data member with a Drop impl instead." }
+    };
+
+    // TODO: Not yet implemented:
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __repr__ $($tail:tt)*
+    } => {
+        py_error! { "__repr__ is not supported by py_class! yet." }
+    };
+
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __str__ $($tail:tt)*
+    } => {
+        py_error! { "__str__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __unicode__ $($tail:tt)*
+    } => {
+        py_error! { "__unicode__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __bytes__ $($tail:tt)*
+    } => {
+        py_error! { "__bytes__ is not supported by py_class! yet." }
+    };
+
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __format__ $($tail:tt)*
+    } => {
+        py_error! { "__format__ is not supported by py_class! yet." }
+    };
+
+    // Comparison operators:
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __lt__ $($tail:tt)*
+    } => {
+        py_error! { "__lt__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __le__ $($tail:tt)*
+    } => {
+        py_error! { "__le__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __eq__ $($tail:tt)*
+    } => {
+        py_error! { "__eq__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ne__ $($tail:tt)*
+    } => {
+        py_error! { "__ne__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __gt__ $($tail:tt)*
+    } => {
+        py_error! { "__gt__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ge__ $($tail:tt)*
+    } => {
+        py_error! { "__ge__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __cmp__ $($tail:tt)*
+    } => {
+        py_error! { "__cmp__ is not supported by py_class!." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __hash__ $($tail:tt)*
+    } => {
+        py_error! { "__hash__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __nonzero__ $($tail:tt)*
+    } => {
+        py_error! { "__nonzero__ is not supported by py_class!; use the Python 3 spelling __bool__ instead." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __bool__ $($tail:tt)*
+    } => {
+        py_error! { "__bool__ is not supported by py_class! yet." }
+    };
+    
+    // Customizing attribute access
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __getattr__ $($tail:tt)*
+    } => {
+        py_error! { "__getattr__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __getattribute__ $($tail:tt)*
+    } => {
+        py_error! { "__getattribute__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __setattr__ $($tail:tt)*
+    } => {
+        py_error! { "__setattr__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __delattr__ $($tail:tt)*
+    } => {
+        py_error! { "__delattr__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __dir__ $($tail:tt)*
+    } => {
+        py_error! { "__dir__ is not supported by py_class! yet." }
+    };
+    
+    // Implementing Descriptors
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __get__ $($tail:tt)*
+    } => {
+        py_error! { "__get__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __set__ $($tail:tt)*
+    } => {
+        py_error! { "__set__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __delete__ $($tail:tt)*
+    } => {
+        py_error! { "__delete__ is not supported by py_class! yet." }
+    };
+
+    // Customizing instance and subclass checks
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __instancecheck__ $($tail:tt)*
+    } => {
+        py_error! { "__instancecheck__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __subclasscheck__ $($tail:tt)*
+    } => {
+        py_error! { "__subclasscheck__ is not supported by py_class! yet." }
+    };
+
+    // Emulating callable objects
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __call__ $($tail:tt)*
+    } => {
+        py_error! { "__call__ is not supported by py_class! yet." }
+    };
+    
+    // Emulating container types
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __len__ $($tail:tt)*
+    } => {
+        py_error! { "__len__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __length_hint__ $($tail:tt)*
+    } => {
+        py_error! { "__length_hint__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __getitem__ $($tail:tt)*
+    } => {
+        py_error! { "__getitem__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __missing__ $($tail:tt)*
+    } => {
+        py_error! { "__missing__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __setitem__ $($tail:tt)*
+    } => {
+        py_error! { "__setitem__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __delitem__ $($tail:tt)*
+    } => {
+        py_error! { "__delitem__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __iter__ $($tail:tt)*
+    } => {
+        py_error! { "__iter__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __next__ $($tail:tt)*
+    } => {
+        py_error! { "__next__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __reversed__ $($tail:tt)*
+    } => {
+        py_error! { "__reversed__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __contains__ $($tail:tt)*
+    } => {
+        py_error! { "__contains__ is not supported by py_class! yet." }
+    };
+    
+    // Emulating numeric types
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __add__ $($tail:tt)*
+    } => {
+        py_error! { "__add__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __sub__ $($tail:tt)*
+    } => {
+        py_error! { "__sub__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __mul__ $($tail:tt)*
+    } => {
+        py_error! { "__mul__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __matmul__ $($tail:tt)*
+    } => {
+        py_error! { "__matmul__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __div__ $($tail:tt)*
+    } => {
+        py_error! { "__div__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __truediv__ $($tail:tt)*
+    } => {
+        py_error! { "__truediv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __floordiv__ $($tail:tt)*
+    } => {
+        py_error! { "__floordiv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __mod__ $($tail:tt)*
+    } => {
+        py_error! { "__mod__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __divmod__ $($tail:tt)*
+    } => {
+        py_error! { "__divmod__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __pow__ $($tail:tt)*
+    } => {
+        py_error! { "__pow__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __lshift__ $($tail:tt)*
+    } => {
+        py_error! { "__lshift__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rshift__ $($tail:tt)*
+    } => {
+        py_error! { "__rshift__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __and__ $($tail:tt)*
+    } => {
+        py_error! { "__and__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __xor__ $($tail:tt)*
+    } => {
+        py_error! { "__xor__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __or__ $($tail:tt)*
+    } => {
+        py_error! { "__or__ is not supported by py_class! yet." }
+    };
+    
+    // Emulating numeric types - reflected
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __radd__ $($tail:tt)*
+    } => {
+        py_error! { "__radd__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rsub__ $($tail:tt)*
+    } => {
+        py_error! { "__rsub__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rmul__ $($tail:tt)*
+    } => {
+        py_error! { "__rmul__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rmatmul__ $($tail:tt)*
+    } => {
+        py_error! { "__rmatmul__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rdiv__ $($tail:tt)*
+    } => {
+        py_error! { "__rdiv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rtruediv__ $($tail:tt)*
+    } => {
+        py_error! { "__rtruediv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rfloordiv__ $($tail:tt)*
+    } => {
+        py_error! { "__rfloordiv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rmod__ $($tail:tt)*
+    } => {
+        py_error! { "__rmod__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rdivmod__ $($tail:tt)*
+    } => {
+        py_error! { "__rdivmod__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rpow__ $($tail:tt)*
+    } => {
+        py_error! { "__rpow__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rlshift__ $($tail:tt)*
+    } => {
+        py_error! { "__rlshift__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rrshift__ $($tail:tt)*
+    } => {
+        py_error! { "__rrshift__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rand__ $($tail:tt)*
+    } => {
+        py_error! { "__rand__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __rxor__ $($tail:tt)*
+    } => {
+        py_error! { "__rxor__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ror__ $($tail:tt)*
+    } => {
+        py_error! { "__ror__ is not supported by py_class! yet." }
+    };
+
+    // Emulating numeric types - in-place
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __iadd__ $($tail:tt)*
+    } => {
+        py_error! { "__iadd__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __isub__ $($tail:tt)*
+    } => {
+        py_error! { "__isub__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __imul__ $($tail:tt)*
+    } => {
+        py_error! { "__imul__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __imatmul__ $($tail:tt)*
+    } => {
+        py_error! { "__imatmul__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __idiv__ $($tail:tt)*
+    } => {
+        py_error! { "__idiv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __itruediv__ $($tail:tt)*
+    } => {
+        py_error! { "__itruediv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ifloordiv__ $($tail:tt)*
+    } => {
+        py_error! { "__ifloordiv__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __imod__ $($tail:tt)*
+    } => {
+        py_error! { "__imod__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __idivmod__ $($tail:tt)*
+    } => {
+        py_error! { "__idivmod__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ipow__ $($tail:tt)*
+    } => {
+        py_error! { "__ipow__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ilshift__ $($tail:tt)*
+    } => {
+        py_error! { "__ilshift__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __irshift__ $($tail:tt)*
+    } => {
+        py_error! { "__irshift__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __iand__ $($tail:tt)*
+    } => {
+        py_error! { "__iand__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ixor__ $($tail:tt)*
+    } => {
+        py_error! { "__ixor__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __ior__ $($tail:tt)*
+    } => {
+        py_error! { "__ior__ is not supported by py_class! yet." }
+    };
+
+    // Unary arithmetic
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __neg__ $($tail:tt)*
+    } => {
+        py_error! { "__neg__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __pos__ $($tail:tt)*
+    } => {
+        py_error! { "__pos__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __abs__ $($tail:tt)*
+    } => {
+        py_error! { "__abs__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __invert__ $($tail:tt)*
+    } => {
+        py_error! { "__invert__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __complex__ $($tail:tt)*
+    } => {
+        py_error! { "__complex__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __int__ $($tail:tt)*
+    } => {
+        py_error! { "__int__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __long__ $($tail:tt)*
+    } => {
+        py_error! { "__long__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __float__ $($tail:tt)*
+    } => {
+        py_error! { "__float__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __round__ $($tail:tt)*
+    } => {
+        py_error! { "__round__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __index__ $($tail:tt)*
+    } => {
+        py_error! { "__index__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __coerce__ $($tail:tt)*
+    } => {
+        py_error! { "__coerce__ is not supported by py_class! yet." }
+    };
+
+    // With statement context managers
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __enter__ $($tail:tt)*
+    } => {
+        py_error! { "__enter__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __exit__ $($tail:tt)*
+    } => {
+        py_error! { "__exit__ is not supported by py_class! yet." }
+    };
+
+    // Coroutines
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __await__ $($tail:tt)*
+    } => {
+        py_error! { "__await__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __aiter__ $($tail:tt)*
+    } => {
+        py_error! { "__aiter__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __aenter__ $($tail:tt)*
+    } => {
+        py_error! { "__aenter__ is not supported by py_class! yet." }
+    };
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
+        def __aexit__ $($tail:tt)*
+    } => {
+        py_error! { "__aexit__ is not supported by py_class! yet." }
+    };
+
     // def instance_method(&self)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
