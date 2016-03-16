@@ -107,3 +107,32 @@ impl <T> TypeMember<T> for InstanceMethodDescriptor<T> where T: PythonObject {
     }
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_static_method {
+    ($py:ident, $class:ident :: $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]) => {{
+        unsafe extern "C" fn wrap_static_method<DUMMY>(
+            _slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION,
+                |py| {
+                    py_argparse_raw!(py, Some(LOCATION), args, kwargs,
+                        [ $( { $pname : $ptype = $detail } )* ]
+                        {
+                            $class::$f(py $(, $pname )* )
+                        })
+                })
+        }
+        unsafe {
+            $crate::_detail::py_fn_impl($py,
+                    py_method_def!(stringify!($f), 0, wrap_static_method::<()>))
+        }
+    }}
+}
+
+

@@ -992,6 +992,31 @@ macro_rules! py_class_impl {
         };
         $($tail)*
     }};
+
+    // @staticmethod def static_method(params)
+    { $class:ident $py:ident $info:tt $slots:tt
+        { $( $imp:item )* }
+        { $( $member_name:ident = $member_expr:expr; )* };
+        @staticmethod def $name:ident ($($p:tt)*)
+            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info $slots
+        /* impl: */ {
+            $($imp)*
+            py_argparse_parse_plist!{
+                py_class_impl_item { $class, $py, $name() $res_type; { $($body)* } }
+                ($($p)*)
+            }
+        }
+        /* members: */ {
+            $( $member_name:ident = $member_expr:expr; )*
+            $name = py_argparse_parse_plist!{
+                py_class_static_method {$py, $class::$name}
+                ($($p)*)
+            };
+        };
+        $($tail)*
+    }};
 }
 
 #[macro_export]

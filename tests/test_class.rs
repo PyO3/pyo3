@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 
 #[macro_use] extern crate cpython;
 
@@ -135,5 +135,41 @@ fn instance_method_with_args() {
     d.set_item(py, "obj", obj).unwrap();
     py.run("assert obj.method(3) == 21", None, Some(&d)).unwrap();
     py.run("assert obj.method(multiplier=6) == 42", None, Some(&d)).unwrap();
+}
+
+py_class!(class StaticMethod |py| {
+    @staticmethod
+    def method() -> PyResult<&'static str> {
+        Ok("StaticMethod.method()!")
+    }
+});
+
+#[test]
+fn static_method() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    assert_eq!(StaticMethod::method(py).unwrap(), "StaticMethod.method()!");
+    let d = PyDict::new(py);
+    d.set_item(py, "C", py.get_type::<StaticMethod>()).unwrap();
+    py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
+}
+
+py_class!(class StaticMethodWithArgs |py| {
+    @staticmethod
+    def method(input: i32) -> PyResult<String> {
+        Ok(format!("0x{:x}", input))
+    }
+});
+
+#[test]
+fn static_method_with_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
+    let d = PyDict::new(py);
+    d.set_item(py, "C", py.get_type::<StaticMethodWithArgs>()).unwrap();
+    py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
 }
 
