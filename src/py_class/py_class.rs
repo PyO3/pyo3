@@ -986,7 +986,7 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name:ident = $member_expr:expr; )*
             $name = py_argparse_parse_plist_impl!{
-                py_class_instance_method!{$py, $class::$name}
+                py_class_instance_method {$py, $class::$name}
                 [] ($($p)+,)
             };
         };

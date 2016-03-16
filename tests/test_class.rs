@@ -2,7 +2,7 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{PyResult, Python, NoArgs, ObjectProtocol};
+use cpython::{PyResult, Python, NoArgs, ObjectProtocol, PyDict};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -80,7 +80,6 @@ py_class!(class DataIsDropped |py| {
 });
 
 #[test]
-#[allow(dead_code)]
 fn data_is_dropped() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -95,5 +94,46 @@ fn data_is_dropped() {
     drop(inst);
     assert!(drop_called1.load(Ordering::Relaxed) == true);
     assert!(drop_called2.load(Ordering::Relaxed) == true);
+}
+
+py_class!(class InstanceMethod |py| {
+    data member: i32;
+
+    def method(&self) -> PyResult<i32> {
+        Ok(*self.member(py))
+    }
+});
+
+#[test]
+fn instance_method() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = InstanceMethod::create_instance(py, 42).unwrap();
+    assert!(obj.method(py).unwrap() == 42);
+    let d = PyDict::new(py);
+    d.set_item(py, "obj", obj).unwrap();
+    py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
+}
+
+py_class!(class InstanceMethodWithArgs |py| {
+    data member: i32;
+
+    def method(&self, multiplier: i32) -> PyResult<i32> {
+        Ok(*self.member(py) * multiplier)
+    }
+});
+
+#[test]
+fn instance_method_with_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = InstanceMethodWithArgs::create_instance(py, 7).unwrap();
+    assert!(obj.method(py, 6).unwrap() == 42);
+    let d = PyDict::new(py);
+    d.set_item(py, "obj", obj).unwrap();
+    py.run("assert obj.method(3) == 21", None, Some(&d)).unwrap();
+    py.run("assert obj.method(multiplier=6) == 42", None, Some(&d)).unwrap();
 }
 
