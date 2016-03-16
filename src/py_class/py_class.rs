@@ -128,15 +128,35 @@ Declares an instance method callable from Python.
 * For details on `parameter-list`, see the documentation of `py_argparse!()`.
 * The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
 
+## Class methods
+`@classmethod def method_name(cls, parameter-list) -> PyResult<...> { ... }
+
+Declares a class method callable from Python.
+
+* The first parameter is the type object of the class on which the method is called.
+  This may be the type object of a derived class.
+* The first parameter implicitly has type `&PyType`. This type must not be explicitly specified.
+* For details on `parameter-list`, see the documentation of `py_argparse!()`.
+* The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
+
+## Static methods
+`@staticmethod def method_name(parameter-list) -> PyResult<...> { ... }
+
+Declares a static method callable from Python.
+
+* For details on `parameter-list`, see the documentation of `py_argparse!()`.
+* The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
+
 ## __new__
 `def __new__(cls, parameter-list) -> PyResult<...> { ... }`
 
 Declares a constructor method callable from Python.
 
-* The first parameter is the type object of the class to create.
-  This may be the type object of a derived class declared in Python.
 * If no `__new__` method is declared, object instances can only be created from Rust (via `MyType::create_instance`),
   but not from Python.
+* The first parameter is the type object of the class to create.
+  This may be the type object of a derived class declared in Python.
+* The first parameter implicitly has type `&PyType`. This type must not be explicitly specified.
 * For details on `parameter-list`, see the documentation of `py_argparse!()`.
 * The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
   Usually, `T` will be `MyType`.
@@ -987,6 +1007,49 @@ macro_rules! py_class_impl {
             $( $member_name:ident = $member_expr:expr; )*
             $name = py_argparse_parse_plist_impl!{
                 py_class_instance_method {$py, $class::$name}
+                [] ($($p)+,)
+            };
+        };
+        $($tail)*
+    }};
+
+    // @classmethod def class_method(cls)
+    { $class:ident $py:ident $info:tt $slots:tt
+        { $( $imp:item )* }
+        { $( $member_name:ident = $member_expr:expr; )* };
+        @classmethod def $name:ident ($cls:ident)
+            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info $slots
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, $name($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
+        }
+        /* members: */ {
+            $( $member_name:ident = $member_expr:expr; )*
+            $name = py_class_class_method!{$py, $class::$name []};
+        };
+        $($tail)*
+    }};
+    // @classmethod def class_method(cls, params)
+    { $class:ident $py:ident $info:tt $slots:tt
+        { $( $imp:item )* }
+        { $( $member_name:ident = $member_expr:expr; )* };
+        @classmethod def $name:ident ($cls:ident, $($p:tt)+)
+            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info $slots
+        /* impl: */ {
+            $($imp)*
+            py_argparse_parse_plist_impl!{
+                py_class_impl_item { $class, $py, $name($cls: &$crate::PyType,) $res_type; { $($body)* } }
+                [] ($($p)+,)
+            }
+        }
+        /* members: */ {
+            $( $member_name:ident = $member_expr:expr; )*
+            $name = py_argparse_parse_plist_impl!{
+                py_class_class_method {$py, $class::$name}
                 [] ($($p)+,)
             };
         };

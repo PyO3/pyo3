@@ -137,7 +137,50 @@ fn instance_method_with_args() {
     py.run("assert obj.method(multiplier=6) == 42", None, Some(&d)).unwrap();
 }
 
+py_class!(class ClassMethod |py| {
+    def __new__(cls) -> PyResult<ClassMethod> {
+        ClassMethod::create_instance(py)
+    }
+
+    @classmethod
+    def method(cls) -> PyResult<String> {
+        Ok(format!("{}.method()!", cls.name(py)))
+    }
+});
+
+#[test]
+fn class_method() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = PyDict::new(py);
+    d.set_item(py, "C", py.get_type::<ClassMethod>()).unwrap();
+    py.run("assert C.method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
+    py.run("assert C().method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
+}
+
+py_class!(class ClassMethodWithArgs |py| {
+    @classmethod
+    def method(cls, input: &str) -> PyResult<String> {
+        Ok(format!("{}.method({})", cls.name(py), input))
+    }
+});
+
+#[test]
+fn class_method_with_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = PyDict::new(py);
+    d.set_item(py, "C", py.get_type::<ClassMethodWithArgs>()).unwrap();
+    py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(&d)).unwrap();
+}
+
 py_class!(class StaticMethod |py| {
+    def __new__(cls) -> PyResult<StaticMethod> {
+        StaticMethod::create_instance(py)
+    }
+
     @staticmethod
     def method() -> PyResult<&'static str> {
         Ok("StaticMethod.method()!")
@@ -153,6 +196,7 @@ fn static_method() {
     let d = PyDict::new(py);
     d.set_item(py, "C", py.get_type::<StaticMethod>()).unwrap();
     py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
+    py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
 }
 
 py_class!(class StaticMethodWithArgs |py| {
