@@ -983,7 +983,7 @@ macro_rules! py_class_impl {
             py_class_impl_item! { $class, $py, $name(&$slf,) $res_type; { $($body)* } [] }
         }
         /* members: */ {
-            $( $member_name:ident = $member_expr:expr; )*
+            $( $member_name = $member_expr; )*
             $name = py_class_instance_method!{$py, $class::$name []};
         };
         $($tail)*
@@ -1004,7 +1004,7 @@ macro_rules! py_class_impl {
             }
         }
         /* members: */ {
-            $( $member_name:ident = $member_expr:expr; )*
+            $( $member_name = $member_expr; )*
             $name = py_argparse_parse_plist_impl!{
                 py_class_instance_method {$py, $class::$name}
                 [] ($($p)+,)
@@ -1026,7 +1026,7 @@ macro_rules! py_class_impl {
             py_class_impl_item! { $class, $py, $name($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
         }
         /* members: */ {
-            $( $member_name:ident = $member_expr:expr; )*
+            $( $member_name = $member_expr; )*
             $name = py_class_class_method!{$py, $class::$name []};
         };
         $($tail)*
@@ -1047,7 +1047,7 @@ macro_rules! py_class_impl {
             }
         }
         /* members: */ {
-            $( $member_name:ident = $member_expr:expr; )*
+            $( $member_name = $member_expr; )*
             $name = py_argparse_parse_plist_impl!{
                 py_class_class_method {$py, $class::$name}
                 [] ($($p)+,)
@@ -1072,11 +1072,24 @@ macro_rules! py_class_impl {
             }
         }
         /* members: */ {
-            $( $member_name:ident = $member_expr:expr; )*
+            $( $member_name = $member_expr; )*
             $name = py_argparse_parse_plist!{
                 py_class_static_method {$py, $class::$name}
                 ($($p)*)
             };
+        };
+        $($tail)*
+    }};
+
+    // static static_var = expr;
+    { $class:ident $py:ident $info:tt $slots:tt $impls:tt
+        { $( $member_name:ident = $member_expr:expr; )* };
+        static $name:ident = $init:expr; $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info $slots $impls
+        /* members: */ {
+            $( $member_name = $member_expr; )*
+            $name = $init;
         };
         $($tail)*
     }};

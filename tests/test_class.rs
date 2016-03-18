@@ -217,3 +217,20 @@ fn static_method_with_args() {
     py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
 }
 
+py_class!(class StaticData |py| {
+    static VAL1 = 123;
+    static VAL2 = py.None();
+});
+
+#[test]
+fn static_data() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = PyDict::new(py);
+    d.set_item(py, "C", py.get_type::<StaticData>()).unwrap();
+    py.run("assert C.VAL1 == 123", None, Some(&d)).unwrap();
+    py.run("assert C.VAL2 is None", None, Some(&d)).unwrap();
+    assert!(py.run("C.VAL1 = 124", None, Some(&d)).is_err());
+}
+
