@@ -170,6 +170,10 @@ macro_rules! py_class {
             /* info: */ {
                 /* base_type: */ $crate::PyObject,
                 /* size: */ <$crate::PyObject as $crate::py_class::BaseObject>::size(),
+                /* gc: */ {
+                    /* traverse_proc: */ None,
+                    /* traverse_data: */ [ /*name*/ ]
+                },
                 /* data: */ [ /* { offset, name, type } */ ]
                 // TODO: base type, documentation, ...
             }
@@ -195,6 +199,7 @@ macro_rules! py_class_impl {
         /* info: */ {
             $base_type:ty,
             $size:expr,
+            $gc:tt,
             /* data: */ [ $( { $data_offset:expr, $data_name:ident, $data_ty:ty } )* ]
         }
         $slots:tt { $( $imp:item )* } $members:tt;
@@ -288,7 +293,7 @@ macro_rules! py_class_impl {
 
                     // hide statics in create_instance to avoid name conflicts
                     static mut type_object : $crate::_detail::ffi::PyTypeObject
-                        = py_class_type_object_static_init!($class, $slots);
+                        = py_class_type_object_static_init!($class, $gc, $slots);
                     static mut init_active: bool = false;
 
                     // trait implementations that need direct access to type_object
@@ -344,6 +349,7 @@ macro_rules! py_class_impl {
         /* info: */ {
             $base_type: ty,
             $size: expr,
+            $gc: tt,
             [ $( $data:tt )* ]
         }
         $slots:tt { $( $imp:item )* } $members:tt;
@@ -353,6 +359,7 @@ macro_rules! py_class_impl {
         /* info: */ {
             $base_type,
             /* size: */ $crate::py_class::data_new_size::<$data_type>($size),
+            $gc,
             /* data: */ [
                 $($data)*
                 {
@@ -451,6 +458,46 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__del__ is not supported by py_class!; Use a data member with a Drop impl instead." }
     };
+
+    // def __traverse__(self, visit)
+    { $class:ident $py:ident
+        /* info: */ {
+            $base_type: ty,
+            $size: expr,
+            /* gc: */ {
+                /* traverse_proc: */ None,
+                $traverse_data: tt
+            },
+            $datas: tt
+        }
+        $slots:tt { $( $imp:item )* } $members:tt;
+        def __traverse__(&$slf:tt, $visit:ident) $body:block $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py
+        /* info: */ {
+            $base_type,
+            $size,
+            /* gc: */ {
+                /* traverse_proc: */ $class::__traverse__,
+                $traverse_data
+            },
+            $datas
+        }
+        $slots
+        /* impl: */ {
+            $($imp)*
+            py_coerce_item!{
+                impl $class {
+                    fn __traverse__(&$slf,
+                        $py: $crate::Python,
+                        $visit: $crate::py_class::gc::VisitProc)
+                    -> Result<(), $crate::py_class::gc::TraverseError>
+                    $body
+                }
+            }
+        }
+        $members; $($tail)*
+    }};
 
     // TODO: Not yet implemented:
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

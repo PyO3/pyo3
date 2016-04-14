@@ -19,9 +19,10 @@
 mod py_class;
 #[doc(hidden)] pub mod slots;
 #[doc(hidden)] pub mod members;
+pub mod gc;
 
 use libc;
-use std::{mem, ptr};
+use std::{mem, ptr, cell};
 use python::{self, Python, PythonObject};
 use objects::{PyObject, PyType};
 use err::{self, PyResult};

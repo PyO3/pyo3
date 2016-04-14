@@ -2,7 +2,8 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{PyResult, Python, NoArgs, ObjectProtocol, PyDict};
+use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol, PyDict};
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -232,5 +233,31 @@ fn static_data() {
     py.run("assert C.VAL1 == 123", None, Some(&d)).unwrap();
     py.run("assert C.VAL2 is None", None, Some(&d)).unwrap();
     assert!(py.run("C.VAL1 = 124", None, Some(&d)).is_err());
+}
+
+py_class!(class GCIntegration |py| {
+    data self_ref: RefCell<PyObject>;
+    data dropped: TestDropCall;
+
+    def __traverse__(&self, visit) {
+        visit.call(&*self.self_ref(py).borrow())
+    }
+});
+
+#[test]
+fn gc_integration() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let drop_called = Arc::new(AtomicBool::new(false));
+    let inst = GCIntegration::create_instance(py,
+        RefCell::new(py.None()),
+        TestDropCall { drop_called: drop_called.clone() }
+    ).unwrap();
+    *inst.self_ref(py).borrow_mut() = inst.as_object().clone_ref(py);
+    inst.release_ref(py);
+
+    py.run("import gc; gc.collect()", None, None).unwrap();
+    assert!(drop_called.load(Ordering::Relaxed));
 }
 

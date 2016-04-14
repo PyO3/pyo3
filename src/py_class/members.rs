@@ -29,6 +29,10 @@ use ffi;
 pub trait TypeMember<T> where T: PythonObject {
     /// Convert the type member into a python object
     /// that can be stored in the type dict.
+    ///
+    /// Because the member may expect `self` values to be of type `T`,
+    /// `ty` must be T::type_object() or a derived class.
+    /// (otherwise the behavior is undefined)
     unsafe fn into_descriptor(self, py: Python, ty: *mut ffi::PyTypeObject) -> PyResult<PyObject>;
 }
 
@@ -86,7 +90,7 @@ macro_rules! py_class_instance_method {
         }
         unsafe {
             let method_def = py_method_def!(stringify!($f), 0, wrap_instance_method::<()>);
-            $crate::py_class::members::create_instance_method_descriptor(method_def)
+            $crate::py_class::members::create_instance_method_descriptor::<$class>(method_def)
         }
     }}
 }
