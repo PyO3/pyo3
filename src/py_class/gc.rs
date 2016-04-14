@@ -52,7 +52,7 @@ impl <'a> VisitProc<'a> {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_class_traverse {
+macro_rules! py_class_tp_traverse {
     ($class_name:ident,
     /* gc: */ {
         /* traverse_proc: */ None,
@@ -105,6 +105,40 @@ where C: PythonObject,
     slf.release_ref(py);
     mem::forget(guard);
     ret
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_tp_clear {
+    ($class_name:ident) => {{
+        unsafe extern "C" fn tp_clear(
+            slf: *mut $crate::_detail::ffi::PyObject
+        ) -> $crate::_detail::libc::c_int
+        {
+            $crate::py_class::gc::tp_clear::<$class_name, _>(
+                concat!(stringify!($class_name), ".__clear__"),
+                slf, $class_name::__clear__)
+        }
+        Some(tp_clear)
+    }}
+}
+
+#[doc(hidden)]
+pub unsafe fn tp_clear<C, F>(
+    location: &str,
+    slf: *mut ffi::PyObject,
+    callback: F
+) -> libc::c_int
+where C: PythonObject,
+      F: FnOnce(&C, Python)
+{
+    let guard = AbortOnDrop(location);
+    let py = Python::assume_gil_acquired();
+    let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<C>();
+    callback(&slf, py);
+    slf.release_ref(py);
+    mem::forget(guard);
+    0
 }
 
 /*

@@ -34,7 +34,7 @@ macro_rules! py_class_type_object_static_init {
             $( $slot_name : $slot_value, )*
             tp_dealloc: Some($crate::py_class::slots::tp_dealloc_callback::<$class_name>),
             tp_flags: py_class_type_object_flags!($gc),
-            tp_traverse: py_class_traverse!($class_name, $gc),
+            tp_traverse: py_class_tp_traverse!($class_name, $gc),
             ..
             $crate::_detail::ffi::PyTypeObject_INIT
         }

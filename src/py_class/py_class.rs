@@ -498,6 +498,34 @@ macro_rules! py_class_impl {
         }
         $members; $($tail)*
     }};
+    // def __clear__(&self)
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* } $members:tt;
+        def __clear__ (&$slf:ident) $body:block $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $slot_name : $slot_value, )*
+                tp_clear: py_class_tp_clear!($class),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_coerce_item!{
+                impl $class {
+                    fn __clear__(&$slf, $py: $crate::Python) $body
+                }
+            }
+        }
+        $members;
+        $($tail)*
+    }};
 
     // TODO: Not yet implemented:
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

@@ -242,6 +242,10 @@ py_class!(class GCIntegration |py| {
     def __traverse__(&self, visit) {
         visit.call(&*self.self_ref(py).borrow())
     }
+
+    def __clear__(&self) {
+        *self.self_ref(py).borrow_mut() = py.None();
+    }
 });
 
 #[test]
