@@ -18,13 +18,14 @@
 
 #![cfg_attr(feature="nightly", feature(
     unsafe_no_drop_flag, filling_drop, // (#5016)
-    // ^ These two are crucial so that PyObject<'p> is binary compatible with
+    // ^ These two are crucial so that `PyObject` is binary compatible with
     //   `*mut ffi::PyObject`, which we use for efficient slice access and in
     //   some other cases.
 
     const_fn, // for GILProtected::new (#24111)
     shared, // for std::ptr::Shared (#27730)
-    recover, // for converting panics to python exceptions (#27719)
+    //recover, // for converting panics to python exceptions (#27719)
+    // -- TODO wait for stable release and promote recover code from cfg(nightly)
 ))]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x

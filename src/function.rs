@@ -18,6 +18,7 @@
 
 use libc;
 use std::{mem, ptr, io, any};
+#[cfg(nightly)] use std::panic;
 use std::ffi::{CString, CStr};
 use python::{Python, PythonObject, PyDrop};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
@@ -143,11 +144,12 @@ pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObj
 
 #[cfg(feature="nightly")]
 pub unsafe fn handle_callback<F, T>(location: &str, f: F) -> *mut ffi::PyObject
-    where F: FnOnce(Python) -> PyResult<T>, F: ::std::panic::RecoverSafe,
+    where F: FnOnce(Python) -> PyResult<T>,
+          F: panic::UnwindSafe,
           T: ToPyObject
 {
     let guard = AbortOnDrop(location);
-    let ret = ::std::panic::recover(|| {
+    let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         match f(py) {
             Ok(val) => {
