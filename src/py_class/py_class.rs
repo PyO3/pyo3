@@ -161,6 +161,44 @@ Declares a constructor method callable from Python.
 * The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
   Usually, `T` will be `MyType`.
 
+## Garbage Collector Integration
+
+If your type owns references to other python objects, you will need to
+integrate with Python's garbage collector so that the GC is aware of
+those references.
+To do this, implement the special member functions `__traverse__` and `__clear__`.
+These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
+
+`__traverse__` must call `visit.call()` for each reference to another python object.
+
+`__clear__` must clear out any mutable references to other python objects
+(thus breaking reference cycles). Immutable references do not have to be cleared,
+as every cycle must contain at least one mutable reference.
+
+Example:
+
+```
+#[macro_use] extern crate cpython;
+use std::cell::RefCell;
+use cpython::PyObject;
+
+py_class!(class ClassWithGCSupport |py| {
+    data obj: RefCell<Option<PyObject>>;
+
+    def __traverse__(&self, visit) {
+        if let Some(ref obj) = *self.obj(py).borrow() {
+            try!(visit.call(obj))
+        }
+        Ok(())
+    }
+
+    def __clear__(&self) {
+        *self.obj(py).borrow_mut() = None;
+    }
+});
+# fn main() {}
+```
+
 */
 #[macro_export]
 macro_rules! py_class {

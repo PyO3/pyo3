@@ -18,7 +18,7 @@
 
 use libc;
 use std::{mem, ptr, io, any};
-#[cfg(nightly)] use std::panic;
+#[cfg(feature="nightly")] use std::panic;
 use std::ffi::{CString, CStr};
 use python::{Python, PythonObject, PyDrop};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
