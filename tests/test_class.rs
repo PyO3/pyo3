@@ -3,6 +3,7 @@
 #[macro_use] extern crate cpython;
 
 use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol, PyDict};
+use std::mem;
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -244,7 +245,9 @@ py_class!(class GCIntegration |py| {
     }
 
     def __clear__(&self) {
-        *self.self_ref(py).borrow_mut() = py.None();
+        let old_ref = mem::replace(&mut *self.self_ref(py).borrow_mut(), py.None());
+        // Release reference only after the mutable borrow has expired.
+        old_ref.release_ref(py);
     }
 });
 

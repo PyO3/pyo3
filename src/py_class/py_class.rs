@@ -104,11 +104,14 @@ Declares a data field within the Python class.
 Used to store Rust data directly in the Python object instance.
 
 Because Python code can pass all Python objects to other threads,
-`type` must be `Send + 'static`.
+`data_type` must be `Send + 'static`.
 
 Because Python object instances can be freely shared (Python has no concept of "ownership"),
 data fields cannot be declared as `mut`.
 If mutability is required, you have to use interior mutability (`Cell` or `RefCell`).
+
+If data members are used to store references to other Python objects, make sure
+to read the section "Garbage Collector Integration".
 
 Data declarations are not accessible from Python.
 On the Rust side, data is accessed through the automatically generated accessor functions:
@@ -179,11 +182,11 @@ Example:
 
 ```
 #[macro_use] extern crate cpython;
-use std::cell::RefCell;
-use cpython::PyObject;
+use std::{mem, cell};
+use cpython::{PyObject, PyDrop};
 
 py_class!(class ClassWithGCSupport |py| {
-    data obj: RefCell<Option<PyObject>>;
+    data obj: cell::RefCell<Option<PyObject>>;
 
     def __traverse__(&self, visit) {
         if let Some(ref obj) = *self.obj(py).borrow() {
@@ -193,11 +196,30 @@ py_class!(class ClassWithGCSupport |py| {
     }
 
     def __clear__(&self) {
-        *self.obj(py).borrow_mut() = None;
+        let old_obj = mem::replace(&mut *self.obj(py).borrow_mut(), None);
+        // Release reference only after the mutable borrow has expired,
+        // see Caution note below.
+        old_obj.release_ref(py);
     }
 });
 # fn main() {}
 ```
+
+Caution: `__traverse__` may be called by the garbage collector:
+  * during any python operation that takes a `Python` token as argument
+  * indirectly from the `PyObject` (or derived type) `Drop` implementation
+  * if your code releases the GIL, at any time by other threads.
+
+If you are using `RefCell<PyObject>`, you must not perform any of the above
+operations while your code holds a mutable borrow, or you may cause the borrow
+in `__traverse__` to panic.
+
+This is why the example above uses the `mem::replace`/`release_ref` dance:
+`release_ref` (or the implicit `Drop`) can only be called safely in a separate
+statement, after the mutable borrow on the `RefCell` has expired.
+
+Note that this restriction applies not only to `__clear__`, but to all methods
+that use `RefCell::borrow_mut`.
 
 */
 #[macro_export]
