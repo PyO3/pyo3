@@ -200,19 +200,19 @@ fn handle_panic(_py: Python, _panic: &any::Any) {
 }
 
 #[cfg(not(feature="nightly"))]
-pub unsafe fn handle_callback<F, T, R>(location: &str, f: F) -> R
+pub unsafe fn handle_callback<F, T, R, C>(location: &str, _c: C, f: F) -> R
     where F: FnOnce(Python) -> PyResult<T>,
-          T: CallbackConvertTo<R>
+          C: CallbackConverter<T, R>
 {
     let guard = AbortOnDrop(location);
     let py = Python::assume_gil_acquired();
     let ret = match f(py) {
         Ok(val) => {
-            val.convert(py)
+            C::convert(val, py)
         }
         Err(e) => {
             e.restore(py);
-            R::error_value()
+            C::error_value()
         }
     };
     mem::forget(guard);
