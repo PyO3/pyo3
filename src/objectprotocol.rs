@@ -74,7 +74,7 @@ pub trait ObjectProtocol : PythonObject {
     #[cfg(feature="python27-sys")]
     fn compare<O>(&self, py: Python, other: O) -> PyResult<Ordering> where O: ToPyObject {
         other.with_borrowed_ptr(py, |other| unsafe {
-            let mut result : libc::c_int = -1;
+            let mut result = -1;
             try!(err::error_on_minusone(py,
                 ffi::PyObject_Cmp(self.as_ptr(), other, &mut result)));
             Ok(if result < 0 {

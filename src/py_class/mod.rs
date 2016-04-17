@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 mod py_class;
+mod py_class_impl;
 #[doc(hidden)] pub mod slots;
 #[doc(hidden)] pub mod members;
 pub mod gc;

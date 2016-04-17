@@ -313,16 +313,17 @@ mod test {
 
         // Make sure builtin names are accessible
         let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract(py).unwrap();
-
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
-
         d.set_item(py, "foo", 13).unwrap();
 
         // Inject our own local namespace
         let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract(py).unwrap();
-
         assert_eq!(v, 42);
+
+        // Make sure builtin names are still accessible when using a local namespace
+        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract(py).unwrap();
+        assert_eq!(v, 2);
     }
 }

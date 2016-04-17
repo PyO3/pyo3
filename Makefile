@@ -29,7 +29,10 @@ CARGO_FLAGS := --features "$(FEATURES)" --no-default-features
 
 default: test extensions
 
-build:
+src/py_class/py_class_impl.rs: src/py_class/py_class_impl.py
+	python $< >$@
+
+build: src/py_class/py_class_impl.rs
 	cargo build $(CARGO_FLAGS)
 
 test: build
