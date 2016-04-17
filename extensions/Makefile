@@ -45,12 +45,18 @@ all: stamps/test-hello
 stamps/test-hello: hello.out
 	@grep "Rust says: Hello Python!" hello.out >/dev/null
 	@grep "Rust got 42" hello.out >/dev/null
+	@touch $@
 
 custom_class.out: custom_class.so
 	python$(PY) -c "import custom_class; custom_class.MyType(42).a()" 2>&1 | tee $@
 
-all: stamps/test-custom_class custom_class_expanded.rs
+all: stamps/test-custom_class
 stamps/test-custom_class: custom_class.out
 	@grep "a() was called with self=42" custom_class.out >/dev/null
+	@touch $@
 
+#all: stamps/test-btree
+stamps/test-btree: test_btree.py btree.so
+	python$(PY) test_btree.py
+	@touch $@
 
