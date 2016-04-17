@@ -16,8 +16,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-extern crate num;
+extern crate num_traits;
 
+use self::num_traits::cast::cast;
 use libc::{c_long, c_double};
 use python::{Python, PythonObject, PyClone};
 use err::{self, PyResult, PyErr};
@@ -123,7 +124,7 @@ macro_rules! int_fits_c_long(
             if val == -1 && PyErr::occurred(py) {
                 return Err(PyErr::fetch(py));
             }
-            match num::traits::cast::<c_long, $rust_type>(val) {
+            match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
                 None => Err(overflow_error(py))
             }
@@ -145,7 +146,7 @@ macro_rules! int_fits_larger_int(
 
         extract!(obj to $rust_type; py => {
             let val = try!(obj.extract::<$larger_type>(py));
-            match num::traits::cast::<$larger_type, $rust_type>(val) {
+            match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
                 None => Err(overflow_error(py))
             }
@@ -176,7 +177,7 @@ macro_rules! int_convert_u64_or_i64 (
             #[cfg(feature="python27-sys")]
             fn to_py_object(&self, py: Python) -> PyObject {
                 unsafe {
-                    let ptr = match num::traits::cast::<$rust_type, c_long>(*self) {
+                    let ptr = match cast::<$rust_type, c_long>(*self) {
                         Some(v) => ffi::PyInt_FromLong(v),
                         None => $pylong_from_ll_or_ull(*self)
                     };
@@ -208,7 +209,7 @@ macro_rules! int_convert_u64_or_i64 (
                     if ffi::PyLong_Check(ptr) != 0 {
                         err_if_invalid_value(py, !0, $pylong_as_ull_or_ull(ptr))
                     } else if ffi::PyInt_Check(ptr) != 0 {
-                        match num::traits::cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
+                        match cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
                             Some(v) => Ok(v),
                             None => Err(overflow_error(py))
                         }

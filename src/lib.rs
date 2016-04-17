@@ -25,9 +25,9 @@
     const_fn, // for GILProtected::new (#24111)
     shared, // for std::ptr::Shared (#27730)
     //recover, // for converting panics to python exceptions (#27719)
-    // -- TODO wait for stable release and promote recover code from cfg(nightly)
+    // -- TODO wait for stable release and promote recover code from cfg(nightly) (1.9?)
 
-    // -- TODO remove <DUMMY> hack when it's no longer necessary on stable
+    // -- TODO remove <DUMMY> hack when it's no longer necessary on stable (1.9?)
 ))]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x

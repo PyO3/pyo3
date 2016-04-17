@@ -26,7 +26,7 @@ build = "build.rs"
 
 [dependencies]
 libc = "0.2"
-num = "0.1"
+num-traits = "0.1"
 
 # These features are both optional, but you must pick one to 
 # indicate which python ffi you are trying to bind to.
