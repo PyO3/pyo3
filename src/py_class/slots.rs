@@ -106,6 +106,6 @@ macro_rules! py_class_wrap_newfunc {
                         })
                 })
         }
-        wrap_newfunc::<()>
+        Some(wrap_newfunc::<()>)
     }}
 }

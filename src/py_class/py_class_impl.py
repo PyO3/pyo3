@@ -4,6 +4,9 @@
 This python script generates the py_class_impl! macro.
 """
 
+from collections import namedtuple
+import sys
+
 header = '''
 // Copyright (c) 2016 Daniel Grunwald
 //
@@ -230,47 +233,142 @@ def data_decl():
     }};
 ''')
 
-def tp_new(with_params):
-    if with_params:
-        param_capture = ', $($p:tt)+'
-        tp_new = '''py_argparse_parse_plist_impl!{
-                    py_class_wrap_newfunc {$class::__new__}
-                    [] ($($p)+,)
-                }'''
-        impl = '''py_argparse_parse_plist_impl!{
-                py_class_impl_item { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } }
-                [] ($($p)+,)
-            }'''
-        print('    // def __new__(cls, params)')
+indentation = ['    ']
+last_char = '\n'
+
+def write(text):
+    global last_char
+    for line in text.splitlines(True):
+        line = line.lstrip(' ')
+        if len(line.strip()) == 0 and last_char == '\n':
+            continue
+        if last_char == '\n':
+            initial_closing = 0
+            for c in line:
+                if c in ']}':
+                    initial_closing += 1
+                else:
+                    break
+            if initial_closing:
+                sys.stdout.write(''.join(indentation[:-initial_closing]))
+            else:
+                sys.stdout.write(''.join(indentation))
+        elif last_char not in ' \n' and len(line) > 0 and line[0] not in ' \n;':
+            sys.stdout.write(' ')
+        sys.stdout.write(line)
+        min_indent_level = len(indentation)
+        for c in line:
+            if c in '[{':
+                if len(indentation) > min_indent_level:
+                    indentation.append('')
+                else:
+                    indentation.append('    ')
+            elif c in ']}':
+                indentation.pop()
+                if len(indentation) < min_indent_level:
+                    min_indent_level = len(indentation)
+        last_char = line[-1]
+
+Slot = namedtuple('Slot', ['slot_type', 'slot_name'])
+
+def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
+    write('{ $class:ident $py:ident')
+    write('$info:tt')
+    if new_slots:
+        write('\n/* slots: */ {\n')
+        if any(s.slot_type == 'type_slots' for s, v in new_slots):
+            write('\n/* type_slots */ [ $( $type_slot_name:ident : $type_slot_value:expr, )* ]\n')
+        else:
+            write('$type_slots:tt')
+        write('$as_number:tt')
+        write('$as_sequence:tt')
+        write('\n}\n')
     else:
-        param_capture = ''
-        tp_new = 'py_class_wrap_newfunc!($class::__new__ [])'
-        impl = 'py_class_impl_item! { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }'
-        print('    // def __new__(cls)')
-    print('''    { $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
-        }
-        { $( $imp:item )* } $members:tt;
-        def __new__ ($cls:ident%s)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $slot_name : $slot_value, )*
-                tp_new: Some(%s),
-            ]
-            $as_number $as_sequence
-        }
-        /* impl: */ {
-            $($imp)*
-            %s
-        }
-        $members;
-        $($tail)*
-    }};''' % (param_capture, tp_new, impl))
+        write('$slots:tt')
+    if new_impl is not None:
+        write('\n{ $( $imp:item )* }\n')
+    else:
+        write('$impls:tt')
+    if new_members:
+        write('\n{ $( $member_name:ident = $member_expr:expr; )* }')
+    else:
+        write('$members:tt')
+    write(';\n')
+    write(pattern)
+    write('$($tail:tt)*\n')
+    write('} => { py_class_impl! {\n')
+    write('$class $py')
+    write('$info')
+    if new_slots:
+        write('\n/* slots: */ {\n')
+        if any(s.slot_type == 'type_slots' for s, v in new_slots):
+            write('\n/* type_slots */ [\n')
+            write('$( $type_slot_name : $type_slot_value, )*\n')
+            for s, v in new_slots:
+                if s.slot_type == 'type_slots':
+                    write('%s: %s,\n' % (s.slot_name, v))
+            write(']\n')
+        else:
+            write('$type_slots')
+        write('$as_number')
+        write('$as_sequence')
+        write('\n}\n')
+    else:
+        write('$slots')
+    if new_impl is not None:
+        write('\n/* impl: */ {\n')
+        write('$($imp)*\n')
+        write(new_impl)
+        write('\n}\n')
+    else:
+        write('$impls')
+    if new_members:
+        write('\n/* members: */ {\n')
+        write('$( $member_name = $member_expr; )*\n')
+        for name, val in new_members:
+            write('%s = %s;\n' % (name, val))
+        write('}')
+    else:
+        write('$members')
+    write('; $($tail)*\n')
+    write('}};\n')
+
+def class_method(decoration='', special_name=None,
+        slot=None, add_member=False, value_macro=None, value_args=None):
+    assert(slot is None or isinstance(slot, Slot))
+    name_pattern = special_name or '$name:ident'
+    name_use = special_name or '$name'
+    def impl(with_params):
+        if with_params:
+            param_pattern = ', $($p:tt)+'
+            impl = '''py_argparse_parse_plist_impl!{
+                py_class_impl_item { $class, $py, %s($cls: &$crate::PyType,) $res_type; { $($body)* } }
+                [] ($($p)+,)
+            }''' % name_use
+            value = 'py_argparse_parse_plist_impl!{%s {%s} [] ($($p)+,)}' \
+                    % (value_macro, value_args)
+        else:
+            param_pattern = ''
+            impl = 'py_class_impl_item! { $class, $py,%s($cls: &$crate::PyType,) $res_type; { $($body)* } [] }' \
+                % name_use
+            value = '%s!{%s []}' % (value_macro, value_args)
+        pattern = '%s def %s ($cls:ident%s) -> $res_type:ty { $( $body:tt )* }' \
+            % (decoration, name_pattern, param_pattern)
+        slots = []
+        if slot is not None:
+            slots.append((slot, value))
+        members = []
+        if add_member:
+            members.append((name_use, value))
+        generate_case(pattern, new_impl=impl, new_slots=slots, new_members=members)
+    impl(False) # without parameters
+    impl(True) # with parameters
+
+def tp_new():
+    class_method(special_name='__new__',
+        slot=Slot('type_slots', 'tp_new'),
+        value_macro='py_class_wrap_newfunc',
+        value_args='$class::__new__')
 
 def traverse_and_clear():
     print('''
@@ -342,7 +440,7 @@ def traverse_and_clear():
         $($tail)*
     }};''')
 
-general_cases = '''
+instance_method = '''
     // def instance_method(&self)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
@@ -385,50 +483,9 @@ general_cases = '''
         };
         $($tail)*
     }};
+'''
 
-    // @classmethod def class_method(cls)
-    { $class:ident $py:ident $info:tt $slots:tt
-        { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* };
-        @classmethod def $name:ident ($cls:ident)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info $slots
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, $name($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
-        }
-        /* members: */ {
-            $( $member_name = $member_expr; )*
-            $name = py_class_class_method!{$py, $class::$name []};
-        };
-        $($tail)*
-    }};
-    // @classmethod def class_method(cls, params)
-    { $class:ident $py:ident $info:tt $slots:tt
-        { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* };
-        @classmethod def $name:ident ($cls:ident, $($p:tt)+)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info $slots
-        /* impl: */ {
-            $($imp)*
-            py_argparse_parse_plist_impl!{
-                py_class_impl_item { $class, $py, $name($cls: &$crate::PyType,) $res_type; { $($body)* } }
-                [] ($($p)+,)
-            }
-        }
-        /* members: */ {
-            $( $member_name = $member_expr; )*
-            $name = py_argparse_parse_plist_impl!{
-                py_class_class_method {$py, $class::$name}
-                [] ($($p)+,)
-            };
-        };
-        $($tail)*
-    }};
-
+static_method = '''
     // @staticmethod def static_method(params)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
@@ -627,12 +684,16 @@ def main():
     print(macro_start)
     print(base_case)
     data_decl()
-    tp_new(False)
-    tp_new(True)
+    tp_new()
     traverse_and_clear()
     for name, f in sorted(special_names.items()):
         f(name)
-    print(general_cases)
+    print(instance_method)
+    class_method(decoration='@classmethod',
+        add_member=True,
+        value_macro='py_class_class_method',
+        value_args='$py, $class::$name')
+    print(static_method)
     print(macro_end)
 
 if __name__ == '__main__':

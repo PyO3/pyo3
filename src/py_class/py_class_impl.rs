@@ -224,49 +224,43 @@ macro_rules! py_class_impl {
         $($tail)*
     }};
 
-    // def __new__(cls)
     { $class:ident $py:ident $info:tt
         /* slots: */ {
-            /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
+            /* type_slots */ [ $( $type_slot_name:ident : $type_slot_value:expr, )* ]
             $as_number:tt $as_sequence:tt
         }
-        { $( $imp:item )* } $members:tt;
-        def __new__ ($cls:ident)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        { $( $imp:item )* }
+        $members:tt;
+        def __new__ ($cls:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info
         /* slots: */ {
             /* type_slots */ [
-                $( $slot_name : $slot_value, )*
-                tp_new: Some(py_class_wrap_newfunc!($class::__new__ [])),
+                $( $type_slot_name : $type_slot_value, )*
+                tp_new: py_class_wrap_newfunc!{$class::__new__ []},
             ]
             $as_number $as_sequence
         }
         /* impl: */ {
             $($imp)*
-            py_class_impl_item! { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
+            py_class_impl_item! { $class, $py,__new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
         }
-        $members;
-        $($tail)*
+        $members; $($tail)*
     }};
-    // def __new__(cls, params)
     { $class:ident $py:ident $info:tt
         /* slots: */ {
-            /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
+            /* type_slots */ [ $( $type_slot_name:ident : $type_slot_value:expr, )* ]
             $as_number:tt $as_sequence:tt
         }
-        { $( $imp:item )* } $members:tt;
-        def __new__ ($cls:ident, $($p:tt)+)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        { $( $imp:item )* }
+        $members:tt;
+        def __new__ ($cls:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info
         /* slots: */ {
             /* type_slots */ [
-                $( $slot_name : $slot_value, )*
-                tp_new: Some(py_argparse_parse_plist_impl!{
-                    py_class_wrap_newfunc {$class::__new__}
-                    [] ($($p)+,)
-                }),
+                $( $type_slot_name : $type_slot_value, )*
+                tp_new: py_argparse_parse_plist_impl!{py_class_wrap_newfunc {$class::__new__} [] ($($p)+,)},
             ]
             $as_number $as_sequence
         }
@@ -277,8 +271,7 @@ macro_rules! py_class_impl {
                 [] ($($p)+,)
             }
         }
-        $members;
-        $($tail)*
+        $members; $($tail)*
     }};
 
     // def __traverse__(self, visit)
@@ -992,30 +985,25 @@ macro_rules! py_class_impl {
         $($tail)*
     }};
 
-    // @classmethod def class_method(cls)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
         { $( $member_name:ident = $member_expr:expr; )* };
-        @classmethod def $name:ident ($cls:ident)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        @classmethod def $name:ident ($cls:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info $slots
         /* impl: */ {
             $($imp)*
-            py_class_impl_item! { $class, $py, $name($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
+            py_class_impl_item! { $class, $py,$name($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
         }
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = py_class_class_method!{$py, $class::$name []};
-        };
-        $($tail)*
+        }; $($tail)*
     }};
-    // @classmethod def class_method(cls, params)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
         { $( $member_name:ident = $member_expr:expr; )* };
-        @classmethod def $name:ident ($cls:ident, $($p:tt)+)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        @classmethod def $name:ident ($cls:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info $slots
         /* impl: */ {
@@ -1027,12 +1015,8 @@ macro_rules! py_class_impl {
         }
         /* members: */ {
             $( $member_name = $member_expr; )*
-            $name = py_argparse_parse_plist_impl!{
-                py_class_class_method {$py, $class::$name}
-                [] ($($p)+,)
-            };
-        };
-        $($tail)*
+            $name = py_argparse_parse_plist_impl!{py_class_class_method {$py, $class::$name} [] ($($p)+,)};
+        }; $($tail)*
     }};
 
     // @staticmethod def static_method(params)
