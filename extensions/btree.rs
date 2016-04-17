@@ -41,8 +41,12 @@ py_class!(class BTreeSet |py| {
             cell::RefCell::new(collections::BTreeSet::new()))
     }
 
-    def __bool__(&self) -> PyResult<bool> {
-        Ok(!self.set(py).borrow().is_empty())
+//    def __bool__(&self) -> PyResult<bool> {
+//        Ok(!self.set(py).borrow().is_empty())
+//    }
+
+    def __len__(&self) -> PyResult<usize> {
+        Ok(self.set(py).borrow().len())
     }
 });
 

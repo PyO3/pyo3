@@ -164,7 +164,7 @@ macro_rules! py_class_impl {
                     }
 
                     fn init($py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
-                        py_class_type_object_dynamic_init!($class, $py, type_object);
+                        py_class_type_object_dynamic_init!($class, $py, type_object, $slots);
                         py_class_init_members!($class, $py, type_object, $members);
                         unsafe {
                             if $crate::_detail::ffi::PyType_Ready(&mut type_object) == 0 {
@@ -224,55 +224,6 @@ macro_rules! py_class_impl {
         $($tail)*
     }};
 
-    { $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $type_slot_name:ident : $type_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
-        }
-        { $( $imp:item )* }
-        $members:tt;
-        def __new__ ($cls:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $type_slot_name : $type_slot_value, )*
-                tp_new: py_class_wrap_newfunc!{$class::__new__ []},
-            ]
-            $as_number $as_sequence
-        }
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py,__new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
-        }
-        $members; $($tail)*
-    }};
-    { $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $type_slot_name:ident : $type_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
-        }
-        { $( $imp:item )* }
-        $members:tt;
-        def __new__ ($cls:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $type_slot_name : $type_slot_value, )*
-                tp_new: py_argparse_parse_plist_impl!{py_class_wrap_newfunc {$class::__new__} [] ($($p)+,)},
-            ]
-            $as_number $as_sequence
-        }
-        /* impl: */ {
-            $($imp)*
-            py_argparse_parse_plist_impl!{
-                py_class_impl_item { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } }
-                [] ($($p)+,)
-            }
-        }
-        $members; $($tail)*
-    }};
 
     // def __traverse__(self, visit)
     { $class:ident $py:ident
@@ -677,11 +628,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__le__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt $as_number:tt
+            /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __len__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            $type_slots $as_number
+            /* as_sequence */ [
+                $( $sq_slot_name : $sq_slot_value, )*
+                sq_length: py_class_unary_slot!($class::__len__, $crate::_detail::ffi::Py_ssize_t, $crate::py_class::slots::LenResultConverter),
+            ]
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __len__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __len__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __len__ $($tail:tt)*
     } => {
-        py_error! { "__len__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __len__" }
     };
 // def __length_hint__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -743,6 +717,55 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__neg__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __new__ ($cls:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_new: py_class_wrap_newfunc!{$class::__new__ []},
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py,__new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __new__ ($cls:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_new: py_argparse_parse_plist_impl!{py_class_wrap_newfunc {$class::__new__} [] ($($p)+,)},
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_argparse_parse_plist_impl!{
+                py_class_impl_item { $class, $py, __new__($cls: &$crate::PyType,) $res_type; { $($body)* } }
+                [] ($($p)+,)
+            }
+        }
+        $members; $($tail)*
+    }};
 // def __next__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __next__ $($tail:tt)*

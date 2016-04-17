@@ -243,6 +243,48 @@ impl Clone for PyNumberMethods {
     #[inline] fn clone(&self) -> PyNumberMethods { *self }
 }
 
+pub const PyNumberMethods_INIT : PyNumberMethods = PyNumberMethods {
+    nb_add: None,
+    nb_subtract: None,
+    nb_multiply: None,
+    nb_divide: None,
+    nb_remainder: None,
+    nb_divmod: None,
+    nb_power: None,
+    nb_negative: None,
+    nb_positive: None,
+    nb_absolute: None,
+    nb_nonzero: None,
+    nb_invert: None,
+    nb_lshift: None,
+    nb_rshift: None,
+    nb_and: None,
+    nb_xor: None,
+    nb_or: None,
+    nb_coerce: None,
+    nb_c_int: None,
+    nb_long: None,
+    nb_float: None,
+    nb_oct: None,
+    nb_hex: None,
+    nb_inplace_add: None,
+    nb_inplace_subtract: None,
+    nb_inplace_multiply: None,
+    nb_inplace_divide: None,
+    nb_inplace_remainder: None,
+    nb_inplace_power: None,
+    nb_inplace_lshift: None,
+    nb_inplace_rshift: None,
+    nb_inplace_and: None,
+    nb_inplace_xor: None,
+    nb_inplace_or: None,
+    nb_floor_divide: None,
+    nb_true_divide: None,
+    nb_inplace_floor_divide: None,
+    nb_inplace_true_divide: None,
+    nb_index: None,
+};
+
 #[repr(C)]
 #[derive(Copy)]
 pub struct PySequenceMethods {
@@ -262,6 +304,19 @@ impl Clone for PySequenceMethods {
     #[inline] fn clone(&self) -> PySequenceMethods { *self }
 }
 
+pub const PySequenceMethods_INIT : PySequenceMethods = PySequenceMethods {
+    sq_length: None,
+    sq_concat: None,
+    sq_repeat: None,
+    sq_item: None,
+    sq_slice: None,
+    sq_ass_item: None,
+    sq_ass_slice: None,
+    sq_contains: None,
+    sq_inplace_concat: None,
+    sq_inplace_repeat: None,
+};
+
 #[repr(C)]
 #[derive(Copy)]
 pub struct PyMappingMethods {
@@ -273,6 +328,12 @@ pub struct PyMappingMethods {
 impl Clone for PyMappingMethods {
     #[inline] fn clone(&self) -> PyMappingMethods { *self }
 }
+
+pub const PyMappingMethods_INIT : PyMappingMethods = PyMappingMethods {
+    mp_length: None,
+    mp_subscript: None,
+    mp_ass_subscript: None,
+};
 
 #[repr(C)]
 #[derive(Copy)]
@@ -288,6 +349,15 @@ pub struct PyBufferProcs {
 impl Clone for PyBufferProcs {
     #[inline] fn clone(&self) -> PyBufferProcs { *self }
 }
+
+pub const PyBufferProcs_INIT : PyBufferProcs = PyBufferProcs {
+    bf_getreadbuffer: None,
+    bf_getwritebuffer: None,
+    bf_getsegcount: None,
+    bf_getcharbuffer: None,
+    bf_getbuffer: None,
+    bf_releasebuffer: None,
+};
 
 pub type freefunc =
     unsafe extern "C" fn(arg1: *mut c_void);

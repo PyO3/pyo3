@@ -76,7 +76,7 @@ macro_rules! py_class_instance_method {
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::_detail::handle_callback(
-                LOCATION,
+                LOCATION, $crate::_detail::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(LOCATION), args, kwargs,
                         [ $( { $pname : $ptype = $detail } )* ]
@@ -123,7 +123,7 @@ macro_rules! py_class_class_method {
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::_detail::handle_callback(
-                LOCATION,
+                LOCATION, $crate::_detail::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(LOCATION), args, kwargs,
                         [ $( { $pname : $ptype = $detail } )* ]
@@ -173,7 +173,7 @@ macro_rules! py_class_static_method {
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::_detail::handle_callback(
-                LOCATION,
+                LOCATION, $crate::_detail::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(LOCATION), args, kwargs,
                         [ $( { $pname : $ptype = $detail } )* ]

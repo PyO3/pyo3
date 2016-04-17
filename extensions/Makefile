@@ -55,7 +55,7 @@ stamps/test-custom_class: custom_class.out
 	@grep "a() was called with self=42" custom_class.out >/dev/null
 	@touch $@
 
-#all: stamps/test-btree
+all: stamps/test-btree
 stamps/test-btree: test_btree.py btree.so
 	python$(PY) test_btree.py
 	@touch $@

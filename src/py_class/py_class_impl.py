@@ -170,7 +170,7 @@ base_case = '''
                     }
 
                     fn init($py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
-                        py_class_type_object_dynamic_init!($class, $py, type_object);
+                        py_class_type_object_dynamic_init!($class, $py, type_object, $slots);
                         py_class_init_members!($class, $py, type_object, $members);
                         unsafe {
                             if $crate::_detail::ffi::PyType_Ready(&mut type_object) == 0 {
@@ -269,19 +269,23 @@ def write(text):
                     min_indent_level = len(indentation)
         last_char = line[-1]
 
-Slot = namedtuple('Slot', ['slot_type', 'slot_name'])
+slot_groups = (
+    ('tp', 'type_slots'),
+    ('nb', 'as_number'),
+    ('sq', 'as_sequence'),
+)
 
 def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
     write('{ $class:ident $py:ident')
     write('$info:tt')
     if new_slots:
         write('\n/* slots: */ {\n')
-        if any(s.slot_type == 'type_slots' for s, v in new_slots):
-            write('\n/* type_slots */ [ $( $type_slot_name:ident : $type_slot_value:expr, )* ]\n')
-        else:
-            write('$type_slots:tt')
-        write('$as_number:tt')
-        write('$as_sequence:tt')
+        for prefix, group_name in slot_groups:
+            if any(s.startswith(prefix) for s, v in new_slots):
+                write('\n/* %s */ [ $( $%s_slot_name:ident : $%s_slot_value:expr, )* ]\n'
+                      % (group_name, prefix, prefix))
+            else:
+                write('$%s:tt' % group_name)
         write('\n}\n')
     else:
         write('$slots:tt')
@@ -301,17 +305,16 @@ def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
     write('$info')
     if new_slots:
         write('\n/* slots: */ {\n')
-        if any(s.slot_type == 'type_slots' for s, v in new_slots):
-            write('\n/* type_slots */ [\n')
-            write('$( $type_slot_name : $type_slot_value, )*\n')
-            for s, v in new_slots:
-                if s.slot_type == 'type_slots':
-                    write('%s: %s,\n' % (s.slot_name, v))
-            write(']\n')
-        else:
-            write('$type_slots')
-        write('$as_number')
-        write('$as_sequence')
+        for prefix, group_name in slot_groups:
+            if any(s.startswith(prefix) for s, v in new_slots):
+                write('\n/* %s */ [\n' % group_name)
+                write('$( $%s_slot_name : $%s_slot_value, )*\n' % (prefix, prefix))
+                for s, v in new_slots:
+                    if s.startswith(prefix):
+                        write('%s: %s,\n' % (s, v))
+                write(']\n')
+            else:
+                write('$%s' % group_name)
         write('\n}\n')
     else:
         write('$slots')
@@ -333,9 +336,8 @@ def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
     write('; $($tail)*\n')
     write('}};\n')
 
-def class_method(decoration='', special_name=None,
+def generate_class_method(special_name=None, decoration='',
         slot=None, add_member=False, value_macro=None, value_args=None):
-    assert(slot is None or isinstance(slot, Slot))
     name_pattern = special_name or '$name:ident'
     name_use = special_name or '$name'
     def impl(with_params):
@@ -363,12 +365,6 @@ def class_method(decoration='', special_name=None,
         generate_case(pattern, new_impl=impl, new_slots=slots, new_members=members)
     impl(False) # without parameters
     impl(True) # with parameters
-
-def tp_new():
-    class_method(special_name='__new__',
-        slot=Slot('type_slots', 'tp_new'),
-        value_macro='py_class_wrap_newfunc',
-        value_args='$class::__new__')
 
 def traverse_and_clear():
     print('''
@@ -549,8 +545,31 @@ def error(special_name, msg):
 def unimplemented(special_name):
     return error('%s is not supported by py_class! yet.' % special_name)(special_name)
 
+@special_method
+def special_class_method(special_name, *args, **kwargs):
+    generate_class_method(special_name=special_name, *args, **kwargs)
+
+@special_method
+def unary_operator(special_name, slot,
+        res_type='*mut $crate::_detail::ffi::PyObject',
+        res_conv='*mut $crate::_detail::PyObjectCallbackConverter'):
+    generate_case(
+        pattern='def %s(&$slf:ident) -> $res_type:ty { $($body:tt)* }' % special_name,
+        new_impl='py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [] }'
+                 % special_name,
+        new_slots=[(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
+                          % (special_name, res_type, res_conv))]
+    )
+    # Generate fall-back matcher that produces an error
+    # when using the wrong method signature
+    error('Invalid signature for unary operator %s' % special_name)(special_name)
+
 special_names = {
     '__init__': error('__init__ is not supported by py_class!; use __new__ instead.'),
+    '__new__': special_class_method(
+        slot='tp_new',
+        value_macro='py_class_wrap_newfunc',
+        value_args='$class::__new__'),
     '__del__': error('__del__ is not supported by py_class!; Use a data member with a Drop impl instead.'),
     '__repr__': unimplemented(),
     '__str__': unimplemented(),
@@ -588,7 +607,9 @@ special_names = {
     '__call__': unimplemented(),
     
     # Emulating container types
-    '__len__': unimplemented(),
+    '__len__': unary_operator('sq_length',
+                res_type='$crate::_detail::ffi::Py_ssize_t',
+                res_conv='$crate::py_class::slots::LenResultConverter'),
     '__length_hint__': unimplemented(),
     '__getitem__': unimplemented(),
     '__missing__': unimplemented(),
@@ -684,12 +705,11 @@ def main():
     print(macro_start)
     print(base_case)
     data_decl()
-    tp_new()
     traverse_and_clear()
     for name, f in sorted(special_names.items()):
         f(name)
     print(instance_method)
-    class_method(decoration='@classmethod',
+    generate_class_method(decoration='@classmethod',
         add_member=True,
         value_macro='py_class_class_method',
         value_args='$py, $class::$name')

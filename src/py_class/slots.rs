@@ -17,8 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 use ffi;
-use std::mem;
+use std::{mem, isize};
 use python::Python;
+use function::CallbackConverter;
+use err::{PyErr};
+use exc;
 
 #[macro_export]
 #[doc(hidden)]
@@ -63,12 +66,20 @@ macro_rules! py_class_type_object_flags {
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
     // initialize those fields of PyTypeObject that we couldn't initialize statically
-    ($class: ident, $py:ident, $type_object:ident) => {
+    ($class: ident, $py:ident, $type_object:ident,
+        /* slots: */ {
+            $type_slots:tt
+            $as_number:tt
+            $as_sequence:tt
+        }
+    ) => {
         unsafe {
             $type_object.tp_name = concat!(stringify!($class), "\0").as_ptr() as *const _;
             $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
                                         as $crate::_detail::ffi::Py_ssize_t;
         }
+        // call slot macros outside of unsafe block
+        *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
     }
 }
 
@@ -94,7 +105,7 @@ macro_rules! py_class_wrap_newfunc {
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::_detail::handle_callback(
-                LOCATION,
+                LOCATION, $crate::_detail::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(LOCATION), args, kwargs,
                         [ $( { $pname : $ptype = $detail } )* ]
@@ -109,3 +120,60 @@ macro_rules! py_class_wrap_newfunc {
         Some(wrap_newfunc::<()>)
     }}
 }
+
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_as_sequence {
+    ([]) => (0 as *mut $crate::_detail::ffi::PySequenceMethods);
+    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+        static mut SEQUENCE_METHODS : $crate::_detail::ffi::PySequenceMethods
+            = $crate::_detail::ffi::PySequenceMethods {
+                $( $slot_name : $slot_value, )*
+                ..
+                $crate::_detail::ffi::PySequenceMethods_INIT
+            };
+        unsafe { &mut SEQUENCE_METHODS }
+    }}
+}
+
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_unary_slot {
+    ($class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn wrap_unary<DUMMY>(
+            slf: *mut $crate::_detail::ffi::PyObject)
+        -> $res_type
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    let ret = slf.$f(py);
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+        }
+        Some(wrap_unary::<()>)
+    }}
+}
+
+pub struct LenResultConverter;
+
+impl CallbackConverter<usize, isize> for LenResultConverter {
+    fn convert(val: usize, py: Python) -> isize {
+        if val <= (isize::MAX as usize) {
+            val as isize
+        } else {
+            PyErr::new_lazy_init(py.get_type::<exc::OverflowError>(), None).restore(py);
+            -1
+        }
+    }
+
+    fn error_value() -> isize {
+        -1
+    }
+}
+

@@ -117,7 +117,7 @@ macro_rules! py_fn_impl {
         -> *mut $crate::_detail::ffi::PyObject
         {
             $crate::_detail::handle_callback(
-                stringify!($f),
+                stringify!($f), $crate::_detail::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,
                         [ $( { $pname : $ptype = $detail } )* ]
@@ -142,56 +142,77 @@ pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObj
     err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
 }
 
+pub trait CallbackConverter<T, R> {
+    fn convert(T, Python) -> R;
+    fn error_value() -> R;
+}
+
+pub struct PyObjectCallbackConverter;
+
+impl <T> CallbackConverter<T, *mut ffi::PyObject> for PyObjectCallbackConverter
+    where T: ToPyObject
+{
+    fn convert(val: T, py: Python) -> *mut ffi::PyObject {
+        val.into_py_object(py).into_object().steal_ptr()
+    }
+
+    fn error_value() -> *mut ffi::PyObject {
+        ptr::null_mut()
+    }
+}
+
 #[cfg(feature="nightly")]
-pub unsafe fn handle_callback<F, T>(location: &str, f: F) -> *mut ffi::PyObject
+pub unsafe fn handle_callback<F, T, R, C>(location: &str, _c: C, f: F) -> R
     where F: FnOnce(Python) -> PyResult<T>,
           F: panic::UnwindSafe,
-          T: ToPyObject
+          C: CallbackConverter<T, R>
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         match f(py) {
             Ok(val) => {
-                val.into_py_object(py).into_object().steal_ptr()
+                C::convert(val, py)
             }
             Err(e) => {
                 e.restore(py);
-                ptr::null_mut()
+                C::error_value()
             }
         }
     });
     let ret = match ret {
         Ok(r) => r,
-        Err(ref err) => handle_panic(Python::assume_gil_acquired(), err)
+        Err(ref err) => {
+            handle_panic(Python::assume_gil_acquired(), err);
+            C::error_value()
+        }
     };
     mem::forget(guard);
     ret
 }
 
 #[cfg(feature="nightly")]
-fn handle_panic(_py: Python, _panic: &any::Any) -> *mut ffi::PyObject {
+fn handle_panic(_py: Python, _panic: &any::Any) {
     let msg = cstr!("Rust panic");
     unsafe {
         ffi::PyErr_SetString(ffi::PyExc_SystemError, msg.as_ptr());
     }
-    ptr::null_mut()
 }
 
 #[cfg(not(feature="nightly"))]
-pub unsafe fn handle_callback<F, T>(location: &str, f: F) -> *mut ffi::PyObject
+pub unsafe fn handle_callback<F, T, R>(location: &str, f: F) -> R
     where F: FnOnce(Python) -> PyResult<T>,
-          T: ToPyObject
+          T: CallbackConvertTo<R>
 {
     let guard = AbortOnDrop(location);
     let py = Python::assume_gil_acquired();
     let ret = match f(py) {
         Ok(val) => {
-            val.into_py_object(py).into_object().steal_ptr()
+            val.convert(py)
         }
         Err(e) => {
             e.restore(py);
-            ptr::null_mut()
+            R::error_value()
         }
     };
     mem::forget(guard);

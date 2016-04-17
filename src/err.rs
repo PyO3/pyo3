@@ -17,7 +17,8 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std;
-use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone};
+use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError,
+        PythonObjectWithTypeObject, PyClone, PyDrop};
 use objects::{PyObject, PyType, exc};
 #[cfg(feature="python27-sys")]
 use objects::oldstyle::PyClass;
@@ -161,9 +162,12 @@ impl PyErr {
     /// Return true if the current exception matches the exception in `exc`.
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
-    #[inline]
-    pub fn matches(&self, _py: Python, exc: &PyObject) -> bool {
-        unsafe { ffi::PyErr_GivenExceptionMatches(self.ptype.as_ptr(), exc.as_ptr()) != 0 }
+    pub fn matches<T>(&self, py: Python, exc: T) -> bool
+        where T: ToPyObject
+    {
+        exc.with_borrowed_ptr(py, |exc| unsafe {
+            ffi::PyErr_GivenExceptionMatches(self.ptype.as_ptr(), exc) != 0
+        })
     }
 
     /// Normalizes the error. This ensures that the exception value is an instance of the exception type.
@@ -240,6 +244,24 @@ impl PyErr {
         let message = CString::new(message).unwrap();
         unsafe {
             error_on_minusone(py, ffi::PyErr_WarnEx(category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
+        }
+    }
+}
+
+impl PyDrop for PyErr {
+    fn release_ref(self, py: Python) {
+        self.ptype.release_ref(py);
+        self.pvalue.release_ref(py);
+        self.ptraceback.release_ref(py);
+    }
+}
+
+impl PyClone for PyErr {
+    fn clone_ref(&self, py: Python) -> PyErr {
+        PyErr {
+            ptype: self.ptype.clone_ref(py),
+            pvalue: self.pvalue.clone_ref(py),
+            ptraceback: self.ptraceback.clone_ref(py)
         }
     }
 }

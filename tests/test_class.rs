@@ -2,11 +2,31 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol, PyDict};
-use std::mem;
+use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol, PyDict, exc};
+use std::{mem, isize};
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+
+macro_rules! py_assert {
+    ($py:expr, $val:ident, $assertion:expr) => {{
+        let d = PyDict::new($py);
+        d.set_item($py, stringify!($val), $val).unwrap();
+        $py.run(concat!("assert ", $assertion), None, Some(&d)).unwrap();
+    }}
+}
+
+macro_rules! py_expect_exception {
+    ($py:expr, $val:ident, $code:expr, $err:ident) => {{
+        let d = PyDict::new($py);
+        d.set_item($py, stringify!($val), $val).unwrap();
+        let res = $py.eval($code, None, Some(&d));
+        let err = res.unwrap_err();
+        assert!(err.matches($py, $py.get_type::<exc::$err>()));
+    }}
+}
+
 
 py_class!(class EmptyClass |py| { });
 
@@ -266,5 +286,25 @@ fn gc_integration() {
 
     py.run("import gc; gc.collect()", None, None).unwrap();
     assert!(drop_called.load(Ordering::Relaxed));
+}
+
+py_class!(class Len |py| {
+    data l: usize;
+
+    def __len__(&self) -> PyResult<usize> {
+        Ok(*self.l(py))
+    }
+});
+
+#[test]
+fn len() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let inst = Len::create_instance(py, 10).unwrap();
+    py_assert!(py, inst, "len(inst) == 10");
+
+    let inst = Len::create_instance(py, (isize::MAX as usize) + 1).unwrap();
+    py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 

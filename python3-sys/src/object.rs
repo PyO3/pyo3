@@ -287,6 +287,62 @@ mod typeobject {
     impl Default for PyNumberMethods {
         #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
+    macro_rules! as_expr { ($e:expr) => {$e} }
+
+
+    macro_rules! py_number_methods_init {
+        ($($tail:tt)*) => {
+            as_expr! {
+                PyNumberMethods {
+                    nb_add: None,
+                    nb_subtract: None,
+                    nb_multiply: None,
+                    nb_remainder: None,
+                    nb_divmod: None,
+                    nb_power: None,
+                    nb_negative: None,
+                    nb_positive: None,
+                    nb_absolute: None,
+                    nb_bool: None,
+                    nb_invert: None,
+                    nb_lshift: None,
+                    nb_rshift: None,
+                    nb_and: None,
+                    nb_xor: None,
+                    nb_or: None,
+                    nb_int: None,
+                    nb_reserved: 0 as *mut c_void,
+                    nb_float: None,
+                    nb_inplace_add: None,
+                    nb_inplace_subtract: None,
+                    nb_inplace_multiply: None,
+                    nb_inplace_remainder: None,
+                    nb_inplace_power: None,
+                    nb_inplace_lshift: None,
+                    nb_inplace_rshift: None,
+                    nb_inplace_and: None,
+                    nb_inplace_xor: None,
+                    nb_inplace_or: None,
+                    nb_floor_divide: None,
+                    nb_true_divide: None,
+                    nb_inplace_floor_divide: None,
+                    nb_inplace_true_divide: None,
+                    nb_index: None,
+                    $($tail)*
+                }
+            }
+        }
+    }
+
+    #[cfg(not(Py_3_5))]
+    pub const PyNumberMethods_INIT: PyNumberMethods = py_number_methods_init!();
+
+    #[cfg(Py_3_5)]
+    pub const PyNumberMethods_INIT: PyNumberMethods = py_number_methods_init! {
+        nb_matrix_multiply: None,
+        nb_inplace_matrix_multiply: None,
+    };
+
     #[repr(C)]
     #[derive(Copy)]
     pub struct PySequenceMethods {
@@ -307,6 +363,18 @@ mod typeobject {
     impl Default for PySequenceMethods {
         #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
+    pub const PySequenceMethods_INIT : PySequenceMethods = PySequenceMethods {
+        sq_length: None,
+        sq_concat: None,
+        sq_repeat: None,
+        sq_item: None,
+        was_sq_slice: 0 as *mut _,
+        sq_ass_item: None,
+        was_sq_ass_slice: 0 as *mut _,
+        sq_contains: None,
+        sq_inplace_concat: None,
+        sq_inplace_repeat: None,
+    };
     #[repr(C)]
     #[derive(Copy)]
     pub struct PyMappingMethods {
@@ -320,6 +388,11 @@ mod typeobject {
     impl Default for PyMappingMethods {
         #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
+    pub const PyMappingMethods_INIT : PyMappingMethods = PyMappingMethods {
+        mp_length: None,
+        mp_subscript: None,
+        mp_ass_subscript: None,
+    };
     #[repr(C)]
     #[derive(Copy)]
     #[cfg(Py_3_5)]
@@ -336,6 +409,12 @@ mod typeobject {
     impl Default for PyAsyncMethods {
         #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
+    #[cfg(Py_3_5)]
+    pub const PyAsyncMethods_INIT : PyAsyncMethods = PyAsyncMethods {
+        am_await: None,
+        am_aiter: None,
+        am_anext: None,
+    };
     #[repr(C)]
     #[derive(Copy)]
     pub struct PyBufferProcs {
@@ -418,8 +497,6 @@ mod typeobject {
     impl Clone for PyTypeObject {
         #[inline] fn clone(&self) -> Self { *self }
     }
-
-    macro_rules! as_expr { ($e:expr) => {$e} }
 
     macro_rules! py_type_object_init {
         ($tp_as_async:ident, $($tail:tt)*) => {
