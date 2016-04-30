@@ -604,11 +604,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__isub__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __iter__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_iter: py_class_unary_slot!($class::__iter__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __iter__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __iter__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __iter__ $($tail:tt)*
     } => {
-        py_error! { "__iter__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __iter__" }
     };
 // def __itruediv__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -766,11 +789,34 @@ macro_rules! py_class_impl {
         }
         $members; $($tail)*
     }};
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __next__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_iternext: py_class_unary_slot!($class::__next__, *mut $crate::_detail::ffi::PyObject, $crate::py_class::slots::IterNextResultConverter),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __next__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __next__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __next__ $($tail:tt)*
     } => {
-        py_error! { "__next__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __next__" }
     };
 // def __nonzero__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

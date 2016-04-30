@@ -17,8 +17,9 @@
 // DEALINGS IN THE SOFTWARE.
 
 use ffi;
-use std::{mem, isize};
-use python::Python;
+use std::{mem, isize, ptr};
+use python::{Python, PythonObject};
+use conversion::ToPyObject;
 use function::CallbackConverter;
 use err::{PyErr};
 use exc;
@@ -174,6 +175,27 @@ impl CallbackConverter<usize, isize> for LenResultConverter {
 
     fn error_value() -> isize {
         -1
+    }
+}
+
+pub struct IterNextResultConverter;
+
+impl <T> CallbackConverter<Option<T>, *mut ffi::PyObject>
+    for IterNextResultConverter
+    where T: ToPyObject
+{
+    fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
+        match val {
+            Some(val) => val.into_py_object(py).into_object().steal_ptr(),
+            None => unsafe {
+                ffi::PyErr_SetNone(ffi::PyExc_StopIteration);
+                ptr::null_mut()
+            }
+        }
+    }
+
+    fn error_value() -> *mut ffi::PyObject {
+        ptr::null_mut()
     }
 }
 

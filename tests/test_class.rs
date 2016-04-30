@@ -3,7 +3,7 @@
 #[macro_use] extern crate cpython;
 
 use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol, PyDict, exc};
-use std::{mem, isize};
+use std::{mem, isize, iter};
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 macro_rules! py_assert {
     ($py:expr, $val:ident, $assertion:expr) => {{
         let d = PyDict::new($py);
-        d.set_item($py, stringify!($val), $val).unwrap();
+        d.set_item($py, stringify!($val), &$val).unwrap();
         $py.run(concat!("assert ", $assertion), None, Some(&d)).unwrap();
     }}
 }
@@ -306,5 +306,27 @@ fn len() {
 
     let inst = Len::create_instance(py, (isize::MAX as usize) + 1).unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
+}
+
+py_class!(class Iterator |py| {
+    data iter: RefCell<Box<iter::Iterator<Item=i32> + Send>>;
+
+    def __iter__(&self) -> PyResult<Iterator> {
+        Ok(self.clone_ref(py))
+    }
+
+    def __next__(&self) -> PyResult<Option<i32>> {
+        Ok(self.iter(py).borrow_mut().next())
+    }
+});
+
+#[test]
+fn iterator() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let inst = Iterator::create_instance(py, RefCell::new(Box::new(5..8))).unwrap();
+    py_assert!(py, inst, "iter(inst) is inst");
+    py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
 

@@ -221,6 +221,37 @@ statement, after the mutable borrow on the `RefCell` has expired.
 Note that this restriction applies not only to `__clear__`, but to all methods
 that use `RefCell::borrow_mut`.
 
+## Iterator Types
+
+Iterators can be defined using the Python special methods `__iter__` and `__next__`:
+
+  * `def __iter__(&self) -> PyResult<T>`
+  * `def __next__(&self) -> PyResult<Option<T>>`
+
+In both cases, `T` must be a type that implements `ToPyObject`.
+Returning `Ok(None)` from `__next__` indicates that that there are no further items.
+
+Example:
+
+```
+#[macro_use] extern crate cpython;
+use std::cell::RefCell;
+use cpython::{PyObject, PyClone, PyResult};
+
+py_class!(class MyIterator |py| {
+    data iter: RefCell<Box<Iterator<Item=PyObject> + Send>>;
+
+    def __iter__(&self) -> PyResult<Self> {
+        Ok(self.clone_ref(py))
+    }
+
+    def __next__(&self) -> PyResult<Option<PyObject>> {
+        Ok(self.iter(py).borrow_mut().next())
+    }
+});
+# fn main() {}
+```
+
 */
 #[macro_export]
 macro_rules! py_class {

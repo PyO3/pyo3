@@ -552,7 +552,7 @@ def special_class_method(special_name, *args, **kwargs):
 @special_method
 def unary_operator(special_name, slot,
         res_type='*mut $crate::_detail::ffi::PyObject',
-        res_conv='*mut $crate::_detail::PyObjectCallbackConverter'):
+        res_conv='$crate::_detail::PyObjectCallbackConverter'):
     generate_case(
         pattern='def %s(&$slf:ident) -> $res_type:ty { $($body:tt)* }' % special_name,
         new_impl='py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [] }'
@@ -615,8 +615,9 @@ special_names = {
     '__missing__': unimplemented(),
     '__setitem__': unimplemented(),
     '__delitem__': unimplemented(),
-    '__iter__': unimplemented(),
-    '__next__': unimplemented(),
+    '__iter__': unary_operator('tp_iter'),
+    '__next__': unary_operator('tp_iternext',
+                res_conv='$crate::py_class::slots::IterNextResultConverter'),
     '__reversed__': unimplemented(),
     '__contains__': unimplemented(),
     
