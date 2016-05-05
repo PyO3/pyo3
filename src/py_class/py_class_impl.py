@@ -546,19 +546,30 @@ def unimplemented(special_name):
     return error('%s is not supported by py_class! yet.' % special_name)(special_name)
 
 @special_method
+def normal_method(special_name):
+    pass
+
+@special_method
 def special_class_method(special_name, *args, **kwargs):
     generate_class_method(special_name=special_name, *args, **kwargs)
 
 @special_method
 def unary_operator(special_name, slot,
-        res_type='*mut $crate::_detail::ffi::PyObject',
-        res_conv='$crate::_detail::PyObjectCallbackConverter'):
+    res_type='PyObject',
+    res_conv=None,
+    res_ffi_type='*mut $crate::_detail::ffi::PyObject'
+):
+    if res_conv is None:
+        if res_type == 'PyObject':
+            res_conv = '$crate::_detail::PyObjectCallbackConverter'
+        else:
+            res_conv = '$crate::_detail::PythonObjectCallbackConverter::<$crate::%s>(::std::marker::PhantomData)' % res_type
     generate_case(
         pattern='def %s(&$slf:ident) -> $res_type:ty { $($body:tt)* }' % special_name,
         new_impl='py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [] }'
                  % special_name,
         new_slots=[(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
-                          % (special_name, res_type, res_conv))]
+                          % (special_name, res_ffi_type, res_conv))]
     )
     # Generate fall-back matcher that produces an error
     # when using the wrong method signature
@@ -571,11 +582,11 @@ special_names = {
         value_macro='py_class_wrap_newfunc',
         value_args='$class::__new__'),
     '__del__': error('__del__ is not supported by py_class!; Use a data member with a Drop impl instead.'),
-    '__repr__': unimplemented(),
-    '__str__': unimplemented(),
-    '__unicode__': unimplemented(),
-    '__bytes__': unimplemented(),
-    '__format__': unimplemented(),
+    '__repr__': unary_operator('tp_repr', res_type="PyString"),
+    '__str__': unary_operator('tp_str', res_type="PyString"),
+    '__unicode__': unary_operator('tp_unicode', res_type="PyUnicode"),
+    '__bytes__': unary_operator('tp_bytes', res_type="PyBytes"),
+    '__format__': normal_method(),
     # Comparison Operators
     '__lt__': unimplemented(),
     '__le__': unimplemented(),
@@ -608,7 +619,7 @@ special_names = {
     
     # Emulating container types
     '__len__': unary_operator('sq_length',
-                res_type='$crate::_detail::ffi::Py_ssize_t',
+                res_ffi_type='$crate::_detail::ffi::Py_ssize_t',
                 res_conv='$crate::py_class::slots::LenResultConverter'),
     '__length_hint__': unimplemented(),
     '__getitem__': unimplemented(),

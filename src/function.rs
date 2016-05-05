@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 use libc;
-use std::{mem, ptr, io, any};
+use std::{mem, ptr, io, any, marker};
 #[cfg(feature="nightly")] use std::panic;
 use std::ffi::{CString, CStr};
 use python::{Python, PythonObject, PyDrop};
@@ -142,20 +142,37 @@ pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObj
     err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
 }
 
-pub trait CallbackConverter<T, R> {
-    fn convert(T, Python) -> R;
+pub trait CallbackConverter<S, R> {
+    fn convert(S, Python) -> R;
     fn error_value() -> R;
 }
 
 pub struct PyObjectCallbackConverter;
 
-impl <T> CallbackConverter<T, *mut ffi::PyObject> for PyObjectCallbackConverter
-    where T: ToPyObject
+impl <S> CallbackConverter<S, *mut ffi::PyObject> for PyObjectCallbackConverter
+    where S: ToPyObject
 {
-    fn convert(val: T, py: Python) -> *mut ffi::PyObject {
+    fn convert(val: S, py: Python) -> *mut ffi::PyObject {
         val.into_py_object(py).into_object().steal_ptr()
     }
 
+    #[inline]
+    fn error_value() -> *mut ffi::PyObject {
+        ptr::null_mut()
+    }
+}
+
+pub struct PythonObjectCallbackConverter<T>(pub marker::PhantomData<T>);
+
+impl <T, S> CallbackConverter<S, *mut ffi::PyObject> for PythonObjectCallbackConverter<T>
+    where T: PythonObject,
+          S: ToPyObject<ObjectType=T>
+{
+    fn convert(val: S, py: Python) -> *mut ffi::PyObject {
+        val.into_py_object(py).into_object().steal_ptr()
+    }
+
+    #[inline]
     fn error_value() -> *mut ffi::PyObject {
         ptr::null_mut()
     }

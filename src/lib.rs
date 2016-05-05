@@ -152,7 +152,8 @@ pub mod _detail {
         pub use ::libc::{c_char, c_void, c_int};
     }
     pub use err::{from_owned_ptr_or_panic, result_from_owned_ptr};
-    pub use function::{handle_callback, py_fn_impl, AbortOnDrop, PyObjectCallbackConverter};
+    pub use function::{handle_callback, py_fn_impl, AbortOnDrop,
+        PyObjectCallbackConverter, PythonObjectCallbackConverter};
 }
 
 /// Expands to an `extern "C"` function that allows Python to load

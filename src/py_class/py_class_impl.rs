@@ -340,11 +340,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__bool__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __bytes__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_bytes: py_class_unary_slot!($class::__bytes__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyBytes>(::std::marker::PhantomData)),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __bytes__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __bytes__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __bytes__ $($tail:tt)*
     } => {
-        py_error! { "__bytes__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __bytes__" }
     };
 // def __call__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -447,12 +470,6 @@ macro_rules! py_class_impl {
         def __floordiv__ $($tail:tt)*
     } => {
         py_error! { "__floordiv__ is not supported by py_class! yet." }
-    };
-// def __format__()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def __format__ $($tail:tt)*
-    } => {
-        py_error! { "__format__ is not supported by py_class! yet." }
     };
 // def __ge__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -866,11 +883,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__rdivmod__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __repr__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_repr: py_class_unary_slot!($class::__repr__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __repr__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __repr__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __repr__ $($tail:tt)*
     } => {
-        py_error! { "__repr__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __repr__" }
     };
 // def __reversed__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -974,11 +1014,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__setitem__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __str__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_str: py_class_unary_slot!($class::__str__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __str__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __str__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __str__ $($tail:tt)*
     } => {
-        py_error! { "__str__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __str__" }
     };
 // def __sub__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -998,11 +1061,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__truediv__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __unicode__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_unicode: py_class_unary_slot!($class::__unicode__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyUnicode>(::std::marker::PhantomData)),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __unicode__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __unicode__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __unicode__ $($tail:tt)*
     } => {
-        py_error! { "__unicode__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __unicode__" }
     };
 // def __xor__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

@@ -330,3 +330,28 @@ fn iterator() {
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
 
+py_class!(class StringMethods |py| {
+    def __str__(&self) -> PyResult<&'static str> {
+        Ok("str")
+    }
+
+    def __repr__(&self) -> PyResult<&'static str> {
+        Ok("repr")
+    }
+
+    def __format__(&self, formatspec: &str) -> PyResult<String> {
+        Ok(format!("format({})", formatspec))
+    }
+});
+
+#[test]
+fn string_methods() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = StringMethods::create_instance(py).unwrap();
+    py_assert!(py, obj, "str(obj) == 'str'");
+    py_assert!(py, obj, "repr(obj) == 'repr'");
+    py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
+}
+
