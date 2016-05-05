@@ -129,9 +129,9 @@ impl <'a> PyStringData<'a> {
     /// Convert the Python string data to a Rust string.
     ///
     /// For UTF-8 and ASCII-only latin-1, returns a borrow into the original string data.
-    /// For Latin-1, UCS-2 and UCS-4, returns an owned string.
+    /// For Latin-1, UTF-16 and UTF-32, returns an owned string.
     ///
-    /// Fails with UnicodeDecodeError if the string data isn't
+    /// Fails with UnicodeDecodeError if the string data isn't valid in its encoding.
     pub fn to_string(self, py: Python) -> PyResult<Cow<'a, str>> {
         match self {
             PyStringData::Utf8(data) => {
@@ -174,6 +174,12 @@ impl <'a> PyStringData<'a> {
         }
     }
 
+    /// Convert the Python string data to a Rust string.
+    ///
+    /// Returns a borrow into the original string data if possible.
+    ///
+    /// Data that isn't valid in its encoding will be replaced
+    /// with U+FFFD REPLACEMENT CHARACTER.
     pub fn to_string_lossy(self) -> Cow<'a, str> {
         match self {
             PyStringData::Utf8(data) => String::from_utf8_lossy(data),
@@ -189,7 +195,7 @@ impl <'a> PyStringData<'a> {
             },
             PyStringData::Utf32(data) => {
                 Cow::Owned(data.iter()
-                    .map(|&u| char::from_u32(u).unwrap_or(char::REPLACEMENT_CHARACTER))
+                    .map(|&u| char::from_u32(u).unwrap_or('\u{FFFD}'))
                     .collect())
             }
         }
