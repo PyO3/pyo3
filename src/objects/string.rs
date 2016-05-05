@@ -17,31 +17,276 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std;
-use std::str;
+use std::{mem, str, char};
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use libc::c_char;
 use ffi;
-use python::{Python, PythonObject, PyClone, ToPythonPointer};
+use python::{Python, PythonObject, PyClone, ToPythonPointer, PythonObjectDowncastError};
 use super::{exc, PyObject};
 use err::{self, PyResult, PyErr};
 use conversion::{ExtractPyObject, ToPyObject};
+
+/// Represents a Python string.
+/// Corresponds to `basestring` in Python 2, and `str` in Python 3.
+pub struct PyString(PyObject);
+
+#[cfg(feature="python27-sys")]
+pyobject_newtype!(PyString);
+#[cfg(feature="python3-sys")]
+pyobject_newtype!(PyString, PyUnicode_Check, PyUnicode_Type);
 
 /// Represents a Python byte string.
 /// Corresponds to `str` in Python 2, and `bytes` in Python 3.
 pub struct PyBytes(PyObject);
 
+pyobject_newtype!(PyBytes, PyBytes_Check, PyBytes_Type);
+
 /// Represents a Python unicode string.
 /// Corresponds to `unicode` in Python 2, and `str` in Python 3.
+#[cfg(feature="python27-sys")]
 pub struct PyUnicode(PyObject);
 
-pyobject_newtype!(PyBytes, PyBytes_Check, PyBytes_Type);
+#[cfg(feature="python27-sys")]
 pyobject_newtype!(PyUnicode, PyUnicode_Check, PyUnicode_Type);
 
-#[cfg(feature="python27-sys")]
-pub use PyBytes as PyString;
+/// Represents a Python unicode string.
+/// Corresponds to `unicode` in Python 2, and `str` in Python 3.
 #[cfg(feature="python3-sys")]
-pub use PyUnicode as PyString;
+pub use PyString as PyUnicode;
+
+#[cfg(feature="python27-sys")]
+impl ::python::PythonObjectWithCheckedDowncast for PyString {
+    #[inline]
+    fn downcast_from<'p>(py: Python<'p>, obj: PyObject) -> Result<PyString, PythonObjectDowncastError<'p>> {
+        if is_base_string(&obj) {
+            Ok(PyString(obj))
+        } else {
+            Err(PythonObjectDowncastError(py))
+        }
+    }
+
+    #[inline]
+    fn downcast_borrow_from<'a, 'p>(py: Python<'p>, obj: &'a PyObject) -> Result<&'a PyString, PythonObjectDowncastError<'p>> {
+        unsafe {
+            if is_base_string(obj) {
+                Ok(::std::mem::transmute(obj))
+            } else {
+                Err(::python::PythonObjectDowncastError(py))
+            }
+        }
+    }
+}
+
+#[cfg(feature="python27-sys")]
+#[inline]
+fn is_base_string(obj: &PyObject) -> bool {
+    unsafe {
+        ffi::PyType_FastSubclass(ffi::Py_TYPE(obj.as_ptr()),
+            ffi::Py_TPFLAGS_STRING_SUBCLASS | ffi::Py_TPFLAGS_UNICODE_SUBCLASS) != 0
+    }
+}
+
+#[cfg(feature="python27-sys")]
+impl ::python::PythonObjectWithTypeObject for PyString {
+    #[inline]
+    fn type_object(py: Python) -> super::PyType {
+        unsafe { ::objects::typeobject::PyType::from_type_ptr(py, &mut ::ffi::PyBaseString_Type) }
+    }
+}
+
+/// Enum of possible Python string representations.
+#[derive(Clone, Copy, Debug)]
+pub enum PyStringData<'a> {
+    Latin1(&'a [u8]),
+    Utf8(&'a [u8]),
+    Utf16(&'a [u16]),
+    Utf32(&'a [u32])
+}
+
+impl <'a> From<&'a str> for PyStringData<'a> {
+    #[inline]
+    fn from(val: &'a str) -> PyStringData<'a> {
+        PyStringData::Utf8(val.as_bytes())
+    }
+}
+
+impl <'a> From<&'a [u16]> for PyStringData<'a> {
+    #[inline]
+    fn from(val: &'a [u16]) -> PyStringData<'a> {
+        PyStringData::Utf16(val)
+    }
+}
+
+impl <'a> From<&'a [u32]> for PyStringData<'a> {
+    #[inline]
+    fn from(val: &'a [u32]) -> PyStringData<'a> {
+        PyStringData::Utf32(val)
+    }
+}
+
+impl <'a> PyStringData<'a> {
+    /// Convert the Python string data to a Rust string.
+    ///
+    /// For UTF-8 and ASCII-only latin-1, returns a borrow into the original string data.
+    /// For Latin-1, UCS-2 and UCS-4, returns an owned string.
+    ///
+    /// Fails with UnicodeDecodeError if the string data isn't
+    pub fn to_string(self, py: Python) -> PyResult<Cow<'a, str>> {
+        match self {
+            PyStringData::Utf8(data) => {
+                match str::from_utf8(data) {
+                    Ok(s) => Ok(Cow::Borrowed(s)),
+                    Err(e) => Err(PyErr::from_instance(py, try!(exc::UnicodeDecodeError::new_utf8(py, data, e))))
+                }
+            }
+            PyStringData::Latin1(data) => {
+                if data.iter().all(|&b| b.is_ascii()) {
+                    Ok(Cow::Borrowed(unsafe { str::from_utf8_unchecked(data) }))
+                } else {
+                    Ok(Cow::Owned(data.iter().map(|&b| b as char).collect()))
+                }
+            },
+            PyStringData::Utf16(data) => {
+                fn utf16_bytes(input: &[u16]) -> &[u8] {
+                    unsafe { mem::transmute(input) }
+                }
+                match String::from_utf16(data) {
+                    Ok(s) => Ok(Cow::Owned(s)),
+                    Err(_) => Err(PyErr::from_instance(py,
+                        try!(exc::UnicodeDecodeError::new(py, cstr!("utf-16"),
+                            utf16_bytes(data), 0 .. 2*data.len(), cstr!("invalid utf-16")))
+                    ))
+                }
+            },
+            PyStringData::Utf32(data) => {
+                fn utf32_bytes(input: &[u32]) -> &[u8] {
+                    unsafe { mem::transmute(input) }
+                }
+                match data.iter().map(|&u| char::from_u32(u)).collect() {
+                    Some(s) => Ok(Cow::Owned(s)),
+                    None => Err(PyErr::from_instance(py,
+                        try!(exc::UnicodeDecodeError::new(py, cstr!("utf-32"),
+                            utf32_bytes(data), 0 .. 4*data.len(), cstr!("invalid utf-32")))
+                    ))
+                }
+            }
+        }
+    }
+
+    pub fn to_string_lossy(self) -> Cow<'a, str> {
+        match self {
+            PyStringData::Utf8(data) => String::from_utf8_lossy(data),
+            PyStringData::Latin1(data) => {
+                if data.iter().all(|&b| b.is_ascii()) {
+                    Cow::Borrowed(unsafe { str::from_utf8_unchecked(data) })
+                } else {
+                    Cow::Owned(data.iter().map(|&b| b as char).collect())
+                }
+            },
+            PyStringData::Utf16(data) => {
+                Cow::Owned(String::from_utf16_lossy(data))
+            },
+            PyStringData::Utf32(data) => {
+                Cow::Owned(data.iter()
+                    .map(|&u| char::from_u32(u).unwrap_or(char::REPLACEMENT_CHARACTER))
+                    .collect())
+            }
+        }
+    }
+}
+
+impl PyString {
+    /// Creates a new Python string object.
+    ///
+    /// On Python 2.7, this function will create a byte string if the
+    /// input string is ASCII-only; and a unicode string otherwise.
+    /// Use `PyUnicode::new()` to always create a unicode string.
+    ///
+    /// Panics if out of memory.
+    pub fn new(py: Python, s: &str) -> PyString {
+        #[cfg(feature="python27-sys")]
+        fn new_impl(py: Python, s: &str) -> PyString {
+            if s.is_ascii() {
+                PyBytes::new(py, s.as_bytes()).into_basestring()
+            } else {
+                PyUnicode::new(py, s).into_basestring()
+            }
+        }
+        #[cfg(feature="python3-sys")]
+        fn new_impl(py: Python, s: &str) -> PyString {
+            let ptr = s.as_ptr() as *const c_char;
+            let len = s.len() as ffi::Py_ssize_t;
+            unsafe {
+                err::cast_from_owned_ptr_or_panic(py,
+                    ffi::PyUnicode_FromStringAndSize(ptr, len))
+            }
+        }
+        new_impl(py, s)
+    }
+
+    /// Gets the python string data in its underlying representation.
+    ///
+    /// For Python 2 byte strings, this function always returns `PyStringData::Utf8`,
+    /// even if the bytes are not valid UTF-8.
+    /// For unicode strings, returns the underlying representation used by Python.
+    pub fn data(&self, py: Python) -> PyStringData {
+        self.data_impl(py)
+    }
+
+    #[cfg(feature="python27-sys")]
+    fn data_impl(&self, py: Python) -> PyStringData {
+        if let Ok(bytes) = self.0.cast_as::<PyBytes>(py) {
+            PyStringData::Utf8(bytes.data(py))
+        } else if let Ok(unicode) = self.0.cast_as::<PyUnicode>(py) {
+            unicode.data(py)
+        } else {
+            panic!("PyString is neither `str` nor `unicode`")
+        }
+    }
+
+    #[cfg(feature="python3-sys")]
+    fn data_impl(&self, py: Python) -> PyStringData {
+        // TODO: return the original representation instead
+        // of forcing the UTF-8 representation to be created.
+        unsafe {
+            let mut size : ffi::Py_ssize_t = mem::uninitialized();
+            let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) as *const u8;
+            if data.is_null() {
+                PyErr::fetch(py).print(py);
+                panic!("PyUnicode_AsUTF8AndSize failed");
+            }
+            PyStringData::Utf8(std::slice::from_raw_parts(data, size as usize))
+        }
+    }
+
+    /// Convert the `PyString` into a Rust string.
+    ///
+    /// On Python 2.7, if the `PyString` refers to a byte string,
+    /// it will be decoded using UTF-8.
+    ///
+    /// Returns a `UnicodeDecodeError` if the input is not valid unicode
+    /// (containing unpaired surrogates, or a Python 2.7 byte string that is
+    /// not valid UTF-8).
+    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
+        self.data(py).to_string(py)
+    }
+
+    /// Convert the `PyString` into a Rust string.
+    ///
+    /// On Python 2.7, if the `PyString` refers to a byte string,
+    /// it will be decoded using UTF-8.
+    ///
+    /// Unpaired surrogates and (on Python 2.7) invalid UTF-8 sequences are
+    /// replaced with U+FFFD REPLACEMENT CHARACTER.
+    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
+        self.data(py).to_string_lossy()
+    }
+
+    fn extract<'a>(py: Python, o: &'a PyObject) -> PyResult<Cow<'a, str>> {
+        try!(o.cast_as::<PyString>(py)).to_string(py)
+    }
+}
 
 impl PyBytes {
     /// Creates a new Python byte string object.
@@ -58,17 +303,36 @@ impl PyBytes {
     }
 
     /// Gets the Python string data as byte slice.
-    pub fn as_slice(&self, _py: Python) -> &[u8] {
+    pub fn data(&self, _py: Python) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
             std::slice::from_raw_parts(buffer, length)
         }
     }
+
+    /// Converts from `PyBytes` to `PyString`.
+    /// This method is only available on Python 2.
+    #[cfg(feature="python27-sys")]
+    #[inline]
+    pub fn as_basestring(&self) -> &PyString {
+        unsafe { self.0.unchecked_cast_as() }
+    }
+
+    /// Converts from `PyBytes` to `PyString`.
+    /// This method is only available on Python 2.
+    #[cfg(feature="python27-sys")]
+    #[inline]
+    pub fn into_basestring(self) -> PyString {
+        unsafe { self.0.unchecked_cast_into() }
+    }
 }
 
+#[cfg(feature="python27-sys")]
 impl PyUnicode {
-    /// Creates a new unicode string object from the Rust string.
+    /// Creates a new Python unicode string object.
+    ///
+    /// Panics if out of memory.
     pub fn new(py: Python, s: &str) -> PyUnicode {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
@@ -78,245 +342,77 @@ impl PyUnicode {
         }
     }
 
-    /* Note: 'as_slice removed temporarily, we need to reconsider
-    // whether we really should expose the platform-dependent Py_UNICODE to user code.
-    #[cfg(feature="python27-sys")]
-    pub fn as_slice(&self, py: Python) -> &[ffi::Py_UNICODE] {
+    /// Converts from `PyUnicode` to `PyString`.
+    /// This method is only available on Python 2.
+    /// (note: on Python 3, `PyUnicode` is a type alias for `PyString`)
+    #[inline]
+    pub fn as_basestring(&self) -> &PyString {
+        unsafe { self.0.unchecked_cast_as() }
+    }
+
+    /// Converts from `PyUnicode` to `PyString`.
+    /// This method is only available on Python 2.
+    /// (note: on Python 3, `PyUnicode` is a type alias for `PyString`)
+    #[inline]
+    pub fn into_basestring(self) -> PyString {
+        unsafe { self.0.unchecked_cast_into() }
+    }
+    
+    /// Gets the python string data in its underlying representation.
+    pub fn data(&self, _py: Python) -> PyStringData {
         unsafe {
-            let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr()) as *const _;
+            let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr());
             let length = ffi::PyUnicode_GET_SIZE(self.as_ptr()) as usize;
-            std::slice::from_raw_parts(buffer, length)
+            std::slice::from_raw_parts(buffer, length).into()
         }
-    }*/
+    }
 
-    /// Convert the `PyUnicode` into a rust string.
+    /// Convert the `PyUnicode` into a Rust string.
     ///
-    /// Returns a `UnicodeDecodeError` if the input contains invalid code points.
-    #[cfg(feature="python27-sys")]
+    /// Returns a `UnicodeDecodeError` if the input is not valid unicode
+    /// (containing unpaired surrogates).
     pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
-        let bytes: PyBytes = unsafe {
-            try!(err::result_cast_from_owned_ptr(py, ffi::PyUnicode_AsUTF8String(self.as_ptr())))
-        };
-        match str::from_utf8(bytes.as_slice(py)) {
-            Ok(s) => Ok(Cow::Owned(s.to_owned())),
-            Err(e) => Err(PyErr::from_instance(py, try!(exc::UnicodeDecodeError::new_utf8(py, bytes.as_slice(py), e))))
-        }
+        self.data(py).to_string(py)
     }
 
-    /// Convert the `PyUnicode` into a rust string.
+    /// Convert the `PyUnicode` into a Rust string.
     ///
-    /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
-    #[cfg(feature="python27-sys")]
+    /// Unpaired surrogates are replaced with U+FFFD REPLACEMENT CHARACTER.
     pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
-        // TODO: test how this function handles lone surrogates or otherwise invalid code points
-        let bytes: PyBytes = unsafe {
-            err::result_cast_from_owned_ptr(py, ffi::PyUnicode_AsUTF8String(self.as_ptr()))
-                .ok().expect("Error in PyUnicode_AsUTF8String")
-        };
-        Cow::Owned(String::from_utf8_lossy(bytes.as_slice(py)).into_owned())
-    }
-
-    #[cfg(feature="python3-sys")]
-    fn to_utf8_bytes(&self, py: Python) -> PyResult<&[u8]> {
-        unsafe {
-            let mut length = 0;
-            let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut length);
-            if data.is_null() {
-                Err(PyErr::fetch(py))
-            } else {
-                Ok(std::slice::from_raw_parts(data as *const u8, length as usize))
-            }
-        }
-    }
-
-    /// Convert the `PyUnicode` into a rust string.
-    ///
-    /// Returns a `UnicodeDecodeError` if the input contains invalid code points.
-    #[cfg(feature="python3-sys")]
-    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
-        let bytes = try!(self.to_utf8_bytes(py));
-        match str::from_utf8(bytes) {
-            Ok(s) => Ok(Cow::Borrowed(s)),
-            Err(e) => Err(PyErr::from_instance(py, try!(exc::UnicodeDecodeError::new_utf8(py, bytes, e))))
-        }
-    }
-
-    /// Convert the `PyUnicode` into a rust string.
-    ///
-    /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
-    #[cfg(feature="python3-sys")]
-    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
-        let bytes = self.to_utf8_bytes(py).expect("Error in PyUnicode_AsUTF8AndSize");
-        String::from_utf8_lossy(bytes)
+        self.data(py).to_string_lossy()
     }
 }
 
-// On PyString (i.e. PyBytes in 2.7, PyUnicode otherwise), put static methods
-// for extraction as Cow<str>:
-impl PyString {
-    /// Extract a rust string from the Python object.
-    ///
-    /// In Python 2.7, accepts both byte strings and unicode strings.
-    /// Byte strings will be decoded using UTF-8.
-    ///
-    /// In Python 3.x, accepts unicode strings only.
-    ///
-    /// Returns `TypeError` if the input is not one of the accepted types.
-    /// Returns `UnicodeDecodeError` if the input is not valid unicode.
-    #[cfg(feature="python27-sys")]
-    pub fn extract<'a>(py: Python, o: &'a PyObject) -> PyResult<Cow<'a, str>> {
-        if let Ok(s) = o.cast_as::<PyBytes>(py) {
-            s.to_string(py)
-        } else if let Ok(u) = o.cast_as::<PyUnicode>(py) {
-            u.to_string(py)
-        } else {
-            Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
-        }
-    }
-
-    /// Extract a rust string from the Python object.
-    ///
-    /// In Python 2.7, accepts both byte strings and unicode strings.
-    /// Byte strings will be decoded using UTF-8.
-    ///
-    /// In Python 3.x, accepts unicode strings only.
-    ///
-    /// Returns `TypeError` if the input is not one of the accepted types.
-    /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
-    #[cfg(feature="python27-sys")]
-    pub fn extract_lossy<'a>(py: Python, o: &'a PyObject) -> PyResult<Cow<'a, str>> {
-        if let Ok(s) = o.cast_as::<PyBytes>(py) {
-            Ok(s.to_string_lossy(py))
-        } else if let Ok(u) = o.cast_as::<PyUnicode>(py) {
-            Ok(u.to_string_lossy(py))
-        } else {
-            Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
-        }
-    }
-
-    /// Extract a rust string from the Python object.
-    ///
-    /// In Python 2.7, accepts both byte strings and unicode strings.
-    /// Byte strings will be decoded using UTF-8.
-    ///
-    /// In Python 3.x, accepts unicode strings only.
-    ///
-    /// Returns `TypeError` if the input is not one of the accepted types.
-    /// Returns `UnicodeDecodeError` if the input is not valid unicode.
-    #[cfg(feature="python3-sys")]
-    pub fn extract<'a>(py: Python, o: &'a PyObject) -> PyResult<Cow<'a, str>> {
-        if let Ok(u) = o.cast_as::<PyUnicode>(py) {
-            u.to_string(py)
-        } else {
-            Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
-        }
-    }
-
-    /// Extract a rust string from the Python object.
-    ///
-    /// In Python 2.7, accepts both byte strings and unicode strings.
-    /// Byte strings will be decoded using UTF-8.
-    ///
-    /// In Python 3.x, accepts unicode strings only.
-    ///
-    /// Returns `TypeError` if the input is not one of the accepted types.
-    /// Any invalid code points are replaced with U+FFFD REPLACEMENT CHARACTER.
-    #[cfg(feature="python3-sys")]
-    pub fn extract_lossy<'a>(py: Python, o: &'a PyObject) -> PyResult<Cow<'a, str>> {
-        if let Ok(u) = o.cast_as::<PyUnicode>(py) {
-            Ok(u.to_string_lossy(py))
-        } else {
-            Err(PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None))
-        }
-    }
-
-    // In Python 2.7, PyBytes serves as PyString, so it should offer the
-    // same to_string and to_string_lossy functions as PyUnicode:
-
-    /// Convert the `PyString` into a rust string.
-    ///
-    /// In Python 2.7, `PyString` is a byte string and will be decoded using UTF-8.
-    /// In Python 3.x, `PyString` is a unicode string.
-    ///
-    /// Returns a `UnicodeDecodeError` if the input is not valid unicode.
-    #[cfg(feature="python27-sys")]
-    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
-        match str::from_utf8(self.as_slice(py)) {
-            Ok(s) => Ok(Cow::Borrowed(s)),
-            Err(e) => Err(PyErr::from_instance(py, try!(exc::UnicodeDecodeError::new_utf8(py, self.as_slice(py), e))))
-        }
-    }
-
-    /// Convert the `PyString` into a rust string.
-    ///
-    /// In Python 2.7, `PyString` is a byte string and will be decoded using UTF-8.
-    /// In Python 3.x, `PyString` is a unicode string.
-    ///
-    /// Any invalid UTF-8 sequences are replaced with U+FFFD REPLACEMENT CHARACTER.
-    #[cfg(feature="python27-sys")]
-    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
-        String::from_utf8_lossy(self.as_slice(py))
-    }
-}
-
-/// Converts rust `str` to Python object:
-/// ASCII-only strings are converted to Python `str` objects;
-/// other strings are converted to Python `unicode` objects.
-///
-/// Note that `str::ObjectType` differs based on Python version:
-/// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
-/// In Python 3.x, it is `PyUnicode`.
+/// Converts Rust `str` to Python object.
+/// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
-    #[cfg(feature="python27-sys")]
-    type ObjectType = PyObject;
+    type ObjectType = PyString;
 
-    #[cfg(feature="python3-sys")]
-    type ObjectType = PyUnicode;
-
-    #[cfg(feature="python27-sys")]
-    fn to_py_object(&self, py : Python) -> PyObject {
-        if self.is_ascii() {
-            PyBytes::new(py, self.as_bytes()).into_object()
-        } else {
-            PyUnicode::new(py, self).into_object()
-        }
-    }
-
-    #[cfg(feature="python3-sys")]
     #[inline]
-    fn to_py_object(&self, py : Python) -> PyUnicode {
-        PyUnicode::new(py, self)
+    fn to_py_object(&self, py: Python) -> PyString {
+        PyString::new(py, self)
     }
 }
 
-/// Converts rust `Cow<str>` to Python object:
-/// ASCII-only strings are converted to Python `str` objects;
-/// other strings are converted to Python `unicode` objects.
-///
-/// Note that `str::ObjectType` differs based on Python version:
-/// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
-/// In Python 3.x, it is `PyUnicode`.
+/// Converts Rust `Cow<str>` to Python object.
+/// See `PyString::new` for details on the conversion.
 impl <'a> ToPyObject for Cow<'a, str> {
-    type ObjectType = <str as ToPyObject>::ObjectType;
+    type ObjectType = PyString;
 
-    fn to_py_object(&self, py: Python) -> Self::ObjectType {
-        <str as ToPyObject>::to_py_object(self, py)
+    #[inline]
+    fn to_py_object(&self, py: Python) -> PyString {
+        PyString::new(py, self)
     }
 }
 
-/// Converts rust `String` to Python object:
-/// ASCII-only strings are converted to Python `str` objects;
-/// other strings are converted to Python `unicode` objects.
-///
-/// Note that `str::ObjectType` differs based on Python version:
-/// In Python 2.7, it is `PyObject` (`object` is the common base class of `str` and `unicode`).
-/// In Python 3.x, it is `PyUnicode`.
+/// Converts Rust `String` to Python object.
+/// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
-    type ObjectType = <str as ToPyObject>::ObjectType;
+    type ObjectType = PyString;
 
     #[inline]
-    fn to_py_object(&self, py: Python) -> Self::ObjectType {
-        <str as ToPyObject>::to_py_object(self, py)
+    fn to_py_object(&self, py: Python) -> PyString {
+        PyString::new(py, self)
     }
 }
 

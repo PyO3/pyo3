@@ -20,12 +20,7 @@ pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
 
-pub use self::string::{PyBytes, PyUnicode};
-// Directly exporting self::string::PyString causes a compiler error?
-#[cfg(feature="python27-sys")]
-pub use self::string::PyBytes as PyString;
-#[cfg(feature="python3-sys")]
-pub use self::string::PyUnicode as PyString;
+pub use self::string::{PyBytes, PyString, PyUnicode, PyStringData};
 
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;

@@ -92,7 +92,7 @@ pub fn parse_args(
     if used_keywords != nkeywords {
         // check for extraneous keyword arguments
         for (key, _value) in kwargs.unwrap().items(py) {
-            let key = try!(PyString::extract(py, &key));
+            let key = try!(try!(key.cast_as::<PyString>(py)).to_string(py));
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(py,
                     format!("'{}' is an invalid keyword argument for this function",

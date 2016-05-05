@@ -19,9 +19,7 @@
 //! This module contains the python exception types.
 
 use libc::c_char;
-use std::ops::Range;
-use std::str::Utf8Error;
-use std::mem;
+use std::{self, mem, ops};
 use std::ffi::CStr;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
@@ -108,7 +106,7 @@ exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
 exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 
 impl UnicodeDecodeError {
-    pub fn new(py: Python, encoding: &CStr, input: &[u8], range: Range<usize>, reason: &CStr) -> PyResult<UnicodeDecodeError> {
+    pub fn new(py: Python, encoding: &CStr, input: &[u8], range: ops::Range<usize>, reason: &CStr) -> PyResult<UnicodeDecodeError> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
             err::result_cast_from_owned_ptr(py,
@@ -116,10 +114,10 @@ impl UnicodeDecodeError {
                     range.start as ffi::Py_ssize_t, range.end as ffi::Py_ssize_t, reason.as_ptr()))
         }
     }
-    
-    pub fn new_utf8(py: Python, input: &[u8], err: Utf8Error) -> PyResult<UnicodeDecodeError> {
+
+    pub fn new_utf8(py: Python, input: &[u8], err: std::str::Utf8Error) -> PyResult<UnicodeDecodeError> {
         let pos = err.valid_up_to();
-        UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. input.len(), cstr!("invalid utf-8"))
+        UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))
     }
 }
 
