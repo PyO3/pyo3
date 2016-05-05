@@ -20,7 +20,11 @@ pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
 
-pub use self::string::{PyBytes, PyString, PyUnicode, PyStringData};
+pub use self::string::{PyBytes, PyString, PyStringData};
+#[cfg(feature="python27-sys")]
+pub use self::string::PyUnicode;
+#[cfg(feature="python3-sys")]
+pub use self::string::PyString as PyUnicode;
 
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
