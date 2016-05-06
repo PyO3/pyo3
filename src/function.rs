@@ -142,16 +142,20 @@ pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObj
     err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
 }
 
-pub trait CallbackConverter<S, R> {
-    fn convert(S, Python) -> R;
-    fn error_value() -> R;
+pub trait CallbackConverter<S> {
+    type R;
+
+    fn convert(S, Python) -> Self::R;
+    fn error_value() -> Self::R;
 }
 
 pub struct PyObjectCallbackConverter;
 
-impl <S> CallbackConverter<S, *mut ffi::PyObject> for PyObjectCallbackConverter
+impl <S> CallbackConverter<S> for PyObjectCallbackConverter
     where S: ToPyObject
 {
+    type R = *mut ffi::PyObject;
+
     fn convert(val: S, py: Python) -> *mut ffi::PyObject {
         val.into_py_object(py).into_object().steal_ptr()
     }
@@ -164,10 +168,12 @@ impl <S> CallbackConverter<S, *mut ffi::PyObject> for PyObjectCallbackConverter
 
 pub struct PythonObjectCallbackConverter<T>(pub marker::PhantomData<T>);
 
-impl <T, S> CallbackConverter<S, *mut ffi::PyObject> for PythonObjectCallbackConverter<T>
+impl <T, S> CallbackConverter<S> for PythonObjectCallbackConverter<T>
     where T: PythonObject,
           S: ToPyObject<ObjectType=T>
 {
+    type R = *mut ffi::PyObject;
+
     fn convert(val: S, py: Python) -> *mut ffi::PyObject {
         val.into_py_object(py).into_object().steal_ptr()
     }
@@ -179,10 +185,10 @@ impl <T, S> CallbackConverter<S, *mut ffi::PyObject> for PythonObjectCallbackCon
 }
 
 #[cfg(feature="nightly")]
-pub unsafe fn handle_callback<F, T, R, C>(location: &str, _c: C, f: F) -> R
+pub unsafe fn handle_callback<F, T, C>(location: &str, _c: C, f: F) -> C::R
     where F: FnOnce(Python) -> PyResult<T>,
           F: panic::UnwindSafe,
-          C: CallbackConverter<T, R>
+          C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
@@ -217,9 +223,9 @@ fn handle_panic(_py: Python, _panic: &any::Any) {
 }
 
 #[cfg(not(feature="nightly"))]
-pub unsafe fn handle_callback<F, T, R, C>(location: &str, _c: C, f: F) -> R
+pub unsafe fn handle_callback<F, T, C>(location: &str, _c: C, f: F) -> C::R
     where F: FnOnce(Python) -> PyResult<T>,
-          C: CallbackConverter<T, R>
+          C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
     let py = Python::assume_gil_acquired();

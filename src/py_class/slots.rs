@@ -181,7 +181,9 @@ macro_rules! py_class_unary_slot {
 
 pub struct LenResultConverter;
 
-impl CallbackConverter<usize, isize> for LenResultConverter {
+impl CallbackConverter<usize> for LenResultConverter {
+    type R = isize;
+
     fn convert(val: usize, py: Python) -> isize {
         if val <= (isize::MAX as usize) {
             val as isize
@@ -198,10 +200,12 @@ impl CallbackConverter<usize, isize> for LenResultConverter {
 
 pub struct IterNextResultConverter;
 
-impl <T> CallbackConverter<Option<T>, *mut ffi::PyObject>
+impl <T> CallbackConverter<Option<T>>
     for IterNextResultConverter
     where T: ToPyObject
 {
+    type R = *mut ffi::PyObject;
+
     fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
         match val {
             Some(val) => val.into_py_object(py).into_object().steal_ptr(),
@@ -244,9 +248,11 @@ wrapping_cast!(i64, Py_hash_t);
 
 pub struct HashConverter;
 
-impl <T> CallbackConverter<T, Py_hash_t> for HashConverter
+impl <T> CallbackConverter<T> for HashConverter
     where T: WrappingCastTo<Py_hash_t>
 {
+    type R = Py_hash_t;
+
     #[inline]
     fn convert(val: T, _py: Python) -> Py_hash_t {
         let hash = val.wrapping_cast();
@@ -265,7 +271,9 @@ impl <T> CallbackConverter<T, Py_hash_t> for HashConverter
 
 pub struct BoolConverter;
 
-impl CallbackConverter<bool, c_int> for BoolConverter {
+impl CallbackConverter<bool> for BoolConverter {
+    type R = c_int;
+
     #[inline]
     fn convert(val: bool, _py: Python) -> c_int {
         val as c_int
