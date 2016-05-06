@@ -385,3 +385,27 @@ fn python3_string_methods() {
 }
 
 
+py_class!(class Comparisons |py| {
+    data val: i32;
+
+    def __hash__(&self) -> PyResult<i32> {
+        Ok(*self.val(py))
+    }
+});
+
+
+#[test]
+fn comparisons() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let one = Comparisons::create_instance(py, 1).unwrap();
+    let ten = Comparisons::create_instance(py, 10).unwrap();
+    let minus_one = Comparisons::create_instance(py, -1).unwrap();
+    py_assert!(py, one, "hash(one) == 1");
+    py_assert!(py, ten, "hash(ten) == 10");
+    py_assert!(py, minus_one, "hash(minus_one) == -2");
+}
+
+
+

@@ -595,7 +595,9 @@ special_names = {
     '__eq__': unimplemented(),
     '__ne__': unimplemented(),
     '__cmp__': unimplemented(),
-    '__hash__': unimplemented(),
+    '__hash__': unary_operator('tp_hash',
+        res_conv='$crate::py_class::slots::HashConverter',
+        res_ffi_type='$crate::Py_hash_t'),
     '__nonzero__': error('__nonzero__ is not supported by py_class!; use the Python 3 spelling __bool__ instead.'),
     '__bool__': unimplemented(),
     # Customizing attribute access

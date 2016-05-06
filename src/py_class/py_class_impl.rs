@@ -478,11 +478,34 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__gt__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __hash__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_hash: py_class_unary_slot!($class::__hash__, $crate::Py_hash_t, $crate::py_class::slots::HashConverter),
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __hash__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __hash__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __hash__ $($tail:tt)*
     } => {
-        py_error! { "__hash__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __hash__" }
     };
 // def __iadd__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

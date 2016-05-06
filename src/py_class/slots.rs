@@ -23,6 +23,7 @@ use conversion::ToPyObject;
 use function::CallbackConverter;
 use err::{PyErr};
 use exc;
+use Py_hash_t;
 
 #[macro_export]
 #[doc(hidden)]
@@ -196,6 +197,52 @@ impl <T> CallbackConverter<Option<T>, *mut ffi::PyObject>
 
     fn error_value() -> *mut ffi::PyObject {
         ptr::null_mut()
+    }
+}
+
+pub trait WrappingCastTo<T> {
+    fn wrapping_cast(self) -> T;
+}
+
+macro_rules! wrapping_cast {
+    ($from:ty, $to:ty) => {
+        impl WrappingCastTo<$to> for $from {
+            #[inline]
+            fn wrapping_cast(self) -> $to {
+                self as $to
+            }
+        }
+    }
+}
+wrapping_cast!(u8, Py_hash_t);
+wrapping_cast!(u16, Py_hash_t);
+wrapping_cast!(u32, Py_hash_t);
+wrapping_cast!(usize, Py_hash_t);
+wrapping_cast!(u64, Py_hash_t);
+wrapping_cast!(i8, Py_hash_t);
+wrapping_cast!(i16, Py_hash_t);
+wrapping_cast!(i32, Py_hash_t);
+wrapping_cast!(isize, Py_hash_t);
+wrapping_cast!(i64, Py_hash_t);
+
+pub struct HashConverter;
+
+impl <T> CallbackConverter<T, Py_hash_t> for HashConverter
+    where T: WrappingCastTo<Py_hash_t>
+{
+    #[inline]
+    fn convert(val: T, _py: Python) -> Py_hash_t {
+        let hash = val.wrapping_cast();
+        if hash == -1 {
+            -2
+        } else {
+            hash
+        }
+    }
+
+    #[inline]
+    fn error_value() -> Py_hash_t {
+        -1
     }
 }
 

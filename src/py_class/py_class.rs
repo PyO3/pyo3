@@ -276,6 +276,15 @@ py_class!(class MyIterator |py| {
     Special method that is used by the `format()` builtin and the `str.format()` method.
     Possible return types are `PyResult<String>` or `PyResult<PyString>`.
 
+## Comparison operators
+
+TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `__eq__`, `__ne__`.
+
+  * `def __hash__(&self) -> PyResult<impl PrimInt>`
+
+    Objects that compare equal must have the same hash value.
+    The return type must be `PyResult<T>` where `T` is one of Rust's primitive integer types.
+
 */
 #[macro_export]
 macro_rules! py_class {
