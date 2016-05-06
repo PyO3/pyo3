@@ -285,7 +285,7 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
     Objects that compare equal must have the same hash value.
     The return type must be `PyResult<T>` where `T` is one of Rust's primitive integer types.
 
-## Not sure where this belongs to in the documentation
+## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`
 
@@ -293,6 +293,12 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
 
     Note that `py_class!` always expects this member to be called `__bool__`,
     even on Python 2.7 where the Python spelling was `__nonzero__`.
+
+  * `def __call__(&self, parameter-list) -> PyResult<impl ToPyObject>`
+
+    For details on `parameter-list`, see the documentation of `py_argparse!()`.
+    The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
+
 
 */
 #[macro_export]

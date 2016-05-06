@@ -285,3 +285,33 @@ impl CallbackConverter<bool> for BoolConverter {
     }
 }
 
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_call_slot {
+    ($class:ident :: $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]) => {{
+        unsafe extern "C" fn wrap_call<DUMMY>(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            args: *mut $crate::_detail::ffi::PyObject,
+            kwargs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $crate::_detail::PyObjectCallbackConverter,
+                |py| {
+                    py_argparse_raw!(py, Some(LOCATION), args, kwargs,
+                        [ $( { $pname : $ptype = $detail } )* ]
+                        {
+                            let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                            let ret = slf.$f(py $(, $pname )* );
+                            $crate::PyDrop::release_ref(slf, py);
+                            ret
+                        })
+                })
+        }
+        Some(wrap_call::<()>)
+    }}
+}
+
+

@@ -438,50 +438,36 @@ def traverse_and_clear():
         $($tail)*
     }};''')
 
-instance_method = '''
-    // def instance_method(&self)
-    { $class:ident $py:ident $info:tt $slots:tt
-        { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* };
-        def $name:ident (&$slf:ident)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info $slots
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, $name(&$slf,) $res_type; { $($body)* } [] }
-        }
-        /* members: */ {
-            $( $member_name = $member_expr; )*
-            $name = py_class_instance_method!{$py, $class::$name []};
-        };
-        $($tail)*
-    }};
-    // def instance_method(&self, params)
-    { $class:ident $py:ident $info:tt $slots:tt
-        { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* };
-        def $name:ident (&$slf:ident, $($p:tt)+)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info $slots
-        /* impl: */ {
-            $($imp)*
-            py_argparse_parse_plist_impl!{
-                py_class_impl_item { $class, $py, $name(&$slf,) $res_type; { $($body)* } }
+def generate_instance_method(special_name=None, decoration='',
+        slot=None, add_member=False, value_macro=None, value_args=None):
+    name_pattern = special_name or '$name:ident'
+    name_use = special_name or '$name'
+    def impl(with_params):
+        if with_params:
+            param_pattern = ', $($p:tt)+'
+            impl = '''py_argparse_parse_plist_impl!{
+                py_class_impl_item { $class, $py, %s(&$slf,) $res_type; { $($body)* } }
                 [] ($($p)+,)
-            }
-        }
-        /* members: */ {
-            $( $member_name = $member_expr; )*
-            $name = py_argparse_parse_plist_impl!{
-                py_class_instance_method {$py, $class::$name}
-                [] ($($p)+,)
-            };
-        };
-        $($tail)*
-    }};
-'''
+            }''' % name_use
+            value = 'py_argparse_parse_plist_impl!{%s {%s} [] ($($p)+,)}' \
+                    % (value_macro, value_args)
+        else:
+            param_pattern = ''
+            impl = 'py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [] }' \
+                % name_use
+            value = '%s!{%s []}' % (value_macro, value_args)
+        pattern = '%s def %s (&$slf:ident%s) -> $res_type:ty { $( $body:tt )* }' \
+            % (decoration, name_pattern, param_pattern)
+        slots = []
+        if slot is not None:
+            slots.append((slot, value))
+        members = []
+        if add_member:
+            members.append((name_use, value))
+        generate_case(pattern, new_impl=impl, new_slots=slots, new_members=members)
+    impl(False) # without parameters
+    impl(True) # with parameters
+
 
 static_method = '''
     // @staticmethod def static_method(params)
@@ -577,6 +563,14 @@ def unary_operator(special_name, slot,
     # when using the wrong method signature
     error('Invalid signature for unary operator %s' % special_name)(special_name)
 
+@special_method
+def call_operator(special_name, slot):
+    generate_instance_method(
+        special_name=special_name,
+        slot=slot,
+        value_macro='py_class_call_slot',
+        value_args='$class::%s' % special_name)
+
 special_names = {
     '__init__': error('__init__ is not supported by py_class!; use __new__ instead.'),
     '__new__': special_class_method(
@@ -610,7 +604,7 @@ special_names = {
     '__setattr__': unimplemented(),
     '__delattr__': unimplemented(),
     '__dir__': unimplemented(),
-    
+
     # Implementing Descriptors
     '__get__': unimplemented(),
     '__set__': unimplemented(),
@@ -621,8 +615,8 @@ special_names = {
     '__subclasscheck__': unimplemented(),
 
     # Emulating callable objects
-    '__call__': unimplemented(),
-    
+    '__call__': call_operator('tp_call'),
+
     # Emulating container types
     '__len__': unary_operator('sq_length',
                 res_ffi_type='$crate::_detail::ffi::Py_ssize_t',
@@ -726,7 +720,10 @@ def main():
     traverse_and_clear()
     for name, f in sorted(special_names.items()):
         f(name)
-    print(instance_method)
+    generate_instance_method(
+        add_member=True,
+        value_macro='py_class_instance_method',
+        value_args='$py, $class::$name')
     generate_class_method(decoration='@classmethod',
         add_member=True,
         value_macro='py_class_class_method',

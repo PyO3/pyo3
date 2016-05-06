@@ -365,12 +365,55 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "Invalid signature for unary operator __bool__" }
     };
-// def __call__()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def __call__ $($tail:tt)*
-    } => {
-        py_error! { "__call__ is not supported by py_class! yet." }
-    };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __call__ (&$slf:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_call: py_class_call_slot!{$class::__call__ []},
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __call__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __call__ (&$slf:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            /* type_slots */ [
+                $( $tp_slot_name : $tp_slot_value, )*
+                tp_call: py_argparse_parse_plist_impl!{py_class_call_slot {$class::__call__} [] ($($p)+,)},
+            ]
+            $as_number $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_argparse_parse_plist_impl!{
+                py_class_impl_item { $class, $py, __call__(&$slf,) $res_type; { $($body)* } }
+                [] ($($p)+,)
+            }
+        }
+        $members; $($tail)*
+    }};
 // def __cmp__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __cmp__ $($tail:tt)*
@@ -1086,13 +1129,10 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__xor__ is not supported by py_class! yet." }
     };
-
-    // def instance_method(&self)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
         { $( $member_name:ident = $member_expr:expr; )* };
-        def $name:ident (&$slf:ident)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        def $name:ident (&$slf:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info $slots
         /* impl: */ {
@@ -1102,15 +1142,12 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = py_class_instance_method!{$py, $class::$name []};
-        };
-        $($tail)*
+        }; $($tail)*
     }};
-    // def instance_method(&self, params)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
         { $( $member_name:ident = $member_expr:expr; )* };
-        def $name:ident (&$slf:ident, $($p:tt)+)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        def $name:ident (&$slf:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info $slots
         /* impl: */ {
@@ -1122,14 +1159,9 @@ macro_rules! py_class_impl {
         }
         /* members: */ {
             $( $member_name = $member_expr; )*
-            $name = py_argparse_parse_plist_impl!{
-                py_class_instance_method {$py, $class::$name}
-                [] ($($p)+,)
-            };
-        };
-        $($tail)*
+            $name = py_argparse_parse_plist_impl!{py_class_instance_method {$py, $class::$name} [] ($($p)+,)};
+        }; $($tail)*
     }};
-
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
         { $( $member_name:ident = $member_expr:expr; )* };

@@ -416,4 +416,26 @@ fn comparisons() {
 }
 
 
+py_class!(class Callable |py| {
+    def __call__(&self, arg: i32) -> PyResult<i32> {
+        Ok(arg * 6)
+    }
+});
+
+
+#[test]
+fn callable() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = Callable::create_instance(py).unwrap();
+    py_assert!(py, c, "callable(c)");
+    py_assert!(py, c, "c(7) == 42");
+
+    let nc = Comparisons::create_instance(py, 0).unwrap();
+    py_assert!(py, nc, "not callable(nc)");
+}
+
+
+
 
