@@ -3,7 +3,7 @@
 #[macro_use] extern crate cpython;
 
 use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol,
-    PyDict, PyBytes, PyUnicode, exc};
+    PyDict, PyBytes, PyUnicode, PyErr, exc};
 use std::{mem, isize, iter};
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -420,12 +420,37 @@ fn comparisons() {
 }
 
 
+py_class!(class Sequence |py| {
+    def __len__(&self) -> PyResult<usize> {
+        Ok(5)
+    }
+
+    def __getitem__(&self, key: PyObject) -> PyResult<PyObject> {
+        if let Ok(index) = key.extract::<i32>(py) {
+            if index == 5 {
+                return Err(PyErr::new::<exc::IndexError, NoArgs>(py, NoArgs));
+            }
+        }
+        Ok(key)
+    }
+});
+
+#[test]
+fn sequence() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = Sequence::create_instance(py).unwrap();
+    py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
+    py_assert!(py, c, "c['abc'] == 'abc'");
+}
+
+
 py_class!(class Callable |py| {
     def __call__(&self, arg: i32) -> PyResult<i32> {
         Ok(arg * 6)
     }
 });
-
 
 #[test]
 fn callable() {
@@ -439,7 +464,4 @@ fn callable() {
     let nc = Comparisons::create_instance(py, 0).unwrap();
     py_assert!(py, nc, "not callable(nc)");
 }
-
-
-
 

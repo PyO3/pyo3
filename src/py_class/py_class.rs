@@ -298,6 +298,10 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
 
     `__length_hint__` is new in Python 3.4; older versions will ignore the method.
 
+  * `def __getitem__(&self, key: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+
+    Called by the Python subscript operator `self[key]`.
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`

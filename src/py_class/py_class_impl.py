@@ -542,28 +542,39 @@ def normal_method(special_name):
 def special_class_method(special_name, *args, **kwargs):
     generate_class_method(special_name=special_name, *args, **kwargs)
 
+Argument = namedtuple('Argument', ['name', 'default_type'])
+
 @special_method
-def unary_operator(special_name, slot,
+def operator(special_name, slot,
+    args=(),
     res_type='PyObject',
     res_conv=None,
-    res_ffi_type='*mut $crate::_detail::ffi::PyObject'
+    res_ffi_type='*mut $crate::_detail::ffi::PyObject',
+    additional_slots=()
 ):
     if res_conv is None:
         if res_type == 'PyObject':
             res_conv = '$crate::_detail::PyObjectCallbackConverter'
         else:
             res_conv = '$crate::_detail::PythonObjectCallbackConverter::<$crate::%s>(::std::marker::PhantomData)' % res_type
-    new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
-                          % (special_name, res_ffi_type, res_conv))]
-    if slot == 'sq_length':
-        # __len__ must be saved to two slots
-        # Use PySequence_Size to forward mp_length calls to sq_length.
-        new_slots.append(('mp_length', 'Some($crate::_detail::ffi::PySequence_Size)'))
+    arg_pattern = ''
+    param_list = []
+    for arg in args:
+        arg_pattern += ', ${0}:ident : ${0}_type:ty'.format(arg.name)
+        param_list.append('{{ ${0} : ${0}_type = {{}} }}'.format(arg.name))
+    if len(args) == 0:
+        new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
+                             % (special_name, res_ffi_type, res_conv))]
+    elif len(args) == 1:
+        new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s)'
+                             % (special_name, arg.name, res_ffi_type, res_conv))]
+    else:
+        raise ValueError('Unsupported argument count')
     generate_case(
-        pattern='def %s(&$slf:ident) -> $res_type:ty { $($body:tt)* }' % special_name,
-        new_impl='py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [] }'
-                 % special_name,
-        new_slots=new_slots
+        pattern='def %s(&$slf:ident%s) -> $res_type:ty { $($body:tt)* }' % (special_name, arg_pattern),
+        new_impl='py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [%s] }'
+                 % (special_name, ' '.join(param_list)),
+        new_slots=new_slots + list(additional_slots)
     )
     # Generate fall-back matcher that produces an error
     # when using the wrong method signature
@@ -584,8 +595,8 @@ special_names = {
         value_macro='py_class_wrap_newfunc',
         value_args='$class::__new__'),
     '__del__': error('__del__ is not supported by py_class!; Use a data member with a Drop impl instead.'),
-    '__repr__': unary_operator('tp_repr', res_type="PyString"),
-    '__str__': unary_operator('tp_str', res_type="PyString"),
+    '__repr__': operator('tp_repr', res_type="PyString"),
+    '__str__': operator('tp_str', res_type="PyString"),
     '__unicode__': normal_method(),
     '__bytes__': normal_method(),
     '__format__': normal_method(),
@@ -597,11 +608,11 @@ special_names = {
     '__eq__': unimplemented(),
     '__ne__': unimplemented(),
     '__cmp__': unimplemented(),
-    '__hash__': unary_operator('tp_hash',
+    '__hash__': operator('tp_hash',
         res_conv='$crate::py_class::slots::HashConverter',
         res_ffi_type='$crate::Py_hash_t'),
     '__nonzero__': error('__nonzero__ is not supported by py_class!; use the Python 3 spelling __bool__ instead.'),
-    '__bool__': unary_operator('nb_nonzero' if PY2 else 'nb_bool',
+    '__bool__': operator('nb_nonzero' if PY2 else 'nb_bool',
         res_conv='$crate::py_class::slots::BoolConverter',
         res_ffi_type='$crate::_detail::libc::c_int'),
     # Customizing attribute access
@@ -624,16 +635,23 @@ special_names = {
     '__call__': call_operator('tp_call'),
 
     # Emulating container types
-    '__len__': unary_operator('sq_length',
+    '__len__': operator('sq_length',
                 res_ffi_type='$crate::_detail::ffi::Py_ssize_t',
-                res_conv='$crate::py_class::slots::LenResultConverter'),
+                res_conv='$crate::py_class::slots::LenResultConverter',
+                additional_slots=[
+                    # Use PySequence_Size to forward mp_length calls to sq_length.
+                    ('mp_length', 'Some($crate::_detail::ffi::PySequence_Size)')
+                ]),
     '__length_hint__': normal_method(),
-    '__getitem__': unimplemented(),
-    '__missing__': unimplemented(),
+    '__getitem__': operator('mp_subscript', args=[Argument('x', '&PyObject')],
+                additional_slots=[
+                    ('sq_item', 'Some($crate::py_class::slots::sq_item)')
+                ]),
+    '__missing__': normal_method(),
     '__setitem__': unimplemented(),
     '__delitem__': unimplemented(),
-    '__iter__': unary_operator('tp_iter'),
-    '__next__': unary_operator('tp_iternext',
+    '__iter__': operator('tp_iter'),
+    '__next__': operator('tp_iternext',
                 res_conv='$crate::py_class::slots::IterNextResultConverter'),
     '__reversed__': unimplemented(),
     '__contains__': unimplemented(),

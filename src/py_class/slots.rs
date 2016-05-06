@@ -197,6 +197,39 @@ macro_rules! py_class_unary_slot {
     }}
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_binary_slot {
+    ($class:ident :: $f:ident, $arg_type:ty, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn wrap_unary<DUMMY>(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            arg: *mut $crate::_detail::ffi::PyObject)
+        -> $res_type
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                    let ret = match <$arg_type as $crate::ExtractPyObject>::prepare_extract(py, &arg) {
+                        Ok(prepared) => {
+                            match <$arg_type as $crate::ExtractPyObject>::extract(py, &prepared) {
+                                Ok(arg) => slf.$f(py, arg),
+                                Err(e) => Err(e)
+                            }
+                        },
+                        Err(e) => Err(e)
+                    };
+                    $crate::PyDrop::release_ref(arg, py);
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+        }
+        Some(wrap_unary::<()>)
+    }}
+}
+
 pub struct LenResultConverter;
 
 impl CallbackConverter<usize> for LenResultConverter {
@@ -332,4 +365,14 @@ macro_rules! py_class_call_slot {
     }}
 }
 
+/// Used as implementation in the `sq_item` slot to forward calls to the `mp_subscript` slot.
+pub unsafe extern "C" fn sq_item(obj: *mut ffi::PyObject, index: ffi::Py_ssize_t) -> *mut ffi::PyObject {
+    let arg = ffi::PyLong_FromSsize_t(index);
+    if arg.is_null() {
+        return arg;
+    }
+    let ret = ffi::PyObject_GetItem(obj, arg);
+    ffi::Py_DECREF(arg);
+    ret
+}
 

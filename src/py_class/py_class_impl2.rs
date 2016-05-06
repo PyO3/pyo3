@@ -534,11 +534,39 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__getattribute__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt $as_number:tt
+            /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
+            /* as_mapping */ [ $( $mp_slot_name:ident : $mp_slot_value:expr, )* ]
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __getitem__(&$slf:ident, $x:ident : $x_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            $type_slots $as_number
+            /* as_sequence */ [
+                $( $sq_slot_name : $sq_slot_value, )*
+                sq_item: Some($crate::py_class::slots::sq_item),
+            ]
+            /* as_mapping */ [
+                $( $mp_slot_name : $mp_slot_value, )*
+                mp_subscript: py_class_binary_slot!($class::__getitem__, $x_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __getitem__(&$slf,) $res_type; { $($body)* } [{ $x : $x_type = {} }] }
+        }
+        $members; $($tail)*
+    }};
 // def __getitem__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __getitem__ $($tail:tt)*
     } => {
-        py_error! { "__getitem__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __getitem__" }
     };
 // def __gt__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -787,12 +815,6 @@ macro_rules! py_class_impl {
         def __matmul__ $($tail:tt)*
     } => {
         py_error! { "__matmul__ is not supported by py_class! yet." }
-    };
-// def __missing__()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def __missing__ $($tail:tt)*
-    } => {
-        py_error! { "__missing__ is not supported by py_class! yet." }
     };
 // def __mod__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
