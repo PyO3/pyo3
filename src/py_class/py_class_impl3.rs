@@ -268,7 +268,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* } $members:tt;
         def __clear__ (&$slf:ident) $body:block $($tail:tt)*
@@ -279,7 +279,7 @@ macro_rules! py_class_impl {
                 $( $slot_name : $slot_value, )*
                 tp_clear: py_class_tp_clear!($class),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -338,7 +338,7 @@ macro_rules! py_class_impl {
         /* slots: */ {
             $type_slots:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
-            $as_sequence:tt
+            $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -351,7 +351,7 @@ macro_rules! py_class_impl {
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_bool: py_class_unary_slot!($class::__bool__, $crate::_detail::libc::c_int, $crate::py_class::slots::BoolConverter),
             ]
-            $as_sequence
+            $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -368,7 +368,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -380,7 +380,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_call: py_class_call_slot!{$class::__call__ []},
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -391,7 +391,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -403,7 +403,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_call: py_argparse_parse_plist_impl!{py_class_call_slot {$class::__call__} [] ($($p)+,)},
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -549,7 +549,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -561,7 +561,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_hash: py_class_unary_slot!($class::__hash__, $crate::Py_hash_t, $crate::py_class::slots::HashConverter),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -686,7 +686,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -698,7 +698,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_iter: py_class_unary_slot!($class::__iter__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -734,6 +734,7 @@ macro_rules! py_class_impl {
         /* slots: */ {
             $type_slots:tt $as_number:tt
             /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
+            /* as_mapping */ [ $( $mp_slot_name:ident : $mp_slot_value:expr, )* ]
         }
         { $( $imp:item )* }
         $members:tt;
@@ -745,6 +746,10 @@ macro_rules! py_class_impl {
             /* as_sequence */ [
                 $( $sq_slot_name : $sq_slot_value, )*
                 sq_length: py_class_unary_slot!($class::__len__, $crate::_detail::ffi::Py_ssize_t, $crate::py_class::slots::LenResultConverter),
+            ]
+            /* as_mapping */ [
+                $( $mp_slot_name : $mp_slot_value, )*
+                mp_length: Some($crate::_detail::ffi::PySequence_Size),
             ]
         }
         /* impl: */ {
@@ -758,12 +763,6 @@ macro_rules! py_class_impl {
         def __len__ $($tail:tt)*
     } => {
         py_error! { "Invalid signature for unary operator __len__" }
-    };
-// def __length_hint__()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def __length_hint__ $($tail:tt)*
-    } => {
-        py_error! { "__length_hint__ is not supported by py_class! yet." }
     };
 // def __long__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -822,7 +821,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -834,7 +833,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_new: py_class_wrap_newfunc!{$class::__new__ []},
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -845,7 +844,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -857,7 +856,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_new: py_argparse_parse_plist_impl!{py_class_wrap_newfunc {$class::__new__} [] ($($p)+,)},
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -871,7 +870,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -883,7 +882,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_iternext: py_class_unary_slot!($class::__next__, *mut $crate::_detail::ffi::PyObject, $crate::py_class::slots::IterNextResultConverter),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -948,7 +947,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -960,7 +959,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_repr: py_class_unary_slot!($class::__repr__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -1079,7 +1078,7 @@ macro_rules! py_class_impl {
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* }
         $members:tt;
@@ -1091,7 +1090,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_str: py_class_unary_slot!($class::__str__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*

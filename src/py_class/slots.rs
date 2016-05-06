@@ -35,6 +35,7 @@ macro_rules! py_class_type_object_static_init {
         /* type_slots */  [ $( $slot_name:ident : $slot_value:expr, )* ]
         $as_number:tt
         $as_sequence:tt
+        $as_mapping:tt
     }) => (
         $crate::_detail::ffi::PyTypeObject {
             $( $slot_name : $slot_value, )*
@@ -74,6 +75,7 @@ macro_rules! py_class_type_object_dynamic_init {
             $type_slots:tt
             $as_number:tt
             $as_sequence:tt
+            $as_mapping:tt
         }
     ) => {
         unsafe {
@@ -84,6 +86,7 @@ macro_rules! py_class_type_object_dynamic_init {
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
+        *(unsafe { &mut $type_object.tp_as_mapping }) = py_class_as_mapping!($as_mapping);
     }
 }
 
@@ -153,6 +156,21 @@ macro_rules! py_class_as_number {
                 $crate::_detail::ffi::PyNumberMethods_INIT
             };
         unsafe { &mut NUMBER_METHODS }
+    }}
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_as_mapping {
+    ([]) => (0 as *mut $crate::_detail::ffi::PyMappingMethods);
+    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+        static mut MAPPING_METHODS : $crate::_detail::ffi::PyMappingMethods
+            = $crate::_detail::ffi::PyMappingMethods {
+                $( $slot_name : $slot_value, )*
+                ..
+                $crate::_detail::ffi::PyMappingMethods_INIT
+            };
+        unsafe { &mut MAPPING_METHODS }
     }}
 }
 

@@ -8,7 +8,7 @@ use std::{mem, isize, iter};
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-
+use cpython::_detail::ffi;
 
 macro_rules! py_assert {
     ($py:expr, $val:ident, $assertion:expr) => {{
@@ -304,6 +304,10 @@ fn len() {
 
     let inst = Len::create_instance(py, 10).unwrap();
     py_assert!(py, inst, "len(inst) == 10");
+    unsafe {
+        assert_eq!(ffi::PyObject_Size(inst.as_object().as_ptr()), 10);
+        assert_eq!(ffi::PyMapping_Size(inst.as_object().as_ptr()), 10);
+    }
 
     let inst = Len::create_instance(py, (isize::MAX as usize) + 1).unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);

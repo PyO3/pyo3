@@ -285,6 +285,19 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
     Objects that compare equal must have the same hash value.
     The return type must be `PyResult<T>` where `T` is one of Rust's primitive integer types.
 
+## Emulating Container Types
+
+  * `def __len__(&self) -> PyResult<usize>`
+
+    Called by the built-in Python function `len()`.
+
+  * `def __length_hint__(&self) -> PyResult<usize>`
+
+    Should return an estimated length for the object.
+    This method is purely an optimization and is never required for correctness.
+
+    `__length_hint__` is new in Python 3.4; older versions will ignore the method.
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`
@@ -320,6 +333,7 @@ macro_rules! py_class {
                 /* type_slots */  [ /* slot: expr, */ ]
                 /* as_number */   [ /* slot: expr, */ ]
                 /* as_sequence */ [ /* slot: expr, */ ]
+                /* as_mapping */  [ /* slot: expr, */ ]
             }
             /* impls: */ { /* impl body */ }
             /* members: */ { /* ident = expr; */ };

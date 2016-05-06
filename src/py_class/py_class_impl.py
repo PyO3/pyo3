@@ -275,6 +275,7 @@ slot_groups = (
     ('tp', 'type_slots'),
     ('nb', 'as_number'),
     ('sq', 'as_sequence'),
+    ('mp', 'as_mapping'),
 )
 
 def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
@@ -413,7 +414,7 @@ def traverse_and_clear():
     { $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt
         }
         { $( $imp:item )* } $members:tt;
         def __clear__ (&$slf:ident) $body:block $($tail:tt)*
@@ -424,7 +425,7 @@ def traverse_and_clear():
                 $( $slot_name : $slot_value, )*
                 tp_clear: py_class_tp_clear!($class),
             ]
-            $as_number $as_sequence
+            $as_number $as_sequence $as_mapping
         }
         /* impl: */ {
             $($imp)*
@@ -552,12 +553,17 @@ def unary_operator(special_name, slot,
             res_conv = '$crate::_detail::PyObjectCallbackConverter'
         else:
             res_conv = '$crate::_detail::PythonObjectCallbackConverter::<$crate::%s>(::std::marker::PhantomData)' % res_type
+    new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
+                          % (special_name, res_ffi_type, res_conv))]
+    if slot == 'sq_length':
+        # __len__ must be saved to two slots
+        # Use PySequence_Size to forward mp_length calls to sq_length.
+        new_slots.append(('mp_length', 'Some($crate::_detail::ffi::PySequence_Size)'))
     generate_case(
         pattern='def %s(&$slf:ident) -> $res_type:ty { $($body:tt)* }' % special_name,
         new_impl='py_class_impl_item! { $class, $py, %s(&$slf,) $res_type; { $($body)* } [] }'
                  % special_name,
-        new_slots=[(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
-                          % (special_name, res_ffi_type, res_conv))]
+        new_slots=new_slots
     )
     # Generate fall-back matcher that produces an error
     # when using the wrong method signature
@@ -621,7 +627,7 @@ special_names = {
     '__len__': unary_operator('sq_length',
                 res_ffi_type='$crate::_detail::ffi::Py_ssize_t',
                 res_conv='$crate::py_class::slots::LenResultConverter'),
-    '__length_hint__': unimplemented(),
+    '__length_hint__': normal_method(),
     '__getitem__': unimplemented(),
     '__missing__': unimplemented(),
     '__setitem__': unimplemented(),
