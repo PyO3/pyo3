@@ -5,7 +5,9 @@ This python script generates the py_class_impl! macro.
 """
 
 from collections import namedtuple
-import sys
+import sys, os
+
+PY2 = (os.getenv('PY') == '2')
 
 header = '''
 // Copyright (c) 2016 Daniel Grunwald
@@ -599,7 +601,9 @@ special_names = {
         res_conv='$crate::py_class::slots::HashConverter',
         res_ffi_type='$crate::Py_hash_t'),
     '__nonzero__': error('__nonzero__ is not supported by py_class!; use the Python 3 spelling __bool__ instead.'),
-    '__bool__': unimplemented(),
+    '__bool__': unary_operator('nb_nonzero' if PY2 else 'nb_bool',
+        res_conv='$crate::py_class::slots::BoolConverter',
+        res_ffi_type='$crate::_detail::libc::c_int'),
     # Customizing attribute access
     '__getattr__': unimplemented(),
     '__getattribute__': unimplemented(),

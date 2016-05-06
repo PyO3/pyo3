@@ -18,6 +18,7 @@
 
 use ffi;
 use std::{mem, isize, ptr};
+use libc::c_int;
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
 use function::CallbackConverter;
@@ -82,6 +83,7 @@ macro_rules! py_class_type_object_dynamic_init {
         }
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
+        *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
     }
 }
 
@@ -136,6 +138,21 @@ macro_rules! py_class_as_sequence {
                 $crate::_detail::ffi::PySequenceMethods_INIT
             };
         unsafe { &mut SEQUENCE_METHODS }
+    }}
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_as_number {
+    ([]) => (0 as *mut $crate::_detail::ffi::PyNumberMethods);
+    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+        static mut NUMBER_METHODS : $crate::_detail::ffi::PyNumberMethods
+            = $crate::_detail::ffi::PyNumberMethods {
+                $( $slot_name : $slot_value, )*
+                ..
+                $crate::_detail::ffi::PyNumberMethods_INIT
+            };
+        unsafe { &mut NUMBER_METHODS }
     }}
 }
 
@@ -242,6 +259,20 @@ impl <T> CallbackConverter<T, Py_hash_t> for HashConverter
 
     #[inline]
     fn error_value() -> Py_hash_t {
+        -1
+    }
+}
+
+pub struct BoolConverter;
+
+impl CallbackConverter<bool, c_int> for BoolConverter {
+    #[inline]
+    fn convert(val: bool, _py: Python) -> c_int {
+        val as c_int
+    }
+
+    #[inline]
+    fn error_value() -> c_int {
         -1
     }
 }

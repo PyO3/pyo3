@@ -17,7 +17,10 @@
 // DEALINGS IN THE SOFTWARE.
 
 mod py_class;
-mod py_class_impl;
+#[cfg(feature="python27-sys")]
+mod py_class_impl2;
+#[cfg(feature="python3-sys")]
+mod py_class_impl3;
 #[doc(hidden)] pub mod slots;
 #[doc(hidden)] pub mod members;
 pub mod gc;

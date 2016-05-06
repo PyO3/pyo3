@@ -334,11 +334,36 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__await__ is not supported by py_class! yet." }
     };
+    { $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt
+        }
+        { $( $imp:item )* }
+        $members:tt;
+        def __bool__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
+    } => { py_class_impl! {
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_nonzero: py_class_unary_slot!($class::__bool__, $crate::_detail::libc::c_int, $crate::py_class::slots::BoolConverter),
+            ]
+            $as_sequence
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __bool__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members; $($tail)*
+    }};
 // def __bool__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __bool__ $($tail:tt)*
     } => {
-        py_error! { "__bool__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for unary operator __bool__" }
     };
 // def __call__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

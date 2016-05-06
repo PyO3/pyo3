@@ -285,6 +285,15 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
     Objects that compare equal must have the same hash value.
     The return type must be `PyResult<T>` where `T` is one of Rust's primitive integer types.
 
+## Not sure where this belongs to in the documentation
+
+  * `def __bool__(&self) -> PyResult<bool>`
+
+    Determines the "truthyness" of the object.
+
+    Note that `py_class!` always expects this member to be called `__bool__`,
+    even on Python 2.7 where the Python spelling was `__nonzero__`.
+
 */
 #[macro_export]
 macro_rules! py_class {

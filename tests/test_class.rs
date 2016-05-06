@@ -14,7 +14,7 @@ macro_rules! py_assert {
     ($py:expr, $val:ident, $assertion:expr) => {{
         let d = PyDict::new($py);
         d.set_item($py, stringify!($val), &$val).unwrap();
-        $py.run(concat!("assert ", $assertion), None, Some(&d)).unwrap();
+        $py.run(concat!("assert ", $assertion), None, Some(&d)).expect(concat!("assert ", $assertion));
     }}
 }
 
@@ -391,6 +391,10 @@ py_class!(class Comparisons |py| {
     def __hash__(&self) -> PyResult<i32> {
         Ok(*self.val(py))
     }
+
+    def __bool__(&self) -> PyResult<bool> {
+        Ok(*self.val(py) != 0)
+    }
 });
 
 
@@ -399,12 +403,16 @@ fn comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
+    let zero = Comparisons::create_instance(py, 0).unwrap();
     let one = Comparisons::create_instance(py, 1).unwrap();
     let ten = Comparisons::create_instance(py, 10).unwrap();
     let minus_one = Comparisons::create_instance(py, -1).unwrap();
     py_assert!(py, one, "hash(one) == 1");
     py_assert!(py, ten, "hash(ten) == 10");
     py_assert!(py, minus_one, "hash(minus_one) == -2");
+
+    py_assert!(py, one, "bool(one) is True");
+    py_assert!(py, zero, "not zero");
 }
 
 
