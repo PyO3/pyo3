@@ -584,8 +584,8 @@ special_names = {
     '__del__': error('__del__ is not supported by py_class!; Use a data member with a Drop impl instead.'),
     '__repr__': unary_operator('tp_repr', res_type="PyString"),
     '__str__': unary_operator('tp_str', res_type="PyString"),
-    '__unicode__': unary_operator('tp_unicode', res_type="PyUnicode"),
-    '__bytes__': unary_operator('tp_bytes', res_type="PyBytes"),
+    '__unicode__': normal_method(),
+    '__bytes__': normal_method(),
     '__format__': normal_method(),
     # Comparison Operators
     '__lt__': unimplemented(),

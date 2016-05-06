@@ -340,35 +340,6 @@ macro_rules! py_class_impl {
     } => {
         py_error! { "__bool__ is not supported by py_class! yet." }
     };
-    { $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
-        }
-        { $( $imp:item )* }
-        $members:tt;
-        def __bytes__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $tp_slot_name : $tp_slot_value, )*
-                tp_bytes: py_class_unary_slot!($class::__bytes__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyBytes>(::std::marker::PhantomData)),
-            ]
-            $as_number $as_sequence
-        }
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, __bytes__(&$slf,) $res_type; { $($body)* } [] }
-        }
-        $members; $($tail)*
-    }};
-// def __bytes__()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def __bytes__ $($tail:tt)*
-    } => {
-        py_error! { "Invalid signature for unary operator __bytes__" }
-    };
 // def __call__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
         def __call__ $($tail:tt)*
@@ -1060,35 +1031,6 @@ macro_rules! py_class_impl {
         def __truediv__ $($tail:tt)*
     } => {
         py_error! { "__truediv__ is not supported by py_class! yet." }
-    };
-    { $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt
-        }
-        { $( $imp:item )* }
-        $members:tt;
-        def __unicode__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $tp_slot_name : $tp_slot_value, )*
-                tp_unicode: py_class_unary_slot!($class::__unicode__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyUnicode>(::std::marker::PhantomData)),
-            ]
-            $as_number $as_sequence
-        }
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, __unicode__(&$slf,) $res_type; { $($body)* } [] }
-        }
-        $members; $($tail)*
-    }};
-// def __unicode__()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def __unicode__ $($tail:tt)*
-    } => {
-        py_error! { "Invalid signature for unary operator __unicode__" }
     };
 // def __xor__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;

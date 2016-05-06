@@ -132,7 +132,7 @@ Declares an instance method callable from Python.
 * The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
 
 ## Class methods
-`@classmethod def method_name(cls, parameter-list) -> PyResult<...> { ... }
+`@classmethod def method_name(cls, parameter-list) -> PyResult<...> { ... }`
 
 Declares a class method callable from Python.
 
@@ -143,7 +143,7 @@ Declares a class method callable from Python.
 * The return type must be `PyResult<T>` for some `T` that implements `ToPyObject`.
 
 ## Static methods
-`@staticmethod def method_name(parameter-list) -> PyResult<...> { ... }
+`@staticmethod def method_name(parameter-list) -> PyResult<...> { ... }`
 
 Declares a static method callable from Python.
 
@@ -225,11 +225,10 @@ that use `RefCell::borrow_mut`.
 
 Iterators can be defined using the Python special methods `__iter__` and `__next__`:
 
-  * `def __iter__(&self) -> PyResult<T>`
-  * `def __next__(&self) -> PyResult<Option<T>>`
+  * `def __iter__(&self) -> PyResult<impl ToPyObject>`
+  * `def __next__(&self) -> PyResult<Option<impl ToPyObject>>`
 
-In both cases, `T` must be a type that implements `ToPyObject`.
-Returning `Ok(None)` from `__next__` indicates that that there are no further items.
+    Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 
 Example:
 
@@ -251,6 +250,31 @@ py_class!(class MyIterator |py| {
 });
 # fn main() {}
 ```
+
+## String Conversions
+
+  * `def __repr__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
+  * `def __str__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
+
+    Possible return types for `__str__` and `__repr__` are `PyResult<String>` or `PyResult<PyString>`.
+
+    In Python 2.7, Unicode strings returned by `__str__` and `__repr__` will be converted to byte strings
+    by the Python runtime, which results in an exception if the string contains non-ASCII characters.
+
+  * `def __bytes__(&self) -> PyResult<PyBytes>`
+
+    On Python 3.x, provides the conversion to `bytes`.
+    On Python 2.7, `__bytes__` is allowed but has no effect.
+
+  * `def __unicode__(&self) -> PyResult<PyUnicode>`
+
+    On Python 2.7, provides the conversion to `unicode`.
+    On Python 3.x, `__unicode__` is allowed but has no effect.
+
+  * `def __format__(&self, format_spec: &str) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
+
+    Special method that is used by the `format()` builtin and the `str.format()` method.
+    Possible return types are `PyResult<String>` or `PyResult<PyString>`.
 
 */
 #[macro_export]

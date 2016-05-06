@@ -2,7 +2,8 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol, PyDict, exc};
+use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol,
+    PyDict, PyBytes, PyUnicode, exc};
 use std::{mem, isize, iter};
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -339,8 +340,16 @@ py_class!(class StringMethods |py| {
         Ok("repr")
     }
 
-    def __format__(&self, formatspec: &str) -> PyResult<String> {
-        Ok(format!("format({})", formatspec))
+    def __format__(&self, format_spec: &str) -> PyResult<String> {
+        Ok(format!("format({})", format_spec))
+    }
+
+    def __unicode__(&self) -> PyResult<PyUnicode> {
+        Ok(PyUnicode::new(py, "unicode"))
+    }
+
+    def __bytes__(&self) -> PyResult<PyBytes> {
+        Ok(PyBytes::new(py, b"bytes"))
     }
 });
 
@@ -354,4 +363,25 @@ fn string_methods() {
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
 }
+
+#[test]
+#[cfg(feature="python27-sys")]
+fn python2_string_methods() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = StringMethods::create_instance(py).unwrap();
+    py_assert!(py, obj, "unicode(obj) == u'unicode'");
+}
+
+#[test]
+#[cfg(feature="python3-sys")]
+fn python3_string_methods() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = StringMethods::create_instance(py).unwrap();
+    py_assert!(py, obj, "bytes(obj) == b'bytes'");
+}
+
 
