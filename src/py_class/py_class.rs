@@ -322,6 +322,7 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
 macro_rules! py_class {
     (class $class:ident |$py: ident| { $( $body:tt )* }) => (
         py_class_impl! {
+            { $( $body )* }
             $class $py
             /* info: */ {
                 /* base_type: */ $crate::PyObject,
@@ -340,8 +341,7 @@ macro_rules! py_class {
                 /* as_mapping */  [ /* slot: expr, */ ]
             }
             /* impls: */ { /* impl body */ }
-            /* members: */ { /* ident = expr; */ };
-            $( $body )*
+            /* members: */ { /* ident = expr; */ }
         }
     );
 }

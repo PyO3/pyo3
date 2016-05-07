@@ -38,14 +38,15 @@ macro_rules! py_class_impl {
 
 base_case = '''
     // Base case: we're done munching and can start producing code:
-    { $class:ident $py:ident
+    {   {}
+        $class:ident $py:ident
         /* info: */ {
             $base_type:ty,
             $size:expr,
             $gc:tt,
             /* data: */ [ $( { $data_offset:expr, $data_name:ident, $data_ty:ty } )* ]
         }
-        $slots:tt { $( $imp:item )* } $members:tt;
+        $slots:tt { $( $imp:item )* } $members:tt
     } => {
         struct $class { _unsafe_inner: $crate::PyObject }
 
@@ -232,7 +233,8 @@ slot_groups = (
 )
 
 def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slots=None, new_members=None):
-    write('{ $class:ident $py:ident')
+    write('{ { %s $($tail:tt)* }\n' % pattern)
+    write('$class:ident $py:ident')
     if old_info is not None:
         write(old_info)
     elif new_info is not None:
@@ -263,10 +265,8 @@ def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slot
         write('\n{ $( $member_name:ident = $member_expr:expr; )* }')
     else:
         write('$members:tt')
-    write(';\n')
-    write(pattern)
-    write('$($tail:tt)*\n')
-    write('} => { py_class_impl! {\n')
+    write('\n} => { py_class_impl! {\n')
+    write('{ $($tail)* }\n')
     write('$class $py')
     write(new_info or '$info')
     if new_slots:
@@ -299,8 +299,7 @@ def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slot
         write('}')
     else:
         write('$members')
-    write('; $($tail)*\n')
-    write('}};\n')
+    write('\n}};\n')
 
 def data_decl():
     generate_case('data $data_name:ident : $data_type:ty;',
@@ -471,12 +470,10 @@ def special_method(decorated_function):
 
 @special_method
 def error(special_name, msg):
-    print('''// def %s()
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
-        def %s $($tail:tt)*
-    } => {
+    print('''
+    { { def %s $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "%s" }
-    };''' % (special_name, special_name, msg))
+    };''' % (special_name, msg))
 
 @special_method
 def unimplemented(special_name):
