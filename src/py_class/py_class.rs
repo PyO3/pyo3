@@ -324,6 +324,24 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
     If extraction of the `item` parameter fails with `TypeError`,
     `__contains__` will return `Ok(false)`.
 
+## Arithmetic methods
+
+  * `def __add__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __sub__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __mul__(lhs, rhs) -> PyResult<impl ToPyObject>`
+
+    The parameters `lhs` and `rhs` must not be given an explicit type.
+    Within the method bodies, both parameters will implicitly have type `&PyObject`.
+
+    There are no separate "reversed" versions of these methods (`__radd__()`, etc.)
+    Instead, if the first operand cannot perform the operation,
+    the same method of the second operand is called, with the operands in the same order.
+
+    This means that you can't rely on the first parameter of these methods being `self`
+    or being the right type, and you should test the types of both operands before deciding what to do.
+    If you can't handle the combination of types you've been given,
+    you should return `Ok(py.NotImplemented())`.
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`

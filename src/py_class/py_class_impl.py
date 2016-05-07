@@ -505,11 +505,9 @@ def normal_method(special_name):
 def special_class_method(special_name, *args, **kwargs):
     generate_class_method(special_name=special_name, *args, **kwargs)
 
-Argument = namedtuple('Argument', ['name', 'default_type'])
 class Argument(object):
-    def __init__(self, name, extract_err='passthrough'):
+    def __init__(self, name):
         self.name = name
-        self.extract_err = 'py_class_extract_error_%s' % extract_err
 
 @special_method
 def operator(special_name, slot,
@@ -535,12 +533,14 @@ def operator(special_name, slot,
     for arg in args:
         arg_pattern += ', ${0}:ident : ${0}_type:ty'.format(arg.name)
         param_list.append('{{ ${0} : ${0}_type = {{}} }}'.format(arg.name))
-    if len(args) == 0:
+    if slot == 'sq_contains':
+        new_slots = [(slot, 'py_class_contains_slot!($class::%s, $%s_type)' % (special_name, args[0].name))]
+    elif len(args) == 0:
         new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
                              % (special_name, res_ffi_type, res_conv))]
     elif len(args) == 1:
-        new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s, %s)'
-                             % (special_name, args[0].name, args[0].extract_err, res_ffi_type, res_conv))]
+        new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s)'
+                             % (special_name, args[0].name, res_ffi_type, res_conv))]
     elif len(args) == 2:
         new_slots = [(slot, 'py_class_ternary_slot!($class::%s, $%s_type, $%s_type, %s, %s)'
                              % (special_name, args[0].name, args[1].name, res_ffi_type, res_conv))]
@@ -563,6 +563,22 @@ def call_operator(special_name, slot):
         slot=slot,
         value_macro='py_class_call_slot',
         value_args='$class::%s' % special_name)
+
+@special_method
+def binary_numeric_operator(special_name, slot):
+    generate_case(
+        pattern='def %s($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* }'
+            % special_name,
+        new_impl='py_class_impl_item! { $class, $py, %s() $res_type; { $($body)* } ' % special_name
+                +'[ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }',
+        new_slots=[(slot, 'py_class_binary_numeric_slot!($class::%s)' % special_name)]
+    )
+    error('Invalid signature for binary numeric operator %s' % special_name)(special_name)
+
+@special_method
+def reflected_numeric_operator(special_name):
+    error('Reflected numeric operator %s is not supported by py_class! Use __%s__ instead!'
+            % (special_name, special_name[3:-2]))(special_name)
 
 special_names = {
     '__init__': error('__init__ is not supported by py_class!; use __new__ instead.'),
@@ -634,14 +650,12 @@ special_names = {
     '__next__': operator('tp_iternext',
                 res_conv='$crate::py_class::slots::IterNextResultConverter'),
     '__reversed__': normal_method(),
-    '__contains__': operator('sq_contains',
-                args=[Argument('item', extract_err='false')],
-                res_type='bool'),
+    '__contains__': operator('sq_contains', args=[Argument('item')]),
     
     # Emulating numeric types
-    '__add__': unimplemented(),
-    '__sub__': unimplemented(),
-    '__mul__': unimplemented(),
+    '__add__': binary_numeric_operator('nb_add'),
+    '__sub__': binary_numeric_operator('nb_subtract'),
+    '__mul__': binary_numeric_operator('nb_multiply'),
     '__matmul__': unimplemented(),
     '__div__': unimplemented(),
     '__truediv__': unimplemented(),
@@ -656,21 +670,21 @@ special_names = {
     '__or__': unimplemented(),
     
     # Emulating numeric types - reflected
-    '__radd__': unimplemented(),
-    '__rsub__': unimplemented(),
-    '__rmul__': unimplemented(),
-    '__rmatmul__': unimplemented(),
-    '__rdiv__': unimplemented(),
-    '__rtruediv__': unimplemented(),
-    '__rfloordiv__': unimplemented(),
-    '__rmod__': unimplemented(),
-    '__rdivmod__': unimplemented(),
-    '__rpow__': unimplemented(),
-    '__rlshift__': unimplemented(),
-    '__rrshift__': unimplemented(),
-    '__rand__': unimplemented(),
-    '__rxor__': unimplemented(),
-    '__ror__': unimplemented(),
+    '__radd__': reflected_numeric_operator(),
+    '__rsub__': reflected_numeric_operator(),
+    '__rmul__': reflected_numeric_operator(),
+    '__rmatmul__': reflected_numeric_operator(),
+    '__rdiv__': reflected_numeric_operator(),
+    '__rtruediv__': reflected_numeric_operator(),
+    '__rfloordiv__': reflected_numeric_operator(),
+    '__rmod__': reflected_numeric_operator(),
+    '__rdivmod__': reflected_numeric_operator(),
+    '__rpow__': reflected_numeric_operator(),
+    '__rlshift__': reflected_numeric_operator(),
+    '__rrshift__': reflected_numeric_operator(),
+    '__rand__': reflected_numeric_operator(),
+    '__rxor__': reflected_numeric_operator(),
+    '__ror__': reflected_numeric_operator(),
 
     # Emulating numeric types - in-place
     '__iadd__': unimplemented(),
@@ -690,10 +704,10 @@ special_names = {
     '__ior__': unimplemented(),
 
     # Unary arithmetic
-    '__neg__': unimplemented(),
-    '__pos__': unimplemented(),
-    '__abs__': unimplemented(),
-    '__invert__': unimplemented(),
+    '__neg__': operator('nb_negative'),
+    '__pos__': operator('nb_positive'),
+    '__abs__': operator('nb_absolute'),
+    '__invert__': operator('nb_invert'),
     '__complex__': unimplemented(),
     '__int__': unimplemented(),
     '__long__': unimplemented(),

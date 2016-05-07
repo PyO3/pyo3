@@ -18,11 +18,12 @@
 
 use ffi;
 use std::{mem, isize, ptr};
-use libc::{c_char, c_int};
+use libc::{c_char, c_int, c_long};
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
+use objects::PyObject;
 use function::CallbackConverter;
-use err::{PyErr};
+use err::{PyErr, PyResult};
 use exc;
 use Py_hash_t;
 
@@ -56,16 +57,23 @@ macro_rules! py_class_type_object_flags {
         /* traverse_proc: */ None,
         /* traverse_data: */ [ /*name*/ ]
     }) => {
-        $crate::_detail::ffi::Py_TPFLAGS_DEFAULT
+        $crate::py_class::slots::TPFLAGS_DEFAULT
     };
     (/* gc: */ {
         $traverse_proc: expr,
         $traverse_data: tt
     }) => {
-        $crate::_detail::ffi::Py_TPFLAGS_DEFAULT
+        $crate::py_class::slots::TPFLAGS_DEFAULT
         | $crate::_detail::ffi::Py_TPFLAGS_HAVE_GC
     };
 }
+
+#[cfg(feature="python27-sys")]
+pub const TPFLAGS_DEFAULT : c_long = ffi::Py_TPFLAGS_DEFAULT
+                                   | ffi::Py_TPFLAGS_CHECKTYPES;
+
+#[cfg(feature="python3-sys")]
+pub const TPFLAGS_DEFAULT : c_long = ffi::Py_TPFLAGS_DEFAULT;
 
 #[macro_export]
 #[doc(hidden)]
@@ -253,7 +261,7 @@ macro_rules! py_class_unary_slot {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_binary_slot {
-    ($class:ident :: $f:ident, $arg_type:ty, $extract_err:ident, $res_type:ty, $conv:expr) => {{
+    ($class:ident :: $f:ident, $arg_type:ty, $res_type:ty, $conv:expr) => {{
         unsafe extern "C" fn wrap_binary<DUMMY>(
             slf: *mut $crate::_detail::ffi::PyObject,
             arg: *mut $crate::_detail::ffi::PyObject)
@@ -269,10 +277,10 @@ macro_rules! py_class_binary_slot {
                         Ok(prepared) => {
                             match <$arg_type as $crate::ExtractPyObject>::extract(py, &prepared) {
                                 Ok(arg) => slf.$f(py, arg),
-                                Err(e) => $extract_err!(py, e)
+                                Err(e) => Err(e)
                             }
                         },
-                        Err(e) => $extract_err!(py, e)
+                        Err(e) => Err(e)
                     };
                     $crate::PyDrop::release_ref(arg, py);
                     $crate::PyDrop::release_ref(slf, py);
@@ -329,22 +337,79 @@ macro_rules! py_class_ternary_slot {
     }}
 }
 
+// sq_contains is special-cased slot because it converts type errors to Ok(false)
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_class_extract_error_passthrough {
-    ($py: ident, $e:ident) => (Err($e));
+macro_rules! py_class_contains_slot {
+    ($class:ident :: $f:ident, $arg_type:ty) => {{
+        unsafe extern "C" fn sq_contains(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            arg: *mut $crate::_detail::ffi::PyObject)
+        -> $crate::_detail::libc::c_int
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $crate::py_class::slots::BoolConverter,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                    let ret = match <$arg_type as $crate::ExtractPyObject>::prepare_extract(py, &arg) {
+                        Ok(prepared) => {
+                            match <$arg_type as $crate::ExtractPyObject>::extract(py, &prepared) {
+                                Ok(arg) => slf.$f(py, arg),
+                                Err(e) => $crate::py_class::slots::type_error_to_false(py, e)
+                            }
+                        },
+                        Err(e) => $crate::py_class::slots::type_error_to_false(py, e)
+                    };
+                    $crate::PyDrop::release_ref(arg, py);
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+        }
+        Some(sq_contains)
+    }}
+}
+
+pub fn type_error_to_false(py: Python, e: PyErr) -> PyResult<bool> {
+    if e.matches(py, py.get_type::<exc::TypeError>()) {
+        Ok(false)
+    } else {
+        Err(e)
+    }
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_class_extract_error_false {
-    ($py: ident, $e:ident) => {
-        if $e.matches($py, $py.get_type::<$crate::exc::TypeError>()) {
-            Ok(false)
-        } else {
-            Err($e)
+macro_rules! py_class_binary_numeric_slot {
+    ($class:ident :: $f:ident) => {{
+        unsafe extern "C" fn binary_numeric<DUMMY>(
+            lhs: *mut $crate::_detail::ffi::PyObject,
+            rhs: *mut $crate::_detail::ffi::PyObject)
+        -> *mut $crate::_detail::ffi::PyObject
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $crate::_detail::PyObjectCallbackConverter,
+                |py| {
+                    let lhs = $crate::PyObject::from_borrowed_ptr(py, lhs);
+                    let rhs = $crate::PyObject::from_borrowed_ptr(py, rhs);
+                    let ret = $class::$f(py, &lhs, &rhs);
+                    $crate::PyDrop::release_ref(lhs, py);
+                    $crate::PyDrop::release_ref(rhs, py);
+                    ret
+                })
         }
-    };
+        Some(binary_numeric::<()>)
+    }}
+}
+
+pub fn type_error_to_not_implemented(py: Python, e: PyErr) -> PyResult<PyObject> {
+    if e.matches(py, py.get_type::<exc::TypeError>()) {
+        Ok(py.NotImplemented())
+    } else {
+        Err(e)
+    }
 }
 
 pub struct UnitCallbackConverter;

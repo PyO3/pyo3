@@ -572,3 +572,66 @@ fn contains() {
     py_run!(py, c, "assert 'wrong type' not in c");
 }
 
+py_class!(class UnaryArithmetic |py| {
+    def __neg__(&self) -> PyResult<&'static str> {
+        Ok("neg")
+    }
+
+    def __pos__(&self) -> PyResult<&'static str> {
+        Ok("pos")
+    }
+
+    def __abs__(&self) -> PyResult<&'static str> {
+        Ok("abs")
+    }
+
+    def __invert__(&self) -> PyResult<&'static str> {
+        Ok("invert")
+    }
+});
+
+#[test]
+fn unary_arithmetic() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = UnaryArithmetic::create_instance(py).unwrap();
+    py_run!(py, c, "assert -c == 'neg'");
+    py_run!(py, c, "assert +c == 'pos'");
+    py_run!(py, c, "assert abs(c) == 'abs'");
+    py_run!(py, c, "assert ~c == 'invert'");
+}
+
+py_class!(class BinaryArithmetic |py| {
+    def __repr__(&self) -> PyResult<&'static str> {
+        Ok("BA")
+    }
+
+    def __add__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} + {:?}", lhs, rhs))
+    }
+
+    def __sub__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} - {:?}", lhs, rhs))
+    }
+
+    def __mul__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} * {:?}", lhs, rhs))
+    }
+});
+
+#[test]
+fn binary_arithmetic() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = BinaryArithmetic::create_instance(py).unwrap();
+    py_run!(py, c, "assert c + c == 'BA + BA'");
+    py_run!(py, c, "assert c + 1 == 'BA + 1'");
+    py_run!(py, c, "assert 1 + c == '1 + BA'");
+    py_run!(py, c, "assert c - 1 == 'BA - 1'");
+    py_run!(py, c, "assert 1 - c == '1 - BA'");
+    py_run!(py, c, "assert c * 1 == 'BA * 1'");
+    py_run!(py, c, "assert 1 * c == '1 * BA'");
+}
+

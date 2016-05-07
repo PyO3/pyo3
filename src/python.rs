@@ -285,6 +285,13 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_False()).unchecked_cast_into::<PyBool>() }
     }
 
+    /// Gets the Python builtin value `NotImplemented`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn NotImplemented(self) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
+    }
+
     /// Gets the Python type object for type T.
     pub fn get_type<T>(self) -> PyType where T: PythonObjectWithTypeObject {
         T::type_object(self)
