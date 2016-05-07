@@ -519,6 +519,9 @@ def operator(special_name, slot,
         if res_type == '()':
             res_conv = '$crate::py_class::slots::UnitCallbackConverter'
             res_ffi_type = '$crate::_detail::libc::c_int'
+        elif res_type == 'bool':
+            res_conv = '$crate::py_class::slots::BoolConverter'
+            res_ffi_type = '$crate::_detail::libc::c_int'
         elif res_type == 'PyObject':
             res_conv = '$crate::_detail::PyObjectCallbackConverter'
         else:
@@ -582,8 +585,7 @@ special_names = {
         res_ffi_type='$crate::Py_hash_t'),
     '__nonzero__': error('__nonzero__ is not supported by py_class!; use the Python 3 spelling __bool__ instead.'),
     '__bool__': operator('nb_nonzero' if PY2 else 'nb_bool',
-        res_conv='$crate::py_class::slots::BoolConverter',
-        res_ffi_type='$crate::_detail::libc::c_int'),
+        res_type='bool'),
     # Customizing attribute access
     '__getattr__': unimplemented(),
     '__getattribute__': unimplemented(),
@@ -627,8 +629,10 @@ special_names = {
     '__iter__': operator('tp_iter'),
     '__next__': operator('tp_iternext',
                 res_conv='$crate::py_class::slots::IterNextResultConverter'),
-    '__reversed__': unimplemented(),
-    '__contains__': unimplemented(),
+    '__reversed__': normal_method(),
+    '__contains__': operator('sq_contains',
+                args=[Argument('item', '&PyObject')],
+                res_type='bool'),
     
     # Emulating numeric types
     '__add__': unimplemented(),

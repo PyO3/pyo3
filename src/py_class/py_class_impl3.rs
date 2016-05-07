@@ -414,9 +414,35 @@ macro_rules! py_class_impl {
     { { def __complex__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__complex__ is not supported by py_class! yet." }
     };
+    { { def __contains__(&$slf:ident, $item:ident : $item_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt $as_number:tt
+            /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
+            $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots $as_number
+            /* as_sequence */ [
+                $( $sq_slot_name : $sq_slot_value, )*
+                sq_contains: py_class_binary_slot!($class::__contains__, $item_type, $crate::_detail::libc::c_int, $crate::py_class::slots::BoolConverter),
+            ]
+            $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __contains__(&$slf,) $res_type; { $($body)* } [{ $item : $item_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __contains__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__contains__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __contains__" }
     };
 
     { { def __del__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -893,10 +919,6 @@ macro_rules! py_class_impl {
 
     { { def __repr__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Invalid signature for operator __repr__" }
-    };
-
-    { { def __reversed__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__reversed__ is not supported by py_class! yet." }
     };
 
     { { def __rfloordiv__ $($tail:tt)* } $( $stuff:tt )* } => {

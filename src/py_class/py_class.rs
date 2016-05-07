@@ -310,6 +310,17 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
 
     Called by Python `del self[key]`.
 
+  * `def __reversed__(&self) -> PyResult<impl ToPyObject>`
+
+    Called by the `reversed()` built-in.
+    It should return a new iterator object that iterates over all the objects in the container in reverse order.
+
+  * `def __contains__(&self, item: impl ExtractPyObject) -> PyResult<bool>`
+
+    Called by Python `item in self`.
+    For mapping types, this should consider the keys of the mapping rather than the values
+    or the key-item pairs.
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`

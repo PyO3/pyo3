@@ -540,3 +540,34 @@ fn setdelitem() {
     assert_eq!(c.val(py).get(), None);
 }
 
+py_class!(class Reversed |py| {
+    def __reversed__(&self) -> PyResult<&'static str> {
+        Ok("I am reversed")
+    }
+});
+
+#[test]
+fn reversed() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = Reversed::create_instance(py).unwrap();
+    py_run!(py, c, "assert reversed(c) == 'I am reversed'");
+}
+
+py_class!(class Contains |py| {
+    def __contains__(&self, item: i32) -> PyResult<bool> {
+        Ok(item >= 0)
+    }
+});
+
+#[test]
+fn contains() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = Contains::create_instance(py).unwrap();
+    py_run!(py, c, "assert 1 in c");
+    py_run!(py, c, "assert -1 not in c");
+}
+
