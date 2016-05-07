@@ -253,7 +253,7 @@ macro_rules! py_class_unary_slot {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_binary_slot {
-    ($class:ident :: $f:ident, $arg_type:ty, $res_type:ty, $conv:expr) => {{
+    ($class:ident :: $f:ident, $arg_type:ty, $extract_err:ident, $res_type:ty, $conv:expr) => {{
         unsafe extern "C" fn wrap_binary<DUMMY>(
             slf: *mut $crate::_detail::ffi::PyObject,
             arg: *mut $crate::_detail::ffi::PyObject)
@@ -269,10 +269,10 @@ macro_rules! py_class_binary_slot {
                         Ok(prepared) => {
                             match <$arg_type as $crate::ExtractPyObject>::extract(py, &prepared) {
                                 Ok(arg) => slf.$f(py, arg),
-                                Err(e) => Err(e)
+                                Err(e) => $extract_err!(py, e)
                             }
                         },
-                        Err(e) => Err(e)
+                        Err(e) => $extract_err!(py, e)
                     };
                     $crate::PyDrop::release_ref(arg, py);
                     $crate::PyDrop::release_ref(slf, py);
@@ -327,6 +327,24 @@ macro_rules! py_class_ternary_slot {
         }
         Some(wrap_binary::<()>)
     }}
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_extract_error_passthrough {
+    ($py: ident, $e:ident) => (Err($e));
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_extract_error_false {
+    ($py: ident, $e:ident) => {
+        if $e.matches($py, $py.get_type::<$crate::exc::TypeError>()) {
+            Ok(false)
+        } else {
+            Err($e)
+        }
+    };
 }
 
 pub struct UnitCallbackConverter;

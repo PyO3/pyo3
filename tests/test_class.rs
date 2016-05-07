@@ -569,5 +569,6 @@ fn contains() {
     let c = Contains::create_instance(py).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
+    py_run!(py, c, "assert 'wrong type' not in c");
 }
 

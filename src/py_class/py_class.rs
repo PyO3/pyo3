@@ -321,6 +321,9 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
     For mapping types, this should consider the keys of the mapping rather than the values
     or the key-item pairs.
 
+    If extraction of the `item` parameter fails with `TypeError`,
+    `__contains__` will return `Ok(false)`.
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`

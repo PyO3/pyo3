@@ -506,6 +506,10 @@ def special_class_method(special_name, *args, **kwargs):
     generate_class_method(special_name=special_name, *args, **kwargs)
 
 Argument = namedtuple('Argument', ['name', 'default_type'])
+class Argument(object):
+    def __init__(self, name, extract_err='passthrough'):
+        self.name = name
+        self.extract_err = 'py_class_extract_error_%s' % extract_err
 
 @special_method
 def operator(special_name, slot,
@@ -535,8 +539,8 @@ def operator(special_name, slot,
         new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
                              % (special_name, res_ffi_type, res_conv))]
     elif len(args) == 1:
-        new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s)'
-                             % (special_name, args[0].name, res_ffi_type, res_conv))]
+        new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s, %s)'
+                             % (special_name, args[0].name, args[0].extract_err, res_ffi_type, res_conv))]
     elif len(args) == 2:
         new_slots = [(slot, 'py_class_ternary_slot!($class::%s, $%s_type, $%s_type, %s, %s)'
                              % (special_name, args[0].name, args[1].name, res_ffi_type, res_conv))]
@@ -615,23 +619,23 @@ special_names = {
                 ]),
     '__length_hint__': normal_method(),
     '__getitem__': operator('mp_subscript',
-                args=[Argument('key', '&PyObject')],
+                args=[Argument('key')],
                 additional_slots=[
                     ('sq_item', 'Some($crate::py_class::slots::sq_item)')
                 ]),
     '__missing__': normal_method(),
     '__setitem__': operator('sdi_setitem',
-                args=[Argument('key', '&PyObject'), Argument('value', '&PyObject')],
+                args=[Argument('key'), Argument('value')],
                 res_type='()'),
     '__delitem__': operator('sdi_delitem',
-                args=[Argument('key', '&PyObject')],
+                args=[Argument('key')],
                 res_type='()'),
     '__iter__': operator('tp_iter'),
     '__next__': operator('tp_iternext',
                 res_conv='$crate::py_class::slots::IterNextResultConverter'),
     '__reversed__': normal_method(),
     '__contains__': operator('sq_contains',
-                args=[Argument('item', '&PyObject')],
+                args=[Argument('item', extract_err='false')],
                 res_type='bool'),
     
     # Emulating numeric types
