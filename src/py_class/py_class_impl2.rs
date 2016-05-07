@@ -365,9 +365,35 @@ macro_rules! py_class_impl {
     { { def __aiter__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__aiter__ is not supported by py_class! yet." }
     };
+    { { def __and__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_and: py_class_binary_numeric_slot!($class::__and__),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __and__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
+        }
+        $members
+    }};
 
     { { def __and__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__and__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for binary numeric operator __and__" }
     };
 
     { { def __await__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -831,9 +857,35 @@ macro_rules! py_class_impl {
     { { def __long__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__long__ is not supported by py_class! yet." }
     };
+    { { def __lshift__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_lshift: py_class_binary_numeric_slot!($class::__lshift__),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __lshift__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
+        }
+        $members
+    }};
 
     { { def __lshift__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__lshift__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for binary numeric operator __lshift__" }
     };
 
     { { def __lt__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -994,9 +1046,35 @@ macro_rules! py_class_impl {
     { { def __nonzero__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__nonzero__ is not supported by py_class!; use the Python 3 spelling __bool__ instead." }
     };
+    { { def __or__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_or: py_class_binary_numeric_slot!($class::__or__),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __or__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
+        }
+        $members
+    }};
 
     { { def __or__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__or__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for binary numeric operator __or__" }
     };
     { { def __pos__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -1112,9 +1190,35 @@ macro_rules! py_class_impl {
     { { def __rrshift__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Reflected numeric operator __rrshift__ is not supported by py_class! Use __rshift__ instead!" }
     };
+    { { def __rshift__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_rshift: py_class_binary_numeric_slot!($class::__rshift__),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __rshift__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
+        }
+        $members
+    }};
 
     { { def __rshift__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__rshift__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for binary numeric operator __rshift__" }
     };
 
     { { def __rsub__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1233,9 +1337,35 @@ macro_rules! py_class_impl {
     { { def __truediv__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__truediv__ is not supported by py_class! yet." }
     };
+    { { def __xor__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_xor: py_class_binary_numeric_slot!($class::__xor__),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __xor__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
+        }
+        $members
+    }};
 
     { { def __xor__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__xor__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for binary numeric operator __xor__" }
     };
     { {  def $name:ident (&$slf:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt

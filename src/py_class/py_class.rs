@@ -329,6 +329,11 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
   * `def __add__(lhs, rhs) -> PyResult<impl ToPyObject>`
   * `def __sub__(lhs, rhs) -> PyResult<impl ToPyObject>`
   * `def __mul__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __lshift__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __rshift__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __and__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __xor__(lhs, rhs) -> PyResult<impl ToPyObject>`
+  * `def __or__(lhs, rhs) -> PyResult<impl ToPyObject>`
 
     The parameters `lhs` and `rhs` must not be given an explicit type.
     Within the method bodies, both parameters will implicitly have type `&PyObject`.

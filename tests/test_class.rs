@@ -618,6 +618,26 @@ py_class!(class BinaryArithmetic |py| {
     def __mul__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} * {:?}", lhs, rhs))
     }
+
+    def __lshift__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} << {:?}", lhs, rhs))
+    }
+
+    def __rshift__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} >> {:?}", lhs, rhs))
+    }
+
+    def __and__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} & {:?}", lhs, rhs))
+    }
+
+    def __xor__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} ^ {:?}", lhs, rhs))
+    }
+
+    def __or__(lhs, rhs) -> PyResult<String> {
+        Ok(format!("{:?} | {:?}", lhs, rhs))
+    }
 });
 
 #[test]
@@ -633,5 +653,16 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 - c == '1 - BA'");
     py_run!(py, c, "assert c * 1 == 'BA * 1'");
     py_run!(py, c, "assert 1 * c == '1 * BA'");
+
+    py_run!(py, c, "assert c << 1 == 'BA << 1'");
+    py_run!(py, c, "assert 1 << c == '1 << BA'");
+    py_run!(py, c, "assert c >> 1 == 'BA >> 1'");
+    py_run!(py, c, "assert 1 >> c == '1 >> BA'");
+    py_run!(py, c, "assert c & 1 == 'BA & 1'");
+    py_run!(py, c, "assert 1 & c == '1 & BA'");
+    py_run!(py, c, "assert c ^ 1 == 'BA ^ 1'");
+    py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
+    py_run!(py, c, "assert c | 1 == 'BA | 1'");
+    py_run!(py, c, "assert 1 | c == '1 | BA'");
 }
 

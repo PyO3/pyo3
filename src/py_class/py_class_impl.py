@@ -663,12 +663,12 @@ special_names = {
     '__mod__': unimplemented(),
     '__divmod__': unimplemented(),
     '__pow__': unimplemented(),
-    '__lshift__': unimplemented(),
-    '__rshift__': unimplemented(),
-    '__and__': unimplemented(),
-    '__xor__': unimplemented(),
-    '__or__': unimplemented(),
-    
+    '__lshift__': binary_numeric_operator('nb_lshift'),
+    '__rshift__': binary_numeric_operator('nb_rshift'),
+    '__and__': binary_numeric_operator('nb_and'),
+    '__xor__': binary_numeric_operator('nb_xor'),
+    '__or__': binary_numeric_operator('nb_or'),
+
     # Emulating numeric types - reflected
     '__radd__': reflected_numeric_operator(),
     '__rsub__': reflected_numeric_operator(),
