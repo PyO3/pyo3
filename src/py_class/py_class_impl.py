@@ -188,53 +188,6 @@ base_case = '''
     };
 '''
 
-def data_decl():
-    print('''
-    // Data declaration
-    { $class:ident $py:ident
-        /* info: */ {
-            $base_type: ty,
-            $size: expr,
-            $gc: tt,
-            [ $( $data:tt )* ]
-        }
-        $slots:tt { $( $imp:item )* } $members:tt;
-        data $data_name:ident : $data_type:ty; $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py
-        /* info: */ {
-            $base_type,
-            /* size: */ $crate::py_class::data_new_size::<$data_type>($size),
-            $gc,
-            /* data: */ [
-                $($data)*
-                {
-                    $crate::py_class::data_offset::<$data_type>($size),
-                    $data_name,
-                    $data_type
-                }
-            ]
-        }
-        $slots
-        /* impl: */ {
-            $($imp)*
-            impl $class {
-                fn $data_name<'a>(&'a self, py: $crate::Python<'a>) -> &'a $data_type {
-                    unsafe {
-                        $crate::py_class::data_get::<$data_type>(
-                            py,
-                            &self._unsafe_inner,
-                            $crate::py_class::data_offset::<$data_type>($size)
-                        )
-                    }
-                }
-            }
-        }
-        $members;
-        $($tail)*
-    }};
-''')
-
 indentation = ['    ']
 last_char = '\n'
 
@@ -278,9 +231,19 @@ slot_groups = (
     ('mp', 'as_mapping'),
 )
 
-def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
+def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slots=None, new_members=None):
     write('{ $class:ident $py:ident')
-    write('$info:tt')
+    if old_info is not None:
+        write(old_info)
+    elif new_info is not None:
+        write('\n/* info: */ {\n')
+        write('$base_type: ty,\n')
+        write('$size: expr,\n')
+        write('$gc: tt,\n')
+        write('[ $( $data:tt )* ]\n')
+        write('}\n')
+    else:
+        write('$info:tt')
     if new_slots:
         write('\n/* slots: */ {\n')
         for prefix, group_name in slot_groups:
@@ -305,7 +268,7 @@ def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
     write('$($tail:tt)*\n')
     write('} => { py_class_impl! {\n')
     write('$class $py')
-    write('$info')
+    write(new_info or '$info')
     if new_slots:
         write('\n/* slots: */ {\n')
         for prefix, group_name in slot_groups:
@@ -339,6 +302,37 @@ def generate_case(pattern, new_impl=None, new_slots=None, new_members=None):
     write('; $($tail)*\n')
     write('}};\n')
 
+def data_decl():
+    generate_case('data $data_name:ident : $data_type:ty;',
+        new_info = '''
+        /* info: */ {
+            $base_type,
+            /* size: */ $crate::py_class::data_new_size::<$data_type>($size),
+            $gc,
+            /* data: */ [
+                $($data)*
+                {
+                    $crate::py_class::data_offset::<$data_type>($size),
+                    $data_name,
+                    $data_type
+                }
+            ]
+        }
+        ''',
+        new_impl='''
+            impl $class {
+                fn $data_name<'a>(&'a self, py: $crate::Python<'a>) -> &'a $data_type {
+                    unsafe {
+                        $crate::py_class::data_get::<$data_type>(
+                            py,
+                            &self._unsafe_inner,
+                            $crate::py_class::data_offset::<$data_type>($size)
+                        )
+                    }
+                }
+            }
+        ''')
+
 def generate_class_method(special_name=None, decoration='',
         slot=None, add_member=False, value_macro=None, value_args=None):
     name_pattern = special_name or '$name:ident'
@@ -370,9 +364,8 @@ def generate_class_method(special_name=None, decoration='',
     impl(True) # with parameters
 
 def traverse_and_clear():
-    print('''
-    // def __traverse__(self, visit)
-    { $class:ident $py:ident
+    generate_case('def __traverse__(&$slf:tt, $visit:ident) $body:block',
+        old_info = '''
         /* info: */ {
             $base_type: ty,
             $size: expr,
@@ -382,10 +375,8 @@ def traverse_and_clear():
             },
             $datas: tt
         }
-        $slots:tt { $( $imp:item )* } $members:tt;
-        def __traverse__(&$slf:tt, $visit:ident) $body:block $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py
+        ''',
+        new_info='''
         /* info: */ {
             $base_type,
             $size,
@@ -395,9 +386,8 @@ def traverse_and_clear():
             },
             $datas
         }
-        $slots
-        /* impl: */ {
-            $($imp)*
+        ''',
+        new_impl='''
             py_coerce_item!{
                 impl $class {
                     fn __traverse__(&$slf,
@@ -407,37 +397,16 @@ def traverse_and_clear():
                     $body
                 }
             }
-        }
-        $members; $($tail)*
-    }};
-    // def __clear__(&self)
-    { $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
-        }
-        { $( $imp:item )* } $members:tt;
-        def __clear__ (&$slf:ident) $body:block $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $slot_name : $slot_value, )*
-                tp_clear: py_class_tp_clear!($class),
-            ]
-            $as_number $as_sequence $as_mapping
-        }
-        /* impl: */ {
-            $($imp)*
+        ''')
+    generate_case('def __clear__ (&$slf:ident) $body:block',
+        new_slots=[('tp_clear', 'py_class_tp_clear!($class)')],
+        new_impl='''
             py_coerce_item!{
                 impl $class {
                     fn __clear__(&$slf, $py: $crate::Python) $body
                 }
             }
-        }
-        $members;
-        $($tail)*
-    }};''')
+        ''')
 
 def generate_instance_method(special_name=None, decoration='',
         slot=None, add_member=False, value_macro=None, value_args=None):
@@ -469,46 +438,25 @@ def generate_instance_method(special_name=None, decoration='',
     impl(False) # without parameters
     impl(True) # with parameters
 
-
-static_method = '''
-    // @staticmethod def static_method(params)
-    { $class:ident $py:ident $info:tt $slots:tt
-        { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* };
-        @staticmethod def $name:ident ($($p:tt)*)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info $slots
-        /* impl: */ {
-            $($imp)*
+def static_method():
+    generate_case(
+        '@staticmethod def $name:ident ($($p:tt)*) -> $res_type:ty { $( $body:tt )* }',
+        new_impl='''
             py_argparse_parse_plist!{
                 py_class_impl_item { $class, $py, $name() $res_type; { $($body)* } }
                 ($($p)*)
             }
-        }
-        /* members: */ {
-            $( $member_name = $member_expr; )*
-            $name = py_argparse_parse_plist!{
+        ''',
+        new_members=[('$name', '''
+            py_argparse_parse_plist!{
                 py_class_static_method {$py, $class::$name}
                 ($($p)*)
-            };
-        };
-        $($tail)*
-    }};
+            }
+        ''')])
 
-    // static static_var = expr;
-    { $class:ident $py:ident $info:tt $slots:tt $impls:tt
-        { $( $member_name:ident = $member_expr:expr; )* };
-        static $name:ident = $init:expr; $($tail:tt)*
-    } => { py_class_impl! {
-        $class $py $info $slots $impls
-        /* members: */ {
-            $( $member_name = $member_expr; )*
-            $name = $init;
-        };
-        $($tail)*
-    }};
-'''
+def static_data():
+    generate_case('static $name:ident = $init:expr;',
+        new_members=[('$name', '$init')])
 
 macro_end = '''
 }
@@ -752,7 +700,8 @@ def main():
         add_member=True,
         value_macro='py_class_class_method',
         value_args='$py, $class::$name')
-    print(static_method)
+    static_method()
+    static_data()
     print(macro_end)
 
 if __name__ == '__main__':

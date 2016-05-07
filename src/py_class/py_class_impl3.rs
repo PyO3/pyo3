@@ -179,8 +179,6 @@ macro_rules! py_class_impl {
         }
     };
 
-
-    // Data declaration
     { $class:ident $py:ident
         /* info: */ {
             $base_type: ty,
@@ -188,7 +186,9 @@ macro_rules! py_class_impl {
             $gc: tt,
             [ $( $data:tt )* ]
         }
-        $slots:tt { $( $imp:item )* } $members:tt;
+        $slots:tt
+        { $( $imp:item )* }
+        $members:tt;
         data $data_name:ident : $data_type:ty; $($tail:tt)*
     } => { py_class_impl! {
         $class $py
@@ -212,20 +212,16 @@ macro_rules! py_class_impl {
                 fn $data_name<'a>(&'a self, py: $crate::Python<'a>) -> &'a $data_type {
                     unsafe {
                         $crate::py_class::data_get::<$data_type>(
-                            py,
-                            &self._unsafe_inner,
-                            $crate::py_class::data_offset::<$data_type>($size)
+                        py,
+                        &self._unsafe_inner,
+                        $crate::py_class::data_offset::<$data_type>($size)
                         )
                     }
                 }
             }
         }
-        $members;
-        $($tail)*
+        $members; $($tail)*
     }};
-
-
-    // def __traverse__(self, visit)
     { $class:ident $py:ident
         /* info: */ {
             $base_type: ty,
@@ -236,7 +232,9 @@ macro_rules! py_class_impl {
             },
             $datas: tt
         }
-        $slots:tt { $( $imp:item )* } $members:tt;
+        $slots:tt
+        { $( $imp:item )* }
+        $members:tt;
         def __traverse__(&$slf:tt, $visit:ident) $body:block $($tail:tt)*
     } => { py_class_impl! {
         $class $py
@@ -255,8 +253,8 @@ macro_rules! py_class_impl {
             py_coerce_item!{
                 impl $class {
                     fn __traverse__(&$slf,
-                        $py: $crate::Python,
-                        $visit: $crate::py_class::gc::VisitProc)
+                    $py: $crate::Python,
+                    $visit: $crate::py_class::gc::VisitProc)
                     -> Result<(), $crate::py_class::gc::TraverseError>
                     $body
                 }
@@ -264,19 +262,19 @@ macro_rules! py_class_impl {
         }
         $members; $($tail)*
     }};
-    // def __clear__(&self)
     { $class:ident $py:ident $info:tt
         /* slots: */ {
-            /* type_slots */ [ $( $slot_name:ident : $slot_value:expr, )* ]
+            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
             $as_number:tt $as_sequence:tt $as_mapping:tt
         }
-        { $( $imp:item )* } $members:tt;
+        { $( $imp:item )* }
+        $members:tt;
         def __clear__ (&$slf:ident) $body:block $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info
         /* slots: */ {
             /* type_slots */ [
-                $( $slot_name : $slot_value, )*
+                $( $tp_slot_name : $tp_slot_value, )*
                 tp_clear: py_class_tp_clear!($class),
             ]
             $as_number $as_sequence $as_mapping
@@ -289,8 +287,7 @@ macro_rules! py_class_impl {
                 }
             }
         }
-        $members;
-        $($tail)*
+        $members; $($tail)*
     }};
 // def __abs__()
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt $members:tt;
@@ -1216,13 +1213,10 @@ macro_rules! py_class_impl {
             $name = py_argparse_parse_plist_impl!{py_class_class_method {$py, $class::$name} [] ($($p)+,)};
         }; $($tail)*
     }};
-
-    // @staticmethod def static_method(params)
     { $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
         { $( $member_name:ident = $member_expr:expr; )* };
-        @staticmethod def $name:ident ($($p:tt)*)
-            -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
+        @staticmethod def $name:ident ($($p:tt)*) -> $res_type:ty { $( $body:tt )* } $($tail:tt)*
     } => { py_class_impl! {
         $class $py $info $slots
         /* impl: */ {
@@ -1234,15 +1228,14 @@ macro_rules! py_class_impl {
         }
         /* members: */ {
             $( $member_name = $member_expr; )*
-            $name = py_argparse_parse_plist!{
+            $name = 
+            py_argparse_parse_plist!{
                 py_class_static_method {$py, $class::$name}
                 ($($p)*)
-            };
-        };
-        $($tail)*
+            }
+            ;
+        }; $($tail)*
     }};
-
-    // static static_var = expr;
     { $class:ident $py:ident $info:tt $slots:tt $impls:tt
         { $( $member_name:ident = $member_expr:expr; )* };
         static $name:ident = $init:expr; $($tail:tt)*
@@ -1251,10 +1244,8 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = $init;
-        };
-        $($tail)*
+        }; $($tail)*
     }};
-
 
 }
 
