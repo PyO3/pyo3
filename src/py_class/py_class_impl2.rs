@@ -269,7 +269,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -281,7 +281,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_clear: py_class_tp_clear!($class),
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -326,7 +326,7 @@ macro_rules! py_class_impl {
         /* slots: */ {
             $type_slots:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
-            $as_sequence:tt $as_mapping:tt
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -339,7 +339,7 @@ macro_rules! py_class_impl {
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_nonzero: py_class_unary_slot!($class::__bool__, $crate::_detail::libc::c_int, $crate::py_class::slots::BoolConverter),
             ]
-            $as_sequence $as_mapping
+            $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -349,13 +349,13 @@ macro_rules! py_class_impl {
     }};
 
     { { def __bool__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __bool__" }
+        py_error! { "Invalid signature for operator __bool__" }
     };
     { {  def __call__ (&$slf:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -367,7 +367,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_call: py_class_call_slot!{$class::__call__ []},
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -379,7 +379,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -391,7 +391,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_call: py_argparse_parse_plist_impl!{py_class_call_slot {$class::__call__} [] ($($p)+,)},
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -430,9 +430,36 @@ macro_rules! py_class_impl {
     { { def __delete__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__delete__ is not supported by py_class! yet." }
     };
+    { { def __delitem__(&$slf:ident, $key:ident : $key_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt $as_number:tt $as_sequence:tt $as_mapping:tt
+            /* setdelitem */ [
+                sdi_setitem: $sdi_setitem_slot_value:tt,
+                sdi_delitem: {},
+            ]
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots $as_number $as_sequence $as_mapping
+            /* setdelitem */ [
+                sdi_setitem: $sdi_setitem_slot_value,
+                sdi_delitem: { py_class_binary_slot!($class::__delitem__, $key_type, $crate::_detail::libc::c_int, $crate::py_class::slots::UnitCallbackConverter) },
+            ]
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __delitem__(&$slf,) $res_type; { $($body)* } [{ $key : $key_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __delitem__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__delitem__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __delitem__" }
     };
 
     { { def __dir__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -482,12 +509,13 @@ macro_rules! py_class_impl {
     { { def __getattribute__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__getattribute__ is not supported by py_class! yet." }
     };
-    { { def __getitem__(&$slf:ident, $x:ident : $x_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+    { { def __getitem__(&$slf:ident, $key:ident : $key_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
             $type_slots:tt $as_number:tt
             /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
             /* as_mapping */ [ $( $mp_slot_name:ident : $mp_slot_value:expr, )* ]
+            $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -502,18 +530,19 @@ macro_rules! py_class_impl {
             ]
             /* as_mapping */ [
                 $( $mp_slot_name : $mp_slot_value, )*
-                mp_subscript: py_class_binary_slot!($class::__getitem__, $x_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+                mp_subscript: py_class_binary_slot!($class::__getitem__, $key_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
+            $setdelitem
         }
         /* impl: */ {
             $($imp)*
-            py_class_impl_item! { $class, $py, __getitem__(&$slf,) $res_type; { $($body)* } [{ $x : $x_type = {} }] }
+            py_class_impl_item! { $class, $py, __getitem__(&$slf,) $res_type; { $($body)* } [{ $key : $key_type = {} }] }
         }
         $members
     }};
 
     { { def __getitem__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __getitem__" }
+        py_error! { "Invalid signature for operator __getitem__" }
     };
 
     { { def __gt__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -523,7 +552,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -535,7 +564,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_hash: py_class_unary_slot!($class::__hash__, $crate::Py_hash_t, $crate::py_class::slots::HashConverter),
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -545,7 +574,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __hash__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __hash__" }
+        py_error! { "Invalid signature for operator __hash__" }
     };
 
     { { def __iadd__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -623,7 +652,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -635,7 +664,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_iter: py_class_unary_slot!($class::__iter__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -645,7 +674,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __iter__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __iter__" }
+        py_error! { "Invalid signature for operator __iter__" }
     };
 
     { { def __itruediv__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -665,6 +694,7 @@ macro_rules! py_class_impl {
             $type_slots:tt $as_number:tt
             /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
             /* as_mapping */ [ $( $mp_slot_name:ident : $mp_slot_value:expr, )* ]
+            $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -681,6 +711,7 @@ macro_rules! py_class_impl {
                 $( $mp_slot_name : $mp_slot_value, )*
                 mp_length: Some($crate::_detail::ffi::PySequence_Size),
             ]
+            $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -690,7 +721,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __len__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __len__" }
+        py_error! { "Invalid signature for operator __len__" }
     };
 
     { { def __long__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -728,7 +759,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -740,7 +771,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_new: py_class_wrap_newfunc!{$class::__new__ []},
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -752,7 +783,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -764,7 +795,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_new: py_argparse_parse_plist_impl!{py_class_wrap_newfunc {$class::__new__} [] ($($p)+,)},
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -779,7 +810,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -791,7 +822,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_iternext: py_class_unary_slot!($class::__next__, *mut $crate::_detail::ffi::PyObject, $crate::py_class::slots::IterNextResultConverter),
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -801,7 +832,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __next__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __next__" }
+        py_error! { "Invalid signature for operator __next__" }
     };
 
     { { def __nonzero__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -839,7 +870,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -851,7 +882,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_repr: py_class_unary_slot!($class::__repr__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -861,7 +892,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __repr__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __repr__" }
+        py_error! { "Invalid signature for operator __repr__" }
     };
 
     { { def __reversed__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -927,15 +958,42 @@ macro_rules! py_class_impl {
     { { def __setattr__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__setattr__ is not supported by py_class! yet." }
     };
+    { { def __setitem__(&$slf:ident, $key:ident : $key_type:ty, $value:ident : $value_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt $as_number:tt $as_sequence:tt $as_mapping:tt
+            /* setdelitem */ [
+                sdi_setitem: {},
+                sdi_delitem: $sdi_delitem_slot_value:tt,
+            ]
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots $as_number $as_sequence $as_mapping
+            /* setdelitem */ [
+                sdi_setitem: { py_class_ternary_slot!($class::__setitem__, $key_type, $value_type, $crate::_detail::libc::c_int, $crate::py_class::slots::UnitCallbackConverter) },
+                sdi_delitem: $sdi_delitem_slot_value,
+            ]
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __setitem__(&$slf,) $res_type; { $($body)* } [{ $key : $key_type = {} } { $value : $value_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __setitem__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__setitem__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __setitem__" }
     };
     { { def __str__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -947,7 +1005,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_str: py_class_unary_slot!($class::__str__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
             ]
-            $as_number $as_sequence $as_mapping
+            $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -957,7 +1015,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __str__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for unary operator __str__" }
+        py_error! { "Invalid signature for operator __str__" }
     };
 
     { { def __sub__ $($tail:tt)* } $( $stuff:tt )* } => {

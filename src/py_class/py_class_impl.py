@@ -226,10 +226,11 @@ def write(text):
         last_char = line[-1]
 
 slot_groups = (
-    ('tp', 'type_slots'),
-    ('nb', 'as_number'),
-    ('sq', 'as_sequence'),
-    ('mp', 'as_mapping'),
+    ('tp', 'type_slots', None),
+    ('nb', 'as_number', None),
+    ('sq', 'as_sequence', None),
+    ('mp', 'as_mapping', None),
+    ('sdi', 'setdelitem', ['sdi_setitem', 'sdi_delitem'])
 )
 
 def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slots=None, new_members=None):
@@ -248,10 +249,19 @@ def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slot
         write('$info:tt')
     if new_slots:
         write('\n/* slots: */ {\n')
-        for prefix, group_name in slot_groups:
+        for prefix, group_name, explicit_slots in slot_groups:
             if any(s.startswith(prefix) for s, v in new_slots):
-                write('\n/* %s */ [ $( $%s_slot_name:ident : $%s_slot_value:expr, )* ]\n'
-                      % (group_name, prefix, prefix))
+                if explicit_slots is None:
+                    write('\n/* %s */ [ $( $%s_slot_name:ident : $%s_slot_value:expr, )* ]\n'
+                          % (group_name, prefix, prefix))
+                else:
+                    write('\n/* %s */ [\n' % group_name)
+                    for slot in explicit_slots:
+                        if any(s == slot for s, v in new_slots):
+                            write('%s: {},\n' % slot)
+                        else:
+                            write('%s: $%s_slot_value:tt,\n' % (slot, slot))
+                    write(']\n')
             else:
                 write('$%s:tt' % group_name)
         write('\n}\n')
@@ -271,13 +281,21 @@ def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slot
     write(new_info or '$info')
     if new_slots:
         write('\n/* slots: */ {\n')
-        for prefix, group_name in slot_groups:
+        for prefix, group_name, explicit_slots in slot_groups:
             if any(s.startswith(prefix) for s, v in new_slots):
                 write('\n/* %s */ [\n' % group_name)
-                write('$( $%s_slot_name : $%s_slot_value, )*\n' % (prefix, prefix))
-                for s, v in new_slots:
-                    if s.startswith(prefix):
-                        write('%s: %s,\n' % (s, v))
+                if explicit_slots is None:
+                    write('$( $%s_slot_name : $%s_slot_value, )*\n' % (prefix, prefix))
+                    for s, v in new_slots:
+                        if s.startswith(prefix):
+                            write('%s: %s,\n' % (s, v))
+                else:
+                    for slot in explicit_slots:
+                        slot_value = next((v for s, v in new_slots if s == slot), None)
+                        if slot_value is None:
+                            write('%s: $%s_slot_value,\n' % (slot, slot))
+                        else:
+                            write('%s: { %s },\n' % (slot, slot_value))
                 write(']\n')
             else:
                 write('$%s' % group_name)
@@ -498,7 +516,10 @@ def operator(special_name, slot,
     additional_slots=()
 ):
     if res_conv is None:
-        if res_type == 'PyObject':
+        if res_type == '()':
+            res_conv = '$crate::py_class::slots::UnitCallbackConverter'
+            res_ffi_type = '$crate::_detail::libc::c_int'
+        elif res_type == 'PyObject':
             res_conv = '$crate::_detail::PyObjectCallbackConverter'
         else:
             res_conv = '$crate::_detail::PythonObjectCallbackConverter::<$crate::%s>(::std::marker::PhantomData)' % res_type
@@ -512,7 +533,10 @@ def operator(special_name, slot,
                              % (special_name, res_ffi_type, res_conv))]
     elif len(args) == 1:
         new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s)'
-                             % (special_name, arg.name, res_ffi_type, res_conv))]
+                             % (special_name, args[0].name, res_ffi_type, res_conv))]
+    elif len(args) == 2:
+        new_slots = [(slot, 'py_class_ternary_slot!($class::%s, $%s_type, $%s_type, %s, %s)'
+                             % (special_name, args[0].name, args[1].name, res_ffi_type, res_conv))]
     else:
         raise ValueError('Unsupported argument count')
     generate_case(
@@ -523,7 +547,7 @@ def operator(special_name, slot,
     )
     # Generate fall-back matcher that produces an error
     # when using the wrong method signature
-    error('Invalid signature for unary operator %s' % special_name)(special_name)
+    error('Invalid signature for operator %s' % special_name)(special_name)
 
 @special_method
 def call_operator(special_name, slot):
@@ -588,13 +612,18 @@ special_names = {
                     ('mp_length', 'Some($crate::_detail::ffi::PySequence_Size)')
                 ]),
     '__length_hint__': normal_method(),
-    '__getitem__': operator('mp_subscript', args=[Argument('x', '&PyObject')],
+    '__getitem__': operator('mp_subscript',
+                args=[Argument('key', '&PyObject')],
                 additional_slots=[
                     ('sq_item', 'Some($crate::py_class::slots::sq_item)')
                 ]),
     '__missing__': normal_method(),
-    '__setitem__': unimplemented(),
-    '__delitem__': unimplemented(),
+    '__setitem__': operator('sdi_setitem',
+                args=[Argument('key', '&PyObject'), Argument('value', '&PyObject')],
+                res_type='()'),
+    '__delitem__': operator('sdi_delitem',
+                args=[Argument('key', '&PyObject')],
+                res_type='()'),
     '__iter__': operator('tp_iter'),
     '__next__': operator('tp_iternext',
                 res_conv='$crate::py_class::slots::IterNextResultConverter'),
@@ -677,6 +706,12 @@ special_names = {
 }
 
 def main():
+    if sys.argv[1:] == ['--format']:
+        while True:
+            line = sys.stdin.readline()
+            if len(line) == 0:
+                return
+            write(line)
     print(header)
     print('')
     print('// !!!!!!!!!!!!!!!!!!!!!!!!!!!')

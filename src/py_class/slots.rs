@@ -18,7 +18,7 @@
 
 use ffi;
 use std::{mem, isize, ptr};
-use libc::c_int;
+use libc::{c_char, c_int};
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
 use function::CallbackConverter;
@@ -36,6 +36,7 @@ macro_rules! py_class_type_object_static_init {
         $as_number:tt
         $as_sequence:tt
         $as_mapping:tt
+        $setdelitem:tt
     }) => (
         $crate::_detail::ffi::PyTypeObject {
             $( $slot_name : $slot_value, )*
@@ -76,6 +77,7 @@ macro_rules! py_class_type_object_dynamic_init {
             $as_number:tt
             $as_sequence:tt
             $as_mapping:tt
+            $setdelitem:tt
         }
     ) => {
         unsafe {
@@ -86,7 +88,7 @@ macro_rules! py_class_type_object_dynamic_init {
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
-        *(unsafe { &mut $type_object.tp_as_mapping }) = py_class_as_mapping!($as_mapping);
+        py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
 }
 
@@ -162,18 +164,69 @@ macro_rules! py_class_as_number {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_as_mapping {
-    ([]) => (0 as *mut $crate::_detail::ffi::PyMappingMethods);
-    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+    ( $type_object:ident, [], [
+        sdi_setitem: {},
+        sdi_delitem: {},
+    ]) => {};
+    ( $type_object:ident, [ $( $slot_name:ident : $slot_value:expr ,)+ ], [
+        sdi_setitem: {},
+        sdi_delitem: {},
+    ]) => {
         static mut MAPPING_METHODS : $crate::_detail::ffi::PyMappingMethods
             = $crate::_detail::ffi::PyMappingMethods {
                 $( $slot_name : $slot_value, )*
                 ..
                 $crate::_detail::ffi::PyMappingMethods_INIT
             };
-        unsafe { &mut MAPPING_METHODS }
-    }}
+        unsafe { $type_object.tp_as_mapping = &mut MAPPING_METHODS; }
+    };
+    ( $type_object:ident, [ $( $slot_name:ident : $slot_value:expr ,)* ], [
+        sdi_setitem: $setitem:tt,
+        sdi_delitem: $delitem:tt,
+    ]) => {{
+        unsafe extern "C" fn mp_ass_subscript(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            key: *mut $crate::_detail::ffi::PyObject,
+            val: *mut $crate::_detail::ffi::PyObject
+        ) -> $crate::_detail::libc::c_int {
+            if val.is_null() {
+                py_class_mp_ass_subscript!($delitem, slf,
+                    b"Subscript assignment not supported by %.200s\0",
+                    key)
+            } else {
+                py_class_mp_ass_subscript!($setitem, slf,
+                    b"Subscript deletion not supported by %.200s\0",
+                    key, val)
+            }
+        }
+        static mut MAPPING_METHODS : $crate::_detail::ffi::PyMappingMethods
+            = $crate::_detail::ffi::PyMappingMethods {
+                $( $slot_name : $slot_value, )*
+                mp_ass_subscript: Some(mp_ass_subscript),
+                ..
+                $crate::_detail::ffi::PyMappingMethods_INIT
+            };
+        unsafe { $type_object.tp_as_mapping = &mut MAPPING_METHODS; }
+    }};
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_mp_ass_subscript {
+    ({}, $slf:ident, $error:expr, $( $arg:expr ),+) => {
+        $crate::py_class::slots::mp_ass_subscript_error($slf, $error)
+    };
+    ({$slot:expr}, $slf:ident, $error:expr, $( $arg:expr ),+) => {
+        $slot.unwrap()($slf, $( $arg ),+)
+    }
+}
+
+pub unsafe fn mp_ass_subscript_error(o: *mut ffi::PyObject, err: &[u8]) -> c_int {
+    ffi::PyErr_Format(ffi::PyExc_NotImplementedError,
+        err.as_ptr() as *const c_char,
+        (*ffi::Py_TYPE(o)).tp_name);
+    -1
+}
 
 #[macro_export]
 #[doc(hidden)]
@@ -201,7 +254,7 @@ macro_rules! py_class_unary_slot {
 #[doc(hidden)]
 macro_rules! py_class_binary_slot {
     ($class:ident :: $f:ident, $arg_type:ty, $res_type:ty, $conv:expr) => {{
-        unsafe extern "C" fn wrap_unary<DUMMY>(
+        unsafe extern "C" fn wrap_binary<DUMMY>(
             slf: *mut $crate::_detail::ffi::PyObject,
             arg: *mut $crate::_detail::ffi::PyObject)
         -> $res_type
@@ -226,8 +279,70 @@ macro_rules! py_class_binary_slot {
                     ret
                 })
         }
-        Some(wrap_unary::<()>)
+        Some(wrap_binary::<()>)
     }}
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_ternary_slot {
+    ($class:ident :: $f:ident, $arg1_type:ty, $arg2_type:ty, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn wrap_binary<DUMMY>(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            arg1: *mut $crate::_detail::ffi::PyObject,
+            arg2: *mut $crate::_detail::ffi::PyObject)
+        -> $res_type
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
+                    let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
+                    let ret = match <$arg1_type as $crate::ExtractPyObject>::prepare_extract(py, &arg1) {
+                        Ok(prepared1) => {
+                            match <$arg1_type as $crate::ExtractPyObject>::extract(py, &prepared1) {
+                                Ok(arg1) => {
+                                    match <$arg2_type as $crate::ExtractPyObject>::prepare_extract(py, &arg2) {
+                                        Ok(prepared2) => {
+                                            match <$arg2_type as $crate::ExtractPyObject>::extract(py, &prepared2) {
+                                                Ok(arg2) => slf.$f(py, arg1, arg2),
+                                                Err(e) => Err(e)
+                                            }
+                                        },
+                                        Err(e) => Err(e)
+                                    }
+                                },
+                                Err(e) => Err(e)
+                            }
+                        },
+                        Err(e) => Err(e)
+                    };
+                    $crate::PyDrop::release_ref(arg1, py);
+                    $crate::PyDrop::release_ref(arg2, py);
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+        }
+        Some(wrap_binary::<()>)
+    }}
+}
+
+pub struct UnitCallbackConverter;
+
+impl CallbackConverter<()> for UnitCallbackConverter {
+    type R = c_int;
+
+    #[inline]
+    fn convert(_: (), _: Python) -> c_int {
+        0
+    }
+
+    #[inline]
+    fn error_value() -> c_int {
+        -1
+    }
 }
 
 pub struct LenResultConverter;
@@ -244,6 +359,7 @@ impl CallbackConverter<usize> for LenResultConverter {
         }
     }
 
+    #[inline]
     fn error_value() -> isize {
         -1
     }
@@ -267,6 +383,7 @@ impl <T> CallbackConverter<Option<T>>
         }
     }
 
+    #[inline]
     fn error_value() -> *mut ffi::PyObject {
         ptr::null_mut()
     }

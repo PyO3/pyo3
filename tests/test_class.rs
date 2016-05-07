@@ -5,26 +5,32 @@
 use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol,
     PyDict, PyBytes, PyUnicode, PyErr, exc};
 use std::{mem, isize, iter};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use cpython::_detail::ffi;
 
-macro_rules! py_assert {
-    ($py:expr, $val:ident, $assertion:expr) => {{
+macro_rules! py_run {
+    ($py:expr, $val:ident, $code:expr) => {{
         let d = PyDict::new($py);
         d.set_item($py, stringify!($val), &$val).unwrap();
-        $py.run(concat!("assert ", $assertion), None, Some(&d)).expect(concat!("assert ", $assertion));
+        $py.run($code, None, Some(&d)).expect($code);
     }}
+}
+
+macro_rules! py_assert {
+    ($py:expr, $val:ident, $assertion:expr) => { py_run!($py, $val, concat!("assert ", $assertion)) };
 }
 
 macro_rules! py_expect_exception {
     ($py:expr, $val:ident, $code:expr, $err:ident) => {{
         let d = PyDict::new($py);
         d.set_item($py, stringify!($val), $val).unwrap();
-        let res = $py.eval($code, None, Some(&d));
+        let res = $py.run($code, None, Some(&d));
         let err = res.unwrap_err();
-        assert!(err.matches($py, $py.get_type::<exc::$err>()));
+        if !err.matches($py, $py.get_type::<exc::$err>()) {
+            panic!(format!("Expected {} but got {:?}", stringify!($err), err))
+        }
     }}
 }
 
@@ -463,5 +469,74 @@ fn callable() {
 
     let nc = Comparisons::create_instance(py, 0).unwrap();
     py_assert!(py, nc, "not callable(nc)");
+}
+
+py_class!(class SetItem |py| {
+    data key: Cell<i32>;
+    data val: Cell<i32>;
+
+    def __setitem__(&self, key: i32, val: i32) -> PyResult<()> {
+        self.key(py).set(key);
+        self.val(py).set(val);
+        Ok(())
+    }
+});
+
+#[test]
+fn setitem() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = SetItem::create_instance(py, Cell::new(0), Cell::new(0)).unwrap();
+    py_run!(py, c, "c[1] = 2");
+    assert_eq!(c.key(py).get(), 1);
+    assert_eq!(c.val(py).get(), 2);
+    py_expect_exception!(py, c, "del c[1]", NotImplementedError);
+}
+
+py_class!(class DelItem |py| {
+    data key: Cell<i32>;
+
+    def __delitem__(&self, key: i32) -> PyResult<()> {
+        self.key(py).set(key);
+        Ok(())
+    }
+});
+
+#[test]
+fn delitem() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = DelItem::create_instance(py, Cell::new(0)).unwrap();
+    py_run!(py, c, "del c[1]");
+    assert_eq!(c.key(py).get(), 1);
+    py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
+}
+
+py_class!(class SetDelItem |py| {
+    data val: Cell<Option<i32>>;
+
+    def __setitem__(&self, key: i32, val: i32) -> PyResult<()> {
+        self.val(py).set(Some(val));
+        Ok(())
+    }
+
+    def __delitem__(&self, key: i32) -> PyResult<()> {
+        self.val(py).set(None);
+        Ok(())
+    }
+});
+
+#[test]
+fn setdelitem() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = SetDelItem::create_instance(py, Cell::new(None)).unwrap();
+    py_run!(py, c, "c[1] = 2");
+    assert_eq!(c.val(py).get(), Some(2));
+    py_run!(py, c, "del c[1]");
+    assert_eq!(c.val(py).get(), None);
 }
 

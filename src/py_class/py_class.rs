@@ -302,6 +302,14 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
 
     Called by the Python subscript operator `self[key]`.
 
+  * `def __setitem__(&self, key: impl ExtractPyObject, value: impl ExtractPyObject) -> PyResult<()>`
+
+    Called by Python `self[key] = value`.
+
+  * `def __delitem__(&self, key: impl ExtractPyObject) -> PyResult<()>`
+
+    Called by Python `del self[key]`.
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`
@@ -339,6 +347,10 @@ macro_rules! py_class {
                 /* as_number */   [ /* slot: expr, */ ]
                 /* as_sequence */ [ /* slot: expr, */ ]
                 /* as_mapping */  [ /* slot: expr, */ ]
+                /* setitem_delitem */ [
+                    sdi_setitem: {},
+                    sdi_delitem: {},
+                ]
             }
             /* impls: */ { /* impl body */ }
             /* members: */ { /* ident = expr; */ }
