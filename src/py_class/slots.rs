@@ -18,7 +18,7 @@
 
 use ffi;
 use std::{mem, isize, ptr};
-use libc::{c_char, c_int, c_long};
+use libc::{c_char, c_int};
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
 use objects::PyObject;
@@ -69,11 +69,11 @@ macro_rules! py_class_type_object_flags {
 }
 
 #[cfg(feature="python27-sys")]
-pub const TPFLAGS_DEFAULT : c_long = ffi::Py_TPFLAGS_DEFAULT
-                                   | ffi::Py_TPFLAGS_CHECKTYPES;
+pub const TPFLAGS_DEFAULT : ::libc::c_long = ffi::Py_TPFLAGS_DEFAULT
+                                           | ffi::Py_TPFLAGS_CHECKTYPES;
 
 #[cfg(feature="python3-sys")]
-pub const TPFLAGS_DEFAULT : c_long = ffi::Py_TPFLAGS_DEFAULT;
+pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
 
 #[macro_export]
 #[doc(hidden)]
