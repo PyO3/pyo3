@@ -717,8 +717,8 @@ special_names = {
     '__coerce__': unimplemented(),
 
     # With statement context managers
-    '__enter__': unimplemented(),
-    '__exit__': unimplemented(),
+    '__enter__': normal_method(),
+    '__exit__': normal_method(),
 
     # Coroutines
     '__await__': unimplemented(),

@@ -578,16 +578,8 @@ macro_rules! py_class_impl {
         py_error! { "__divmod__ is not supported by py_class! yet." }
     };
 
-    { { def __enter__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__enter__ is not supported by py_class! yet." }
-    };
-
     { { def __eq__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__eq__ is not supported by py_class! yet." }
-    };
-
-    { { def __exit__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__exit__ is not supported by py_class! yet." }
     };
 
     { { def __float__ $($tail:tt)* } $( $stuff:tt )* } => {

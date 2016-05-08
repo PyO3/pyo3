@@ -2,8 +2,7 @@
 
 #[macro_use] extern crate cpython;
 
-use cpython::{PyObject, PythonObject, PyDrop, PyClone, PyResult, Python, NoArgs, ObjectProtocol,
-    PyDict, PyBytes, PyUnicode, PyErr, exc};
+use cpython::*;
 use std::{mem, isize, iter};
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
@@ -25,7 +24,7 @@ macro_rules! py_assert {
 macro_rules! py_expect_exception {
     ($py:expr, $val:ident, $code:expr, $err:ident) => {{
         let d = PyDict::new($py);
-        d.set_item($py, stringify!($val), $val).unwrap();
+        d.set_item($py, stringify!($val), &$val).unwrap();
         let res = $py.run($code, None, Some(&d));
         let err = res.unwrap_err();
         if !err.matches($py, $py.get_type::<exc::$err>()) {
@@ -664,5 +663,40 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
     py_run!(py, c, "assert c | 1 == 'BA | 1'");
     py_run!(py, c, "assert 1 | c == '1 | BA'");
+}
+
+py_class!(class ContextManager |py| {
+    data exit_called : Cell<bool>;
+
+    def __enter__(&self) -> PyResult<i32> {
+        Ok(42)
+    }
+
+    def __exit__(&self, ty: PyObject, value: PyObject, traceback: PyObject) -> PyResult<bool> {
+        self.exit_called(py).set(true);
+        if ty == py.get_type::<exc::ValueError>().into_object() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+});
+
+#[test]
+fn context_manager() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = ContextManager::create_instance(py, Cell::new(false)).unwrap();
+    py_run!(py, c, "with c as x:\n  assert x == 42");
+    assert!(c.exit_called(py).get());
+
+    c.exit_called(py).set(false);
+    py_run!(py, c, "with c as x:\n  raise ValueError");
+    assert!(c.exit_called(py).get());
+
+    c.exit_called(py).set(false);
+    py_expect_exception!(py, c, "with c as x:\n  raise NotImplementedError", NotImplementedError);
+    assert!(c.exit_called(py).get());
 }
 
