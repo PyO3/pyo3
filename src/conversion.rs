@@ -137,4 +137,51 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
     }
 }
 
+/// `Option::Some<T>` is converted like `T`.
+/// `Option::None` is converted to Python `None`.
+impl <T> ToPyObject for Option<T> where T: ToPyObject {
+    type ObjectType = PyObject;
+
+    fn to_py_object(&self, py: Python) -> PyObject {
+        match *self {
+            Some(ref val) => val.to_py_object(py).into_object(),
+            None => py.None()
+        }
+    }
+
+    fn into_py_object(self, py: Python) -> PyObject {
+        match self {
+            Some(val) => val.into_py_object(py).into_object(),
+            None => py.None()
+        }
+    }
+}
+
+
+impl <'prepared, T> ExtractPyObject<'prepared> for Option<T>
+where T: ExtractPyObject<'prepared>
+{
+    type Prepared = Option<T::Prepared>;
+
+    fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
+        if obj.as_ptr() == unsafe { ffi::Py_None() } {
+            Ok(None)
+        } else {
+            Ok(Some(try!(T::prepare_extract(py, obj))))
+        }
+    }
+
+    fn extract(py: Python, obj: &'prepared Self::Prepared) -> PyResult<Option<T>> {
+        match *obj {
+            Some(ref inner) => {
+                match T::extract(py, inner) {
+                    Ok(v) => Ok(Some(v)),
+                    Err(e) => Err(e)
+                }
+            },
+            None => Ok(None)
+        }
+    }
+}
+
 

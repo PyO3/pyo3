@@ -347,6 +347,11 @@ TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `
     If you can't handle the combination of types you've been given,
     you should return `Ok(py.NotImplemented())`.
 
+## Context Manager
+
+  * `def __enter__(&self) -> PyResult<impl ToPyObject>`
+  * `def __exit__(&self, ty: Option<PyType>, value: PyObject, traceback: PyObject) -> PyResult<bool>`
+
 ## Other Special Methods
 
   * `def __bool__(&self) -> PyResult<bool>`

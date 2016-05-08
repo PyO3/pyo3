@@ -672,9 +672,9 @@ py_class!(class ContextManager |py| {
         Ok(42)
     }
 
-    def __exit__(&self, ty: PyObject, value: PyObject, traceback: PyObject) -> PyResult<bool> {
+    def __exit__(&self, ty: Option<PyType>, value: PyObject, traceback: PyObject) -> PyResult<bool> {
         self.exit_called(py).set(true);
-        if ty == py.get_type::<exc::ValueError>().into_object() {
+        if ty == Some(py.get_type::<exc::ValueError>()) {
             Ok(true)
         } else {
             Ok(false)
