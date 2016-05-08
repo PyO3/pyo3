@@ -16,12 +16,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer};
+use python::{Python, PythonObject, ToPythonPointer, PyDrop};
 use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
-use conversion::ToPyObject;
+use conversion::{FromPyObject, ToPyObject};
 use std::slice;
 
 /// Represents a Python tuple object.
@@ -159,8 +159,8 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
     PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py).into_object()))
 }
 
-macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => (
-    impl <'p, $($T: ToPyObject),+> ToPyObject for ($($T,)+) {
+macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
+    impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
         type ObjectType = PyTuple;
 
         fn to_py_object(&self, py: Python) -> PyTuple {
@@ -176,19 +176,40 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    /*TODO: reimplement this without slice matching
-    impl <'p, 's, $($T: FromPyObject<'p, 's>),+> FromPyObject<'p, 's> for ($($T,)+) {
-        fn from_py_object(s : &'s PyObject<'p>) -> PyResult<'p, ($($T,)+)> {
-            let t = try!(s.cast_as::<PyTuple>());
-            match t.as_slice() {
-                [$(ref $refN,)+] => Ok((
-                    $(try!($refN.extract::<$T>()),)+
-                )),
-                _ => Err(wrong_tuple_length(t, 2))
+    #[cfg(not(feature="nightly"))]
+    impl <'s, $($T: for <'a> FromPyObject<'a>),+> FromPyObject<'s> for ($($T,)+) {
+        fn extract(py: Python, obj: &'s PyObject) -> PyResult<Self> {
+            let t = try!(obj.cast_as::<PyTuple>(py));
+            if t.len(py) == $length {
+                Ok((
+                    $( py_coerce_expr! {{
+                        let item = t.get_item(py, $n);
+                        let r = try!(item.extract::<$T>(py));
+                        item.release_ref(py);
+                        r
+                    }} ,)+
+                ))
+            } else {
+                Err(wrong_tuple_length(py, t, $length))
             }
         }
-    }*/
-));
+    }
+
+    #[cfg(feature="nightly")]
+    impl <'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
+        fn extract(py: Python, obj: &'s PyObject) -> PyResult<Self> {
+            let t = try!(obj.cast_as::<PyTuple>(py));
+            let slice = t.as_slice();
+            if slice.len() == $length {
+                Ok((
+                    $( try!(slice[$n].extract::<$T>(py)), )+
+                ))
+            } else {
+                Err(wrong_tuple_length(py, t, $length))
+            }
+        }
+    }
+});
 
 tuple_conversion!(1, (ref0, 0, A));
 tuple_conversion!(2, (ref0, 0, A), (ref1, 1, B));
@@ -253,6 +274,7 @@ mod test {
         let py = gil.python();
         let tuple = (1, 2, 3).to_py_object(py);
         assert_eq!(3, tuple.len(py));
+        assert_eq!((1, 2, 3), tuple.into_object().extract(py).unwrap());
     }
 }
 
