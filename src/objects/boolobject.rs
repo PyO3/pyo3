@@ -2,7 +2,7 @@ use ffi;
 use python::Python;
 use err::PyResult;
 use super::PyObject;
-use conversion::{ExtractPyObject, ToPyObject};
+use conversion::{ToPyObject};
 
 /// Represents a Python `bool`.
 pub struct PyBool(PyObject);

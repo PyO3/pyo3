@@ -273,13 +273,8 @@ macro_rules! py_class_binary_slot {
                 |py| {
                     let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
                     let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
-                    let ret = match <$arg_type as $crate::ExtractPyObject>::prepare_extract(py, &arg) {
-                        Ok(prepared) => {
-                            match <$arg_type as $crate::ExtractPyObject>::extract(py, &prepared) {
-                                Ok(arg) => slf.$f(py, arg),
-                                Err(e) => Err(e)
-                            }
-                        },
+                    let ret = match <$arg_type as $crate::FromPyObject>::extract(py, &arg) {
+                        Ok(arg) => slf.$f(py, arg),
                         Err(e) => Err(e)
                     };
                     $crate::PyDrop::release_ref(arg, py);
@@ -308,22 +303,10 @@ macro_rules! py_class_ternary_slot {
                     let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
                     let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                     let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
-                    let ret = match <$arg1_type as $crate::ExtractPyObject>::prepare_extract(py, &arg1) {
-                        Ok(prepared1) => {
-                            match <$arg1_type as $crate::ExtractPyObject>::extract(py, &prepared1) {
-                                Ok(arg1) => {
-                                    match <$arg2_type as $crate::ExtractPyObject>::prepare_extract(py, &arg2) {
-                                        Ok(prepared2) => {
-                                            match <$arg2_type as $crate::ExtractPyObject>::extract(py, &prepared2) {
-                                                Ok(arg2) => slf.$f(py, arg1, arg2),
-                                                Err(e) => Err(e)
-                                            }
-                                        },
-                                        Err(e) => Err(e)
-                                    }
-                                },
-                                Err(e) => Err(e)
-                            }
+                    let ret = match <$arg1_type as $crate::FromPyObject>::extract(py, &arg1) {
+                        Ok(arg1) => match <$arg2_type as $crate::FromPyObject>::extract(py, &arg2) {
+                            Ok(arg2) => slf.$f(py, arg1, arg2),
+                            Err(e) => Err(e)
                         },
                         Err(e) => Err(e)
                     };
@@ -353,13 +336,8 @@ macro_rules! py_class_contains_slot {
                 |py| {
                     let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
                     let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
-                    let ret = match <$arg_type as $crate::ExtractPyObject>::prepare_extract(py, &arg) {
-                        Ok(prepared) => {
-                            match <$arg_type as $crate::ExtractPyObject>::extract(py, &prepared) {
-                                Ok(arg) => slf.$f(py, arg),
-                                Err(e) => $crate::py_class::slots::type_error_to_false(py, e)
-                            }
-                        },
+                    let ret = match <$arg_type as $crate::FromPyObject>::extract(py, &arg) {
+                        Ok(arg) => slf.$f(py, arg),
                         Err(e) => $crate::py_class::slots::type_error_to_false(py, e)
                     };
                     $crate::PyDrop::release_ref(arg, py);
@@ -402,14 +380,6 @@ macro_rules! py_class_binary_numeric_slot {
         }
         Some(binary_numeric::<()>)
     }}
-}
-
-pub fn type_error_to_not_implemented(py: Python, e: PyErr) -> PyResult<PyObject> {
-    if e.matches(py, py.get_type::<exc::TypeError>()) {
-        Ok(py.NotImplemented())
-    } else {
-        Err(e)
-    }
 }
 
 pub struct UnitCallbackConverter;

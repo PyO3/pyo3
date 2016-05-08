@@ -25,7 +25,7 @@ use ffi;
 use python::{Python, PythonObject, PyClone, ToPythonPointer, PythonObjectDowncastError};
 use super::{exc, PyObject};
 use err::{self, PyResult, PyErr};
-use conversion::{ExtractPyObject, ToPyObject};
+use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
 
 /// Represents a Python string.
 /// Corresponds to `basestring` in Python 2, and `str` in Python 3.
@@ -288,10 +288,6 @@ impl PyString {
     pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
         self.data(py).to_string_lossy()
     }
-
-    fn extract<'a>(py: Python, o: &'a PyObject) -> PyResult<Cow<'a, str>> {
-        try!(o.cast_as::<PyString>(py)).to_string(py)
-    }
 }
 
 impl PyBytes {
@@ -425,50 +421,34 @@ impl ToPyObject for String {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 /// In Python 2.7, `str` is expected to be UTF-8 encoded.
-extract!(obj to String; py => {
-    PyString::extract(py, obj).map(|s| s.into_owned())
-});
+impl <'source> FromPyObject<'source> for Cow<'source, str> {
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+        try!(obj.cast_as::<PyString>(py)).to_string(py)
+    }
+}
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 /// In Python 2.7, `str` is expected to be UTF-8 encoded.
-extract!(obj to Cow<'prepared, str>; py => {
-    PyString::extract(py, obj)
-});
-
-/// Used in `impl ExtractPyObject for &str`.
-pub enum PreparedString {
-    Extracted(String),
-    BorrowFrom(PyObject)
+impl <'source> FromPyObject<'source> for String {
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+        obj.extract::<Cow<str>>(py).map(Cow::into_owned)
+    }
 }
 
-impl <'prepared> ExtractPyObject<'prepared> for &'prepared str {
-    type Prepared = PreparedString;
-
-    fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
-        match try!(PyString::extract(py, obj)) {
-            Cow::Owned(s) => Ok(PreparedString::Extracted(s)),
-            Cow::Borrowed(_) => Ok(PreparedString::BorrowFrom(obj.clone_ref(py)))
-        }
-    }
-
-    fn extract(py: Python, prepared: &'prepared PreparedString) -> PyResult<Self> {
-        match *prepared {
-            PreparedString::Extracted(ref s) => Ok(s),
-            PreparedString::BorrowFrom(ref obj) => {
-                match try!(PyString::extract(py, obj)) {
-                    Cow::Owned(_) => panic!("Failed to borrow from python object"),
-                    Cow::Borrowed(s) => Ok(s)
-                }
-            }
-        }
+impl RefFromPyObject for str {
+    fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
+        where F: FnOnce(&str) -> R
+    {
+        let s = try!(obj.extract::<Cow<str>>(py));
+        Ok(f(&s))
     }
 }
 
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject};
-    use conversion::{ToPyObject, ExtractPyObject};
+    use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
     fn test_non_bmp() {
@@ -485,8 +465,13 @@ mod test {
         let py = gil.python();
         let s = "Hello Python";
         let py_string = s.to_py_object(py).into_object();
-        let prepared = <&str>::prepare_extract(py, &py_string).unwrap();
-        assert_eq!(s, <&str>::extract(py, &prepared).unwrap());
+        let mut called = false;
+        RefFromPyObject::with_extracted(py, &py_string,
+            |s2: &str| {
+                assert_eq!(s, s2);
+                called = true;
+            }).unwrap();
+        assert!(called);
     }
 }
 

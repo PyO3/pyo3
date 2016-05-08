@@ -42,7 +42,8 @@ macro_rules! py_class_impl {
     } => {
         struct $class { _unsafe_inner: $crate::PyObject }
 
-        pyobject_to_pyobject!($class);
+        py_impl_to_py_object_for_python_object!($class);
+        py_impl_from_py_object_for_python_object!($class);
 
         impl $crate::PythonObject for $class {
             #[inline]

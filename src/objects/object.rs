@@ -102,8 +102,6 @@ fn unpack_shared(ptr: *mut ffi::PyObject) -> *mut ffi::PyObject {
     ptr
 }
 
-pyobject_to_pyobject!(PyObject);
-
 impl PythonObject for PyObject {
     #[inline]
     fn as_object(&self) -> &PyObject {
@@ -277,11 +275,10 @@ impl PyObject {
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::from_py_object()`.
     #[inline]
-    pub fn extract<T>(&self, py: Python) -> PyResult<T>
-        where T: for<'prep> ::conversion::ExtractPyObject<'prep>
+    pub fn extract<'a, T>(&'a self, py: Python) -> PyResult<T>
+        where T: ::conversion::FromPyObject<'a>
     {
-        let prepared = try!(<T as ::conversion::ExtractPyObject>::prepare_extract(py, self));
-        <T as ::conversion::ExtractPyObject>::extract(py, &prepared)
+        ::conversion::FromPyObject::extract(py, self)
     }
 }
 

@@ -16,11 +16,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer, PyClone};
+use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
 use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, ExtractPyObject};
+use conversion::{ToPyObject, FromPyObject};
 
 /// Represents a Python `list`.
 pub struct PyList(PyObject);
@@ -123,28 +123,40 @@ impl <T> ToPyObject for [T] where T: ToPyObject {
     }
 }
 
-impl <'prepared, T> ExtractPyObject<'prepared> for Vec<T>
-    where T: ExtractPyObject<'prepared>
-{
-    type Prepared = Vec<T::Prepared>;
+impl <T> ToPyObject for Vec<T> where T: ToPyObject {
+    type ObjectType = PyList;
 
-    fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
+    fn to_py_object(&self, py: Python) -> PyList {
+        self.as_slice().to_py_object(py)
+    }
+
+    fn into_py_object(self, py: Python) -> PyList {
+        unsafe {
+            let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
+            let t = err::cast_from_owned_ptr_or_panic(py, ptr);
+            for (i, e) in self.into_iter().enumerate() {
+                let obj = e.into_py_object(py).into_object();
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj.steal_ptr());
+            }
+            t
+        }
+    }
+}
+
+impl <'source, T> FromPyObject<'source> for Vec<T>
+    where for<'a> T: FromPyObject<'a>
+{
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
         let list = try!(obj.cast_as::<PyList>(py));
         let len = list.len(py);
         let mut v = Vec::with_capacity(len);
         for i in 0 .. len {
-            v.push(try!(T::prepare_extract(py, &list.get_item(py, i))));
+            let item = list.get_item(py, i);
+            v.push(try!(T::extract(py, &item)));
+            item.release_ref(py);
         }
         Ok(v)
     }
-
-    fn extract(py: Python, prepared: &'prepared Self::Prepared) -> PyResult<Vec<T>> {
-        let mut v = Vec::with_capacity(prepared.len());
-        for prepared_elem in prepared {
-            v.push(try!(T::extract(py, prepared_elem)));
-         }
-         Ok(v)
-     }
 }
 
 #[cfg(test)]

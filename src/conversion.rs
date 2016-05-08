@@ -72,13 +72,16 @@ pub trait ToPyObject {
     //   -> into_py_object() allocates new Python object
 }
 
+py_impl_to_py_object_for_python_object!(PyObject);
+
 /// FromPyObject is implemented by various types that can be extracted from a Python object.
 ///
-/// Usage:
+/// Normal usage is through the `PyObject::extract` helper method:
 /// ```let obj: PyObject = ...;
-/// let prepared = <TargetType as ExtractPyObject>::prepare_extract(&obj);
-/// let extracted = try!(extract(&prepared));```
-/// 
+/// let value = try!(obj.extract::<TargetType>(py));
+/// ```
+///
+/// TODO: update this documentation
 /// Note: depending on the implementation, the lifetime of the extracted result may
 /// depend on the lifetime of the `obj` or the `prepared` variable.
 ///
@@ -91,14 +94,36 @@ pub trait ToPyObject {
 ///
 /// In cases where the result does not depend on the `'prepared` lifetime,
 /// the inherent method `PyObject::extract()` can be used.
-pub trait ExtractPyObject<'prepared> : Sized {
-    type Prepared : 'static;
-
-    fn prepare_extract<'a, 'p>(py: Python<'p>, obj: &'a PyObject) -> PyResult<Self::Prepared>;
-
-    fn extract<'p>(py: Python<'p>, prepared: &'prepared Self::Prepared) -> PyResult<Self>;
+pub trait FromPyObject<'source> : Sized {
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self>;
 }
 
+
+py_impl_from_py_object_for_python_object!(PyObject);
+
+
+
+pub trait RefFromPyObject {
+    fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
+        where F: FnOnce(&Self) -> R;
+}
+
+impl <T: ?Sized> RefFromPyObject for T
+    where for<'a> &'a T: FromPyObject<'a>
+{
+    #[inline]
+    fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
+        where F: FnOnce(&Self) -> R
+    {
+        match FromPyObject::extract(py, obj) {
+            Ok(val) => Ok(f(val)),
+            Err(e) => Err(e)
+        }
+    }
+}
+
+/*
 impl <'prepared, T> ExtractPyObject<'prepared> for T
 where T: PythonObjectWithCheckedDowncast
 {
@@ -114,6 +139,7 @@ where T: PythonObjectWithCheckedDowncast
         Ok(try!(obj.clone_ref(py).cast_into(py)))
     }
 }
+*/
 
 // ToPyObject for references
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
@@ -157,7 +183,20 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
     }
 }
 
+impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+        if obj.as_ptr() == unsafe { ffi::Py_None() } {
+            Ok(None)
+        } else {
+            match T::extract(py, obj) {
+                Ok(v) => Ok(Some(v)),
+                Err(e) => Err(e)
+            }
+        }
+    }
+}
 
+/*
 impl <'prepared, T> ExtractPyObject<'prepared> for Option<T>
 where T: ExtractPyObject<'prepared>
 {
@@ -183,5 +222,5 @@ where T: ExtractPyObject<'prepared>
         }
     }
 }
-
+*/
 

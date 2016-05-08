@@ -21,7 +21,7 @@ use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, ExtractPyObject};
+use conversion::ToPyObject;
 use std::slice;
 
 /// Represents a Python tuple object.
@@ -159,21 +159,19 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
     PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py).into_object()))
 }
 
-macro_rules! id (($a:expr) => ($a));
-
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => (
     impl <'p, $($T: ToPyObject),+> ToPyObject for ($($T,)+) {
         type ObjectType = PyTuple;
 
         fn to_py_object(&self, py: Python) -> PyTuple {
             PyTuple::new(py, &[
-                $(id!(self.$n.to_py_object(py)).into_object(),)+
+                $(py_coerce_expr!(self.$n.to_py_object(py)).into_object(),)+
             ])
         }
 
         fn into_py_object(self, py: Python) -> PyTuple {
             PyTuple::new(py, &[
-                $(id!(self.$n.into_py_object(py)).into_object(),)+
+                $(py_coerce_expr!(self.$n.into_py_object(py)).into_object(),)+
             ])
         }
     }

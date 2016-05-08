@@ -97,7 +97,7 @@ pub use err::{PyErr, PyResult};
 pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
-pub use conversion::{ExtractPyObject, ToPyObject};
+pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
 pub use objectprotocol::{ObjectProtocol};
 
 #[cfg(feature="python27-sys")]
@@ -129,6 +129,54 @@ macro_rules! py_coerce_item { ($s:item) => {$s} }
 #[macro_export] #[doc(hidden)]
 macro_rules! py_replace_expr {
     ($_t:tt $sub:expr) => {$sub};
+}
+
+#[macro_export] #[doc(hidden)]
+macro_rules! py_impl_to_py_object_for_python_object {
+    ($T: ty) => (
+        /// Identity conversion: allows using existing `PyObject` instances where
+        /// `T: ToPyObject` is expected.
+        impl $crate::ToPyObject for $T {
+            type ObjectType = $T;
+
+            #[inline]
+            fn to_py_object(&self, py: $crate::Python) -> $T {
+                $crate::PyClone::clone_ref(self, py)
+            }
+
+            #[inline]
+            fn into_py_object(self, _py: $crate::Python) -> $T {
+                self
+            }
+
+            #[inline]
+            fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
+                where F: FnOnce(*mut $crate::_detail::ffi::PyObject) -> R
+            {
+                f($crate::PythonObject::as_object(self).as_ptr())
+            }
+        }
+    )
+}
+
+#[macro_export] #[doc(hidden)]
+macro_rules! py_impl_from_py_object_for_python_object {
+    ($T:ty) => {
+        impl <'source> $crate::FromPyObject<'source> for $T {
+            #[inline]
+            fn extract(py: $crate::Python, obj: &'source $crate::PyObject) -> $crate::PyResult<$T> {
+                use $crate::PyClone;
+                Ok(try!(obj.clone_ref(py).cast_into::<$T>(py)))
+            }
+        }
+
+        impl <'source> $crate::FromPyObject<'source> for &'source $T {
+            #[inline]
+            fn extract(py: $crate::Python, obj: &'source $crate::PyObject) -> $crate::PyResult<&'source $T> {
+                Ok(try!(obj.cast_as::<$T>(py)))
+            }
+        }
+    }
 }
 
 mod python;

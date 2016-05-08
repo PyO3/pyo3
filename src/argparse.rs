@@ -168,13 +168,23 @@ macro_rules! py_argparse_parse_plist_impl {
     { $callback:ident { $($initial_arg:tt)* } $output:tt ( ) } => {
         $callback! { $($initial_arg)* $output }
     };
+    // Kwargs parameter with reference extraction
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( ** $name:ident : &$t:ty , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { $name:&$t = [ {**} {} {$t} ] } ]
+            ($($tail)*)
+        }
+    };
     // Kwargs parameter
     { $callback:ident $initial_args:tt [ $($output:tt)* ]
         ( ** $name:ident : $t:ty , $($tail:tt)* )
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:$t = [ {**} {} ] } ]
+            [ $($output)* { $name:$t = [ {**} {} {} ] } ]
             ($($tail)*)
         }
     };
@@ -184,7 +194,17 @@ macro_rules! py_argparse_parse_plist_impl {
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:&$crate::PyDict = [ {**} {} ] } ]
+            [ $($output)* { $name:Option<&$crate::PyDict> = [ {**} {} {} ] } ]
+            ($($tail)*)
+        }
+    };
+    // Varargs parameter with reference extraction
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( * $name:ident : &$t:ty , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { $name:&$t = [ {*} {} {$t} ] } ]
             ($($tail)*)
         }
     };
@@ -194,7 +214,7 @@ macro_rules! py_argparse_parse_plist_impl {
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:$t = [ {*} {} ] } ]
+            [ $($output)* { $name:$t = [ {*} {} {} ] } ]
             ($($tail)*)
         }
     };
@@ -204,7 +224,17 @@ macro_rules! py_argparse_parse_plist_impl {
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:&$crate::PyTuple = [ {*} {} ] } ]
+            [ $($output)* { $name:&$crate::PyTuple = [ {*} {} {} ] } ]
+            ($($tail)*)
+        }
+    };
+    // Simple parameter with reference extraction
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( $name:ident : &$t:ty , $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { $name:&$t = [ {} {} {$t} ] } ]
             ($($tail)*)
         }
     };
@@ -214,7 +244,7 @@ macro_rules! py_argparse_parse_plist_impl {
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:$t = [ {} {} ] } ]
+            [ $($output)* { $name:$t = [ {} {} {} ] } ]
             ($($tail)*)
         }
     };
@@ -224,17 +254,18 @@ macro_rules! py_argparse_parse_plist_impl {
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:&$crate::PyObject = [ {} {} ] } ]
+            [ $($output)* { $name:&$crate::PyObject = [ {} {} {} ] } ]
             ($($tail)*)
         }
     };
     // Optional parameter
+    // TODO: with reference extraction?
     { $callback:ident $initial_args:tt [ $($output:tt)* ]
         ( $name:ident : $t:ty = $default:expr , $($tail:tt)* )
     } => {
         py_argparse_parse_plist_impl! {
             $callback $initial_args
-            [ $($output)* { $name:$t = [ {} {$default} ] } ]
+            [ $($output)* { $name:$t = [ {} {$default} {} ] } ]
             ($($tail)*)
         }
     };
@@ -249,19 +280,15 @@ macro_rules! py_argparse_impl {
     // so we can directly pass along our inputs without calling parse_args().
     ($py:expr, $fname:expr, $args:expr, $kwargs:expr, $body:block,
         [
-            { $pargs:ident   : $pargs_type:ty   = [ {*}  {} ] }
-            { $pkwargs:ident : $pkwargs_type:ty = [ {**} {} ] }
+            { $pargs:ident   : $pargs_type:ty   = [ {*}  {} {} ] }
+            { $pkwargs:ident : $pkwargs_type:ty = [ {**} {} {} ] }
         ]
     ) => {{
-        let py: $crate::Python = $py;
+        let _py: $crate::Python = $py;
+        // TODO: use extract() to be more flexible in which type is expected
         let $pargs: $pargs_type = $args;
-        let new_dict = if $kwargs.is_none() { Some($crate::PyDict::new(py)) } else { None };
-        let ret = {
-            let $pkwargs: $pkwargs_type = $kwargs.unwrap_or_else(|| new_dict.as_ref().unwrap());
-            $body
-        };
-        $crate::PyDrop::release_ref(new_dict, $py);
-        ret
+        let $pkwargs: $pkwargs_type = $kwargs;
+        $body
     }};
 
     // normal argparse logic
@@ -320,7 +347,7 @@ pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> 
 #[doc(hidden)]
 macro_rules! py_argparse_param_description {
     // normal parameter
-    { $pname:ident : $ptype:ty = [ {} {} ] } => (
+    { $pname:ident : $ptype:ty = [ {} {} $rtype:tt ] } => (
         $crate::argparse::ParamDescription {
             name: stringify!($pname),
             is_optional: false
@@ -335,56 +362,30 @@ macro_rules! py_argparse_extract {
     ( $py:expr, $iter:expr, $body:block, [] ) => { $body };
     // normal parameter
     ( $py:expr, $iter:expr, $body:block,
-        [ { $pname:ident : $ptype:ty = [ {} {} ] } $($tail:tt)* ]
+        [ { $pname:ident : $ptype:ty = [ {} {} {} ] } $($tail:tt)* ]
     ) => {
         // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
         // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
-        match <$ptype as $crate::ExtractPyObject>::prepare_extract($py, $iter.next().unwrap().as_ref().unwrap()) {
-            Ok(prepared) => {
-                match <$ptype as $crate::ExtractPyObject>::extract($py, &prepared) {
-                    Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
-                    Err(e) => Err(e)
-                }
-            },
+        match <$ptype as $crate::FromPyObject>::extract($py, $iter.next().unwrap().as_ref().unwrap()) {
+            Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
+            Err(e) => Err(e)
+        }
+    };
+    // normal parameter with reference extraction
+    ( $py:expr, $iter:expr, $body:block,
+        [ { $pname:ident : $ptype:ty = [ {} {} {$rtype:ty} ] } $($tail:tt)* ]
+    ) => {
+        // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
+        // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
+        match <$rtype as $crate::RefFromPyObject>::with_extracted($py,
+            $iter.next().unwrap().as_ref().unwrap(),
+            |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*])
+        ) {
+            Ok(v) => v,
             Err(e) => Err(e)
         }
     };
 }
-
-/*
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_argparse_declare_item_in_impl {
-    // argparse_declare_item_in_impl!({implhead} {head} (params) (,plist,) {tail} )
-    //   = implhead { head(params, pname:ptype...) tail }
-
-    { {$($implhead:tt)*} {$($head:tt)*} $params:tt ( $(,)* ) {$($tail:tt)*} } => {
-        py_coerce_item!{ 
-            $($implhead)* {
-                $($head)* $params $($tail)*
-            }
-        }
-    };
-    { $implhead:tt $head:tt ($($params:tt)*) ( ,$pname:ident : $ptype:ty, $($r:tt)* ) $tail:tt } => {
-        py_argparse_declare_item_in_impl!( $implhead $head ($($params)* , $pname : $ptype) ( ,$($r)* ) $tail)
-    };
-}
-
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_argparse_call_with_names {
-    // py_argparse_call_with_names!(f, (lhs) (,plist,))
-    //   = f(lhs, pnames...)
-
-    ( $f:expr, $lhs:tt ( $(,)* )) => (
-        py_coerce_expr!{ $f $lhs }
-    );
-    ( $f:expr, ($($lhs:tt)*) ( ,$pname:ident : $ptype:ty, $($r:tt)* )) => {
-        py_argparse_call_with_names!( $f, ($($lhs)* , $pname) ( ,$($r)* ))
-    };
-}
-*/
 
 #[cfg(test)]
 mod test {
@@ -400,6 +401,20 @@ mod test {
         py_argparse!(py, None, &tuple, None, (x: &str, y: i32) {
             assert_eq!(x, "abc");
             assert_eq!(y, 42);
+            called = true;
+            Ok(())
+        }).unwrap();
+        assert!(called);
+    }
+
+    #[test]
+    pub fn test_default_param_type() {
+        let gil_guard = Python::acquire_gil();
+        let py = gil_guard.python();
+        let mut called = false;
+        let tuple = ("abc",).to_py_object(py);
+        py_argparse!(py, None, &tuple, None, (x) {
+            assert_eq!(*x, tuple.get_item(py, 0));
             called = true;
             Ok(())
         }).unwrap();

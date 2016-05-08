@@ -11,13 +11,15 @@ py_module_initializer!(hello, inithello, PyInit_hello, |py, m| {
     Ok(())
 });
 
-fn run(py: Python, args: &PyTuple, kwargs: &PyDict) -> PyResult<PyObject> {
+fn run(py: Python, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
     println!("Rust says: Hello Python!");
     for arg in args.iter(py) {
         println!("Rust got {}", arg);
     }
-    for (key, val) in kwargs.items(py) {
-        println!("{} = {}", key, val);
+    if let Some(kwargs) = kwargs {
+        for (key, val) in kwargs.items(py) {
+            println!("{} = {}", key, val);
+        }
     }
     Ok(py.None())
 }

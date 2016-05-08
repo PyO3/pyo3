@@ -38,38 +38,10 @@ pub use self::num::PyLong as PyInt;
 pub use self::num::{PyLong, PyFloat};
 pub use self::sequence::PySequence;
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! pyobject_to_pyobject(
-    ($name: ident) => (
-        /// Identity conversion: allows using existing `PyObject` instances where
-        /// `T: ToPyObject` is expected.
-        impl $crate::ToPyObject for $name {
-            type ObjectType = $name;
-
-            #[inline]
-            fn to_py_object(&self, py: $crate::Python) -> $name {
-                $crate::PyClone::clone_ref(self, py)
-            }
-
-            #[inline]
-            fn into_py_object(self, _py: $crate::Python) -> $name {
-                self
-            }
-
-            #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
-                where F: FnOnce(*mut $crate::_detail::ffi::PyObject) -> R
-            {
-                f($crate::PythonObject::as_object(self).as_ptr())
-            }
-        }
-    )
-);
-
 macro_rules! pyobject_newtype(
     ($name: ident) => (
-        pyobject_to_pyobject!($name);
+        py_impl_to_py_object_for_python_object!($name);
+        py_impl_from_py_object_for_python_object!($name);
 
         impl $crate::PythonObject for $name {
             #[inline]
@@ -138,17 +110,10 @@ macro_rules! pyobject_newtype(
 
 macro_rules! extract(
     ($obj:ident to $t:ty; $py:ident => $body: block) => {
-        impl <'prepared> ::conversion::ExtractPyObject<'prepared>
+        impl <'source> ::conversion::FromPyObject<'source>
             for $t
         {
-            type Prepared = PyObject;
-
-            #[inline]
-            fn prepare_extract(py: Python, obj: &PyObject) -> PyResult<Self::Prepared> {
-                Ok(::python::PyClone::clone_ref(obj, py))
-            }
-
-            fn extract($py: Python, $obj: &'prepared PyObject) -> PyResult<Self> {
+            fn extract($py: Python, $obj: &'source PyObject) -> PyResult<Self> {
                 $body
             }
         }
