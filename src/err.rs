@@ -24,8 +24,101 @@ use objects::{PyObject, PyType, exc};
 use objects::oldstyle::PyClass;
 use ffi;
 use libc;
+use std::ptr;
+use libc::c_char;
 use conversion::ToPyObject;
 use std::ffi::CString;
+
+/**
+Defines a new exception type.
+
+# Syntax
+`py_exception!(module, MyError)`
+
+* `module` is the name of the containing module.
+* `MyError` is the name of the new exception type.
+
+# Example
+```
+#[macro_use]
+extern crate cpython;
+
+use cpython::{Python, PyDict};
+
+py_exception!(mymodule, CustomError);
+
+fn main() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let ctx = PyDict::new(py);
+
+    ctx.set_item(py, "CustomError", py.get_type::<CustomError>()).unwrap();
+
+    py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
+    py.run("assert CustomError('oops').args == ('oops',)", None, Some(&ctx)).unwrap();
+}
+```
+*/
+#[macro_export]
+macro_rules! py_exception {
+    ($module: ident, $name: ident, $base: ty) => {
+        pub struct $name($crate::PyObject);
+
+        pyobject_newtype!($name);
+
+        impl $name {
+            pub fn new<'p, T: $crate::ToPyObject>(py: $crate::Python<'p>, args: T) -> $crate::PyErr {
+                $crate::PyErr::new::<$name, T>(py, args)
+            }
+        }
+
+        impl $crate::PythonObjectWithCheckedDowncast for $name {
+            #[inline]
+            fn downcast_from<'p>(py: $crate::Python<'p>, obj: $crate::PyObject)
+                -> Result<$name, $crate::PythonObjectDowncastError<'p>>
+            {
+                if <$name as $crate::PythonObjectWithTypeObject>::type_object(py).is_instance(py, &obj) {
+                    Ok(unsafe { $crate::PythonObject::unchecked_downcast_from(obj) })
+                } else {
+                    Err($crate::PythonObjectDowncastError(py))
+                }
+            }
+
+            #[inline]
+            fn downcast_borrow_from<'a, 'p>(py: $crate::Python<'p>, obj: &'a $crate::PyObject)
+                -> Result<&'a $name, $crate::PythonObjectDowncastError<'p>>
+            {
+                if <$name as $crate::PythonObjectWithTypeObject>::type_object(py).is_instance(py, obj) {
+                    Ok(unsafe { $crate::PythonObject::unchecked_downcast_borrow_from(obj) })
+                } else {
+                    Err($crate::PythonObjectDowncastError(py))
+                }
+            }
+        }
+
+        impl $crate::PythonObjectWithTypeObject for $name {
+            #[inline]
+            fn type_object(py: $crate::Python) -> $crate::PyType {
+                unsafe {
+                    static mut type_object: *mut $crate::_detail::ffi::PyTypeObject = 0 as *mut $crate::_detail::ffi::PyTypeObject;
+
+                    if type_object.is_null() {
+                        type_object = $crate::PyErr::new_type(
+                            py,
+                            concat!(stringify!($module), ".", stringify!($name)),
+                            Some($crate::PythonObject::into_object(py.get_type::<$base>())),
+                            None).as_type_ptr();
+                    }
+
+                    $crate::PyType::from_type_ptr(py, type_object)
+                }
+            }
+        }
+    };
+    ($module: ident, $name: ident) => {
+        py_exception!($module, $name, $crate::exc::Exception);
+    }
+}
 
 /// Represents a Python exception that was raised.
 #[derive(Debug)]
@@ -33,7 +126,7 @@ pub struct PyErr {
     /// The type of the exception. This should be either a `PyClass` or a `PyType`.
     pub ptype : PyObject,
     /// The value of the exception.
-    /// 
+    ///
     /// This can be either an instance of `ptype`,
     /// a tuple of arguments to be passed to `ptype`'s constructor,
     /// or a single argument to be passed to `ptype`'s constructor.
@@ -52,6 +145,28 @@ impl PyErr {
     #[inline]
     pub fn occurred(_ : Python) -> bool {
         unsafe { !ffi::PyErr_Occurred().is_null() }
+    }
+
+    /// Creates a new exception type with the given name, which must be of the form
+    /// `<module>.<ExceptionName>`, as required by `PyErr_NewException`.
+    ///
+    /// `base` can be an existing exception type to subclass, or a tuple of classes
+    /// `dict` specifies an optional dictionary of class variables and methods
+    pub fn new_type(py: Python, name: &str, base: Option<PyObject>, dict: Option<PyObject>) -> PyType {
+        let base: *mut ffi::PyObject = match base {
+            None => ptr::null_mut(),
+            Some(obj) => obj.steal_ptr()
+        };
+
+        let dict: *mut ffi::PyObject = match dict {
+            None => ptr::null_mut(),
+            Some(obj) => obj.steal_ptr()
+        };
+
+        unsafe {
+            let ptr: *mut ffi::PyObject = ffi::PyErr_NewException(name.as_ptr() as *mut c_char, base, dict);
+            PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into::<PyType>()
+        }
     }
 
     /// Retrieves the current error from the Python interpreter's global state.
