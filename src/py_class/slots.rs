@@ -320,6 +320,37 @@ macro_rules! py_class_ternary_slot {
     }}
 }
 
+// sq_richcompare is special-cased slot
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_richcompare_slot {
+    ($class:ident :: $f:ident, $arg_type:ty, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn tp_richcompare(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            arg: *mut $crate::_detail::ffi::PyObject,
+            op: $crate::_detail::libc::c_int)
+        -> $res_type
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                    let op = $crate::py_class::CompareOp::from(op as isize);
+                    let ret = match <$arg_type as $crate::FromPyObject>::extract(py, &arg) {
+                        Ok(arg) => slf.$f(py, arg, op),
+                        Err(e) => Err(e)
+                    };
+                    $crate::PyDrop::release_ref(arg, py);
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+        }
+        Some(tp_richcompare)
+    }}
+}
+
 // sq_contains is special-cased slot because it converts type errors to Ok(false)
 #[macro_export]
 #[doc(hidden)]

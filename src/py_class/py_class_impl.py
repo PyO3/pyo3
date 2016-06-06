@@ -536,6 +536,9 @@ def operator(special_name, slot,
         param_list.append('{{ ${0} : ${0}_type = {{}} }}'.format(arg.name))
     if slot == 'sq_contains':
         new_slots = [(slot, 'py_class_contains_slot!($class::%s, $%s_type)' % (special_name, args[0].name))]
+    elif slot == 'tp_richcompare':
+        new_slots = [(slot, 'py_class_richcompare_slot!($class::%s, $%s_type, %s, %s)'
+                            % (special_name, args[0].name, res_ffi_type, res_conv))]
     elif len(args) == 0:
         new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
                              % (special_name, res_ffi_type, res_conv))]
@@ -594,13 +597,16 @@ special_names = {
     '__bytes__': normal_method(),
     '__format__': normal_method(),
     # Comparison Operators
-    '__lt__': unimplemented(),
-    '__le__': unimplemented(),
-    '__gt__': unimplemented(),
-    '__ge__': unimplemented(),
-    '__eq__': unimplemented(),
-    '__ne__': unimplemented(),
+    '__lt__': error('__lt__ is not supported by py_class! use __richcompare__ instead.'),
+    '__le__': error('__le__ is not supported by py_class! use __richcompare__ instead.'),
+    '__gt__': error('__gt__ is not supported by py_class! use __richcompare__ instead.'),
+    '__ge__': error('__ge__ is not supported by py_class! use __richcompare__ instead.'),
+    '__eq__': error('__eq__ is not supported by py_class! use __richcompare__ instead.'),
+    '__ne__': error('__ne__ is not supported by py_class! use __richcompare__ instead.'),
     '__cmp__': unimplemented(),
+    '__richcompare__': operator('tp_richcompare',
+        res_type='PyObject',
+        args=[Argument('other'), Argument('op')]),
     '__hash__': operator('tp_hash',
         res_conv='$crate::py_class::slots::HashConverter',
         res_ffi_type='$crate::Py_hash_t'),
@@ -652,7 +658,7 @@ special_names = {
                 res_conv='$crate::py_class::slots::IterNextResultConverter'),
     '__reversed__': normal_method(),
     '__contains__': operator('sq_contains', args=[Argument('item')]),
-    
+
     # Emulating numeric types
     '__add__': binary_numeric_operator('nb_add'),
     '__sub__': binary_numeric_operator('nb_subtract'),
