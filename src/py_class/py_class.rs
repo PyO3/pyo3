@@ -278,9 +278,7 @@ py_class!(class MyIterator |py| {
 
 ## Comparison operators
 
-TODO: implement support for `__cmp__`
-
-  * `def __richcompare__(&self, other: impl ToPyObject, op: CompareOp) -> PyResult<impl ToPyObject>`
+  * `def __richcmp__(&self, other: impl ToPyObject, op: CompareOp) -> PyResult<impl ToPyObject>`
 
     Overloads Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`). The `op`
     argument indicates the comparison operation being performed.

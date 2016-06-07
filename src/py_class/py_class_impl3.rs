@@ -483,7 +483,7 @@ macro_rules! py_class_impl {
     }};
 
     { { def __cmp__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__cmp__ is not supported by py_class! yet." }
+        py_error! { "__cmp__ is not supported by py_class! use __richcmp__ instead." }
     };
 
     { { def __coerce__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -580,7 +580,7 @@ macro_rules! py_class_impl {
     };
 
     { { def __eq__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__eq__ is not supported by py_class! use __richcompare__ instead." }
+        py_error! { "__eq__ is not supported by py_class! use __richcmp__ instead." }
     };
 
     { { def __float__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -592,7 +592,7 @@ macro_rules! py_class_impl {
     };
 
     { { def __ge__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__ge__ is not supported by py_class! use __richcompare__ instead." }
+        py_error! { "__ge__ is not supported by py_class! use __richcmp__ instead." }
     };
 
     { { def __get__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -643,7 +643,7 @@ macro_rules! py_class_impl {
     };
 
     { { def __gt__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__gt__ is not supported by py_class! use __richcompare__ instead." }
+        py_error! { "__gt__ is not supported by py_class! use __richcmp__ instead." }
     };
     { { def __hash__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -809,7 +809,7 @@ macro_rules! py_class_impl {
     };
 
     { { def __le__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__le__ is not supported by py_class! use __richcompare__ instead." }
+        py_error! { "__le__ is not supported by py_class! use __richcmp__ instead." }
     };
     { { def __len__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -882,7 +882,7 @@ macro_rules! py_class_impl {
     };
 
     { { def __lt__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__lt__ is not supported by py_class! use __richcompare__ instead." }
+        py_error! { "__lt__ is not supported by py_class! use __richcmp__ instead." }
     };
 
     { { def __matmul__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -924,7 +924,7 @@ macro_rules! py_class_impl {
     };
 
     { { def __ne__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__ne__ is not supported by py_class! use __richcompare__ instead." }
+        py_error! { "__ne__ is not supported by py_class! use __richcmp__ instead." }
     };
     { { def __neg__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -1151,7 +1151,7 @@ macro_rules! py_class_impl {
     { { def __rfloordiv__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Reflected numeric operator __rfloordiv__ is not supported by py_class! Use __floordiv__ instead!" }
     };
-    { { def __richcompare__(&$slf:ident, $other:ident : $other_type:ty, $op:ident : $op_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+    { { def __richcmp__(&$slf:ident, $other:ident : $other_type:ty, $op:ident : $op_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
@@ -1165,19 +1165,19 @@ macro_rules! py_class_impl {
         /* slots: */ {
             /* type_slots */ [
                 $( $tp_slot_name : $tp_slot_value, )*
-                tp_richcompare: py_class_richcompare_slot!($class::__richcompare__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+                tp_richcompare: py_class_richcompare_slot!($class::__richcmp__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
             $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
-            py_class_impl_item! { $class, $py, __richcompare__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} } { $op : $op_type = {} }] }
+            py_class_impl_item! { $class, $py, __richcmp__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} } { $op : $op_type = {} }] }
         }
         $members
     }};
 
-    { { def __richcompare__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for operator __richcompare__" }
+    { { def __richcmp__ $($tail:tt)* } $( $stuff:tt )* } => {
+        py_error! { "Invalid signature for operator __richcmp__" }
     };
 
     { { def __rlshift__ $($tail:tt)* } $( $stuff:tt )* } => {

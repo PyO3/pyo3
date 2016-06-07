@@ -24,6 +24,7 @@ use conversion::ToPyObject;
 use objects::PyObject;
 use function::CallbackConverter;
 use err::{PyErr, PyResult};
+use py_class::{CompareOp};
 use exc;
 use Py_hash_t;
 
@@ -320,6 +321,20 @@ macro_rules! py_class_ternary_slot {
     }}
 }
 
+pub fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
+    match op {
+        ffi::Py_LT => Ok(CompareOp::Lt),
+        ffi::Py_LE => Ok(CompareOp::Le),
+        ffi::Py_EQ => Ok(CompareOp::Eq),
+        ffi::Py_NE => Ok(CompareOp::Ne),
+        ffi::Py_GT => Ok(CompareOp::Gt),
+        ffi::Py_GE => Ok(CompareOp::Ge),
+        _ => Err(PyErr::new_lazy_init(
+            py.get_type::<exc::ValueError>(),
+            Some("tp_richcompare called with invalid comparison operator".to_py_object(py).into_object())))
+    }
+}
+
 // sq_richcompare is special-cased slot
 #[macro_export]
 #[doc(hidden)]
@@ -337,10 +352,12 @@ macro_rules! py_class_richcompare_slot {
                 |py| {
                     let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
                     let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
-                    let op = $crate::py_class::CompareOp::from(op as isize);
-                    let ret = match <$arg_type as $crate::FromPyObject>::extract(py, &arg) {
-                        Ok(arg) => slf.$f(py, arg, op),
-                        Err(e) => Err(e)
+                    let ret = match $crate::py_class::slots::extract_op(py, op) {
+                        Ok(op) => match <$arg_type as $crate::FromPyObject>::extract(py, &arg) {
+                            Ok(arg) => slf.$f(py, arg, op).map(|res| { res.into_py_object(py).into_object() }),
+                            Err(_) => Ok(py.NotImplemented())
+                        },
+                        Err(_) => Ok(py.NotImplemented())
                     };
                     $crate::PyDrop::release_ref(arg, py);
                     $crate::PyDrop::release_ref(slf, py);

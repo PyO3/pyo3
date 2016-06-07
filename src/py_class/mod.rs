@@ -39,22 +39,7 @@ pub enum CompareOp {
     Eq = ffi::Py_EQ as isize,
     Ne = ffi::Py_NE as isize,
     Gt = ffi::Py_GT as isize,
-    Ge = ffi::Py_GE as isize,
-    Other
-}
-
-impl<T: Into<isize>> From<T> for CompareOp {
-    fn from(val: T) -> Self {
-        match val.into() as libc::c_int {
-            ffi::Py_LT => CompareOp::Lt,
-            ffi::Py_LE => CompareOp::Le,
-            ffi::Py_EQ => CompareOp::Eq,
-            ffi::Py_NE => CompareOp::Ne,
-            ffi::Py_GT => CompareOp::Gt,
-            ffi::Py_GE => CompareOp::Ge,
-            _ => CompareOp::Other
-        }
-    }
+    Ge = ffi::Py_GE as isize
 }
 
 /// Trait implemented by the types produced by the `py_class!()` macro.

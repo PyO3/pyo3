@@ -665,6 +665,90 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 | c == '1 | BA'");
 }
 
+py_class!(class RichComparisons |py| {
+    def __repr__(&self) -> PyResult<&'static str> {
+        Ok("RC")
+    }
+
+    def __richcmp__(&self, other: &PyObject, op: CompareOp) -> PyResult<String> {
+        match op {
+            CompareOp::Lt => Ok(format!("{:?} < {:?}", self.as_object(), other)),
+            CompareOp::Le => Ok(format!("{:?} <= {:?}", self.as_object(), other)),
+            CompareOp::Eq => Ok(format!("{:?} == {:?}", self.as_object(), other)),
+            CompareOp::Ne => Ok(format!("{:?} != {:?}", self.as_object(), other)),
+            CompareOp::Gt => Ok(format!("{:?} > {:?}", self.as_object(), other)),
+            CompareOp::Ge => Ok(format!("{:?} >= {:?}", self.as_object(), other))
+        }
+    }
+});
+
+py_class!(class RichComparisons2 |py| {
+    def __repr__(&self) -> PyResult<&'static str> {
+        Ok("RC2")
+    }
+
+    def __richcmp__(&self, other: &PyObject, op: CompareOp) -> PyResult<PyObject> {
+        match op {
+            CompareOp::Eq => Ok(true.to_py_object(py).into_object()),
+            CompareOp::Ne => Ok(false.to_py_object(py).into_object()),
+            _ => Ok(py.NotImplemented())
+        }
+    }
+});
+
+#[test]
+fn rich_comparisons() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = RichComparisons::create_instance(py).unwrap();
+    py_run!(py, c, "assert (c < c) == 'RC < RC'");
+    py_run!(py, c, "assert (c < 1) == 'RC < 1'");
+    py_run!(py, c, "assert (1 < c) == 'RC > 1'");
+    py_run!(py, c, "assert (c <= c) == 'RC <= RC'");
+    py_run!(py, c, "assert (c <= 1) == 'RC <= 1'");
+    py_run!(py, c, "assert (1 <= c) == 'RC >= 1'");
+    py_run!(py, c, "assert (c == c) == 'RC == RC'");
+    py_run!(py, c, "assert (c == 1) == 'RC == 1'");
+    py_run!(py, c, "assert (1 == c) == 'RC == 1'");
+    py_run!(py, c, "assert (c != c) == 'RC != RC'");
+    py_run!(py, c, "assert (c != 1) == 'RC != 1'");
+    py_run!(py, c, "assert (1 != c) == 'RC != 1'");
+    py_run!(py, c, "assert (c > c) == 'RC > RC'");
+    py_run!(py, c, "assert (c > 1) == 'RC > 1'");
+    py_run!(py, c, "assert (1 > c) == 'RC < 1'");
+    py_run!(py, c, "assert (c >= c) == 'RC >= RC'");
+    py_run!(py, c, "assert (c >= 1) == 'RC >= 1'");
+    py_run!(py, c, "assert (1 >= c) == 'RC <= 1'");
+}
+
+#[test]
+#[cfg(feature="python3-sys")]
+fn rich_comparisons_python_3_type_error() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c2 = RichComparisons2::create_instance(py).unwrap();
+    py_expect_exception!(py, c2, "c2 < c2", TypeError);
+    py_expect_exception!(py, c2, "c2 < 1", TypeError);
+    py_expect_exception!(py, c2, "1 < c2", TypeError);
+    py_expect_exception!(py, c2, "c2 <= c2", TypeError);
+    py_expect_exception!(py, c2, "c2 <= 1", TypeError);
+    py_expect_exception!(py, c2, "1 <= c2", TypeError);
+    py_run!(py, c2, "assert (c2 == c2) == True");
+    py_run!(py, c2, "assert (c2 == 1) == True");
+    py_run!(py, c2, "assert (1 == c2) == True");
+    py_run!(py, c2, "assert (c2 != c2) == False");
+    py_run!(py, c2, "assert (c2 != 1) == False");
+    py_run!(py, c2, "assert (1 != c2) == False");
+    py_expect_exception!(py, c2, "c2 > c2", TypeError);
+    py_expect_exception!(py, c2, "c2 > 1", TypeError);
+    py_expect_exception!(py, c2, "1 > c2", TypeError);
+    py_expect_exception!(py, c2, "c2 >= c2", TypeError);
+    py_expect_exception!(py, c2, "c2 >= 1", TypeError);
+    py_expect_exception!(py, c2, "1 >= c2", TypeError);
+}
+
 py_class!(class ContextManager |py| {
     data exit_called : Cell<bool>;
 
