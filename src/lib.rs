@@ -98,6 +98,7 @@ pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
+pub use py_class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
 
 #[cfg(feature="python27-sys")]

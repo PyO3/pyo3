@@ -278,7 +278,11 @@ py_class!(class MyIterator |py| {
 
 ## Comparison operators
 
-TODO: implement support for `__cmp__`, `__lt__`, `__le__`, `__gt__`, `__ge__`, `__eq__`, `__ne__`.
+  * `def __richcmp__(&self, other: impl ToPyObject, op: CompareOp) -> PyResult<impl ToPyObject>`
+
+    Overloads Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`). The `op`
+    argument indicates the comparison operation being performed.
+    The return type will normally be `PyResult<bool>`, but any Python object can be returned.
 
   * `def __hash__(&self) -> PyResult<impl PrimInt>`
 

@@ -32,6 +32,16 @@ use objects::{PyObject, PyType};
 use err::{self, PyResult};
 use ffi;
 
+#[derive(Debug)]
+pub enum CompareOp {
+    Lt = ffi::Py_LT as isize,
+    Le = ffi::Py_LE as isize,
+    Eq = ffi::Py_EQ as isize,
+    Ne = ffi::Py_NE as isize,
+    Gt = ffi::Py_GT as isize,
+    Ge = ffi::Py_GE as isize
+}
+
 /// Trait implemented by the types produced by the `py_class!()` macro.
 pub trait PythonObjectFromPyClassMacro : python::PythonObjectWithTypeObject {
     fn initialize(py: Python) -> PyResult<PyType>;
