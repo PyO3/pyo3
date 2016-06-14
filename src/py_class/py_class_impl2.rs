@@ -673,41 +673,219 @@ macro_rules! py_class_impl {
     { { def __hash__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Invalid signature for operator __hash__" }
     };
+    { { def __iadd__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_add: py_class_binary_slot!($class::__iadd__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __iadd__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __iadd__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__iadd__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __iadd__" }
     };
+    { { def __iand__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_and: py_class_binary_slot!($class::__iand__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __iand__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __iand__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__iand__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __iand__" }
     };
 
     { { def __idiv__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__idiv__ is not supported by py_class! yet." }
     };
-
-    { { def __idivmod__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__idivmod__ is not supported by py_class! yet." }
-    };
+    { { def __ifloordiv__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_floor_divide: py_class_binary_slot!($class::__ifloordiv__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __ifloordiv__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __ifloordiv__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__ifloordiv__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __ifloordiv__" }
     };
+    { { def __ilshift__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_lshift: py_class_binary_slot!($class::__ilshift__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __ilshift__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __ilshift__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__ilshift__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __ilshift__" }
     };
+    { { def __imatmul__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_matrix_multiply: py_class_binary_slot!($class::__imatmul__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __imatmul__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __imatmul__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__imatmul__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __imatmul__" }
     };
+    { { def __imod__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_remainder: py_class_binary_slot!($class::__imod__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __imod__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __imod__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__imod__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __imod__" }
     };
+    { { def __imul__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_multiply: py_class_binary_slot!($class::__imul__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __imul__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __imul__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__imul__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __imul__" }
     };
 
     { { def __index__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -755,21 +933,99 @@ macro_rules! py_class_impl {
     { { def __invert__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Invalid signature for operator __invert__" }
     };
+    { { def __ior__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_or: py_class_binary_slot!($class::__ior__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __ior__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __ior__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__ior__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __ior__" }
     };
 
     { { def __ipow__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__ipow__ is not supported by py_class! yet." }
     };
+    { { def __irshift__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_rshift: py_class_binary_slot!($class::__irshift__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __irshift__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __irshift__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__irshift__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __irshift__" }
     };
+    { { def __isub__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_subtract: py_class_binary_slot!($class::__isub__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __isub__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __isub__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__isub__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __isub__" }
     };
     { { def __iter__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -799,13 +1055,65 @@ macro_rules! py_class_impl {
     { { def __iter__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Invalid signature for operator __iter__" }
     };
+    { { def __itruediv__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_true_divide: py_class_binary_slot!($class::__itruediv__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __itruediv__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __itruediv__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__itruediv__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __itruediv__" }
     };
+    { { def __ixor__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
+            $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_number */ [
+                $( $nb_slot_name : $nb_slot_value, )*
+                nb_inplace_xor: py_class_binary_slot!($class::__ixor__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __ixor__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
+        }
+        $members
+    }};
 
     { { def __ixor__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__ixor__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __ixor__" }
     };
 
     { { def __le__ $($tail:tt)* } $( $stuff:tt )* } => {

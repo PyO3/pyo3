@@ -351,6 +351,26 @@ py_class!(class MyIterator |py| {
     If you can't handle the combination of types you've been given,
     you should return `Ok(py.NotImplemented())`.
 
+  * `def __iadd__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __isub__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __imul__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __imatmul__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __itruediv__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ifloordiv__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __imod__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ilshift__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __irshift__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __iand__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ixor__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ior__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+
+    Handles inplace operations if possible, falling back to the non-inplace versions.
+    These methods must return a new reference! In the common case of returning the
+    same (mutated) object, you will want to return `Ok(self.clone_ref(py))`.
+
+    If you can't handle the combination of types you've been given,
+    you should return `Ok(py.NotImplemented())`.
+
 ## Context Manager
 
   * `def __enter__(&self) -> PyResult<impl ToPyObject>`
