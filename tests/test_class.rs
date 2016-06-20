@@ -749,6 +749,84 @@ fn rich_comparisons_python_3_type_error() {
     py_expect_exception!(py, c2, "1 >= c2", TypeError);
 }
 
+py_class!(class InPlaceOperations |py| {
+    data value: Cell<u32>;
+
+    def __repr__(&self) -> PyResult<String> {
+        Ok(format!("IPO({:?})", self.value(py).get()))
+    }
+
+    def __iadd__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() + other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __isub__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() - other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __imul__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() * other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __ilshift__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() << other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __irshift__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() >> other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __iand__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() & other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __ixor__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() ^ other);
+        Ok(self.clone_ref(py))
+    }
+
+    def __ior__(&self, other: u32) -> PyResult<Self> {
+        self.value(py).set(self.value(py).get() | other);
+        Ok(self.clone_ref(py))
+    }
+});
+
+#[test]
+fn inplace_operations() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(0)).unwrap();
+    py_run!(py, c, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(10)).unwrap();
+    py_run!(py, c, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(3)).unwrap();
+    py_run!(py, c, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(3)).unwrap();
+    py_run!(py, c, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    py_run!(py, c, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    py_run!(py, c, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    py_run!(py, c, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
+
+    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    py_run!(py, c, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
+}
+
 py_class!(class ContextManager |py| {
     data exit_called : Cell<bool>;
 

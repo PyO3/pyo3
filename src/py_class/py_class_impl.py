@@ -584,6 +584,11 @@ def reflected_numeric_operator(special_name):
     error('Reflected numeric operator %s is not supported by py_class! Use __%s__ instead!'
             % (special_name, special_name[3:-2]))(special_name)
 
+@special_method
+def inplace_numeric_operator(special_name, slot):
+    operator(slot=slot,
+             args=[Argument('other')])(special_name)
+
 special_names = {
     '__init__': error('__init__ is not supported by py_class!; use __new__ instead.'),
     '__new__': special_class_method(
@@ -694,21 +699,20 @@ special_names = {
     '__ror__': reflected_numeric_operator(),
 
     # Emulating numeric types - in-place
-    '__iadd__': unimplemented(),
-    '__isub__': unimplemented(),
-    '__imul__': unimplemented(),
-    '__imatmul__': unimplemented(),
+    '__iadd__': inplace_numeric_operator('nb_inplace_add'),
+    '__isub__': inplace_numeric_operator('nb_inplace_subtract'),
+    '__imul__': inplace_numeric_operator('nb_inplace_multiply'),
+    '__imatmul__': inplace_numeric_operator('nb_inplace_matrix_multiply'),
     '__idiv__': unimplemented(),
-    '__itruediv__': unimplemented(),
-    '__ifloordiv__': unimplemented(),
-    '__imod__': unimplemented(),
-    '__idivmod__': unimplemented(),
+    '__itruediv__': inplace_numeric_operator('nb_inplace_true_divide'),
+    '__ifloordiv__': inplace_numeric_operator('nb_inplace_floor_divide'),
+    '__imod__': inplace_numeric_operator('nb_inplace_remainder'),
     '__ipow__': unimplemented(),
-    '__ilshift__': unimplemented(),
-    '__irshift__': unimplemented(),
-    '__iand__': unimplemented(),
-    '__ixor__': unimplemented(),
-    '__ior__': unimplemented(),
+    '__ilshift__': inplace_numeric_operator('nb_inplace_lshift'),
+    '__irshift__': inplace_numeric_operator('nb_inplace_rshift'),
+    '__iand__': inplace_numeric_operator('nb_inplace_and'),
+    '__ixor__': inplace_numeric_operator('nb_inplace_xor'),
+    '__ior__': inplace_numeric_operator('nb_inplace_or'),
 
     # Unary arithmetic
     '__neg__': operator('nb_negative'),
