@@ -49,8 +49,9 @@ macro_rules! py_method_def {
 /// Creates a Python callable object that invokes a Rust function.
 ///
 /// There are two forms of this macro:
-/// 1) `py_fn!(py, f(parameter_list))`
-/// 2) `py_fn!(py, f(parameter_list) -> PyResult<T> { body })`
+///
+/// 1. `py_fn!(py, f(parameter_list))`
+/// 1. `py_fn!(py, f(parameter_list) -> PyResult<T> { body })`
 ///
 /// All three forms return a value of type `PyObject`.
 /// This python object is a callable object that invokes
@@ -60,13 +61,15 @@ macro_rules! py_method_def {
 /// the Rust types specified in the parameter list.
 /// See `py_argparse!()` for details on argument parsing.
 ///
-/// Form 1: 
+/// Form 1:
+///
 /// * `py` must be an expression of type `Python`
 /// * `f` must be the name of a function that is compatible with the specified
 ///    parameter list, except that a single parameter of type `Python` is prepended.
 ///    The function must return `PyResult<T>` for some `T` that implements `ToPyObject`.
 ///
 /// Form 2:
+///
 /// * `py` must be an identifier refers to a `Python` value.
 ///   The function body will also have access to a `Python` variable of this name.
 /// * `f` must be an identifier.
