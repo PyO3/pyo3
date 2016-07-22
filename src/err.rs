@@ -164,7 +164,10 @@ impl PyErr {
         };
 
         unsafe {
-            let ptr: *mut ffi::PyObject = ffi::PyErr_NewException(name.as_ptr() as *mut c_char, base, dict);
+            let null_terminated_name = CString::new(name).unwrap();
+            let ptr: *mut ffi::PyObject = ffi::PyErr_NewException(null_terminated_name.as_ptr() as *mut c_char,
+                                                                  base,
+                                                                  dict);
             PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into::<PyType>()
         }
     }
