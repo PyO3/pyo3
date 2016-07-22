@@ -120,7 +120,7 @@ pub fn parse_args(
 ///    5. `*name : ty`
 ///    6. `**name`
 ///    7. `**name : ty`
-///   The types used must implement the `ExtractPyObject` trait.
+///   The types used must implement the `FromPyObject` trait.
 ///   If no type is specified, the parameter implicitly uses
 ///   `&PyObject` (format 1), `&PyTuple` (format 4) or `&PyDict` (format 6).
 ///   If a default value is specified, it must be a compile-time constant

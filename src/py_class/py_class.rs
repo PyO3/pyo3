@@ -302,15 +302,15 @@ py_class!(class MyIterator |py| {
 
     `__length_hint__` is new in Python 3.4; older versions will ignore the method.
 
-  * `def __getitem__(&self, key: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __getitem__(&self, key: impl FromPyObject) -> PyResult<impl ToPyObject>`
 
     Called by the Python subscript operator `self[key]`.
 
-  * `def __setitem__(&self, key: impl ExtractPyObject, value: impl ExtractPyObject) -> PyResult<()>`
+  * `def __setitem__(&self, key: impl FromPyObject, value: impl FromPyObject) -> PyResult<()>`
 
     Called by Python `self[key] = value`.
 
-  * `def __delitem__(&self, key: impl ExtractPyObject) -> PyResult<()>`
+  * `def __delitem__(&self, key: impl FromPyObject) -> PyResult<()>`
 
     Called by Python `del self[key]`.
 
@@ -319,7 +319,7 @@ py_class!(class MyIterator |py| {
     Called by the `reversed()` built-in.
     It should return a new iterator object that iterates over all the objects in the container in reverse order.
 
-  * `def __contains__(&self, item: impl ExtractPyObject) -> PyResult<bool>`
+  * `def __contains__(&self, item: impl FromPyObject) -> PyResult<bool>`
 
     Called by Python `item in self`.
     For mapping types, this should consider the keys of the mapping rather than the values
@@ -351,18 +351,18 @@ py_class!(class MyIterator |py| {
     If you can't handle the combination of types you've been given,
     you should return `Ok(py.NotImplemented())`.
 
-  * `def __iadd__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __isub__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __imul__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __imatmul__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __itruediv__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __ifloordiv__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __imod__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __ilshift__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __irshift__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __iand__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __ixor__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
-  * `def __ior__(&self, other: impl ExtractPyObject) -> PyResult<impl ToPyObject>`
+  * `def __iadd__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __isub__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __imul__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __imatmul__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __itruediv__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ifloordiv__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __imod__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ilshift__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __irshift__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __iand__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ixor__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
+  * `def __ior__(&self, other: impl FromPyObject) -> PyResult<impl ToPyObject>`
 
     Handles inplace operations if possible, falling back to the non-inplace versions.
     These methods must return a new reference! In the common case of returning the
