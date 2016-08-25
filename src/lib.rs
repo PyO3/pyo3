@@ -17,17 +17,14 @@
 // DEALINGS IN THE SOFTWARE.
 
 #![cfg_attr(feature="nightly", feature(
-    unsafe_no_drop_flag, filling_drop, // (#5016)
-    // ^ These two are crucial so that `PyObject` is binary compatible with
-    //   `*mut ffi::PyObject`, which we use for efficient slice access and in
-    //   some other cases.
-
     const_fn, // for GILProtected::new (#24111)
     shared, // for std::ptr::Shared (#27730)
     //recover, // for converting panics to python exceptions (#27719)
     // -- TODO wait for stable release and promote recover code from cfg(nightly) (1.9?)
 
     // -- TODO remove <DUMMY> hack when it's no longer necessary on stable (1.9?)
+    // -- TODO make stuff depending on mem::size_of::<PyObject>() == mem::size_of::<*mut ffi::PyObject>()
+    //         available without cfg(nightly) (#5016, Rust 1.13?)
 ))]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x

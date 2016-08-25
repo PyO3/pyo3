@@ -42,7 +42,6 @@ use err::PyResult;
 /// on `PyObject` to convert to more specific object types.
 ///
 /// Most of the interesting methods are provided by the [ObjectProtocol trait](trait.ObjectProtocol.html).
-#[cfg_attr(feature="nightly", unsafe_no_drop_flag)]
 #[cfg_attr(feature="nightly", repr(C))]
 pub struct PyObject {
     // PyObject owns one reference to the *PyObject
@@ -59,23 +58,10 @@ unsafe impl Sync for PyObject {}
 
 /// Dropping a `PyObject` decrements the reference count on the object by 1.
 impl Drop for PyObject {
-    #[inline]
-    #[cfg(feature="nightly")]
-    fn drop(&mut self) {
-        // TODO: remove `if` when #[unsafe_no_drop_flag] disappears
-        if unpack_shared(self.ptr) as usize != mem::POST_DROP_USIZE {
-            let _gil_guard = Python::acquire_gil();
-            unsafe { ffi::Py_DECREF(unpack_shared(self.ptr)); }
-        }
-    }
-
-    #[inline]
-    #[cfg(not(feature="nightly"))]
     fn drop(&mut self) {
         let _gil_guard = Python::acquire_gil();
         unsafe { ffi::Py_DECREF(unpack_shared(self.ptr)); }
     }
-
 }
 
 #[inline]
