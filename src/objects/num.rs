@@ -65,7 +65,11 @@ pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 #[cfg(feature="python27-sys")]
 impl PyInt {
-    /// Creates a new Python `int` object.
+    /// Creates a new Python 2.7 `int` object.
+    ///
+    /// Note: you might want to call `val.to_py_object(py)` instead
+    /// to avoid truncation if the value does not fit into a `c_long`,
+    /// and to make your code compatible with Python 3.x.
     pub fn new(py: Python, val: c_long) -> PyInt {
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(val))
@@ -73,6 +77,11 @@ impl PyInt {
     }
 
     /// Gets the value of this integer.
+    ///
+    /// Warning: `PyInt::value()` is only supported for Python 2.7 `int` objects,
+    /// but not for `long` objects.
+    /// In almost all cases, you can avoid the distinction between these types
+    /// by simply calling `obj.extract::<i32>(py)`.
     pub fn value(&self, _py: Python) -> c_long {
         unsafe { ffi::PyInt_AS_LONG(self.0.as_ptr()) }
     }
