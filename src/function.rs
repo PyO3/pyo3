@@ -53,7 +53,7 @@ macro_rules! py_method_def {
 /// 1. `py_fn!(py, f(parameter_list))`
 /// 1. `py_fn!(py, f(parameter_list) -> PyResult<T> { body })`
 ///
-/// All three forms return a value of type `PyObject`.
+/// both forms return a value of type `PyObject`.
 /// This python object is a callable object that invokes
 /// the Rust function when called.
 ///
