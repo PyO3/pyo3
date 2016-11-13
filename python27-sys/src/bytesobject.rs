@@ -1,4 +1,4 @@
-//use stringobject::PyStringObject as PyBytesObject;
+pub use stringobject::PyStringObject as PyBytesObject;
 pub use stringobject::PyString_Type as PyBytes_Type;
 pub use stringobject::PyString_Check as PyBytes_Check;
 pub use stringobject::PyString_CheckExact as PyBytes_CheckExact;

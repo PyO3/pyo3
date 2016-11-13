@@ -4,7 +4,7 @@ use object::*;
 
 #[repr(C)]
 #[allow(missing_copy_implementations)]
-struct PyStringObject {
+pub struct PyStringObject {
     #[cfg(py_sys_config="Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
     #[cfg(py_sys_config="Py_TRACE_REFS")]
