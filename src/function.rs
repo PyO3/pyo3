@@ -30,19 +30,19 @@ use err::{self, PyResult};
 #[doc(hidden)]
 macro_rules! py_method_def {
     ($name: expr, $flags: expr, $wrap: expr) => {{
-        static mut method_def: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
+        static mut METHOD_DEF: $crate::_detail::ffi::PyMethodDef = $crate::_detail::ffi::PyMethodDef {
             //ml_name: bytes!(stringify!($name), "\0"),
             ml_name: 0 as *const $crate::_detail::libc::c_char,
             ml_meth: None,
             ml_flags: $crate::_detail::ffi::METH_VARARGS | $crate::_detail::ffi::METH_KEYWORDS | $flags,
             ml_doc: 0 as *const $crate::_detail::libc::c_char
         };
-        method_def.ml_name = concat!($name, "\0").as_ptr() as *const _;
-        method_def.ml_meth = Some(
+        METHOD_DEF.ml_name = concat!($name, "\0").as_ptr() as *const _;
+        METHOD_DEF.ml_meth = Some(
             ::std::mem::transmute::<$crate::_detail::ffi::PyCFunctionWithKeywords,
                                   $crate::_detail::ffi::PyCFunction>($wrap)
         );
-        &mut method_def
+        &mut METHOD_DEF
     }}
 }
 

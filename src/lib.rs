@@ -305,7 +305,7 @@ macro_rules! py_module_initializer {
             fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
             }
-            static mut module_def: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
+            static mut MODULE_DEF: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
                 m_base: $crate::_detail::ffi::PyModuleDef_HEAD_INIT,
                 m_name: 0 as *const _,
                 m_doc: 0 as *const _,
@@ -318,8 +318,8 @@ macro_rules! py_module_initializer {
             };
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
-            module_def.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
-            $crate::py_module_initializer_impl(&mut module_def, init)
+            MODULE_DEF.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
+            $crate::py_module_initializer_impl(&mut MODULE_DEF, init)
         }
     }
 }
