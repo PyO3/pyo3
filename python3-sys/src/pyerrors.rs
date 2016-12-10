@@ -137,6 +137,7 @@ extern "C" {
      -> *mut PyObject;
     pub fn PyErr_Format(exception: *mut PyObject,
                         format: *const c_char, ...) -> *mut PyObject;
+    #[cfg(Py_3_6)]
     pub fn PyErr_SetImportErrorSubclass(
         arg1: *mut PyObject, arg2: *mut PyObject,
         arg3: *mut PyObject, arg4: *mut PyObject) -> *mut PyObject;
