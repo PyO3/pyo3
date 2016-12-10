@@ -733,16 +733,6 @@ extern "C" {
                             arg3: *mut PyObject) -> c_int;
     pub fn PyObject_HasAttr(arg1: *mut PyObject, arg2: *mut PyObject)
      -> c_int;
-    /*pub fn _PyObject_IsAbstract(arg1: *mut PyObject) -> c_int;
-    pub fn _PyObject_GetAttrId(arg1: *mut PyObject,
-                               arg2: *mut Struct__Py_Identifier)
-     -> *mut PyObject;
-    pub fn _PyObject_SetAttrId(arg1: *mut PyObject,
-                               arg2: *mut Struct__Py_Identifier,
-                               arg3: *mut PyObject) -> c_int;
-    pub fn _PyObject_HasAttrId(arg1: *mut PyObject,
-                               arg2: *mut Struct__Py_Identifier)
-     -> c_int;*/
     pub fn PyObject_SelfIter(arg1: *mut PyObject) -> *mut PyObject;
 
     #[cfg(not(Py_LIMITED_API))]

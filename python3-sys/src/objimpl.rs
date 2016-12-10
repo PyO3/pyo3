@@ -10,7 +10,7 @@ extern "C" {
      -> *mut c_void;
     pub fn PyObject_Free(ptr: *mut c_void) -> ();
 
-    #[cfg(Py_3_4)]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_4))]
     pub fn _Py_GetAllocatedBlocks() -> Py_ssize_t;
     pub fn PyObject_Init(arg1: *mut PyObject, arg2: *mut PyTypeObject)
      -> *mut PyObject;
@@ -72,8 +72,9 @@ extern "C" {
     pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t)
      -> *mut PyVarObject;
 
+    #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
-    #[cfg(Py_3_5)]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_5))]
     pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t)

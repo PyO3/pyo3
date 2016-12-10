@@ -3,9 +3,9 @@ use object::PyObject;
 use pystate::PyThreadState;
 
 extern "C" {
-    pub fn PyEval_CallObjectWithKeywords(arg1: *mut PyObject,
-                                         arg2: *mut PyObject,
-                                         arg3: *mut PyObject)
+    pub fn PyEval_CallObjectWithKeywords(func: *mut PyObject,
+                                         obj: *mut PyObject,
+                                         kwargs: *mut PyObject)
      -> *mut PyObject;
 }
 

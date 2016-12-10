@@ -66,6 +66,8 @@ extern "C" {
     pub static mut PyExc_FloatingPointError: *mut PyObject;
     pub static mut PyExc_OSError: *mut PyObject;
     pub static mut PyExc_ImportError: *mut PyObject;
+    #[cfg(Py_3_6)]
+    pub static mut PyExc_ModuleNotFoundError: *mut PyObject;
     pub static mut PyExc_IndexError: *mut PyObject;
     pub static mut PyExc_KeyError: *mut PyObject;
     pub static mut PyExc_KeyboardInterrupt: *mut PyObject;
@@ -135,6 +137,9 @@ extern "C" {
      -> *mut PyObject;
     pub fn PyErr_Format(exception: *mut PyObject,
                         format: *const c_char, ...) -> *mut PyObject;
+    pub fn PyErr_SetImportErrorSubclass(
+        arg1: *mut PyObject, arg2: *mut PyObject,
+        arg3: *mut PyObject, arg4: *mut PyObject) -> *mut PyObject;
     pub fn PyErr_SetImportError(arg1: *mut PyObject, arg2: *mut PyObject,
                                 arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyErr_BadInternalCall() -> ();

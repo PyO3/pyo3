@@ -57,6 +57,7 @@ pub use modsupport::*;
 pub use pythonrun::*;
 pub use ceval::*;
 pub use sysmodule::*;
+#[cfg(Py_3_6)] pub use osmodule::*;
 pub use intrcheck::*;
 pub use import::*;
 
@@ -134,6 +135,7 @@ mod pythonrun; // TODO some functions need to be moved to pylifecycle
 //mod pylifecycle; // TODO new in 3.5
 mod ceval; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+#[cfg(Py_3_6)] mod osmodule;
 mod intrcheck; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod import; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 

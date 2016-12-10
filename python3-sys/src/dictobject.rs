@@ -48,9 +48,6 @@ extern "C" {
      -> *mut PyObject;
     pub fn PyDict_GetItemWithError(mp: *mut PyObject, key: *mut PyObject)
      -> *mut PyObject;
-    //fn _PyDict_GetItemIdWithError(dp: *mut PyObject,
-    //                              key: *mut Struct__Py_Identifier)
-    // -> *mut PyObject;
     pub fn PyDict_SetItem(mp: *mut PyObject, key: *mut PyObject,
                           item: *mut PyObject) -> c_int;
     pub fn PyDict_DelItem(mp: *mut PyObject, key: *mut PyObject)
@@ -74,14 +71,8 @@ extern "C" {
                                 _override: c_int) -> c_int;
     pub fn PyDict_GetItemString(dp: *mut PyObject, key: *const c_char)
      -> *mut PyObject;
-    //fn _PyDict_GetItemId(dp: *mut PyObject,
-    //                        key: *mut Struct__Py_Identifier)
-    // -> *mut PyObject;
     pub fn PyDict_SetItemString(dp: *mut PyObject, key: *const c_char,
                                 item: *mut PyObject) -> c_int;
-    //fn _PyDict_SetItemId(dp: *mut PyObject,
-    //                         key: *mut Struct__Py_Identifier,
-    //                       item: *mut PyObject) -> c_int;
     pub fn PyDict_DelItemString(dp: *mut PyObject, key: *const c_char)
      -> c_int;
 }

@@ -5,8 +5,6 @@ extern "C" {
     pub fn PySys_GetObject(arg1: *const c_char) -> *mut PyObject;
     pub fn PySys_SetObject(arg1: *const c_char, arg2: *mut PyObject)
      -> c_int;
-    //fn _PySys_SetObjectId(key: *mut _Py_Identifier, arg1: *mut PyObject)
-    // -> c_int;
     pub fn PySys_SetArgv(arg1: c_int, arg2: *mut *mut wchar_t) -> ();
     pub fn PySys_SetArgvEx(arg1: c_int, arg2: *mut *mut wchar_t,
                            arg3: c_int) -> ();

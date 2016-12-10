@@ -15,6 +15,14 @@ pub type PyCFunction =
     unsafe extern "C" fn
                               (slf: *mut PyObject, args: *mut PyObject)
                               -> *mut PyObject;
+
+#[cfg(all(Py_3_6, not(Py_LIMITED_API)))]
+pub type _PyCFunctionFast =
+    unsafe extern "C" fn
+                              (slf: *mut PyObject, args: *mut *mut PyObject,
+                               nargs: ::pyport::Py_ssize_t, kwnames: *mut PyObject)
+                              -> *mut PyObject;
+
 pub type PyCFunctionWithKeywords =
     unsafe extern "C" fn
                               (slf: *mut PyObject, args: *mut PyObject,
@@ -76,6 +84,9 @@ pub const METH_STATIC   : c_int = 0x0020;
    slot like sq_contains. */
 
 pub const METH_COEXIST   : c_int = 0x0040;
+
+#[cfg(all(Py_3_6, not(Py_LIMITED_API)))]
+pub const METHOD_FASTCALL : c_int = 0x0080;
 
 extern "C" {
     pub fn PyCFunction_ClearFreeList() -> c_int;

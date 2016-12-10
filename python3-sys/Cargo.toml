@@ -36,6 +36,7 @@ python-3 = []
 # Or, bind to a particular minor version.
 python-3-4 = []
 python-3-5 = []
+python-3-6 = []
 
 # Restrict to PEP-384 stable ABI
 pep-384 = []

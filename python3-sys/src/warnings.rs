@@ -9,6 +9,10 @@ extern "C" {
     pub fn PyErr_WarnFormat(category: *mut PyObject, stack_level: Py_ssize_t,
                             format: *const c_char, ...)
      -> c_int;
+    #[cfg(Py_3_6)]
+    pub fn PyErr_ResourceWarning(
+        source: *mut PyObject, stack_level: Py_ssize_t,
+        format: *const c_char, ...) -> c_int;
     pub fn PyErr_WarnExplicit(category: *mut PyObject,
                               message: *const c_char,
                               filename: *const c_char,

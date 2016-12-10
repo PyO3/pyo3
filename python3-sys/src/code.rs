@@ -11,6 +11,8 @@ pub struct PyCodeObject {
     pub co_nlocals: c_int,
     pub co_stacksize: c_int,
     pub co_flags: c_int,
+    #[cfg(Py_3_6)]
+    pub co_firstlineno: c_int,
     pub co_code: *mut PyObject,
     pub co_consts: *mut PyObject,
     pub co_names: *mut PyObject,
@@ -20,10 +22,13 @@ pub struct PyCodeObject {
     pub co_cell2arg: *mut c_uchar,
     pub co_filename: *mut PyObject,
     pub co_name: *mut PyObject,
+    #[cfg(not(Py_3_6))]
     pub co_firstlineno: c_int,
     pub co_lnotab: *mut PyObject,
     pub co_zombieframe: *mut c_void,
     pub co_weakreflist: *mut PyObject,
+    #[cfg(Py_3_6)]
+    pub co_extra: *mut c_void,
 }
 impl Clone for PyCodeObject {
     #[inline] fn clone(&self) -> Self { *self }
@@ -51,6 +56,8 @@ pub const CO_NOFREE : c_int = 0x0040;
 pub const CO_COROUTINE : c_int = 0x0080;
 #[cfg(Py_3_5)]
 pub const CO_ITERABLE_COROUTINE : c_int = 0x0100;
+#[cfg(Py_3_6)]
+pub const CO_ASYNC_GENERATOR : c_int = 0x0200;
 
 pub const CO_FUTURE_DIVISION : c_int = 0x2000;
 pub const CO_FUTURE_ABSOLUTE_IMPORT : c_int = 0x4000; /* do absolute imports by default */
@@ -80,7 +87,7 @@ extern "C" {
     pub fn PyCode_Addr2Line(arg1: *mut PyCodeObject, arg2: c_int)
      -> c_int;
     pub fn PyCode_Optimize(code: *mut PyObject, consts: *mut PyObject,
-                           names: *mut PyObject, lineno_obj: *mut PyObject)
+                           names: *mut PyObject, lnotab: *mut PyObject)
      -> *mut PyObject;
 }
 

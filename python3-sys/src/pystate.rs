@@ -2,6 +2,8 @@ use libc::{c_int, c_long};
 use object::PyObject;
 use moduleobject::PyModuleDef;
 
+pub const MAX_CO_EXTRA_USERS: c_int = 255;
+
 pub enum PyInterpreterState { }
 pub enum PyThreadState { }
 
@@ -9,14 +11,14 @@ extern "C" {
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     pub fn PyInterpreterState_Clear(arg1: *mut PyInterpreterState) -> ();
     pub fn PyInterpreterState_Delete(arg1: *mut PyInterpreterState) -> ();
-    fn _PyState_AddModule(arg1: *mut PyObject,
-                              arg2: *mut PyModuleDef) -> c_int;
+    //fn _PyState_AddModule(arg1: *mut PyObject,
+    //                      arg2: *mut PyModuleDef) -> c_int;
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
     pub fn PyThreadState_New(arg1: *mut PyInterpreterState)
      -> *mut PyThreadState;
-    fn _PyThreadState_Prealloc(arg1: *mut PyInterpreterState)
-     -> *mut PyThreadState;
-    pub fn _PyThreadState_Init(arg1: *mut PyThreadState) -> ();
+    //fn _PyThreadState_Prealloc(arg1: *mut PyInterpreterState)
+    // -> *mut PyThreadState;
+    //fn _PyThreadState_Init(arg1: *mut PyThreadState) -> ();
     pub fn PyThreadState_Clear(arg1: *mut PyThreadState) -> ();
     pub fn PyThreadState_Delete(arg1: *mut PyThreadState) -> ();
     #[cfg(py_sys_config="WITH_THREAD")]

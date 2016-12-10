@@ -74,8 +74,8 @@ extern "C" {
                                 filename: *const c_char,
                                 enc: *const c_char,
                                 start: c_int,
-                                ps1: *mut c_char,
-                                ps2: *mut c_char,
+                                ps1: *const c_char,
+                                ps2: *const c_char,
                                 flags: *mut PyCompilerFlags,
                                 errcode: *mut c_int,
                                 arena: *mut PyArena) -> *mut _mod;
@@ -83,8 +83,8 @@ extern "C" {
     pub fn PyParser_ASTFromFileObject(fp: *mut FILE, filename: *mut PyObject,
                                       enc: *const c_char,
                                       start: c_int,
-                                      ps1: *mut c_char,
-                                      ps2: *mut c_char,
+                                      ps1: *const c_char,
+                                      ps2: *const c_char,
                                       flags: *mut PyCompilerFlags,
                                       errcode: *mut c_int,
                                       arena: *mut PyArena)

@@ -19,5 +19,7 @@ extern "C" {
     pub static mut Py_HashRandomizationFlag: c_int;
     #[cfg(Py_3_4)]
     pub static mut Py_IsolatedFlag: c_int;
+    #[cfg(all(Py_3_6, windows))]
+    pub static mut Py_LegacyWindowsStdioFlag: c_int;
 }
 
