@@ -2,6 +2,7 @@ use libc::{c_int, c_long};
 use object::PyObject;
 use moduleobject::PyModuleDef;
 
+#[cfg(Py_3_6)]
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
 pub enum PyInterpreterState { }

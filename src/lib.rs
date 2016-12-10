@@ -305,17 +305,7 @@ macro_rules! py_module_initializer {
             fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
             }
-            static mut MODULE_DEF: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef {
-                m_base: $crate::_detail::ffi::PyModuleDef_HEAD_INIT,
-                m_name: 0 as *const _,
-                m_doc: 0 as *const _,
-                m_size: 0, // we don't use per-module state
-                m_methods: 0 as *mut _,
-                m_reload: None,
-                m_traverse: None,
-                m_clear: None,
-                m_free: None
-            };
+            static mut MODULE_DEF: $crate::_detail::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
@@ -323,7 +313,6 @@ macro_rules! py_module_initializer {
         }
     }
 }
-
 
 #[doc(hidden)]
 #[cfg(feature="python3-sys")]
