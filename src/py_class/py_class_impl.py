@@ -137,16 +137,16 @@ base_case = '''
                     return Ok($class { _unsafe_inner: obj });
 
                     // hide statics in create_instance to avoid name conflicts
-                    static mut type_object : $crate::_detail::ffi::PyTypeObject
+                    static mut TYPE_OBJECT : $crate::_detail::ffi::PyTypeObject
                         = py_class_type_object_static_init!($class, $gc, $slots);
-                    static mut init_active: bool = false;
+                    static mut INIT_ACTIVE: bool = false;
 
-                    // trait implementations that need direct access to type_object
+                    // trait implementations that need direct access to TYPE_OBJECT
                     impl $crate::PythonObjectWithTypeObject for $class {
                         fn type_object(py: $crate::Python) -> $crate::PyType {
                             unsafe {
-                                if $crate::py_class::is_ready(py, &type_object) {
-                                    $crate::PyType::from_type_ptr(py, &mut type_object)
+                                if $crate::py_class::is_ready(py, &TYPE_OBJECT) {
+                                    $crate::PyType::from_type_ptr(py, &mut TYPE_OBJECT)
                                 } else {
                                     // automatically initialize the class on-demand
                                     <$class as $crate::py_class::PythonObjectFromPyClassMacro>::initialize(py)
@@ -159,26 +159,26 @@ base_case = '''
                     impl $crate::py_class::PythonObjectFromPyClassMacro for $class {
                         fn initialize(py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
                             unsafe {
-                                if $crate::py_class::is_ready(py, &type_object) {
-                                    return Ok($crate::PyType::from_type_ptr(py, &mut type_object));
+                                if $crate::py_class::is_ready(py, &TYPE_OBJECT) {
+                                    return Ok($crate::PyType::from_type_ptr(py, &mut TYPE_OBJECT));
                                 }
-                                assert!(!init_active,
+                                assert!(!INIT_ACTIVE,
                                     concat!("Reentrancy detected: already initializing class ",
                                     stringify!($class)));
-                                init_active = true;
+                                INIT_ACTIVE = true;
                                 let res = init(py);
-                                init_active = false;
+                                INIT_ACTIVE = false;
                                 res
                             }
                         }
                     }
 
                     fn init($py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
-                        py_class_type_object_dynamic_init!($class, $py, type_object, $slots);
-                        py_class_init_members!($class, $py, type_object, $members);
+                        py_class_type_object_dynamic_init!($class, $py, TYPE_OBJECT, $slots);
+                        py_class_init_members!($class, $py, TYPE_OBJECT, $members);
                         unsafe {
-                            if $crate::_detail::ffi::PyType_Ready(&mut type_object) == 0 {
-                                Ok($crate::PyType::from_type_ptr($py, &mut type_object))
+                            if $crate::_detail::ffi::PyType_Ready(&mut TYPE_OBJECT) == 0 {
+                                Ok($crate::PyType::from_type_ptr($py, &mut TYPE_OBJECT))
                             } else {
                                 Err($crate::PyErr::fetch($py))
                             }
