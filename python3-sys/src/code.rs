@@ -70,7 +70,7 @@ pub const CO_FUTURE_GENERATOR_STOP : c_int = 0x80000;
 
 pub const CO_MAXBLOCKS: usize = 20;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
 
     pub fn PyCode_New(arg1: c_int, arg2: c_int,

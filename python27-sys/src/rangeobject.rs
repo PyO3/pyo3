@@ -1,7 +1,7 @@
 use libc::c_int;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyRange_Type: PyTypeObject;
 }
 

@@ -5,7 +5,7 @@ use moduleobject::PyModuleDef;
 #[cfg(Py_3_5)]
 use methodobject::PyMethodDef;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...)
      -> c_int;
     pub fn PyArg_ParseTuple(arg1: *mut PyObject,
@@ -53,7 +53,7 @@ pub const Py_CLEANUP_SUPPORTED: i32 = 0x20000;
 pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
     pub fn PyModule_Create2(module: *mut PyModuleDef,
                         apiver: c_int) -> *mut PyObject;

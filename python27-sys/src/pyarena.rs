@@ -4,7 +4,7 @@ use object::PyObject;
 #[allow(missing_copy_implementations)]
 pub enum PyArena { }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyArena_New() -> *mut PyArena;
     pub fn PyArena_Free(arg1: *mut PyArena);
     pub fn PyArena_Malloc(arg1: *mut PyArena, size: size_t)

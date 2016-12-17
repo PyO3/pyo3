@@ -1,7 +1,7 @@
 use libc::{c_void, c_char, c_int};
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCObject_Type: PyTypeObject;
 }
 
@@ -10,7 +10,7 @@ pub unsafe fn PyCObject_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCObject_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCObject_FromVoidPtr(cobj: *mut c_void,
                                  destruct:
                                      Option<unsafe extern "C" fn

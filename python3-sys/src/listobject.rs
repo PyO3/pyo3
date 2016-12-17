@@ -2,7 +2,7 @@ use libc::c_int;
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyList_Type: PyTypeObject;
     pub static mut PyListIter_Type: PyTypeObject;
     pub static mut PyListRevIter_Type: PyTypeObject;
@@ -18,7 +18,7 @@ pub unsafe fn PyList_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyList_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;
     pub fn PyList_Size(arg1: *mut PyObject) -> Py_ssize_t;
     pub fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t)

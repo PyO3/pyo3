@@ -4,7 +4,7 @@ use object::*;
 
 //enum PySetObject { /* representation hidden */ }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PySet_Type: PyTypeObject;
     pub static mut PyFrozenSet_Type: PyTypeObject;
 }
@@ -41,7 +41,7 @@ pub unsafe fn PyFrozenSet_Check(ob : *mut PyObject) -> c_int {
     (Py_TYPE(ob) == f || PyType_IsSubtype(Py_TYPE(ob), f) != 0) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PySet_New(iterable: *mut PyObject) -> *mut PyObject;
     pub fn PyFrozenSet_New(iterable: *mut PyObject) -> *mut PyObject;
     pub fn PySet_Size(anyset: *mut PyObject) -> Py_ssize_t;

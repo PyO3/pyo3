@@ -2,7 +2,7 @@ use libc::{c_char, c_int};
 use object::*;
 use pyport::Py_ssize_t;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyBytes_Type: PyTypeObject;
     pub static mut PyBytesIter_Type: PyTypeObject;
 }
@@ -17,7 +17,7 @@ pub unsafe fn PyBytes_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyBytes_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyBytes_FromStringAndSize(arg1: *const c_char,
                                      arg2: Py_ssize_t) -> *mut PyObject;
     pub fn PyBytes_FromString(arg1: *const c_char) -> *mut PyObject;

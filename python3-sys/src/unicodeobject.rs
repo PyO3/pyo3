@@ -9,7 +9,7 @@ pub type Py_UCS4 = u32;
 pub type Py_UCS2 = u16;
 pub type Py_UCS1 = u8;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyUnicode_Type: PyTypeObject;
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 }
@@ -26,7 +26,7 @@ pub unsafe fn PyUnicode_CheckExact(op : *mut PyObject) -> c_int {
 
 pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyUnicode_New(size: Py_ssize_t, maxchar: Py_UCS4) -> *mut PyObject;
     

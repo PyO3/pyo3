@@ -22,6 +22,6 @@ install:
 build_script:
  - set PATH=C:\Python27-x64;%PATH%&& cargo build --verbose --features python27-sys --no-default-features
  - set PATH=C:\Python34-x64;%PATH%&& cargo build --verbose --features python3-sys --no-default-features
-test: false
-#test_script:
-# - cargo test --verbose
+test_script:
+ - set PATH=C:\Python27-x64;%PATH%&& cargo test --verbose --features python27-sys --no-default-features
+ - set PATH=C:\Python34-x64;%PATH%&& cargo test --verbose --features python3-sys --no-default-features

@@ -15,7 +15,7 @@ pub struct PyTupleObject {
     pub ob_item: [*mut PyObject; 1],
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyTuple_Type: PyTypeObject;
 }
 
@@ -48,7 +48,7 @@ pub unsafe fn PyTuple_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObjec
    *(*(op as *mut PyTupleObject)).ob_item.as_mut_ptr().offset(i as isize) = v;
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
     pub fn PyTuple_Size(p: *mut PyObject) -> Py_ssize_t;
     pub fn PyTuple_GetItem(p: *mut PyObject, pos: Py_ssize_t)

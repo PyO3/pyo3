@@ -25,7 +25,7 @@ pub enum Struct__node { }
 #[allow(missing_copy_implementations)]
 pub enum Struct_symtable { }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn Py_SetProgramName(arg1: *mut c_char);
     pub fn Py_GetProgramName() -> *mut c_char;
     pub fn Py_SetPythonHome(arg1: *mut c_char);

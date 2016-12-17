@@ -2,7 +2,7 @@ use libc::{c_int, c_char};
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
 
@@ -11,7 +11,7 @@ pub unsafe fn PyMemoryView_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyMemoryView_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyMemoryView_FromObject(base: *mut PyObject) -> *mut PyObject;
     pub fn PyMemoryView_FromMemory(mem: *mut c_char, size: Py_ssize_t,
                                    flags: c_int) -> *mut PyObject;

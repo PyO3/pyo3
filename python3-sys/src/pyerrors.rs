@@ -2,7 +2,7 @@ use libc::{c_char, c_int};
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyErr_SetNone(arg1: *mut PyObject) -> ();
     pub fn PyErr_SetObject(arg1: *mut PyObject, arg2: *mut PyObject) -> ();
     pub fn PyErr_SetString(exception: *mut PyObject,
@@ -52,7 +52,7 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     (*x).ob_type as *mut PyObject
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyExc_BaseException: *mut PyObject;
     pub static mut PyExc_Exception: *mut PyObject;
     pub static mut PyExc_StopIteration: *mut PyObject;

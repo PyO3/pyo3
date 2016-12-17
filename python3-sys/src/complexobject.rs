@@ -1,7 +1,7 @@
 use libc::{c_double, c_int};
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
@@ -15,7 +15,7 @@ pub unsafe fn PyComplex_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyComplex_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyComplex_FromDoubles(real: c_double,
                                  imag: c_double) -> *mut PyObject;
     pub fn PyComplex_RealAsDouble(op: *mut PyObject) -> c_double;

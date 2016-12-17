@@ -53,7 +53,7 @@ impl Clone for wrapperbase {
 
 pub const PyWrapperFlag_KEYWORDS : c_int = 1;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyWrapperDescr_Type: PyTypeObject;
     pub static mut PyDictProxy_Type: PyTypeObject;
     pub static mut PyGetSetDescr_Type: PyTypeObject;
@@ -78,7 +78,7 @@ pub unsafe fn PyDescr_IsData(d: *mut PyObject) -> c_int {
     (*Py_TYPE(d)).tp_descr_set.is_some() as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     //pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     // PyDictProxy_New is also defined in dictobject.h
     pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject)

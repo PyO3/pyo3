@@ -5,7 +5,7 @@ use object::*;
 //enum PyLongObject { /* representation hidden */ }
 
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyLong_Type: PyTypeObject;
 }
 
@@ -20,7 +20,7 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyLong_FromLong(v: c_long) -> *mut PyObject;
     pub fn PyLong_FromUnsignedLong(v: c_ulong) -> *mut PyObject;
     pub fn PyLong_FromSsize_t(v: Py_ssize_t) -> *mut PyObject;

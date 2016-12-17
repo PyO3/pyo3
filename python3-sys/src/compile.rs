@@ -32,7 +32,7 @@ pub const FUTURE_BARRY_AS_BDFL    : &'static str = "barry_as_FLUFL";
 pub const FUTURE_GENERATOR_STOP   : &'static str = "generator_stop";
 
 #[cfg(not(Py_LIMITED_API))]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyNode_Compile(arg1: *mut _node,
                           arg2: *const c_char) -> *mut PyCodeObject;
     pub fn PyAST_CompileEx(_mod: *mut _mod,

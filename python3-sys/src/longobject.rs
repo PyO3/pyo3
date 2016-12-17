@@ -4,7 +4,7 @@ use pyport::Py_ssize_t;
 
 pub enum PyLongObject {}
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyLong_Type: PyTypeObject;
 }
 
@@ -18,7 +18,7 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyLong_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyLong_FromLong(arg1: c_long) -> *mut PyObject;
     pub fn PyLong_FromUnsignedLong(arg1: c_ulong) -> *mut PyObject;
     pub fn PyLong_FromSize_t(arg1: size_t) -> *mut PyObject;

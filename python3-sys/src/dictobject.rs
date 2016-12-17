@@ -2,7 +2,7 @@ use libc::{c_char, c_int};
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyDict_Type: PyTypeObject;
     pub static mut PyDictIterKey_Type: PyTypeObject;
     pub static mut PyDictIterValue_Type: PyTypeObject;
@@ -42,7 +42,7 @@ pub unsafe fn PyDictViewSet_Check(op : *mut PyObject) -> c_int {
     (PyDictKeys_Check(op) != 0 || PyDictItems_Check(op) != 0) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyDict_New() -> *mut PyObject;
     pub fn PyDict_GetItem(mp: *mut PyObject, key: *mut PyObject)
      -> *mut PyObject;

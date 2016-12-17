@@ -2,7 +2,7 @@ use libc::{c_char, c_int};
 use pyport::Py_ssize_t;
 use object::PyObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyErr_WarnEx(category: *mut PyObject,
                         message: *const c_char,
                         stack_level: Py_ssize_t) -> c_int;

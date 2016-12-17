@@ -1,6 +1,6 @@
 use libc::{c_char, c_int};
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut Py_DebugFlag: c_int;
     pub static mut Py_VerboseFlag: c_int;
     pub static mut Py_InteractiveFlag: c_int;

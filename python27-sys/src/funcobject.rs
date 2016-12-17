@@ -1,7 +1,7 @@
 use libc::c_int;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyFunction_Type: PyTypeObject;
 }
 
@@ -12,7 +12,7 @@ pub unsafe fn PyFunction_Check(op : *mut PyObject) -> c_int {
 }
 
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyFunction_New(code: *mut PyObject, globals: *mut PyObject)
      -> *mut PyObject;
     pub fn PyFunction_GetCode(f: *mut PyObject) -> *mut PyObject;

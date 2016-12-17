@@ -1,7 +1,7 @@
 use libc::{c_char, c_int};
 use object::PyObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCodec_Register(search_function: *mut PyObject) -> c_int;
     pub fn PyCodec_KnownEncoding(encoding: *const c_char)
      -> c_int;

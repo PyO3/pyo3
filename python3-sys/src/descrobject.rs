@@ -27,7 +27,7 @@ impl Clone for PyGetSetDef {
     #[inline] fn clone(&self) -> PyGetSetDef { *self }
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
     pub static mut PyGetSetDescr_Type: PyTypeObject;
     pub static mut PyMemberDescr_Type: PyTypeObject;

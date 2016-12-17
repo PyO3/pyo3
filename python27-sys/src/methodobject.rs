@@ -3,7 +3,7 @@ use core::ptr;
 //use pyport::Py_ssize_t;
 use object::{PyObject, PyTypeObject, Py_TYPE};
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 
@@ -26,7 +26,7 @@ pub type PyNoArgsFunction =
                               -> *mut PyObject;
 
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
@@ -92,7 +92,7 @@ struct PyCFunctionObject {
 }
 */
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn Py_FindMethod(methods: *mut PyMethodDef, slf: *mut PyObject,
                          name: *const c_char) -> *mut PyObject;
     pub fn PyCFunction_NewEx(ml: *mut PyMethodDef, slf: *mut PyObject,

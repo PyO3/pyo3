@@ -49,7 +49,7 @@ pub struct PyMethodObject {
     pub im_weakreflist: *mut PyObject,
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyClass_Type: PyTypeObject;
     pub static mut PyInstance_Type: PyTypeObject;
     pub static mut PyMethod_Type: PyTypeObject;
@@ -73,7 +73,7 @@ pub unsafe fn PyMethod_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyClass_New(arg1: *mut PyObject, arg2: *mut PyObject,
                        arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyInstance_New(arg1: *mut PyObject, arg2: *mut PyObject,

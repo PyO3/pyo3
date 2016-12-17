@@ -17,7 +17,7 @@ struct PyByteArrayObject {
     pub ob_bytes: *mut c_char,
 }*/
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyByteArray_Type: PyTypeObject;
     pub static mut PyByteArrayIter_Type: PyTypeObject;
 }
@@ -31,7 +31,7 @@ pub unsafe fn PyByteArray_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject;
     pub fn PyByteArray_Concat(a: *mut PyObject, b: *mut PyObject)
      -> *mut PyObject;

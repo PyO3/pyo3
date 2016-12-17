@@ -2,7 +2,7 @@ use libc::{c_int, c_long};
 use object::*;
 use longobject::PyLongObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyBool_Type: PyTypeObject;
     static mut _Py_FalseStruct: PyLongObject;
     static mut _Py_TrueStruct: PyLongObject;

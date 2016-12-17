@@ -14,7 +14,7 @@ struct PyCellObject {
     pub ob_ref: *mut PyObject
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCell_Type: PyTypeObject;
 }
 
@@ -23,7 +23,7 @@ pub unsafe fn PyCell_Check(op: *mut PyObject) -> c_int {
      (Py_TYPE(op) == &mut PyCell_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCell_New(obj: *mut PyObject) -> *mut PyObject;
     pub fn PyCell_Get(op: *mut PyObject) -> *mut PyObject;
     pub fn PyCell_Set(op: *mut PyObject, obj: *mut PyObject) -> c_int;

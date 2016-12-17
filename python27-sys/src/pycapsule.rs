@@ -1,7 +1,7 @@
 use libc::{c_void, c_char, c_int};
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCapsule_Type: PyTypeObject;
 }
 
@@ -12,7 +12,7 @@ pub unsafe fn PyCapsule_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PyCapsule_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCapsule_New(pointer: *mut c_void,
                          name: *const c_char,
                          destructor: Option<PyCapsule_Destructor>) -> *mut PyObject;

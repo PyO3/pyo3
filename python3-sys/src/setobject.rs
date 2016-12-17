@@ -2,7 +2,7 @@ use libc::c_int;
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PySet_Type: PyTypeObject;
     pub static mut PyFrozenSet_Type: PyTypeObject;
     pub static mut PySetIter_Type: PyTypeObject;
@@ -35,7 +35,7 @@ pub unsafe fn PyFrozenSet_Check(ob : *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PyFrozenSet_Type || PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PySet_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyFrozenSet_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PySet_Size(anyset: *mut PyObject) -> Py_ssize_t;

@@ -9,7 +9,7 @@ pub struct Py_complex {
     pub imag: c_double
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn _Py_c_sum(left: Py_complex, right: Py_complex) -> Py_complex;
     pub fn _Py_c_diff(left: Py_complex, right: Py_complex) -> Py_complex;
     pub fn _Py_c_neg(complex: Py_complex) -> Py_complex;
@@ -31,7 +31,7 @@ pub struct PyComplexObject {
     pub cval: Py_complex
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
@@ -46,7 +46,7 @@ pub unsafe fn PyComplex_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyComplex_FromCComplex(v: Py_complex) -> *mut PyObject;
     pub fn PyComplex_FromDoubles(real: c_double,
                                  imag: c_double) -> *mut PyObject;

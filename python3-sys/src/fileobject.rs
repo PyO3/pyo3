@@ -3,7 +3,7 @@ use object::PyObject;
 
 pub const PY_STDIOTEXTMODE : &'static str = "b";
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyFile_FromFd(arg1: c_int, arg2: *const c_char,
                          arg3: *const c_char, arg4: c_int,
                          arg5: *const c_char,

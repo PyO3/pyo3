@@ -4,7 +4,7 @@ use pyport::Py_ssize_t;
 use object::PyObject;
 use methodobject::PyMethodDef;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyArg_Parse(args: *mut PyObject, format: *const c_char, ...)
      -> c_int;
     pub fn PyArg_ParseTuple(args: *mut PyObject,

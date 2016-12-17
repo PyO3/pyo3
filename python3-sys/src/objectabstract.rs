@@ -13,7 +13,7 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
     PyObject_SetAttr(o, attr_name, ptr::null_mut())
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyObject_Call(callable_object: *mut PyObject, args: *mut PyObject,
                          kw: *mut PyObject) -> *mut PyObject;
     pub fn PyObject_CallObject(callable_object: *mut PyObject,
@@ -41,7 +41,7 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
     PyObject_Size(o)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(all(not(Py_LIMITED_API), Py_3_4))]
     pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t)
      -> Py_ssize_t;
@@ -78,7 +78,7 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer,
                               flags: c_int) -> c_int;
     pub fn PyBuffer_GetPointer(view: *mut Py_buffer, indices: *mut Py_ssize_t)
@@ -105,7 +105,7 @@ extern "C" {
     pub fn PyBuffer_Release(view: *mut Py_buffer) -> ();
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyObject_Format(obj: *mut PyObject, format_spec: *mut PyObject)
      -> *mut PyObject;
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
@@ -120,7 +120,7 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     }) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;
@@ -165,7 +165,7 @@ pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyNumber_Index(o: *mut PyObject) -> *mut PyObject;
     pub fn PyNumber_AsSsize_t(o: *mut PyObject, exc: *mut PyObject)
      -> Py_ssize_t;
@@ -210,7 +210,7 @@ pub unsafe fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t {
     PySequence_Size(o)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PySequence_Concat(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PySequence_Repeat(o: *mut PyObject, count: Py_ssize_t)
@@ -244,7 +244,7 @@ pub unsafe fn PySequence_In(o: *mut PyObject, value: *mut PyObject) -> c_int {
     PySequence_Contains(o, value)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PySequence_Index(o: *mut PyObject, value: *mut PyObject)
      -> Py_ssize_t;
     pub fn PySequence_InPlaceConcat(o1: *mut PyObject, o2: *mut PyObject)
@@ -270,7 +270,7 @@ pub unsafe fn PyMapping_DelItem(o : *mut PyObject, key : *mut PyObject) -> c_int
     PyObject_DelItem(o, key)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyMapping_HasKeyString(o: *mut PyObject,
                                   key: *const c_char)
      -> c_int;

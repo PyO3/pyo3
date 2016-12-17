@@ -2,7 +2,7 @@ use libc::{c_void, size_t};
 
 #[cfg(Py_3_4)]
 #[cfg(not(Py_LIMITED_API))]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
     #[cfg(Py_3_5)]
     pub fn PyMem_RawCalloc(nelem: size_t, elsize: size_t)
@@ -12,7 +12,7 @@ extern "C" {
     pub fn PyMem_RawFree(ptr: *mut c_void) -> ();
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyMem_Malloc(size: size_t) -> *mut c_void;
     #[cfg(Py_3_5)]
     pub fn PyMem_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
@@ -71,7 +71,7 @@ pub struct PyMemAllocatorEx {
 
 #[cfg(Py_3_4)]
 #[cfg(not(Py_LIMITED_API))]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(not(Py_3_5))]
     pub fn PyMem_GetAllocator(domain: PyMemAllocatorDomain,
                               allocator: *mut PyMemAllocator) -> ();

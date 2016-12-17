@@ -18,7 +18,7 @@ pub struct PyWeakReference {
     pub wr_next: *mut PyWeakReference
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     static mut _PyWeakref_RefType: PyTypeObject;
     static mut _PyWeakref_ProxyType: PyTypeObject;
     static mut _PyWeakref_CallableProxyType: PyTypeObject;
@@ -45,7 +45,7 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
     (PyWeakref_CheckRef(op) != 0 || PyWeakref_CheckProxy(op) != 0) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject)
      -> *mut PyObject;
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject)

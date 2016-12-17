@@ -2,7 +2,7 @@ use libc::{c_void, c_char, c_int};
 use object::PyObject;
 use pystate::PyThreadState;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_CallObjectWithKeywords(func: *mut PyObject,
                                          obj: *mut PyObject,
                                          kwargs: *mut PyObject)
@@ -14,7 +14,7 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
     PyEval_CallObjectWithKeywords(func, arg, ::core::ptr::null_mut())
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_CallFunction(obj: *mut PyObject,
                                format: *const c_char, ...)
      -> *mut PyObject;
@@ -39,7 +39,7 @@ extern "C" {
 
 // TODO: Py_EnterRecursiveCall etc.
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_GetFuncName(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetFuncDesc(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetCallStats(arg1: *mut PyObject) -> *mut PyObject;
@@ -51,7 +51,7 @@ extern "C" {
 }
 
 #[cfg(py_sys_config = "WITH_THREAD")]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_ThreadsInitialized() -> c_int;
     pub fn PyEval_InitThreads() -> ();
     pub fn PyEval_AcquireLock() -> ();

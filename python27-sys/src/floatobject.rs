@@ -14,7 +14,7 @@ struct PyFloatObject {
     pub ob_fval: c_double
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyFloat_Type: PyTypeObject;
 }
 
@@ -31,7 +31,7 @@ pub unsafe fn PyFloat_CheckExact(op : *mut PyObject) -> c_int {
 
 pub const PyFloat_STR_PRECISION : c_int = 12;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyFloat_FromString(str: *mut PyObject,
                               pend: *mut *mut c_char)
      -> *mut PyObject;

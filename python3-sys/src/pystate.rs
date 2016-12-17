@@ -8,7 +8,7 @@ pub const MAX_CO_EXTRA_USERS: c_int = 255;
 pub enum PyInterpreterState { }
 pub enum PyThreadState { }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     pub fn PyInterpreterState_Clear(arg1: *mut PyInterpreterState) -> ();
     pub fn PyInterpreterState_Delete(arg1: *mut PyInterpreterState) -> ();
@@ -38,7 +38,7 @@ pub enum PyGILState_STATE {
     PyGILState_UNLOCKED
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyGILState_Ensure() -> PyGILState_STATE;
     pub fn PyGILState_Release(arg1: PyGILState_STATE) -> ();
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;

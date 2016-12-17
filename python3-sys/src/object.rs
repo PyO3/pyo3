@@ -657,7 +657,7 @@ impl Default for PyType_Spec {
     fn default() -> PyType_Spec { unsafe { ::core::mem::zeroed() } }
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
     //#[cfg(Py_3_3)]
@@ -669,7 +669,7 @@ extern "C" {
         -> *mut c_void;
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
 }
 
@@ -678,7 +678,7 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
     (Py_TYPE(ob) == tp || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     /// built-in 'type'
     pub static mut PyType_Type: PyTypeObject;
     /// built-in 'object'
@@ -699,7 +699,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyType_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
     pub fn PyType_GenericAlloc(t: *mut PyTypeObject, nitems: Py_ssize_t)
      -> *mut PyObject;
@@ -824,7 +824,7 @@ pub unsafe fn PyType_FastSubclass(t : *mut PyTypeObject, f : c_ulong) -> c_int {
     PyType_HasFeature(t, f)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn _Py_Dealloc(arg1: *mut PyObject) -> ();
 }
 
@@ -873,7 +873,7 @@ pub unsafe fn Py_XDECREF(op : *mut PyObject) {
     }
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn Py_IncRef(o: *mut PyObject);
     pub fn Py_DecRef(o: *mut PyObject);
 

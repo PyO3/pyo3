@@ -2,7 +2,7 @@ use libc::{c_char, c_int};
 use core::{mem, ptr};
 use object::{PyObject, PyTypeObject, Py_TYPE};
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 
@@ -31,7 +31,7 @@ pub type PyNoArgsFunction =
     unsafe extern "C" fn(slf: *mut PyObject)
                               -> *mut PyObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
@@ -60,7 +60,7 @@ pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut 
     PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCFunction_NewEx(arg1: *mut PyMethodDef, arg2: *mut PyObject,
                              arg3: *mut PyObject) -> *mut PyObject;
 }
@@ -88,7 +88,7 @@ pub const METH_COEXIST   : c_int = 0x0040;
 #[cfg(all(Py_3_6, not(Py_LIMITED_API)))]
 pub const METHOD_FASTCALL : c_int = 0x0080;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCFunction_ClearFreeList() -> c_int;
 }
 

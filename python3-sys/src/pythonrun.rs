@@ -7,7 +7,7 @@ use pyarena::PyArena;
 
 // TODO: PyCF_MASK etc. constants
 
-extern "C" { // TODO: these moved to pylifecycle.h
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" { // TODO: these moved to pylifecycle.h
     pub fn Py_SetProgramName(arg1: *mut wchar_t) -> ();
     pub fn Py_GetProgramName() -> *mut wchar_t;
     pub fn Py_SetPythonHome(arg1: *mut wchar_t) -> ();
@@ -31,7 +31,7 @@ pub struct PyCompilerFlags {
 pub enum _mod {}
 
 #[cfg(not(Py_LIMITED_API))]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char,
                                    arg2: *mut PyCompilerFlags)
      -> c_int;
@@ -105,7 +105,7 @@ pub unsafe fn PyParser_SimpleParseFile(fp: *mut FILE, s: *const c_char, b: c_int
     PyParser_SimpleParseFileFlags(fp, s, b, 0)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyParser_SimpleParseStringFlags(arg1: *const c_char,
                                            arg2: c_int,
                                            arg3: c_int)
@@ -147,7 +147,7 @@ pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int
 pub unsafe fn Py_CompileStringFlags(string: *const c_char, p: *const c_char, s: c_int, f: *mut PyCompilerFlags) -> *mut PyObject {
     Py_CompileStringExFlags(string, p, s, f, -1)
 }
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(not(Py_LIMITED_API))]
     pub fn Py_CompileStringExFlags(str: *const c_char,
                                    filename: *const c_char,

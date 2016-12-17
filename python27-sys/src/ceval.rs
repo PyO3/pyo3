@@ -5,7 +5,7 @@ use frameobject::PyFrameObject;
 use pystate::{PyThreadState, Py_tracefunc};
 use pythonrun::PyCompilerFlags;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_CallObjectWithKeywords(callable: *mut PyObject,
                                          args: *mut PyObject,
                                          kwds: *mut PyObject)
@@ -53,7 +53,7 @@ extern "C" {
 }
 
 #[cfg(py_sys_config="WITH_THREAD")]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_ThreadsInitialized() -> c_int;
     pub fn PyEval_InitThreads();
     pub fn PyEval_AcquireLock();

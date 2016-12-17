@@ -226,7 +226,7 @@ fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
 #[cfg(target_os="windows")]
 fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
-    Ok(format!("cargo:rustc-link-lib=python{}{}", version.major, 
+    Ok(format!("cargo:rustc-link-lib=pythonXY:python{}{}", version.major, 
         match version.minor {
             Some(minor) => minor.to_string(),
             None => "".to_owned()

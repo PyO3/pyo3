@@ -4,7 +4,7 @@ use object::*;
 
 //pub enum PyDictObject { /* representation hidden */ }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyDict_Type: PyTypeObject;
     pub static mut PyDictIterKey_Type: PyTypeObject;
     pub static mut PyDictIterValue_Type: PyTypeObject;
@@ -25,7 +25,7 @@ pub unsafe fn PyDict_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyDict_New() -> *mut PyObject;
     pub fn PyDictProxy_New(dict: *mut PyObject) -> *mut PyObject;
     pub fn PyDict_Clear(mp: *mut PyObject);

@@ -2,7 +2,7 @@ use libc::c_int;
 use object::PyObject;
 use code::PyCodeObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_EvalCode(arg1: *mut PyCodeObject, arg2: *mut PyObject,
                            arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyEval_EvalCodeEx(co: *mut PyCodeObject, globals: *mut PyObject,

@@ -28,7 +28,7 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
     PyImport_ImportModuleLevel(name, globals, locals, fromlist, -1)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyImport_ImportModule(name: *const c_char)
      -> *mut PyObject;
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char)

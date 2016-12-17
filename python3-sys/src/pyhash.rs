@@ -18,7 +18,7 @@ impl Default for PyHash_FuncDef {
     #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;
 }
 

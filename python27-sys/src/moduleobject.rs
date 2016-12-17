@@ -1,7 +1,7 @@
 use libc::{c_char, c_int};
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyModule_Type: PyTypeObject;
     
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;

@@ -1,7 +1,7 @@
 use libc::{c_char, c_int, c_long};
 use object::PyObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyImport_GetMagicNumber() -> c_long;
     pub fn PyImport_GetMagicTag() -> *const c_char;
     pub fn PyImport_ExecCodeModule(name: *const c_char,
@@ -51,7 +51,7 @@ pub unsafe fn PyImport_ImportModuleEx(name: *const c_char,
     PyImport_ImportModuleLevel(name, globals, locals, fromlist, 0)
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;

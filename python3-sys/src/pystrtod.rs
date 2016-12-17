@@ -1,7 +1,7 @@
 use libc::{c_char, c_int, c_double};
 use object::PyObject;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyOS_string_to_double(str: *const c_char,
                                  endptr: *mut *mut c_char,
                                  overflow_exception: *mut PyObject)

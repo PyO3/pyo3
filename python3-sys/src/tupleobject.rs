@@ -9,7 +9,7 @@ pub struct PyTupleObject {
     pub ob_item: [*mut PyObject; 1],
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyTuple_Type: PyTypeObject;
     pub static mut PyTupleIter_Type: PyTypeObject;
 }
@@ -24,7 +24,7 @@ pub unsafe fn PyTuple_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTuple_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
     pub fn PyTuple_Size(arg1: *mut PyObject) -> Py_ssize_t;
     pub fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t)

@@ -1,7 +1,7 @@
 use libc::{c_int, c_double};
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyFloat_Type: PyTypeObject;
 }
 
@@ -15,7 +15,7 @@ pub unsafe fn PyFloat_CheckExact(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyFloat_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyFloat_GetMax() -> c_double;
     pub fn PyFloat_GetMin() -> c_double;
     pub fn PyFloat_GetInfo() -> *mut PyObject;

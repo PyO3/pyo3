@@ -24,7 +24,7 @@ impl Clone for PyStructSequence_Desc {
     #[inline] fn clone(&self) -> PyStructSequence_Desc { *self }
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc)
      -> *mut PyTypeObject;
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;

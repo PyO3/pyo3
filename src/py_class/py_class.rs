@@ -347,7 +347,7 @@ py_class!(class MyIterator |py| {
     the same method of the second operand is called, with the operands in the same order.
 
     This means that you can't rely on the first parameter of these methods being `self`
-    or being the right type, and you should test the types of both operands before deciding what to do.
+    or being the correct type, and you should test the types of both operands before deciding what to do.
     If you can't handle the combination of types you've been given,
     you should return `Ok(py.NotImplemented())`.
 

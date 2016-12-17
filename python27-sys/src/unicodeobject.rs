@@ -29,7 +29,7 @@ pub struct PyUnicodeObject {
     pub defenc: *mut PyObject,
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyUnicode_Type: PyTypeObject;
 }
 
@@ -69,7 +69,7 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
 
 #[allow(dead_code)]
 #[cfg(py_sys_config="Py_UNICODE_SIZE_4")]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     fn PyUnicodeUCS4_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;
     fn PyUnicodeUCS4_FromStringAndSize(u: *const c_char,
@@ -313,7 +313,7 @@ extern "C" {
 
 #[allow(dead_code)]
 #[cfg(not(py_sys_config="Py_UNICODE_SIZE_4"))]
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     fn PyUnicodeUCS2_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;
     fn PyUnicodeUCS2_FromStringAndSize(u: *const c_char,

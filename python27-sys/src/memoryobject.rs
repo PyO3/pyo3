@@ -2,7 +2,7 @@ use libc::{c_int, c_char};
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
 
@@ -23,7 +23,7 @@ pub unsafe fn PyMemoryView_GET_BASE(op : *mut PyObject) -> *mut PyObject {
 }
 
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyMemoryView_GetContiguous(base: *mut PyObject,
                                       buffertype: c_int,
                                       fort: c_char) -> *mut PyObject;

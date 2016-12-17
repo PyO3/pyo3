@@ -4,8 +4,7 @@ use intobject::PyIntObject;
 
 pub type PyBoolObject = PyIntObject;
 
-
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyBool_Type: PyTypeObject;
     static mut _Py_ZeroStruct: PyIntObject;
     static mut _Py_TrueStruct: PyIntObject;

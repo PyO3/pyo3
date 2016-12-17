@@ -2,7 +2,7 @@ use libc::c_int;
 use pyport::Py_ssize_t;
 use object::*;
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     static mut _Py_EllipsisObject: PyObject;
 }
 
@@ -11,7 +11,7 @@ pub unsafe fn Py_Ellipsis() -> *mut PyObject {
     &mut _Py_EllipsisObject
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PySlice_Type: PyTypeObject;
     pub static mut PyEllipsis_Type: PyTypeObject;
 }
@@ -21,7 +21,7 @@ pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
      (Py_TYPE(op) == &mut PySlice_Type) as c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PySlice_New(start: *mut PyObject, stop: *mut PyObject,
                        step: *mut PyObject) -> *mut PyObject;
     pub fn PySlice_GetIndices(r: *mut PyObject, length: Py_ssize_t,

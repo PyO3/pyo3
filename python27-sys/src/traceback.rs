@@ -18,7 +18,7 @@ pub struct PyTracebackObject {
     pub tb_lineno: c_int
 }
 
-extern "C" {
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyTraceBack_Here(arg1: *mut PyFrameObject) -> c_int;
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject)
      -> c_int;
