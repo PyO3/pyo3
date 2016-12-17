@@ -1,4 +1,4 @@
-// Copyright (c) 2015 Daniel Grunwald
+// Copyright (c) 2016 Daniel Grunwald
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -19,12 +19,6 @@
 #![cfg_attr(feature="nightly", feature(
     const_fn, // for GILProtected::new (#24111)
     shared, // for std::ptr::Shared (#27730)
-    //recover, // for converting panics to python exceptions (#27719)
-    // -- TODO wait for stable release and promote recover code from cfg(nightly) (1.9?)
-
-    // -- TODO remove <DUMMY> hack when it's no longer necessary on stable (1.9?)
-    // -- TODO make stuff depending on mem::size_of::<PyObject>() == mem::size_of::<*mut ffi::PyObject>()
-    //         available without cfg(nightly) (#5016, Rust 1.13?)
 ))]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x

@@ -34,7 +34,7 @@ pub struct VisitProc<'a> {
     /// VisitProc contains a Python instance to ensure that
     /// 1) it is cannot be moved out of the traverse() call
     /// 2) it cannot be sent to other threads
-    py: Python<'a>
+    _py: Python<'a>
 }
 
 impl <'a> VisitProc<'a> {
@@ -96,7 +96,7 @@ where C: PythonObject,
 {
     let guard = AbortOnDrop(location);
     let py = Python::assume_gil_acquired();
-    let visit = VisitProc { visit: visit, arg: arg, py: py };
+    let visit = VisitProc { visit: visit, arg: arg, _py: py };
     let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<C>();
     let ret = match callback(&slf, py, visit) {
         Ok(()) => 0,

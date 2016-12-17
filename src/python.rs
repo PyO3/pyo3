@@ -223,7 +223,7 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn run(self, code: &str, globals: Option<&PyDict>,
                 locals: Option<&PyDict>) -> PyResult<()> {
-        try!(self.run_code(code, ffi::Py_file_input, globals, locals));
+        self.run_code(code, ffi::Py_file_input, globals, locals)?;
         Ok(())
     }
 

@@ -115,7 +115,7 @@ pub unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 #[doc(hidden)]
 macro_rules! py_class_wrap_newfunc {
     ($class:ident :: $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]) => {{
-        unsafe extern "C" fn wrap_newfunc<DUMMY>(
+        unsafe extern "C" fn wrap_newfunc(
             cls: *mut $crate::_detail::ffi::PyTypeObject,
             args: *mut $crate::_detail::ffi::PyObject,
             kwargs: *mut $crate::_detail::ffi::PyObject)
@@ -135,7 +135,7 @@ macro_rules! py_class_wrap_newfunc {
                         })
                 })
         }
-        Some(wrap_newfunc::<()>)
+        Some(wrap_newfunc)
     }}
 }
 
@@ -241,7 +241,7 @@ pub unsafe fn mp_ass_subscript_error(o: *mut ffi::PyObject, err: &[u8]) -> c_int
 #[doc(hidden)]
 macro_rules! py_class_unary_slot {
     ($class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
-        unsafe extern "C" fn wrap_unary<DUMMY>(
+        unsafe extern "C" fn wrap_unary(
             slf: *mut $crate::_detail::ffi::PyObject)
         -> $res_type
         {
@@ -255,7 +255,7 @@ macro_rules! py_class_unary_slot {
                     ret
                 })
         }
-        Some(wrap_unary::<()>)
+        Some(wrap_unary)
     }}
 }
 
@@ -263,7 +263,7 @@ macro_rules! py_class_unary_slot {
 #[doc(hidden)]
 macro_rules! py_class_binary_slot {
     ($class:ident :: $f:ident, $arg_type:ty, $res_type:ty, $conv:expr) => {{
-        unsafe extern "C" fn wrap_binary<DUMMY>(
+        unsafe extern "C" fn wrap_binary(
             slf: *mut $crate::_detail::ffi::PyObject,
             arg: *mut $crate::_detail::ffi::PyObject)
         -> $res_type
@@ -283,7 +283,7 @@ macro_rules! py_class_binary_slot {
                     ret
                 })
         }
-        Some(wrap_binary::<()>)
+        Some(wrap_binary)
     }}
 }
 
@@ -291,7 +291,7 @@ macro_rules! py_class_binary_slot {
 #[doc(hidden)]
 macro_rules! py_class_ternary_slot {
     ($class:ident :: $f:ident, $arg1_type:ty, $arg2_type:ty, $res_type:ty, $conv:expr) => {{
-        unsafe extern "C" fn wrap_binary<DUMMY>(
+        unsafe extern "C" fn wrap_binary(
             slf: *mut $crate::_detail::ffi::PyObject,
             arg1: *mut $crate::_detail::ffi::PyObject,
             arg2: *mut $crate::_detail::ffi::PyObject)
@@ -317,7 +317,7 @@ macro_rules! py_class_ternary_slot {
                     ret
                 })
         }
-        Some(wrap_binary::<()>)
+        Some(wrap_binary)
     }}
 }
 
@@ -409,7 +409,7 @@ pub fn type_error_to_false(py: Python, e: PyErr) -> PyResult<bool> {
 #[doc(hidden)]
 macro_rules! py_class_binary_numeric_slot {
     ($class:ident :: $f:ident) => {{
-        unsafe extern "C" fn binary_numeric<DUMMY>(
+        unsafe extern "C" fn binary_numeric(
             lhs: *mut $crate::_detail::ffi::PyObject,
             rhs: *mut $crate::_detail::ffi::PyObject)
         -> *mut $crate::_detail::ffi::PyObject
@@ -426,7 +426,7 @@ macro_rules! py_class_binary_numeric_slot {
                     ret
                 })
         }
-        Some(binary_numeric::<()>)
+        Some(binary_numeric)
     }}
 }
 
@@ -559,7 +559,7 @@ impl CallbackConverter<bool> for BoolConverter {
 #[doc(hidden)]
 macro_rules! py_class_call_slot {
     ($class:ident :: $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]) => {{
-        unsafe extern "C" fn wrap_call<DUMMY>(
+        unsafe extern "C" fn wrap_call(
             slf: *mut $crate::_detail::ffi::PyObject,
             args: *mut $crate::_detail::ffi::PyObject,
             kwargs: *mut $crate::_detail::ffi::PyObject)
@@ -579,7 +579,7 @@ macro_rules! py_class_call_slot {
                         })
                 })
         }
-        Some(wrap_call::<()>)
+        Some(wrap_call)
     }}
 }
 

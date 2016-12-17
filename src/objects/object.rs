@@ -42,7 +42,7 @@ use err::PyResult;
 /// on `PyObject` to convert to more specific object types.
 ///
 /// Most of the interesting methods are provided by the [ObjectProtocol trait](trait.ObjectProtocol.html).
-#[cfg_attr(feature="nightly", repr(C))]
+#[repr(C)]
 pub struct PyObject {
     // PyObject owns one reference to the *PyObject
     // ptr is not null
@@ -191,7 +191,6 @@ impl PyObject {
     /// Transmutes an FFI pointer to `&PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    #[cfg(feature="nightly")] // needs unsafe_no_drop_flag
     pub unsafe fn borrow_from_ptr<'a>(ptr : &'a *mut ffi::PyObject) -> &'a PyObject {
         debug_assert!(!ptr.is_null());
         mem::transmute(ptr)
@@ -200,7 +199,6 @@ impl PyObject {
     /// Transmutes a slice of owned FFI pointers to `&[PyObject]`.
     /// Undefined behavior if any pointer in the slice is NULL or invalid.
     #[inline]
-    #[cfg(feature="nightly")] // needs unsafe_no_drop_flag
     pub unsafe fn borrow_from_owned_ptr_slice<'a>(ptr : &'a [*mut ffi::PyObject]) -> &'a [PyObject] {
         mem::transmute(ptr)
     }
@@ -282,7 +280,6 @@ impl PartialEq for PyObject {
 impl Eq for PyObject { }
 
 #[test]
-#[cfg(feature="nightly")] // needs unsafe_no_drop_flag
 fn test_sizeof() {
     // should be a static_assert, but size_of is not a compile-time const
     // these are necessary for the transmutes in this module

@@ -72,7 +72,6 @@ impl PyTuple {
     }
 
     #[inline]
-    #[cfg(feature="nightly")] // needs unsafe_no_drop_flag
     pub fn as_slice<'a>(&'a self) -> &'a [PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -86,19 +85,8 @@ impl PyTuple {
                 ))
         }
     }
-
-    #[inline]
-    pub fn iter<'a, 'p>(&'a self, py: Python<'p>) -> PyTupleIterator<'a, 'p> {
-        PyTupleIterator {
-            py: py,
-            tuple: self,
-            index: 0,
-            end: self.len(py)
-        }
-    }
 }
 
-#[cfg(feature="nightly")] // needs unsafe_no_drop_flag
 impl ::std::ops::Index<usize> for PyTuple {
     type Output = PyObject;
 
@@ -108,7 +96,6 @@ impl ::std::ops::Index<usize> for PyTuple {
     }
 }
 
-#[cfg(feature="nightly")] // needs unsafe_no_drop_flag
 impl <'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyObject;
     type IntoIter = slice::Iter<'a, PyObject>;
@@ -116,41 +103,6 @@ impl <'a> IntoIterator for &'a PyTuple {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.as_slice().iter()
-    }
-}
-
-/// Used by `PyTuple::iter()`.
-pub struct PyTupleIterator<'a, 'p> {
-    py: Python<'p>,
-    tuple: &'a PyTuple,
-    index: usize,
-    end: usize
-}
-
-impl <'a, 'p> Iterator for PyTupleIterator<'a, 'p> {
-    type Item = PyObject;
-
-    #[inline]
-    fn next(&mut self) -> Option<PyObject> {
-        if self.index < self.end {
-            let item = self.tuple.get_item(self.py, self.index);
-            self.index += 1;
-            Some(item)
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len(), Some(self.len()))
-    }
-}
-
-impl <'a, 'p> ExactSizeIterator for PyTupleIterator<'a, 'p> {
-    #[inline]
-    fn len(&self) -> usize {
-        self.end - self.index
     }
 }
 
@@ -176,26 +128,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    #[cfg(not(feature="nightly"))]
-    impl <'s, $($T: for <'a> FromPyObject<'a>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(py: Python, obj: &'s PyObject) -> PyResult<Self> {
-            let t = try!(obj.cast_as::<PyTuple>(py));
-            if t.len(py) == $length {
-                Ok((
-                    $( py_coerce_expr! {{
-                        let item = t.get_item(py, $n);
-                        let r = try!(item.extract::<$T>(py));
-                        item.release_ref(py);
-                        r
-                    }} ,)+
-                ))
-            } else {
-                Err(wrong_tuple_length(py, t, $length))
-            }
-        }
-    }
-
-    #[cfg(feature="nightly")]
     impl <'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(py: Python, obj: &'s PyObject) -> PyResult<Self> {
             let t = try!(obj.cast_as::<PyTuple>(py));

@@ -18,7 +18,7 @@
 
 use libc;
 use std::{mem, ptr, io, any, marker};
-#[cfg(feature="nightly")] use std::panic;
+use std::panic;
 use std::ffi::{CString, CStr};
 use python::{Python, PythonObject, PyDrop};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
@@ -112,8 +112,7 @@ macro_rules! py_fn {
 macro_rules! py_fn_impl {
     // Form 1: reference existing function
     { $py:expr, $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ] } => {{
-        // <DUMMY> is workaround for rust issue #26201
-        unsafe extern "C" fn wrap<DUMMY>(
+        unsafe extern "C" fn wrap(
             _slf: *mut $crate::_detail::ffi::PyObject,
             args: *mut $crate::_detail::ffi::PyObject,
             kwargs: *mut $crate::_detail::ffi::PyObject)
@@ -131,7 +130,7 @@ macro_rules! py_fn_impl {
         }
         unsafe {
             $crate::_detail::py_fn_impl($py,
-                py_method_def!(stringify!($f), 0, wrap::<()>))
+                py_method_def!(stringify!($f), 0, wrap))
         }
     }};
     // Form 2: inline function definition
@@ -187,7 +186,6 @@ impl <T, S> CallbackConverter<S> for PythonObjectCallbackConverter<T>
     }
 }
 
-#[cfg(feature="nightly")]
 pub unsafe fn handle_callback<F, T, C>(location: &str, _c: C, f: F) -> C::R
     where F: FnOnce(Python) -> PyResult<T>,
           F: panic::UnwindSafe,
@@ -217,32 +215,11 @@ pub unsafe fn handle_callback<F, T, C>(location: &str, _c: C, f: F) -> C::R
     ret
 }
 
-#[cfg(feature="nightly")]
 fn handle_panic(_py: Python, _panic: &any::Any) {
     let msg = cstr!("Rust panic");
     unsafe {
         ffi::PyErr_SetString(ffi::PyExc_SystemError, msg.as_ptr());
     }
-}
-
-#[cfg(not(feature="nightly"))]
-pub unsafe fn handle_callback<F, T, C>(location: &str, _c: C, f: F) -> C::R
-    where F: FnOnce(Python) -> PyResult<T>,
-          C: CallbackConverter<T>
-{
-    let guard = AbortOnDrop(location);
-    let py = Python::assume_gil_acquired();
-    let ret = match f(py) {
-        Ok(val) => {
-            C::convert(val, py)
-        }
-        Err(e) => {
-            e.restore(py);
-            C::error_value()
-        }
-    };
-    mem::forget(guard);
-    ret
 }
 
 pub struct AbortOnDrop<'a>(pub &'a str);
