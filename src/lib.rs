@@ -212,13 +212,12 @@ pub mod _detail {
 ///
 /// # Example
 /// ```
-/// #![crate_type = "dylib"]
 /// #[macro_use] extern crate cpython;
 /// use cpython::{Python, PyResult, PyObject};
 ///
-/// py_module_initializer!(example, initexample, PyInit_example, |py, m| {
-///     try!(m.add(py, "__doc__", "Module documentation string"));
-///     try!(m.add(py, "run", py_fn!(py, run())));
+/// py_module_initializer!(hello, inithello, PyInit_hello, |py, m| {
+///     m.add(py, "__doc__", "Module documentation string")?;
+///     m.add(py, "run", py_fn!(py, run()))?;
 ///     Ok(())
 /// });
 ///
@@ -228,16 +227,29 @@ pub mod _detail {
 /// }
 /// # fn main() {}
 /// ```
-/// The code must be compiled into a file `example.so`.
+///
+/// In your `Cargo.toml`, use the `extension-module` feature for the `cpython` dependency:
+/// ```cargo
+/// [dependencies.cpython]
+/// version = "*"
+/// features = ["extension-module"]
+/// ```
+/// The full example project can be found at:
+///   https://github.com/dgrunwald/rust-cpython/tree/master/extensions/hello
+/// 
+/// Rust will compile the code into a file named `libhello.so`, but we have to
+/// rename the file in order to use it with Python:
 ///
 /// ```bash
-/// rustc example.rs -o example.so
+/// cp ./target/debug/libhello.so ./hello.so
 /// ```
-/// It can then be imported into Python:
+/// (Note: on Mac OS you will have to rename `libhello.dynlib` to `libhello.so`)
+///
+/// The extension module can then be imported into Python:
 ///
 /// ```python
-/// >>> import example
-/// >>> example.run()
+/// >>> import hello
+/// >>> hello.run()
 /// Rust says: Hello Python!
 /// ```
 ///

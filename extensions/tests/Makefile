@@ -1,4 +1,4 @@
-TARGETDIR=../target/debug
+TARGETDIR=../../target/debug
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 .PHONY: all clean
@@ -27,10 +27,10 @@ clean:
 stamps:
 	mkdir stamps
 
-stamps/rust-cpython-$(PY): $(call rwildcard,../src,*.rs) Makefile | stamps
+stamps/rust-cpython-$(PY): $(call rwildcard,../../src,*.rs) Makefile | stamps
 	-rm stamps/rust-cpython-*
-	cd .. && make build PY=$(PY)
-	touch $@
+	cd ../.. && make build PY=$(PY)
+	touch "$@"
 
 %.so: %.rs stamps/rust-cpython-$(PY)
 	rustc $< -g -L $(TARGETDIR) -L $(TARGETDIR)/deps -o $@

@@ -298,8 +298,16 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
     let ld_version: &str = &lines[3];
     let exec_prefix: &str = &lines[4];
 
-    println!("{}", get_rustc_link_lib(&interpreter_version,
-        ld_version, enable_shared == "1").unwrap());
+    let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    if !is_extension_module || cfg!(target_os="windows") {
+        println!("{}", get_rustc_link_lib(&interpreter_version,
+            ld_version, enable_shared == "1").unwrap());
+        if libpath != "None" {
+            println!("cargo:rustc-link-search=native={}", libpath);
+        } else if cfg!(target_os="windows") {
+            println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
+        }
+    }
 
     let is_pep_384 = env::var_os("CARGO_FEATURE_PEP_384").is_some();
     if is_pep_384 {
@@ -310,12 +318,6 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         for i in 4..(minor+1) {
             println!("cargo:rustc-cfg=Py_3_{}", i);
         }
-    }
-
-    if libpath != "None" {
-        println!("cargo:rustc-link-search=native={}", libpath);
-    } else if cfg!(target_os="windows") {
-        println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
     }
 
     return Ok(interpreter_path);

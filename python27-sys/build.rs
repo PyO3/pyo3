@@ -297,13 +297,14 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
     let enable_shared: &str = &lines[2];
     let exec_prefix: &str = &lines[3];
 
-    println!("{}", get_rustc_link_lib(&interpreter_version,
-        enable_shared == "1").unwrap());
-
-    if libpath != "None" {
-        println!("cargo:rustc-link-search=native={}", libpath);
-    } else if cfg!(target_os="windows") {
-        println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
+    let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+    if !is_extension_module || cfg!(target_os="windows") {
+        println!("{}", get_rustc_link_lib(&interpreter_version, enable_shared == "1").unwrap());
+        if libpath != "None" {
+            println!("cargo:rustc-link-search=native={}", libpath);
+        } else if cfg!(target_os="windows") {
+            println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
+        }
     }
 
     return Ok(interpreter_path);

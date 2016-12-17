@@ -49,7 +49,7 @@ doc: build
 	cargo doc --no-deps $(CARGO_FLAGS)
 
 extensions: build
-	make -C extensions/ PY=$(PY)
+	make -C extensions/tests PY=$(PY)
 
 clean:
 	rm -r target

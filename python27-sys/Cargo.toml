@@ -18,6 +18,7 @@ exclude = [
     ".gitignore",
     ".travis.yml",
 ]
+workspace = ".."
 
 [dependencies]
 libc = "0.2"
@@ -36,3 +37,9 @@ regex = "0.1"
 # where supporting multiple 3.x's is more important.
 default = ["python-2-7"]
 python-2-7 = []
+
+# Use this feature when building an extension module.
+# It tells the linker to keep the python symbols unresolved,
+# so that the module can also be used with statically linked python interpreters.
+extension-module = [ ]
+

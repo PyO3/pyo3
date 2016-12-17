@@ -1,0 +1,21 @@
+[package]
+name = "hello"
+version = "0.1.0"
+authors = ["Daniel Grunwald <daniel@danielgrunwald.de>"]
+
+[lib]
+## Python extension modules should be compiled as 'cdylib'
+crate-type = ["cdylib"]
+
+[dependencies.cpython]
+path = "../.."
+features = ["extension-module"]
+# The 'extension-module' feature allows using the resulting binary module
+# with statically linked python interpreters.
+
+## By default, cpython will use whichever Python 3.x interpreter is found in PATH.
+## To target Python 2.7, use:
+#default-features=false
+#features = ["python27-sys", "extension-module-2-7"]
+
+
