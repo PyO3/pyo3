@@ -72,7 +72,7 @@ impl PyTuple {
     }
 
     #[inline]
-    pub fn as_slice<'a>(&'a self) -> &'a [PyObject] {
+    pub fn as_slice<'a>(&'a self, py: Python) -> &'a [PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         // (We don't even need a Python token, thanks to immutability)
@@ -81,28 +81,14 @@ impl PyTuple {
             PyObject::borrow_from_owned_ptr_slice(
                 slice::from_raw_parts(
                     (*ptr).ob_item.as_ptr(),
-                    ffi::PyTuple_GET_SIZE(self.0.as_ptr()) as usize
+                    self.len(py)
                 ))
         }
     }
-}
-
-impl ::std::ops::Index<usize> for PyTuple {
-    type Output = PyObject;
 
     #[inline]
-    fn index(&self, index: usize) -> &PyObject {
-        &self.as_slice()[index]
-    }
-}
-
-impl <'a> IntoIterator for &'a PyTuple {
-    type Item = &'a PyObject;
-    type IntoIter = slice::Iter<'a, PyObject>;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        self.as_slice().iter()
+    pub fn iter(&self, py: Python) -> slice::Iter<PyObject> {
+        self.as_slice(py).iter()
     }
 }
 
@@ -131,7 +117,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl <'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(py: Python, obj: &'s PyObject) -> PyResult<Self> {
             let t = try!(obj.cast_as::<PyTuple>(py));
-            let slice = t.as_slice();
+            let slice = t.as_slice(py);
             if slice.len() == $length {
                 Ok((
                     $( try!(slice[$n].extract::<$T>(py)), )+
