@@ -1,6 +1,6 @@
 [package]
 name = "python27-sys"
-version = "0.1.1"
+version = "0.1.2"
 description = "FFI Declarations for Python 2.7"
 readme = "README.md"
 keywords = [
