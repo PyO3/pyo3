@@ -206,6 +206,7 @@ py_class!(class ClassWithGCSupport |py| {
 ```
 
 Caution: `__traverse__` may be called by the garbage collector:
+
   * during any python operation that takes a `Python` token as argument
   * indirectly from the `PyObject` (or derived type) `Drop` implementation
   * if your code releases the GIL, at any time by other threads.
