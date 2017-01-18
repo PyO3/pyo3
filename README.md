@@ -59,7 +59,7 @@ fn hello(py: Python) -> PyResult<()> {
 Example library with python bindings:
 
 The following two files will build with `cargo build`, and will generate a python-compatible library.
-On Mac OS, you will need to rename the output from \*.dynlib to \*.so.
+On Mac OS, you will need to rename the output from \*.dylib to \*.so.
 On Windows, you will need to rename the output from \*.dll to \*.pyd.
 
 **`Cargo.toml`:**
