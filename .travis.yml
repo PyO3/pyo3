@@ -4,6 +4,7 @@ python:
   - "3.3"
   - "3.4"
   - "3.5"
+  - "3.6"
 env:
   - RUST_VERSION=1.13.0
   - RUST_VERSION=nightly

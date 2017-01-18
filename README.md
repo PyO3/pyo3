@@ -14,9 +14,7 @@ Python is licensed under the [Python License](https://docs.python.org/2/license.
 
 Supported Python versions:
 * Python 2.7
-* Python 3.3
-* Python 3.4
-* Python 3.5
+* Python 3.3 to 3.6
 
 Supported Rust version:
 * Rust 1.13.0 or later
