@@ -402,6 +402,36 @@ macro_rules! py_class {
             /* info: */ {
                 /* base_type: */ $crate::PyObject,
                 /* size: */ <$crate::PyObject as $crate::py_class::BaseObject>::size(),
+                /* class_visibility: */ {},
+                /* gc: */ {
+                    /* traverse_proc: */ None,
+                    /* traverse_data: */ [ /*name*/ ]
+                },
+                /* data: */ [ /* { offset, name, type } */ ]
+                // TODO: base type, documentation, ...
+            }
+            /* slots: */ {
+                /* type_slots */  [ /* slot: expr, */ ]
+                /* as_number */   [ /* slot: expr, */ ]
+                /* as_sequence */ [ /* slot: expr, */ ]
+                /* as_mapping */  [ /* slot: expr, */ ]
+                /* setitem_delitem */ [
+                    sdi_setitem: {},
+                    sdi_delitem: {},
+                ]
+            }
+            /* impls: */ { /* impl body */ }
+            /* members: */ { /* ident = expr; */ }
+        }
+    );
+    (pub class $class:ident |$py: ident| { $( $body:tt )* }) => (
+        py_class_impl! {
+            { $( $body )* }
+            $class $py
+            /* info: */ {
+                /* base_type: */ $crate::PyObject,
+                /* size: */ <$crate::PyObject as $crate::py_class::BaseObject>::size(),
+                /* class_visibility: */ {pub},
                 /* gc: */ {
                     /* traverse_proc: */ None,
                     /* traverse_data: */ [ /*name*/ ]
@@ -437,4 +467,3 @@ macro_rules! py_class_impl_item {
         }
     }}
 }
-

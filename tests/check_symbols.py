@@ -4,9 +4,13 @@ import subprocess
 import json
 import os
 import sys
+import platform
 
 if os.path.dirname(__file__):
     os.chdir(os.path.dirname(__file__))
+
+if platform.system() == 'Windows' or platform.system().startswith('CYGWIN'):
+    sys.exit(0) # test not supported on windows - ignore it
 
 so_files = [
     sysconfig.get_config_var("LIBDIR")+"/"+sysconfig.get_config_var("LDLIBRARY"),

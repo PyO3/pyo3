@@ -43,12 +43,15 @@ base_case = '''
         /* info: */ {
             $base_type:ty,
             $size:expr,
+            { $( $class_visibility:tt )* },
             $gc:tt,
             /* data: */ [ $( { $data_offset:expr, $data_name:ident, $data_ty:ty } )* ]
         }
         $slots:tt { $( $imp:item )* } $members:tt
     } => {
-        struct $class { _unsafe_inner: $crate::PyObject }
+        py_coerce_item! {
+            $($class_visibility)* struct $class { _unsafe_inner: $crate::PyObject }
+        }
 
         py_impl_to_py_object_for_python_object!($class);
         py_impl_from_py_object_for_python_object!($class);
@@ -243,6 +246,7 @@ def generate_case(pattern, old_info=None, new_info=None, new_impl=None, new_slot
         write('\n/* info: */ {\n')
         write('$base_type: ty,\n')
         write('$size: expr,\n')
+        write('$class_visibility: tt,\n')
         write('$gc: tt,\n')
         write('[ $( $data:tt )* ]\n')
         write('}\n')
@@ -326,6 +330,7 @@ def data_decl():
         /* info: */ {
             $base_type,
             /* size: */ $crate::py_class::data_new_size::<$data_type>($size),
+            $class_visibility,
             $gc,
             /* data: */ [
                 $($data)*
@@ -387,6 +392,7 @@ def traverse_and_clear():
         /* info: */ {
             $base_type: ty,
             $size: expr,
+            $class_visibility: tt,
             /* gc: */ {
                 /* traverse_proc: */ None,
                 $traverse_data: tt
@@ -398,6 +404,7 @@ def traverse_and_clear():
         /* info: */ {
             $base_type,
             $size,
+            $class_visibility,
             /* gc: */ {
                 /* traverse_proc: */ $class::__traverse__,
                 $traverse_data
