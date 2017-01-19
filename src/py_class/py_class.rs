@@ -23,8 +23,9 @@ Additionally, it generates a Rust struct of the same name, which allows accessin
 instances of that Python class from Rust.
 
 # Syntax
-`py_class!(class MyType |py| { ... })`
+`py_class!(pub class MyType |py| { ... })`
 
+* `pub` makes the generated Rust struct visible outside the current module. It has no effect on the visibility from Python.
 * `MyType` is the name of the Python class.
 * `py` is an identifier that will be made available as a variable of type `Python`
 in all function bodies.
