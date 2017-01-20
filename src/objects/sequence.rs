@@ -24,6 +24,7 @@ use objects::{PyObject, PyList, PyTuple, PyIterator};
 use ffi::Py_ssize_t;
 use err;
 use err::{PyErr, PyResult, result_from_owned_ptr, result_cast_from_owned_ptr};
+use buffer;
 
 /// Represents a reference to a python object supporting the sequence protocol.
 pub struct PySequence(PyObject);
@@ -208,19 +209,54 @@ impl PySequence {
     }
 }
 
+#[cfg(not(feature="nightly"))]
 impl <'source, T> FromPyObject<'source> for Vec<T>
     where for<'a> T: FromPyObject<'a>
 {
     fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
-        let seq = try!(obj.cast_as::<PySequence>(py));
-        let mut v = Vec::new();
-        for item in try!(seq.iter(py)) {
-            let item = try!(item);
-            v.push(try!(T::extract(py, &item)));
-            item.release_ref(py);
-        }
-        Ok(v)
+        extract_sequence(py, obj)
     }
+}
+
+#[cfg(feature="nightly")]
+impl <'source, T> FromPyObject<'source> for Vec<T>
+    where for<'a> T: FromPyObject<'a>
+{
+    default fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+        extract_sequence(py, obj)
+    }
+}
+
+#[cfg(feature="nightly")]
+impl <'source, T> FromPyObject<'source> for Vec<T>
+    where for<'a> T: FromPyObject<'a> + buffer::Element + Default + Copy
+{
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+        // first try buffer protocol
+        if let Ok(buf) = buffer::PyBuffer::get(py, obj) {
+            if buf.dimensions() == 1 && buf.item_size() == mem::size_of::<T>() && T::is_compatible_format(buf.format()) {
+                let mut v = vec![T::default(); buf.item_count()];
+                buf.copy_to_slice(py, &mut v)?;
+                buf.release_ref(py);
+                return Ok(v);
+            }
+        }
+        // fall back to sequence protocol
+        extract_sequence(py, obj)
+    }
+}
+
+fn extract_sequence<T>(py: Python, obj: &PyObject) -> PyResult<Vec<T>>
+    where for<'a> T: FromPyObject<'a>
+{
+    let seq = try!(obj.cast_as::<PySequence>(py));
+    let mut v = Vec::new();
+    for item in try!(seq.iter(py)) {
+        let item = try!(item);
+        v.push(try!(T::extract(py, &item)));
+        item.release_ref(py);
+    }
+    Ok(v)
 }
 
 #[cfg(test)]
@@ -470,5 +506,13 @@ mod test {
         let py = gil.python();
         let v: Vec<i32> = py.eval("range(1, 5)", None, None).unwrap().extract(py).unwrap();
         assert!(v == [1, 2, 3, 4]);
+    }
+    
+    #[test]
+    fn test_extract_bytes_to_vec() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v: Vec<u8> = py.eval("b'abc'", None, None).unwrap().extract(py).unwrap();
+        assert!(v == b"abc");
     }
 }

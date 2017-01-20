@@ -101,6 +101,8 @@ exc_type!(ValueError, PyExc_ValueError);
 exc_type!(WindowsError, PyExc_WindowsError);
 exc_type!(ZeroDivisionError, PyExc_ZeroDivisionError);
 
+exc_type!(BufferError, PyExc_BufferError);
+
 exc_type!(UnicodeDecodeError, PyExc_UnicodeDecodeError);
 exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
 exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);

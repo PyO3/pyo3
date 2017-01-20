@@ -16,16 +16,123 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::{mem, slice};
+use std::{mem, slice, cell};
 use std::ffi::CStr;
 use ffi;
 use libc;
 use err::{self, PyResult};
+use exc;
 use python::{Python, PyDrop};
 use objects::PyObject;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 pub struct PyBuffer(Box<ffi::Py_buffer>); // use Box<> because Python expects that the Py_buffer struct has a stable memory address
+
+// PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
+// Accessing the buffer contents is protected using the GIL.
+unsafe impl Send for PyBuffer {}
+unsafe impl Sync for PyBuffer {}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ElementType {
+    SignedInteger { bytes: usize },
+    UnsignedInteger { bytes: usize },
+    Bool,
+    Float { bytes: usize },
+    Unknown
+}
+
+impl ElementType {
+    pub fn from_format(format: &CStr) -> ElementType {
+        let slice = format.to_bytes();
+        if slice.len() == 1 {
+            native_element_type_from_type_char(slice[0])
+        } else if slice.len() == 2 {
+            match slice[0] {
+                b'@' => native_element_type_from_type_char(slice[1]),
+                b'=' | b'<' | b'>' | b'!' => standard_element_type_from_type_char(slice[1]),
+                _ => ElementType::Unknown
+            }
+        } else {
+            ElementType::Unknown
+        }
+    }
+}
+
+fn native_element_type_from_type_char(type_char: u8) -> ElementType {
+    use self::ElementType::*;
+    match type_char {
+        b'c' => UnsignedInteger { bytes: mem::size_of::<libc::c_char>() },
+        b'b' => SignedInteger   { bytes: mem::size_of::<libc::c_schar>() },
+        b'B' => UnsignedInteger { bytes: mem::size_of::<libc::c_uchar>() },
+        b'?' => Bool,
+        b'h' => SignedInteger   { bytes: mem::size_of::<libc::c_short>() },
+        b'H' => UnsignedInteger { bytes: mem::size_of::<libc::c_ushort>() },
+        b'i' => SignedInteger   { bytes: mem::size_of::<libc::c_int>() },
+        b'I' => UnsignedInteger { bytes: mem::size_of::<libc::c_uint>() },
+        b'l' => SignedInteger   { bytes: mem::size_of::<libc::c_long>() },
+        b'L' => UnsignedInteger { bytes: mem::size_of::<libc::c_ulong>() },
+        b'q' => SignedInteger   { bytes: mem::size_of::<libc::c_longlong>() },
+        b'Q' => UnsignedInteger { bytes: mem::size_of::<libc::c_ulonglong>() },
+        b'n' => SignedInteger   { bytes: mem::size_of::<libc::ssize_t>() },
+        b'N' => UnsignedInteger { bytes: mem::size_of::<libc::size_t>() },
+        b'e' => Float { bytes: 2 },
+        b'f' => Float { bytes: 4 },
+        b'd' => Float { bytes: 8 },
+        _ => Unknown
+    }
+}
+
+fn standard_element_type_from_type_char(type_char: u8) -> ElementType {
+    use self::ElementType::*;
+    match type_char {
+        b'c' => UnsignedInteger { bytes: 1 },
+        b'b' => SignedInteger   { bytes: 1 },
+        b'B' => UnsignedInteger { bytes: 1 },
+        b'?' => Bool,
+        b'h' => SignedInteger   { bytes: 2 },
+        b'H' => UnsignedInteger { bytes: 2 },
+        b'i' => SignedInteger   { bytes: 4 },
+        b'I' => UnsignedInteger { bytes: 4 },
+        b'l' => SignedInteger   { bytes: 4 },
+        b'L' => UnsignedInteger { bytes: 4 },
+        b'q' => SignedInteger   { bytes: 8 },
+        b'Q' => UnsignedInteger { bytes: 8 },
+        b'e' => Float { bytes: 2 },
+        b'f' => Float { bytes: 4 },
+        b'd' => Float { bytes: 8 },
+        _ => Unknown
+    }
+}
+
+#[cfg(target_endian = "little")]
+fn is_matching_endian(c: u8) -> bool {
+    match c {
+        b'@' | b'=' | b'<' => true,
+        _ => false
+    }
+}
+
+#[cfg(target_endian = "big")]
+fn is_matching_endian(c: u8) -> bool {
+    match c {
+        b'@' | b'=' | b'>' | b'!' => true,
+        _ => false
+    }
+}
+
+/// Trait implemented for possible element types of `PyBuffer`.
+pub unsafe trait Element {
+    /// Gets whether the element specified in the format string is potentially compatible.
+    /// Alignment and size are checked separately from this function.
+    fn is_compatible_format(format: &CStr) -> bool;
+}
+
+fn validate(b: &ffi::Py_buffer) {
+    // shape and stride information must be provided when we use PyBUF_FULL_RO
+    assert!(!b.shape.is_null());
+    assert!(!b.strides.is_null());
+}
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
@@ -33,14 +140,34 @@ impl PyBuffer {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(py, ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
+            validate(&buf);
             Ok(PyBuffer(buf))
         }
     }
 
     /// Gets the pointer to the start of the buffer memory.
+    ///
+    /// Warning: the buffer memory might be mutated by other Python functions,
+    /// and thus may only be accessed while the GIL is held.
     #[inline]
     pub fn buf_ptr(&self) -> *mut libc::c_void {
         self.0.buf
+    }
+
+    /// Gets a pointer to the specified item.
+    ///
+    /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
+    pub fn get_ptr(&self, indices: &[usize]) -> *mut libc::c_void {
+        let shape = &self.shape()[..indices.len()];
+        for i in 0..indices.len() {
+            assert!(indices[i] < shape[i]);
+        }
+        unsafe {
+            ffi::PyBuffer_GetPointer(
+                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
+                indices.as_ptr() as *mut usize as *mut ::Py_ssize_t
+            )
+        }
     }
 
     /// Gets whether the underlying buffer is read-only.
@@ -86,13 +213,9 @@ impl PyBuffer {
     /// Despite Python using an array of signed integers, the values are guaranteed to be non-negative.
     /// However, dimensions of length 0 are possible and might need special attention.
     #[inline]
-    pub fn shape(&self) -> Option<&[ffi::Py_ssize_t]> {
+    pub fn shape(&self) -> &[usize] {
         unsafe {
-            if self.0.shape.is_null() {
-                None
-            } else {
-                Some(slice::from_raw_parts(self.0.shape, self.0.ndim as usize))
-            }
+            slice::from_raw_parts(self.0.shape as *const usize, self.0.ndim as usize)
         }
     }
 
@@ -100,21 +223,20 @@ impl PyBuffer {
     ///
     /// Stride values can be any integer. For regular arrays, strides are usually positive,
     /// but a consumer MUST be able to handle the case `strides[n] <= 0`.
-    ///
-    /// If this function returns `None`, the array is C-contiguous.
     #[inline]
-    pub fn strides(&self) -> Option<&[ffi::Py_ssize_t]> {
+    pub fn strides(&self) -> &[isize] {
         unsafe {
-            if self.0.strides.is_null() {
-                None
-            } else {
-                Some(slice::from_raw_parts(self.0.strides, self.0.ndim as usize))
-            }
+            slice::from_raw_parts(self.0.strides, self.0.ndim as usize)
         }
     }
 
+    /// An array of length ndim.
+    /// If suboffsets[n] >= 0, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
+    /// A suboffset value that is negative indicates that no de-referencing should occur (striding in a contiguous memory block).
+    ///
+    /// If all suboffsets are negative (i.e. no de-referencing is needed), then this field must be NULL (the default value).
     #[inline]
-    pub fn suboffsets(&self) -> Option<&[ffi::Py_ssize_t]> {
+    pub fn suboffsets(&self) -> Option<&[isize]> {
         unsafe {
             if self.0.suboffsets.is_null() {
                 None
@@ -143,7 +265,7 @@ impl PyBuffer {
         }
     }
 
-    /// Gets whether the buffer is contiguous in C-style order (first index varies fastest when visiting items in order of memory address).
+    /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
         unsafe {
@@ -151,6 +273,197 @@ impl PyBuffer {
             ffi::PyBuffer_IsContiguous(&*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer, b'F' as libc::c_char) != 0
         }
     }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function succeeds if:
+    /// * the buffer format is compatible with `T`
+    /// * alignment and size of buffer elements is matching the expectations for type `T`
+    /// * the buffer is C-style contiguous
+    ///
+    /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
+    /// to modify the values in the slice.
+    pub fn as_slice<'a, T: Element>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
+        if mem::size_of::<T>() == self.item_size()
+            && (self.0.buf as usize) % mem::align_of::<T>() == 0
+            && self.is_c_contiguous()
+            && T::is_compatible_format(self.format())
+        {
+            unsafe { Some(slice::from_raw_parts(self.0.buf as *mut ReadOnlyCell<T>, self.item_count())) }
+        } else {
+            None
+        }
+    }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function succeeds if:
+    /// * the buffer is not read-only
+    /// * the buffer format is compatible with `T`
+    /// * alignment and size of buffer elements is matching the expectations for type `T`
+    /// * the buffer is C-style contiguous
+    ///
+    /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
+    /// to modify the values in the slice.
+    pub fn as_mut_slice<'a, T: Element>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
+        if !self.readonly()
+            && mem::size_of::<T>() == self.item_size()
+            && (self.0.buf as usize) % mem::align_of::<T>() == 0
+            && self.is_c_contiguous()
+            && T::is_compatible_format(self.format())
+        {
+            unsafe { Some(slice::from_raw_parts(self.0.buf as *mut cell::Cell<T>, self.item_count())) }
+        } else {
+            None
+        }
+    }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function succeeds if:
+    /// * the buffer format is compatible with `T`
+    /// * alignment and size of buffer elements is matching the expectations for type `T`
+    /// * the buffer is Fortran-style contiguous
+    ///
+    /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
+    /// to modify the values in the slice.
+    pub fn as_fortran_slice<'a, T: Element>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
+        if mem::size_of::<T>() == self.item_size()
+            && (self.0.buf as usize) % mem::align_of::<T>() == 0
+            && self.is_fortran_contiguous()
+            && T::is_compatible_format(self.format())
+        {
+            unsafe { Some(slice::from_raw_parts(self.0.buf as *mut ReadOnlyCell<T>, self.item_count())) }
+        } else {
+            None
+        }
+    }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function succeeds if:
+    /// * the buffer is not read-only
+    /// * the buffer format is compatible with `T`
+    /// * alignment and size of buffer elements is matching the expectations for type `T`
+    /// * the buffer is Fortran-style contiguous
+    ///
+    /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
+    /// to modify the values in the slice.
+    pub fn as_fortran_mut_slice<'a, T: Element>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
+        if !self.readonly()
+            && mem::size_of::<T>() == self.item_size()
+            && (self.0.buf as usize) % mem::align_of::<T>() == 0
+            && self.is_fortran_contiguous()
+            && T::is_compatible_format(self.format())
+        {
+            unsafe { Some(slice::from_raw_parts(self.0.buf as *mut cell::Cell<T>, self.item_count())) }
+        } else {
+            None
+        }
+    }
+
+    /// Copies the buffer elements to the specified slice.
+    /// If the buffer is multi-dimensional, the elements are written in C-style order.
+    ///
+    ///  * Fails if the slice does not have the correct length (`buf.item_count()`).
+    ///  * Fails if the buffer format is not compatible with type `T`.
+    ///
+    /// To check whether the buffer format is compatible before calling this method,
+    /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
+    /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
+    pub fn copy_to_slice<T: Element+Copy>(&self, py: Python, target: &mut [T]) -> PyResult<()> {
+        self.copy_to_slice_impl(py, target, b'C')
+    }
+
+    /// Copies the buffer elements to the specified slice.
+    /// If the buffer is multi-dimensional, the elements are written in Fortran-style order.
+    ///
+    ///  * Fails if the slice does not have the correct length (`buf.item_count()`).
+    ///  * Fails if the buffer format is not compatible with type `T`.
+    ///
+    /// To check whether the buffer format is compatible before calling this method,
+    /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
+    /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
+    pub fn copy_to_fortran_slice<T: Element+Copy>(&self, py: Python, target: &mut [T]) -> PyResult<()> {
+        self.copy_to_slice_impl(py, target, b'F')
+    }
+
+    fn copy_to_slice_impl<T: Element+Copy>(&self, py: Python, target: &mut [T], fort: u8) -> PyResult<()> {
+        if mem::size_of_val(target) != self.len_bytes() {
+            return slice_length_error(py);
+        }
+        if !T::is_compatible_format(self.format()) || mem::size_of::<T>() != self.item_size() {
+            return incompatible_format_error(py);
+        }
+        unsafe {
+            err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
+                target.as_ptr() as *mut libc::c_void,
+                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
+                self.0.len,
+                fort as libc::c_char
+            ))
+        }
+    }
+
+    /// Copies the specified slice into the buffer.
+    /// If the buffer is multi-dimensional, the elements in the slice are expected to be in C-style order.
+    ///
+    ///  * Fails if the buffer is read-only.
+    ///  * Fails if the slice does not have the correct length (`buf.item_count()`).
+    ///  * Fails if the buffer format is not compatible with type `T`.
+    ///
+    /// To check whether the buffer format is compatible before calling this method,
+    /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
+    /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
+    pub fn copy_from_slice<T: Element+Copy>(&self, py: Python, source: &[T]) -> PyResult<()> {
+        self.copy_from_slice_impl(py, source, b'C')
+    }
+    
+    /// Copies the specified slice into the buffer.
+    /// If the buffer is multi-dimensional, the elements in the slice are expected to be in Fortran-style order.
+    ///
+    ///  * Fails if the buffer is read-only.
+    ///  * Fails if the slice does not have the correct length (`buf.item_count()`).
+    ///  * Fails if the buffer format is not compatible with type `T`.
+    ///
+    /// To check whether the buffer format is compatible before calling this method,
+    /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
+    /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
+    pub fn copy_from_fortran_slice<T: Element+Copy>(&self, py: Python, source: &[T]) -> PyResult<()> {
+        self.copy_from_slice_impl(py, source, b'F')
+    }
+    
+    fn copy_from_slice_impl<T: Element+Copy>(&self, py: Python, source: &[T], fort: u8) -> PyResult<()> {
+        if self.readonly() {
+            return buffer_readonly_error(py);
+        }
+        if mem::size_of_val(source) != self.len_bytes() {
+            return slice_length_error(py);
+        }
+        if !T::is_compatible_format(self.format()) || mem::size_of::<T>() != self.item_size() {
+            return incompatible_format_error(py);
+        }
+        unsafe {
+            err::error_on_minusone(py, ffi::PyBuffer_FromContiguous(
+                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
+                source.as_ptr() as *mut libc::c_void,
+                self.0.len,
+                fort as libc::c_char
+            ))
+        }
+    }
+}
+
+fn slice_length_error(py: Python) -> PyResult<()> {
+    Err(err::PyErr::new::<exc::BufferError, _>(py, "Slice length does not match buffer length."))
+}
+
+fn incompatible_format_error(py: Python) -> PyResult<()> {
+    Err(err::PyErr::new::<exc::BufferError, _>(py, "Slice type is incompatible with buffer format."))
+}
+
+fn buffer_readonly_error(py: Python) -> PyResult<()> {
+    Err(err::PyErr::new::<exc::BufferError, _>(py, "Cannot write to read-only buffer."))
 }
 
 impl PyDrop for PyBuffer {
@@ -167,6 +480,51 @@ impl Drop for PyBuffer {
     }
 }
 
+/// Like `std::mem::cell`, but only provides read-only access to the data.
+///
+/// `&ReadOnlyCell<T>` is basically a safe version of `*const T`:
+///  The data cannot be modified through the reference, but other references may
+///  be modifying the data.
+pub struct ReadOnlyCell<T>(cell::UnsafeCell<T>);
+
+impl <T: Copy> ReadOnlyCell<T> {
+    #[inline]
+    pub fn get(&self) -> T {
+        unsafe { *self.0.get() }
+    }
+
+    #[inline]
+    pub fn as_ptr(&self) -> *const T {
+        self.0.get()
+    }
+}
+
+macro_rules! impl_element(
+    ($t:ty, $f:ident) => {
+        unsafe impl Element for $t {
+            fn is_compatible_format(format: &CStr) -> bool {
+                let slice = format.to_bytes();
+                if slice.len() > 1 && !is_matching_endian(slice[0]) {
+                    return false;
+                }
+                ElementType::from_format(format) == ElementType::$f { bytes: mem::size_of::<$t>() }
+            }
+        }
+    }
+);
+
+impl_element!(u8, UnsignedInteger);
+impl_element!(u16, UnsignedInteger);
+impl_element!(u32, UnsignedInteger);
+impl_element!(u64, UnsignedInteger);
+impl_element!(usize, UnsignedInteger);
+impl_element!(i8, SignedInteger);
+impl_element!(i16, SignedInteger);
+impl_element!(i32, SignedInteger);
+impl_element!(i64, SignedInteger);
+impl_element!(isize, SignedInteger);
+impl_element!(f32, Float);
+impl_element!(f64, Float);
 
 #[cfg(test)]
 mod test {
@@ -178,6 +536,12 @@ mod test {
     use super::PyBuffer;
 
     #[test]
+    fn test_compatible_size() {
+        // for the cast in PyBuffer::shape()
+        assert_eq!(std::mem::size_of::<::Py_ssize_t>(), std::mem::size_of::<usize>());
+    }
+
+    #[test]
     fn test_bytes_buffer() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -186,10 +550,27 @@ mod test {
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 5);
         assert_eq!(buffer.format().to_str().unwrap(), "B");
-        assert_eq!(buffer.shape(), Some::<&[::Py_ssize_t]>(&[5]));
+        assert_eq!(buffer.shape(), [5]);
         // single-dimensional buffer is always contiguous
         assert!(buffer.is_c_contiguous());
         assert!(buffer.is_fortran_contiguous());
+
+        assert!(buffer.as_slice::<f64>(py).is_none());
+        assert!(buffer.as_slice::<i8>(py).is_none());
+
+        let slice = buffer.as_slice::<u8>(py).unwrap();
+        assert_eq!(slice.len(), 5);
+        assert_eq!(slice[0].get(), b'a');
+        assert_eq!(slice[2].get(), b'c');
+
+        assert!(buffer.as_mut_slice::<u8>(py).is_none());
+
+        assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
+        let mut arr = [0; 5];
+        buffer.copy_to_slice(py, &mut arr).unwrap();
+        assert_eq!(arr, [b'a', b'b', b'c', b'd', b'e']);
+
+        assert!(buffer.copy_from_slice(py, &[0u8; 5]).is_err());
     }
 
     #[test]
@@ -202,7 +583,24 @@ mod test {
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 4);
         assert_eq!(buffer.format().to_str().unwrap(), "f");
-        assert_eq!(buffer.shape(), Some::<&[::Py_ssize_t]>(&[4]));
+        assert_eq!(buffer.shape(), [4]);
+
+        assert!(buffer.as_slice::<f64>(py).is_none());
+        assert!(buffer.as_slice::<i32>(py).is_none());
+
+        let slice = buffer.as_slice::<f32>(py).unwrap();
+        assert_eq!(slice.len(), 4);
+        assert_eq!(slice[0].get(), 1.0);
+        assert_eq!(slice[3].get(), 2.5);
+        
+        let mut_slice = buffer.as_mut_slice::<f32>(py).unwrap();
+        assert_eq!(mut_slice.len(), 4);
+        assert_eq!(mut_slice[0].get(), 1.0);
+        mut_slice[3].set(2.75);
+        assert_eq!(slice[3].get(), 2.75);
+
+        buffer.copy_from_slice(py, &[10.0f32, 11.0, 12.0, 13.0]).unwrap();
+        assert_eq!(slice[2].get(), 12.0);
     }
 }
 
