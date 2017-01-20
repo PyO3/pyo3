@@ -405,6 +405,44 @@ impl PyBuffer {
         }
     }
 
+    /// Copies the buffer elements to a newly allocated vector.
+    /// If the buffer is multi-dimensional, the elements are written in C-style order.
+    ///
+    /// Fails if the buffer format is not compatible with type `T`.
+    pub fn to_vec<T: Element+Copy>(&self, py: Python) -> PyResult<Vec<T>> {
+        self.to_vec_impl(py, b'C')
+    }
+
+    /// Copies the buffer elements to a newly allocated vector.
+    /// If the buffer is multi-dimensional, the elements are written in Fortran-style order.
+    ///
+    /// Fails if the buffer format is not compatible with type `T`.
+    pub fn to_fortran_vec<T: Element+Copy>(&self, py: Python) -> PyResult<Vec<T>> {
+        self.to_vec_impl(py, b'F')
+    }
+
+    fn to_vec_impl<T: Element+Copy>(&self, py: Python, fort: u8) -> PyResult<Vec<T>> {
+        if !T::is_compatible_format(self.format()) || mem::size_of::<T>() != self.item_size() {
+            incompatible_format_error(py)?;
+            unreachable!();
+        }
+        let item_count = self.item_count();
+        let mut vec: Vec<T> = Vec::with_capacity(item_count);
+        unsafe {
+            // Copy the buffer into the uninitialized space in the vector.
+            // Due to T:Copy, we don't need to be concerned with Drop impls.
+            err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
+                vec.as_mut_ptr() as *mut libc::c_void,
+                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
+                self.0.len,
+                fort as libc::c_char
+            ))?;
+            // set vector length to mark the now-initialized space as usable
+            vec.set_len(item_count);
+        }
+        Ok(vec)
+    }
+
     /// Copies the specified slice into the buffer.
     /// If the buffer is multi-dimensional, the elements in the slice are expected to be in C-style order.
     ///
@@ -568,9 +606,13 @@ mod test {
         assert!(buffer.copy_to_slice(py, &mut [0u8]).is_err());
         let mut arr = [0; 5];
         buffer.copy_to_slice(py, &mut arr).unwrap();
-        assert_eq!(arr, [b'a', b'b', b'c', b'd', b'e']);
+        assert_eq!(arr, b"abcde" as &[u8]);
 
         assert!(buffer.copy_from_slice(py, &[0u8; 5]).is_err());
+        
+        assert!(buffer.to_vec::<i8>(py).is_err());
+        assert!(buffer.to_vec::<u16>(py).is_err());
+        assert_eq!(buffer.to_vec::<u8>(py).unwrap(), b"abcde");
     }
 
     #[test]
@@ -601,6 +643,8 @@ mod test {
 
         buffer.copy_from_slice(py, &[10.0f32, 11.0, 12.0, 13.0]).unwrap();
         assert_eq!(slice[2].get(), 12.0);
+
+        assert_eq!(buffer.to_vec::<f32>(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
     }
 }
 

@@ -229,17 +229,18 @@ impl <'source, T> FromPyObject<'source> for Vec<T>
 
 #[cfg(feature="nightly")]
 impl <'source, T> FromPyObject<'source> for Vec<T>
-    where for<'a> T: FromPyObject<'a> + buffer::Element + Default + Copy
+    where for<'a> T: FromPyObject<'a> + buffer::Element + Copy
 {
     fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
         // first try buffer protocol
         if let Ok(buf) = buffer::PyBuffer::get(py, obj) {
-            if buf.dimensions() == 1 && buf.item_size() == mem::size_of::<T>() && T::is_compatible_format(buf.format()) {
-                let mut v = vec![T::default(); buf.item_count()];
-                buf.copy_to_slice(py, &mut v)?;
-                buf.release_ref(py);
-                return Ok(v);
+            if buf.dimensions() == 1 {
+                if let Ok(v) = buf.to_vec::<T>(py) {
+                    buf.release_ref(py);
+                    return Ok(v);
+                }
             }
+            buf.release_ref(py);
         }
         // fall back to sequence protocol
         extract_sequence(py, obj)
