@@ -18,8 +18,8 @@
 
 use std::mem;
 use ffi;
-use python::{Python, PythonObject, ToPythonPointer, PyClone};
-use conversion::ToPyObject;
+use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
+use conversion::{FromPyObject, ToPyObject};
 use objects::{PyObject, PyList, PyTuple, PyIterator};
 use ffi::Py_ssize_t;
 use err;
@@ -208,6 +208,21 @@ impl PySequence {
     }
 }
 
+impl <'source, T> FromPyObject<'source> for Vec<T>
+    where for<'a> T: FromPyObject<'a>
+{
+    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+        let seq = try!(obj.cast_as::<PySequence>(py));
+        let mut v = Vec::new();
+        for item in try!(seq.iter(py)) {
+            let item = try!(item);
+            v.push(try!(T::extract(py, &item)));
+            item.release_ref(py);
+        }
+        Ok(v)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std;
@@ -386,8 +401,8 @@ mod test {
         let concat_seq = seq.concat(py, &seq).unwrap().cast_into::<PySequence>(py).unwrap();
         assert_eq!(12, concat_seq.len(py).unwrap());
         /*let concat_v = "stringstring".to_owned();
-        for (el, cc) in seq.into_iter(py).zip(concat_v.chars()) {
-            assert_eq!(cc, el.extract::<char>(py).unwrap()); TODO: extract::<char>() is not implemented
+        for (el, cc) in seq.iter(py).unwrap().zip(concat_v.chars()) {
+            assert_eq!(cc, el.unwrap().extract::<char>(py).unwrap()); //TODO: extract::<char>() is not implemented
         }*/
     }
 
@@ -439,5 +454,21 @@ mod test {
         let v = vec!["foo", "bar"];
         let seq = v.to_py_object(py).into_object().cast_into::<PySequence>(py).unwrap();
         assert!(seq.tuple(py).is_ok());
+    }
+
+    #[test]
+    fn test_extract_tuple_to_vec() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v: Vec<i32> = py.eval("(1, 2)", None, None).unwrap().extract(py).unwrap();
+        assert!(v == [1, 2]);
+    }
+
+    #[test]
+    fn test_extract_range_to_vec() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v: Vec<i32> = py.eval("range(1, 5)", None, None).unwrap().extract(py).unwrap();
+        assert!(v == [1, 2, 3, 4]);
     }
 }

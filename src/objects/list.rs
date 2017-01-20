@@ -143,22 +143,6 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
     }
 }
 
-impl <'source, T> FromPyObject<'source> for Vec<T>
-    where for<'a> T: FromPyObject<'a>
-{
-    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
-        let list = try!(obj.cast_as::<PyList>(py));
-        let len = list.len(py);
-        let mut v = Vec::with_capacity(len);
-        for i in 0 .. len {
-            let item = list.get_item(py, i);
-            v.push(try!(T::extract(py, &item)));
-            item.release_ref(py);
-        }
-        Ok(v)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject};
