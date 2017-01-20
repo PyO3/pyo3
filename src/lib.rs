@@ -93,6 +93,7 @@ pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
 pub use py_class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
+pub use buffer::PyBuffer;
 
 #[cfg(feature="python27-sys")]
 #[allow(non_camel_case_types)]
@@ -181,6 +182,7 @@ mod objectprotocol;
 mod pythonrun;
 pub mod argparse;
 mod function;
+mod buffer;
 //pub mod rustobject;
 pub mod py_class;
 
