@@ -13,6 +13,7 @@ keywords = [
 homepage = "https://github.com/dgrunwald/rust-cpython"
 repository = "https://github.com/dgrunwald/rust-cpython.git"
 documentation = "http://dgrunwald.github.io/rust-cpython/doc/cpython/"
+categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT"
 exclude = [
     ".gitignore",
@@ -24,6 +25,10 @@ exclude = [
     "extensions"
 ]
 build = "build.rs"
+
+[badges]
+travis-ci = { repository = "dgrunwald/rust-cpython" }
+appveyor = { repository = "dgrunwald/rust-cpython" }
 
 [dependencies]
 libc = "0.2"
