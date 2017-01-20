@@ -509,10 +509,10 @@ mod test {
     }
     
     #[test]
-    fn test_extract_bytes_to_vec() {
+    fn test_extract_bytearray_to_vec() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v: Vec<u8> = py.eval("b'abc'", None, None).unwrap().extract(py).unwrap();
+        let v: Vec<u8> = py.eval("bytearray(b'abc')", None, None).unwrap().extract(py).unwrap();
         assert!(v == b"abc");
     }
 }
