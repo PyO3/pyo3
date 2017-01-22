@@ -278,7 +278,7 @@ fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
-print(sysconfig.get_config_var('LDVERSION')); \
+print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
 print(sys.exec_prefix);";
     let out = try!(run_python_script(interpreter, script));
     let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
@@ -309,14 +309,15 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         }
     }
 
-    let is_pep_384 = env::var_os("CARGO_FEATURE_PEP_384").is_some();
-    if is_pep_384 {
-        println!("cargo:rustc-cfg=Py_LIMITED_API");
-    }
 
-    if let PythonVersion { major: 3, minor: Some(minor)} = interpreter_version {
-        for i in 4..(minor+1) {
-            println!("cargo:rustc-cfg=Py_3_{}", i);
+    if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
+        if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
+            println!("cargo:rustc-cfg=Py_LIMITED_API");
+        }
+        if let Some(minor) = some_minor {
+            for i in 4..(minor+1) {
+                println!("cargo:rustc-cfg=Py_3_{}", i);
+            }
         }
     }
 
@@ -358,7 +359,7 @@ fn main() {
     //
     // This locates the python interpreter based on the PATH, which should
     // work smoothly with an activated virtualenv.
-    // 
+    //
     // If you have troubles with your shell accepting '.' in a var name, 
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).

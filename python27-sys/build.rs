@@ -157,7 +157,7 @@ fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
     }
 }
 
-/// Run a python script using the 'python' located by PATH.
+/// Run a python script using the specified interpreter binary.
 fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> {
     let mut cmd = Command::new(interpreter);
     cmd.arg("-c").arg(script);
@@ -179,37 +179,36 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
 
 #[cfg(not(target_os="macos"))]
 #[cfg(not(target_os="windows"))]
-fn get_rustc_link_lib(version: &PythonVersion, enable_shared: bool) -> Result<String, String> {
-    let dotted_version = format!("{}.{}", version.major, version.minor.unwrap());
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) -> Result<String, String> {
     if enable_shared {
-        Ok(format!("cargo:rustc-link-lib=python{}", dotted_version))
+        Ok(format!("cargo:rustc-link-lib=python{}", ld_version))
     } else {
-        Ok(format!("cargo:rustc-link-lib=static=python{}", dotted_version))
+        Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version))
     }
 }
 
 #[cfg(target_os="macos")]
 fn get_macos_linkmodel() -> Result<String, String> {
-    let script = "import MacOS; print MacOS.linkmodel;";
+    let script = "import sysconfig; print('framework' if sysconfig.get_config_var('PYTHONFRAMEWORK') else ('shared' if sysconfig.get_config_var('Py_ENABLE_SHARED') else 'static'));";
     let out = run_python_script("python", script).unwrap();
     Ok(out.trim_right().to_owned())
 }
 
 #[cfg(target_os="macos")]
-fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and 
     // Py_ENABLE_SHARED is wrong; framework means shared library
-    let dotted_version = format!("{}.{}", version.major, version.minor.unwrap());
     match get_macos_linkmodel().unwrap().as_ref() {
         "static" => Ok(format!("cargo:rustc-link-lib=static=python{}",
-            dotted_version)),
+            ld_version)),
         "shared" => Ok(format!("cargo:rustc-link-lib=python{}",
-            dotted_version)),
+            ld_version)),
         "framework" => Ok(format!("cargo:rustc-link-lib=python{}", 
-            dotted_version)),
+            ld_version)),
         other => Err(format!("unknown linkmodel {}", other))
     }
 }
+
 /// Parse string as interpreter version.
 fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
@@ -224,7 +223,7 @@ fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
 }
 
 #[cfg(target_os="windows")]
-fn get_rustc_link_lib(version: &PythonVersion, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
     Ok(format!("cargo:rustc-link-lib=pythonXY:python{}{}", version.major, 
         match version.minor {
@@ -279,6 +278,7 @@ fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
+print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
 print(sys.exec_prefix);";
     let out = try!(run_python_script(interpreter, script));
     let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
@@ -295,15 +295,29 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         try!(find_interpreter_and_get_config(expected_version));
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
-    let exec_prefix: &str = &lines[3];
+    let ld_version: &str = &lines[3];
+    let exec_prefix: &str = &lines[4];
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os="windows") {
-        println!("{}", get_rustc_link_lib(&interpreter_version, enable_shared == "1").unwrap());
+        println!("{}", get_rustc_link_lib(&interpreter_version,
+            ld_version, enable_shared == "1").unwrap());
         if libpath != "None" {
             println!("cargo:rustc-link-search=native={}", libpath);
         } else if cfg!(target_os="windows") {
             println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
+        }
+    }
+
+
+    if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
+        if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
+            println!("cargo:rustc-cfg=Py_LIMITED_API");
+        }
+        if let Some(minor) = some_minor {
+            for i in 4..(minor+1) {
+                println!("cargo:rustc-cfg=Py_3_{}", i);
+            }
         }
     }
 
