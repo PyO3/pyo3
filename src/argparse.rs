@@ -104,7 +104,7 @@ pub fn parse_args(
 }
 
 /// This macro is used to parse a parameter list into a set of variables.
-/// 
+///
 /// Syntax: `py_argparse!(py, fname, args, kwargs, (parameter-list) { body })`
 ///
 /// * `py`: the `Python` token
@@ -353,6 +353,13 @@ macro_rules! py_argparse_param_description {
             is_optional: false
         }
     );
+    // optional parameter with a default value
+    { $pname:ident : $ptype:ty = [ {} {$default:expr} {} ] } => (
+        $crate::argparse::ParamDescription {
+            name: stringify!($pname),
+            is_optional: true
+        }
+    );
 }
 
 #[macro_export]
@@ -385,11 +392,21 @@ macro_rules! py_argparse_extract {
             Err(e) => Err(e)
         }
     };
+    // optional parameter
+    ( $py:expr, $iter:expr, $body:block,
+        [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {} ] } $($tail:tt)* ]
+    ) => {
+        match $iter.next().unwrap().as_ref().map(|obj| obj.extract::<_>($py)).unwrap_or(Ok($default)) {
+            Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
+            Err(e) => Err(e)
+        }
+    };
 }
 
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject};
+    use objects::PyTuple;
     use conversion::ToPyObject;
 
     #[test]
@@ -420,5 +437,27 @@ mod test {
         }).unwrap();
         assert!(called);
     }
-}
 
+    #[test]
+    pub fn test_default_value() {
+        let gil_guard = Python::acquire_gil();
+        let py = gil_guard.python();
+        let mut called = false;
+        let tuple = (0,).to_py_object(py);
+        py_argparse!(py, None, &tuple, None, (x: usize = 42) {
+            assert_eq!(x, 0);
+            called = true;
+            Ok(())
+        }).unwrap();
+        assert!(called);
+
+        let mut called = false;
+        let tuple = PyTuple::new(py, &[]);
+        py_argparse!(py, None, &tuple, None, (x: usize = 42) {
+            assert_eq!(x, 42);
+            called = true;
+            Ok(())
+        }).unwrap();
+        assert!(called);
+    }
+}
