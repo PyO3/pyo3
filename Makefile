@@ -1,4 +1,4 @@
-.PHONY: default build test doc extensions clean
+.PHONY: default build test doc extensions clean cog
 
 ifndef PY
 PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
@@ -34,6 +34,9 @@ src/py_class/py_class_impl2.rs: src/py_class/py_class_impl.py
 
 src/py_class/py_class_impl3.rs: src/py_class/py_class_impl.py
 	PY=3 python $< >$@
+
+cog: python27-sys/build.rs .travis.yml
+	cog.py -r $^
 
 build: src/py_class/py_class_impl2.rs src/py_class/py_class_impl3.rs
 	cargo build $(CARGO_FLAGS)

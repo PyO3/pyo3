@@ -1,17 +1,27 @@
+//[[[cog
+//import os
+//import cog
+//HERE = os.path.dirname(cog.inFile)
+//for line in open(os.path.join(HERE, '../python3-sys/build.rs')):
+//    if line.strip():
+//        cog.out(line)
+//    else:
+//        cog.out("// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~" + line)
+//]]]
 extern crate regex;
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 use std::process::Command;
 use std::collections::HashMap;
 use std::env;
 use regex::Regex;
 use std::fmt;
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 struct PythonVersion {
     major: u8,
     // minor == None means any minor version will do
     minor: Option<u8>
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 impl fmt::Display for PythonVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         try!(self.major.fmt(f));
@@ -23,17 +33,17 @@ impl fmt::Display for PythonVersion {
         Ok(())
     }
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 const CFG_KEY: &'static str = "py_sys_config";
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 // windows' python writes out lines with the windows crlf sequence;
 // posix platforms and mac os should write out lines with just lf.
 #[cfg(target_os="windows")]
 static NEWLINE_SEQUENCE: &'static str = "\r\n";
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 #[cfg(not(target_os="windows"))]
 static NEWLINE_SEQUENCE: &'static str = "\n";
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 // A list of python interpreter compile-time preprocessor defines that 
 // we will pick up and pass to rustc via --cfg=py_sys_config={varname};
 // this allows using them conditional cfg attributes in the .rs files, so
@@ -56,7 +66,7 @@ static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "Py_TRACE_REFS",
     "COUNT_ALLOCS",
 ];
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 static SYSCONFIG_VALUES: [&'static str; 1] = [
     // cfg doesn't support flags with values, just bools - so flags 
     // below are translated into bools as {varname}_{val} 
@@ -64,7 +74,7 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
     // for example, Py_UNICODE_SIZE_2 or Py_UNICODE_SIZE_4
     "Py_UNICODE_SIZE" // note - not present on python 3.3+, which is always wide
 ];
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Examine python's compile flags to pass to cfg by launching
 /// the interpreter and printing variables of interest from 
 /// sysconfig.get_config_vars.
@@ -72,27 +82,27 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
 fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, String>  {
     let mut script = "import sysconfig; \
 config = sysconfig.get_config_vars();".to_owned();
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     for k in SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()) {
         script.push_str(&format!("print(config.get('{}', {}))", k, 
             if is_value(k) { "None" } else { "0" } ));
         script.push_str(";");
     }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     let mut cmd = Command::new(python_path);
     cmd.arg("-c").arg(script);
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     let out = try!(cmd.output().map_err(|e| {
         format!("failed to run python interpreter `{:?}`: {}", cmd, e)
     }));
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     if !out.status.success() {
         let stderr = String::from_utf8(out.stderr).unwrap();
         let mut msg = format!("python script failed with stderr:\n\n");
         msg.push_str(&stderr);
         return Err(msg);
     }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     let stdout = String::from_utf8(out.stdout).unwrap();
     let split_stdout: Vec<&str> = stdout.trim_right().split(NEWLINE_SEQUENCE).collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
@@ -110,7 +120,7 @@ config = sysconfig.get_config_vars();".to_owned();
             memo
         }))
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 #[cfg(target_os="windows")]
 fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
     // sysconfig is missing all the flags on windows, so we can't actually
@@ -125,12 +135,12 @@ fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
     map.insert("Py_UNICODE_WIDE".to_owned(), "0".to_owned());
     map.insert("WITH_THREAD".to_owned(), "1".to_owned());
     map.insert("Py_UNICODE_SIZE".to_owned(), "2".to_owned());
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     // This is defined #ifdef _DEBUG. The visual studio build seems to produce
     // a specially named pythonXX_d.exe and pythonXX_d.dll when you build the
     // Debug configuration, which this script doesn't currently support anyway.
     // map.insert("Py_DEBUG", "1");
-    
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~    
     // Uncomment these manually if your python was built with these and you want
     // the cfg flags to be set in rust.
     //
@@ -139,11 +149,11 @@ fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
     // map.insert("COUNT_ALLOCS", 1");
     Ok(map)
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 fn is_value(key: &str) -> bool {
     SYSCONFIG_VALUES.iter().find(|x| **x == key).is_some()
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
     if is_value(key) {
         // is a value; suffix the key name with the value
@@ -156,27 +166,27 @@ fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
         None
     }
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Run a python script using the specified interpreter binary.
 fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> {
     let mut cmd = Command::new(interpreter);
     cmd.arg("-c").arg(script);
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     let out = try!(cmd.output().map_err(|e| {
         format!("failed to run python interpreter `{:?}`: {}", cmd, e)
     }));
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     if !out.status.success() {
         let stderr = String::from_utf8(out.stderr).unwrap();
         let mut msg = format!("python script failed with stderr:\n\n");
         msg.push_str(&stderr);
         return Err(msg);
     }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     let out = String::from_utf8(out.stdout).unwrap();
     return Ok(out);
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 #[cfg(not(target_os="macos"))]
 #[cfg(not(target_os="windows"))]
 fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) -> Result<String, String> {
@@ -186,14 +196,14 @@ fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) 
         Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version))
     }
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 #[cfg(target_os="macos")]
 fn get_macos_linkmodel() -> Result<String, String> {
     let script = "import sysconfig; print('framework' if sysconfig.get_config_var('PYTHONFRAMEWORK') else ('shared' if sysconfig.get_config_var('Py_ENABLE_SHARED') else 'static'));";
     let out = run_python_script("python", script).unwrap();
     Ok(out.trim_right().to_owned())
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 #[cfg(target_os="macos")]
 fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and 
@@ -208,7 +218,7 @@ fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<St
         other => Err(format!("unknown linkmodel {}", other))
     }
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Parse string as interpreter version.
 fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
@@ -221,7 +231,7 @@ fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
             format!("Unexpected response to version query {}", line))
     }
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 #[cfg(target_os="windows")]
 fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
@@ -231,13 +241,13 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
             None => "".to_owned()
         }))
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 fn matching_version(expected_version: &PythonVersion, actual_version: &PythonVersion) -> bool {
     actual_version.major == expected_version.major &&
         (expected_version.minor.is_none() ||
             actual_version.minor == expected_version.minor)
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Locate a suitable python interpreter and extract config from it.
 /// Tries to execute the interpreter as "python", "python{major version}",
 /// "python{major version}.{minor version}" in order until one
@@ -272,7 +282,7 @@ fn find_interpreter_and_get_config(expected_version: &PythonVersion) ->
     Err(format!("No python interpreter found of version {}",
             expected_version))
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<String>), String> {
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
@@ -285,7 +295,7 @@ print(sys.exec_prefix);";
     let interpreter_version = try!(get_interpreter_version(&lines[0]));
     Ok((interpreter_version, lines))
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Deduce configuration from the 'python' in the current PATH and print
 /// cargo vars to stdout.
 ///
@@ -297,7 +307,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
     let enable_shared: &str = &lines[2];
     let ld_version: &str = &lines[3];
     let exec_prefix: &str = &lines[4];
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os="windows") {
         println!("{}", get_rustc_link_lib(&interpreter_version,
@@ -308,8 +318,8 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
             println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
         }
     }
-
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
         if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
@@ -320,10 +330,10 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
             }
         }
     }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     return Ok(interpreter_path);
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 /// Determine the python version we're supposed to be building
 /// from the features passed via the environment.
 ///
@@ -351,7 +361,7 @@ fn version_from_env() -> Result<PythonVersion, String> {
     Err("Python version feature was not found. At least one python version \
          feature must be enabled.".to_owned())
 }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
 fn main() {
     // 1. Setup cfg variables so we can do conditional compilation in this 
     // library based on the python interpeter's compilation flags. This is 
@@ -372,7 +382,7 @@ fn main() {
             None => ()
         }
     }
-
+// ~~~~~~~~~~ generated file, modify `python3-sys/build.rs` ~~~~~~~~~~
     // 2. Export python interpreter compilation flags as cargo variables that 
     // will be visible to dependents. All flags will be available to dependent
     // build scripts in the environment variable DEP_PYTHON27_PYTHON_FLAGS as 
@@ -398,3 +408,4 @@ fn main() {
     println!("cargo:python_flags={}", 
         if flags.len() > 0 { &flags[..flags.len()-1] } else { "" });
 }
+//[[[end]]]
