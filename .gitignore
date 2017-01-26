@@ -3,3 +3,6 @@
 /doc
 /gh-pages
 
+*.so
+*.out
+extensions/stamps/
