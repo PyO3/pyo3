@@ -120,6 +120,7 @@ pub fn parse_args(
 ///    5. `*name : ty`
 ///    6. `**name`
 ///    7. `**name : ty`
+///
 ///   The types used must implement the `FromPyObject` trait.
 ///   If no type is specified, the parameter implicitly uses
 ///   `&PyObject` (format 1), `&PyTuple` (format 4) or `&PyDict` (format 6).
@@ -132,6 +133,13 @@ pub fn parse_args(
 /// them to the parameters. If the extraction is successful, `py_argparse!()` evaluates
 /// the body expression and returns of that evaluation.
 /// If extraction fails, `py_argparse!()` returns a failed `PyResult` without evaluating `body`.
+///
+/// The `py_argparse!()` macro special-cases reference types (when `ty` starts with a `&` token):
+/// In this case, the macro uses the `RefFromPyObject` trait instead of the `FromPyObject` trait.
+/// When using at least one reference parameter, the `body` block is placed within a closure,
+/// so `return` statements might behave unexpectedly in this case. (this only affects direct use
+/// of `py_argparse!`; `py_fn!` is unaffected as the body there is always in a separate function
+/// from the generated argument-parsing code).
 #[macro_export]
 macro_rules! py_argparse {
     ($py:expr, $fname:expr, $args:expr, $kwargs:expr, $plist:tt $body:block) => {

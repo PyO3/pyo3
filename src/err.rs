@@ -141,6 +141,23 @@ pub struct PyErr {
 pub type PyResult<T> = Result<T, PyErr>;
 
 impl PyErr {
+    /// Creates a new PyErr of type `T`.
+    ///
+    /// `value` can be:
+    /// * `NoArgs`: the exception instance will be created using python `T()`
+    /// * a tuple: the exception instance will be created using python `T(*tuple)`
+    /// * any other value: the exception instance will be created using python `T(value)`
+    ///
+    /// Panics if `T` is not a python class derived from `BaseException`.
+    ///
+    /// Example:
+    ///  `return Err(PyErr::new::<exc::TypeError, _>(py, "Error message"));`
+    pub fn new<T, V>(py: Python, value: V) -> PyErr
+        where T: PythonObjectWithTypeObject, V: ToPyObject
+    {
+        PyErr::new_helper(py, py.get_type::<T>(), value.to_py_object(py).into_object())
+    }
+
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
     pub fn occurred(_ : Python) -> bool {
@@ -199,20 +216,6 @@ impl PyErr {
         }
     }
 
-    /// Creates a new PyErr of type `T`.
-    ///
-    /// `value` can be:
-    /// * `NoArgs`: the exception instance will be created using python `T()`
-    /// * a tuple: the exception instance will be created using python `T(*tuple)`
-    /// * any other value: the exception instance will be created using python `T(value)`
-    ///
-    /// Panics if `T` is not a python class derived from `BaseException`.
-    pub fn new<T, V>(py: Python, value: V) -> PyErr
-        where T: PythonObjectWithTypeObject, V: ToPyObject
-    {
-        PyErr::new_helper(py, py.get_type::<T>(), value.to_py_object(py).into_object())
-    }
-
     fn new_helper(_py: Python, ty: PyType, value: PyObject) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_object().as_ptr()) } != 0);
         PyErr {
@@ -254,7 +257,7 @@ impl PyErr {
     }
 
     /// Construct a new error, with the usual lazy initialization of Python exceptions.
-    /// `exc` is the exception type; usually one of the standard exceptions like `PyExc::runtime_error()`.
+    /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
     /// `value` is the exception instance, or a tuple of arguments to pass to the exception constructor.
     #[inline]
     pub fn new_lazy_init(exc: PyType, value: Option<PyObject>) -> PyErr {
