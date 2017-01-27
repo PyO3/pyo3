@@ -22,7 +22,7 @@
 use std::ptr;
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
-use conversion::ToPyObject;
+use conversion::{RefFromPyObject, ToPyObject};
 use ffi;
 use err::{self, PyResult};
 
@@ -423,14 +423,25 @@ macro_rules! py_argparse_extract {
         [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {$rtype:ty} ] } $($tail:tt)* ]
     ) => {
         //unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
-        match <$rtype as $crate::RefFromPyObject>::with_extracted($py,
-            $iter.next().unwrap().as_ref().unwrap_or($default.into_py_object($py).as_object()),
-            |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*])
-        ) {
-            Ok(v) => v,
-            Err(e) => Err(e)
-        }
+        $crate::argparse::with_extracted_or_default($py,
+            $iter.next().unwrap().as_ref(),
+            |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*]),
+            $default)
     };
+}
+
+#[doc(hidden)] // used in py_argparse_extract!() macro
+pub fn with_extracted_or_default<P: ?Sized, R, F>(py: Python, obj: Option<&PyObject>, f: F, default: &'static P) -> PyResult<R>
+    where F: FnOnce(&P) -> PyResult<R>,
+          P: RefFromPyObject
+{
+    match obj {
+        Some(obj) => match P::with_extracted(py, obj, f) {
+            Ok(result) => result,
+            Err(e) => Err(e)
+        },
+        None => f(default)
+    }
 }
 
 #[cfg(test)]
