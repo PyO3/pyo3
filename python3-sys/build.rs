@@ -239,11 +239,27 @@ fn matching_version(expected_version: &PythonVersion, actual_version: &PythonVer
 }
 
 /// Locate a suitable python interpreter and extract config from it.
-/// Tries to execute the interpreter as "python", "python{major version}",
+/// If the environment variable `PYTHON_SYS_EXECUTABLE`, use the provided
+/// path a Python executable, and raises an error if the version doesn't match.
+/// Else tries to execute the interpreter as "python", "python{major version}",
 /// "python{major version}.{minor version}" in order until one
-/// is of the version we are expecting. 
-fn find_interpreter_and_get_config(expected_version: &PythonVersion) -> 
+/// is of the version we are expecting.
+fn find_interpreter_and_get_config(expected_version: &PythonVersion) ->
         Result<(PythonVersion, String, Vec<String>), String> {
+    if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
+        let interpreter_path = sys_executable.to_str()
+            .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
+        let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
+        if matching_version(expected_version, &interpreter_version) {
+            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+        } else {
+            return Err(format!("Wrong python version in PYTHON_SYS_EXECUTABLE={}\n\
+                                \texpected {} != found {}",
+                               interpreter_path,
+                               expected_version,
+                               interpreter_version));
+        }
+    }
     {
         let interpreter_path = "python";
         let (interpreter_version, lines) =
