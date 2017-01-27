@@ -104,7 +104,7 @@ pub fn parse_args(
 }
 
 /// This macro is used to parse a parameter list into a set of variables.
-/// 
+///
 /// Syntax: `py_argparse!(py, fname, args, kwargs, (parameter-list) { body })`
 ///
 /// * `py`: the `Python` token
@@ -258,8 +258,17 @@ macro_rules! py_argparse_parse_plist_impl {
             ($($tail)*)
         }
     };
+    // Optional parameter with reference extraction
+    { $callback:ident $initial_args:tt [ $($output:tt)* ]
+        ( $name:ident : &$t:ty = $default:expr, $($tail:tt)* )
+    } => {
+        py_argparse_parse_plist_impl! {
+            $callback $initial_args
+            [ $($output)* { $name:&$t = [ {} {$default} {$t} ] } ]
+            ($($tail)*)
+        }
+    };
     // Optional parameter
-    // TODO: with reference extraction?
     { $callback:ident $initial_args:tt [ $($output:tt)* ]
         ( $name:ident : $t:ty = $default:expr , $($tail:tt)* )
     } => {
@@ -353,6 +362,13 @@ macro_rules! py_argparse_param_description {
             is_optional: false
         }
     );
+    // optional parameters
+    { $pname:ident : $ptype:ty = [ {} {$default:expr} {$($rtype:tt)*} ] } => (
+        $crate::argparse::ParamDescription {
+            name: stringify!($pname),
+            is_optional: true
+        }
+    );
 }
 
 #[macro_export]
@@ -385,11 +401,34 @@ macro_rules! py_argparse_extract {
             Err(e) => Err(e)
         }
     };
+    // optional parameter
+    ( $py:expr, $iter:expr, $body:block,
+        [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {} ] } $($tail:tt)* ]
+    ) => {
+        match $iter.next().unwrap().as_ref().map(|obj| obj.extract::<_>($py)).unwrap_or(Ok($default)) {
+            Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
+            Err(e) => Err(e)
+        }
+    };
+    // optional parameter with reference extraction
+    ( $py:expr, $iter:expr, $body:block,
+        [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {$rtype:ty} ] } $($tail:tt)* ]
+    ) => {
+        //unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
+        match <$rtype as $crate::RefFromPyObject>::with_extracted($py,
+            $iter.next().unwrap().as_ref().unwrap_or($default.into_py_object($py).as_object()),
+            |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*])
+        ) {
+            Ok(v) => v,
+            Err(e) => Err(e)
+        }
+    };
 }
 
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject};
+    use objects::PyTuple;
     use conversion::ToPyObject;
 
     #[test]
@@ -420,5 +459,29 @@ mod test {
         }).unwrap();
         assert!(called);
     }
-}
 
+    #[test]
+    pub fn test_default_value() {
+        let gil_guard = Python::acquire_gil();
+        let py = gil_guard.python();
+        let mut called = false;
+        let tuple = (0, "foo").to_py_object(py);
+        py_argparse!(py, None, &tuple, None, (x: usize = 42, y: &str = "abc") {
+            assert_eq!(x, 0);
+            assert_eq!(y, "foo");
+            called = true;
+            Ok(())
+        }).unwrap();
+        assert!(called);
+
+        let mut called = false;
+        let tuple = PyTuple::new(py, &[]);
+        py_argparse!(py, None, &tuple, None, (x: usize = 42, y: &str = "abc") {
+            assert_eq!(x, 42);
+            assert_eq!(y, "abc");
+            called = true;
+            Ok(())
+        }).unwrap();
+        assert!(called);
+    }
+}

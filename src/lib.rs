@@ -59,20 +59,20 @@
 //! extern crate cpython;
 //!
 //! use cpython::{Python, PyDict, PyResult};
-//! 
+//!
 //! fn main() {
 //!     let gil = Python::acquire_gil();
 //!     hello(gil.python()).unwrap();
 //! }
-//! 
+//!
 //! fn hello(py: Python) -> PyResult<()> {
 //!     let sys = py.import("sys")?;
 //!     let version: String = sys.get(py, "version")?.extract(py)?;
-//! 
+//!
 //!     let locals = PyDict::new(py);
 //!     locals.set_item(py, "os", py.import("os")?)?;
 //!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
-//! 
+//!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
 //! }
@@ -238,7 +238,7 @@ pub mod _detail {
 /// ```
 /// The full example project can be found at:
 ///   https://github.com/dgrunwald/rust-cpython/tree/master/extensions/hello
-/// 
+///
 /// Rust will compile the code into a file named `libhello.so`, but we have to
 /// rename the file in order to use it with Python:
 ///
@@ -357,4 +357,3 @@ pub unsafe fn py_module_initializer_impl(
     mem::forget(guard);
     ret
 }
-
