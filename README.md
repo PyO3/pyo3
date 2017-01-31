@@ -67,7 +67,7 @@ name = "rust2py"
 crate-type = ["cdylib"]
 
 [dependencies.cpython]
-path = "../.."
+version = "0.1"
 features = ["extension-module"]
 ```
 
