@@ -239,11 +239,27 @@ fn matching_version(expected_version: &PythonVersion, actual_version: &PythonVer
 }
 
 /// Locate a suitable python interpreter and extract config from it.
-/// Tries to execute the interpreter as "python", "python{major version}",
+/// If the environment variable `PYTHON_SYS_EXECUTABLE`, use the provided
+/// path a Python executable, and raises an error if the version doesn't match.
+/// Else tries to execute the interpreter as "python", "python{major version}",
 /// "python{major version}.{minor version}" in order until one
-/// is of the version we are expecting. 
-fn find_interpreter_and_get_config(expected_version: &PythonVersion) -> 
+/// is of the version we are expecting.
+fn find_interpreter_and_get_config(expected_version: &PythonVersion) ->
         Result<(PythonVersion, String, Vec<String>), String> {
+    if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
+        let interpreter_path = sys_executable.to_str()
+            .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
+        let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
+        if matching_version(expected_version, &interpreter_version) {
+            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+        } else {
+            return Err(format!("Wrong python version in PYTHON_SYS_EXECUTABLE={}\n\
+                                \texpected {} != found {}",
+                               interpreter_path,
+                               expected_version,
+                               interpreter_version));
+        }
+    }
     {
         let interpreter_path = "python";
         let (interpreter_version, lines) =
@@ -278,7 +294,7 @@ fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<
     let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
 print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
-print(sysconfig.get_config_var('LDVERSION')); \
+print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
 print(sys.exec_prefix);";
     let out = try!(run_python_script(interpreter, script));
     let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
@@ -309,14 +325,15 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         }
     }
 
-    let is_pep_384 = env::var_os("CARGO_FEATURE_PEP_384").is_some();
-    if is_pep_384 {
-        println!("cargo:rustc-cfg=Py_LIMITED_API");
-    }
 
-    if let PythonVersion { major: 3, minor: Some(minor)} = interpreter_version {
-        for i in 4..(minor+1) {
-            println!("cargo:rustc-cfg=Py_3_{}", i);
+    if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
+        if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
+            println!("cargo:rustc-cfg=Py_LIMITED_API");
+        }
+        if let Some(minor) = some_minor {
+            for i in 4..(minor+1) {
+                println!("cargo:rustc-cfg=Py_3_{}", i);
+            }
         }
     }
 
@@ -358,7 +375,7 @@ fn main() {
     //
     // This locates the python interpreter based on the PATH, which should
     // work smoothly with an activated virtualenv.
-    // 
+    //
     // If you have troubles with your shell accepting '.' in a var name, 
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).
