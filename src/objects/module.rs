@@ -109,14 +109,11 @@ impl PyModule {
     ///
     /// This is a convenience function that initializes the `py_class!()`,
     /// sets `new_type.__module__` to this module's name,
-    //  and adds the type to this module.
+    /// and adds the type to this module.
     pub fn add_class<'p, T>(&self, py: Python<'p>) -> PyResult<()>
         where T: PythonObjectFromPyClassMacro
     {
-        let type_obj = try!(T::initialize(py));
-        try!(self.as_object().setattr(py, type_obj.name(py), &type_obj));
-        type_obj.release_ref(py);
-        Ok(())
+        T::add_to_module(py, self)
     }
 }
 

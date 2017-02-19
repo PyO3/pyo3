@@ -152,7 +152,7 @@ base_case = '''
                                     $crate::PyType::from_type_ptr(py, &mut TYPE_OBJECT)
                                 } else {
                                     // automatically initialize the class on-demand
-                                    <$class as $crate::py_class::PythonObjectFromPyClassMacro>::initialize(py)
+                                    <$class as $crate::py_class::PythonObjectFromPyClassMacro>::initialize(py, None)
                                         .expect(concat!("An error occurred while initializing class ", stringify!($class)))
                                 }
                             }
@@ -160,7 +160,7 @@ base_case = '''
                     }
 
                     impl $crate::py_class::PythonObjectFromPyClassMacro for $class {
-                        fn initialize(py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
+                        fn initialize(py: $crate::Python, module_name: Option<&str>) -> $crate::PyResult<$crate::PyType> {
                             unsafe {
                                 if $crate::py_class::is_ready(py, &TYPE_OBJECT) {
                                     return Ok($crate::PyType::from_type_ptr(py, &mut TYPE_OBJECT));
@@ -169,15 +169,20 @@ base_case = '''
                                     concat!("Reentrancy detected: already initializing class ",
                                     stringify!($class)));
                                 INIT_ACTIVE = true;
-                                let res = init(py);
+                                let res = init(py, module_name);
                                 INIT_ACTIVE = false;
                                 res
                             }
                         }
+
+                        fn add_to_module(py: $crate::Python, module: &$crate::PyModule) -> $crate::PyResult<()> {
+                            let ty = <$class as $crate::py_class::PythonObjectFromPyClassMacro>::initialize(py, module.name(py).ok())?;
+                            module.add(py, stringify!($class), ty)
+                        }
                     }
 
-                    fn init($py: $crate::Python) -> $crate::PyResult<$crate::PyType> {
-                        py_class_type_object_dynamic_init!($class, $py, TYPE_OBJECT, $slots);
+                    fn init($py: $crate::Python, module_name: Option<&str>) -> $crate::PyResult<$crate::PyType> {
+                        py_class_type_object_dynamic_init!($class, $py, TYPE_OBJECT, module_name, $slots);
                         py_class_init_members!($class, $py, TYPE_OBJECT, $members);
                         unsafe {
                             if $crate::_detail::ffi::PyType_Ready(&mut TYPE_OBJECT) == 0 {

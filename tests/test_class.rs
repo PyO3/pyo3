@@ -43,6 +43,22 @@ fn empty_class() {
     let typeobj = py.get_type::<EmptyClass>();
     // By default, don't allow creating instances from python.
     assert!(typeobj.call(py, NoArgs, None).is_err());
+
+    py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
+}
+
+py_class!(class EmptyClassInModule |py| { });
+
+#[test]
+fn empty_class_in_module() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let module = PyModule::new(py, "test_module.nested").unwrap();
+    module.add_class::<EmptyClassInModule>(py).unwrap();
+
+    let ty = module.get(py, "EmptyClassInModule").unwrap();
+    assert_eq!(ty.getattr(py, "__name__").unwrap().extract::<String>(py).unwrap(), "EmptyClassInModule");
+    assert_eq!(ty.getattr(py, "__module__").unwrap().extract::<String>(py).unwrap(), "test_module.nested");
 }
 
 py_class!(class EmptyClassWithNew |py| {

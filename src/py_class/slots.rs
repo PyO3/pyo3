@@ -18,6 +18,7 @@
 
 use ffi;
 use std::{mem, isize, ptr};
+use std::ffi::CString;
 use libc::{c_char, c_int};
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
@@ -80,7 +81,7 @@ pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
     // initialize those fields of PyTypeObject that we couldn't initialize statically
-    ($class: ident, $py:ident, $type_object:ident,
+    ($class: ident, $py:ident, $type_object:ident, $module_name: ident,
         /* slots: */ {
             $type_slots:tt
             $as_number:tt
@@ -90,7 +91,7 @@ macro_rules! py_class_type_object_dynamic_init {
         }
     ) => {
         unsafe {
-            $type_object.tp_name = concat!(stringify!($class), "\0").as_ptr() as *const _;
+            $type_object.tp_name = $crate::py_class::slots::build_tp_name($module_name, stringify!($class));
             $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
                                         as $crate::_detail::ffi::Py_ssize_t;
         }
@@ -99,6 +100,14 @@ macro_rules! py_class_type_object_dynamic_init {
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
         py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
+}
+
+pub fn build_tp_name(module_name: Option<&str>, type_name: &str) -> *mut c_char {
+    let name = match module_name {
+        Some(module_name) => CString::new(format!("{}.{}", module_name, type_name)),
+        None => CString::new(type_name)
+    };
+    name.expect("Module name/type name must not contain NUL byte").into_raw()
 }
 
 pub unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)

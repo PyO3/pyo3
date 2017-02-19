@@ -28,7 +28,7 @@ pub mod gc;
 use libc;
 use std::{mem, ptr, cell};
 use python::{self, Python, PythonObject};
-use objects::{PyObject, PyType};
+use objects::{PyObject, PyType, PyModule};
 use err::{self, PyResult};
 use ffi;
 
@@ -43,8 +43,16 @@ pub enum CompareOp {
 }
 
 /// Trait implemented by the types produced by the `py_class!()` macro.
+///
+/// This is an unstable implementation detail; do not implement manually!
 pub trait PythonObjectFromPyClassMacro : python::PythonObjectWithTypeObject {
-    fn initialize(py: Python) -> PyResult<PyType>;
+    /// Initializes the class.
+    ///
+    /// module_name: the name of the parent module into which the class will be placed.
+    fn initialize(py: Python, module_name: Option<&str>) -> PyResult<PyType>;
+
+    /// Initializes the class and adds it to the module.
+    fn add_to_module(py: Python, module: &PyModule) -> PyResult<()>;
 }
 
 #[inline]
