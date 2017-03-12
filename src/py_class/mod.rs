@@ -32,6 +32,7 @@ use objects::{PyObject, PyType, PyModule};
 use err::{self, PyResult};
 use ffi;
 
+// TODO: consider moving CompareOp to a different module, so that it isn't exported via two paths
 #[derive(Debug)]
 pub enum CompareOp {
     Lt = ffi::Py_LT as isize,

@@ -70,13 +70,26 @@ pub trait ObjectProtocol : PythonObject {
     }
 
     /// Compares two Python objects.
-    /// This is equivalent to the Python expression 'cmp(self, other)'.
-    #[cfg(feature="python27-sys")]
+    ///
+    /// On Python 2, this is equivalent to the Python expression 'cmp(self, other)'.
+    ///
+    /// On Python 3, this is equivalent to:
+    /// ```
+    /// if self == other:
+    ///     return Equal
+    /// elif a < b:
+    ///     return Less
+    /// elif a > b:
+    ///     return Greater
+    /// else:
+    ///     raise TypeError("ObjectProtocol::compare(): All comparisons returned false")
+    /// ```
     fn compare<O>(&self, py: Python, other: O) -> PyResult<Ordering> where O: ToPyObject {
-        other.with_borrowed_ptr(py, |other| unsafe {
+        #[cfg(feature="python27-sys")]
+        unsafe fn do_compare(py: Python, a: *mut ffi::PyObject, b: *mut ffi::PyObject) -> PyResult<Ordering> {
             let mut result = -1;
             try!(err::error_on_minusone(py,
-                ffi::PyObject_Cmp(self.as_ptr(), other, &mut result)));
+                ffi::PyObject_Cmp(a, b, &mut result)));
             Ok(if result < 0 {
                 Ordering::Less
             } else if result > 0 {
@@ -84,6 +97,48 @@ pub trait ObjectProtocol : PythonObject {
             } else {
                 Ordering::Equal
             })
+        }
+
+        #[cfg(feature="python3-sys")]
+        unsafe fn do_compare(py: Python, a: *mut ffi::PyObject, b: *mut ffi::PyObject) -> PyResult<Ordering> {
+            let result = ffi::PyObject_RichCompareBool(a, b, ffi::Py_EQ);
+            if result == 1 {
+                return Ok(Ordering::Equal);
+            } else if result < 0 {
+                return Err(PyErr::fetch(py));
+            }
+            let result = ffi::PyObject_RichCompareBool(a, b, ffi::Py_LT);
+            if result == 1 {
+                return Ok(Ordering::Less);
+            } else if result < 0 {
+                return Err(PyErr::fetch(py));
+            }
+            let result = ffi::PyObject_RichCompareBool(a, b, ffi::Py_GT);
+            if result == 1 {
+                return Ok(Ordering::Greater);
+            } else if result < 0 {
+                return Err(PyErr::fetch(py));
+            }
+            return Err(PyErr::new::<::exc::TypeError, _>(py, "ObjectProtocol::compare(): All comparisons returned false"));
+        }
+
+        other.with_borrowed_ptr(py, |other| unsafe {
+            do_compare(py, self.as_ptr(), other)
+        })
+    }
+
+    /// Compares two Python objects.
+    ///
+    /// Depending on the value of `compare_op`, equivalent to one of the following Python expressions:
+    ///   * CompareOp::Eq: `self == other`
+    ///   * CompareOp::Ne: `self != other`
+    ///   * CompareOp::Lt: `self < other`
+    ///   * CompareOp::Le: `self <= other`
+    ///   * CompareOp::Gt: `self > other`
+    ///   * CompareOp::Ge: `self >= other`
+    fn rich_compare<O>(&self, py: Python, other: O, compare_op: ::CompareOp) -> PyResult<PyObject> where O: ToPyObject {
+        other.with_borrowed_ptr(py, |other| unsafe {
+            err::result_cast_from_owned_ptr(py, ffi::PyObject_RichCompare(self.as_ptr(), other, compare_op as libc::c_int))
         })
     }
 
@@ -249,6 +304,7 @@ mod test {
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
     use objects::{PyList, PyTuple};
+    use super::ObjectProtocol;
 
     #[test]
     fn test_debug_string() {
@@ -264,6 +320,17 @@ mod test {
         let py = gil.python();
         let v = "Hello\n".to_py_object(py).into_object();
         assert_eq!(format!("{}", v), "Hello\n");
+    }
+
+    #[test]
+    fn test_compare() {
+        use std::cmp::Ordering;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let one = 1i32.to_py_object(py).into_object();
+        assert_eq!(one.compare(py, 1).unwrap(), Ordering::Equal);
+        assert_eq!(one.compare(py, 2).unwrap(), Ordering::Less);
+        assert_eq!(one.compare(py, 0).unwrap(), Ordering::Greater);
     }
 }
 
