@@ -99,3 +99,5 @@ fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
     Ok(out)
 }
 ```
+
+For `setup.py` integration, see https://github.com/fafhrd91/setuptools-rust
