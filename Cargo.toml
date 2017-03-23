@@ -38,12 +38,10 @@ num-traits = "0.1"
 # indicate which python ffi you are trying to bind to.
 [dependencies.python27-sys]
 optional = true
-path = "python27-sys"
 version = "0.1.2"
 
 [dependencies.python3-sys]
 optional = true
-path = "python3-sys"
 version = "0.1.3"
 
 [features]
@@ -72,5 +70,4 @@ python-3-4 = ["python3-sys/python-3-4"]
 #pep-384 = ["python3-sys/pep-384"]
 
 [workspace]
-members = ["python27-sys", "python3-sys", "extensions/hello"]
-
+members = ["extensions/hello"]
