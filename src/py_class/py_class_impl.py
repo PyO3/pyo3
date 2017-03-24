@@ -236,6 +236,7 @@ def write(text):
 
 slot_groups = (
     ('tp', 'type_slots', None),
+    ('am', 'as_async', None),
     ('nb', 'as_number', None),
     ('sq', 'as_sequence', None),
     ('mp', 'as_mapping', None),
@@ -744,8 +745,9 @@ special_names = {
     '__exit__': normal_method(),
 
     # Coroutines
-    '__await__': unimplemented(),
-    '__aiter__': unimplemented(),
+    '__await__': operator('am_await'),
+    '__aiter__': operator('am_aiter'),
+    '__anext__': operator('am_anext'),
     '__aenter__': unimplemented(),
     '__aexit__': unimplemented(),
 }

@@ -416,6 +416,7 @@ macro_rules! py_class {
             }
             /* slots: */ {
                 /* type_slots */  [ /* slot: expr, */ ]
+                /* as_async */    [ /* slot: expr, */ ]
                 /* as_number */   [ /* slot: expr, */ ]
                 /* as_sequence */ [ /* slot: expr, */ ]
                 /* as_mapping */  [ /* slot: expr, */ ]
@@ -445,6 +446,7 @@ macro_rules! py_class {
             }
             /* slots: */ {
                 /* type_slots */  [ /* slot: expr, */ ]
+                /* as_async */    [ /* slot: expr, */ ]
                 /* as_number */   [ /* slot: expr, */ ]
                 /* as_sequence */ [ /* slot: expr, */ ]
                 /* as_mapping */  [ /* slot: expr, */ ]

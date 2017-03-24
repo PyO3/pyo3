@@ -282,7 +282,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -294,7 +294,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_clear: py_class_tp_clear!($class),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -309,7 +309,7 @@ macro_rules! py_class_impl {
     { { def __abs__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -319,7 +319,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_absolute: py_class_unary_slot!($class::__abs__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -339,7 +339,7 @@ macro_rules! py_class_impl {
     { { def __add__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -349,7 +349,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_add: py_class_binary_numeric_slot!($class::__add__),
@@ -374,14 +374,40 @@ macro_rules! py_class_impl {
     { { def __aexit__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__aexit__ is not supported by py_class! yet." }
     };
+    { { def __aiter__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_async */ [ $( $am_slot_name:ident : $am_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_async */ [
+                $( $am_slot_name : $am_slot_value, )*
+                am_aiter: py_class_unary_slot!($class::__aiter__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_number $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __aiter__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members
+    }};
 
     { { def __aiter__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__aiter__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __aiter__" }
     };
     { { def __and__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -391,7 +417,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_and: py_class_binary_numeric_slot!($class::__and__),
@@ -408,14 +434,70 @@ macro_rules! py_class_impl {
     { { def __and__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Invalid signature for binary numeric operator __and__" }
     };
+    { { def __anext__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_async */ [ $( $am_slot_name:ident : $am_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_async */ [
+                $( $am_slot_name : $am_slot_value, )*
+                am_anext: py_class_unary_slot!($class::__anext__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_number $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __anext__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members
+    }};
+
+    { { def __anext__ $($tail:tt)* } $( $stuff:tt )* } => {
+        py_error! { "Invalid signature for operator __anext__" }
+    };
+    { { def __await__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt
+        /* slots: */ {
+            $type_slots:tt
+            /* as_async */ [ $( $am_slot_name:ident : $am_slot_value:expr, )* ]
+            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+        }
+        { $( $imp:item )* }
+        $members:tt
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info
+        /* slots: */ {
+            $type_slots
+            /* as_async */ [
+                $( $am_slot_name : $am_slot_value, )*
+                am_await: py_class_unary_slot!($class::__await__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+            ]
+            $as_number $as_sequence $as_mapping $setdelitem
+        }
+        /* impl: */ {
+            $($imp)*
+            py_class_impl_item! { $class, $py, __await__(&$slf,) $res_type; { $($body)* } [] }
+        }
+        $members
+    }};
 
     { { def __await__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "__await__ is not supported by py_class! yet." }
+        py_error! { "Invalid signature for operator __await__" }
     };
     { { def __bool__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -425,7 +507,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_nonzero: py_class_unary_slot!($class::__bool__, $crate::_detail::libc::c_int, $crate::py_class::slots::BoolConverter),
@@ -446,7 +528,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -458,7 +540,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_call: py_class_call_slot!{$class::__call__ []},
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -470,7 +552,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -482,7 +564,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_call: py_argparse_parse_plist_impl!{py_class_call_slot {$class::__call__} [] ($($p)+,)},
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -508,7 +590,7 @@ macro_rules! py_class_impl {
     { { def __contains__(&$slf:ident, $item:ident : $item_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt $as_number:tt
+            $type_slots:tt $as_async:tt $as_number:tt
             /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
             $as_mapping:tt $setdelitem:tt
         }
@@ -518,7 +600,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots $as_number
+            $type_slots $as_async $as_number
             /* as_sequence */ [
                 $( $sq_slot_name : $sq_slot_value, )*
                 sq_contains: py_class_contains_slot!($class::__contains__, $item_type),
@@ -550,7 +632,7 @@ macro_rules! py_class_impl {
     { { def __delitem__(&$slf:ident, $key:ident : $key_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt $as_number:tt $as_sequence:tt $as_mapping:tt
+            $type_slots:tt $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt
             /* setdelitem */ [
                 sdi_setitem: $sdi_setitem_slot_value:tt,
                 sdi_delitem: {},
@@ -562,7 +644,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots $as_number $as_sequence $as_mapping
+            $type_slots $as_async $as_number $as_sequence $as_mapping
             /* setdelitem */ [
                 sdi_setitem: $sdi_setitem_slot_value,
                 sdi_delitem: { py_class_binary_slot!($class::__delitem__, $key_type, $crate::_detail::libc::c_int, $crate::py_class::slots::UnitCallbackConverter) },
@@ -621,7 +703,7 @@ macro_rules! py_class_impl {
     { { def __getitem__(&$slf:ident, $key:ident : $key_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt $as_number:tt
+            $type_slots:tt $as_async:tt $as_number:tt
             /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
             /* as_mapping */ [ $( $mp_slot_name:ident : $mp_slot_value:expr, )* ]
             $setdelitem:tt
@@ -632,7 +714,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots $as_number
+            $type_slots $as_async $as_number
             /* as_sequence */ [
                 $( $sq_slot_name : $sq_slot_value, )*
                 sq_item: Some($crate::py_class::slots::sq_item),
@@ -661,7 +743,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -673,7 +755,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_hash: py_class_unary_slot!($class::__hash__, $crate::Py_hash_t, $crate::py_class::slots::HashConverter),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -688,7 +770,7 @@ macro_rules! py_class_impl {
     { { def __iadd__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -698,7 +780,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_add: py_class_binary_slot!($class::__iadd__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -718,7 +800,7 @@ macro_rules! py_class_impl {
     { { def __iand__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -728,7 +810,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_and: py_class_binary_slot!($class::__iand__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -752,7 +834,7 @@ macro_rules! py_class_impl {
     { { def __ifloordiv__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -762,7 +844,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_floor_divide: py_class_binary_slot!($class::__ifloordiv__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -782,7 +864,7 @@ macro_rules! py_class_impl {
     { { def __ilshift__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -792,7 +874,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_lshift: py_class_binary_slot!($class::__ilshift__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -812,7 +894,7 @@ macro_rules! py_class_impl {
     { { def __imatmul__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -822,7 +904,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_matrix_multiply: py_class_binary_slot!($class::__imatmul__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -842,7 +924,7 @@ macro_rules! py_class_impl {
     { { def __imod__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -852,7 +934,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_remainder: py_class_binary_slot!($class::__imod__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -872,7 +954,7 @@ macro_rules! py_class_impl {
     { { def __imul__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -882,7 +964,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_multiply: py_class_binary_slot!($class::__imul__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -918,7 +1000,7 @@ macro_rules! py_class_impl {
     { { def __invert__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -928,7 +1010,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_invert: py_class_unary_slot!($class::__invert__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -948,7 +1030,7 @@ macro_rules! py_class_impl {
     { { def __ior__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -958,7 +1040,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_or: py_class_binary_slot!($class::__ior__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -982,7 +1064,7 @@ macro_rules! py_class_impl {
     { { def __irshift__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -992,7 +1074,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_rshift: py_class_binary_slot!($class::__irshift__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -1012,7 +1094,7 @@ macro_rules! py_class_impl {
     { { def __isub__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1022,7 +1104,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_subtract: py_class_binary_slot!($class::__isub__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -1043,7 +1125,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1055,7 +1137,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_iter: py_class_unary_slot!($class::__iter__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1070,7 +1152,7 @@ macro_rules! py_class_impl {
     { { def __itruediv__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1080,7 +1162,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_true_divide: py_class_binary_slot!($class::__itruediv__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -1100,7 +1182,7 @@ macro_rules! py_class_impl {
     { { def __ixor__(&$slf:ident, $other:ident : $other_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1110,7 +1192,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_inplace_xor: py_class_binary_slot!($class::__ixor__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -1134,7 +1216,7 @@ macro_rules! py_class_impl {
     { { def __len__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt $as_number:tt
+            $type_slots:tt $as_async:tt $as_number:tt
             /* as_sequence */ [ $( $sq_slot_name:ident : $sq_slot_value:expr, )* ]
             /* as_mapping */ [ $( $mp_slot_name:ident : $mp_slot_value:expr, )* ]
             $setdelitem:tt
@@ -1145,7 +1227,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots $as_number
+            $type_slots $as_async $as_number
             /* as_sequence */ [
                 $( $sq_slot_name : $sq_slot_value, )*
                 sq_length: py_class_unary_slot!($class::__len__, $crate::_detail::ffi::Py_ssize_t, $crate::py_class::slots::LenResultConverter),
@@ -1173,7 +1255,7 @@ macro_rules! py_class_impl {
     { { def __lshift__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1183,7 +1265,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_lshift: py_class_binary_numeric_slot!($class::__lshift__),
@@ -1215,7 +1297,7 @@ macro_rules! py_class_impl {
     { { def __mul__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1225,7 +1307,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_multiply: py_class_binary_numeric_slot!($class::__mul__),
@@ -1249,7 +1331,7 @@ macro_rules! py_class_impl {
     { { def __neg__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1259,7 +1341,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_negative: py_class_unary_slot!($class::__neg__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -1280,7 +1362,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1292,7 +1374,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_new: py_class_wrap_newfunc!{$class::__new__ []},
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1304,7 +1386,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1316,7 +1398,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_new: py_argparse_parse_plist_impl!{py_class_wrap_newfunc {$class::__new__} [] ($($p)+,)},
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1331,7 +1413,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1343,7 +1425,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_iternext: py_class_unary_slot!($class::__next__, *mut $crate::_detail::ffi::PyObject, $crate::py_class::slots::IterNextResultConverter),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1362,7 +1444,7 @@ macro_rules! py_class_impl {
     { { def __or__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1372,7 +1454,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_or: py_class_binary_numeric_slot!($class::__or__),
@@ -1392,7 +1474,7 @@ macro_rules! py_class_impl {
     { { def __pos__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1402,7 +1484,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_positive: py_class_unary_slot!($class::__pos__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
@@ -1443,7 +1525,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1455,7 +1537,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_repr: py_class_unary_slot!($class::__repr__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1475,7 +1557,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1487,7 +1569,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_richcompare: py_class_richcompare_slot!($class::__richcmp__, $other_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1534,7 +1616,7 @@ macro_rules! py_class_impl {
     { { def __rshift__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1544,7 +1626,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_rshift: py_class_binary_numeric_slot!($class::__rshift__),
@@ -1584,7 +1666,7 @@ macro_rules! py_class_impl {
     { { def __setitem__(&$slf:ident, $key:ident : $key_type:ty, $value:ident : $value_type:ty) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt $as_number:tt $as_sequence:tt $as_mapping:tt
+            $type_slots:tt $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt
             /* setdelitem */ [
                 sdi_setitem: {},
                 sdi_delitem: $sdi_delitem_slot_value:tt,
@@ -1596,7 +1678,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots $as_number $as_sequence $as_mapping
+            $type_slots $as_async $as_number $as_sequence $as_mapping
             /* setdelitem */ [
                 sdi_setitem: { py_class_ternary_slot!($class::__setitem__, $key_type, $value_type, $crate::_detail::libc::c_int, $crate::py_class::slots::UnitCallbackConverter) },
                 sdi_delitem: $sdi_delitem_slot_value,
@@ -1616,7 +1698,7 @@ macro_rules! py_class_impl {
         $class:ident $py:ident $info:tt
         /* slots: */ {
             /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
+            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
         { $( $imp:item )* }
         $members:tt
@@ -1628,7 +1710,7 @@ macro_rules! py_class_impl {
                 $( $tp_slot_name : $tp_slot_value, )*
                 tp_str: py_class_unary_slot!($class::__str__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::PyString>(::std::marker::PhantomData)),
             ]
-            $as_number $as_sequence $as_mapping $setdelitem
+            $as_async $as_number $as_sequence $as_mapping $setdelitem
         }
         /* impl: */ {
             $($imp)*
@@ -1643,7 +1725,7 @@ macro_rules! py_class_impl {
     { { def __sub__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1653,7 +1735,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_subtract: py_class_binary_numeric_slot!($class::__sub__),
@@ -1681,7 +1763,7 @@ macro_rules! py_class_impl {
     { { def __xor__($left:ident, $right:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
-            $type_slots:tt
+            $type_slots:tt $as_async:tt
             /* as_number */ [ $( $nb_slot_name:ident : $nb_slot_value:expr, )* ]
             $as_sequence:tt $as_mapping:tt $setdelitem:tt
         }
@@ -1691,7 +1773,7 @@ macro_rules! py_class_impl {
         { $($tail)* }
         $class $py $info
         /* slots: */ {
-            $type_slots
+            $type_slots $as_async
             /* as_number */ [
                 $( $nb_slot_name : $nb_slot_value, )*
                 nb_xor: py_class_binary_numeric_slot!($class::__xor__),

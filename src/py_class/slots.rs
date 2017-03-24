@@ -36,6 +36,7 @@ macro_rules! py_class_type_object_static_init {
      $gc:tt,
     /* slots: */ {
         /* type_slots */  [ $( $slot_name:ident : $slot_value:expr, )* ]
+        $as_async:tt
         $as_number:tt
         $as_sequence:tt
         $as_mapping:tt
@@ -77,6 +78,7 @@ pub const TPFLAGS_DEFAULT : ::libc::c_long = ffi::Py_TPFLAGS_DEFAULT
 #[cfg(feature="python3-sys")]
 pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
 
+#[cfg(Py_3_5)]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
@@ -84,6 +86,7 @@ macro_rules! py_class_type_object_dynamic_init {
     ($class: ident, $py:ident, $type_object:ident, $module_name: ident,
         /* slots: */ {
             $type_slots:tt
+            $as_async:tt
             $as_number:tt
             $as_sequence:tt
             $as_mapping:tt
@@ -94,6 +97,34 @@ macro_rules! py_class_type_object_dynamic_init {
             $type_object.tp_name = $crate::py_class::slots::build_tp_name($module_name, stringify!($class));
             $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
                                         as $crate::_detail::ffi::Py_ssize_t;
+        }
+        // call slot macros outside of unsafe block
+        *(unsafe { &mut $type_object.tp_as_async }) = py_class_as_async!($as_async);
+        *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
+        *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
+        py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
+    }
+}
+
+#[cfg(not(Py_3_5))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_type_object_dynamic_init {
+    // initialize those fields of PyTypeObject that we couldn't initialize statically
+    ($class: ident, $py:ident, $type_object:ident, $module_name: ident,
+     /* slots: */ {
+         $type_slots:tt
+             $as_async:tt
+             $as_number:tt
+             $as_sequence:tt
+             $as_mapping:tt
+             $setdelitem:tt
+     }
+    ) => {
+        unsafe {
+            $type_object.tp_name = $crate::py_class::slots::build_tp_name($module_name, stringify!($class));
+            $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
+                as $crate::_detail::ffi::Py_ssize_t;
         }
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
@@ -178,6 +209,23 @@ macro_rules! py_class_as_number {
         unsafe { &mut NUMBER_METHODS }
     }}
 }
+
+#[cfg(Py_3_5)]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_as_async {
+    ([]) => (0 as *mut $crate::_detail::ffi::PyAsyncMethods);
+    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+        static mut ASYNC_METHODS : $crate::_detail::ffi::PyAsyncMethods
+            = $crate::_detail::ffi::PyAsyncMethods {
+                $( $slot_name : $slot_value, )*
+                    ..
+                    $crate::_detail::ffi::PyAsyncMethods_INIT
+            };
+        unsafe { &mut ASYNC_METHODS }
+    }}
+}
+
 
 #[macro_export]
 #[doc(hidden)]
