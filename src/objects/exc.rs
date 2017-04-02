@@ -25,6 +25,7 @@ use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
 use err::{self, PyResult};
 use super::object::PyObject;
+use super::tuple::PyTuple;
 use super::typeobject::PyType;
 
 macro_rules! exc_type(
@@ -92,6 +93,7 @@ exc_type!(OSError, PyExc_OSError);
 exc_type!(OverflowError, PyExc_OverflowError);
 exc_type!(ReferenceError, PyExc_ReferenceError);
 exc_type!(RuntimeError, PyExc_RuntimeError);
+exc_type!(StopIteration, PyExc_StopIteration);
 exc_type!(SyntaxError, PyExc_SyntaxError);
 exc_type!(SystemError, PyExc_SystemError);
 exc_type!(SystemExit, PyExc_SystemExit);
@@ -123,3 +125,13 @@ impl UnicodeDecodeError {
     }
 }
 
+impl StopIteration {
+
+    pub fn stop_iteration(py: Python, args: PyTuple) {
+        unsafe {
+            ffi::PyErr_SetObject(
+                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.into_object().as_ptr());
+        }
+    }
+
+}

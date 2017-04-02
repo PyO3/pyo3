@@ -114,12 +114,12 @@ mod bufferinfo {
     }
 
     pub type getbufferproc =
-        extern "C" fn(arg1: *mut ::object::PyObject,
+        unsafe extern "C" fn(arg1: *mut ::object::PyObject,
                                             arg2: *mut Py_buffer,
                                             arg3: c_int)
                                   -> c_int;
     pub type releasebufferproc =
-        extern "C" fn(arg1: *mut ::object::PyObject,
+        unsafe extern "C" fn(arg1: *mut ::object::PyObject,
                                             arg2: *mut Py_buffer) -> ();
 
     /// Maximum number of dimensions
@@ -427,6 +427,10 @@ mod typeobject {
     impl Default for PyBufferProcs {
         #[inline] fn default() -> Self { unsafe { ::core::mem::zeroed() } }
     }
+    pub const PyBufferProcs_INIT : PyBufferProcs = PyBufferProcs {
+        bf_getbuffer: None,
+        bf_releasebuffer: None,
+    };
 
     #[repr(C)]
     #[derive(Copy)]

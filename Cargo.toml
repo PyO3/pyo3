@@ -42,7 +42,8 @@ version = "0.1.2"
 
 [dependencies.python3-sys]
 optional = true
-version = "0.1.3"
+# version = "0.1.3"
+path = "./python3-sys/"
 
 [features]
 default = ["python3-sys"]

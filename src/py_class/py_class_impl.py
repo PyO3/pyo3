@@ -240,6 +240,7 @@ slot_groups = (
     ('nb', 'as_number', None),
     ('sq', 'as_sequence', None),
     ('mp', 'as_mapping', None),
+    ('bf', 'as_buffer', None),
     ('sdi', 'setdelitem', ['sdi_setitem', 'sdi_delitem'])
 )
 
@@ -519,19 +520,45 @@ def normal_method(special_name):
 def special_class_method(special_name, *args, **kwargs):
     generate_class_method(special_name=special_name, *args, **kwargs)
 
+
 class Argument(object):
-    def __init__(self, name):
+    def __init__(self, name, arg_type=None):
         self.name = name
+
+        if arg_type is not None:
+            if arg_type == 'int':
+                arg_type = '$crate::_detail::libc::c_int'
+
+        self.type = arg_type
+
+    def get_type(self):
+        if self.type is not None:
+            return self.type
+        else:
+            return '$%s_type' % self.name
+
+    def get_arg_pattern(self):
+        if self.type is not None:
+            return ', ${0}:ident '.format(self.name)
+        else:
+            return ', ${0}:ident : ${0}_type:ty'.format(self.name)
+
+    def get_arg_param_item(self):
+        return '{{ ${0} : {1} = {{}} }}'.format(self.name, self.get_type())
+
 
 @special_method
 def operator(special_name, slot,
-    args=(),
-    res_type='PyObject',
-    res_conv=None,
-    res_ffi_type='*mut $crate::_detail::ffi::PyObject',
-    additional_slots=()
+             args=(),
+             wrapper=None,
+             res_type='PyObject',
+             res_conv=None,
+             res_ffi_type='*mut $crate::_detail::ffi::PyObject',
+             additional_slots=()
 ):
     if res_conv is None:
+        if res_type == 'void':
+            res_conv = '$crate::py_class::slots::VoidCallbackConverter'
         if res_type == '()':
             res_conv = '$crate::py_class::slots::UnitCallbackConverter'
             res_ffi_type = '$crate::_detail::libc::c_int'
@@ -545,8 +572,8 @@ def operator(special_name, slot,
     arg_pattern = ''
     param_list = []
     for arg in args:
-        arg_pattern += ', ${0}:ident : ${0}_type:ty'.format(arg.name)
-        param_list.append('{{ ${0} : ${0}_type = {{}} }}'.format(arg.name))
+        arg_pattern += arg.get_arg_pattern()
+        param_list.append(arg.get_arg_param_item())
     if slot == 'sq_contains':
         new_slots = [(slot, 'py_class_contains_slot!($class::%s, $%s_type)' % (special_name, args[0].name))]
     elif slot == 'tp_richcompare':
@@ -556,11 +583,13 @@ def operator(special_name, slot,
         new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
                              % (special_name, res_ffi_type, res_conv))]
     elif len(args) == 1:
-        new_slots = [(slot, 'py_class_binary_slot!($class::%s, $%s_type, %s, %s)'
-                             % (special_name, args[0].name, res_ffi_type, res_conv))]
+        new_slots = [(slot, 'py_class_binary_slot!($class::%s, %s, %s, %s)'
+                             % (special_name, args[0].get_type(), res_ffi_type, res_conv))]
     elif len(args) == 2:
-        new_slots = [(slot, 'py_class_ternary_slot!($class::%s, $%s_type, $%s_type, %s, %s)'
-                             % (special_name, args[0].name, args[1].name, res_ffi_type, res_conv))]
+        if wrapper is None:
+            wrapper = 'py_class_ternary_slot'
+        new_slots = [(slot, '%s!($class::%s, %s, %s, %s, %s)'
+                             % (wrapper, special_name, args[0].get_type(), args[1].get_type(), res_ffi_type, res_conv))]
     else:
         raise ValueError('Unsupported argument count')
     generate_case(
@@ -750,6 +779,16 @@ special_names = {
     '__anext__': operator('am_anext'),
     '__aenter__': unimplemented(),
     '__aexit__': unimplemented(),
+
+    # Buffer
+    '__buffer_get__': operator(
+        "bf_getbuffer",
+        args=[Argument('view', '*mut $crate::_detail::ffi::Py_buffer'), Argument('flags', 'int')],
+        wrapper="py_class_ternary_internal", res_type='bool'),
+    '__buffer_release__': operator(
+        "bf_releasebuffer",
+        args=[Argument('view', '*mut $crate::_detail::ffi::Py_buffer')],
+        wrapper="py_class_binary_internal", res_type='void'),
 }
 
 def main():

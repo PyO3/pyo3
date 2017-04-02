@@ -40,6 +40,7 @@ macro_rules! py_class_type_object_static_init {
         $as_number:tt
         $as_sequence:tt
         $as_mapping:tt
+        $as_buffer:tt
         $setdelitem:tt
     }) => (
         $crate::_detail::ffi::PyTypeObject {
@@ -90,6 +91,7 @@ macro_rules! py_class_type_object_dynamic_init {
             $as_number:tt
             $as_sequence:tt
             $as_mapping:tt
+            $as_buffer:tt
             $setdelitem:tt
         }
     ) => {
@@ -102,11 +104,12 @@ macro_rules! py_class_type_object_dynamic_init {
         *(unsafe { &mut $type_object.tp_as_async }) = py_class_as_async!($as_async);
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
+        *(unsafe { &mut $type_object.tp_as_buffer }) = py_class_as_buffer!($as_buffer);
         py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
 }
 
-#[cfg(not(Py_3_5))]
+#[cfg(not(Py_3_4))]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
@@ -118,6 +121,7 @@ macro_rules! py_class_type_object_dynamic_init {
              $as_number:tt
              $as_sequence:tt
              $as_mapping:tt
+             $as_buffer:tt
              $setdelitem:tt
      }
     ) => {
@@ -129,6 +133,7 @@ macro_rules! py_class_type_object_dynamic_init {
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
+        *(unsafe { &mut $type_object.tp_as_buffer }) = py_class_as_buffer!($as_buffer);
         py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
 }
@@ -223,6 +228,22 @@ macro_rules! py_class_as_async {
                     $crate::_detail::ffi::PyAsyncMethods_INIT
             };
         unsafe { &mut ASYNC_METHODS }
+    }}
+}
+
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_as_buffer {
+    ([]) => (0 as *mut $crate::_detail::ffi::PyBufferProcs);
+    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+        static mut BUFFER_PROCS : $crate::_detail::ffi::PyBufferProcs
+            = $crate::_detail::ffi::PyBufferProcs {
+                $( $slot_name : $slot_value, )*
+                    ..
+                    $crate::_detail::ffi::PyBufferProcs_INIT
+            };
+        unsafe { &mut BUFFER_PROCS }
     }}
 }
 
@@ -378,6 +399,51 @@ macro_rules! py_class_ternary_slot {
     }}
 }
 
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_binary_internal {
+    ($class:ident :: $f:ident, $arg1_type:ty, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn wrap_binary(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            arg1: $arg1_type)
+            -> $res_type                                                          {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    Ok(slf.$f(py, arg1))
+                })
+        }
+        Some(wrap_binary)
+    }}
+}
+
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_ternary_internal {
+    ($class:ident :: $f:ident, $arg1_type:ty, $arg2_type:ty, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn wrap(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            arg1: $arg1_type,
+            arg2: $arg2_type)
+            -> $res_type
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(
+                LOCATION, $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    Ok(slf.$f(py, arg1, arg2))
+                })
+        }
+        Some(wrap)
+    }}
+}
+
+
 pub fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
     match op {
         ffi::Py_LT => Ok(CompareOp::Lt),
@@ -486,6 +552,24 @@ macro_rules! py_class_binary_numeric_slot {
         Some(binary_numeric)
     }}
 }
+
+
+pub struct VoidCallbackConverter;
+
+impl CallbackConverter<()> for VoidCallbackConverter {
+    type R = ();
+
+    #[inline]
+    fn convert(_: (), _: Python) -> () {
+        ()
+    }
+
+    #[inline]
+    fn error_value() -> () {
+        ()
+    }
+}
+
 
 pub struct UnitCallbackConverter;
 
