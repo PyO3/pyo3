@@ -109,7 +109,7 @@ macro_rules! py_class_type_object_dynamic_init {
     }
 }
 
-#[cfg(not(Py_3_4))]
+#[cfg(not(Py_3_5))]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
@@ -221,6 +221,7 @@ macro_rules! py_class_as_number {
 macro_rules! py_class_as_async {
     ([]) => (0 as *mut $crate::_detail::ffi::PyAsyncMethods);
     ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
+        println!("register async");
         static mut ASYNC_METHODS : $crate::_detail::ffi::PyAsyncMethods
             = $crate::_detail::ffi::PyAsyncMethods {
                 $( $slot_name : $slot_value, )*

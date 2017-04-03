@@ -306,7 +306,7 @@ print(sys.exec_prefix);";
 /// cargo vars to stdout.
 ///
 /// Note that if the python doesn't satisfy expected_version, this will error.
-fn configure_from_path(expected_version: &PythonVersion) -> Result<String, String> {
+fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, String), String> {
     let (interpreter_version, interpreter_path, lines) = 
         try!(find_interpreter_and_get_config(expected_version));
     let libpath: &str = &lines[1];
@@ -325,6 +325,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         }
     }
 
+    let mut flags = String::new();
 
     if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
         if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
@@ -333,11 +334,11 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<String, Strin
         if let Some(minor) = some_minor {
             for i in 4..(minor+1) {
                 println!("cargo:rustc-cfg=Py_3_{}", i);
+                flags += format!("CFG_Py_3_{},", i).as_ref();
             }
         }
     }
-
-    return Ok(interpreter_path);
+    return Ok((interpreter_path, flags));
 }
 
 /// Determine the python version we're supposed to be building
@@ -380,7 +381,7 @@ fn main() {
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).
     let version = version_from_env().unwrap();
-    let python_interpreter_path = configure_from_path(&version).unwrap();
+    let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
     let config_map = get_config_vars(&python_interpreter_path).unwrap();
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {
@@ -402,6 +403,7 @@ fn main() {
     // rust-cypthon/build.rs contains an example of how to unpack this data
     // into cfg flags that replicate the ones present in this library, so 
     // you can use the same cfg syntax.
+    //let mut flags = flags;
     let flags: String = config_map.iter().fold("".to_owned(), |memo, (key, val)| {
         if is_value(key) {
             memo + format!("VAL_{}={},", key, val).as_ref()
@@ -410,7 +412,8 @@ fn main() {
         } else {
             memo
         }
-    });
+    }) + flags.as_str();
+
     println!("cargo:python_flags={}", 
         if flags.len() > 0 { &flags[..flags.len()-1] } else { "" });
 }
