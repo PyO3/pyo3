@@ -38,7 +38,8 @@ num-traits = "0.1"
 # indicate which python ffi you are trying to bind to.
 [dependencies.python27-sys]
 optional = true
-version = "0.1.2"
+# version = "0.1.2"
+path = "./python27-sys/"
 
 [dependencies.python3-sys]
 optional = true
@@ -59,7 +60,6 @@ extension-module = [ "python3-sys/extension-module" ]
 # Unfortunately we can't use the forward the same feature to either python27-sys
 # or python3-sys. (honestly, we should probably merge both crates into 'python-sys')
 extension-module-2-7 = [ "python27-sys/extension-module" ]
-
 
 # Optional features to support explicitly specifying python minor version.
 # If you don't care which minor version, just specify python3-sys as a 
