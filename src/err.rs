@@ -394,6 +394,14 @@ impl <'p> std::convert::From<PythonObjectDowncastError<'p>> for PyErr {
     }
 }
 
+/// Convert PyErr to io::Error
+impl std::convert::From<PyErr> for std::io::Error {
+    fn from(err: PyErr) -> Self {
+        std::io::Error::new(
+            std::io::ErrorKind::Other, format!("Python exception: {:?}", err))
+    }
+}
+
 /// Construct PyObject from the result of a Python FFI call that returns a new reference (owned pointer).
 /// Returns `Err(PyErr)` if the pointer is `null`.
 /// Unsafe because the pointer might be invalid.

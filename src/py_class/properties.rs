@@ -29,7 +29,9 @@ macro_rules! py_class_init_properties {
 
         $type_object.tp_getset =
             props.as_ptr() as *mut $crate::_detail::ffi::PyGetSetDef;
-        std::mem::forget(props);
+
+        use std::mem;
+        mem::forget(props);
     }};
 }
 
