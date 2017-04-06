@@ -39,7 +39,7 @@ macro_rules! py_class_impl {
             $gc:tt,
             /* data: */ [ $( { $data_offset:expr, $data_name:ident, $data_ty:ty } )* ]
         }
-        $slots:tt { $( $imp:item )* } $members:tt
+        $slots:tt { $( $imp:item )* } $members:tt $properties:tt
     } => {
         py_coerce_item! {
             $($class_visibility)* struct $class { _unsafe_inner: $crate::PyObject }
@@ -176,6 +176,7 @@ macro_rules! py_class_impl {
                     fn init($py: $crate::Python, module_name: Option<&str>) -> $crate::PyResult<$crate::PyType> {
                         py_class_type_object_dynamic_init!($class, $py, TYPE_OBJECT, module_name, $slots);
                         py_class_init_members!($class, $py, TYPE_OBJECT, $members);
+                        py_class_init_properties!($class, $py, TYPE_OBJECT, $properties);
                         unsafe {
                             if $crate::_detail::ffi::PyType_Ready(&mut TYPE_OBJECT) == 0 {
                                 Ok($crate::PyType::from_type_ptr($py, &mut TYPE_OBJECT))
@@ -189,6 +190,18 @@ macro_rules! py_class_impl {
         }
     };
 
+    { { property $name:ident { $($body:tt)* } $($tail:tt)* }
+        $class:ident $py:ident $info:tt $slots:tt { $( $imp:item )* } $members:tt
+        { $( $properties:expr; )* }
+    } => { py_class_impl! {
+        { $($tail)* }
+        $class $py $info $slots { $($imp)* } $members
+        /* properties: */ {
+            $( $properties; )*
+            py_class_property_impl! { { $($body)* } $class $py $name { } };
+        }
+    }};
+
     { { data $data_name:ident : $data_type:ty; $($tail:tt)* }
         $class:ident $py:ident
         /* info: */ {
@@ -200,7 +213,7 @@ macro_rules! py_class_impl {
         }
         $slots:tt
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py
@@ -233,7 +246,7 @@ macro_rules! py_class_impl {
                 }
             }
         }
-        $members
+        $members $properties
     }};
     { { def __traverse__(&$slf:tt, $visit:ident) $body:block $($tail:tt)* }
         $class:ident $py:ident
@@ -249,7 +262,7 @@ macro_rules! py_class_impl {
         }
         $slots:tt
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py
@@ -276,7 +289,7 @@ macro_rules! py_class_impl {
                 }
             }
         }
-        $members
+        $members $properties
     }};
     { { def __clear__ (&$slf:ident) $body:block $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -285,7 +298,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -304,7 +317,7 @@ macro_rules! py_class_impl {
                 }
             }
         }
-        $members
+        $members $properties
     }};
     { { def __abs__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -314,7 +327,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -330,7 +343,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __abs__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __abs__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -344,7 +357,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -360,7 +373,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __add__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __add__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -382,7 +395,7 @@ macro_rules! py_class_impl {
             $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -398,7 +411,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __aiter__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __aiter__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -412,7 +425,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -428,7 +441,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __and__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __and__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -442,7 +455,7 @@ macro_rules! py_class_impl {
             $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -458,7 +471,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __anext__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __anext__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -472,7 +485,7 @@ macro_rules! py_class_impl {
             $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -488,7 +501,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __await__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __await__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -502,7 +515,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -518,7 +531,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __bool__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __bool__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -532,7 +545,7 @@ macro_rules! py_class_impl {
             $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -548,7 +561,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __buffer_get__(&$slf,) $res_type; { $($body)* } [{ $view : *mut $crate::_detail::ffi::Py_buffer = {} } { $flags : $crate::_detail::libc::c_int = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __buffer_get__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -562,7 +575,7 @@ macro_rules! py_class_impl {
             $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -578,7 +591,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __buffer_release__(&$slf,) $res_type; { $($body)* } [{ $view : *mut $crate::_detail::ffi::Py_buffer = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __buffer_release__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -591,7 +604,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -606,7 +619,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __call__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
     { {  def __call__ (&$slf:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -615,7 +628,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -633,7 +646,7 @@ macro_rules! py_class_impl {
                 [] ($($p)+,)
             }
         }
-        $members
+        $members $properties
     }};
 
     { { def __cmp__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -655,7 +668,7 @@ macro_rules! py_class_impl {
             $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -671,7 +684,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __contains__(&$slf,) $res_type; { $($body)* } [{ $item : $item_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __contains__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -699,7 +712,7 @@ macro_rules! py_class_impl {
             ]
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -714,7 +727,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __delitem__(&$slf,) $res_type; { $($body)* } [{ $key : $key_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __delitem__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -769,7 +782,7 @@ macro_rules! py_class_impl {
             $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -789,7 +802,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __getitem__(&$slf,) $res_type; { $($body)* } [{ $key : $key_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __getitem__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -806,7 +819,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -821,7 +834,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __hash__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __hash__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -835,7 +848,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -851,7 +864,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __iadd__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __iadd__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -865,7 +878,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -881,7 +894,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __iand__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __iand__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -899,7 +912,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -915,7 +928,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __ifloordiv__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __ifloordiv__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -929,7 +942,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -945,7 +958,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __ilshift__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __ilshift__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -959,7 +972,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -975,7 +988,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __imatmul__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __imatmul__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -989,7 +1002,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1005,7 +1018,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __imod__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __imod__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1019,7 +1032,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1035,7 +1048,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __imul__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __imul__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1065,7 +1078,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1081,7 +1094,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __invert__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __invert__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1095,7 +1108,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1111,7 +1124,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __ior__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __ior__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1129,7 +1142,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1145,7 +1158,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __irshift__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __irshift__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1159,7 +1172,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1175,7 +1188,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __isub__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __isub__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1188,7 +1201,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1203,7 +1216,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __iter__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __iter__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1217,7 +1230,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1233,7 +1246,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __itruediv__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __itruediv__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1247,7 +1260,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1263,7 +1276,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __ixor__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __ixor__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1282,7 +1295,7 @@ macro_rules! py_class_impl {
             $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1302,7 +1315,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __len__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __len__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1320,7 +1333,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1336,7 +1349,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __lshift__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __lshift__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1362,7 +1375,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1378,7 +1391,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __mul__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __mul__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1396,7 +1409,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1412,7 +1425,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __neg__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __neg__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1425,7 +1438,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1440,7 +1453,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py,__new__($cls: &$crate::PyType,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
     { {  def __new__ ($cls:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -1449,7 +1462,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1467,7 +1480,7 @@ macro_rules! py_class_impl {
                 [] ($($p)+,)
             }
         }
-        $members
+        $members $properties
     }};
     { { def __next__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
@@ -1476,7 +1489,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1491,7 +1504,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __next__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __next__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1509,7 +1522,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1525,7 +1538,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __or__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __or__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1539,7 +1552,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1555,7 +1568,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __pos__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __pos__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1588,7 +1601,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1603,7 +1616,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __repr__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __repr__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1620,7 +1633,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1635,7 +1648,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __richcmp__(&$slf,) $res_type; { $($body)* } [{ $other : $other_type = {} } { $op : $op_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __richcmp__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1681,7 +1694,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1697,7 +1710,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __rshift__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __rshift__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1733,7 +1746,7 @@ macro_rules! py_class_impl {
             ]
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1748,7 +1761,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __setitem__(&$slf,) $res_type; { $($body)* } [{ $key : $key_type = {} } { $value : $value_type = {} }] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __setitem__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1761,7 +1774,7 @@ macro_rules! py_class_impl {
             $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1776,7 +1789,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __str__(&$slf,) $res_type; { $($body)* } [] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __str__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1790,7 +1803,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1806,7 +1819,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __sub__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __sub__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1828,7 +1841,7 @@ macro_rules! py_class_impl {
             $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
         }
         { $( $imp:item )* }
-        $members:tt
+        $members:tt $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info
@@ -1844,7 +1857,7 @@ macro_rules! py_class_impl {
             $($imp)*
             py_class_impl_item! { $class, $py, __xor__() $res_type; { $($body)* } [ { $left : &$crate::PyObject = {} } { $right : &$crate::PyObject = {} } ] }
         }
-        $members
+        $members $properties
     }};
 
     { { def __xor__ $($tail:tt)* } $( $stuff:tt )* } => {
@@ -1853,7 +1866,7 @@ macro_rules! py_class_impl {
     { {  def $name:ident (&$slf:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* }
+        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots
@@ -1864,12 +1877,12 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = py_class_instance_method!{$py, $class::$name []};
-        }
+        } $properties
     }};
     { {  def $name:ident (&$slf:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* }
+        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots
@@ -1883,12 +1896,12 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = py_argparse_parse_plist_impl!{py_class_instance_method {$py, $class::$name} [] ($($p)+,)};
-        }
+        } $properties
     }};
     { { @classmethod def $name:ident ($cls:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* }
+        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots
@@ -1899,12 +1912,12 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = py_class_class_method!{$py, $class::$name []};
-        }
+        } $properties
     }};
     { { @classmethod def $name:ident ($cls:ident, $($p:tt)+) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* }
+        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots
@@ -1918,12 +1931,12 @@ macro_rules! py_class_impl {
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = py_argparse_parse_plist_impl!{py_class_class_method {$py, $class::$name} [] ($($p)+,)};
-        }
+        } $properties
     }};
     { { @staticmethod def $name:ident ($($p:tt)*) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* }
+        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots
@@ -1942,18 +1955,18 @@ macro_rules! py_class_impl {
                 ($($p)*)
             }
             ;
-        }
+        } $properties
     }};
     { { static $name:ident = $init:expr; $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt $impls:tt
-        { $( $member_name:ident = $member_expr:expr; )* }
+        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots $impls
         /* members: */ {
             $( $member_name = $member_expr; )*
             $name = $init;
-        }
+        } $properties
     }};
 
 }
