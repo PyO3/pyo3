@@ -37,6 +37,7 @@ pub use self::num::PyInt;
 pub use self::num::PyLong as PyInt;
 pub use self::num::{PyLong, PyFloat};
 pub use self::sequence::PySequence;
+pub use self::slice::PySlice;
 
 #[macro_export]
 macro_rules! pyobject_newtype(
@@ -132,6 +133,7 @@ mod tuple;
 mod list;
 mod num;
 mod sequence;
+mod slice;
 pub mod exc;
 
 #[cfg(feature="python27-sys")]
