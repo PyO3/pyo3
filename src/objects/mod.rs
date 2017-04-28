@@ -28,6 +28,7 @@ pub use self::string::PyString as PyUnicode;
 
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
+pub use self::bytearray::PyByteArray;
 pub use self::tuple::{PyTuple, NoArgs};
 pub use self::dict::PyDict;
 pub use self::list::PyList;
@@ -129,6 +130,7 @@ mod string;
 mod dict;
 mod iterator;
 mod boolobject;
+mod bytearray;
 mod tuple;
 mod list;
 mod num;
