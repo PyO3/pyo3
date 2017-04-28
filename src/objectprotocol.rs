@@ -21,7 +21,7 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use python::{Python, PythonObject, ToPythonPointer};
-use objects::{PyObject, PyTuple, PyDict, PyString};
+use objects::{PyObject, PyTuple, PyDict, PyString, ToPyTuple};
 use conversion::ToPyObject;
 use err::{PyErr, PyResult, self};
 
@@ -182,7 +182,7 @@ pub trait ObjectProtocol : PythonObject {
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
     #[inline]
     fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyObject<ObjectType=PyTuple>
+        where A: ToPyTuple
     {
         args.with_borrowed_ptr(py, |args| unsafe {
             err::result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
@@ -193,7 +193,7 @@ pub trait ObjectProtocol : PythonObject {
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     #[inline]
     fn call_method<A>(&self, py: Python, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyObject<ObjectType=PyTuple>
+        where A: ToPyTuple
     {
         try!(self.getattr(py, name)).call(py, args, kwargs)
     }

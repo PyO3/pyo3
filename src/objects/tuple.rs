@@ -16,13 +16,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer, PyDrop};
+use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
 use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{FromPyObject, ToPyObject};
 use std::slice;
+
+/// Conversion trait that allows various objects to be converted into PyTuple object.
+pub trait ToPyTuple {
+
+    /// Converts self into a PyTuple object.
+    fn to_py_tuple(&self, py: Python) -> PyTuple;
+
+    /// Converts self into a PyTuple object and calls the specified closure
+    /// on the native FFI pointer underlying the Python object.
+    #[inline]
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+        where F: FnOnce(*mut ffi::PyObject) -> R
+    {
+        let obj = self.to_py_tuple(py).into_object();
+        f(obj.as_ptr())
+    }
+}
 
 /// Represents a Python tuple object.
 pub struct PyTuple(PyObject);
@@ -92,6 +109,18 @@ impl PyTuple {
     }
 }
 
+impl ToPyTuple for PyTuple {
+    fn to_py_tuple(&self, py: Python) -> PyTuple {
+        self.clone_ref(py)
+    }
+}
+
+impl<'a> ToPyTuple for &'a str {
+    fn to_py_tuple(&self, py: Python) -> PyTuple {
+        PyTuple::new(py, &[py_coerce_expr!(self.to_py_object(py)).into_object()])
+    }
+}
+
 fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.", expected_length, t.len(py));
     PyErr::new_lazy_init(py.get_type::<exc::ValueError>(), Some(msg.to_py_object(py).into_object()))
@@ -110,6 +139,15 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_py_object(self, py: Python) -> PyTuple {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.into_py_object(py)).into_object(),)+
+            ])
+        }
+    }
+
+    impl <$($T: ToPyObject),+> ToPyTuple for ($($T,)+) {
+
+        fn to_py_tuple(&self, py: Python) -> PyTuple {
+            PyTuple::new(py, &[
+                $(py_coerce_expr!(self.$n.to_py_object(py)).into_object(),)+
             ])
         }
     }
@@ -168,6 +206,15 @@ impl ToPyObject for NoArgs {
     }
 }
 
+/// Converts `NoArgs` to an empty Python tuple.
+impl ToPyTuple for NoArgs {
+
+    fn to_py_tuple(&self, py: Python) -> PyTuple {
+        PyTuple::empty(py)
+    }
+}
+
+
 /// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
 /// Otherwise, returns an error.
 extract!(obj to NoArgs; py => {
@@ -178,7 +225,6 @@ extract!(obj to NoArgs; py => {
         Err(wrong_tuple_length(py, t, 0))
     }
 });
-
 
 
 #[cfg(test)]

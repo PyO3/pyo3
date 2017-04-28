@@ -18,7 +18,7 @@
 
 use python::{Python, PythonObject, ToPythonPointer};
 use conversion::ToPyObject;
-use objects::{PyObject, PyTuple, PyDict};
+use objects::{PyObject, PyTuple, PyDict, ToPyTuple};
 use err::{PyResult, result_from_owned_ptr};
 use ffi;
 use std::ffi::CStr;
@@ -67,7 +67,7 @@ impl PyType {
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     #[inline]
     pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyObject<ObjectType=PyTuple>
+        where A: ToPyTuple
     {
         args.with_borrowed_ptr(py, |args| unsafe {
             result_from_owned_ptr(py, ffi::PyObject_Call(self.0.as_ptr(), args, kwargs.as_ptr()))

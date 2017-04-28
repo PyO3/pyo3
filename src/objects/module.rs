@@ -22,7 +22,7 @@ use libc::c_char;
 use python::{Python, PythonObject, PyDrop};
 use objectprotocol::ObjectProtocol;
 use conversion::ToPyObject;
-use objects::{PyObject, PyTuple, PyDict, exc};
+use objects::{PyObject, PyTuple, PyDict, ToPyTuple, exc};
 use py_class::PythonObjectFromPyClassMacro;
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
@@ -93,7 +93,7 @@ impl PyModule {
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
     pub fn call<A>(&self, py: Python, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyObject<ObjectType=PyTuple>
+        where A: ToPyTuple
     {
         try!(self.as_object().getattr(py, name)).call(py, args, kwargs)
     }

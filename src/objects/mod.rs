@@ -29,7 +29,7 @@ pub use self::string::PyString as PyUnicode;
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
-pub use self::tuple::{PyTuple, NoArgs};
+pub use self::tuple::{PyTuple, NoArgs, ToPyTuple};
 pub use self::dict::PyDict;
 pub use self::list::PyList;
 #[cfg(feature="python27-sys")]
