@@ -553,7 +553,7 @@ macro_rules! py_class_impl {
             $type_slots $as_async $as_number $as_sequence $as_mapping
             /* as_buffer */ [
                 $( $bf_slot_name : $bf_slot_value, )*
-                bf_getbuffer: py_class_ternary_internal!($class::__buffer_get__, *mut $crate::_detail::ffi::Py_buffer, $crate::_detail::libc::c_int, $crate::_detail::libc::c_int, $crate::py_class::slots::BoolConverter),
+                bf_getbuffer: py_class_ternary_internal!($class::__buffer_get__, *mut $crate::_detail::ffi::Py_buffer, $crate::_detail::libc::c_int, $crate::_detail::libc::c_int, $crate::py_class::slots::SuccessConverter),
             ]
             $setdelitem
         }

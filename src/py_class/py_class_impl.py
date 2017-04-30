@@ -801,7 +801,9 @@ special_names = {
     '__buffer_get__': operator(
         "bf_getbuffer",
         args=[Argument('view', '*mut $crate::_detail::ffi::Py_buffer'), Argument('flags', 'int')],
-        wrapper="py_class_ternary_internal", res_type='bool'),
+        wrapper="py_class_ternary_internal",
+        res_type='bool', res_conv='$crate::py_class::slots::SuccessConverter',
+        res_ffi_type = '$crate::_detail::libc::c_int'),
     '__buffer_release__': operator(
         "bf_releasebuffer",
         args=[Argument('view', '*mut $crate::_detail::ffi::Py_buffer')],

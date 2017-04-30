@@ -696,6 +696,23 @@ impl CallbackConverter<bool> for BoolConverter {
 }
 
 
+pub struct SuccessConverter;
+
+impl CallbackConverter<bool> for SuccessConverter {
+    type R = c_int;
+
+    #[inline]
+    fn convert(val: bool, _py: Python) -> c_int {
+        if val { 0 } else { -1 }
+    }
+
+    #[inline]
+    fn error_value() -> c_int {
+        -1
+    }
+}
+
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_call_slot {

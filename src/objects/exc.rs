@@ -127,7 +127,7 @@ impl UnicodeDecodeError {
 
 impl StopIteration {
 
-    pub fn stop_iteration(py: Python, args: PyTuple) {
+    pub fn stop_iteration(_py: Python, args: PyTuple) {
         unsafe {
             ffi::PyErr_SetObject(
                 ffi::PyExc_StopIteration as *mut ffi::PyObject, args.into_object().as_ptr());
