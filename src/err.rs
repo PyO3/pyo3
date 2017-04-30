@@ -19,7 +19,7 @@
 use std;
 use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError,
         PythonObjectWithTypeObject, PyClone, PyDrop};
-use objects::{PyObject, PyType, exc};
+use objects::{PyObject, PyType, ToPyTuple, exc};
 #[cfg(feature="python27-sys")]
 use objects::oldstyle::PyClass;
 use ffi;
@@ -264,6 +264,21 @@ impl PyErr {
         PyErr {
             ptype: exc.into_object(),
             pvalue: value,
+            ptraceback: None
+        }
+    }
+
+    /// Construct a new error, with the usual lazy initialization of Python exceptions.
+    /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
+    /// `args` is the a tuple of arguments to pass to the exception constructor.
+    #[inline]
+    pub fn new_err<A>(py: Python, exc: &PyType, args: A) -> PyErr
+        where A: ToPyTuple
+    {
+        let exc = exc.clone_ref(py);
+        PyErr {
+            ptype: exc.into_object(),
+            pvalue: Some(args.to_py_tuple(py).into_object()),
             ptraceback: None
         }
     }
