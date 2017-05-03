@@ -231,6 +231,14 @@ impl PyString {
         new_impl(py, s)
     }
 
+    pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str) -> PyString {
+        unsafe {
+            err::cast_from_owned_ptr_or_panic(
+                py, ffi::PyUnicode_FromEncodedObject(
+                    src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))
+        }
+    }
+
     /// Gets the python string data in its underlying representation.
     ///
     /// For Python 2 byte strings, this function always returns `PyStringData::Utf8`,
