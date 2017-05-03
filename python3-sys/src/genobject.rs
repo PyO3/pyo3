@@ -79,8 +79,9 @@ pub unsafe fn PyCoroWrapper_Check(op: *mut PyObject) -> c_int {
 pub unsafe fn PyAsyncGen_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyAsyncGen_Type)
 }
+
 #[cfg(not(Py_3_6))]
 #[inline(always)]
-pub unsafe fn PyAsyncGen_Check(op: *mut PyObject) -> c_int {
+pub unsafe fn PyAsyncGen_Check(_op: *mut PyObject) -> c_int {
     0
 }
