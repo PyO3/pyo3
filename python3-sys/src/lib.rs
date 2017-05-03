@@ -46,6 +46,7 @@ pub use descrobject::*;
 pub use warnings::*;
 pub use weakrefobject::*;
 pub use structseq::*;
+pub use genobject::*;
 
 pub use codecs::*;
 pub use pyerrors::*;
@@ -116,7 +117,7 @@ mod traceback; // TODO supports PEP-384 only; needs adjustment for Python 3.3 an
 mod sliceobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 // mod cellobject; TODO excluded by PEP-384
 mod iterobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-// mod genobject; TODO excluded by PEP-384
+mod genobject; // TODO excluded by PEP-384
 mod descrobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod warnings; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
