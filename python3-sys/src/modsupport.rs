@@ -80,8 +80,8 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
 #[cfg(py_sys_config="Py_TRACE_REFS")]
 #[inline]
 pub unsafe fn PyModule_Create2(module: *mut PyModuleDef,
-                        apiver: c_int) -> *mut PyObject {
-    PyModule_Create2TraceRefs(arg1, apiver)
+                               apiver: c_int) -> *mut PyObject {
+    PyModule_Create2TraceRefs(module, apiver)
 }
 
 #[cfg(py_sys_config="Py_TRACE_REFS")]
@@ -104,4 +104,3 @@ pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
 pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject {
     PyModule_FromDefAndSpec2(def, spec, if cfg!(Py_LIMITED_API) { PYTHON_ABI_VERSION } else { PYTHON_API_VERSION })
 }
-

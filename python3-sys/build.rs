@@ -102,13 +102,22 @@ config = sysconfig.get_config_vars();".to_owned();
     }
     let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
     // let var_map: HashMap<String, String> = HashMap::new();
-    Ok(all_vars.zip(split_stdout.iter())
+    let mut all_vars = all_vars.zip(split_stdout.iter())
         .fold(HashMap::new(), |mut memo: HashMap<String, String>, (&k, &v)| {
             if !(v.to_owned() == "None" && is_value(k)) {
                 memo.insert(k.to_owned(), v.to_owned());
             }
             memo
-        }))
+        });
+
+    let debug = if let Some(val) = all_vars.get("Py_DEBUG") { val == "1" } else { false };
+    if debug {
+        all_vars.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
+        all_vars.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
+        all_vars.insert("COUNT_ALLOCS".to_owned(), "1".to_owned());
+    }
+
+    Ok(all_vars)
 }
 
 #[cfg(target_os="windows")]
