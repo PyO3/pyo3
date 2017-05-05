@@ -231,9 +231,9 @@ impl PyString {
         new_impl(py, s)
     }
 
-    pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str) -> PyString {
+    pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str) -> PyResult<PyString> {
         unsafe {
-            err::cast_from_owned_ptr_or_panic(
+            err::result_cast_from_owned_ptr(
                 py, ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))
         }
