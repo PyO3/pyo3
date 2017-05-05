@@ -183,6 +183,20 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
     }
 }
 
+/// `()` is converted to Python `None`.
+impl ToPyObject for () {
+    type ObjectType = PyObject;
+
+    fn to_py_object(&self, py: Python) -> PyObject {
+        py.None()
+    }
+
+    fn into_py_object(self, py: Python) -> PyObject {
+        py.None()
+    }
+}
+
+
 impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
     fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
