@@ -105,6 +105,11 @@ exc_type!(ZeroDivisionError, PyExc_ZeroDivisionError);
 
 exc_type!(BufferError, PyExc_BufferError);
 
+#[cfg(Py_3_4)]
+exc_type!(BlockingIOError, PyExc_BlockingIOError);
+#[cfg(Py_3_4)]
+exc_type!(InterruptedError, PyExc_InterruptedError);
+
 exc_type!(UnicodeDecodeError, PyExc_UnicodeDecodeError);
 exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
 exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
