@@ -4,7 +4,7 @@ python:
   - "3.6"
 env:
   - RUST_VERSION=1.17.0
-  - RUST_VERSION=nightly
+  # - RUST_VERSION=nightly
 sudo: false
 install:
   - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
