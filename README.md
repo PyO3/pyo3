@@ -1,40 +1,38 @@
-rust-cpython [![Build Status](https://travis-ci.org/dgrunwald/rust-cpython.svg?branch=master)](https://travis-ci.org/dgrunwald/rust-cpython)
+PyO3 [![Build Status](https://travis-ci.org/PyO3/pyo3.svg?branch=master)](https://travis-ci.org/PyO3/pyo3)
 ====================
 
 [Rust](http://www.rust-lang.org/) bindings for the [python](https://www.python.org/) interpreter.
 
 * [Documentation](http://dgrunwald.github.io/rust-cpython/doc/cpython/)
-* Cargo package: [cpython](https://crates.io/crates/cpython)
+* Cargo package: [cpython](https://crates.io/crates/pyo3)
 
 ---
 
-Copyright (c) 2015-2016 Daniel Grunwald.
-Rust-cpython is licensed under the [MIT license](http://opensource.org/licenses/MIT).
+PyO3 is licensed under the [APACHE-2.0 license](http://opensource.org/licenses/APACHE-2.0).
 Python is licensed under the [Python License](https://docs.python.org/2/license.html).
 
 Supported Python versions:
-* Python 2.7
-* Python 3.3 to 3.6
+* Python 3.4 to 3.6
 
 Supported Rust version:
-* Rust 1.13.0 or later
+* Rust 1.15.1 or later
 * On Windows, we require rustc 1.15.0-nightly
 
 # Usage
 
-To use `cpython`, add this to your `Cargo.toml`:
+To use `pyo3`, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cpython = "0.1"
+pyo3 = "0.1"
 ```
 
 Example program displaying the value of `sys.version`:
 
 ```rust
-extern crate cpython;
+extern crate pyo3;
 
-use cpython::{Python, PyDict, PyResult};
+use pyo3::{Python, PyDict, PyResult};
 
 fn main() {
     let gil = Python::acquire_gil();
@@ -90,7 +88,7 @@ fn sum_as_string(a:i64, b:i64) -> String {
     format!("{}", a + b).to_string()
 }
 
-// rust-cpython aware function. All of our python interface could be
+// pyo3 aware function. All of our python interface could be
 // declared in a separate module.
 // Note that the py_fn!() macro automatically converts the arguments from
 // Python objects to Rust values; and the Rust return value back into a Python object.
@@ -100,4 +98,4 @@ fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
 }
 ```
 
-For `setup.py` integration, see https://github.com/fafhrd91/setuptools-rust
+For `setup.py` integration, see https://github.com/PyO3/setuptools-rust
