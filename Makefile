@@ -11,12 +11,9 @@ NIGHTLY := 0
 endif
 endif
 
-ifeq ($(PY),3)
-FEATURES := python3-sys
 ifdef PEP384
 export PEP384=1
-FEATURES := $(FEATURES) pep-384
-endif
+FEATURES := pep-384
 endif
 ifeq ($(NIGHTLY),1)
 FEATURES := $(FEATURES) nightly
@@ -24,7 +21,7 @@ endif
 
 CARGO_FLAGS := --features "$(FEATURES)" --no-default-features
 
-default: test extensions
+default: test
 
 src/py_class/py_class_impl.rs: src/py_class/py_class_impl.py
 	PY=3 python $< >$@

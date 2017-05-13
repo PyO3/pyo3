@@ -71,13 +71,13 @@ features = ["extension-module"]
 
 **`src/lib.rs`**
 ```rust
-#[macro_use] extern crate cpython;
+#[macro_use] extern crate pye3;
 
-use cpython::{PyResult, Python};
+use pyo3::{PyResult, Python};
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-py_module_initializer!(librust2py, initlibrust2py, PyInit_librust2py, |py, m| {
+py_module_initializer!(librust2py, PyInit_librust2py, |py, m| {
     try!(m.add(py, "__doc__", "This module is implemented in Rust."));
     try!(m.add(py, "sum_as_string", py_fn!(py, sum_as_string_py(a: i64, b:i64))));
     Ok(())
@@ -99,3 +99,6 @@ fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
 ```
 
 For `setup.py` integration, see https://github.com/PyO3/setuptools-rust
+
+
+** This is fork of rust-cpython project https://github.com/dgrunwald/rust-cpython **
