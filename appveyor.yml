@@ -3,10 +3,6 @@ environment:
   TARGET: x86_64-pc-windows-msvc
 #  matrix:
 #  - TARGET: x86_64-pc-windows-msvc
-#    PY: 2
-#    PYTHONPATH: C:\Python27-x64
-#    FEATURES: python27-sys
-#  - TARGET: x86_64-pc-windows-msvc
 #    PY: 3
 #    PYTHONPATH: C:\Python34-x64
 #    FEATURES: python3-sys
@@ -20,8 +16,6 @@ install:
   - cargo -V
   - python --version
 build_script:
- - set PATH=C:\Python27-x64;%PATH%&& cargo build --verbose --features python27-sys --no-default-features
  - set PATH=C:\Python34-x64;%PATH%&& cargo build --verbose --features python3-sys --no-default-features
 test_script:
- - set PATH=C:\Python27-x64;%PATH%&& cargo test --verbose --features python27-sys --no-default-features
  - set PATH=C:\Python34-x64;%PATH%&& cargo test --verbose --features python3-sys --no-default-features

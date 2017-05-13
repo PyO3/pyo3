@@ -3,9 +3,6 @@ use std::io::Write;
 
 const CFG_KEY: &'static str = "py_sys_config";
 
-#[cfg(feature="python27-sys")]
-const PYTHONSYS_ENV_VAR: &'static str = "DEP_PYTHON27_PYTHON_FLAGS";
-
 #[cfg(feature="python3-sys")]
 const PYTHONSYS_ENV_VAR: &'static str = "DEP_PYTHON3_PYTHON_FLAGS";
 

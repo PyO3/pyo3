@@ -8,7 +8,6 @@ readme = "README.md"
 keywords = [
     "python",
     "cpython",
-    "libpython27",
 ]
 homepage = "https://github.com/dgrunwald/rust-cpython"
 repository = "https://github.com/dgrunwald/rust-cpython.git"
@@ -20,8 +19,6 @@ exclude = [
     ".travis.yml",
     "appveyor.yml",
     ".cargo/config",
-    "python27-sys",
-    "python3-sys",
     "extensions"
 ]
 build = "build.rs"
@@ -33,13 +30,6 @@ appveyor = { repository = "dgrunwald/rust-cpython" }
 [dependencies]
 libc = "0.2"
 num-traits = "0.1"
-
-# These features are both optional, but you must pick one to 
-# indicate which python ffi you are trying to bind to.
-[dependencies.python27-sys]
-optional = true
-# version = "0.1.2"
-path = "./python27-sys/"
 
 [dependencies.python3-sys]
 optional = true
@@ -56,19 +46,3 @@ nightly = []
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
 extension-module = [ "python3-sys/extension-module" ]
-
-# Unfortunately we can't use the forward the same feature to either python27-sys
-# or python3-sys. (honestly, we should probably merge both crates into 'python-sys')
-extension-module-2-7 = [ "python27-sys/extension-module" ]
-
-# Optional features to support explicitly specifying python minor version.
-# If you don't care which minor version, just specify python3-sys as a 
-# feature.
-python-3-6 = ["python3-sys/python-3-6"]
-python-3-5 = ["python3-sys/python-3-5"]
-python-3-4 = ["python3-sys/python-3-4"]
-
-#pep-384 = ["python3-sys/pep-384"]
-
-[workspace]
-members = ["extensions/hello"]
