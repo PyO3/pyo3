@@ -173,7 +173,6 @@ mod pythonrun;
 pub mod argparse;
 mod function;
 pub mod buffer;
-//pub mod rustobject;
 pub mod py_class;
 
 /// Private re-exports for macros. Do not use.
@@ -196,8 +195,7 @@ pub mod _detail {
 /// Macro syntax: `py_module_initializer!($name, $py2_init, $py3_init, |$py, $m| $body)`
 ///
 /// 1. `name`: The module name as a Rust identifier.
-/// 2. `py2_init`: "init" + $name. Necessary because macros can't use concat_idents!().
-/// 3. `py3_init`: "PyInit_" + $name. Necessary because macros can't use concat_idents!().
+/// 2. `py3_init`: "PyInit_" + $name. Necessary because macros can't use concat_idents!().
 /// 4. A lambda of type `Fn(Python, &PyModule) -> PyResult<()>`.
 ///    This function will be called when the module is imported, and is responsible
 ///    for adding the module's members.
@@ -207,7 +205,7 @@ pub mod _detail {
 /// #[macro_use] extern crate pyo3;
 /// use pyo3::{Python, PyResult, PyObject};
 ///
-/// py_module_initializer!(hello, PyInit_hello, |py, m| {
+/// py_module_init!(hello, PyInit_hello, |py, m| {
 ///     m.add(py, "__doc__", "Module documentation string")?;
 ///     m.add(py, "run", py_fn!(py, run()))?;
 ///     Ok(())
@@ -246,7 +244,7 @@ pub mod _detail {
 /// ```
 ///
 #[macro_export]
-macro_rules! py_module_initializer {
+macro_rules! py_module_init {
     ($name: ident, $py3: ident, |$py_id: ident, $m_id: ident| $body: expr) => {
         #[no_mangle]
         #[allow(non_snake_case)]
@@ -259,17 +257,17 @@ macro_rules! py_module_initializer {
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
-            $crate::py_module_initializer_impl(&mut MODULE_DEF, init)
+            $crate::py_module_init_impl(&mut MODULE_DEF, init)
         }
     }
 }
 
 #[doc(hidden)]
-pub unsafe fn py_module_initializer_impl(
+pub unsafe fn py_module_init_impl(
     def: *mut ffi::PyModuleDef,
-    init: fn(Python, &PyModule) -> PyResult<()>
-) -> *mut ffi::PyObject {
-    let guard = function::AbortOnDrop("py_module_initializer");
+    init: fn(Python, &PyModule) -> PyResult<()>) -> *mut ffi::PyObject
+{
+    let guard = function::AbortOnDrop("py_module_init");
     let py = Python::assume_gil_acquired();
     ffi::PyEval_InitThreads();
     let module = ffi::PyModule_Create(def);

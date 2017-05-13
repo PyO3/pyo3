@@ -39,15 +39,11 @@ endif
 doc: build
 	cargo doc --no-deps $(CARGO_FLAGS)
 
-extensions: build
-	make -C extensions/tests PY=$(PY)
-
 clean:
 	rm -r target
-	make -C extensions/ clean
 
 gh-pages:
-	git clone --branch gh-pages git@github.com:dgrunwald/rust-cpython.git gh-pages
+	git clone --branch gh-pages git@github.com:PyO3/PyO3.git gh-pages
 
 .PHONY: gh-pages-doc
 gh-pages-doc: doc | gh-pages
@@ -61,4 +57,3 @@ gh-pages-doc: doc | gh-pages
 publish: default gh-pages-doc
 	cargo publish
 	cd gh-pages && git push
-

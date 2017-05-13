@@ -19,4 +19,4 @@ install:
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
   - rustc -V
 script:
-  - make test extensions
+  - make test
