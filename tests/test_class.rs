@@ -1,13 +1,13 @@
 #![allow(dead_code, unused_variables)]
 
-#[macro_use] extern crate cpython;
+#[macro_use] extern crate pyo3;
 
-use cpython::*;
+use pyo3::*;
 use std::{mem, isize, iter};
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use cpython::_detail::ffi;
+use pyo3::ffi;
 
 macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
@@ -369,8 +369,8 @@ py_class!(class StringMethods |py| {
         Ok(format!("format({})", format_spec))
     }
 
-    def __unicode__(&self) -> PyResult<PyUnicode> {
-        Ok(PyUnicode::new(py, "unicode"))
+    def __unicode__(&self) -> PyResult<PyString> {
+        Ok(PyString::new(py, "unicode"))
     }
 
     def __bytes__(&self) -> PyResult<PyBytes> {

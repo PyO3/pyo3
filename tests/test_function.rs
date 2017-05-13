@@ -1,6 +1,6 @@
-#[macro_use] extern crate cpython;
+#[macro_use] extern crate pyo3;
 
-use cpython::{PyResult, Python, NoArgs, ObjectProtocol, PyDict};
+use pyo3::{PyResult, Python, NoArgs, ObjectProtocol, PyDict};
 use std::sync::atomic;
 use std::sync::atomic::Ordering::Relaxed;
 

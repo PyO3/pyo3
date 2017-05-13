@@ -39,9 +39,9 @@ Defines a new exception type.
 # Example
 ```
 #[macro_use]
-extern crate cpython;
+extern crate pyo3;
 
-use cpython::{Python, PyDict};
+use pyo3::{Python, PyDict};
 
 py_exception!(mymodule, CustomError);
 

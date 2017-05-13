@@ -51,14 +51,14 @@
 //! The vast majority of operations in this library will return `PyResult<...>`.
 //! This is an alias for the type `Result<..., PyErr>`.
 //!
-//! A `PyErr` represents a Python exception. Errors within the rust-cpython library are
+//! A `PyErr` represents a Python exception. Errors within the PyO3 library are
 //! also exposed as Python exceptions.
 //!
 //! # Example
 //! ```
-//! extern crate cpython;
+//! extern crate pyo3;
 //!
-//! use cpython::{Python, PyDict, PyResult};
+//! use pyo3::{Python, PyDict, PyResult};
 //!
 //! fn main() {
 //!     let gil = Python::acquire_gil();
@@ -204,10 +204,10 @@ pub mod _detail {
 ///
 /// # Example
 /// ```
-/// #[macro_use] extern crate cpython;
-/// use cpython::{Python, PyResult, PyObject};
+/// #[macro_use] extern crate pyo3;
+/// use pyo3::{Python, PyResult, PyObject};
 ///
-/// py_module_initializer!(hello, inithello, PyInit_hello, |py, m| {
+/// py_module_initializer!(hello, PyInit_hello, |py, m| {
 ///     m.add(py, "__doc__", "Module documentation string")?;
 ///     m.add(py, "run", py_fn!(py, run()))?;
 ///     Ok(())
@@ -220,14 +220,14 @@ pub mod _detail {
 /// # fn main() {}
 /// ```
 ///
-/// In your `Cargo.toml`, use the `extension-module` feature for the `cpython` dependency:
+/// In your `Cargo.toml`, use the `extension-module` feature for the `pyo3` dependency:
 /// ```cargo
-/// [dependencies.cpython]
+/// [dependencies.pyo3]
 /// version = "*"
 /// features = ["extension-module"]
 /// ```
 /// The full example project can be found at:
-///   https://github.com/dgrunwald/rust-cpython/tree/master/extensions/hello
+///   https://github.com/PyO3/setuptools-rust/tree/master/example/extensions
 ///
 /// Rust will compile the code into a file named `libhello.so`, but we have to
 /// rename the file in order to use it with Python:

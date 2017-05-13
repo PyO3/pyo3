@@ -78,7 +78,7 @@ pub fn prepare_freethreaded_python() {
 ///
 /// # Example
 /// ```
-/// use cpython::Python;
+/// use pyo3::Python;
 ///
 /// {
 ///     let gil_guard = Python::acquire_gil();
@@ -123,7 +123,7 @@ impl GILGuard {
 /// # Example
 /// ```
 /// use std::cell::Cell;
-/// use cpython::{Python, GILProtected};
+/// use pyo3::{Python, GILProtected};
 ///
 /// let data = GILProtected::new(Cell::new(0));
 ///

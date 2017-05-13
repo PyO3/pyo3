@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_variables)]
 
-#[macro_use] extern crate cpython;
+#[macro_use] extern crate pyo3;
 
-use cpython::*;
+use pyo3::*;
 
 
 #[test]

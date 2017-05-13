@@ -617,7 +617,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature="python3-sys")] // array.array doesn't implement the buffer protocol in python 2.7
     fn test_array_buffer() {
         let gil = Python::acquire_gil();
         let py = gil.python();

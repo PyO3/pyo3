@@ -189,10 +189,10 @@ tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
 ///
 /// # Example
 /// ```
-/// let gil_guard = cpython::Python::acquire_gil();
-/// let py = gil_guard.python();
+/// let gil = pyo3::Python::acquire_gil();
+/// let py = gil.python();
 /// let os = py.import("os").unwrap();
-/// let pid = os.call(py, "get_pid", cpython::NoArgs, None);
+/// let pid = os.call(py, "get_pid", pyo3::NoArgs, None);
 /// ```
 #[derive(Copy, Clone, Debug)]
 pub struct NoArgs;

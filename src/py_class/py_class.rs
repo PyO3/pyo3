@@ -33,8 +33,8 @@ in all function bodies.
 
 # Example
 ```
-#[macro_use] extern crate cpython;
-use cpython::{Python, PyResult, PyDict};
+#[macro_use] extern crate pyo3;
+use pyo3::{Python, PyResult, PyDict};
 
 py_class!(class MyType |py| {
     data number: i32;
@@ -87,7 +87,7 @@ impl MyType {
 }
 ```
 
-* The generated type implements a number of traits from the `cpython` crate.
+* The generated type implements a number of traits from the `pyo3` crate.
 * The inherent `create_instance` method can create new Python objects
   given the values for the data fields.
 * Private accessors functions are created for the data fields.
@@ -182,9 +182,9 @@ as every cycle must contain at least one mutable reference.
 Example:
 
 ```
-#[macro_use] extern crate cpython;
+#[macro_use] extern crate pyo3;
 use std::{mem, cell};
-use cpython::{PyObject, PyDrop};
+use pyo3::{PyObject, PyDrop};
 
 py_class!(class ClassWithGCSupport |py| {
     data obj: cell::RefCell<Option<PyObject>>;
@@ -235,9 +235,9 @@ Iterators can be defined using the Python special methods `__iter__` and `__next
 Example:
 
 ```
-#[macro_use] extern crate cpython;
+#[macro_use] extern crate pyo3;
 use std::cell::RefCell;
-use cpython::{PyObject, PyClone, PyResult};
+use pyo3::{PyObject, PyClone, PyResult};
 
 py_class!(class MyIterator |py| {
     data iter: RefCell<Box<Iterator<Item=PyObject> + Send>>;
