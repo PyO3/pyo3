@@ -25,7 +25,7 @@ impl fmt::Display for PythonVersion {
     }
 }
 
-const MIN_MINOR: u8 = 4;
+const MIN_MINOR: u8 = 5;
 
 const CFG_KEY: &'static str = "py_sys_config";
 
@@ -253,7 +253,6 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<String>), String>
 {
     if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        println!("1111");
         let interpreter_path = sys_executable.to_str()
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
         let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
@@ -271,7 +270,7 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
     {
         let interpreter_path = "python";
         let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
-        if MIN_MINOR < interpreter_version.minor.unwrap_or(0) {
+        if MIN_MINOR <= interpreter_version.minor.unwrap_or(0) {
             return Ok((interpreter_version, interpreter_path.to_owned(), lines));
         }
     }

@@ -12,7 +12,7 @@ PyO3 is licensed under the [APACHE-2.0 license](http://opensource.org/licenses/A
 Python is licensed under the [Python License](https://docs.python.org/2/license.html).
 
 Supported Python versions:
-* Python 3.4 to 3.6
+* Python 3.5 and up
 
 Supported Rust version:
 * Rust 1.15.1 or later

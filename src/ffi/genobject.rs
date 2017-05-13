@@ -37,36 +37,22 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
     pub fn PyGen_NeedsFinalizing(op: *mut PyGenObject) -> c_int;
 }
 
-#[cfg(Py_3_5)]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCoro_Type: PyTypeObject;
 }
 
-#[cfg(Py_3_5)]
 #[inline(always)]
 pub unsafe fn PyCoro_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCoro_Type)
 }
-#[cfg(not(Py_3_5))]
-#[inline(always)]
-pub unsafe fn PyCoro_Check(_op: *mut PyObject) -> c_int {
-    0
-}
 
-#[cfg(Py_3_5)]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
 
-#[cfg(Py_3_5)]
 #[inline(always)]
 pub unsafe fn PyCoroWrapper_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyCoroWrapper_Type)
-}
-#[cfg(not(Py_3_5))]
-#[inline(always)]
-pub unsafe fn PyCoroWrapper_Check(_op: *mut PyObject) -> c_int {
-    0
 }
 
 #[cfg(Py_3_6)]

@@ -5,13 +5,12 @@ use ffi::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
-    #[cfg(Py_3_5)]
     pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
     pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t)
      -> *mut c_void;
     pub fn PyObject_Free(ptr: *mut c_void) -> ();
 
-    #[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+    #[cfg(not(Py_LIMITED_API))]
     pub fn _Py_GetAllocatedBlocks() -> Py_ssize_t;
     pub fn PyObject_Init(arg1: *mut PyObject, arg2: *mut PyTypeObject)
      -> *mut PyObject;
@@ -26,7 +25,7 @@ use ffi::object::*;
 
 #[repr(C)]
 #[derive(Copy)]
-#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+#[cfg(not(Py_LIMITED_API))]
 pub struct PyObjectArenaAllocator {
     pub ctx: *mut c_void,
     pub alloc: Option<extern "C" fn(ctx: *mut c_void,
@@ -36,15 +35,15 @@ pub struct PyObjectArenaAllocator {
                                                   ptr: *mut c_void,
                                                   size: size_t) -> ()>,
 }
-#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+#[cfg(not(Py_LIMITED_API))]
 impl Clone for PyObjectArenaAllocator {
     #[inline] fn clone(&self) -> Self { *self }
 }
-#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+#[cfg(not(Py_LIMITED_API))]
 impl Default for PyObjectArenaAllocator {
     #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
 }
-#[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+#[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator)
      -> ();
@@ -75,7 +74,7 @@ pub unsafe fn PyObject_IS_GC(o : *mut PyObject) -> c_int {
 
     #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
-    #[cfg(all(not(Py_LIMITED_API), Py_3_5))]
+    #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t)

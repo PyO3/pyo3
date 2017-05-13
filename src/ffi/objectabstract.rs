@@ -42,7 +42,7 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg(all(not(Py_LIMITED_API), Py_3_4))]
+    #[cfg(not(Py_LIMITED_API))]
     pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t)
      -> Py_ssize_t;
 
@@ -130,7 +130,6 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
      -> *mut PyObject;
     pub fn PyNumber_Multiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg(Py_3_5)]
     pub fn PyNumber_MatrixMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_FloorDivide(o1: *mut PyObject, o2: *mut PyObject)
@@ -177,7 +176,6 @@ pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
      -> *mut PyObject;
     pub fn PyNumber_InPlaceMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg(Py_3_5)]
     pub fn PyNumber_InPlaceMatrixMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_InPlaceFloorDivide(o1: *mut PyObject, o2: *mut PyObject)

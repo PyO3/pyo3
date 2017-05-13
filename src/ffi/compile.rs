@@ -28,34 +28,29 @@ pub const FUTURE_PRINT_FUNCTION   : &'static str = "print_function";
 pub const FUTURE_UNICODE_LITERALS : &'static str = "unicode_literals";
 #[cfg(not(Py_LIMITED_API))]
 pub const FUTURE_BARRY_AS_BDFL    : &'static str = "barry_as_FLUFL";
-#[cfg(all(not(Py_LIMITED_API), Py_3_5))]
+#[cfg(not(Py_LIMITED_API))]
 pub const FUTURE_GENERATOR_STOP   : &'static str = "generator_stop";
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    pub fn PyNode_Compile(arg1: *mut _node,
-                          arg2: *const c_char) -> *mut PyCodeObject;
+    pub fn PyNode_Compile(arg1: *mut _node, arg2: *const c_char) -> *mut PyCodeObject;
+
     pub fn PyAST_CompileEx(_mod: *mut _mod,
                            filename: *const c_char,
                            flags: *mut PyCompilerFlags,
-                           optimize: c_int, arena: *mut PyArena)
-     -> *mut PyCodeObject;
-    #[cfg(Py_3_4)]
+                           optimize: c_int, arena: *mut PyArena) -> *mut PyCodeObject;
+
     pub fn PyAST_CompileObject(_mod: *mut _mod,
                                filename: *mut PyObject,
                                flags: *mut PyCompilerFlags,
-                               optimize: c_int, arena: *mut PyArena)
-     -> *mut PyCodeObject;
-    pub fn PyFuture_FromAST(_mod: *mut _mod,
-                            filename: *const c_char)
-     -> *mut PyFutureFeatures;
-    #[cfg(Py_3_4)]
-    pub fn PyFuture_FromASTObject(_mod: *mut _mod,
-                                  filename: *mut PyObject)
-     -> *mut PyFutureFeatures;
-    #[cfg(Py_3_4)]
-    pub fn PyCompile_OpcodeStackEffect(opcode: c_int,
-                                       oparg: c_int) -> c_int;
+                               optimize: c_int, arena: *mut PyArena) -> *mut PyCodeObject;
+
+    pub fn PyFuture_FromAST(_mod: *mut _mod, filename: *const c_char) -> *mut PyFutureFeatures;
+
+    pub fn PyFuture_FromASTObject(_mod: *mut _mod, filename: *mut PyObject) -> *mut PyFutureFeatures;
+
+    pub fn PyCompile_OpcodeStackEffect(
+        opcode: c_int, oparg: c_int) -> c_int;
 }
 
 pub const Py_single_input: c_int = 256;

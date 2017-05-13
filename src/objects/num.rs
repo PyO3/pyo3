@@ -19,7 +19,7 @@
 extern crate num_traits;
 
 use self::num_traits::cast::cast;
-use libc::{c_long, c_double};
+use std::os::raw::{c_long, c_double};
 use python::{Python, PythonObject, PyClone};
 use err::{self, PyResult, PyErr};
 use super::object::PyObject;

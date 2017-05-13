@@ -30,11 +30,6 @@ pub struct PyFrameObject {
     pub f_exc_type: *mut PyObject,
     pub f_exc_value: *mut PyObject,
     pub f_exc_traceback: *mut PyObject,
-
-    #[cfg(not(Py_3_4))]
-    pub f_tstate: *mut PyThreadState,
-
-    #[cfg(Py_3_4)]
     pub f_gen: *mut PyObject,
 
     pub f_lasti: c_int,		/* Last instruction if called */
@@ -45,7 +40,6 @@ pub struct PyFrameObject {
       bytecode index. */
     pub f_lineno: c_int,		/* Current line number */
     pub f_iblock: c_int,		/* index in f_blockstack */
-    #[cfg(Py_3_4)]
     pub f_executing: c_char,    /* whether the frame is still executing */
     pub f_blockstack: [PyTryBlock; CO_MAXBLOCKS], /* for try and loop blocks */
     pub f_localsplus: [*mut PyObject; 1]	/* locals+stack, dynamically sized */
@@ -68,11 +62,9 @@ pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
     pub fn PyFrame_BlockPop(f: *mut PyFrameObject) -> *mut PyTryBlock;
 
     pub fn PyFrame_LocalsToFast(f: *mut PyFrameObject, clear: c_int) -> ();
-    #[cfg(Py_3_4)]
     pub fn PyFrame_FastToLocalsWithError(f: *mut PyFrameObject) -> c_int;
     pub fn PyFrame_FastToLocals(f: *mut PyFrameObject) -> ();
     
     pub fn PyFrame_ClearFreeList() -> c_int;
     pub fn PyFrame_GetLineNumber(f: *mut PyFrameObject) -> c_int;
 }
-

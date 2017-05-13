@@ -20,7 +20,7 @@ use std;
 use std::{mem, str, char};
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
-use libc::c_char;
+use std::os::raw::c_char;
 use ffi;
 use python::{Python, PythonObject, PyClone, ToPythonPointer, PythonObjectDowncastError};
 use super::{exc, PyObject};

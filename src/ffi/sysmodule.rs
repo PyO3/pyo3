@@ -1,4 +1,5 @@
-use libc::{c_char, c_int, wchar_t};
+use std::os::raw::{c_char, c_int};
+use libc::wchar_t;
 use ffi::object::PyObject;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {

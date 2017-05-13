@@ -19,7 +19,7 @@
 use ffi;
 use std::{mem, isize, ptr};
 use std::ffi::CString;
-use libc::{c_char, c_int};
+use std::os::raw::{c_char, c_int};
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
 use objects::PyObject;
@@ -74,7 +74,6 @@ macro_rules! py_class_type_object_flags {
 
 pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
 
-#[cfg(Py_3_5)]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
@@ -97,35 +96,6 @@ macro_rules! py_class_type_object_dynamic_init {
         }
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_async }) = py_class_as_async!($as_async);
-        *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
-        *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
-        *(unsafe { &mut $type_object.tp_as_buffer }) = py_class_as_buffer!($as_buffer);
-        py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
-    }
-}
-
-#[cfg(not(Py_3_5))]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_class_type_object_dynamic_init {
-    // initialize those fields of PyTypeObject that we couldn't initialize statically
-    ($class: ident, $py:ident, $type_object:ident, $module_name: ident,
-     /* slots: */ {
-         $type_slots:tt
-             $as_async:tt
-             $as_number:tt
-             $as_sequence:tt
-             $as_mapping:tt
-             $as_buffer:tt
-             $setdelitem:tt
-     }
-    ) => {
-        unsafe {
-            $type_object.tp_name = $crate::py_class::slots::build_tp_name($module_name, stringify!($class));
-            $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
-                as $crate::_detail::ffi::Py_ssize_t;
-        }
-        // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
         *(unsafe { &mut $type_object.tp_as_buffer }) = py_class_as_buffer!($as_buffer);
@@ -210,7 +180,6 @@ macro_rules! py_class_as_number {
     }}
 }
 
-#[cfg(Py_3_5)]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_as_async {

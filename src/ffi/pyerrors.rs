@@ -127,7 +127,6 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub fn PyErr_SetFromErrnoWithFilenameObject(arg1: *mut PyObject,
                                                 arg2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg(Py_3_4)]
     pub fn PyErr_SetFromErrnoWithFilenameObjects(arg1: *mut PyObject,
                                                  arg2: *mut PyObject,
                                                  arg3: *mut PyObject)

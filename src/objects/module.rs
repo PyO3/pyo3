@@ -18,7 +18,7 @@
 
 use std;
 use ffi;
-use libc::c_char;
+use std::os::raw::c_char;
 use python::{Python, PythonObject, PyDrop};
 use objectprotocol::ObjectProtocol;
 use conversion::ToPyObject;

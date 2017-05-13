@@ -1,3 +1,5 @@
+// Copyright (c) 2017-present PyO3 Project and Contributors
+
 use ffi;
 
 pub fn type_error_to_unit(py: ::Python, e: ::PyErr) -> ::PyResult<()> {

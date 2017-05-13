@@ -2,7 +2,6 @@ use std::os::raw::{c_char, c_int, c_long};
 use ffi::pyport::Py_ssize_t;
 use ffi::object::PyObject;
 use ffi::moduleobject::PyModuleDef;
-#[cfg(Py_3_5)]
 use ffi::methodobject::PyMethodDef;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
@@ -36,14 +35,11 @@ use ffi::methodobject::PyMethodDef;
                                       arg2: *const c_char,
                                       arg3: *const c_char)
      -> c_int;
-    #[cfg(Py_3_5)]
     pub fn PyModule_SetDocString(arg1: *mut PyObject,
                                  arg2: *const c_char)
      -> c_int;
-    #[cfg(Py_3_5)]
     pub fn PyModule_AddFunctions(arg1: *mut PyObject, arg2: *mut PyMethodDef)
      -> c_int;
-    #[cfg(Py_3_5)]
     pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef)
      -> c_int;
 }
@@ -63,14 +59,12 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
                         apiver: c_int) -> *mut PyObject;
 
     #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
-    #[cfg(Py_3_5)]
     pub fn PyModule_FromDefAndSpec2(def: *mut PyModuleDef,
                                     spec: *mut PyObject,
                                     module_api_version: c_int)
      -> *mut PyObject;
 
     #[cfg(py_sys_config="Py_TRACE_REFS")]
-    #[cfg(Py_3_5)]
     fn PyModule_FromDefAndSpec2TraceRefs(def: *mut PyModuleDef,
                                     spec: *mut PyObject,
                                     module_api_version: c_int)
@@ -85,7 +79,6 @@ pub unsafe fn PyModule_Create2(module: *mut PyModuleDef,
 }
 
 #[cfg(py_sys_config="Py_TRACE_REFS")]
-#[cfg(Py_3_5)]
 #[inline]
 pub unsafe fn PyModule_FromDefAndSpec2(def: *mut PyModuleDef,
                                 spec: *mut PyObject,
@@ -100,7 +93,6 @@ pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
 }
 
 #[inline]
-#[cfg(Py_3_5)]
 pub unsafe fn PyModule_FromDefAndSpec(def: *mut PyModuleDef, spec: *mut PyObject) -> *mut PyObject {
     PyModule_FromDefAndSpec2(def, spec, if cfg!(Py_LIMITED_API) { PYTHON_ABI_VERSION } else { PYTHON_API_VERSION })
 }

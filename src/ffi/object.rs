@@ -277,9 +277,7 @@ mod typeobject {
         pub nb_inplace_floor_divide: Option<object::binaryfunc>,
         pub nb_inplace_true_divide: Option<object::binaryfunc>,
         pub nb_index: Option<object::unaryfunc>,
-        #[cfg(Py_3_5)]
         pub nb_matrix_multiply: Option<object::binaryfunc>,
-        #[cfg(Py_3_5)]
         pub nb_inplace_matrix_multiply: Option<object::binaryfunc>,
     }
     impl Clone for PyNumberMethods {
@@ -335,10 +333,6 @@ mod typeobject {
         }
     }
 
-    #[cfg(not(Py_3_5))]
-    pub const PyNumberMethods_INIT: PyNumberMethods = py_number_methods_init!();
-
-    #[cfg(Py_3_5)]
     pub const PyNumberMethods_INIT: PyNumberMethods = py_number_methods_init! {
         nb_matrix_multiply: None,
         nb_inplace_matrix_multiply: None,
@@ -396,21 +390,17 @@ mod typeobject {
     };
     #[repr(C)]
     #[derive(Copy)]
-    #[cfg(Py_3_5)]
     pub struct PyAsyncMethods {
         pub am_await: Option<object::unaryfunc>,
         pub am_aiter: Option<object::unaryfunc>,
         pub am_anext: Option<object::unaryfunc>,
     }
-    #[cfg(Py_3_5)]
     impl Clone for PyAsyncMethods {
         #[inline] fn clone(&self) -> Self { *self }
     }
-    #[cfg(Py_3_5)]
     impl Default for PyAsyncMethods {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
-    #[cfg(Py_3_5)]
     pub const PyAsyncMethods_INIT : PyAsyncMethods = PyAsyncMethods {
         am_await: None,
         am_aiter: None,
@@ -444,10 +434,7 @@ mod typeobject {
         pub tp_print: Option<object::printfunc>,
         pub tp_getattr: Option<object::getattrfunc>,
         pub tp_setattr: Option<object::setattrfunc>,
-        #[cfg(Py_3_5)]
         pub tp_as_async: *mut PyAsyncMethods,
-        #[cfg(not(Py_3_5))]
-        pub tp_reserved: *mut c_void,
         pub tp_repr: Option<object::reprfunc>,
         pub tp_as_number: *mut PyNumberMethods,
         pub tp_as_sequence: *mut PySequenceMethods,
@@ -486,7 +473,6 @@ mod typeobject {
         pub tp_weaklist: *mut ffi::object::PyObject,
         pub tp_del: Option<ffi::object::destructor>,
         pub tp_version_tag: c_uint,
-        #[cfg(Py_3_4)]
         pub tp_finalize: Option<ffi::object::destructor>,
         #[cfg(py_sys_config="COUNT_ALLOCS")]
         pub tp_allocs: Py_ssize_t,
@@ -584,28 +570,15 @@ mod typeobject {
         }
     }
 
-    #[cfg(Py_3_5)]
     pub const PyTypeObject_INIT: PyTypeObject = py_type_object_init_with_count_allocs!(
         tp_as_async,
         tp_finalize: None,
-    );
-
-    #[cfg(all(Py_3_4, not(Py_3_5)))]
-    pub const PyTypeObject_INIT: PyTypeObject = py_type_object_init_with_count_allocs!(
-        tp_reserved,
-        tp_finalize: None,
-    );
-
-    #[cfg(not(Py_3_4))]
-    pub const PyTypeObject_INIT: PyTypeObject = py_type_object_init_with_count_allocs!(
-        tp_reserved,
     );
 
     #[repr(C)]
     #[derive(Copy)]
     pub struct PyHeapTypeObject {
         pub ht_type: PyTypeObject,
-        #[cfg(Py_3_5)]
         pub as_async: PyAsyncMethods,
         pub as_number: PyNumberMethods,
         pub as_mapping: PyMappingMethods,
@@ -665,11 +638,9 @@ impl Default for PyType_Spec {
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
-    //#[cfg(Py_3_3)]
     pub fn PyType_FromSpecWithBases(arg1: *mut PyType_Spec, arg2: *mut PyObject)
         -> *mut PyObject;
 
-    #[cfg(Py_3_4)]
     pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int)
         -> *mut c_void;
 }
@@ -756,10 +727,8 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     pub fn PyObject_Not(arg1: *mut PyObject) -> c_int;
     pub fn PyCallable_Check(arg1: *mut PyObject) -> c_int;
     pub fn PyObject_ClearWeakRefs(arg1: *mut PyObject) -> ();
-    #[cfg(Py_3_4)]
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyObject_CallFinalizer(arg1: *mut PyObject) -> ();
-    #[cfg(Py_3_4)]
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 

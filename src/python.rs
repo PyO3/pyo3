@@ -19,7 +19,7 @@
 use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
-use libc::c_int;
+use std::os::raw::c_int;
 use ffi;
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{self, PyErr, PyResult};

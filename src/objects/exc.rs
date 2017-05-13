@@ -18,7 +18,7 @@
 
 //! This module contains the python exception types.
 
-use libc::c_char;
+use std::os::raw::c_char;
 use std::{self, mem, ops};
 use std::ffi::CStr;
 use ffi;

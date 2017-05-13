@@ -51,7 +51,6 @@ pub enum _mod {}
                                      filename: *const c_char,
                                      flags: *mut PyCompilerFlags)
      -> c_int;
-    #[cfg(Py_3_4)]
     pub fn PyRun_InteractiveOneObject(fp: *mut FILE, filename: *mut PyObject,
                                       flags: *mut PyCompilerFlags)
      -> c_int;
@@ -64,7 +63,6 @@ pub enum _mod {}
                                   start: c_int,
                                   flags: *mut PyCompilerFlags,
                                   arena: *mut PyArena) -> *mut _mod;
-    #[cfg(Py_3_4)]
     pub fn PyParser_ASTFromStringObject(s: *const c_char,
                                         filename: *mut PyObject,
                                         start: c_int,
@@ -80,7 +78,6 @@ pub enum _mod {}
                                 flags: *mut PyCompilerFlags,
                                 errcode: *mut c_int,
                                 arena: *mut PyArena) -> *mut _mod;
-    #[cfg(Py_3_4)]
     pub fn PyParser_ASTFromFileObject(fp: *mut FILE, filename: *mut PyObject,
                                       enc: *const c_char,
                                       start: c_int,
@@ -156,7 +153,6 @@ pub unsafe fn Py_CompileStringFlags(string: *const c_char, p: *const c_char, s: 
                                    flags: *mut PyCompilerFlags,
                                    optimize: c_int) -> *mut PyObject;
     #[cfg(not(Py_LIMITED_API))]
-    #[cfg(Py_3_4)]
     pub fn Py_CompileStringObject(str: *const c_char,
                                   filename: *mut PyObject,
                                   start: c_int,
@@ -166,7 +162,6 @@ pub unsafe fn Py_CompileStringFlags(string: *const c_char, p: *const c_char, s: 
                              filename: *const c_char,
                              start: c_int) -> *mut symtable;
     #[cfg(not(Py_LIMITED_API))]
-    #[cfg(Py_3_4)]
     pub fn Py_SymtableStringObject(str: *const c_char,
                                    filename: *mut PyObject,
                                    start: c_int)

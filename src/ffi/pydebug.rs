@@ -1,4 +1,4 @@
-use libc::c_int;
+use std::os::raw::c_int;
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
@@ -17,7 +17,6 @@ use libc::c_int;
     pub static mut Py_NoUserSiteDirectory: c_int;
     pub static mut Py_UnbufferedStdioFlag: c_int;
     pub static mut Py_HashRandomizationFlag: c_int;
-    #[cfg(Py_3_4)]
     pub static mut Py_IsolatedFlag: c_int;
     #[cfg(all(Py_3_6, windows))]
     pub static mut Py_LegacyWindowsStdioFlag: c_int;

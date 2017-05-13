@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std::mem;
-use libc::c_long;
+use std::os::raw::c_long;
 use super::object::PyObject;
 use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
 use err::{self, PyErr, PyResult};
