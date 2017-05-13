@@ -20,8 +20,6 @@ use std;
 use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError,
         PythonObjectWithTypeObject, PyClone, PyDrop};
 use objects::{PyObject, PyType, ToPyTuple, exc};
-#[cfg(feature="python27-sys")]
-use objects::oldstyle::PyClass;
 use ffi;
 use libc;
 use std::ptr;
@@ -330,22 +328,6 @@ impl PyErr {
     }
 
     /// Retrieves the exception type.
-    ///
-    /// If the exception type is an old-style class, returns `oldstyle::PyClass`.
-    #[cfg(feature="python27-sys")]
-    pub fn get_type(&self, py: Python) -> PyType {
-        match self.ptype.cast_as::<PyType>(py) {
-            Ok(t)  => t.clone_ref(py),
-            Err(_) =>
-                match self.ptype.cast_as::<PyClass>(py) {
-                    Ok(_)  => py.get_type::<PyClass>(),
-                    Err(_) => py.None().get_type(py)
-                }
-        }
-    }
-
-    /// Retrieves the exception type.
-    #[cfg(not(feature="python27-sys"))]
     pub fn get_type(&self, py: Python) -> PyType {
         match self.ptype.cast_as::<PyType>(py) {
             Ok(t)  => t.clone_ref(py),

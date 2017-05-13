@@ -73,8 +73,6 @@ macro_rules! exc_type(
 
 exc_type!(BaseException, PyExc_BaseException);
 exc_type!(Exception, PyExc_Exception);
-#[cfg(feature="python27-sys")]
-exc_type!(StandardError, PyExc_StandardError);
 exc_type!(LookupError, PyExc_LookupError);
 exc_type!(AssertionError, PyExc_AssertionError);
 exc_type!(AttributeError, PyExc_AttributeError);
@@ -104,36 +102,20 @@ exc_type!(WindowsError, PyExc_WindowsError);
 exc_type!(ZeroDivisionError, PyExc_ZeroDivisionError);
 
 exc_type!(BufferError, PyExc_BufferError);
-
-#[cfg(Py_3_4)]
 exc_type!(BlockingIOError, PyExc_BlockingIOError);
-#[cfg(Py_3_4)]
 exc_type!(BrokenPipeError, PyExc_BrokenPipeError);
-#[cfg(Py_3_4)]
 exc_type!(ChildProcessError, PyExc_ChildProcessError);
-#[cfg(Py_3_4)]
 exc_type!(ConnectionError, PyExc_ConnectionError);
-#[cfg(Py_3_4)]
 exc_type!(ConnectionAbortedError, PyExc_ConnectionAbortedError);
-#[cfg(Py_3_4)]
 exc_type!(ConnectionRefusedError, PyExc_ConnectionRefusedError);
-#[cfg(Py_3_4)]
 exc_type!(ConnectionResetError, PyExc_ConnectionResetError);
-#[cfg(Py_3_4)]
 exc_type!(FileExistsError, PyExc_FileExistsError);
-#[cfg(Py_3_4)]
 exc_type!(FileNotFoundError, PyExc_FileNotFoundError);
-#[cfg(Py_3_4)]
 exc_type!(InterruptedError, PyExc_InterruptedError);
-#[cfg(Py_3_4)]
 exc_type!(IsADirectoryError, PyExc_IsADirectoryError);
-#[cfg(Py_3_4)]
 exc_type!(NotADirectoryError, PyExc_NotADirectoryError);
-#[cfg(Py_3_4)]
 exc_type!(PermissionError, PyExc_PermissionError);
-#[cfg(Py_3_4)]
 exc_type!(ProcessLookupError, PyExc_ProcessLookupError);
-#[cfg(Py_3_4)]
 exc_type!(TimeoutError, PyExc_TimeoutError);
 
 exc_type!(UnicodeDecodeError, PyExc_UnicodeDecodeError);

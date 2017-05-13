@@ -17,16 +17,13 @@
 // DEALINGS IN THE SOFTWARE.
 
 mod py_class;
-#[cfg(feature="python27-sys")]
-mod py_class_impl2;
-#[cfg(feature="python3-sys")]
-mod py_class_impl3;
+mod py_class_impl;
 #[doc(hidden)] pub mod slots;
 #[doc(hidden)] pub mod members;
 #[doc(hidden)] pub mod properties;
 pub mod gc;
 
-use libc;
+use std::os::raw::c_void;
 use std::{mem, ptr, cell};
 use python::{self, Python, PythonObject};
 use objects::{PyObject, PyType, PyModule};
@@ -139,9 +136,9 @@ impl BaseObject for PyObject {
         // we have to manually un-do the work of PyType_GenericAlloc:
         let ty = ffi::Py_TYPE(obj);
         if ffi::PyType_IS_GC(ty) != 0 {
-            ffi::PyObject_GC_Del(obj as *mut libc::c_void);
+            ffi::PyObject_GC_Del(obj as *mut c_void);
         } else {
-            ffi::PyObject_Free(obj as *mut libc::c_void);
+            ffi::PyObject_Free(obj as *mut c_void);
         }
         // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
         // so we need to call DECREF here:

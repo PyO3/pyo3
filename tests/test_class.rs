@@ -390,17 +390,6 @@ fn string_methods() {
 }
 
 #[test]
-#[cfg(feature="python27-sys")]
-fn python2_string_methods() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let obj = StringMethods::create_instance(py).unwrap();
-    py_assert!(py, obj, "unicode(obj) == u'unicode'");
-}
-
-#[test]
-#[cfg(feature="python3-sys")]
 fn python3_string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();

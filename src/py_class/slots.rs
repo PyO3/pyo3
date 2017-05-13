@@ -72,10 +72,6 @@ macro_rules! py_class_type_object_flags {
     };
 }
 
-#[cfg(feature="python27-sys")]
-pub const TPFLAGS_DEFAULT : ::libc::c_long = ffi::Py_TPFLAGS_DEFAULT
-                                           | ffi::Py_TPFLAGS_CHECKTYPES;
-
 #[cfg(feature="python3-sys")]
 pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
 

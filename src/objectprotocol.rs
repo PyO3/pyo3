@@ -85,21 +85,6 @@ pub trait ObjectProtocol : PythonObject {
     ///     raise TypeError("ObjectProtocol::compare(): All comparisons returned false")
     /// ```
     fn compare<O>(&self, py: Python, other: O) -> PyResult<Ordering> where O: ToPyObject {
-        #[cfg(feature="python27-sys")]
-        unsafe fn do_compare(py: Python, a: *mut ffi::PyObject, b: *mut ffi::PyObject) -> PyResult<Ordering> {
-            let mut result = -1;
-            try!(err::error_on_minusone(py,
-                ffi::PyObject_Cmp(a, b, &mut result)));
-            Ok(if result < 0 {
-                Ordering::Less
-            } else if result > 0 {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            })
-        }
-
-        #[cfg(feature="python3-sys")]
         unsafe fn do_compare(py: Python, a: *mut ffi::PyObject, b: *mut ffi::PyObject) -> PyResult<Ordering> {
             let result = ffi::PyObject_RichCompareBool(a, b, ffi::Py_EQ);
             if result == 1 {
@@ -157,16 +142,6 @@ pub trait ObjectProtocol : PythonObject {
     fn str(&self, py: Python) -> PyResult<PyString> {
         unsafe {
             err::result_cast_from_owned_ptr(py, ffi::PyObject_Str(self.as_ptr()))
-        }
-    }
-
-    /// Compute the unicode string representation of self.
-    /// This is equivalent to the Python expression 'unistr(self)'.
-    #[inline]
-    #[cfg(feature="python27-sys")]
-    fn unistr(&self, py: Python) -> PyResult<::objects::PyUnicode> {
-        unsafe {
-            err::result_cast_from_owned_ptr(py, ffi::PyObject_Unicode(self.as_ptr()))
         }
     }
 

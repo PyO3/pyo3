@@ -19,23 +19,13 @@
 pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
-
 pub use self::string::{PyBytes, PyString, PyStringData};
-#[cfg(feature="python27-sys")]
-pub use self::string::PyUnicode;
-#[cfg(feature="python3-sys")]
-pub use self::string::PyString as PyUnicode;
-
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::tuple::{PyTuple, NoArgs, ToPyTuple};
 pub use self::dict::PyDict;
 pub use self::list::PyList;
-#[cfg(feature="python27-sys")]
-pub use self::num::PyInt;
-#[cfg(feature="python3-sys")]
-pub use self::num::PyLong as PyInt;
 pub use self::num::{PyLong, PyFloat};
 pub use self::sequence::PySequence;
 pub use self::slice::PySlice;
@@ -137,9 +127,5 @@ mod num;
 mod sequence;
 mod slice;
 pub mod exc;
-
-#[cfg(feature="python27-sys")]
-pub mod oldstyle;
-
 mod tests;
 

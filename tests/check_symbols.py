@@ -38,7 +38,7 @@ if sys.version_info.major == 3:
     for i in range(4, sys.version_info.minor+1):
         cfgs += ['--cfg', 'Py_3_{}'.format(i)]
 else:
-    sys_lib = 'python27-sys'
+    raise RuntimeError("Unsupported version: %s" % sys.version_info)
 
 interesting_config_flags = [
     "Py_USING_UNICODE",

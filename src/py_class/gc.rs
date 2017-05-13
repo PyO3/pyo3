@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use libc;
+use std::os::raw::{c_void, c_int};
 use ffi;
 use std::mem;
 use python::{Python, PythonObject, PyDrop, ToPythonPointer};
@@ -25,12 +25,12 @@ use function::AbortOnDrop;
 
 // TODO: what's the semantics of the traverse return code?
 // If it's just a normal python exception, we might want to use PyErr instead.
-pub struct TraverseError(libc::c_int);
+pub struct TraverseError(c_int);
 
 #[derive(Copy, Clone)]
 pub struct VisitProc<'a> {
     visit: ffi::visitproc,
-    arg: *mut libc::c_void,
+    arg: *mut c_void,
     /// VisitProc contains a Python instance to ensure that
     /// 1) it is cannot be moved out of the traverse() call
     /// 2) it cannot be sent to other threads
@@ -88,9 +88,8 @@ pub unsafe fn tp_traverse<C, F>(
     location: &str,
     slf: *mut ffi::PyObject,
     visit: ffi::visitproc,
-    arg: *mut libc::c_void,
-    callback: F
-) -> libc::c_int
+    arg: *mut c_void,
+    callback: F) -> c_int
 where C: PythonObject,
       F: FnOnce(&C, Python, VisitProc) -> Result<(), TraverseError>
 {
@@ -127,8 +126,7 @@ macro_rules! py_class_tp_clear {
 pub unsafe fn tp_clear<C, F>(
     location: &str,
     slf: *mut ffi::PyObject,
-    callback: F
-) -> libc::c_int
+    callback: F) -> c_int
 where C: PythonObject,
       F: FnOnce(&C, Python)
 {

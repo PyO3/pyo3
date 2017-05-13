@@ -16,6 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+use std::os::raw;
 use std::{mem, slice, cell};
 use std::ffi::CStr;
 use ffi;
@@ -62,18 +63,18 @@ impl ElementType {
 fn native_element_type_from_type_char(type_char: u8) -> ElementType {
     use self::ElementType::*;
     match type_char {
-        b'c' => UnsignedInteger { bytes: mem::size_of::<libc::c_char>() },
-        b'b' => SignedInteger   { bytes: mem::size_of::<libc::c_schar>() },
-        b'B' => UnsignedInteger { bytes: mem::size_of::<libc::c_uchar>() },
+        b'c' => UnsignedInteger { bytes: mem::size_of::<raw::c_char>() },
+        b'b' => SignedInteger   { bytes: mem::size_of::<raw::c_schar>() },
+        b'B' => UnsignedInteger { bytes: mem::size_of::<raw::c_uchar>() },
         b'?' => Bool,
-        b'h' => SignedInteger   { bytes: mem::size_of::<libc::c_short>() },
-        b'H' => UnsignedInteger { bytes: mem::size_of::<libc::c_ushort>() },
-        b'i' => SignedInteger   { bytes: mem::size_of::<libc::c_int>() },
-        b'I' => UnsignedInteger { bytes: mem::size_of::<libc::c_uint>() },
-        b'l' => SignedInteger   { bytes: mem::size_of::<libc::c_long>() },
-        b'L' => UnsignedInteger { bytes: mem::size_of::<libc::c_ulong>() },
-        b'q' => SignedInteger   { bytes: mem::size_of::<libc::c_longlong>() },
-        b'Q' => UnsignedInteger { bytes: mem::size_of::<libc::c_ulonglong>() },
+        b'h' => SignedInteger   { bytes: mem::size_of::<raw::c_short>() },
+        b'H' => UnsignedInteger { bytes: mem::size_of::<raw::c_ushort>() },
+        b'i' => SignedInteger   { bytes: mem::size_of::<raw::c_int>() },
+        b'I' => UnsignedInteger { bytes: mem::size_of::<raw::c_uint>() },
+        b'l' => SignedInteger   { bytes: mem::size_of::<raw::c_long>() },
+        b'L' => UnsignedInteger { bytes: mem::size_of::<raw::c_ulong>() },
+        b'q' => SignedInteger   { bytes: mem::size_of::<raw::c_longlong>() },
+        b'Q' => UnsignedInteger { bytes: mem::size_of::<raw::c_ulonglong>() },
         b'n' => SignedInteger   { bytes: mem::size_of::<libc::ssize_t>() },
         b'N' => UnsignedInteger { bytes: mem::size_of::<libc::size_t>() },
         b'e' => Float { bytes: 2 },
@@ -150,14 +151,14 @@ impl PyBuffer {
     /// Warning: the buffer memory might be mutated by other Python functions,
     /// and thus may only be accessed while the GIL is held.
     #[inline]
-    pub fn buf_ptr(&self) -> *mut libc::c_void {
+    pub fn buf_ptr(&self) -> *mut raw::c_void {
         self.0.buf
     }
 
     /// Gets a pointer to the specified item.
     ///
     /// If `indices.len() < self.dimensions()`, returns the start address of the sub-array at the specified dimension.
-    pub fn get_ptr(&self, indices: &[usize]) -> *mut libc::c_void {
+    pub fn get_ptr(&self, indices: &[usize]) -> *mut raw::c_void {
         let shape = &self.shape()[..indices.len()];
         for i in 0..indices.len() {
             assert!(indices[i] < shape[i]);
@@ -397,7 +398,7 @@ impl PyBuffer {
         }
         unsafe {
             err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
-                target.as_ptr() as *mut libc::c_void,
+                target.as_ptr() as *mut raw::c_void,
                 &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
                 self.0.len,
                 fort as libc::c_char
@@ -432,7 +433,7 @@ impl PyBuffer {
             // Copy the buffer into the uninitialized space in the vector.
             // Due to T:Copy, we don't need to be concerned with Drop impls.
             err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
-                vec.as_mut_ptr() as *mut libc::c_void,
+                vec.as_mut_ptr() as *mut raw::c_void,
                 &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
                 self.0.len,
                 fort as libc::c_char
@@ -484,7 +485,7 @@ impl PyBuffer {
         unsafe {
             err::error_on_minusone(py, ffi::PyBuffer_FromContiguous(
                 &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
-                source.as_ptr() as *mut libc::c_void,
+                source.as_ptr() as *mut raw::c_void,
                 self.0.len,
                 fort as libc::c_char
             ))

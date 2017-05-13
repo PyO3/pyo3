@@ -11,9 +11,6 @@ NIGHTLY := 0
 endif
 endif
 
-ifeq ($(PY),2)
-FEATURES := python27-sys
-endif
 ifeq ($(PY),3)
 FEATURES := python3-sys
 ifdef PEP384
@@ -29,16 +26,10 @@ CARGO_FLAGS := --features "$(FEATURES)" --no-default-features
 
 default: test extensions
 
-src/py_class/py_class_impl2.rs: src/py_class/py_class_impl.py
-	PY=2 python $< >$@
-
-src/py_class/py_class_impl3.rs: src/py_class/py_class_impl.py
+src/py_class/py_class_impl.rs: src/py_class/py_class_impl.py
 	PY=3 python $< >$@
 
-cog: python27-sys/build.rs .travis.yml
-	cog.py -r $^
-
-build: src/py_class/py_class_impl2.rs src/py_class/py_class_impl3.rs
+build: src/py_class/py_class_impl.rs
 	cargo build $(CARGO_FLAGS)
 
 test: build

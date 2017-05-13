@@ -29,24 +29,6 @@ use conversion::{ToPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
 ///
-/// Note that in Python 2.x, `int` and `long` are different types.
-/// When rust-cpython is compiled for Python 3.x,
-/// `PyInt` and `PyLong` are aliases for the same type, which
-/// corresponds to a Python `int`.
-///
-/// You can usually avoid directly working with this type
-/// by using [ToPyObject](trait.ToPyObject.html)
-/// and [extract](struct.PyObject.html#method.extract)
-/// with the primitive Rust integer types.
-#[cfg(feature="python27-sys")]
-pub struct PyInt(PyObject);
-#[cfg(feature="python27-sys")]
-pyobject_newtype!(PyInt, PyInt_Check, PyInt_Type);
-
-/// In Python 2.x, represents a Python `long` object.
-/// In Python 3.x, represents a Python `int` object.
-/// Both `PyInt` and `PyLong` refer to the same type on Python 3.x.
-///
 /// You can usually avoid directly working with this type
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
@@ -62,30 +44,6 @@ pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
 /// with `f32`/`f64`.
 pub struct PyFloat(PyObject);
 pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
-
-#[cfg(feature="python27-sys")]
-impl PyInt {
-    /// Creates a new Python 2.7 `int` object.
-    ///
-    /// Note: you might want to call `val.to_py_object(py)` instead
-    /// to avoid truncation if the value does not fit into a `c_long`,
-    /// and to make your code compatible with Python 3.x.
-    pub fn new(py: Python, val: c_long) -> PyInt {
-        unsafe {
-            err::cast_from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(val))
-        }
-    }
-
-    /// Gets the value of this integer.
-    ///
-    /// Warning: `PyInt::value()` is only supported for Python 2.7 `int` objects,
-    /// but not for `long` objects.
-    /// In almost all cases, you can avoid the distinction between these types
-    /// by simply calling `obj.extract::<i32>(py)`.
-    pub fn value(&self, _py: Python) -> c_long {
-        unsafe { ffi::PyInt_AS_LONG(self.0.as_ptr()) }
-    }
-}
 
 
 impl PyFloat {
@@ -104,19 +62,6 @@ impl PyFloat {
 
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
-        #[cfg(feature="python27-sys")]
-        impl ToPyObject for $rust_type {
-            type ObjectType = PyInt;
-
-            fn to_py_object(&self, py: Python) -> PyInt {
-                unsafe {
-                    err::cast_from_owned_ptr_or_panic(py,
-                        ffi::PyInt_FromLong(*self as c_long))
-                }
-            }
-        }
-
-        #[cfg(feature="python3-sys")]
         impl ToPyObject for $rust_type {
             type ObjectType = PyLong;
 
@@ -177,24 +122,8 @@ fn err_if_invalid_value<'p, T: PartialEq>
 macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl <'p> ToPyObject for $rust_type {
-            #[cfg(feature="python27-sys")]
-            type ObjectType = PyObject;
-
-            #[cfg(feature="python3-sys")]
             type ObjectType = PyLong;
 
-            #[cfg(feature="python27-sys")]
-            fn to_py_object(&self, py: Python) -> PyObject {
-                unsafe {
-                    let ptr = match cast::<$rust_type, c_long>(*self) {
-                        Some(v) => ffi::PyInt_FromLong(v),
-                        None => $pylong_from_ll_or_ull(*self)
-                    };
-                    err::from_owned_ptr_or_panic(py, ptr)
-                }
-            }
-
-            #[cfg(feature="python3-sys")]
             fn to_py_object(&self, py: Python) -> PyLong {
                 unsafe {
                     err::cast_from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
@@ -203,26 +132,6 @@ macro_rules! int_convert_u64_or_i64 (
         }
 
         impl <'source> FromPyObject<'source> for $rust_type {
-            #[cfg(feature="python27-sys")]
-            fn extract(py: Python, obj: &'source PyObject) -> PyResult<$rust_type> {
-                let ptr = obj.as_ptr();
-
-                unsafe {
-                    if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(py, !0, $pylong_as_ull_or_ull(ptr))
-                    } else if ffi::PyInt_Check(ptr) != 0 {
-                        match cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
-                            Some(v) => Ok(v),
-                            None => Err(overflow_error(py))
-                        }
-                    } else {
-                        let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
-                        err_if_invalid_value(py, !0, $pylong_as_ull_or_ull(num.as_ptr()))
-                    }
-                }
-            }
-
-            #[cfg(feature="python3-sys")]
             fn extract(py: Python, obj: &'source PyObject) -> PyResult<$rust_type> {
                 let ptr = obj.as_ptr();
                 unsafe {
