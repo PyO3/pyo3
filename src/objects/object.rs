@@ -79,7 +79,7 @@ unsafe fn make_shared(ptr: *mut ffi::PyObject) -> *mut ffi::PyObject {
 #[inline]
 #[cfg(feature="nightly")]
 fn unpack_shared(ptr: ptr::Shared<ffi::PyObject>) -> *mut ffi::PyObject {
-    *ptr
+    ptr.as_ptr()
 }
 
 #[inline]

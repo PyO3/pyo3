@@ -5,6 +5,7 @@ description = "Bindings to Python"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3"]
 readme = "README.md"
 keywords = [
+    "pyo3",
     "python",
     "cpython",
 ]
@@ -16,20 +17,21 @@ license = "MIT/APACHE-2"
 exclude = [
     ".gitignore",
     ".travis.yml",
-    "appveyor.yml",
     ".cargo/config",
+    "appveyor.yml",
 ]
 build = "build.rs"
 
 [dependencies]
 libc = "0.2"
 num-traits = "0.1"
+pyo3cls = { path = "pyo3cls" }
 
 [build-dependencies]
 regex = "0.1"
 
 [features]
-default = []
+default = ["nightly"]
 
 # Enable additional features that require nightly rust
 nightly = []

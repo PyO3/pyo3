@@ -95,7 +95,7 @@ mod bufferinfo {
     #[derive(Copy)]
     pub struct Py_buffer {
         pub buf: *mut c_void,
-        pub obj: *mut ::PyObject,
+        pub obj: *mut ::ffi::PyObject,
         pub len: Py_ssize_t,
         pub itemsize: Py_ssize_t,
         pub readonly: c_int,
@@ -114,12 +114,12 @@ mod bufferinfo {
     }
 
     pub type getbufferproc =
-        unsafe extern "C" fn(arg1: *mut ::PyObject,
+        unsafe extern "C" fn(arg1: *mut ::ffi::PyObject,
                              arg2: *mut Py_buffer,
                              arg3: c_int)
                              -> c_int;
     pub type releasebufferproc =
-        unsafe extern "C" fn(arg1: *mut ::PyObject,
+        unsafe extern "C" fn(arg1: *mut ::ffi::PyObject,
                              arg2: *mut Py_buffer) -> ();
 
     /// Maximum number of dimensions
@@ -407,7 +407,7 @@ mod typeobject {
         am_anext: None,
     };
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Debug)]
     pub struct PyBufferProcs {
         pub bf_getbuffer: Option<object::getbufferproc>,
         pub bf_releasebuffer: Option<object::releasebufferproc>,

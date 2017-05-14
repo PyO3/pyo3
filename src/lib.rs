@@ -80,7 +80,12 @@
 
 extern crate libc;
 
+#[macro_use] pub extern crate pyo3cls;
+pub use pyo3cls as cls;
+
 pub mod ffi;
+pub mod class;
+
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
@@ -89,6 +94,7 @@ pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
 pub use py_class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
+pub use class::*;
 
 #[allow(non_camel_case_types)]
 pub type Py_hash_t = ffi::Py_hash_t;

@@ -257,7 +257,7 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
         let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
 
-        if MIN_MINOR > interpreter_version.minor.unwrap_or(0) {
+        if interpreter_version.major < 3 || MIN_MINOR > interpreter_version.minor.unwrap_or(0) {
             return Err(format!("Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
                                 \tmin version 3.4 != found {}",
                                interpreter_path,
@@ -270,8 +270,9 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
     {
         let interpreter_path = "python";
         let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
-        if MIN_MINOR <= interpreter_version.minor.unwrap_or(0) {
-            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+        if MIN_MINOR <= interpreter_version.minor.unwrap_or(0) &&
+            interpreter_version.major == 3 {
+                return Ok((interpreter_version, interpreter_path.to_owned(), lines));
         }
     }
 
@@ -318,7 +319,6 @@ fn configure_from_path() -> Result<(String, String), String> {
 
     let mut flags = String::new();
 
-    println!("test: {:?}", interpreter_version);
     if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
         if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
@@ -346,7 +346,6 @@ fn main() {
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).
     let (python_interpreter_path, flags) = configure_from_path().unwrap();
-    println!('3');
     let config_map = get_config_vars(&python_interpreter_path).unwrap();
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {
@@ -380,5 +379,6 @@ fn main() {
     }) + flags.as_str();
 
     println!("cargo:python_flags={}", 
-        if flags.len() > 0 { &flags[..flags.len()-1] } else { "" });
+             if flags.len() > 0 { &flags[..flags.len()-1] } else { "" });
+
 }

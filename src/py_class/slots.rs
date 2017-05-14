@@ -26,6 +26,7 @@ use objects::PyObject;
 use function::CallbackConverter;
 use err::{PyErr, PyResult};
 use py_class::{CompareOp};
+use class::PyBufferProtocol;
 use exc;
 use Py_hash_t;
 
@@ -49,7 +50,7 @@ macro_rules! py_class_type_object_static_init {
             tp_flags: py_class_type_object_flags!($gc),
             tp_traverse: py_class_tp_traverse!($class_name, $gc),
             ..
-            $crate::_detail::ffi::PyTypeObject_INIT
+                $crate::_detail::ffi::PyTypeObject_INIT
         }
     );
 }
@@ -74,6 +75,8 @@ macro_rules! py_class_type_object_flags {
 
 pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
 
+use class::buffer::*;
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_class_type_object_dynamic_init {
@@ -94,14 +97,24 @@ macro_rules! py_class_type_object_dynamic_init {
             $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
                                         as $crate::_detail::ffi::Py_ssize_t;
         }
+
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_async }) = py_class_as_async!($as_async);
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
-        *(unsafe { &mut $type_object.tp_as_buffer }) = py_class_as_buffer!($as_buffer);
+
+        if let Some(buf) = $crate::ffi::PyBufferProcs::new::<$class>() {
+            static mut BUFFER_PROCS: $crate::ffi::PyBufferProcs = $crate::ffi::PyBufferProcs_INIT;
+            *(unsafe { &mut BUFFER_PROCS }) = buf;
+            *(unsafe { &mut $type_object.tp_as_buffer }) = unsafe { &mut BUFFER_PROCS };
+        } else {
+            *(unsafe { &mut $type_object.tp_as_buffer }) = 0 as *mut $crate::ffi::PyBufferProcs;
+        }
+
         py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
 }
+
 
 pub fn build_tp_name(module_name: Option<&str>, type_name: &str) -> *mut c_char {
     let name = match module_name {
@@ -192,22 +205,6 @@ macro_rules! py_class_as_async {
                     $crate::_detail::ffi::PyAsyncMethods_INIT
             };
         unsafe { &mut ASYNC_METHODS }
-    }}
-}
-
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_class_as_buffer {
-    ([]) => (0 as *mut $crate::_detail::ffi::PyBufferProcs);
-    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
-        static mut BUFFER_PROCS : $crate::_detail::ffi::PyBufferProcs
-            = $crate::_detail::ffi::PyBufferProcs {
-                $( $slot_name : $slot_value, )*
-                    ..
-                    $crate::_detail::ffi::PyBufferProcs_INIT
-            };
-        unsafe { &mut BUFFER_PROCS }
     }}
 }
 

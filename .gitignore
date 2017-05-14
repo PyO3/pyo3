@@ -2,6 +2,8 @@
 /Cargo.lock
 /doc
 /gh-pages
+/pyo3cls/target
+/pyo3cls/Cargo.lock
 
 *.so
 *.out
