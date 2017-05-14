@@ -75,9 +75,8 @@ impl PySlice {
 }
 
 impl ToPyObject for PySliceIndices {
-    type ObjectType = PySlice;
 
-    fn to_py_object(&self, py: Python) -> Self::ObjectType {
-        PySlice::new(py, self.start, self.stop, self.step)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PySlice::new(py, self.start, self.stop, self.step).into_object()
     }
 }

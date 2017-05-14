@@ -63,11 +63,10 @@ impl PyFloat {
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-            type ObjectType = PyLong;
 
-            fn to_py_object(&self, py: Python) -> PyLong {
+            fn to_py_object(&self, py: Python) -> PyObject {
                 unsafe {
-                    err::cast_from_owned_ptr_or_panic(py,
+                    err::from_owned_ptr_or_panic(py,
                         ffi::PyLong_FromLong(*self as c_long))
                 }
             }
@@ -90,10 +89,8 @@ macro_rules! int_fits_c_long(
 macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
-            type ObjectType = <$larger_type as ToPyObject>::ObjectType;
-
             #[inline]
-            fn to_py_object(&self, py: Python) -> <$larger_type as ToPyObject>::ObjectType {
+            fn to_py_object(&self, py: Python) -> PyObject {
                 (*self as $larger_type).to_py_object(py)
             }
         }
@@ -122,11 +119,10 @@ fn err_if_invalid_value<'p, T: PartialEq>
 macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl <'p> ToPyObject for $rust_type {
-            type ObjectType = PyLong;
 
-            fn to_py_object(&self, py: Python) -> PyLong {
+            fn to_py_object(&self, py: Python) -> PyObject {
                 unsafe {
-                    err::cast_from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
+                    err::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
                 }
             }
         }
@@ -178,10 +174,8 @@ int_fits_larger_int!(usize, u64);
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
 impl ToPyObject for f64 {
-    type ObjectType = PyFloat;
-
-    fn to_py_object(&self, py: Python) -> PyFloat {
-       PyFloat::new(py, *self)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyFloat::new(py, *self).into_object()
     }
 }
 
@@ -199,10 +193,8 @@ fn overflow_error(py: Python) -> PyErr {
 }
 
 impl ToPyObject for f32 {
-    type ObjectType = PyFloat;
-
-    fn to_py_object(&self, py: Python) -> PyFloat {
-       PyFloat::new(py, *self as f64)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyFloat::new(py, *self as f64).into_object()
     }
 }
 

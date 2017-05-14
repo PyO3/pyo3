@@ -1,6 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
+//! Represent Python Buffer protocol implementation
+//!
+//! more information on buffer protocol can be found
+//! https://docs.python.org/3/c-api/buffer.html
+
 use std::os::raw::c_int;
 
 use ffi;
@@ -10,25 +14,27 @@ use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyModule};
 use py_class::slots::UnitCallbackConverter;
 use function::handle_callback;
+use self::NO_METHODS;
 
 
-pub trait PyBufferProtocolImpl {
-    fn methods() -> &'static [&'static str];
-}
-
-impl<T> PyBufferProtocolImpl for T {
-    default fn methods() -> &'static [&'static str] {
-        static METHODS: &'static [&'static str] = &[];
-        METHODS
-    }
-}
-
+/// Buffer protocol interface
 pub trait PyBufferProtocol {
 
     fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()>;
 
     fn bf_releasebuffer(&self, py: Python, view: *mut ffi::Py_buffer) -> PyResult<()>;
 
+}
+
+#[doc(hidden)]
+pub trait PyBufferProtocolImpl {
+    fn methods() -> &'static [&'static str];
+}
+
+impl<T> PyBufferProtocolImpl for T {
+    default fn methods() -> &'static [&'static str] {
+        NO_METHODS
+    }
 }
 
 impl<T> PyBufferProtocol for T {
@@ -46,6 +52,7 @@ impl<T> PyBufferProtocol for T {
 
 impl ffi::PyBufferProcs {
 
+    /// Construct PyBufferProcs struct for PyTypeObject.tp_as_buffer
     pub fn new<T>() -> Option<ffi::PyBufferProcs>
         where T: PyBufferProtocol + PyBufferProtocolImpl + PythonObject
     {

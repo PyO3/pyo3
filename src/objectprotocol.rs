@@ -21,8 +21,8 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use python::{Python, PythonObject, ToPythonPointer};
-use objects::{PyObject, PyTuple, PyDict, PyString, ToPyTuple};
-use conversion::ToPyObject;
+use objects::{PyObject, PyTuple, PyDict, PyString};
+use conversion::{ToPyObject, ToPyTuple};
 use err::{PyErr, PyResult, self};
 
 /// Trait that contains methods 

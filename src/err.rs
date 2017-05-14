@@ -19,12 +19,12 @@
 use std;
 use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError,
         PythonObjectWithTypeObject, PyClone, PyDrop};
-use objects::{PyObject, PyType, ToPyTuple, exc};
+use objects::{PyObject, PyType, exc};
 use ffi;
 use libc;
 use std::ptr;
 use libc::c_char;
-use conversion::ToPyObject;
+use conversion::{ToPyObject, ToPyTuple};
 use std::ffi::CString;
 
 /**

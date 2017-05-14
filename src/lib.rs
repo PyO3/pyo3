@@ -91,7 +91,7 @@ pub use err::{PyErr, PyResult};
 pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
+pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
 pub use py_class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
 pub use class::*;
@@ -127,17 +127,15 @@ macro_rules! py_impl_to_py_object_for_python_object {
     ($T: ty) => (
         /// Identity conversion: allows using existing `PyObject` instances where
         /// `T: ToPyObject` is expected.
-        impl $crate::ToPyObject for $T {
-            type ObjectType = $T;
-
+        impl $crate::ToPyObject for $T where $T: $crate::PythonObject {
             #[inline]
-            fn to_py_object(&self, py: $crate::Python) -> $T {
-                $crate::PyClone::clone_ref(self, py)
+            fn to_py_object(&self, py: $crate::Python) -> $crate::PyObject {
+                $crate::PyClone::clone_ref(self, py).into_object()
             }
 
             #[inline]
-            fn into_py_object(self, _py: $crate::Python) -> $T {
-                self
+            fn into_py_object(self, _py: $crate::Python) -> $crate::PyObject {
+                self.into_object()
             }
 
             #[inline]
@@ -180,6 +178,9 @@ pub mod argparse;
 mod function;
 pub mod buffer;
 pub mod py_class;
+
+// re-export for simplicity
+pub use std::os::raw::*;
 
 /// Private re-exports for macros. Do not use.
 #[doc(hidden)]

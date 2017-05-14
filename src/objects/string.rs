@@ -229,33 +229,27 @@ impl PyBytes {
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
-    type ObjectType = PyString;
-
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyString {
-        PyString::new(py, self)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyString::new(py, self).into_object()
     }
 }
 
 /// Converts Rust `Cow<str>` to Python object.
 /// See `PyString::new` for details on the conversion.
 impl <'a> ToPyObject for Cow<'a, str> {
-    type ObjectType = PyString;
-
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyString {
-        PyString::new(py, self)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyString::new(py, self).into_object()
     }
 }
 
 /// Converts Rust `String` to Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
-    type ObjectType = PyString;
-
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyString {
-        PyString::new(py, self)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyString::new(py, self).into_object()
     }
 }
 

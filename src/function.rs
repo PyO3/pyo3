@@ -172,7 +172,7 @@ pub struct PythonObjectCallbackConverter<T>(pub marker::PhantomData<T>);
 
 impl <T, S> CallbackConverter<S> for PythonObjectCallbackConverter<T>
     where T: PythonObject,
-          S: ToPyObject<ObjectType=T>
+          S: ToPyObject
 {
     type R = *mut ffi::PyObject;
 

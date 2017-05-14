@@ -17,8 +17,8 @@
 // DEALINGS IN THE SOFTWARE.
 
 use python::{Python, PythonObject, ToPythonPointer};
-use conversion::ToPyObject;
-use objects::{PyObject, PyTuple, PyDict, ToPyTuple};
+use conversion::{ToPyObject, ToPyTuple};
+use objects::{PyObject, PyTuple, PyDict};
 use err::{PyResult, result_from_owned_ptr};
 use ffi;
 use std::ffi::CStr;

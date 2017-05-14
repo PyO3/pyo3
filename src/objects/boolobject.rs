@@ -1,7 +1,7 @@
 use ffi;
-use python::Python;
+use python::{Python, PythonObject};
 use err::PyResult;
-use super::PyObject;
+use super::{PyObject};
 use conversion::{ToPyObject};
 
 /// Represents a Python `bool`.
@@ -25,11 +25,10 @@ impl PyBool {
 
 /// Converts a rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
-    type ObjectType = PyBool;
 
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyBool {
-        PyBool::get(py, *self)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyBool::get(py, *self).into_object()
     }
 
     #[inline]

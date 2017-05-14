@@ -21,25 +21,8 @@ use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use super::exc;
 use ffi::{self, Py_ssize_t};
-use conversion::{FromPyObject, ToPyObject};
+use conversion::{FromPyObject, ToPyObject, ToPyTuple};
 use std::slice;
-
-/// Conversion trait that allows various objects to be converted into PyTuple object.
-pub trait ToPyTuple {
-
-    /// Converts self into a PyTuple object.
-    fn to_py_tuple(&self, py: Python) -> PyTuple;
-
-    /// Converts self into a PyTuple object and calls the specified closure
-    /// on the native FFI pointer underlying the Python object.
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
-    {
-        let obj = self.to_py_tuple(py).into_object();
-        f(obj.as_ptr())
-    }
-}
 
 /// Represents a Python tuple object.
 pub struct PyTuple(PyObject);
@@ -128,23 +111,20 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        type ObjectType = PyTuple;
-
-        fn to_py_object(&self, py: Python) -> PyTuple {
+        fn to_py_object(&self, py: Python) -> PyObject {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_py_object(py)).into_object(),)+
-            ])
+            ]).into_object()
         }
 
-        fn into_py_object(self, py: Python) -> PyTuple {
+        fn into_py_object(self, py: Python) -> PyObject {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.into_py_object(py)).into_object(),)+
-            ])
+            ]).into_object()
         }
     }
 
     impl <$($T: ToPyObject),+> ToPyTuple for ($($T,)+) {
-
         fn to_py_tuple(&self, py: Python) -> PyTuple {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_py_object(py)).into_object(),)+
@@ -199,15 +179,23 @@ pub struct NoArgs;
 
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyObject for NoArgs {
-    type ObjectType = PyTuple;
 
-    fn to_py_object(&self, py: Python) -> PyTuple {
-        PyTuple::empty(py)
+    fn to_py_object(&self, py: Python) -> PyObject {
+        PyTuple::empty(py).into_object()
     }
 }
 
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyTuple for NoArgs {
+
+    fn to_py_tuple(&self, py: Python) -> PyTuple {
+        PyTuple::empty(py)
+    }
+}
+
+
+/// Converts `()` to an empty Python tuple.
+impl ToPyTuple for () {
 
     fn to_py_tuple(&self, py: Python) -> PyTuple {
         PyTuple::empty(py)
@@ -229,14 +217,15 @@ extract!(obj to NoArgs; py => {
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject};
+    use PyTuple;
+    use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
     use conversion::ToPyObject;
 
     #[test]
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let tuple = (1, 2, 3).to_py_object(py);
+        let tuple = PyTuple::downcast_from(py, (1, 2, 3).to_py_object(py)).unwrap();
         assert_eq!(3, tuple.len(py));
         assert_eq!((1, 2, 3), tuple.into_object().extract(py).unwrap());
     }

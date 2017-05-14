@@ -187,7 +187,7 @@ macro_rules! py_class_as_number {
             = $crate::_detail::ffi::PyNumberMethods {
                 $( $slot_name : $slot_value, )*
                 ..
-                $crate::_detail::ffi::PyNumberMethods_INIT
+                    $crate::_detail::ffi::PyNumberMethods_INIT
             };
         unsafe { &mut NUMBER_METHODS }
     }}

@@ -19,23 +19,19 @@
 use std;
 use ffi;
 use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PyClone};
-use objects::PyObject;
+use objects::{PyObject, PyTuple};
 use err::PyResult;
 
 /// Conversion trait that allows various objects to be converted into Python objects.
 pub trait ToPyObject {
-    type ObjectType : PythonObject;
 
     /// Converts self into a Python object.
-    fn to_py_object(&self, py: Python) -> Self::ObjectType;
+    fn to_py_object(&self, py: Python) -> PyObject;
 
-    /// Converts self into a Python object.
-    ///
-    /// May be more efficient than `to_py_object` in some cases because
-    /// it can move out of the input object.
+    /// Converts self into a Python object. (Consumes self)
     #[inline]
-    fn into_py_object(self, py: Python) -> Self::ObjectType
-      where Self: Sized
+    fn into_py_object(self, py: Python) -> PyObject
+        where Self: Sized
     {
         self.to_py_object(py)
     }
@@ -72,6 +68,23 @@ pub trait ToPyObject {
     //   -> into_py_object() allocates new Python object
 }
 
+/// Conversion trait that allows various objects to be converted into PyTuple object.
+pub trait ToPyTuple {
+
+    /// Converts self into a PyTuple object.
+    fn to_py_tuple(&self, py: Python) -> PyTuple;
+
+    /// Converts self into a PyTuple object and calls the specified closure
+    /// on the native FFI pointer underlying the Python object.
+    #[inline]
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+        where F: FnOnce(*mut ffi::PyObject) -> R
+    {
+        let obj = self.to_py_tuple(py).into_object();
+        f(obj.as_ptr())
+    }
+}
+
 py_impl_to_py_object_for_python_object!(PyObject);
 
 /// FromPyObject is implemented by various types that can be extracted from a Python object.
@@ -101,7 +114,6 @@ pub trait FromPyObject<'source> : Sized {
 
 
 py_impl_from_py_object_for_python_object!(PyObject);
-
 
 
 pub trait RefFromPyObject {
@@ -143,15 +155,14 @@ where T: PythonObjectWithCheckedDowncast
 
 // ToPyObject for references
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
-    type ObjectType = T::ObjectType;
 
     #[inline]
-    fn to_py_object(&self, py: Python) -> T::ObjectType {
+    fn to_py_object(&self, py: Python) -> PyObject {
         <T as ToPyObject>::to_py_object(*self, py)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python) -> T::ObjectType {
+    fn into_py_object(self, py: Python) -> PyObject {
         <T as ToPyObject>::to_py_object(self, py)
     }
 
@@ -166,7 +177,6 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 /// `Option::Some<T>` is converted like `T`.
 /// `Option::None` is converted to Python `None`.
 impl <T> ToPyObject for Option<T> where T: ToPyObject {
-    type ObjectType = PyObject;
 
     fn to_py_object(&self, py: Python) -> PyObject {
         match *self {
@@ -185,7 +195,6 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    type ObjectType = PyObject;
 
     fn to_py_object(&self, py: Python) -> PyObject {
         py.None()
