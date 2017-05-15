@@ -30,7 +30,7 @@ build: src/py_class/py_class_impl.rs
 	cargo build $(CARGO_FLAGS)
 
 test: build
-	cargo test $(CARGO_FLAGS)
+	cargo test $(CARGO_FLAGS) --lib
 
 #ifeq ($(NIGHTLY),1)
 # ast-json output is only supported on nightly

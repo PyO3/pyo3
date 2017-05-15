@@ -14,16 +14,17 @@ use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyModule};
 use py_class::slots::UnitCallbackConverter;
 use function::handle_callback;
-use self::NO_METHODS;
+use class::NO_METHODS;
 
 
 /// Buffer protocol interface
 pub trait PyBufferProtocol {
 
-    fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()>;
+    fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int)
+                    -> PyResult<()>;
 
-    fn bf_releasebuffer(&self, py: Python, view: *mut ffi::Py_buffer) -> PyResult<()>;
-
+    fn bf_releasebuffer(&self, py: Python, view: *mut ffi::Py_buffer)
+                        -> PyResult<()>;
 }
 
 #[doc(hidden)]

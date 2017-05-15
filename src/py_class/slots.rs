@@ -25,6 +25,7 @@ use conversion::ToPyObject;
 use objects::PyObject;
 use function::CallbackConverter;
 use err::{PyErr, PyResult};
+use class::*;
 use py_class::{CompareOp};
 use class::PyBufferProtocol;
 use exc;
@@ -99,16 +100,25 @@ macro_rules! py_class_type_object_dynamic_init {
         }
 
         // call slot macros outside of unsafe block
-        *(unsafe { &mut $type_object.tp_as_async }) = py_class_as_async!($as_async);
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
 
+        // buffer protocol
         if let Some(buf) = $crate::ffi::PyBufferProcs::new::<$class>() {
             static mut BUFFER_PROCS: $crate::ffi::PyBufferProcs = $crate::ffi::PyBufferProcs_INIT;
             *(unsafe { &mut BUFFER_PROCS }) = buf;
             *(unsafe { &mut $type_object.tp_as_buffer }) = unsafe { &mut BUFFER_PROCS };
         } else {
             *(unsafe { &mut $type_object.tp_as_buffer }) = 0 as *mut $crate::ffi::PyBufferProcs;
+        }
+
+        // async methods
+        if let Some(buf) = $crate::ffi::PyAsyncMethods::new::<$class>() {
+            static mut ASYNC_METHODS: $crate::ffi::PyAsyncMethods = $crate::ffi::PyAsyncMethods_INIT;
+            *(unsafe { &mut ASYNC_METHODS }) = buf;
+            *(unsafe { &mut $type_object.tp_as_async }) = unsafe { &mut ASYNC_METHODS };
+        } else {
+            *(unsafe { &mut $type_object.tp_as_async }) = 0 as *mut $crate::ffi::PyAsyncMethods;
         }
 
         py_class_as_mapping!($type_object, $as_mapping, $setdelitem);

@@ -7,6 +7,8 @@ extern crate syn;
 use std::str::FromStr;
 use proc_macro::TokenStream;
 
+use quote::{Tokens, ToTokens};
+
 mod py_impl;
 use py_impl::build_py_impl;
 
@@ -18,13 +20,15 @@ pub fn py_impl(_: TokenStream, input: TokenStream) -> TokenStream {
 
     // Parse the string representation into a syntax tree
     //let ast: syn::Crate = source.parse().unwrap();
-    let ast = syn::parse_item(&source).unwrap();
+    let mut ast = syn::parse_item(&source).unwrap();
 
     // Build the output
-    let expanded = build_py_impl(&ast);
+    let expanded = build_py_impl(&mut ast);
 
     // Return the generated impl as a TokenStream
-    let s = source + expanded.as_str();
+    let mut tokens = Tokens::new();
+    ast.to_tokens(&mut tokens);
+    let s = String::from(tokens.as_str()) + expanded.as_str();
 
     TokenStream::from_str(s.as_str()).unwrap()
 }

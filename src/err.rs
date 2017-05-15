@@ -60,6 +60,8 @@ fn main() {
 #[macro_export]
 macro_rules! py_exception {
     ($module: ident, $name: ident, $base: ty) => {
+        use $crate::PythonObject;
+
         pub struct $name($crate::PyObject);
 
         pyobject_newtype!($name);

@@ -84,8 +84,6 @@ extern crate libc;
 pub use pyo3cls as cls;
 
 pub mod ffi;
-pub mod class;
-
 pub use ffi::Py_ssize_t;
 pub use err::{PyErr, PyResult};
 pub use objects::*;
@@ -94,7 +92,6 @@ pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
 pub use py_class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
-pub use class::*;
 
 #[allow(non_camel_case_types)]
 pub type Py_hash_t = ffi::Py_hash_t;
@@ -168,6 +165,7 @@ macro_rules! py_impl_from_py_object_for_python_object {
     }
 }
 
+pub mod py_class;
 mod python;
 mod err;
 mod conversion;
@@ -177,7 +175,8 @@ mod pythonrun;
 pub mod argparse;
 mod function;
 pub mod buffer;
-pub mod py_class;
+pub mod class;
+pub use class::*;
 
 // re-export for simplicity
 pub use std::os::raw::*;
@@ -193,7 +192,7 @@ pub mod _detail {
     }
     pub use err::{from_owned_ptr_or_panic, result_from_owned_ptr};
     pub use function::{handle_callback, py_fn_impl, AbortOnDrop,
-        PyObjectCallbackConverter, PythonObjectCallbackConverter};
+                       PyObjectCallbackConverter, PythonObjectCallbackConverter};
 }
 
 /// Expands to an `extern "C"` function that allows Python to load
