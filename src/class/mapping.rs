@@ -7,7 +7,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject};
+use python::{self, Python, PythonObject, PyDrop};
 use conversion::ToPyObject;
 use objects::{exc, PyObject, PyType, PyModule};
 use py_class::slots::{LenResultConverter, UnitCallbackConverter};
@@ -21,7 +21,9 @@ pub trait PyMappingProtocol {
 
     fn __getitem__(&self, py: Python, key: &PyObject) -> PyResult<PyObject>;
 
-    fn __setitem__(&self, py: Python, key: &PyObject, value: Option<&PyObject>) -> PyResult<()>;
+    fn __setitem__(&self, py: Python, key: &PyObject, value: &PyObject) -> PyResult<()>;
+
+    fn __delitem__(&self, py: Python, key: &PyObject) -> PyResult<()>;
 }
 
 impl<T> PyMappingProtocol for T where T: PythonObject {
@@ -33,16 +35,14 @@ impl<T> PyMappingProtocol for T where T: PythonObject {
         Ok(py.None())
     }
 
-    default fn __setitem__(&self, py: Python,
-                           _: &PyObject, val: Option<&PyObject>) -> PyResult<()> {
-        println!("=========");
-        if let Some(_) = val {
-            Err(PyErr::new::<exc::NotImplementedError, _>(
-                py, format!("Subscript assignment not supported by {:?}", self.as_object())))
-        } else {
-            Err(PyErr::new::<exc::NotImplementedError, _>(
-                py, format!("Subscript deletion not supported by {:?}", self.as_object())))
-        }
+    default fn __setitem__(&self, py: Python, _: &PyObject, _: &PyObject) -> PyResult<()> {
+        Err(PyErr::new::<exc::NotImplementedError, _>(
+            py, format!("Subscript assignment not supported by {:?}", self.as_object())))
+    }
+
+    default fn __delitem__(&self, py: Python, _: &PyObject) -> PyResult<()> {
+        Err(PyErr::new::<exc::NotImplementedError, _>(
+            py, format!("Subscript deletion not supported by {:?}", self.as_object())))
     }
 }
 
@@ -59,7 +59,7 @@ impl<T> PyMappingProtocolImpl for T {
 
 impl ffi::PyMappingMethods {
 
-    /// Construct PyAsyncMethods struct for PyTypeObject.tp_as_mapping
+    /// Construct PyMappingMethods struct for PyTypeObject.tp_as_mapping
     pub fn new<T>() -> Option<ffi::PyMappingMethods>
         where T: PyMappingProtocol + PyMappingProtocolImpl + PythonObject
     {
@@ -82,24 +82,48 @@ impl ffi::PyMappingMethods {
                         PyMappingProtocol, T::__getitem__,
                         *mut ffi::PyObject, *mut ffi::PyObject, PyObjectCallbackConverter);
                 },
-                &"__setitem__" => {
-                    meth.mp_ass_subscript = py_ternary_slot!(
-                        PyMappingProtocol, T::__setitem__,
-                        *mut ffi::PyObject, *mut ffi::PyObject, c_int,
-                        UnitCallbackConverter);
-                },
                 _ => unreachable!(),
             }
         }
 
-        // default method
-        if ! methods.contains(&"__setitem__") {
-            meth.mp_ass_subscript = py_ternary_slot!(
-                PyMappingProtocol, T::__setitem__,
-                *mut ffi::PyObject, *mut ffi::PyObject, c_int,
-                UnitCallbackConverter);
-        }
+        // always set
+        meth.mp_ass_subscript = Some(mp_ass_subscript::<T>());
 
         Some(meth)
     }
+}
+
+
+fn mp_ass_subscript<T>() -> ffi::objobjargproc
+    where T: PyMappingProtocol + PythonObject
+{
+    unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
+                                 key: *mut ffi::PyObject,
+                                 value: *mut ffi::PyObject) -> c_int
+        where T: PyMappingProtocol + PythonObject
+    {
+        const LOCATION: &'static str = concat!(stringify!($class), ".__setitem__()");
+
+        handle_callback(
+            LOCATION, UnitCallbackConverter, |py|
+            {
+                let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
+                let key = PyObject::from_borrowed_ptr(py, key);
+
+                // if value is none, then __delitem__
+                let ret = if value.is_null() {
+                    slf.__delitem__(py, &key)
+                } else {
+                    let value = PyObject::from_borrowed_ptr(py, value);
+                    let ret = slf.__setitem__(py, &key, &value);
+                    PyDrop::release_ref(value, py);
+                    ret
+                };
+
+                PyDrop::release_ref(key, py);
+                PyDrop::release_ref(slf, py);
+                ret
+            })
+    }
+    wrap::<T>
 }
