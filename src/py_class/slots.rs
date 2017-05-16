@@ -47,7 +47,6 @@ macro_rules! py_class_type_object_static_init {
     }) => (
         $crate::_detail::ffi::PyTypeObject {
             $( $slot_name : $slot_value, )*
-                //tp_traverse: py_class_tp_traverse!($class_name, $gc),
             ..
                 $crate::_detail::ffi::PyTypeObject_INIT
         }
@@ -72,8 +71,6 @@ macro_rules! py_class_type_object_dynamic_init {
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
-
-        py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
 }
 
@@ -134,73 +131,6 @@ macro_rules! py_class_as_number {
             };
         unsafe { &mut NUMBER_METHODS }
     }}
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_class_as_mapping {
-    ( $type_object:ident, [], [
-        sdi_setitem: {},
-        sdi_delitem: {},
-    ]) => {};
-    ( $type_object:ident, [ $( $slot_name:ident : $slot_value:expr ,)+ ], [
-        sdi_setitem: {},
-        sdi_delitem: {},
-    ]) => {
-        static mut MAPPING_METHODS : $crate::_detail::ffi::PyMappingMethods
-            = $crate::_detail::ffi::PyMappingMethods {
-                $( $slot_name : $slot_value, )*
-                ..
-                $crate::_detail::ffi::PyMappingMethods_INIT
-            };
-        unsafe { $type_object.tp_as_mapping = &mut MAPPING_METHODS; }
-    };
-    ( $type_object:ident, [ $( $slot_name:ident : $slot_value:expr ,)* ], [
-        sdi_setitem: $setitem:tt,
-        sdi_delitem: $delitem:tt,
-    ]) => {{
-        unsafe extern "C" fn mp_ass_subscript(
-            slf: *mut $crate::_detail::ffi::PyObject,
-            key: *mut $crate::_detail::ffi::PyObject,
-            val: *mut $crate::_detail::ffi::PyObject
-        ) -> $crate::_detail::libc::c_int {
-            if val.is_null() {
-                py_class_mp_ass_subscript!($delitem, slf,
-                    b"Subscript assignment not supported by %.200s\0",
-                    key)
-            } else {
-                py_class_mp_ass_subscript!($setitem, slf,
-                    b"Subscript deletion not supported by %.200s\0",
-                    key, val)
-            }
-        }
-        static mut MAPPING_METHODS : $crate::_detail::ffi::PyMappingMethods
-            = $crate::_detail::ffi::PyMappingMethods {
-                $( $slot_name : $slot_value, )*
-                mp_ass_subscript: Some(mp_ass_subscript),
-                ..
-                $crate::_detail::ffi::PyMappingMethods_INIT
-            };
-        unsafe { $type_object.tp_as_mapping = &mut MAPPING_METHODS; }
-    }};
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_class_mp_ass_subscript {
-    ({}, $slf:ident, $error:expr, $( $arg:expr ),+) => {
-        $crate::py_class::slots::mp_ass_subscript_error($slf, $error)
-    };
-    ({$slot:expr}, $slf:ident, $error:expr, $( $arg:expr ),+) => {
-        $slot.unwrap()($slf, $( $arg ),+)
-    }
-}
-
-pub unsafe fn mp_ass_subscript_error(o: *mut ffi::PyObject, err: &[u8]) -> c_int {
-    ffi::PyErr_Format(ffi::PyExc_NotImplementedError,
-        err.as_ptr() as *const c_char,
-        (*ffi::Py_TYPE(o)).tp_name);
-    -1
 }
 
 #[macro_export]

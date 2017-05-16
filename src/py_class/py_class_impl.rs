@@ -576,9 +576,9 @@ macro_rules! py_class_impl {
             ]
             /* as_mapping */ [
                 $( $mp_slot_name : $mp_slot_value, )*
-                mp_subscript: py_class_binary_slot!($class::__getitem__, $key_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+                    mp_subscript: py_class_binary_slot!($class::__getitem__, $key_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
-            $as_buffer $setdelitem
+                $as_buffer $setdelitem
         }
         /* impl: */ {
             $($imp)*

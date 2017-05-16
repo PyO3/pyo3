@@ -67,18 +67,18 @@ impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
         type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
 
         // GC support
-        //<T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
+        <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
 
         // type size
         type_object.tp_basicsize = <T as py_class::BaseObject>::size() as ffi::Py_ssize_t;
 
-        // buffer protocol
-        if let Some(buf) = ffi::PyBufferProcs::new::<T>() {
-            static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
-            *(unsafe { &mut BUFFER_PROCS }) = buf;
-            type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
+        // mapping methods
+        if let Some(buf) = ffi::PyMappingMethods::new::<T>() {
+            static mut MP_METHODS: ffi::PyMappingMethods = ffi::PyMappingMethods_INIT;
+            *(unsafe { &mut MP_METHODS }) = buf;
+            type_object.tp_as_mapping = unsafe { &mut MP_METHODS };
         } else {
-            type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
+            type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
         }
 
         // async methods
@@ -88,6 +88,15 @@ impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
             type_object.tp_as_async = unsafe { &mut ASYNC_METHODS };
         } else {
             type_object.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
+        }
+
+        // buffer protocol
+        if let Some(buf) = ffi::PyBufferProcs::new::<T>() {
+            static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
+            *(unsafe { &mut BUFFER_PROCS }) = buf;
+            type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
+        } else {
+            type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
         }
 
         // normal methods
@@ -100,6 +109,7 @@ impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
             *(unsafe { &mut METHODS }) = methods.as_ptr();
         }
 
+        // register type object
         unsafe {
             if ffi::PyType_Ready(type_object) == 0 {
                 Ok(PyType::from_type_ptr(py, type_object))

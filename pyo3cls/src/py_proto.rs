@@ -31,12 +31,17 @@ static CONTEXT_METHODS: Methods = Methods {
     non_pyobj_result: &[],
 };
 
+static MAPPING_METHODS: Methods = Methods {
+    methods: &[],
+    non_pyobj_result: &["__setitem__", "__len__"],
+};
 
 enum ImplType {
     Async,
     Buffer,
     Context,
     GC,
+    Mapping,
 }
 
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
@@ -60,6 +65,10 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                         impl_protocol("pyo3::class::gc::PyGCProtocolImpl",
                                       path.clone(), ty, impl_items, &GC_METHODS)
                     }
+                    ImplType::Mapping => {
+                        impl_protocol("pyo3::class::mapping::PyMappingProtocolImpl",
+                                      path.clone(), ty, impl_items, &MAPPING_METHODS)
+                    }
                 }
             } else {
                 panic!("#[py_proto] can only be used with protocol trait implementations")
@@ -76,6 +85,7 @@ fn process_path(path: &syn::Path) -> ImplType {
                 "PyBufferProtocol" => ImplType::Buffer,
                 "PyContextProtocol" => ImplType::Context,
                 "PyGCProtocol" => ImplType::GC,
+                "PyMappingProtocol" => ImplType::Mapping,
                 _ => panic!("#[py_proto] can not be used with this block"),
             }
     } else {
@@ -94,7 +104,8 @@ fn impl_protocol(name: &'static str,
         match iimpl.node {
             syn::ImplItemKind::Method(ref mut sig, ref mut block) => {
                 if methods.methods.contains(&iimpl.ident.as_ref()) {
-                    py_methods.push(py_method::gen_py_method(ty, &iimpl.ident, sig, block));
+                    py_methods.push(py_method::gen_py_method(
+                        ty, &iimpl.ident, sig, block, &iimpl.attrs));
                 } else {
                     meth.push(String::from(iimpl.ident.as_ref()));
 
