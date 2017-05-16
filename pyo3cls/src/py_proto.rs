@@ -61,6 +61,7 @@ static NUM_METHODS: Methods = Methods {
 
 
 enum ImplType {
+    Object,
     Async,
     Buffer,
     Context,
@@ -76,6 +77,9 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
         syn::ItemKind::Impl(_, _, _, ref path, ref ty, ref mut impl_items) => {
             if let &Some(ref path) = path {
                 match process_path(path) {
+                    ImplType::Object =>
+                        impl_protocol("pyo3::class::async::PyObjectProtocolImpl",
+                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Async =>
                         impl_protocol("pyo3::class::async::PyAsyncProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
@@ -112,6 +116,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
 fn process_path(path: &syn::Path) -> ImplType {
     if let Some(segment) = path.segments.last() {
             match segment.ident.as_ref() {
+                "PyObjectProtocol" => ImplType::Object,
                 "PyAsyncProtocol" => ImplType::Async,
                 "PyBufferProtocol" => ImplType::Buffer,
                 "PyContextProtocol" => ImplType::Context,

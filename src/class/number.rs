@@ -3,13 +3,16 @@
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
 
+use std::os::raw::c_int;
+
 use ffi;
 use err::PyResult;
 use python::{Python, PythonObject};
 use objects::PyObject;
 use function::PyObjectCallbackConverter;
+use py_class::slots::BoolConverter;
 use class::{NO_METHODS, NO_PY_METHODS};
-
+use class::basic::{PyObjectProtocol, PyObjectProtocolImpl};
 
 /// Number interface
 pub trait PyNumberProtocol {
@@ -244,10 +247,14 @@ impl ffi::PyNumberMethods {
 
     /// Construct PyNumberMethods struct for PyTypeObject.tp_as_number
     pub fn new<T>() -> Option<ffi::PyNumberMethods>
-        where T: PyNumberProtocol + PyNumberProtocolImpl + PythonObject
+        where T: PyNumberProtocol + PyNumberProtocolImpl
+                 + PyObjectProtocol + PyObjectProtocolImpl
+                 + PythonObject
+
     {
-        let methods = T::methods();
-        if methods.is_empty() {
+        let objm = <T as PyObjectProtocolImpl>::methods();
+        let methods = <T as PyNumberProtocolImpl>::methods();
+        if methods.is_empty() && ! objm.contains(&"__bool__") {
             return None
         }
 
@@ -366,7 +373,6 @@ impl ffi::PyNumberMethods {
                 &"__neg__" => {
                     meth.nb_negative = py_unary_func!(
                         PyNumberProtocol, T::__neg__, PyObjectCallbackConverter);
-
                 },
                 &"__pos__" => {
                     meth.nb_positive = py_unary_func!(
@@ -399,6 +405,11 @@ impl ffi::PyNumberMethods {
                 },
                 _ => (),
             }
+        }
+
+        if objm.contains(&"__bool__") {
+            meth.nb_bool = py_unary_func!(
+                PyObjectProtocol, T::__bool__, BoolConverter, c_int);
         }
 
         Some(meth)

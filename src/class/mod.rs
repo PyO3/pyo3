@@ -3,6 +3,7 @@
 #[macro_use] mod macros;
 
 pub mod async;
+pub mod basic;
 pub mod buffer;
 pub mod context;
 pub mod descr;
@@ -13,6 +14,7 @@ pub mod gc;
 pub mod sequence;
 pub mod typeob;
 
+pub use self::basic::PyObjectProtocol;
 pub use self::async::PyAsyncProtocol;
 pub use self::buffer::PyBufferProtocol;
 pub use self::context::PyContextProtocol;

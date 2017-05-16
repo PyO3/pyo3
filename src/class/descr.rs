@@ -29,19 +29,19 @@ pub trait PyDescrProtocol {
 }
 
 impl<P> PyDescrProtocol for P {
-    fn __get__(&self, py: Python, _: &PyObject, _: &PyObject) -> PyResult<PyObject> {
+    default fn __get__(&self, py: Python, _: &PyObject, _: &PyObject) -> PyResult<PyObject> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
 
-    fn __set__(&self, py: Python, _: &PyObject, _: &PyObject) -> PyResult<()> {
+    default fn __set__(&self, py: Python, _: &PyObject, _: &PyObject) -> PyResult<()> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
 
-    fn __delete__(&self, py: Python, _: &PyObject) -> PyResult<()> {
+    default fn __delete__(&self, py: Python, _: &PyObject) -> PyResult<()> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
 
-    fn __set_name__(&self, py: Python, _: &PyObject) -> PyResult<()> {
+    default fn __set_name__(&self, py: Python, _: &PyObject) -> PyResult<()> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
 }

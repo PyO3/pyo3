@@ -90,7 +90,7 @@ pub use pyo3cls as cls;
 pub use pyo3cls::*;
 
 pub mod ffi;
-pub use ffi::Py_ssize_t;
+pub use ffi::{Py_ssize_t, Py_hash_t};
 pub use err::{PyErr, PyResult};
 pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
@@ -100,7 +100,6 @@ pub use py_class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
 
 #[allow(non_camel_case_types)]
-pub type Py_hash_t = ffi::Py_hash_t;
 
 use std::{ptr, mem};
 
