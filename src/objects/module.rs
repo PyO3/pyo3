@@ -19,10 +19,10 @@
 use std;
 use ffi;
 use std::os::raw::c_char;
-use python::{Python, PythonObject, PyDrop};
+use python::{Python, PythonObject};
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, ToPyTuple};
-use objects::{PyObject, PyTuple, PyDict, exc};
+use objects::{PyObject, PyDict, exc};
 use py_class::PythonObjectFromPyClassMacro;
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};

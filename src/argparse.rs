@@ -19,10 +19,9 @@
 //! This module contains logic for parsing a python argument list.
 //! See also the macros `py_argparse!`, `py_fn!` and `py_method!`.
 
-use std::ptr;
-use python::{Python, PythonObject};
+use python::Python;
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
-use conversion::{RefFromPyObject, ToPyObject};
+use conversion::RefFromPyObject;
 use ffi;
 use err::{self, PyResult};
 

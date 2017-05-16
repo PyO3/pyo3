@@ -22,7 +22,7 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use ffi;
-use python::{Python, PythonObject, PyClone, ToPythonPointer, PythonObjectDowncastError};
+use python::{Python, PythonObject, ToPythonPointer};
 use super::{exc, PyObject};
 use err::{self, PyResult, PyErr};
 use conversion::{FromPyObject, RefFromPyObject, ToPyObject};

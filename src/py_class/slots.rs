@@ -17,17 +17,13 @@
 // DEALINGS IN THE SOFTWARE.
 
 use ffi;
-use std::{mem, isize, ptr};
-use std::ffi::CString;
-use std::os::raw::{c_char, c_int};
+use std::{isize, ptr};
+use std::os::raw::{c_int};
 use python::{Python, PythonObject};
 use conversion::ToPyObject;
-use objects::PyObject;
 use function::CallbackConverter;
 use err::{PyErr, PyResult};
-use class::*;
 use py_class::{CompareOp};
-use class::PyBufferProtocol;
 use exc;
 use Py_hash_t;
 

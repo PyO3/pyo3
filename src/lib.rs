@@ -24,7 +24,7 @@
 
 #![feature(specialization, shared, const_fn)]
 
-#![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
+// #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 
 
 //! Rust bindings to the Python interpreter.
@@ -82,8 +82,12 @@
 
 extern crate libc;
 
-#[macro_use] pub extern crate pyo3cls;
+#[allow(unused_imports)]
+#[macro_use]
+pub extern crate pyo3cls;
+
 pub use pyo3cls as cls;
+pub use pyo3cls::*;
 
 pub mod ffi;
 pub use ffi::Py_ssize_t;

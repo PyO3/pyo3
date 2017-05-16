@@ -8,10 +8,9 @@
 use std::os::raw::c_int;
 
 use ffi;
-use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject};
-use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyModule};
+use err::PyResult;
+use python::{Python, PythonObject};
+use objects::PyObject;
 use py_class::slots::UnitCallbackConverter;
 use function::handle_callback;
 use class::NO_METHODS;

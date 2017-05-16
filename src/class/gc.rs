@@ -7,12 +7,9 @@ use std::mem;
 use std::os::raw::{c_int, c_void};
 
 use ffi;
-use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject, PyDrop, ToPythonPointer};
-use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyModule};
-use py_class::slots::UnitCallbackConverter;
-use function::{handle_callback, PyObjectCallbackConverter, AbortOnDrop};
+use python::{Python, PythonObject, PyDrop, ToPythonPointer};
+use objects::PyObject;
+use function::AbortOnDrop;
 use class::NO_METHODS;
 
 pub struct PyTraverseError(c_int);

@@ -1,15 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::{mem, str, char, ptr};
-use std::ascii::AsciiExt;
-use std::borrow::Cow;
+use std::ptr;
 use std::os::raw::c_char;
 use ffi;
-use python::{Python, PythonObject, PyClone, ToPythonPointer, PythonObjectDowncastError};
-use super::{exc, PyObject};
+use python::{Python, PythonObject, ToPythonPointer};
+use objects::PyObject;
 use err::{self, PyResult, PyErr};
-use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
 
 /// Represents a Python bytearray.
 pub struct PyByteArray(PyObject);

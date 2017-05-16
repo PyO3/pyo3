@@ -7,9 +7,8 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject, PyDrop};
-use conversion::ToPyObject;
-use objects::{exc, PyObject, PyType, PyModule};
+use python::{Python, PythonObject, PyDrop};
+use objects::{exc, PyObject};
 use py_class::slots::{LenResultConverter, UnitCallbackConverter, BoolConverter};
 use function::{handle_callback, PyObjectCallbackConverter};
 use class::NO_METHODS;

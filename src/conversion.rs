@@ -16,9 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std;
 use ffi;
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PyClone};
+use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple};
 use err::PyResult;
 

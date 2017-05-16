@@ -1,12 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::mem;
-use std::ptr;
 use std::ffi::CString;
 
-use ::{ffi, exc, class, py_class, PyErr, Python, PyResult, PythonObject};
-use objects::PyType;
-use function::AbortOnDrop;
+use ffi;
 use class::NO_PY_METHODS;
 
 pub enum PyMethodDefType {

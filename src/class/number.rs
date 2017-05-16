@@ -3,15 +3,11 @@
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
 
-use std::os::raw::c_int;
-
 use ffi;
-use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject, PyDrop};
-use conversion::ToPyObject;
-use objects::{exc, PyObject, PyType, PyModule};
-use py_class::slots::{LenResultConverter, UnitCallbackConverter, BoolConverter};
-use function::{handle_callback, PyObjectCallbackConverter};
+use err::PyResult;
+use python::{Python, PythonObject};
+use objects::PyObject;
+use function::PyObjectCallbackConverter;
 use class::{NO_METHODS, NO_PY_METHODS};
 
 

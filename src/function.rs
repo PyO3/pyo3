@@ -19,9 +19,8 @@
 use libc;
 use std::{mem, ptr, io, any, marker};
 use std::panic;
-use std::ffi::{CString, CStr};
-use python::{Python, PythonObject, PyDrop};
-use objects::{PyObject, PyTuple, PyDict, PyString, exc};
+use python::{Python, PythonObject};
+use objects::PyObject;
 use conversion::ToPyObject;
 use ffi;
 use err::{self, PyResult};

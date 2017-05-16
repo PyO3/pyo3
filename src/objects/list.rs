@@ -16,11 +16,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
-use err::{self, PyErr, PyResult};
-use super::object::PyObject;
+use err;
+use python::{Python, PythonObject, ToPythonPointer};
+use objects::PyObject;
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::ToPyObject;
 
 /// Represents a Python `list`.
 pub struct PyList(PyObject);

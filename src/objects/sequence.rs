@@ -16,9 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use std::mem;
 use ffi;
-use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
+use python::{Python, PythonObject, ToPythonPointer, PyDrop};
 use conversion::{FromPyObject, ToPyObject};
 use objects::{PyObject, PyList, PyTuple, PyIterator};
 use ffi::Py_ssize_t;

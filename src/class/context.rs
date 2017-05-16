@@ -4,13 +4,9 @@
 //! Trait and support implementation for context manager api
 //!
 
-use ffi;
-use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject};
-use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyModule};
-use py_class::slots::UnitCallbackConverter;
-use function::{handle_callback, PyObjectCallbackConverter};
+use err::PyResult;
+use python::Python;
+use objects::PyObject;
 use class::{NO_METHODS, NO_PY_METHODS};
 
 

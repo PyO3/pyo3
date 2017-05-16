@@ -1,11 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std::mem;
-use std::ptr;
 use std::ffi::CString;
 use std::collections::HashMap;
 
-use ::{ffi, exc, class, py_class, PyErr, Python, PyResult, PythonObject};
+use ::{ffi, class, py_class, PyErr, Python, PyResult, PythonObject};
 use objects::PyType;
 use function::AbortOnDrop;
 use class::PyMethodDefType;

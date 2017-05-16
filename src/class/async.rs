@@ -7,12 +7,10 @@
 //! https://docs.python.org/3/c-api/typeobj.html#async-object-structures
 
 use ffi;
-use err::{PyErr, PyResult};
-use python::{self, Python, PythonObject};
-use conversion::ToPyObject;
-use objects::{PyObject, PyType, PyModule};
-use py_class::slots::UnitCallbackConverter;
-use function::{handle_callback, PyObjectCallbackConverter};
+use err::PyResult;
+use python::{Python, PythonObject};
+use objects::PyObject;
+use function::PyObjectCallbackConverter;
 use class::NO_METHODS;
 
 

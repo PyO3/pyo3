@@ -1,12 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::mem;
 use std::os::raw::c_long;
-use super::object::PyObject;
-use python::{Python, PythonObject, ToPythonPointer, PyClone, PyDrop};
+use objects::PyObject;
+use python::{Python, PythonObject};
 use err::{self, PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::ToPyObject;
 
 /// Represents a Python `slice` indices
 pub struct PySliceIndices {

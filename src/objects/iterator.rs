@@ -16,8 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer, PythonObjectDowncastError};
-use conversion::ToPyObject;
+use python::{Python, PythonObjectDowncastError};
 use objects::PyObject;
 use err::{PyErr, PyResult};
 use ffi;

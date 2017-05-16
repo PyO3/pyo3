@@ -22,7 +22,7 @@ mod py_class_impl;
 #[doc(hidden)] pub mod members;
 
 use std::os::raw::c_void;
-use std::{mem, ptr, cell};
+use std::{mem, ptr};
 use python::{self, Python, PythonObject};
 use objects::{PyObject, PyType, PyModule};
 use err::{self, PyResult};
