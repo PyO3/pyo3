@@ -14,9 +14,25 @@ use py_class::slots::UnitCallbackConverter;
 use function::{handle_callback, PyObjectCallbackConverter};
 use class::NO_METHODS;
 
+// __new__
+// __init__
+// __call__
+// classmethod
+// staticmethod
+
 
 /// Basic customization
 pub trait PyObjectProtocol {
+
+    // fn __getattr__()
+    // fn __setattr__()
+    // fn __delattr__()
+    // fn __getattribute__
+    // fn __setattribute__
+    // __instancecheck__
+    // __subclasscheck__
+    // __iter__
+    // __next__
 
     fn __str__(&self, py: Python) -> PyResult<PyString>;
 

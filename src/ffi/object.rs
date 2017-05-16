@@ -159,17 +159,14 @@ mod bufferinfo {
 pub use self::bufferinfo::*;
 
 pub type objobjproc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject)
-                              -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject)
+                         -> c_int;
 pub type visitproc =
-    unsafe extern "C" fn
-                              (object: *mut PyObject, arg: *mut c_void)
-                              -> c_int;
+    unsafe extern "C" fn(object: *mut PyObject, arg: *mut c_void)
+                         -> c_int;
 pub type traverseproc =
-    unsafe extern "C" fn
-                              (slf: *mut PyObject, visit: visitproc,
-                               arg: *mut c_void) -> c_int;
+    unsafe extern "C" fn(slf: *mut PyObject, visit: visitproc,
+                         arg: *mut c_void) -> c_int;
 
 pub type freefunc =
     unsafe extern "C" fn(arg1: *mut c_void);
@@ -179,58 +176,48 @@ pub type destructor =
 pub type printfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
 pub type getattrfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut c_char)
-                              -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char)
+                         -> *mut PyObject;
 pub type getattrofunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject)
-                              -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject)
+                         -> *mut PyObject;
 pub type setattrfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut c_char,
-                               arg3: *mut PyObject) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char,
+                         arg3: *mut PyObject) -> c_int;
 pub type setattrofunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: *mut PyObject) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: *mut PyObject) -> c_int;
 pub type reprfunc =
     unsafe extern "C" fn(arg1: *mut PyObject)
-                              -> *mut PyObject;
+                         -> *mut PyObject;
 pub type hashfunc =
     unsafe extern "C" fn(arg1: *mut PyObject)
-                              -> Py_hash_t;
+                         -> Py_hash_t;
 pub type richcmpfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: c_int) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: c_int) -> *mut PyObject;
 pub type getiterfunc =
     unsafe extern "C" fn(arg1: *mut PyObject)
-                              -> *mut PyObject;
+                         -> *mut PyObject;
 pub type iternextfunc =
     unsafe extern "C" fn(arg1: *mut PyObject)
-                              -> *mut PyObject;
+                         -> *mut PyObject;
 pub type descrgetfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: *mut PyObject) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: *mut PyObject) -> *mut PyObject;
 pub type descrsetfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: *mut PyObject) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: *mut PyObject) -> c_int;
 pub type initproc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: *mut PyObject) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: *mut PyObject) -> c_int;
 pub type newfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyTypeObject,
-                               arg2: *mut PyObject, arg3: *mut PyObject)
-                              -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyTypeObject,
+                         arg2: *mut PyObject, arg3: *mut PyObject)
+                         -> *mut PyObject;
 pub type allocfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyTypeObject,
-                               arg2: Py_ssize_t) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyTypeObject,
+                         arg2: Py_ssize_t) -> *mut PyObject;
 
 #[cfg(Py_LIMITED_API)]
 pub enum PyTypeObject { }

@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Represent Python Async Object Structures
+//! Python Async/Await Interface
 //! Trait and support implementation for implementing awaitable objects
 //!
 //! more information on python async support

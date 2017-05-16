@@ -22,7 +22,8 @@ pub trait PyClassInit {
 
 }
 
-impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
+impl<T> PyClassInit for T
+    where T: PythonObject + py_class::BaseObject {
 
     default fn init() -> bool { false }
 
@@ -54,6 +55,10 @@ impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
 
         // type size
         type_object.tp_basicsize = <T as py_class::BaseObject>::size() as ffi::Py_ssize_t;
+
+        // descriptor protocol
+        type_object.tp_descr_get = class::descr::get_descrfunc::<T>();
+        type_object.tp_descr_set = class::descr::set_descrfunc::<T>();
 
         // number methods
         if let Some(meth) = ffi::PyNumberMethods::new::<T>() {

@@ -66,11 +66,13 @@ macro_rules! py_binary_func {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_ternary_func {
-    ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
+    ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {
+        py_ternary_func!($trait, $class::$f, $conv, *mut $crate::ffi::PyObject);
+    };
+    ($trait:ident, $class:ident :: $f:ident, $conv:expr, $res_type:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
                                      arg1: *mut $crate::ffi::PyObject,
-                                     arg2: *mut $crate::ffi::PyObject)
-                                     -> *mut $crate::ffi::PyObject
+                                     arg2: *mut $crate::ffi::PyObject) -> $res_type
             where T: $trait + PythonObject
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");

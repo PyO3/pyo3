@@ -36,6 +36,12 @@ static CONTEXT_METHODS: Methods = Methods {
     no_adjust: false,
 };
 
+static DESCR_METHODS: Methods = Methods {
+    methods: &["__delete__", "__set_name__"],
+    non_pyobj_result: &[],
+    no_adjust: true,
+};
+
 static MAPPING_METHODS: Methods = Methods {
     methods: &[],
     non_pyobj_result: &["__setitem__", "__len__"],
@@ -58,6 +64,7 @@ enum ImplType {
     Async,
     Buffer,
     Context,
+    Descr,
     GC,
     Mapping,
     Sequence,
@@ -69,34 +76,30 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
         syn::ItemKind::Impl(_, _, _, ref path, ref ty, ref mut impl_items) => {
             if let &Some(ref path) = path {
                 match process_path(path) {
-                    ImplType::Async => {
+                    ImplType::Async =>
                         impl_protocol("pyo3::class::async::PyAsyncProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS)
-                    }
-                    ImplType::Buffer => {
+                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                    ImplType::Buffer =>
                         impl_protocol("pyo3::class::buffer::PyBufferProtocolImpl",
-                                      path.clone(), ty, impl_items, &BUFFER_METHODS)
-                    }
-                    ImplType::Context => {
+                                      path.clone(), ty, impl_items, &BUFFER_METHODS),
+                    ImplType::Context =>
                         impl_protocol("pyo3::class::context::PyContextProtocolImpl",
-                                      path.clone(), ty, impl_items, &CONTEXT_METHODS)
-                    }
-                    ImplType::GC => {
+                                      path.clone(), ty, impl_items, &CONTEXT_METHODS),
+                    ImplType::Descr =>
+                        impl_protocol("pyo3::class::descr::PyDescrProtocolImpl",
+                                      path.clone(), ty, impl_items, &DESCR_METHODS),
+                    ImplType::GC =>
                         impl_protocol("pyo3::class::gc::PyGCProtocolImpl",
-                                      path.clone(), ty, impl_items, &GC_METHODS)
-                    }
-                    ImplType::Mapping => {
+                                      path.clone(), ty, impl_items, &GC_METHODS),
+                    ImplType::Mapping =>
                         impl_protocol("pyo3::class::mapping::PyMappingProtocolImpl",
-                                      path.clone(), ty, impl_items, &MAPPING_METHODS)
-                    },
-                    ImplType::Sequence => {
+                                      path.clone(), ty, impl_items, &MAPPING_METHODS),
+                    ImplType::Sequence =>
                         impl_protocol("pyo3::class::mapping::PySequenceProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS)
-                    },
-                    ImplType::Number => {
+                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                    ImplType::Number =>
                         impl_protocol("pyo3::class::number::PyNumberProtocolImpl",
-                                      path.clone(), ty, impl_items, &NUM_METHODS)
-                    }
+                                      path.clone(), ty, impl_items, &NUM_METHODS),
                 }
             } else {
                 panic!("#[proto] can only be used with protocol trait implementations")
@@ -112,14 +115,15 @@ fn process_path(path: &syn::Path) -> ImplType {
                 "PyAsyncProtocol" => ImplType::Async,
                 "PyBufferProtocol" => ImplType::Buffer,
                 "PyContextProtocol" => ImplType::Context,
+                "PyDescrProtocol" => ImplType::Descr,
                 "PyGCProtocol" => ImplType::GC,
                 "PyMappingProtocol" => ImplType::Mapping,
                 "PySequenceProtocol" => ImplType::Sequence,
                 "PyNumberProtocol" => ImplType::Number,
-                _ => panic!("#[py_proto] can not be used with this block"),
+                _ => panic!("#[proto] can not be used with this block"),
             }
     } else {
-        panic!("#[py_proto] can not be used with this block");
+        panic!("#[proto] can not be used with this block");
     }
 }
 
