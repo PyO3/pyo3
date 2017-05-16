@@ -99,10 +99,10 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                     }
                 }
             } else {
-                panic!("#[py_proto] can only be used with protocol trait implementations")
+                panic!("#[proto] can only be used with protocol trait implementations")
             }
         },
-        _ => panic!("#[py_proto] can only be used with Impl blocks"),
+        _ => panic!("#[proto] can only be used with Impl blocks"),
     }
 }
 
@@ -135,7 +135,7 @@ fn impl_protocol(name: &'static str,
             syn::ImplItemKind::Method(ref mut sig, ref mut block) => {
                 if methods.methods.contains(&iimpl.ident.as_ref()) {
                     py_methods.push(py_method::gen_py_method(
-                        ty, &iimpl.ident, sig, block, &iimpl.attrs));
+                        ty, &iimpl.ident, sig, block, &mut iimpl.attrs));
                 } else {
                     meth.push(String::from(iimpl.ident.as_ref()));
 
@@ -175,8 +175,8 @@ fn impl_protocol(name: &'static str,
                     METHODS
                 }
 
-                fn py_methods() -> &'static [pyo3::class::PyMethodDef] {
-                    static METHODS: &'static [pyo3::class::PyMethodDef] = &[
+                fn py_methods() -> &'static [pyo3::class::PyMethodDefType] {
+                    static METHODS: &'static [pyo3::class::PyMethodDefType] = &[
                         #(#py_methods),*
                     ];
                     METHODS

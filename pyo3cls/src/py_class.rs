@@ -133,7 +133,7 @@ fn impl_checked_downcast(cls: &syn::Ident) -> Tokens {
 
 fn impl_class_init(cls: &syn::Ident) -> Tokens {
     quote! {
-        impl pyo3::class::methods::PyClassInit for #cls {
+        impl pyo3::class::typeob::PyClassInit for #cls {
             fn init() -> bool {
                 true
             }

@@ -13,8 +13,10 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 
 mod py_class;
+mod py_impl;
 mod py_proto;
 mod py_method;
+mod utils;
 
 
 #[proc_macro_attribute]
@@ -23,7 +25,6 @@ pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
     let source = input.to_string();
 
     // Parse the string representation into a syntax tree
-    //let ast: syn::Crate = source.parse().unwrap();
     let mut ast = syn::parse_item(&source).unwrap();
 
     // Build the output
@@ -44,11 +45,29 @@ pub fn class(_: TokenStream, input: TokenStream) -> TokenStream {
     let source = input.to_string();
 
     // Parse the string representation into a syntax tree
-    //let ast: syn::Crate = source.parse().unwrap();
     let mut ast = syn::parse_derive_input(&source).unwrap();
 
     // Build the output
     let expanded = py_class::build_py_class(&mut ast);
+
+    // Return the generated impl as a TokenStream
+    let mut tokens = Tokens::new();
+    ast.to_tokens(&mut tokens);
+    let s = String::from(tokens.as_str()) + expanded.as_str();
+
+    TokenStream::from_str(s.as_str()).unwrap()
+}
+
+#[proc_macro_attribute]
+pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
+    // Construct a string representation of the type definition
+    let source = input.to_string();
+
+    // Parse the string representation into a syntax tree
+    let mut ast = syn::parse_item(&source).unwrap();
+
+    // Build the output
+    let expanded = py_impl::build_py_methods(&mut ast);
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();

@@ -20,7 +20,6 @@ mod py_class;
 mod py_class_impl;
 #[doc(hidden)] pub mod slots;
 #[doc(hidden)] pub mod members;
-#[doc(hidden)] pub mod properties;
 
 use std::os::raw::c_void;
 use std::{mem, ptr, cell};

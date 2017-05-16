@@ -232,14 +232,14 @@ impl<T> PyNumberProtocol for T where T: PythonObject {
 #[doc(hidden)]
 pub trait PyNumberProtocolImpl {
     fn methods() -> &'static [&'static str];
-    fn py_methods() -> &'static [::class::PyMethodDef];
+    fn py_methods() -> &'static [::class::PyMethodDefType];
 }
 
 impl<T> PyNumberProtocolImpl for T {
     default fn methods() -> &'static [&'static str] {
         NO_METHODS
     }
-    default fn py_methods() -> &'static [::class::PyMethodDef] {
+    default fn py_methods() -> &'static [::class::PyMethodDefType] {
         NO_PY_METHODS
     }
 }

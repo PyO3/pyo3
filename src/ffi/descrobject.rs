@@ -1,20 +1,19 @@
+use std::ptr;
 use std::os::raw::{c_void, c_char, c_int};
 use ffi::object::{PyObject, PyTypeObject};
 use ffi::structmember::PyMemberDef;
 use ffi::methodobject::PyMethodDef;
 
 pub type getter =
-    unsafe extern "C" fn
-                              (slf: *mut PyObject, closure: *mut c_void)
-                              -> *mut PyObject;
+    unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void)
+                         -> *mut PyObject;
 
 pub type setter =
-    unsafe extern "C" fn
-                              (slf: *mut PyObject, value: *mut PyObject,
-                               closure: *mut c_void) -> c_int;
+    unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject,
+                         closure: *mut c_void) -> c_int;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Debug)]
 pub struct PyGetSetDef {
     pub name: *mut c_char,
     pub get: Option<getter>,
@@ -22,6 +21,14 @@ pub struct PyGetSetDef {
     pub doc: *mut c_char,
     pub closure: *mut c_void,
 }
+
+pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
+    name: ptr::null_mut(),
+    get: None,
+    set: None,
+    doc: ptr::null_mut(),
+    closure: ptr::null_mut(),
+};
 
 impl Clone for PyGetSetDef {
     #[inline] fn clone(&self) -> PyGetSetDef { *self }

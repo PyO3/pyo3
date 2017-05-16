@@ -45,14 +45,14 @@ impl<P> PyContextProtocol for P {
 pub trait PyContextProtocolImpl {
     fn methods() -> &'static [&'static str];
 
-    fn py_methods() -> &'static [::class::PyMethodDef];
+    fn py_methods() -> &'static [::methods::PyMethodDefType];
 }
 
 impl<T> PyContextProtocolImpl for T {
     default fn methods() -> &'static [&'static str] {
         NO_METHODS
     }
-    default fn py_methods() -> &'static [::class::PyMethodDef] {
+    default fn py_methods() -> &'static [::methods::PyMethodDefType] {
         NO_PY_METHODS
     }
 }

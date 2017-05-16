@@ -7,7 +7,13 @@ use std::ffi::CString;
 use ::{ffi, exc, class, py_class, PyErr, Python, PyResult, PythonObject};
 use objects::PyType;
 use function::AbortOnDrop;
+use class::NO_PY_METHODS;
 
+pub enum PyMethodDefType {
+    Method(PyMethodDef),
+    Getter(PyGetterDef),
+    Setter(PySetterDef),
+}
 
 #[derive(Copy, Clone)]
 pub enum PyMethodType {
@@ -23,12 +29,31 @@ pub struct PyMethodDef {
     pub ml_doc: &'static str,
 }
 
+#[derive(Copy, Clone)]
+pub struct PyGetterDef {
+    pub name: &'static str,
+    pub meth: ffi::getter,
+    pub doc: &'static str,
+}
+
+#[derive(Copy, Clone)]
+pub struct PySetterDef {
+    pub name: &'static str,
+    pub meth: ffi::setter,
+    pub doc: &'static str,
+}
+
 unsafe impl Sync for PyMethodDef {}
 unsafe impl Sync for ffi::PyMethodDef {}
 
+unsafe impl Sync for PyGetterDef {}
+unsafe impl Sync for PySetterDef {}
+unsafe impl Sync for ffi::PyGetSetDef {}
+
+
 impl PyMethodDef {
 
-    fn as_method_def(&self) -> ffi::PyMethodDef {
+    pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
             PyMethodType::PyCFunctionWithKeywords(meth) =>
@@ -48,138 +73,33 @@ impl PyMethodDef {
     }
 }
 
-
-pub trait PyClassInit {
-
-    fn init() -> bool;
-
-    fn type_object() -> &'static mut ffi::PyTypeObject;
-
-    fn build_type(py: Python,
-                  module_name: Option<&str>,
-                  type_object: &mut ffi::PyTypeObject) -> PyResult<PyType>;
-
-}
-
-impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
-
-    default fn init() -> bool { false }
-
-    default fn type_object() -> &'static mut ffi::PyTypeObject {
-        static mut TYPE_OBJECT: ffi::PyTypeObject = ffi::PyTypeObject_INIT;
-        unsafe {
-            &mut TYPE_OBJECT
+impl PyGetterDef {
+    pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
+        if dst.name.is_null() {
+            dst.name = CString::new(self.name).expect(
+                "Method name must not contain NULL byte").into_raw();
         }
-    }
-
-    default fn build_type(py: Python, module_name: Option<&str>,
-                          type_object: &mut ffi::PyTypeObject) -> PyResult<PyType> {
-        // type name
-        let name = match module_name {
-            Some(module_name) => CString::new(
-                format!("{}.{}", module_name, stringify!(type_name))),
-            None => CString::new(stringify!(type_name))
-        };
-        let name = name.expect(
-            "Module name/type name must not contain NUL byte").into_raw();
-
-        type_object.tp_name = name;
-
-        // dealloc
-        type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
-
-        // GC support
-        <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
-
-        // type size
-        type_object.tp_basicsize = <T as py_class::BaseObject>::size() as ffi::Py_ssize_t;
-
-        // number methods
-        if let Some(meth) = ffi::PyNumberMethods::new::<T>() {
-            static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
-            *(unsafe { &mut NB_METHODS }) = meth;
-            type_object.tp_as_number = unsafe { &mut NB_METHODS };
-        } else {
-            type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
-        }
-
-        // mapping methods
-        if let Some(meth) = ffi::PyMappingMethods::new::<T>() {
-            static mut MP_METHODS: ffi::PyMappingMethods = ffi::PyMappingMethods_INIT;
-            *(unsafe { &mut MP_METHODS }) = meth;
-            type_object.tp_as_mapping = unsafe { &mut MP_METHODS };
-        } else {
-            type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
-        }
-
-        // sequence methods
-        if let Some(meth) = ffi::PySequenceMethods::new::<T>() {
-            static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
-            *(unsafe { &mut SQ_METHODS }) = meth;
-            type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
-        } else {
-            type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
-        }
-
-        // async methods
-        if let Some(meth) = ffi::PyAsyncMethods::new::<T>() {
-            static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;
-            *(unsafe { &mut ASYNC_METHODS }) = meth;
-            type_object.tp_as_async = unsafe { &mut ASYNC_METHODS };
-        } else {
-            type_object.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
-        }
-
-        // buffer protocol
-        if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
-            static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
-            *(unsafe { &mut BUFFER_PROCS }) = meth;
-            type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
-        } else {
-            type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
-        }
-
-        // normal methods
-        let mut methods = class::methods::py_class_method_defs::<T>();
-        if !methods.is_empty() {
-            methods.push(ffi::PyMethodDef_INIT);
-            type_object.tp_methods = methods.as_ptr() as *mut _;
-
-            static mut METHODS: *const ffi::PyMethodDef = 0 as *const _;
-            *(unsafe { &mut METHODS }) = methods.as_ptr();
-        }
-
-        // register type object
-        unsafe {
-            if ffi::PyType_Ready(type_object) == 0 {
-                Ok(PyType::from_type_ptr(py, type_object))
-            } else {
-                Err(PyErr::fetch(py))
-            }
-        }
+        dst.get = Some(self.meth.clone());
     }
 }
 
-pub unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
-    where T: py_class::BaseObject
-{
-    let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
-    let py = Python::assume_gil_acquired();
-    let r = T::dealloc(py, obj);
-    mem::forget(guard);
-    r
+impl PySetterDef {
+    pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
+        if dst.name.is_null() {
+            dst.name = CString::new(self.name).expect(
+                "Method name must not contain NULL byte").into_raw();
+        }
+        dst.set = Some(self.meth.clone());
+    }
 }
 
-pub fn py_class_method_defs<T>() -> Vec<ffi::PyMethodDef> {
-    let mut defs = Vec::new();
+#[doc(hidden)]
+pub trait PyMethodsProtocolImpl {
+    fn py_methods() -> &'static [PyMethodDefType];
+}
 
-    for def in <T as class::context::PyContextProtocolImpl>::py_methods() {
-        defs.push(def.as_method_def())
+impl<T> PyMethodsProtocolImpl for T {
+    default fn py_methods() -> &'static [PyMethodDefType] {
+        NO_PY_METHODS
     }
-
-    for def in <T as class::number::PyNumberProtocolImpl>::py_methods() {
-        defs.push(def.as_method_def())
-    }
-
-    defs
 }

@@ -126,8 +126,7 @@ macro_rules! py_class_impl {
 
                     fn init($py: $crate::Python, module_name: Option<&str>) -> $crate::PyResult<$crate::PyType> {
                         py_class_init_members!($class, $py, TYPE_OBJECT, $members);
-                        py_class_init_properties!($class, $py, TYPE_OBJECT, $properties);
-                        unsafe { <$class as $crate::class::methods::PyClassInit>
+                        unsafe { <$class as $crate::class::typeob::PyClassInit>
                                   ::build_type($py, module_name, &mut TYPE_OBJECT) }
                     }
                 }
