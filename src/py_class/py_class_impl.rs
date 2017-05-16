@@ -28,7 +28,6 @@
 macro_rules! py_class_impl {
     // TT muncher macro. Results are accumulated in $info $slots $impls and $members.
 
-
     // Base case: we're done munching and can start producing code:
     {   {}
         $class:ident $py:ident
@@ -42,56 +41,8 @@ macro_rules! py_class_impl {
         $slots:tt { $( $imp:item )* } $members:tt $properties:tt
     } => {
         py_coerce_item! {
+            #[$crate::cls::class]
             $($class_visibility)* struct $class { _unsafe_inner: $crate::PyObject }
-        }
-
-        py_impl_to_py_object_for_python_object!($class);
-        py_impl_from_py_object_for_python_object!($class);
-
-        impl $crate::PythonObject for $class {
-            #[inline]
-            fn as_object(&self) -> &$crate::PyObject {
-                &self._unsafe_inner
-            }
-
-            #[inline]
-            fn into_object(self) -> $crate::PyObject {
-                self._unsafe_inner
-            }
-
-            /// Unchecked downcast from PyObject to Self.
-            /// Undefined behavior if the input object does not have the expected type.
-            #[inline]
-            unsafe fn unchecked_downcast_from(obj: $crate::PyObject) -> Self {
-                $class { _unsafe_inner: obj }
-            }
-
-            /// Unchecked downcast from PyObject to Self.
-            /// Undefined behavior if the input object does not have the expected type.
-            #[inline]
-            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a $crate::PyObject) -> &'a Self {
-                ::std::mem::transmute(obj)
-            }
-        }
-
-        impl $crate::PythonObjectWithCheckedDowncast for $class {
-            #[inline]
-            fn downcast_from<'p>(py: $crate::Python<'p>, obj: $crate::PyObject) -> Result<$class, $crate::PythonObjectDowncastError<'p>> {
-                if py.get_type::<$class>().is_instance(py, &obj) {
-                    Ok($class { _unsafe_inner: obj })
-                } else {
-                    Err($crate::PythonObjectDowncastError(py))
-                }
-            }
-
-            #[inline]
-            fn downcast_borrow_from<'a, 'p>(py: $crate::Python<'p>, obj: &'a $crate::PyObject) -> Result<&'a $class, $crate::PythonObjectDowncastError<'p>> {
-                if py.get_type::<$class>().is_instance(py, obj) {
-                    unsafe { Ok(::std::mem::transmute(obj)) }
-                } else {
-                    Err($crate::PythonObjectDowncastError(py))
-                }
-            }
         }
 
         py_coerce_item! {
@@ -177,13 +128,8 @@ macro_rules! py_class_impl {
                         py_class_type_object_dynamic_init!($class, $py, TYPE_OBJECT, module_name, $slots);
                         py_class_init_members!($class, $py, TYPE_OBJECT, $members);
                         py_class_init_properties!($class, $py, TYPE_OBJECT, $properties);
-                        unsafe {
-                            if $crate::_detail::ffi::PyType_Ready(&mut TYPE_OBJECT) == 0 {
-                                Ok($crate::PyType::from_type_ptr($py, &mut TYPE_OBJECT))
-                            } else {
-                                Err($crate::PyErr::fetch($py))
-                            }
-                        }
+                        unsafe { <$class as $crate::class::methods::PyClassInit>
+                                  ::build_type($py, module_name, &mut TYPE_OBJECT) }
                     }
                 }
             }
@@ -243,77 +189,6 @@ macro_rules! py_class_impl {
                         $crate::py_class::data_offset::<$data_type>($size)
                         )
                     }
-                }
-            }
-        }
-        $members $properties
-    }};
-    { { def __traverse__(&$slf:tt, $visit:ident) $body:block $($tail:tt)* }
-        $class:ident $py:ident
-        /* info: */ {
-            $base_type: ty,
-            $size: expr,
-            $class_visibility: tt,
-            /* gc: */ {
-                /* traverse_proc: */ None,
-                $traverse_data: tt
-            },
-            $datas: tt
-        }
-        $slots:tt
-        { $( $imp:item )* }
-        $members:tt $properties:tt
-    } => { py_class_impl! {
-        { $($tail)* }
-        $class $py
-        /* info: */ {
-            $base_type,
-            $size,
-            $class_visibility,
-            /* gc: */ {
-                /* traverse_proc: */ $class::__traverse__,
-                $traverse_data
-            },
-            $datas
-        }
-        $slots
-        /* impl: */ {
-            $($imp)*
-            py_coerce_item!{
-                impl $class {
-                    fn __traverse__(&$slf,
-                    $py: $crate::Python,
-                    $visit: $crate::py_class::gc::VisitProc)
-                    -> Result<(), $crate::py_class::gc::TraverseError>
-                    $body
-                }
-            }
-        }
-        $members $properties
-    }};
-    { { def __clear__ (&$slf:ident) $body:block $($tail:tt)* }
-        $class:ident $py:ident $info:tt
-        /* slots: */ {
-            /* type_slots */ [ $( $tp_slot_name:ident : $tp_slot_value:expr, )* ]
-            $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
-        }
-        { $( $imp:item )* }
-        $members:tt $properties:tt
-    } => { py_class_impl! {
-        { $($tail)* }
-        $class $py $info
-        /* slots: */ {
-            /* type_slots */ [
-                $( $tp_slot_name : $tp_slot_value, )*
-                tp_clear: py_class_tp_clear!($class),
-            ]
-            $as_async $as_number $as_sequence $as_mapping $as_buffer $setdelitem
-        }
-        /* impl: */ {
-            $($imp)*
-            py_coerce_item!{
-                impl $class {
-                    fn __clear__(&$slf, $py: $crate::Python) $body
                 }
             }
         }
@@ -474,39 +349,6 @@ macro_rules! py_class_impl {
         $members $properties
     }};
 
-    { { def __anext__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for operator __anext__" }
-    };
-    { { def __await__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
-        $class:ident $py:ident $info:tt
-        /* slots: */ {
-            $type_slots:tt
-            /* as_async */ [ $( $am_slot_name:ident : $am_slot_value:expr, )* ]
-            $as_number:tt $as_sequence:tt $as_mapping:tt $as_buffer:tt $setdelitem:tt
-        }
-        { $( $imp:item )* }
-        $members:tt $properties:tt
-    } => { py_class_impl! {
-        { $($tail)* }
-        $class $py $info
-        /* slots: */ {
-            $type_slots
-            /* as_async */ [
-                $( $am_slot_name : $am_slot_value, )*
-                am_await: py_class_unary_slot!($class::__await__, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
-            ]
-            $as_number $as_sequence $as_mapping $as_buffer $setdelitem
-        }
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, __await__(&$slf,) $res_type; { $($body)* } [] }
-        }
-        $members $properties
-    }};
-
-    { { def __await__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for operator __await__" }
-    };
     { { def __bool__(&$slf:ident) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
         $class:ident $py:ident $info:tt
         /* slots: */ {
@@ -536,66 +378,6 @@ macro_rules! py_class_impl {
 
     { { def __bool__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "Invalid signature for operator __bool__" }
-    };
-    { { def __buffer_get__(&$slf:ident, $view:ident , $flags:ident ) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
-        $class:ident $py:ident $info:tt
-        /* slots: */ {
-            $type_slots:tt $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt
-            /* as_buffer */ [ $( $bf_slot_name:ident : $bf_slot_value:expr, )* ]
-            $setdelitem:tt
-        }
-        { $( $imp:item )* }
-        $members:tt $properties:tt
-    } => { py_class_impl! {
-        { $($tail)* }
-        $class $py $info
-        /* slots: */ {
-            $type_slots $as_async $as_number $as_sequence $as_mapping
-            /* as_buffer */ [
-                $( $bf_slot_name : $bf_slot_value, )*
-                bf_getbuffer: py_class_ternary_internal!($class::__buffer_get__, *mut $crate::_detail::ffi::Py_buffer, $crate::_detail::libc::c_int, $crate::_detail::libc::c_int, $crate::py_class::slots::SuccessConverter),
-            ]
-            $setdelitem
-        }
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, __buffer_get__(&$slf,) $res_type; { $($body)* } [{ $view : *mut $crate::_detail::ffi::Py_buffer = {} } { $flags : $crate::_detail::libc::c_int = {} }] }
-        }
-        $members $properties
-    }};
-
-    { { def __buffer_get__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for operator __buffer_get__" }
-    };
-    { { def __buffer_release__(&$slf:ident, $view:ident ) -> $res_type:ty { $($body:tt)* } $($tail:tt)* }
-        $class:ident $py:ident $info:tt
-        /* slots: */ {
-            $type_slots:tt $as_async:tt $as_number:tt $as_sequence:tt $as_mapping:tt
-            /* as_buffer */ [ $( $bf_slot_name:ident : $bf_slot_value:expr, )* ]
-            $setdelitem:tt
-        }
-        { $( $imp:item )* }
-        $members:tt $properties:tt
-    } => { py_class_impl! {
-        { $($tail)* }
-        $class $py $info
-        /* slots: */ {
-            $type_slots $as_async $as_number $as_sequence $as_mapping
-            /* as_buffer */ [
-                $( $bf_slot_name : $bf_slot_value, )*
-                bf_releasebuffer: py_class_binary_slot!($class::__buffer_release__, *mut $crate::_detail::ffi::Py_buffer, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PythonObjectCallbackConverter::<$crate::void>(::std::marker::PhantomData)),
-            ]
-            $setdelitem
-        }
-        /* impl: */ {
-            $($imp)*
-            py_class_impl_item! { $class, $py, __buffer_release__(&$slf,) $res_type; { $($body)* } [{ $view : *mut $crate::_detail::ffi::Py_buffer = {} }] }
-        }
-        $members $properties
-    }};
-
-    { { def __buffer_release__ $($tail:tt)* } $( $stuff:tt )* } => {
-        py_error! { "Invalid signature for operator __buffer_release__" }
     };
     { {  def __call__ (&$slf:ident) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt

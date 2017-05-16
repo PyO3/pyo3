@@ -47,36 +47,12 @@ macro_rules! py_class_type_object_static_init {
     }) => (
         $crate::_detail::ffi::PyTypeObject {
             $( $slot_name : $slot_value, )*
-            tp_dealloc: Some($crate::py_class::slots::tp_dealloc_callback::<$class_name>),
-            tp_flags: py_class_type_object_flags!($gc),
-            tp_traverse: py_class_tp_traverse!($class_name, $gc),
+                //tp_traverse: py_class_tp_traverse!($class_name, $gc),
             ..
                 $crate::_detail::ffi::PyTypeObject_INIT
         }
     );
 }
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_class_type_object_flags {
-    (/* gc: */ {
-        /* traverse_proc: */ None,
-        /* traverse_data: */ [ /*name*/ ]
-    }) => {
-        $crate::py_class::slots::TPFLAGS_DEFAULT
-    };
-    (/* gc: */ {
-        $traverse_proc: expr,
-        $traverse_data: tt
-    }) => {
-        $crate::py_class::slots::TPFLAGS_DEFAULT
-        | $crate::_detail::ffi::Py_TPFLAGS_HAVE_GC
-    };
-}
-
-pub const TPFLAGS_DEFAULT : ::libc::c_ulong = ffi::Py_TPFLAGS_DEFAULT;
-
-use class::buffer::*;
 
 #[macro_export]
 #[doc(hidden)]
@@ -93,55 +69,12 @@ macro_rules! py_class_type_object_dynamic_init {
             $setdelitem:tt
         }
     ) => {
-        unsafe {
-            $type_object.tp_name = $crate::py_class::slots::build_tp_name($module_name, stringify!($class));
-            $type_object.tp_basicsize = <$class as $crate::py_class::BaseObject>::size()
-                                        as $crate::_detail::ffi::Py_ssize_t;
-        }
-
         // call slot macros outside of unsafe block
         *(unsafe { &mut $type_object.tp_as_sequence }) = py_class_as_sequence!($as_sequence);
         *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
 
-        // buffer protocol
-        if let Some(buf) = $crate::ffi::PyBufferProcs::new::<$class>() {
-            static mut BUFFER_PROCS: $crate::ffi::PyBufferProcs = $crate::ffi::PyBufferProcs_INIT;
-            *(unsafe { &mut BUFFER_PROCS }) = buf;
-            *(unsafe { &mut $type_object.tp_as_buffer }) = unsafe { &mut BUFFER_PROCS };
-        } else {
-            *(unsafe { &mut $type_object.tp_as_buffer }) = 0 as *mut $crate::ffi::PyBufferProcs;
-        }
-
-        // async methods
-        if let Some(buf) = $crate::ffi::PyAsyncMethods::new::<$class>() {
-            static mut ASYNC_METHODS: $crate::ffi::PyAsyncMethods = $crate::ffi::PyAsyncMethods_INIT;
-            *(unsafe { &mut ASYNC_METHODS }) = buf;
-            *(unsafe { &mut $type_object.tp_as_async }) = unsafe { &mut ASYNC_METHODS };
-        } else {
-            *(unsafe { &mut $type_object.tp_as_async }) = 0 as *mut $crate::ffi::PyAsyncMethods;
-        }
-
         py_class_as_mapping!($type_object, $as_mapping, $setdelitem);
     }
-}
-
-
-pub fn build_tp_name(module_name: Option<&str>, type_name: &str) -> *mut c_char {
-    let name = match module_name {
-        Some(module_name) => CString::new(format!("{}.{}", module_name, type_name)),
-        None => CString::new(type_name)
-    };
-    name.expect("Module name/type name must not contain NUL byte").into_raw()
-}
-
-pub unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
-    where T: super::BaseObject
-{
-    let guard = ::function::AbortOnDrop("Cannot unwind out of tp_dealloc");
-    let py = Python::assume_gil_acquired();
-    let r = T::dealloc(py, obj);
-    mem::forget(guard);
-    r
 }
 
 #[macro_export]
@@ -202,22 +135,6 @@ macro_rules! py_class_as_number {
         unsafe { &mut NUMBER_METHODS }
     }}
 }
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! py_class_as_async {
-    ([]) => (0 as *mut $crate::_detail::ffi::PyAsyncMethods);
-    ([$( $slot_name:ident : $slot_value:expr ,)+]) => {{
-        static mut ASYNC_METHODS : $crate::_detail::ffi::PyAsyncMethods
-            = $crate::_detail::ffi::PyAsyncMethods {
-                $( $slot_name : $slot_value, )*
-                    ..
-                    $crate::_detail::ffi::PyAsyncMethods_INIT
-            };
-        unsafe { &mut ASYNC_METHODS }
-    }}
-}
-
 
 #[macro_export]
 #[doc(hidden)]

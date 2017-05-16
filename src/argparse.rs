@@ -42,14 +42,13 @@ pub struct ParamDescription<'a> {
 /// * kwargs: Keyword arguments
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
-pub fn parse_args(
-    py: Python,
-    fname: Option<&str>, params: &[ParamDescription],
-    args: &PyTuple, kwargs: Option<&PyDict>,
-    output: &mut[Option<PyObject>]
-) -> PyResult<()>
+pub fn parse_args(py: Python,
+                  fname: Option<&str>, params: &[ParamDescription],
+                  args: &PyTuple, kwargs: Option<&PyDict>,
+                  output: &mut[Option<PyObject>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
+
     let nargs = args.len(py);
     let nkeywords = kwargs.map_or(0, |d| d.len(py));
     if nargs + nkeywords > params.len() {

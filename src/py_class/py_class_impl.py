@@ -789,25 +789,6 @@ special_names = {
     # With statement context managers
     '__enter__': normal_method(),
     '__exit__': normal_method(),
-
-    # Coroutines
-    '__await__': operator('am_await'),
-    '__aiter__': operator('am_aiter'),
-    '__anext__': operator('am_anext'),
-    '__aenter__': unimplemented(),
-    '__aexit__': unimplemented(),
-
-    # Buffer
-    '__buffer_get__': operator(
-        "bf_getbuffer",
-        args=[Argument('view', '*mut $crate::_detail::ffi::Py_buffer'), Argument('flags', 'int')],
-        wrapper="py_class_ternary_internal",
-        res_type='bool', res_conv='$crate::py_class::slots::SuccessConverter',
-        res_ffi_type = '$crate::_detail::libc::c_int'),
-    '__buffer_release__': operator(
-        "bf_releasebuffer",
-        args=[Argument('view', '*mut $crate::_detail::ffi::Py_buffer')],
-        wrapper="py_class_binary_internal", res_type='void'),
 }
 
 def main():

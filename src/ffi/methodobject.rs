@@ -25,7 +25,7 @@ pub type _PyCFunctionFast =
 
 pub type PyCFunctionWithKeywords =
     unsafe extern "C" fn
-                              (slf: *mut PyObject, args: *mut PyObject,
+    (slf: *mut PyObject, args: *mut PyObject,
                                kwds: *mut PyObject) -> *mut PyObject;
 pub type PyNoArgsFunction =
     unsafe extern "C" fn(slf: *mut PyObject)
@@ -47,6 +47,13 @@ pub struct PyMethodDef {
     pub ml_flags: c_int,
     pub ml_doc: *const c_char,
 }
+
+pub const PyMethodDef_INIT : PyMethodDef = PyMethodDef {
+    ml_name: 0 as *const _,
+    ml_meth: None,
+    ml_flags: 0,
+    ml_doc: 0 as *const _,
+};
 
 impl Clone for PyMethodDef {
     #[inline] fn clone(&self) -> PyMethodDef { *self }

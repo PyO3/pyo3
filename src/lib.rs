@@ -16,11 +16,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#![cfg_attr(feature="nightly", feature(
-    const_fn, // for GILProtected::new (#24111)
-    shared, // for std::ptr::Shared (#27730)
-    specialization, // for impl FromPyObject<'source> for Vec<...> (#31844)
-))]
+//#![cfg_attr(feature="nightly", feature(
+//    const_fn, // for GILProtected::new (#24111)
+//    shared, // for std::ptr::Shared (#27730)
+//    specialization, // for impl FromPyObject<'source> for Vec<...> (#31844)
+//))]
+
+#![feature(specialization, shared, const_fn)]
 
 #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
 

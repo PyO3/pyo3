@@ -1,10 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Represent Python Async Object Structures
-//! Trait and support implementation for implementing awaitable objects
+//! Context manager api
+//! Trait and support implementation for context manager api
 //!
-//! more information on python async support
-//! https://docs.python.org/3/c-api/typeobj.html#async-object-structures
 
 use ffi;
 use err::{PyErr, PyResult};
@@ -13,62 +11,54 @@ use conversion::ToPyObject;
 use objects::{PyObject, PyType, PyModule};
 use py_class::slots::UnitCallbackConverter;
 use function::{handle_callback, PyObjectCallbackConverter};
-use class::NO_METHODS;
+use class::{NO_METHODS, NO_PY_METHODS};
 
 
 /// Awaitable interface
-pub trait PyAsyncProtocol {
+pub trait PyContextProtocol {
 
-    fn __await__(&self, py: Python) -> PyResult<PyObject>;
+    fn __enter__(&self, py: Python) -> PyResult<PyObject>;
 
-    fn __aiter__(&self, py: Python) -> PyResult<PyObject>;
-
-    fn __anext__(&self, py: Python) -> PyResult<PyObject>;
-
-    fn __aenter__(&self, py: Python) -> PyResult<PyObject>;
-
-    fn __aexit__(&self, py: Python) -> PyResult<PyObject>;
-
+    fn __exit__(&self, py: Python,
+                exc_type: Option<PyObject>,
+                exc_value: Option<PyObject>,
+                traceback: Option<PyObject>) -> PyResult<PyObject>;
 }
 
 
-impl<P> PyAsyncProtocol for P {
+impl<P> PyContextProtocol for P {
 
-    default fn __await__(&self, py: Python) -> PyResult<PyObject> {
+    default fn __enter__(&self, py: Python) -> PyResult<PyObject> {
         Ok(py.None())
     }
 
-    default fn __aiter__(&self, py: Python) -> PyResult<PyObject> {
-        Ok(py.None())
-    }
-
-    default fn __anext__(&self, py: Python) -> PyResult<PyObject> {
-        Ok(py.None())
-    }
-
-    default fn __aenter__(&self, py: Python) -> PyResult<PyObject> {
-        Ok(py.None())
-    }
-
-    default fn __aexit__(&self, py: Python) -> PyResult<PyObject> {
+    default fn __exit__(&self, py: Python,
+                        _exc_type: Option<PyObject>,
+                        _exc_value: Option<PyObject>,
+                        _traceback: Option<PyObject>) -> PyResult<PyObject> {
         Ok(py.None())
     }
 }
 
 
 #[doc(hidden)]
-pub trait PyAsyncProtocolImpl {
+pub trait PyContextProtocolImpl {
     fn methods() -> &'static [&'static str];
+
+    fn py_methods() -> &'static [::class::PyMethodDef];
 }
 
-impl<T> PyAsyncProtocolImpl for T {
+impl<T> PyContextProtocolImpl for T {
     default fn methods() -> &'static [&'static str] {
         NO_METHODS
     }
+
+    default fn py_methods() -> &'static [::class::PyMethodDef] {
+        NO_PY_METHODS
+    }
 }
 
-impl ffi::PyAsyncMethods {
-
+/*
     /// Construct PyAsyncMethods struct for PyTypeObject.tp_as_async
     pub fn new<T>() -> Option<ffi::PyAsyncMethods>
         where T: PyAsyncProtocol + PyAsyncProtocolImpl + PythonObject
@@ -82,19 +72,19 @@ impl ffi::PyAsyncMethods {
 
         for name in methods {
             match name {
-                &"__await__" => {
+                &"am_await" => {
                     meth.am_await = py_unary_slot!(
-                        PyAsyncProtocol, T::__await__,
+                        PyAsyncProtocol, T::am_await,
                         *mut ffi::PyObject, PyObjectCallbackConverter);
                 },
-                &"__aiter__" => {
+                &"am_aiter" => {
                     meth.am_aiter = py_unary_slot!(
-                        PyAsyncProtocol, T::__aiter__,
+                        PyAsyncProtocol, T::am_aiter,
                         *mut ffi::PyObject, PyObjectCallbackConverter);
                 },
-                &"__anext__" => {
+                &"am_anext" => {
                     meth.am_anext = py_unary_slot!(
-                        PyAsyncProtocol, T::__anext__,
+                        PyAsyncProtocol, T::am_anext,
                         *mut ffi::PyObject, PyObjectCallbackConverter);
                 },
                 _ => unreachable!(),
@@ -103,4 +93,4 @@ impl ffi::PyAsyncMethods {
 
         Some(meth)
     }
-}
+*/
