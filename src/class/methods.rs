@@ -81,6 +81,15 @@ impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
             type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
         }
 
+        // sequence methods
+        if let Some(buf) = ffi::PySequenceMethods::new::<T>() {
+            static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
+            *(unsafe { &mut SQ_METHODS }) = buf;
+            type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
+        } else {
+            type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
+        }
+
         // async methods
         if let Some(buf) = ffi::PyAsyncMethods::new::<T>() {
             static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;

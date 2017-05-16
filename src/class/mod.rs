@@ -8,12 +8,15 @@ pub mod context;
 pub mod mapping;
 pub mod methods;
 pub mod gc;
+pub mod sequence;
 
 pub use self::async::*;
 pub use self::buffer::*;
 pub use self::context::*;
 pub use self::gc::{PyVisit, PyGCProtocol, PyTraverseError};
-pub use self::mapping::{PyMappingProtocol};
+pub use self::mapping::PyMappingProtocol;
+pub use self::sequence::PySequenceProtocol;
+
 pub use self::methods::{PyMethodDef, PyMethodType};
 
 use self::gc::PyGCProtocolImpl;

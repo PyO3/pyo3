@@ -83,19 +83,16 @@ impl ffi::PyAsyncMethods {
         for name in methods {
             match name {
                 &"__await__" => {
-                    meth.am_await = py_unary_slot!(
-                        PyAsyncProtocol, T::__await__,
-                        *mut ffi::PyObject, PyObjectCallbackConverter);
+                    meth.am_await = py_unary_func!(
+                        PyAsyncProtocol, T::__await__, PyObjectCallbackConverter);
                 },
                 &"__aiter__" => {
-                    meth.am_aiter = py_unary_slot!(
-                        PyAsyncProtocol, T::__aiter__,
-                        *mut ffi::PyObject, PyObjectCallbackConverter);
+                    meth.am_aiter = py_unary_func!(
+                        PyAsyncProtocol, T::__aiter__, PyObjectCallbackConverter);
                 },
                 &"__anext__" => {
-                    meth.am_anext = py_unary_slot!(
-                        PyAsyncProtocol, T::__anext__,
-                        *mut ffi::PyObject, PyObjectCallbackConverter);
+                    meth.am_anext = py_unary_func!(
+                        PyAsyncProtocol, T::__anext__, PyObjectCallbackConverter);
                 },
                 _ => unreachable!(),
             }

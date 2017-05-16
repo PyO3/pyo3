@@ -73,14 +73,12 @@ impl ffi::PyMappingMethods {
         for name in methods {
             match name {
                 &"__len__" => {
-                    meth.mp_length = py_unary_slot!(
-                        PyMappingProtocol, T::__len__,
-                        ffi::Py_ssize_t, LenResultConverter);
+                    meth.mp_length = py_len_func!(
+                        PyMappingProtocol, T::__len__, LenResultConverter);
                 },
                 &"__getitem__" => {
-                    meth.mp_subscript = py_binary_slot!(
-                        PyMappingProtocol, T::__getitem__,
-                        *mut ffi::PyObject, *mut ffi::PyObject, PyObjectCallbackConverter);
+                    meth.mp_subscript = py_binary_func!(
+                        PyMappingProtocol, T::__getitem__, PyObjectCallbackConverter);
                 },
                 _ => unreachable!(),
             }

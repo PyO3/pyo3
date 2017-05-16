@@ -9,31 +9,37 @@ use py_method;
 struct Methods {
     methods: &'static [&'static str],
     non_pyobj_result: &'static [&'static str],
+    no_adjust: bool,
 }
 
 static DEFAULT_METHODS: Methods = Methods {
     methods: &[],
     non_pyobj_result: &[],
+    no_adjust: true,
 };
 
 static BUFFER_METHODS: Methods = Methods {
     methods: &[],
     non_pyobj_result: &["bf_getbuffer", "bf_releasebuffer"],
+    no_adjust: false,
 };
 
 static GC_METHODS: Methods = Methods {
     methods: &[],
     non_pyobj_result: &["__traverse__", "__clear__"],
+    no_adjust: false,
 };
 
 static CONTEXT_METHODS: Methods = Methods {
     methods: &["__enter__", "__exit__"],
     non_pyobj_result: &[],
+    no_adjust: false,
 };
 
 static MAPPING_METHODS: Methods = Methods {
     methods: &[],
     non_pyobj_result: &["__setitem__", "__len__"],
+    no_adjust: false,
 };
 
 enum ImplType {
@@ -42,6 +48,7 @@ enum ImplType {
     Context,
     GC,
     Mapping,
+    Sequence,
 }
 
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
@@ -68,6 +75,10 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                     ImplType::Mapping => {
                         impl_protocol("pyo3::class::mapping::PyMappingProtocolImpl",
                                       path.clone(), ty, impl_items, &MAPPING_METHODS)
+                    },
+                    ImplType::Sequence => {
+                        impl_protocol("pyo3::class::mapping::PySequenceProtocolImpl",
+                                      path.clone(), ty, impl_items, &DEFAULT_METHODS)
                     }
                 }
             } else {
@@ -86,6 +97,7 @@ fn process_path(path: &syn::Path) -> ImplType {
                 "PyContextProtocol" => ImplType::Context,
                 "PyGCProtocol" => ImplType::GC,
                 "PyMappingProtocol" => ImplType::Mapping,
+                "PySequenceProtocol" => ImplType::Sequence,
                 _ => panic!("#[py_proto] can not be used with this block"),
             }
     } else {
@@ -110,7 +122,8 @@ fn impl_protocol(name: &'static str,
                     meth.push(String::from(iimpl.ident.as_ref()));
 
                     // adjust return type
-                    if !methods.non_pyobj_result.contains(&iimpl.ident.as_ref()) {
+                    if !methods.non_pyobj_result.contains(&iimpl.ident.as_ref()) &&
+                        !methods.no_adjust {
                         impl_adjust_result(sig, block);
                     }
                 }

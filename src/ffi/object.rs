@@ -50,41 +50,42 @@ pub unsafe fn Py_SIZE(ob : *mut PyObject) -> Py_ssize_t {
 }
 
 pub type unaryfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject)
-                              -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
+
 pub type binaryfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject)
-                              -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject)
+                         -> *mut PyObject;
+
 pub type ternaryfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: *mut PyObject) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: *mut PyObject) -> *mut PyObject;
+
 pub type inquiry =
-    unsafe extern "C" fn(arg1: *mut PyObject)
-                              -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject) -> c_int;
+
 pub type lenfunc =
     unsafe extern "C" fn(arg1: *mut PyObject) -> Py_ssize_t;
+
 pub type ssizeargfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t)
-                              -> *mut PyObject;
+                         -> *mut PyObject;
+
 pub type ssizessizeargfunc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: Py_ssize_t,
-                               arg3: Py_ssize_t) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                         arg3: Py_ssize_t) -> *mut PyObject;
+
 pub type ssizeobjargproc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: Py_ssize_t,
-                               arg3: *mut PyObject) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                         arg3: *mut PyObject) -> c_int;
+
 pub type ssizessizeobjargproc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: Py_ssize_t,
-                               arg3: Py_ssize_t, arg4: *mut PyObject)
-                              -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                         arg3: Py_ssize_t, arg4: *mut PyObject)
+                         -> c_int;
+
 pub type objobjargproc =
-    unsafe extern "C" fn
-                              (arg1: *mut PyObject, arg2: *mut PyObject,
-                               arg3: *mut PyObject) -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                         arg3: *mut PyObject) -> c_int;
 
 #[cfg(not(Py_LIMITED_API))]
 mod bufferinfo {
