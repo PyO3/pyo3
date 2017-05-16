@@ -26,6 +26,28 @@ pub struct PyMethodDef {
 unsafe impl Sync for PyMethodDef {}
 unsafe impl Sync for ffi::PyMethodDef {}
 
+impl PyMethodDef {
+
+    fn as_method_def(&self) -> ffi::PyMethodDef {
+        let meth = match self.ml_meth {
+            PyMethodType::PyCFunction(meth) => meth,
+            PyMethodType::PyCFunctionWithKeywords(meth) =>
+                unsafe {
+                    ::std::mem::transmute::<
+                            ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
+                }
+        };
+
+        ffi::PyMethodDef {
+            ml_name: CString::new(self.ml_name).expect(
+                "Method name must not contain NULL byte").into_raw(),
+            ml_meth: Some(meth),
+            ml_flags: self.ml_flags,
+            ml_doc: 0 as *const ::c_char,
+        }
+    }
+}
+
 
 pub trait PyClassInit {
 
@@ -72,37 +94,46 @@ impl<T> PyClassInit for T where T: PythonObject + py_class::BaseObject {
         // type size
         type_object.tp_basicsize = <T as py_class::BaseObject>::size() as ffi::Py_ssize_t;
 
+        // number methods
+        if let Some(meth) = ffi::PyNumberMethods::new::<T>() {
+            static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
+            *(unsafe { &mut NB_METHODS }) = meth;
+            type_object.tp_as_number = unsafe { &mut NB_METHODS };
+        } else {
+            type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
+        }
+
         // mapping methods
-        if let Some(buf) = ffi::PyMappingMethods::new::<T>() {
+        if let Some(meth) = ffi::PyMappingMethods::new::<T>() {
             static mut MP_METHODS: ffi::PyMappingMethods = ffi::PyMappingMethods_INIT;
-            *(unsafe { &mut MP_METHODS }) = buf;
+            *(unsafe { &mut MP_METHODS }) = meth;
             type_object.tp_as_mapping = unsafe { &mut MP_METHODS };
         } else {
             type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
         }
 
         // sequence methods
-        if let Some(buf) = ffi::PySequenceMethods::new::<T>() {
+        if let Some(meth) = ffi::PySequenceMethods::new::<T>() {
             static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
-            *(unsafe { &mut SQ_METHODS }) = buf;
+            *(unsafe { &mut SQ_METHODS }) = meth;
             type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
         } else {
             type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
         }
 
         // async methods
-        if let Some(buf) = ffi::PyAsyncMethods::new::<T>() {
+        if let Some(meth) = ffi::PyAsyncMethods::new::<T>() {
             static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;
-            *(unsafe { &mut ASYNC_METHODS }) = buf;
+            *(unsafe { &mut ASYNC_METHODS }) = meth;
             type_object.tp_as_async = unsafe { &mut ASYNC_METHODS };
         } else {
             type_object.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
         }
 
         // buffer protocol
-        if let Some(buf) = ffi::PyBufferProcs::new::<T>() {
+        if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
             static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
-            *(unsafe { &mut BUFFER_PROCS }) = buf;
+            *(unsafe { &mut BUFFER_PROCS }) = meth;
             type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
         } else {
             type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
@@ -143,23 +174,11 @@ pub fn py_class_method_defs<T>() -> Vec<ffi::PyMethodDef> {
     let mut defs = Vec::new();
 
     for def in <T as class::context::PyContextProtocolImpl>::py_methods() {
-        let meth = match def.ml_meth {
-            PyMethodType::PyCFunction(meth) => meth,
-            PyMethodType::PyCFunctionWithKeywords(meth) =>
-                unsafe {
-                    ::std::mem::transmute::<
-                            ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
-                }
-        };
+        defs.push(def.as_method_def())
+    }
 
-        let fdef = ffi::PyMethodDef {
-            ml_name: CString::new(def.ml_name).expect(
-                "Method name must not contain NULL byte").into_raw(),
-            ml_meth: Some(meth),
-            ml_flags: def.ml_flags,
-            ml_doc: 0 as *const ::c_char,
-        };
-        defs.push(fdef)
+    for def in <T as class::number::PyNumberProtocolImpl>::py_methods() {
+        defs.push(def.as_method_def())
     }
 
     defs

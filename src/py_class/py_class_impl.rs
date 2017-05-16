@@ -125,7 +125,6 @@ macro_rules! py_class_impl {
                     }
 
                     fn init($py: $crate::Python, module_name: Option<&str>) -> $crate::PyResult<$crate::PyType> {
-                        py_class_type_object_dynamic_init!($class, $py, TYPE_OBJECT, module_name, $slots);
                         py_class_init_members!($class, $py, TYPE_OBJECT, $members);
                         py_class_init_properties!($class, $py, TYPE_OBJECT, $properties);
                         unsafe { <$class as $crate::class::methods::PyClassInit>
@@ -1718,7 +1717,7 @@ macro_rules! py_class_impl {
     { { @staticmethod def $name:ident ($($p:tt)*) -> $res_type:ty { $( $body:tt )* } $($tail:tt)* }
         $class:ident $py:ident $info:tt $slots:tt
         { $( $imp:item )* }
-        { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
+         { $( $member_name:ident = $member_expr:expr; )* } $properties:tt
     } => { py_class_impl! {
         { $($tail)* }
         $class $py $info $slots

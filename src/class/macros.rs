@@ -65,6 +65,32 @@ macro_rules! py_binary_func {
 
 #[macro_export]
 #[doc(hidden)]
+macro_rules! py_ternary_func {
+    ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
+        unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
+                                     arg1: *mut $crate::ffi::PyObject,
+                                     arg2: *mut $crate::ffi::PyObject)
+                                     -> *mut $crate::ffi::PyObject
+            where T: $trait + PythonObject
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::_detail::handle_callback(LOCATION, $conv, |py| {
+                let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
+                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
+                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
+                let ret = slf.$f(py, &arg1, &arg2);
+                $crate::PyDrop::release_ref(arg1, py);
+                $crate::PyDrop::release_ref(arg2, py);
+                $crate::PyDrop::release_ref(slf, py);
+                ret
+            })
+        }
+        Some(wrap::<T>)
+    }}
+}
+
+#[macro_export]
+#[doc(hidden)]
 macro_rules! py_ssizearg_func {
     ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,

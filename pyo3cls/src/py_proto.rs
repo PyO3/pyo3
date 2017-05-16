@@ -42,6 +42,18 @@ static MAPPING_METHODS: Methods = Methods {
     no_adjust: false,
 };
 
+static NUM_METHODS: Methods = Methods {
+    methods: &[
+        "__radd__", "__rsub__", "__rmul__", "__rmatmul__", "__rtruediv__",
+        "__rfloordiv__", "__rmod__", "__rdivmod__", "__rpow__", "__rlshift__",
+        "__rrshift__", "__rand__", "__rxor__", "__ror__", "__complex__",
+        "__round__"
+    ],
+    non_pyobj_result: &[],
+    no_adjust: true,
+};
+
+
 enum ImplType {
     Async,
     Buffer,
@@ -49,6 +61,7 @@ enum ImplType {
     GC,
     Mapping,
     Sequence,
+    Number,
 }
 
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
@@ -79,6 +92,10 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                     ImplType::Sequence => {
                         impl_protocol("pyo3::class::mapping::PySequenceProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS)
+                    },
+                    ImplType::Number => {
+                        impl_protocol("pyo3::class::number::PyNumberProtocolImpl",
+                                      path.clone(), ty, impl_items, &NUM_METHODS)
                     }
                 }
             } else {
@@ -98,6 +115,7 @@ fn process_path(path: &syn::Path) -> ImplType {
                 "PyGCProtocol" => ImplType::GC,
                 "PyMappingProtocol" => ImplType::Mapping,
                 "PySequenceProtocol" => ImplType::Sequence,
+                "PyNumberProtocol" => ImplType::Number,
                 _ => panic!("#[py_proto] can not be used with this block"),
             }
     } else {

@@ -55,26 +55,6 @@ macro_rules! py_class_type_object_static_init {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_class_type_object_dynamic_init {
-    // initialize those fields of PyTypeObject that we couldn't initialize statically
-    ($class: ident, $py:ident, $type_object:ident, $module_name: ident,
-        /* slots: */ {
-            $type_slots:tt
-            $as_async:tt
-            $as_number:tt
-            $as_sequence:tt
-            $as_mapping:tt
-            $as_buffer:tt
-            $setdelitem:tt
-        }
-    ) => {
-        // call slot macros outside of unsafe block
-        *(unsafe { &mut $type_object.tp_as_number }) = py_class_as_number!($as_number);
-    }
-}
-
-#[macro_export]
-#[doc(hidden)]
 macro_rules! py_class_wrap_newfunc {
     ($class:ident :: $f:ident [ $( { $pname:ident : $ptype:ty = $detail:tt } )* ]) => {{
         unsafe extern "C" fn wrap_newfunc(
