@@ -9,7 +9,7 @@ use std::os::raw::{c_int, c_void};
 use ffi;
 use python::{Python, PythonObject, PyDrop, ToPythonPointer};
 use objects::PyObject;
-use function::AbortOnDrop;
+use callback::AbortOnDrop;
 use class::NO_METHODS;
 
 pub struct PyTraverseError(c_int);

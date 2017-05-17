@@ -12,8 +12,7 @@ use err::{PyErr, PyResult};
 use python::{Python, PythonObject};
 use objects::{exc, PyObject};
 use class::{NO_METHODS, NO_PY_METHODS};
-use function::PyObjectCallbackConverter;
-use py_class::slots::UnitCallbackConverter;
+use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 
 /// Descriptor interface
 pub trait PyDescrProtocol {

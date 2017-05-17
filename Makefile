@@ -23,10 +23,7 @@ CARGO_FLAGS := --features "$(FEATURES)" --no-default-features
 
 default: test
 
-src/py_class/py_class_impl.rs: src/py_class/py_class_impl.py
-	PY=3 python $< >$@
-
-build: src/py_class/py_class_impl.rs
+build:
 	cargo build $(CARGO_FLAGS)
 
 test: build

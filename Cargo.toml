@@ -7,7 +7,6 @@ readme = "README.md"
 keywords = [
     "pyo3",
     "python",
-    "cpython",
 ]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3.git"

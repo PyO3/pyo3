@@ -96,7 +96,7 @@ pub use objects::*;
 pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
-pub use py_class::{CompareOp};
+pub use class::{CompareOp};
 pub use objectprotocol::{ObjectProtocol};
 
 #[allow(non_camel_case_types)]
@@ -142,7 +142,7 @@ macro_rules! py_impl_to_py_object_for_python_object {
 
             #[inline]
             fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
-                where F: FnOnce(*mut $crate::_detail::ffi::PyObject) -> R
+                where F: FnOnce(*mut $crate::ffi::PyObject) -> R
             {
                 f($crate::PythonObject::as_object(self).as_ptr())
             }
@@ -170,7 +170,6 @@ macro_rules! py_impl_from_py_object_for_python_object {
     }
 }
 
-pub mod py_class;
 mod python;
 mod err;
 mod conversion;
@@ -182,23 +181,10 @@ mod function;
 pub mod buffer;
 pub mod class;
 pub use class::*;
+pub mod callback;
 
 // re-export for simplicity
 pub use std::os::raw::*;
-
-/// Private re-exports for macros. Do not use.
-#[doc(hidden)]
-pub mod _detail {
-    pub mod ffi {
-        pub use ::ffi::*;
-    }
-    pub mod libc {
-        pub use std::os::raw::{c_char, c_void, c_int};
-    }
-    pub use err::{from_owned_ptr_or_panic, result_from_owned_ptr};
-    pub use function::{handle_callback, py_fn_impl, AbortOnDrop,
-                       PyObjectCallbackConverter, PythonObjectCallbackConverter};
-}
 
 /// Expands to an `extern "C"` function that allows Python to load
 /// the rust code as a Python extension module.
@@ -264,7 +250,7 @@ macro_rules! py_module_init {
             fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
                 $body
             }
-            static mut MODULE_DEF: $crate::ffi::PyModuleDef = $crate::_detail::ffi::PyModuleDef_INIT;
+            static mut MODULE_DEF: $crate::ffi::PyModuleDef = $crate::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
@@ -278,7 +264,7 @@ pub unsafe fn py_module_init_impl(
     def: *mut ffi::PyModuleDef,
     init: fn(Python, &PyModule) -> PyResult<()>) -> *mut ffi::PyObject
 {
-    let guard = function::AbortOnDrop("py_module_init");
+    let guard = callback::AbortOnDrop("py_module_init");
     let py = Python::assume_gil_acquired();
     ffi::PyEval_InitThreads();
     let module = ffi::PyModule_Create(def);

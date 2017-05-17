@@ -9,8 +9,8 @@ use ffi;
 use err::{PyErr, PyResult};
 use python::{Python, PythonObject, PyDrop};
 use objects::{exc, PyObject};
-use py_class::slots::{LenResultConverter, UnitCallbackConverter, BoolConverter};
-use function::{handle_callback, PyObjectCallbackConverter};
+use callback::{handle_callback, PyObjectCallbackConverter,
+               LenResultConverter, UnitCallbackConverter, BoolConverter};
 use class::NO_METHODS;
 
 

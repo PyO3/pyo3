@@ -10,7 +10,7 @@ use ffi;
 use err::PyResult;
 use python::{Python, PythonObject};
 use objects::PyObject;
-use function::PyObjectCallbackConverter;
+use callback::PyObjectCallbackConverter;
 use class::NO_METHODS;
 
 

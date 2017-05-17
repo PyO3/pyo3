@@ -9,8 +9,7 @@ use ffi;
 use err::PyResult;
 use python::{Python, PythonObject};
 use objects::PyObject;
-use function::PyObjectCallbackConverter;
-use py_class::slots::BoolConverter;
+use callback::{BoolConverter, PyObjectCallbackConverter};
 use class::{NO_METHODS, NO_PY_METHODS};
 use class::basic::{PyObjectProtocol, PyObjectProtocolImpl};
 

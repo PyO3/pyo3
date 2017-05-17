@@ -100,7 +100,7 @@ macro_rules! py_exception {
             #[inline]
             fn type_object(py: $crate::Python) -> $crate::PyType {
                 unsafe {
-                    static mut type_object: *mut $crate::_detail::ffi::PyTypeObject = 0 as *mut $crate::_detail::ffi::PyTypeObject;
+                    static mut type_object: *mut $crate::ffi::PyTypeObject = 0 as *mut $crate::ffi::PyTypeObject;
 
                     if type_object.is_null() {
                         type_object = $crate::PyErr::new_type(

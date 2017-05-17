@@ -11,10 +11,9 @@ use ::{CompareOp, Py_hash_t};
 use ffi;
 use err::{PyErr, PyResult};
 use python::{Python, PythonObject, PyDrop};
-use conversion::ToPyObject;
 use objects::{exc, PyObject};
-use py_class::slots::{HashConverter, UnitCallbackConverter};
-use function::{handle_callback, PyObjectCallbackConverter};
+use conversion::ToPyObject;
+use callback::{handle_callback, PyObjectCallbackConverter, HashConverter, UnitCallbackConverter};
 use class::{NO_METHODS, NO_PY_METHODS};
 
 // __new__

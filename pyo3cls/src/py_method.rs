@@ -220,8 +220,8 @@ fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, args: Vec<Arg>) -> Tokens {
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".", stringify!(#name), "()");
-            pyo3::_detail::handle_callback(
-                LOCATION, pyo3::_detail::PyObjectCallbackConverter, |py|
+            pyo3::callback::handle_callback(
+                LOCATION, pyo3::callback::PyObjectCallbackConverter, |py|
                 {
                     let args: pyo3::PyTuple =
                         pyo3::PyObject::from_borrowed_ptr(py, args).unchecked_cast_into();
@@ -248,8 +248,8 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _args: Vec<Arg>) -> T
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".getter_", stringify!(#name), "()");
-            pyo3::_detail::handle_callback(
-                LOCATION, pyo3::_detail::PyObjectCallbackConverter, |py|
+            pyo3::callback::handle_callback(
+                LOCATION, pyo3::callback::PyObjectCallbackConverter, |py|
                 {
                     let slf = pyo3::PyObject::from_borrowed_ptr(
                         py, slf).unchecked_cast_into::<#cls>();
@@ -270,8 +270,8 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, _args: Vec<Arg>) -> T
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".setter", stringify!(#name), "()");
-            pyo3::_detail::handle_callback(
-                LOCATION, pyo3::py_class::slots::UnitCallbackConverter, |py|
+            pyo3::callback::handle_callback(
+                LOCATION, pyo3::callback::UnitCallbackConverter, |py|
                 {
                     let slf = pyo3::PyObject::from_borrowed_ptr(py, slf)
                         .unchecked_cast_into::<#cls>();

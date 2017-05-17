@@ -11,8 +11,7 @@ use ffi;
 use err::PyResult;
 use python::{Python, PythonObject};
 use objects::PyObject;
-use py_class::slots::UnitCallbackConverter;
-use function::handle_callback;
+use callback::{handle_callback, UnitCallbackConverter};
 use class::NO_METHODS;
 
 

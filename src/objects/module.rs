@@ -23,7 +23,7 @@ use python::{Python, PythonObject};
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, ToPyTuple};
 use objects::{PyObject, PyDict, exc};
-use py_class::PythonObjectFromPyClassMacro;
+use class::PyTypeObject;
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
 
@@ -107,11 +107,11 @@ impl PyModule {
 
     /// Adds a new extension type to the module.
     ///
-    /// This is a convenience function that initializes the `py_class!()`,
+    /// This is a convenience function that initializes the `class`,
     /// sets `new_type.__module__` to this module's name,
     /// and adds the type to this module.
     pub fn add_class<'p, T>(&self, py: Python<'p>) -> PyResult<()>
-        where T: PythonObjectFromPyClassMacro
+        where T: PyTypeObject
     {
         T::add_to_module(py, self)
     }
