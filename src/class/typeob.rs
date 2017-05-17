@@ -58,7 +58,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
     }
 
     // mapping methods
-    if let Some(meth) = ffi::PyMappingMethods::new::<T>() {
+    if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
         static mut MP_METHODS: ffi::PyMappingMethods = ffi::PyMappingMethods_INIT;
         *(unsafe { &mut MP_METHODS }) = meth;
         type_object.tp_as_mapping = unsafe { &mut MP_METHODS };

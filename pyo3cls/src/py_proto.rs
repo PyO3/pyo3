@@ -4,12 +4,18 @@ use syn;
 use quote::{Tokens, ToTokens};
 
 use py_method;
+use func::{MethodProto, impl_method_proto};
 
 
 struct Methods {
     methods: &'static [&'static str],
     non_pyobj_result: &'static [&'static str],
     no_adjust: bool,
+}
+
+struct Proto {
+    //py_methods: &'static [&'static str],
+    methods: &'static [MethodProto],
 }
 
 static DEFAULT_METHODS: Methods = Methods {
@@ -42,12 +48,6 @@ static DESCR_METHODS: Methods = Methods {
     no_adjust: true,
 };
 
-static MAPPING_METHODS: Methods = Methods {
-    methods: &[],
-    non_pyobj_result: &["__setitem__", "__len__"],
-    no_adjust: false,
-};
-
 static NUM_METHODS: Methods = Methods {
     methods: &[
         "__radd__", "__rsub__", "__rmul__", "__rmatmul__", "__rtruediv__",
@@ -57,6 +57,28 @@ static NUM_METHODS: Methods = Methods {
     ],
     non_pyobj_result: &[],
     no_adjust: true,
+};
+
+static MAPPING: Proto = Proto {
+    //py_methods: &[],
+    methods: &[
+        MethodProto::Len{
+            name: "__len__",
+            proto: "class::mapping::PyMappingLenProtocol"},
+        MethodProto::Binary{
+            name: "__getitem__",
+            arg: "Key",
+            proto: "class::mapping::PyMappingGetItemProtocol"},
+        MethodProto::Ternary{
+            name: "__setitem__",
+            arg1: "Key",
+            arg2: "Value",
+            proto: "class::mapping::PyMappingSetItemProtocol"},
+        MethodProto::Binary{
+            name: "__delitem__",
+            arg: "Key",
+            proto: "class::mapping::PyMappingDelItemProtocol"},
+    ],
 };
 
 
@@ -95,15 +117,14 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                     ImplType::GC =>
                         impl_protocol("pyo3::class::gc::PyGCProtocolImpl",
                                       path.clone(), ty, impl_items, &GC_METHODS),
-                    ImplType::Mapping =>
-                        impl_protocol("pyo3::class::mapping::PyMappingProtocolImpl",
-                                      path.clone(), ty, impl_items, &MAPPING_METHODS),
                     ImplType::Sequence =>
                         impl_protocol("pyo3::class::mapping::PySequenceProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Number =>
                         impl_protocol("pyo3::class::number::PyNumberProtocolImpl",
                                       path.clone(), ty, impl_items, &NUM_METHODS),
+                    ImplType::Mapping =>
+                        impl_proto_impl(ty, impl_items, &MAPPING),
                 }
             } else {
                 panic!("#[proto] can only be used with protocol trait implementations")
@@ -130,6 +151,24 @@ fn process_path(path: &syn::Path) -> ImplType {
     } else {
         panic!("#[proto] can not be used with this block");
     }
+}
+
+fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Proto) -> Tokens {
+    let mut tokens = Tokens::new();
+
+    for iimpl in impls.iter_mut() {
+        match iimpl.node {
+            syn::ImplItemKind::Method(ref mut sig, _) => {
+                for m in proto.methods {
+                    if m.eq(iimpl.ident.as_ref()) {
+                        impl_method_proto(ty, sig, m).to_tokens(&mut tokens);
+                    }
+                }
+            },
+            _ => (),
+        }
+    }
+    tokens
 }
 
 fn impl_protocol(name: &'static str,
