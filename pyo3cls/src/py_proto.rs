@@ -9,8 +9,6 @@ use func::{MethodProto, impl_method_proto};
 
 struct Methods {
     methods: &'static [&'static str],
-    non_pyobj_result: &'static [&'static str],
-    no_adjust: bool,
 }
 
 struct Proto {
@@ -20,32 +18,14 @@ struct Proto {
 
 static DEFAULT_METHODS: Methods = Methods {
     methods: &[],
-    non_pyobj_result: &[],
-    no_adjust: true,
-};
-
-static BUFFER_METHODS: Methods = Methods {
-    methods: &[],
-    non_pyobj_result: &["bf_getbuffer", "bf_releasebuffer"],
-    no_adjust: false,
-};
-
-static GC_METHODS: Methods = Methods {
-    methods: &[],
-    non_pyobj_result: &["__traverse__", "__clear__"],
-    no_adjust: false,
 };
 
 static CONTEXT_METHODS: Methods = Methods {
     methods: &["__enter__", "__exit__"],
-    non_pyobj_result: &[],
-    no_adjust: false,
 };
 
 static DESCR_METHODS: Methods = Methods {
     methods: &["__delete__", "__set_name__"],
-    non_pyobj_result: &[],
-    no_adjust: true,
 };
 
 static NUM_METHODS: Methods = Methods {
@@ -55,8 +35,6 @@ static NUM_METHODS: Methods = Methods {
         "__rrshift__", "__rand__", "__rxor__", "__ror__", "__complex__",
         "__round__"
     ],
-    non_pyobj_result: &[],
-    no_adjust: true,
 };
 
 static MAPPING: Proto = Proto {
@@ -107,7 +85,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Buffer =>
                         impl_protocol("pyo3::class::buffer::PyBufferProtocolImpl",
-                                      path.clone(), ty, impl_items, &BUFFER_METHODS),
+                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Context =>
                         impl_protocol("pyo3::class::context::PyContextProtocolImpl",
                                       path.clone(), ty, impl_items, &CONTEXT_METHODS),
@@ -116,7 +94,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                                       path.clone(), ty, impl_items, &DESCR_METHODS),
                     ImplType::GC =>
                         impl_protocol("pyo3::class::gc::PyGCProtocolImpl",
-                                      path.clone(), ty, impl_items, &GC_METHODS),
+                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Sequence =>
                         impl_protocol("pyo3::class::mapping::PySequenceProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
@@ -186,12 +164,6 @@ fn impl_protocol(name: &'static str,
                         ty, &iimpl.ident, sig, block, &mut iimpl.attrs));
                 } else {
                     meth.push(String::from(iimpl.ident.as_ref()));
-
-                    // adjust return type
-                    if !methods.non_pyobj_result.contains(&iimpl.ident.as_ref()) &&
-                        !methods.no_adjust {
-                        impl_adjust_result(sig, block);
-                    }
                 }
             },
             _ => (),
@@ -243,71 +215,5 @@ fn impl_protocol(name: &'static str,
 
             #tokens
         };
-    }
-}
-
-fn impl_adjust_result(sig: &mut syn::MethodSig, block: &mut syn::Block) {
-    match sig.decl.output {
-        syn::FunctionRetTy::Ty(ref mut ty) => match *ty {
-            syn::Ty::Path(_, ref mut path) => {
-                // check if function returns PyResult
-                if let Some(segment) = path.segments.last_mut() {
-                    match segment.ident.as_ref() {
-                        // check result type
-                        "PyResult" => match segment.parameters {
-                            syn::PathParameters::AngleBracketed(ref mut data) => {
-                                if rewrite_pyobject(&mut data.types) {
-                                    let expr = {
-                                        let s = block as &ToTokens;
-                                        quote! {
-                                            match #s {
-                                                Ok(res) => Ok(res.to_py_object(py)),
-                                                Err(err) => Err(err)
-                                            }
-                                        }
-                                    };
-                                    let expr = syn::parse_expr(&expr.as_str()).unwrap();
-                                    let expr = syn::Stmt::Expr(Box::new(expr));
-                                    block.stmts = vec![expr];
-                                }
-                            },
-                            _ => (),
-                        },
-                        _ => (),
-                    }
-                }
-            }
-            _ => (),
-        },
-        syn::FunctionRetTy::Default => (),
-    }
-}
-
-fn rewrite_pyobject(path: &mut Vec<syn::Ty>) -> bool {
-    if path.len() != 1 {
-        false
-    } else {
-        if let &mut syn::Ty::Path(_, ref mut path) = path.first_mut().unwrap() {
-            if let Some(segment) = path.segments.last_mut() {
-                if segment.ident.as_ref() == "PyObject" {
-                    return false
-                } else {
-                    segment.ident = syn::Ident::from("PyObject");
-                    return true
-                }
-            }
-        }
-        let ty = syn::Ty::Path(
-            None, syn::Path{
-                global: false,
-                segments: vec![
-                    syn::PathSegment {
-                        ident: syn::Ident::from("PyObject"),
-                        parameters: syn::PathParameters::AngleBracketed(
-                            syn::AngleBracketedParameterData {
-                                lifetimes: vec![], types: vec![], bindings: vec![] }) }]});
-        let _ = path.pop();
-        let _ = path.push(ty);
-        true
     }
 }
