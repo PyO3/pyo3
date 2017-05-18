@@ -44,13 +44,14 @@ pub struct ParamDescription<'a> {
 pub fn parse_args(py: Python,
                   fname: Option<&str>, params: &[ParamDescription],
                   args: &PyTuple, kwargs: Option<&PyDict>,
+                  accept_args: bool, accept_kwargs: bool,
                   output: &mut[Option<PyObject>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
 
     let nargs = args.len(py);
     let nkeywords = kwargs.map_or(0, |d| d.len(py));
-    if nargs + nkeywords > params.len() {
+    if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(py,
             format!("{}{} takes at most {} argument{} ({} given)",
                     fname.unwrap_or("function"),
@@ -87,7 +88,7 @@ pub fn parse_args(py: Python,
             }
         }
     }
-    if used_keywords != nkeywords {
+    if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
         for (key, _value) in kwargs.unwrap().items(py) {
             let key = try!(try!(key.cast_as::<PyString>(py)).to_string(py));
@@ -317,7 +318,7 @@ macro_rules! py_argparse_impl {
         ];
         let py: $crate::Python = $py;
         let mut output = [$( py_replace_expr!($pname None) ),*];
-        match $crate::argparse::parse_args(py, $fname, PARAMS, $args, $kwargs, &mut output) {
+        match $crate::argparse::parse_args(py, $fname, PARAMS, $args, $kwargs, false, false, &mut output) {
             Ok(()) => {
                 // Experimental slice pattern syntax would be really nice here (#23121)
                 //let [$(ref $pname),*] = output;
@@ -400,7 +401,7 @@ macro_rules! py_argparse_extract {
         // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
         // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
         match <$rtype as $crate::RefFromPyObject>::with_extracted($py,
-            $iter.next().unwrap().as_ref().unwrap(),
+                                                                  $iter.next().unwrap().as_ref().unwrap(),
             |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*])
         ) {
             Ok(v) => v,

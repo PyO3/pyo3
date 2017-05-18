@@ -30,7 +30,7 @@ macro_rules! py_method_def {
             //ml_name: bytes!(stringify!($name), "\0"),
             ml_name: 0 as *const $crate::c_char,
             ml_meth: None,
-            ml_flags: $crate::ffi::METH_VARARGS | $crate:::METH_KEYWORDS | $flags,
+            ml_flags: $crate::ffi::METH_VARARGS | $crate::ffi::METH_KEYWORDS | $flags,
             ml_doc: 0 as *const $crate::c_char
         };
         METHOD_DEF.ml_name = concat!($name, "\0").as_ptr() as *const _;

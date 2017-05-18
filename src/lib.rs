@@ -177,7 +177,7 @@ mod objects;
 mod objectprotocol;
 mod pythonrun;
 pub mod argparse;
-mod function;
+pub mod function;
 pub mod buffer;
 pub mod class;
 pub use class::*;

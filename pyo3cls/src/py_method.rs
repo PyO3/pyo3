@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use syn;
-use quote::Tokens;
+use quote::{Tokens, ToTokens};
 use utils::for_err_msg;
 
 
@@ -20,6 +20,13 @@ enum FnType {
     Fn,
 }
 
+#[derive(Debug)]
+enum FnSpec {
+    Args(syn::Ident),
+    Kwargs(syn::Ident),
+    Default(syn::Ident, Tokens),
+}
+
 
 pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
                          sig: &mut syn::MethodSig, _block: &mut syn::Block,
@@ -27,7 +34,7 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
 {
     check_generic(name, sig);
 
-    let fn_type = parse_attributes(meth_attrs);
+    let (fn_type, fn_spec) = parse_attributes(meth_attrs);
 
     //let mut has_self = false;
     let mut py = false;
@@ -63,16 +70,17 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
 
     match fn_type {
         FnType::Fn =>
-            impl_py_method_def(name, &impl_wrap(cls, name, arguments)),
+            impl_py_method_def(name, &impl_wrap(cls, name, arguments, fn_spec)),
         FnType::Getter(getter) =>
-            impl_py_getter_def(name, getter, &impl_wrap_getter(cls, name, arguments)),
+            impl_py_getter_def(name, getter, &impl_wrap_getter(cls, name, arguments, fn_spec)),
         FnType::Setter(setter) =>
-            impl_py_setter_def(name, setter, &impl_wrap_setter(cls, name, arguments)),
+            impl_py_setter_def(name, setter, &impl_wrap_setter(cls, name, arguments, fn_spec)),
     }
 }
 
-fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> FnType {
+fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<FnSpec>) {
     let mut new_attrs = Vec::new();
+    let mut spec = Vec::new();
     let mut res: Option<FnType> = None;
 
     for attr in attrs.iter() {
@@ -138,6 +146,17 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> FnType {
                             },
                         }
                     },
+                    "args" => {
+                        spec.extend(parse_args(meta))
+                    }
+                    "defaults" => {
+                        // parse: #[defaults(param2=12, param3=12)]
+                        for item in meta.iter() {
+                            if let Some(el) = parse_args_default(item) {
+                                spec.push(el)
+                            }
+                        }
+                    }
                     _ => {
                         new_attrs.push(attr.clone())
                     }
@@ -152,8 +171,54 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> FnType {
     attrs.extend(new_attrs);
 
     match res {
-        Some(tp) => tp,
-        None => FnType::Fn,
+        Some(tp) => (tp, spec),
+        None => (FnType::Fn, spec),
+    }
+}
+
+/// parse: #[args(args="args", kw="kwargs")]
+fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<FnSpec> {
+    let mut spec = Vec::new();
+
+    for item in items.iter() {
+        match item {
+            &syn::NestedMetaItem::MetaItem(syn::MetaItem::NameValue(ref ident, ref name)) => {
+                match *name {
+                    syn::Lit::Str(ref name, _) => match ident.as_ref() {
+                        "args" =>
+                            spec.push(FnSpec::Args(syn::Ident::from(name.clone()))),
+                        "kw" =>
+                            spec.push(FnSpec::Kwargs(syn::Ident::from(name.clone()))),
+                        _ => (),
+                    },
+                    _ => (),
+                }
+            },
+            _ => (),
+        }
+    }
+
+    spec
+}
+
+fn parse_args_default(item: &syn::NestedMetaItem) -> Option<FnSpec> {
+    match *item {
+        syn::NestedMetaItem::MetaItem(syn::MetaItem::NameValue(ref name, ref lit)) => {
+            let mut t = Tokens::new();
+            match lit {
+                &syn::Lit::Str(ref val, _) => {
+                    syn::Ident::from(val.as_str()).to_tokens(&mut t);
+                },
+                _ => {
+                    lit.to_tokens(&mut t);
+                }
+            }
+            Some(FnSpec::Default(name.clone(), t))
+        }
+        _ => {
+            println!("expected name value {:?}", item);
+            None
+        }
     }
 }
 
@@ -208,9 +273,11 @@ fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty) -> Optio
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, args: Vec<Arg>) -> Tokens {
+fn impl_wrap(cls: &Box<syn::Ty>,
+             name: &syn::Ident,
+             args: Vec<Arg>, spec: Vec<FnSpec>) -> Tokens {
     let cb = impl_call(cls, name, &args);
-    let body = impl_arg_params(args, cb);
+    let body = impl_arg_params(args, &spec, cb);
 
     quote! {
         unsafe extern "C" fn wrap
@@ -240,7 +307,8 @@ fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, args: Vec<Arg>) -> Tokens {
 
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _args: Vec<Arg>) -> Tokens {
+fn impl_wrap_getter(cls: &Box<syn::Ty>,
+                    name: &syn::Ident, _args: Vec<Arg>, _spec: Vec<FnSpec>) -> Tokens {
     quote! {
         unsafe extern "C" fn wrap (slf: *mut pyo3::ffi::PyObject,
                                    _: *mut pyo3::c_void)
@@ -262,7 +330,8 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _args: Vec<Arg>) -> T
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, _args: Vec<Arg>) -> Tokens {
+fn impl_wrap_setter(cls: &Box<syn::Ty>,
+                    name: &syn::Ident, _args: Vec<Arg>, _spec: Vec<FnSpec>) -> Tokens {
     quote! {
         unsafe extern "C" fn wrap(slf: *mut pyo3::ffi::PyObject,
                                   value: *mut pyo3::ffi::PyObject,
@@ -298,21 +367,27 @@ fn impl_call(cls: &Box<syn::Ty>, fname: &syn::Ident, args: &Vec<Arg>) -> Tokens 
     }
 }
 
-fn impl_arg_params(mut args: Vec<Arg>, body: Tokens) -> Tokens {
+fn impl_arg_params(mut args: Vec<Arg>, spec: &Vec<FnSpec>, body: Tokens) -> Tokens {
     let mut params = Vec::new();
 
     for arg in args.iter() {
-        let name = arg.name.as_ref();
-        let opt = if let Some(_) = arg.optional {
-            syn::Ident::from("true")
-        } else {
-            syn::Ident::from("false")
-        };
-        params.push(
-            quote! {
-                pyo3::argparse::ParamDescription{name: #name, is_optional: #opt,}
-            }
-        );
+        if ! (is_args(&arg.name, &spec) || is_kwargs(&arg.name, &spec)) {
+            let name = arg.name.as_ref();
+            let opt = if let Some(_) = arg.optional {
+                syn::Ident::from("true")
+            } else {
+                if let Some(_) = get_default_value(&arg.name, spec) {
+                    syn::Ident::from("true")
+                } else {
+                    syn::Ident::from("false")
+                }
+            };
+            params.push(
+                quote! {
+                    pyo3::argparse::ParamDescription{name: #name, is_optional: #opt,}
+                }
+            );
+        }
     }
     let placeholders: Vec<syn::Ident> = params.iter().map(
         |_| syn::Ident::from("None")).collect();
@@ -321,8 +396,13 @@ fn impl_arg_params(mut args: Vec<Arg>, body: Tokens) -> Tokens {
     args.reverse();
     let mut body = body;
     for arg in args.iter() {
-        body = impl_arg_param(&arg, &body);
+        body = impl_arg_param(&arg, &spec, &body);
     }
+
+    let accept_args = syn::Ident::from(
+        if accept_args(spec) { "true" } else { "false" });
+    let accept_kwargs = syn::Ident::from(
+        if accept_kwargs(spec) { "true" } else { "false" });
 
     // create array of arguments, and then parse
     quote! {
@@ -332,7 +412,8 @@ fn impl_arg_params(mut args: Vec<Arg>, body: Tokens) -> Tokens {
 
         let mut output = [#(#placeholders),*];
         match pyo3::argparse::parse_args(
-            py, Some(LOCATION), PARAMS, &args, kwargs.as_ref(), &mut output) {
+            py, Some(LOCATION), PARAMS, &args,
+            kwargs.as_ref(), #accept_args, #accept_kwargs, &mut output) {
             Ok(_) => {
                 let mut _iter = output.iter();
 
@@ -343,7 +424,7 @@ fn impl_arg_params(mut args: Vec<Arg>, body: Tokens) -> Tokens {
     }
 }
 
-fn impl_arg_param(arg: &Arg, body: &Tokens) -> Tokens {
+fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
     let ty = arg.ty;
     let name = arg.name;
 
@@ -351,25 +432,9 @@ fn impl_arg_param(arg: &Arg, body: &Tokens) -> Tokens {
     // second unwrap() asserts the parameter was not missing (which fn
     // parse_args already checked for).
 
-    if let Some(ref opt_ty) = arg.optional {
+    if is_args(&name, &spec) {
         quote! {
-            match match _iter.next().unwrap().as_ref() {
-                Some(obj) => {
-                    match <#opt_ty as pyo3::FromPyObject>::extract(py, obj) {
-                        Ok(obj) => Ok(Some(obj)),
-                        Err(e) => Err(e),
-                    }
-                },
-                None => Ok(None)
-            } {
-                Ok(#name) => #body,
-                Err(e) => Err(e)
-            }
-        }
-    } else {
-        quote! {
-            match <#ty as pyo3::FromPyObject>::extract(
-                py, _iter.next().unwrap().as_ref().unwrap())
+            match <#ty as pyo3::FromPyObject>::extract(py, args.as_object())
             {
                 Ok(#name) => {
                     #body
@@ -378,6 +443,121 @@ fn impl_arg_param(arg: &Arg, body: &Tokens) -> Tokens {
             }
         }
     }
+    else if is_kwargs(&name, &spec) {
+        quote! {
+            let #name = kwargs.as_ref();
+            #body
+        }
+    }
+    else {
+        if let Some(ref opt_ty) = arg.optional {
+            // default value
+            let mut default = Tokens::new();
+            if let Some(d) = get_default_value(name, spec) {
+                d.to_tokens(&mut default);
+            } else {
+                syn::Ident::from("None").to_tokens(&mut default);
+            }
+            
+            quote! {
+                match match _iter.next().unwrap().as_ref() {
+                    Some(obj) => {
+                        match <#opt_ty as pyo3::FromPyObject>::extract(py, obj) {
+                            Ok(obj) => Ok(Some(obj)),
+                            Err(e) => Err(e),
+                        }
+                    },
+                    None => Ok(Some(#default))
+                } {
+                    Ok(#name) => #body,
+                    Err(e) => Err(e)
+                }
+            }
+        } else if let Some(default) = get_default_value(name, spec) {
+            quote! {
+                match match _iter.next().unwrap().as_ref() {
+                    Some(obj) => {
+                        match <#ty as pyo3::FromPyObject>::extract(py, obj) {
+                            Ok(obj) => Ok(obj),
+                            Err(e) => Err(e),
+                        }
+                    },
+                    None => Ok(#default)
+                } {
+                    Ok(#name) => #body,
+                    Err(e) => Err(e)
+                }
+            }
+        }
+        else {
+            quote! {
+                match <#ty as pyo3::FromPyObject>::extract(
+                    py, _iter.next().unwrap().as_ref().unwrap())
+                {
+                    Ok(#name) => {
+                        #body
+                    }
+                    Err(e) => Err(e)
+                }
+            }
+        }
+    }
+}
+
+fn is_args(name: &syn::Ident, spec: &Vec<FnSpec>) -> bool {
+    for s in spec.iter() {
+        match *s {
+            FnSpec::Args(ref ident) =>
+                return name == ident,
+            _ => (),
+        }
+    }
+    false
+}
+
+fn accept_args(spec: &Vec<FnSpec>) -> bool {
+    for s in spec.iter() {
+        match *s {
+            FnSpec::Args(_) => return true,
+            _ => (),
+        }
+    }
+    false
+}
+
+fn is_kwargs(name: &syn::Ident, spec: &Vec<FnSpec>) -> bool {
+    for s in spec.iter() {
+        match *s {
+            FnSpec::Kwargs(ref ident) =>
+                return name == ident,
+            _ => (),
+        }
+    }
+    false
+}
+
+fn accept_kwargs(spec: &Vec<FnSpec>) -> bool {
+    for s in spec.iter() {
+        match *s {
+            FnSpec::Kwargs(_) => return true,
+            _ => (),
+        }
+    }
+    false
+}
+
+fn get_default_value<'a>(name: &syn::Ident, spec: &'a Vec<FnSpec>) -> Option<&'a Tokens> {
+    for s in spec.iter() {
+        match *s {
+            FnSpec::Default(ref ident, ref val) => {
+                if ident == name {
+                    return Some(val)
+                }
+            },
+            _ => (),
+        }
+    }
+    None
 }
 
 fn impl_py_method_def(name: &syn::Ident, wrapper: &Tokens) -> Tokens {

@@ -42,13 +42,13 @@ static ASYNC: Proto = Proto {
     methods: &[
         MethodProto::Unary{
             name: "__await__",
-            proto: "class::mapping::PyAsyncAwaitProtocol"},
+            proto: "class::async::PyAsyncAwaitProtocol"},
         MethodProto::Unary{
             name: "__aiter__",
-            proto: "class::mapping::PyAsyncAiterProtocol"},
+            proto: "class::async::PyAsyncAiterProtocol"},
         MethodProto::Unary{
             name: "__anext__",
-            proto: "class::mapping::PyAsyncAnextProtocol"},
+            proto: "class::async::PyAsyncAnextProtocol"},
     ],
 };
 

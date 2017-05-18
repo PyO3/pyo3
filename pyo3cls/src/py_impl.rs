@@ -44,7 +44,14 @@ fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
         }
     };
 
-    let dummy_const = syn::Ident::new("_IMPL_PYO3_METHODS");
+    let n = match ty.as_ref() {
+        &syn::Ty::Path(_, ref p) => {
+            p.segments.last().as_ref().unwrap().ident.as_ref()
+        }
+        _ => "CLS_METHODS"
+    };
+
+    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_METHODS_{}", n));
     quote! {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
