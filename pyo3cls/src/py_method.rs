@@ -283,16 +283,16 @@ fn impl_wrap(cls: &Box<syn::Ty>,
         unsafe extern "C" fn wrap
             (slf: *mut _pyo3::ffi::PyObject,
              args: *mut _pyo3::ffi::PyObject,
-             kwargs: *mut _pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+             kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".", stringify!(#name), "()");
-            pyo3::callback::handle_callback(
+            _pyo3::callback::handle_callback(
                 LOCATION, _pyo3::callback::PyObjectCallbackConverter, |py|
                 {
                     let args: _pyo3::PyTuple =
                         _pyo3::PyObject::from_borrowed_ptr(py, args).unchecked_cast_into();
-                    let kwargs: Option<pyo3::PyDict> = _pyo3::argparse::get_kwargs(py, kwargs);
+                    let kwargs: Option<_pyo3::PyDict> = _pyo3::argparse::get_kwargs(py, kwargs);
 
                     let ret = {
                         #body

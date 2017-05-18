@@ -12,6 +12,7 @@ struct Methods {
 }
 
 struct Proto {
+    name: &'static str,
     //py_methods: &'static [&'static str],
     methods: &'static [MethodProto],
 }
@@ -38,39 +39,41 @@ static NUM_METHODS: Methods = Methods {
 };
 
 static ASYNC: Proto = Proto {
+    name: "Async",
     //py_methods: &[],
     methods: &[
         MethodProto::Unary{
             name: "__await__",
-            proto: "class::async::PyAsyncAwaitProtocol"},
+            proto: "_pyo3::class::async::PyAsyncAwaitProtocol"},
         MethodProto::Unary{
             name: "__aiter__",
-            proto: "class::async::PyAsyncAiterProtocol"},
+            proto: "_pyo3::class::async::PyAsyncAiterProtocol"},
         MethodProto::Unary{
             name: "__anext__",
-            proto: "class::async::PyAsyncAnextProtocol"},
+            proto: "_pyo3::class::async::PyAsyncAnextProtocol"},
     ],
 };
 
 static MAPPING: Proto = Proto {
+    name: "Mapping",
     //py_methods: &[],
     methods: &[
         MethodProto::Len{
             name: "__len__",
-            proto: "class::mapping::PyMappingLenProtocol"},
+            proto: "_pyo3::class::mapping::PyMappingLenProtocol"},
         MethodProto::Binary{
             name: "__getitem__",
             arg: "Key",
-            proto: "class::mapping::PyMappingGetItemProtocol"},
+            proto: "_pyo3::class::mapping::PyMappingGetItemProtocol"},
         MethodProto::Ternary{
             name: "__setitem__",
             arg1: "Key",
             arg2: "Value",
-            proto: "class::mapping::PyMappingSetItemProtocol"},
+            proto: "_pyo3::class::mapping::PyMappingSetItemProtocol"},
         MethodProto::Binary{
             name: "__delitem__",
             arg: "Key",
-            proto: "class::mapping::PyMappingDelItemProtocol"},
+            proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
     ],
 };
 
@@ -93,29 +96,29 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
             if let &Some(ref path) = path {
                 match process_path(path) {
                     ImplType::Object =>
-                        impl_protocol("pyo3::class::async::PyObjectProtocolImpl",
+                        impl_protocol("_pyo3::class::basic::PyObjectProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Async =>
                         impl_proto_impl(ty, impl_items, &ASYNC),
                     ImplType::Mapping =>
                         impl_proto_impl(ty, impl_items, &MAPPING),
                     ImplType::Buffer =>
-                        impl_protocol("pyo3::class::buffer::PyBufferProtocolImpl",
+                        impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Context =>
-                        impl_protocol("pyo3::class::context::PyContextProtocolImpl",
+                        impl_protocol("_pyo3::class::context::PyContextProtocolImpl",
                                       path.clone(), ty, impl_items, &CONTEXT_METHODS),
                     ImplType::Descr =>
-                        impl_protocol("pyo3::class::descr::PyDescrProtocolImpl",
+                        impl_protocol("_pyo3::class::descr::PyDescrProtocolImpl",
                                       path.clone(), ty, impl_items, &DESCR_METHODS),
                     ImplType::GC =>
-                        impl_protocol("pyo3::class::gc::PyGCProtocolImpl",
+                        impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Sequence =>
-                        impl_protocol("pyo3::class::mapping::PySequenceProtocolImpl",
+                        impl_protocol("_pyo3::class::mapping::PySequenceProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Number =>
-                        impl_protocol("pyo3::class::number::PyNumberProtocolImpl",
+                        impl_protocol("_pyo3::class::number::PyNumberProtocolImpl",
                                       path.clone(), ty, impl_items, &NUM_METHODS),
                 }
             } else {
@@ -160,7 +163,26 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Pr
             _ => (),
         }
     }
-    tokens
+
+    // unique mod name
+    let p = proto.name;
+    let n = match ty.as_ref() {
+        &syn::Ty::Path(_, ref p) => {
+        p.segments.last().as_ref().unwrap().ident.as_ref()
+    }
+    _ => "PROTO_METHODS"
+    };
+
+    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_{}_{}", n, p));
+    quote! {
+        #[feature(specialization)]
+        #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+        const #dummy_const: () = {
+            extern crate pyo3 as _pyo3;
+
+            #tokens
+        };
+    }
 }
 
 fn impl_protocol(name: &'static str,
