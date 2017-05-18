@@ -86,6 +86,8 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
         accessor.to_tokens(&mut accessors);
     }
 
+    let cls_name = quote! { #cls }.as_str().to_string();
+
     quote! {
         pub struct #storage {
             #(#fields),*
@@ -105,6 +107,9 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
         #accessors
 
         impl _pyo3::PythonObjectWithTypeObject for #cls {
+            #[inline]
+            fn type_name() -> &'static str { #cls_name }
+
             #[inline]
             fn type_object(py: _pyo3::Python) -> _pyo3::PyType {
                 unsafe { <#cls as _pyo3::class::PyTypeObject>::initialized(py, None) }
@@ -132,7 +137,7 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
                 } else {
                     // automatically initialize the class on-demand
                     _pyo3::class::typeob::initialize_type::<#cls>(
-                        py, module_name, ty).expect(
+                        py, module_name, #cls_name, ty).expect(
                         concat!("An error occurred while initializing class ",
                                 stringify!(#cls)));
                     _pyo3::PyType::from_type_ptr(py, ty)

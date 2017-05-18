@@ -20,14 +20,13 @@ pub trait PyTypeObject : BaseObject + PythonObject {
 
 }
 
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
+pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str,
                           type_object: &mut ffi::PyTypeObject) -> PyResult<PyType>
     where T: BaseObject + PythonObject
 {
     // type name
     let name = match module_name {
-        Some(module_name) => CString::new(
-            format!("{}.{}", module_name, stringify!(type_name))),
+        Some(module_name) => CString::new(format!("{}.{}", module_name, type_name)),
         None => CString::new(stringify!(type_name))
     };
     let name = name.expect(

@@ -69,8 +69,13 @@ pub trait PythonObjectWithCheckedDowncast : PythonObject {
 
 /// Trait implemented by Python object types that have a corresponding type object.
 pub trait PythonObjectWithTypeObject : PythonObjectWithCheckedDowncast {
+
+    /// Type name
+    fn type_name() -> &'static str { "Unknown" }
+
     /// Retrieves the type object for this Python object type.
     fn type_object(Python) -> PyType;
+
 }
 
 pub trait PyClone : Sized {
