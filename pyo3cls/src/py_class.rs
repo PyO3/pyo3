@@ -5,7 +5,7 @@ use quote::{Tokens, ToTokens};
 
 
 pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
-    let base = syn::Ident::from("pyo3::PyObject");
+    let base = syn::Ident::from("_pyo3::PyObject");
 
     let mut tokens = Tokens::new();
 
@@ -41,10 +41,8 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
         const #dummy_const: () = {
-            extern crate pyo3;
+            extern crate pyo3 as _pyo3;
             use std;
-            use pyo3::class::BaseObject;
-            use pyo3::{ffi, Python, PyObject, PyType, PyResult, PyModule};
 
             #tokens
         };
@@ -58,6 +56,8 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
         .map(|f| f.ident.as_ref().unwrap().clone()).collect();
     //let types: Vec<syn::Ty> = fields.iter().map(|f| f.ty.clone()).collect();
 
+    let storage = syn::Ident::from(format!("{}_Storage", cls).as_str());
+
     let mut accessors = Tokens::new();
     for field in fields.iter() {
         let name = &field.ident.as_ref().unwrap();
@@ -66,17 +66,17 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
 
         let accessor = quote!{
             impl #cls {
-                fn #name<'a>(&'a self, py: Python<'a>) -> &'a #ty {
+                fn #name<'a>(&'a self, py: _pyo3::Python<'a>) -> &'a #ty {
                     unsafe {
                         let ptr = (self._unsafe_inner.as_ptr() as *const u8)
-                            .offset(base_offset() as isize) as *const Storage;
+                            .offset(base_offset() as isize) as *const #storage;
                         &(*ptr).#name
                     }
                 }
-                fn #name_mut<'a>(&'a self, py: Python<'a>) -> &'a mut #ty {
+                fn #name_mut<'a>(&'a self, py: _pyo3::Python<'a>) -> &'a mut #ty {
                     unsafe {
                         let ptr = (self._unsafe_inner.as_ptr() as *const u8)
-                            .offset(base_offset() as isize) as *mut Storage;
+                            .offset(base_offset() as isize) as *mut #storage;
                         &mut (*ptr).#name
                     }
                 }
@@ -86,16 +86,16 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
     }
 
     quote! {
-        struct Storage {
+        struct #storage {
             #(#fields),*
         }
 
         impl #cls {
-            fn create_instance(py: Python, #(#fields),*) -> PyResult<#cls> {
+            fn create_instance(py: _pyo3::Python, #(#fields),*) -> _pyo3::PyResult<#cls> {
                 let obj = try!(unsafe {
-                    <#cls as BaseObject>::alloc(
+                    <#cls as _pyo3::class::BaseObject>::alloc(
                         py, &py.get_type::<#cls>(),
-                        Storage { #(#names: #values),*})});
+                        #storage { #(#names: #values),*})});
 
                 return Ok(#cls { _unsafe_inner: obj });
             }
@@ -103,62 +103,63 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
 
         #accessors
 
-        impl pyo3::PythonObjectWithTypeObject for #cls {
+        impl _pyo3::PythonObjectWithTypeObject for #cls {
             #[inline]
-            fn type_object(py: Python) -> PyType {
-                unsafe { #cls::initialized(py, None) }
+            fn type_object(py: _pyo3::Python) -> _pyo3::PyType {
+                unsafe { <#cls as _pyo3::class::PyTypeObject>::initialized(py, None) }
             }
         }
 
-        impl pyo3::class::PyTypeObject for #cls {
+        impl _pyo3::class::PyTypeObject for #cls {
 
-            fn add_to_module(py: Python, module: &PyModule) -> PyResult<()> {
+            fn add_to_module(py: _pyo3::Python, module: &_pyo3::PyModule) -> _pyo3::PyResult<()> {
                 let ty = unsafe { #cls::initialized(py, module.name(py).ok()) };
                 module.add(py, stringify!(#cls), ty)
             }
 
             #[inline]
-            unsafe fn type_obj() -> &'static mut ffi::PyTypeObject {
-                static mut TYPE_OBJECT: ffi::PyTypeObject = ffi::PyTypeObject_INIT;
+            unsafe fn type_obj() -> &'static mut _pyo3::ffi::PyTypeObject {
+                static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
                 &mut TYPE_OBJECT
             }
 
-            unsafe fn initialized(py: Python, module_name: Option<&str>) -> PyType {
+            unsafe fn initialized(py: _pyo3::Python, module_name: Option<&str>) -> _pyo3::PyType {
                 let mut ty = #cls::type_obj();
 
-                if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-                    PyType::from_type_ptr(py, ty)
+                if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) != 0 {
+                    _pyo3::PyType::from_type_ptr(py, ty)
                 } else {
                     // automatically initialize the class on-demand
-                    pyo3::class::typeob::initialize_type::<#cls>(
+                    _pyo3::class::typeob::initialize_type::<#cls>(
                         py, module_name, ty).expect(
                         concat!("An error occurred while initializing class ",
                                 stringify!(#cls)));
-                    PyType::from_type_ptr(py, ty)
+                    _pyo3::PyType::from_type_ptr(py, ty)
                 }
             }
         }
 
         #[inline]
         fn base_offset() -> usize {
-            let align = std::mem::align_of::<Storage>();
-            let bs = <#base as BaseObject>::size();
+            let align = std::mem::align_of::<#storage>();
+            let bs = <#base as _pyo3::class::BaseObject>::size();
 
             // round base_size up to next multiple of align
             (bs + align - 1) / align * align
         }
 
-        impl BaseObject for #cls {
-            type Type = Storage;
+        impl _pyo3::class::BaseObject for #cls {
+            type Type = #storage;
 
             #[inline]
             fn size() -> usize {
                 base_offset() + std::mem::size_of::<Self::Type>()
             }
 
-            unsafe fn alloc(py: Python, ty: &PyType, value: Self::Type) -> PyResult<PyObject>
+            unsafe fn alloc(py: _pyo3::Python, ty: &_pyo3::PyType,
+                            value: Self::Type) -> _pyo3::PyResult<_pyo3::PyObject>
             {
-                let obj = try!(<#base as BaseObject>::alloc(py, ty, ()));
+                let obj = try!(<#base as _pyo3::class::BaseObject>::alloc(py, ty, ()));
 
                 let ptr = (obj.as_ptr() as *mut u8)
                     .offset(base_offset() as isize) as *mut Self::Type;
@@ -167,11 +168,11 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
                 Ok(obj)
             }
 
-            unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+            unsafe fn dealloc(py: _pyo3::Python, obj: *mut _pyo3::ffi::PyObject) {
                 let ptr = (obj as *mut u8).offset(base_offset() as isize) as *mut Self::Type;
                 std::ptr::drop_in_place(ptr);
 
-                <#base as BaseObject>::dealloc(py, obj)
+                <#base as _pyo3::class::BaseObject>::dealloc(py, obj)
             }
         }
     }
@@ -181,22 +182,22 @@ fn impl_to_py_object(cls: &syn::Ident) -> Tokens {
     quote! {
         /// Identity conversion: allows using existing `PyObject` instances where
         /// `T: ToPyObject` is expected.
-        impl pyo3::ToPyObject for #cls where #cls: pyo3::PythonObject {
+        impl _pyo3::ToPyObject for #cls where #cls: _pyo3::PythonObject {
             #[inline]
-            fn to_py_object(&self, py: pyo3::Python) -> pyo3::PyObject {
-                pyo3::PyClone::clone_ref(self, py).into_object()
+            fn to_py_object(&self, py: _pyo3::Python) -> _pyo3::PyObject {
+                _pyo3::PyClone::clone_ref(self, py).into_object()
             }
 
             #[inline]
-            fn into_py_object(self, _py: pyo3::Python) -> pyo3::PyObject {
+            fn into_py_object(self, _py: _pyo3::Python) -> _pyo3::PyObject {
                 self.into_object()
             }
 
             #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: pyo3::Python, f: F) -> R
-                where F: FnOnce(*mut pyo3::ffi::PyObject) -> R
+            fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
+                where F: FnOnce(*mut _pyo3::ffi::PyObject) -> R
             {
-                f(pyo3::PythonObject::as_object(self).as_ptr())
+                f(_pyo3::PythonObject::as_object(self).as_ptr())
             }
         }
     }
@@ -204,18 +205,18 @@ fn impl_to_py_object(cls: &syn::Ident) -> Tokens {
 
 fn impl_from_py_object(cls: &syn::Ident) -> Tokens {
     quote! {
-        impl <'source> pyo3::FromPyObject<'source> for #cls {
+        impl <'source> _pyo3::FromPyObject<'source> for #cls {
             #[inline]
-            fn extract(py: pyo3::Python, obj: &'source pyo3::PyObject)
-                       -> pyo3::PyResult<#cls> {
+            fn extract(py: _pyo3::Python, obj: &'source _pyo3::PyObject)
+                       -> _pyo3::PyResult<#cls> {
                 Ok(obj.clone_ref(py).cast_into::<#cls>(py)?)
             }
         }
 
-        impl <'source> pyo3::FromPyObject<'source> for &'source #cls {
+        impl <'source> _pyo3::FromPyObject<'source> for &'source #cls {
             #[inline]
-            fn extract(py: pyo3::Python, obj: &'source pyo3::PyObject)
-                       -> pyo3::PyResult<&'source #cls> {
+            fn extract(py: _pyo3::Python, obj: &'source _pyo3::PyObject)
+                       -> _pyo3::PyResult<&'source #cls> {
                 Ok(obj.cast_as::<#cls>(py)?)
             }
         }
@@ -224,28 +225,28 @@ fn impl_from_py_object(cls: &syn::Ident) -> Tokens {
 
 fn impl_python_object(cls: &syn::Ident) -> Tokens {
     quote! {
-        impl pyo3::PythonObject for #cls {
+        impl _pyo3::PythonObject for #cls {
             #[inline]
-            fn as_object(&self) -> &pyo3::PyObject {
+            fn as_object(&self) -> &_pyo3::PyObject {
                 &self._unsafe_inner
             }
 
             #[inline]
-            fn into_object(self) -> pyo3::PyObject {
+            fn into_object(self) -> _pyo3::PyObject {
                 self._unsafe_inner
             }
 
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
-            unsafe fn unchecked_downcast_from(obj: pyo3::PyObject) -> Self {
+            unsafe fn unchecked_downcast_from(obj: _pyo3::PyObject) -> Self {
                 #cls { _unsafe_inner: obj }
             }
 
             /// Unchecked downcast from PyObject to Self.
             /// Undefined behavior if the input object does not have the expected type.
             #[inline]
-            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a pyo3::PyObject) -> &'a Self {
+            unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a _pyo3::PyObject) -> &'a Self {
                 std::mem::transmute(obj)
             }
         }
@@ -254,24 +255,24 @@ fn impl_python_object(cls: &syn::Ident) -> Tokens {
 
 fn impl_checked_downcast(cls: &syn::Ident) -> Tokens {
     quote! {
-        impl pyo3::PythonObjectWithCheckedDowncast for #cls {
+        impl _pyo3::PythonObjectWithCheckedDowncast for #cls {
             #[inline]
-            fn downcast_from<'p>(py: pyo3::Python<'p>, obj: pyo3::PyObject)
-                                 -> Result<#cls, pyo3::PythonObjectDowncastError<'p>> {
+            fn downcast_from<'p>(py: _pyo3::Python<'p>, obj: _pyo3::PyObject)
+                                 -> Result<#cls, _pyo3::PythonObjectDowncastError<'p>> {
                 if py.get_type::<#cls>().is_instance(py, &obj) {
                     Ok(#cls { _unsafe_inner: obj })
                 } else {
-                    Err(pyo3::PythonObjectDowncastError(py))
+                    Err(_pyo3::PythonObjectDowncastError(py))
                 }
             }
 
             #[inline]
-            fn downcast_borrow_from<'a, 'p>(py: pyo3::Python<'p>, obj: &'a pyo3::PyObject)
-                                            -> Result<&'a #cls, pyo3::PythonObjectDowncastError<'p>> {
+            fn downcast_borrow_from<'a, 'p>(py: _pyo3::Python<'p>, obj: &'a _pyo3::PyObject)
+                                            -> Result<&'a #cls, _pyo3::PythonObjectDowncastError<'p>> {
                 if py.get_type::<#cls>().is_instance(py, obj) {
                     unsafe { Ok(std::mem::transmute(obj)) }
                 } else {
-                    Err(pyo3::PythonObjectDowncastError(py))
+                    Err(_pyo3::PythonObjectDowncastError(py))
                 }
             }
         }

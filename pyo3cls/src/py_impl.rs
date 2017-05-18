@@ -34,9 +34,9 @@ fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
     }
 
     let tokens = quote! {
-        impl pyo3::class::methods::PyMethodsProtocolImpl for #ty {
-            fn py_methods() -> &'static [pyo3::class::PyMethodDefType] {
-                static METHODS: &'static [pyo3::class::PyMethodDefType] = &[
+        impl _pyo3::class::methods::PyMethodsProtocolImpl for #ty {
+            fn py_methods() -> &'static [_pyo3::class::PyMethodDefType] {
+                static METHODS: &'static [_pyo3::class::PyMethodDefType] = &[
                     #(#methods),*
                 ];
                 METHODS
@@ -56,8 +56,7 @@ fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
         const #dummy_const: () = {
-            extern crate pyo3;
-            use pyo3::ffi;
+            extern crate pyo3 as _pyo3;
 
             #tokens
         };

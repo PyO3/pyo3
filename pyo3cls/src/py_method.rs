@@ -281,24 +281,24 @@ fn impl_wrap(cls: &Box<syn::Ty>,
 
     quote! {
         unsafe extern "C" fn wrap
-            (slf: *mut pyo3::ffi::PyObject,
-             args: *mut pyo3::ffi::PyObject,
-             kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
+            (slf: *mut _pyo3::ffi::PyObject,
+             args: *mut _pyo3::ffi::PyObject,
+             kwargs: *mut _pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".", stringify!(#name), "()");
             pyo3::callback::handle_callback(
-                LOCATION, pyo3::callback::PyObjectCallbackConverter, |py|
+                LOCATION, _pyo3::callback::PyObjectCallbackConverter, |py|
                 {
-                    let args: pyo3::PyTuple =
-                        pyo3::PyObject::from_borrowed_ptr(py, args).unchecked_cast_into();
-                    let kwargs: Option<pyo3::PyDict> = pyo3::argparse::get_kwargs(py, kwargs);
+                    let args: _pyo3::PyTuple =
+                        _pyo3::PyObject::from_borrowed_ptr(py, args).unchecked_cast_into();
+                    let kwargs: Option<pyo3::PyDict> = _pyo3::argparse::get_kwargs(py, kwargs);
 
                     let ret = {
                         #body
                     };
-                    pyo3::PyDrop::release_ref(args, py);
-                    pyo3::PyDrop::release_ref(kwargs, py);
+                    _pyo3::PyDrop::release_ref(args, py);
+                    _pyo3::PyDrop::release_ref(kwargs, py);
                     ret
                 })
         }
@@ -310,19 +310,19 @@ fn impl_wrap(cls: &Box<syn::Ty>,
 fn impl_wrap_getter(cls: &Box<syn::Ty>,
                     name: &syn::Ident, _args: Vec<Arg>, _spec: Vec<FnSpec>) -> Tokens {
     quote! {
-        unsafe extern "C" fn wrap (slf: *mut pyo3::ffi::PyObject,
-                                   _: *mut pyo3::c_void)
-                                   -> *mut pyo3::ffi::PyObject
+        unsafe extern "C" fn wrap (slf: *mut _pyo3::ffi::PyObject,
+                                   _: *mut _pyo3::c_void)
+                                   -> *mut _pyo3::ffi::PyObject
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".getter_", stringify!(#name), "()");
-            pyo3::callback::handle_callback(
-                LOCATION, pyo3::callback::PyObjectCallbackConverter, |py|
+            _pyo3::callback::handle_callback(
+                LOCATION, _pyo3::callback::PyObjectCallbackConverter, |py|
                 {
-                    let slf = pyo3::PyObject::from_borrowed_ptr(
+                    let slf = _pyo3::PyObject::from_borrowed_ptr(
                         py, slf).unchecked_cast_into::<#cls>();
                     let ret = slf.#name(py);
-                    pyo3::PyDrop::release_ref(slf, py);
+                    _pyo3::PyDrop::release_ref(slf, py);
                     ret
                 })
         }
@@ -333,21 +333,21 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>,
 fn impl_wrap_setter(cls: &Box<syn::Ty>,
                     name: &syn::Ident, _args: Vec<Arg>, _spec: Vec<FnSpec>) -> Tokens {
     quote! {
-        unsafe extern "C" fn wrap(slf: *mut pyo3::ffi::PyObject,
-                                  value: *mut pyo3::ffi::PyObject,
-                                  _: *mut pyo3::c_void) -> pyo3::c_int
+        unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject,
+                                  value: *mut _pyo3::ffi::PyObject,
+                                  _: *mut _pyo3::c_void) -> _pyo3::c_int
         {
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".setter", stringify!(#name), "()");
-            pyo3::callback::handle_callback(
-                LOCATION, pyo3::callback::UnitCallbackConverter, |py|
+            _pyo3::callback::handle_callback(
+                LOCATION, _pyo3::callback::UnitCallbackConverter, |py|
                 {
-                    let slf = pyo3::PyObject::from_borrowed_ptr(py, slf)
+                    let slf = _pyo3::PyObject::from_borrowed_ptr(py, slf)
                         .unchecked_cast_into::<#cls>();
-                    let value = pyo3::PyObject::from_borrowed_ptr(py, value);
+                    let value = _pyo3::PyObject::from_borrowed_ptr(py, value);
                     let ret = slf.#name(py, &value);
-                    pyo3::PyDrop::release_ref(slf, py);
-                    pyo3::PyDrop::release_ref(value, py);
+                    _pyo3::PyDrop::release_ref(slf, py);
+                    _pyo3::PyDrop::release_ref(value, py);
                     ret.map(|o| ())
                 })
         }
@@ -359,9 +359,9 @@ fn impl_call(cls: &Box<syn::Ty>, fname: &syn::Ident, args: &Vec<Arg>) -> Tokens 
     let names: Vec<&syn::Ident> = args.iter().map(|item| item.name).collect();
     quote! {
         {
-            let slf = pyo3::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<#cls>();
+            let slf = _pyo3::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<#cls>();
             let ret = slf.#fname(py, #(#names),*);
-            pyo3::PyDrop::release_ref(slf, py);
+            _pyo3::PyDrop::release_ref(slf, py);
             ret
         }
     }
@@ -384,7 +384,7 @@ fn impl_arg_params(mut args: Vec<Arg>, spec: &Vec<FnSpec>, body: Tokens) -> Toke
             };
             params.push(
                 quote! {
-                    pyo3::argparse::ParamDescription{name: #name, is_optional: #opt,}
+                    _pyo3::argparse::ParamDescription{name: #name, is_optional: #opt,}
                 }
             );
         }
@@ -406,12 +406,12 @@ fn impl_arg_params(mut args: Vec<Arg>, spec: &Vec<FnSpec>, body: Tokens) -> Toke
 
     // create array of arguments, and then parse
     quote! {
-        const PARAMS: &'static [pyo3::argparse::ParamDescription<'static>] = &[
+        const PARAMS: &'static [_pyo3::argparse::ParamDescription<'static>] = &[
             #(#params),*
         ];
 
         let mut output = [#(#placeholders),*];
-        match pyo3::argparse::parse_args(
+        match _pyo3::argparse::parse_args(
             py, Some(LOCATION), PARAMS, &args,
             kwargs.as_ref(), #accept_args, #accept_kwargs, &mut output) {
             Ok(_) => {
@@ -434,7 +434,7 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
 
     if is_args(&name, &spec) {
         quote! {
-            match <#ty as pyo3::FromPyObject>::extract(py, args.as_object())
+            match <#ty as _pyo3::FromPyObject>::extract(py, args.as_object())
             {
                 Ok(#name) => {
                     #body
@@ -454,7 +454,8 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
             // default value
             let mut default = Tokens::new();
             if let Some(d) = get_default_value(name, spec) {
-                d.to_tokens(&mut default);
+                let dt = quote!{ Some(#d) };
+                dt.to_tokens(&mut default);
             } else {
                 syn::Ident::from("None").to_tokens(&mut default);
             }
@@ -462,12 +463,12 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
             quote! {
                 match match _iter.next().unwrap().as_ref() {
                     Some(obj) => {
-                        match <#opt_ty as pyo3::FromPyObject>::extract(py, obj) {
+                        match <#opt_ty as _pyo3::FromPyObject>::extract(py, obj) {
                             Ok(obj) => Ok(Some(obj)),
                             Err(e) => Err(e),
                         }
                     },
-                    None => Ok(Some(#default))
+                    None => Ok(#default)
                 } {
                     Ok(#name) => #body,
                     Err(e) => Err(e)
@@ -477,7 +478,7 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
             quote! {
                 match match _iter.next().unwrap().as_ref() {
                     Some(obj) => {
-                        match <#ty as pyo3::FromPyObject>::extract(py, obj) {
+                        match <#ty as _pyo3::FromPyObject>::extract(py, obj) {
                             Ok(obj) => Ok(obj),
                             Err(e) => Err(e),
                         }
@@ -491,7 +492,7 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
         }
         else {
             quote! {
-                match <#ty as pyo3::FromPyObject>::extract(
+                match <#ty as _pyo3::FromPyObject>::extract(
                     py, _iter.next().unwrap().as_ref().unwrap())
                 {
                     Ok(#name) => {
@@ -562,13 +563,13 @@ fn get_default_value<'a>(name: &syn::Ident, spec: &'a Vec<FnSpec>) -> Option<&'a
 
 fn impl_py_method_def(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
     quote! {
-        pyo3::class::PyMethodDefType::Method({
+        _pyo3::class::PyMethodDefType::Method({
             #wrapper
 
-            pyo3::class::PyMethodDef {
+            _pyo3::class::PyMethodDef {
                 ml_name: stringify!(#name),
-                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
+                ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
                 ml_doc: "",
             }
         })
@@ -588,10 +589,10 @@ fn impl_py_setter_def(name: &syn::Ident, setter: Option<String>, wrapper: &Token
     };
 
     quote! {
-        pyo3::class::PyMethodDefType::Setter({
+        _pyo3::class::PyMethodDefType::Setter({
             #wrapper
 
-            pyo3::class::PySetterDef {
+            _pyo3::class::PySetterDef {
                 name: #n,
                 meth: wrap,
                 doc: "",
@@ -613,10 +614,10 @@ fn impl_py_getter_def(name: &syn::Ident, getter: Option<String>, wrapper: &Token
     };
 
     quote! {
-        pyo3::class::PyMethodDefType::Getter({
+        _pyo3::class::PyMethodDefType::Getter({
             #wrapper
 
-            pyo3::class::PyGetterDef {
+            _pyo3::class::PyGetterDef {
                 name: #n,
                 meth: wrap,
                 doc: "",

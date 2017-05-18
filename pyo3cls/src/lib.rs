@@ -77,3 +77,27 @@ pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
 
     TokenStream::from_str(s.as_str()).unwrap()
 }
+
+#[proc_macro_attribute]
+// do nothing, if impl block is not wrapped into #[methods] macro
+pub fn getter(_: TokenStream, input: TokenStream) -> TokenStream {
+    input
+}
+
+#[proc_macro_attribute]
+// do nothing, if impl block is not wrapped into #[methods] macro
+pub fn setter(_: TokenStream, input: TokenStream) -> TokenStream {
+    input
+}
+
+#[proc_macro_attribute]
+// do nothing, if impl block is not wrapped into #[methods] macro
+pub fn args(_: TokenStream, input: TokenStream) -> TokenStream {
+    input
+}
+
+#[proc_macro_attribute]
+// do nothing, if impl block is not wrapped into #[methods] macro
+pub fn defaults(_: TokenStream, input: TokenStream) -> TokenStream {
+    input
+}

@@ -103,6 +103,10 @@ pub use objectprotocol::{ObjectProtocol};
 
 use std::{ptr, mem};
 
+pub mod py {
+    pub use pyo3cls::*;
+}
+
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr(
     ($s: tt) => (
