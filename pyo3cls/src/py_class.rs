@@ -39,7 +39,8 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
     quote! {
         #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+        #[allow(non_upper_case_globals, unused_attributes,
+                unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
             use std;
@@ -86,7 +87,7 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
     }
 
     quote! {
-        struct #storage {
+        pub struct #storage {
             #(#fields),*
         }
 

@@ -176,7 +176,8 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Pr
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_{}_{}", n, p));
     quote! {
         #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+        #[allow(non_upper_case_globals, unused_attributes,
+                unused_qualifications, unused_variables)]
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
 
@@ -244,7 +245,8 @@ fn impl_protocol(name: &'static str,
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_{}", name));
     quote! {
         #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+        #[allow(non_upper_case_globals, unused_attributes,
+                unused_qualifications, unused_variables)]
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
 

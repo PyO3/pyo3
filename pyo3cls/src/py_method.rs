@@ -331,7 +331,10 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>,
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
 fn impl_wrap_setter(cls: &Box<syn::Ty>,
-                    name: &syn::Ident, _args: Vec<Arg>, _spec: Vec<FnSpec>) -> Tokens {
+                    name: &syn::Ident, args: Vec<Arg>, _spec: Vec<FnSpec>) -> Tokens {
+
+    let val_ty = args[0].ty;
+
     quote! {
         unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject,
                                   value: *mut _pyo3::ffi::PyObject,
@@ -345,10 +348,17 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>,
                     let slf = _pyo3::PyObject::from_borrowed_ptr(py, slf)
                         .unchecked_cast_into::<#cls>();
                     let value = _pyo3::PyObject::from_borrowed_ptr(py, value);
-                    let ret = slf.#name(py, &value);
+
+                    let ret = match <#val_ty as _pyo3::FromPyObject>::extract(py, &value) {
+                        Ok(val) => {
+                            let ret = slf.#name(py, val);
+                            ret.map(|o| ())
+                        }
+                        Err(e) => Err(e)
+                    };
                     _pyo3::PyDrop::release_ref(slf, py);
                     _pyo3::PyDrop::release_ref(value, py);
-                    ret.map(|o| ())
+                    ret
                 })
         }
     }
