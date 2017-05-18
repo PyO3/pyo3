@@ -76,7 +76,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
     }
 
     // async methods
-    if let Some(meth) = ffi::PyAsyncMethods::new::<T>() {
+    if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
         static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;
         *(unsafe { &mut ASYNC_METHODS }) = meth;
         type_object.tp_as_async = unsafe { &mut ASYNC_METHODS };

@@ -268,7 +268,7 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
     }
 
     {
-        let interpreter_path = "python";
+        let interpreter_path = "python3";
         let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
         if MIN_MINOR <= interpreter_version.minor.unwrap_or(0) &&
             interpreter_version.major == 3 {

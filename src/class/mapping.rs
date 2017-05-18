@@ -16,21 +16,18 @@ use conversion::{ToPyObject, FromPyObject};
 /// Mapping interface
 #[allow(unused_variables)]
 pub trait PyMappingProtocol: PythonObject {
-    fn __len__(&self, py: Python) -> Self::Result
-        where Self: PyMappingLenProtocol
-    { unimplemented!() }
 
-    fn __getitem__(&self, py: Python, key: Self::Key) -> Self::Result
-        where Self: PyMappingGetItemProtocol
-    { unimplemented!() }
+    fn __len__(&self, py: Python)
+               -> Self::Result where Self: PyMappingLenProtocol { unimplemented!() }
 
-    fn __setitem__(&self, py: Python, key: Self::Key, value: Self::Value) -> Self::Result
-        where Self: PyMappingSetItemProtocol
-    { unimplemented!() }
+    fn __getitem__(&self, py: Python, key: Self::Key)
+                   -> Self::Result where Self: PyMappingGetItemProtocol { unimplemented!() }
 
-    fn __delitem__(&self, py: Python, key: Self::Key) -> Self::Result
-        where Self: PyMappingDelItemProtocol
-    { unimplemented!() }
+    fn __setitem__(&self, py: Python, key: Self::Key, value: Self::Value)
+                   -> Self::Result where Self: PyMappingSetItemProtocol { unimplemented!() }
+
+    fn __delitem__(&self, py: Python, key: Self::Key)
+                   -> Self::Result where Self: PyMappingDelItemProtocol { unimplemented!() }
 
 }
 

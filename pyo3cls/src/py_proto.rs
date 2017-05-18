@@ -37,6 +37,21 @@ static NUM_METHODS: Methods = Methods {
     ],
 };
 
+static ASYNC: Proto = Proto {
+    //py_methods: &[],
+    methods: &[
+        MethodProto::Unary{
+            name: "__await__",
+            proto: "class::mapping::PyAsyncAwaitProtocol"},
+        MethodProto::Unary{
+            name: "__aiter__",
+            proto: "class::mapping::PyAsyncAiterProtocol"},
+        MethodProto::Unary{
+            name: "__anext__",
+            proto: "class::mapping::PyAsyncAnextProtocol"},
+    ],
+};
+
 static MAPPING: Proto = Proto {
     //py_methods: &[],
     methods: &[
@@ -81,8 +96,9 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                         impl_protocol("pyo3::class::async::PyObjectProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
                     ImplType::Async =>
-                        impl_protocol("pyo3::class::async::PyAsyncProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                        impl_proto_impl(ty, impl_items, &ASYNC),
+                    ImplType::Mapping =>
+                        impl_proto_impl(ty, impl_items, &MAPPING),
                     ImplType::Buffer =>
                         impl_protocol("pyo3::class::buffer::PyBufferProtocolImpl",
                                       path.clone(), ty, impl_items, &DEFAULT_METHODS),
@@ -101,8 +117,6 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                     ImplType::Number =>
                         impl_protocol("pyo3::class::number::PyNumberProtocolImpl",
                                       path.clone(), ty, impl_items, &NUM_METHODS),
-                    ImplType::Mapping =>
-                        impl_proto_impl(ty, impl_items, &MAPPING),
                 }
             } else {
                 panic!("#[proto] can only be used with protocol trait implementations")

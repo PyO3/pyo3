@@ -6,7 +6,7 @@ use quote::Tokens;
 
 pub enum MethodProto {
     Len{name: &'static str, proto: &'static str},
-    //Unary(&'static str),
+    Unary{name: &'static str, proto: &'static str},
     Binary{name: &'static str, arg: &'static str, proto: &'static str},
     Ternary{name: &'static str, arg1: &'static str, arg2: &'static str, proto: &'static str},
 }
@@ -16,7 +16,7 @@ impl MethodProto {
     pub fn eq(&self, name: &str) -> bool {
         match *self {
             MethodProto::Len{name: n, proto: _} => n == name,
-            //MethodProto::Unary(n) => n == name,
+            MethodProto::Unary{name: n, proto: _} => n == name,
             MethodProto::Binary{name: n, arg: _, proto: _} => n == name,
             MethodProto::Ternary{name: n, arg1: _, arg2: _, proto: _} => n == name,
         }
@@ -34,6 +34,17 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     let p = syn::Ident::from(proto);
                     quote! {
                         impl #p for #cls {
+                            type Result = #ty;
+                        }
+                    }
+                },
+                MethodProto::Unary{name: _, proto} => {
+                    let p = syn::Ident::from(proto);
+                    let succ = get_res_success(ty);
+
+                    quote! {
+                        impl #p for #cls {
+                            type Success = #succ;
                             type Result = #ty;
                         }
                     }
