@@ -23,7 +23,7 @@ use class::{NO_METHODS, NO_PY_METHODS};
 // staticmethod
 
 
-/// Basic customization
+/// Object customization
 pub trait PyObjectProtocol {
 
     fn __getattr__(&self, py: Python, name: &PyObject) -> PyResult<PyObject>;
@@ -34,8 +34,6 @@ pub trait PyObjectProtocol {
 
     // __instancecheck__
     // __subclasscheck__
-    // __iter__
-    // __next__
     // __dir__
 
     fn __str__(&self, py: Python) -> PyResult<PyObject>;

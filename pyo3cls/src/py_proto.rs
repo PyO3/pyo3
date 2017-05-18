@@ -54,6 +54,20 @@ static ASYNC: Proto = Proto {
     ],
 };
 
+static ITER: Proto = Proto {
+    name: "Iter",
+    //py_methods: &[],
+    methods: &[
+        MethodProto::Unary{
+            name: "__iter__",
+            proto: "_pyo3::class::iter::PyIterIterProtocol"},
+        MethodProto::Unary{
+            name: "__next__",
+            proto: "_pyo3::class::iter::PyIterNextProtocol"},
+    ],
+};
+
+
 static MAPPING: Proto = Proto {
     name: "Mapping",
     //py_methods: &[],
@@ -78,73 +92,49 @@ static MAPPING: Proto = Proto {
 };
 
 
-enum ImplType {
-    Object,
-    Async,
-    Buffer,
-    Context,
-    Descr,
-    GC,
-    Mapping,
-    Sequence,
-    Number,
-}
-
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
     match ast.node {
         syn::ItemKind::Impl(_, _, _, ref path, ref ty, ref mut impl_items) => {
             if let &Some(ref path) = path {
-                match process_path(path) {
-                    ImplType::Object =>
-                        impl_protocol("_pyo3::class::basic::PyObjectProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                    ImplType::Async =>
-                        impl_proto_impl(ty, impl_items, &ASYNC),
-                    ImplType::Mapping =>
-                        impl_proto_impl(ty, impl_items, &MAPPING),
-                    ImplType::Buffer =>
-                        impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                    ImplType::Context =>
-                        impl_protocol("_pyo3::class::context::PyContextProtocolImpl",
-                                      path.clone(), ty, impl_items, &CONTEXT_METHODS),
-                    ImplType::Descr =>
-                        impl_protocol("_pyo3::class::descr::PyDescrProtocolImpl",
-                                      path.clone(), ty, impl_items, &DESCR_METHODS),
-                    ImplType::GC =>
-                        impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                    ImplType::Sequence =>
-                        impl_protocol("_pyo3::class::mapping::PySequenceProtocolImpl",
-                                      path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                    ImplType::Number =>
-                        impl_protocol("_pyo3::class::number::PyNumberProtocolImpl",
-                                      path.clone(), ty, impl_items, &NUM_METHODS),
+                if let Some(segment) = path.segments.last() {
+                    match segment.ident.as_ref() {
+                        "PyObjectProtocol" =>
+                            impl_protocol("_pyo3::class::basic::PyObjectProtocolImpl",
+                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                        "PyAsyncProtocol" =>
+                            impl_proto_impl(ty, impl_items, &ASYNC),
+                        "PyMappingProtocol" =>
+                            impl_proto_impl(ty, impl_items, &MAPPING),
+                        "PyIterProtocol" =>
+                            impl_proto_impl(ty, impl_items, &ITER),
+                        "PyBufferProtocol" =>
+                            impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
+                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                        "PyContextProtocol" =>
+                            impl_protocol("_pyo3::class::context::PyContextProtocolImpl",
+                                          path.clone(), ty, impl_items, &CONTEXT_METHODS),
+                        "PyDescrProtocol" =>
+                            impl_protocol("_pyo3::class::descr::PyDescrProtocolImpl",
+                                          path.clone(), ty, impl_items, &DESCR_METHODS),
+                        "PyGCProtocol" =>
+                            impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
+                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                        "PySequenceProtocol" =>
+                            impl_protocol("_pyo3::class::mapping::PySequenceProtocolImpl",
+                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                        "PyNumberProtocol" =>
+                            impl_protocol("_pyo3::class::number::PyNumberProtocolImpl",
+                                          path.clone(), ty, impl_items, &NUM_METHODS),
+                        _ => panic!("#[proto] can not be used with this block"),
+                    }
+                } else {
+                    panic!("#[proto] can only be used with protocol trait implementations")
                 }
             } else {
                 panic!("#[proto] can only be used with protocol trait implementations")
             }
         },
         _ => panic!("#[proto] can only be used with Impl blocks"),
-    }
-}
-
-fn process_path(path: &syn::Path) -> ImplType {
-    if let Some(segment) = path.segments.last() {
-            match segment.ident.as_ref() {
-                "PyObjectProtocol" => ImplType::Object,
-                "PyAsyncProtocol" => ImplType::Async,
-                "PyBufferProtocol" => ImplType::Buffer,
-                "PyContextProtocol" => ImplType::Context,
-                "PyDescrProtocol" => ImplType::Descr,
-                "PyGCProtocol" => ImplType::GC,
-                "PyMappingProtocol" => ImplType::Mapping,
-                "PySequenceProtocol" => ImplType::Sequence,
-                "PyNumberProtocol" => ImplType::Number,
-                _ => panic!("#[proto] can not be used with this block"),
-            }
-    } else {
-        panic!("#[proto] can not be used with this block");
     }
 }
 

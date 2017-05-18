@@ -48,11 +48,15 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
     type_object.tp_descr_get = class::descr::get_descrfunc::<T>();
     type_object.tp_descr_set = class::descr::set_descrfunc::<T>();
 
+    // iterator methods
+    <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
+
     // number methods
     if let Some(meth) = ffi::PyNumberMethods::new::<T>() {
         static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
         *(unsafe { &mut NB_METHODS }) = meth;
         type_object.tp_as_number = unsafe { &mut NB_METHODS };
+        mem::forget(meth);
     } else {
         type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
     }
@@ -62,6 +66,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
         static mut MP_METHODS: ffi::PyMappingMethods = ffi::PyMappingMethods_INIT;
         *(unsafe { &mut MP_METHODS }) = meth;
         type_object.tp_as_mapping = unsafe { &mut MP_METHODS };
+        mem::forget(meth);
     } else {
         type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
     }
@@ -71,6 +76,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
         static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
         *(unsafe { &mut SQ_METHODS }) = meth;
         type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
+        mem::forget(meth);
     } else {
         type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
     }
@@ -80,6 +86,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
         static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;
         *(unsafe { &mut ASYNC_METHODS }) = meth;
         type_object.tp_as_async = unsafe { &mut ASYNC_METHODS };
+        mem::forget(meth);
     } else {
         type_object.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
     }
@@ -89,6 +96,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
         static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
         *(unsafe { &mut BUFFER_PROCS }) = meth;
         type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
+        mem::forget(meth);
     } else {
         type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
     }
@@ -101,6 +109,8 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>,
 
         static mut METHODS: *const ffi::PyMethodDef = 0 as *const _;
         *(unsafe { &mut METHODS }) = methods.as_ptr();
+
+        mem::forget(methods);
     }
 
     // properties

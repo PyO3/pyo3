@@ -13,12 +13,14 @@ pub mod descr;
 pub mod mapping;
 pub mod methods;
 pub mod number;
+pub mod iter;
 pub mod gc;
 pub mod sequence;
 pub mod typeob;
 
 pub use self::basic::PyObjectProtocol;
 pub use self::async::PyAsyncProtocol;
+pub use self::iter::PyIterProtocol;
 pub use self::buffer::PyBufferProtocol;
 pub use self::context::PyContextProtocol;
 pub use self::descr::PyDescrProtocol;
