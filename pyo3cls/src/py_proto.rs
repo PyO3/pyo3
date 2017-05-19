@@ -11,10 +11,15 @@ struct Methods {
     methods: &'static [&'static str],
 }
 
+struct PyMethod {
+    name: &'static str,
+    proto: &'static str,
+}
+
 struct Proto {
     name: &'static str,
-    //py_methods: &'static [&'static str],
     methods: &'static [MethodProto],
+    py_methods: &'static [PyMethod],
 }
 
 static DEFAULT_METHODS: Methods = Methods {
@@ -40,9 +45,8 @@ static NUM_METHODS: Methods = Methods {
 
 static ASYNC: Proto = Proto {
     name: "Async",
-    //py_methods: &[],
     methods: &[
-        MethodProto::Unary{
+        MethodProto::Unary {
             name: "__await__",
             proto: "_pyo3::class::async::PyAsyncAwaitProtocol"},
         MethodProto::Unary{
@@ -51,12 +55,29 @@ static ASYNC: Proto = Proto {
         MethodProto::Unary{
             name: "__anext__",
             proto: "_pyo3::class::async::PyAsyncAnextProtocol"},
+        MethodProto::Unary{
+            name: "__aenter__",
+            proto: "_pyo3::class::async::PyAsyncAenterProtocol"},
+        MethodProto::Quaternary {
+            name: "__aexit__",
+            arg1: "ExcType", arg2: "ExcValue", arg3: "Traceback",
+            proto: "_pyo3::class::async::PyAsyncAexitProtocol"},
+    ],
+    py_methods: &[
+        PyMethod {
+            name: "__aenter__",
+            proto: "_pyo3::class::async::PyAsyncAenterProtocolImpl",
+        },
+        PyMethod {
+            name: "__aexit__",
+            proto: "_pyo3::class::async::PyAsyncAexitProtocolImpl",
+        },
     ],
 };
 
 static ITER: Proto = Proto {
     name: "Iter",
-    //py_methods: &[],
+    py_methods: &[],
     methods: &[
         MethodProto::Unary{
             name: "__iter__",
@@ -70,7 +91,7 @@ static ITER: Proto = Proto {
 
 static MAPPING: Proto = Proto {
     name: "Mapping",
-    //py_methods: &[],
+    py_methods: &[],
     methods: &[
         MethodProto::Len{
             name: "__len__",
@@ -140,6 +161,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
 
 fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Proto) -> Tokens {
     let mut tokens = Tokens::new();
+    let mut py_methods = Vec::new();
 
     for iimpl in impls.iter_mut() {
         match iimpl.node {
@@ -147,6 +169,27 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Pr
                 for m in proto.methods {
                     if m.eq(iimpl.ident.as_ref()) {
                         impl_method_proto(ty, sig, m).to_tokens(&mut tokens);
+                    }
+                }
+                for m in proto.py_methods {
+                    if m.name == iimpl.ident.as_ref() {
+                        let name = syn::Ident::from(m.name);
+                        let proto = syn::Ident::from(m.proto);
+
+                        let meth = py_method::gen_py_method(
+                            ty, &iimpl.ident, sig, &mut iimpl.attrs);
+
+                        py_methods.push(
+                            quote! {
+                                impl #proto for #ty
+                                {
+                                    #[inline]
+                                    fn #name() -> Option<_pyo3::class::methods::PyMethodDefType> {
+                                        Some(#meth)
+                                    }
+                                }
+                            }
+                        );
                     }
                 }
             },
@@ -172,6 +215,8 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Pr
             extern crate pyo3 as _pyo3;
 
             #tokens
+
+            #(#py_methods)*
         };
     }
 }
@@ -185,10 +230,10 @@ fn impl_protocol(name: &'static str,
     let mut meth = Vec::new();
     for iimpl in impls.iter_mut() {
         match iimpl.node {
-            syn::ImplItemKind::Method(ref mut sig, ref mut block) => {
+            syn::ImplItemKind::Method(ref mut sig, _) => {
                 if methods.methods.contains(&iimpl.ident.as_ref()) {
                     py_methods.push(py_method::gen_py_method(
-                        ty, &iimpl.ident, sig, block, &mut iimpl.attrs));
+                        ty, &iimpl.ident, sig, &mut iimpl.attrs));
                 } else {
                     meth.push(String::from(iimpl.ident.as_ref()));
                 }

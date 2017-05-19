@@ -15,6 +15,7 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
+    PyNoArgsFunction(ffi::PyNoArgsFunction),
 }
 
 #[derive(Copy, Clone)]
@@ -56,7 +57,12 @@ impl PyMethodDef {
                 unsafe {
                     ::std::mem::transmute::<
                             ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
-                }
+                },
+            PyMethodType::PyNoArgsFunction(meth) =>
+                unsafe {
+                    ::std::mem::transmute::<
+                            ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
+                },
         };
 
         ffi::PyMethodDef {

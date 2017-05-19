@@ -29,7 +29,7 @@ enum FnSpec {
 
 
 pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
-                         sig: &mut syn::MethodSig, _block: &mut syn::Block,
+                         sig: &mut syn::MethodSig,
                          meth_attrs: &mut Vec<syn::Attribute>) -> Tokens
 {
     check_generic(name, sig);

@@ -10,7 +10,7 @@ install:
   - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
   - mkdir ~/rust-installer
   - curl -sL https://static.rust-lang.org/rustup.sh -o ~/rust-installer/rustup.sh
-  - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y --disable-sudo
+  - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y
   - export PATH="$HOME/rust/bin:$PATH"
   - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
   - find $PYTHON_LIB

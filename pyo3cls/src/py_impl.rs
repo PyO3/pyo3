@@ -25,9 +25,9 @@ fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
         match iimpl.node {
-            syn::ImplItemKind::Method(ref mut sig, ref mut block) => {
+            syn::ImplItemKind::Method(ref mut sig, _) => {
                 methods.push(py_method::gen_py_method(
-                    ty, &iimpl.ident, sig, block, &mut iimpl.attrs));
+                    ty, &iimpl.ident, sig, &mut iimpl.attrs));
             },
             _ => (),
         }

@@ -193,6 +193,9 @@ fn py_class_method_defs<T>() -> Vec<ffi::PyMethodDef> {
             _ => (),
         }
     }
+    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
 
     defs
 }

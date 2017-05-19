@@ -9,6 +9,10 @@ pub enum MethodProto {
     Unary{name: &'static str, proto: &'static str},
     Binary{name: &'static str, arg: &'static str, proto: &'static str},
     Ternary{name: &'static str, arg1: &'static str, arg2: &'static str, proto: &'static str},
+    Quaternary{name: &'static str,
+               arg1: &'static str,
+               arg2: &'static str,
+               arg3: &'static str, proto: &'static str},
 }
 
 impl MethodProto {
@@ -19,6 +23,7 @@ impl MethodProto {
             MethodProto::Unary{name: n, proto: _} => n == name,
             MethodProto::Binary{name: n, arg: _, proto: _} => n == name,
             MethodProto::Ternary{name: n, arg1: _, arg2: _, proto: _} => n == name,
+            MethodProto::Quaternary{name: n, arg1: _, arg2: _, arg3: _, proto: _} => n == name,
         }
     }
 }
@@ -80,6 +85,26 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     }
                 },
+                MethodProto::Quaternary{name: _, arg1, arg2, arg3, proto} => {
+                    let p = syn::Ident::from(proto);
+                    let arg1_name = syn::Ident::from(arg1);
+                    let arg1_ty = get_arg_ty(sig, 2);
+                    let arg2_name = syn::Ident::from(arg2);
+                    let arg2_ty = get_arg_ty(sig, 3);
+                    let arg3_name = syn::Ident::from(arg3);
+                    let arg3_ty = get_arg_ty(sig, 4);
+                    let succ = get_res_success(ty);
+
+                    quote! {
+                        impl #p for #cls {
+                            type #arg1_name = #arg1_ty;
+                            type #arg2_name = #arg2_ty;
+                            type #arg3_name = #arg3_ty;
+                            type Success = #succ;
+                            type Result = #ty;
+                        }
+                    }
+                },
             }
         },
         _ => panic!("not supported"),
@@ -87,10 +112,31 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
 }
 
 
+// TODO: better arg ty detection
 fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Ty {
     match sig.decl.inputs[idx] {
         syn::FnArg::Captured(_, ref arg_ty) => {
-            arg_ty.clone()
+            match arg_ty {
+                &syn::Ty::Path(_, ref path) => {
+                    // use only last path segment for Option<>
+                    let seg = path.segments.last().unwrap().clone();
+                    if seg.ident.as_ref() == "Option" {
+                        match seg.parameters {
+                            syn::PathParameters::AngleBracketed(ref data) => {
+                                if let Some(ty) = data.types.last() {
+                                    return ty.clone()
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+
+                    arg_ty.clone()
+                },
+                _ => {
+                    arg_ty.clone()
+                }
+            }
         },
         _ =>
             panic!("not supported"),
