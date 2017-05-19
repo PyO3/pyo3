@@ -4,7 +4,7 @@ PyO3 [![Build Status](https://travis-ci.org/PyO3/PyO3.svg?branch=master)](https:
 [Rust](http://www.rust-lang.org/) bindings for the [python](https://www.python.org/) interpreter.
 
 * [Documentation](http://pyo3.github.io/PyO3/doc/PyO3/)
-* Cargo package: [cpython](https://crates.io/crates/pyo3)
+* Cargo package: [pyo3](https://crates.io/crates/pyo3)
 
 ---
 
