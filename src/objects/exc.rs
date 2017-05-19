@@ -22,7 +22,7 @@ use std::os::raw::c_char;
 use std::{self, mem, ops};
 use std::ffi::CStr;
 use ffi;
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject};
+use python::{Python, PythonObject};
 use err::{self, PyResult};
 use super::object::PyObject;
 use super::tuple::PyTuple;
@@ -34,37 +34,9 @@ macro_rules! exc_type(
 
         pyobject_newtype!($name);
 
-        impl PythonObjectWithCheckedDowncast for $name {
+        impl $crate::class::typeob::PyTypeObject for $name {
             #[inline]
-            fn downcast_from<'p>(py: Python<'p>, obj : PyObject)
-                -> Result<$name, PythonObjectDowncastError<'p>>
-            {
-                unsafe {
-                    if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) != 0 {
-                        Ok(PythonObject::unchecked_downcast_from(obj))
-                    } else {
-                        Err(PythonObjectDowncastError(py))
-                    }
-                }
-            }
-
-            #[inline]
-            fn downcast_borrow_from<'a, 'p>(py: Python<'p>, obj: &'a PyObject)
-                -> Result<&'a $name, PythonObjectDowncastError<'p>>
-            {
-                unsafe {
-                    if ffi::PyObject_TypeCheck(obj.as_ptr(), ffi::$exc_name as *mut ffi::PyTypeObject) != 0 {
-                        Ok(PythonObject::unchecked_downcast_borrow_from(obj))
-                    } else {
-                        Err(PythonObjectDowncastError(py))
-                    }
-                }
-            }
-        }
-
-        impl PythonObjectWithTypeObject for $name {
-            #[inline]
-            fn type_object(py: Python) -> PyType {
+            fn type_object(py: Python) -> $crate::PyType {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }

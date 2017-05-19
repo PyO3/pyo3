@@ -72,7 +72,21 @@ macro_rules! pyobject_newtype(
                     if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
                         Ok($name(obj))
                     } else {
-                        Err(::python::PythonObjectDowncastError(py))
+                        Err(::python::PythonObjectDowncastError(py, None))
+                    }
+                }
+            }
+
+            #[inline]
+            fn downcast_from_with_msg<'p>(
+                py: ::python::Python<'p>,
+                obj: ::objects::object::PyObject, msg: &'p str)
+                -> Result<$name, ::python::PythonObjectDowncastError<'p>> {
+                unsafe {
+                    if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
+                        Ok($name(obj))
+                    } else {
+                        Err(::python::PythonObjectDowncastError(py, Some(msg)))
                     }
                 }
             }
@@ -83,7 +97,7 @@ macro_rules! pyobject_newtype(
                     if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
                         Ok(::std::mem::transmute(obj))
                     } else {
-                        Err(::python::PythonObjectDowncastError(py))
+                        Err(::python::PythonObjectDowncastError(py, None))
                     }
                 }
             }
@@ -92,10 +106,14 @@ macro_rules! pyobject_newtype(
     ($name: ident, $checkfunction: ident, $typeobject: ident) => (
         pyobject_newtype!($name, $checkfunction);
 
-        impl ::python::PythonObjectWithTypeObject for $name {
+        impl $crate::class::typeob::PyTypeObjectInfo for $name {
             #[inline]
-            fn type_object(py: ::python::Python) -> ::objects::typeobject::PyType {
-                unsafe { ::objects::typeobject::PyType::from_type_ptr(py, &mut ::ffi::$typeobject) }
+            fn type_name() -> &'static str {
+                stringify!($name)
+            }
+            #[inline]
+            fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
+                unsafe { &mut $crate::ffi::$typeobject }
             }
         }
     );

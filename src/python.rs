@@ -21,6 +21,7 @@ use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 use ffi;
+use class::PyTypeObject;
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{self, PyErr, PyResult};
 use pythonrun::GILGuard;
@@ -39,7 +40,7 @@ use pythonrun::GILGuard;
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
 /// Trait implemented by all Python object types.
-pub trait PythonObject : ::conversion::ToPyObject + Send + Sized + 'static {
+pub trait PythonObject : Send + Sized + 'static {
     /// Casts the Python object to PyObject.
     fn as_object(&self) -> &PyObject;
 
@@ -56,7 +57,7 @@ pub trait PythonObject : ::conversion::ToPyObject + Send + Sized + 'static {
 }
 
 // Marker type that indicates an error while downcasting
-pub struct PythonObjectDowncastError<'p>(pub Python<'p>);
+pub struct PythonObjectDowncastError<'p>(pub Python<'p>, pub Option<&'p str>);
 
 /// Trait implemented by Python object types that allow a checked downcast.
 pub trait PythonObjectWithCheckedDowncast : PythonObject {
@@ -64,18 +65,43 @@ pub trait PythonObjectWithCheckedDowncast : PythonObject {
     fn downcast_from<'p>(Python<'p>, PyObject) -> Result<Self, PythonObjectDowncastError<'p>>;
 
     /// Cast from PyObject to a concrete Python object type.
+    fn downcast_from_with_msg<'p>(
+        Python<'p>, PyObject, msg: &'p str) -> Result<Self, PythonObjectDowncastError<'p>>;
+
+    /// Cast from PyObject to a concrete Python object type.
     fn downcast_borrow_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
 }
 
-/// Trait implemented by Python object types that have a corresponding type object.
-pub trait PythonObjectWithTypeObject : PythonObjectWithCheckedDowncast {
+impl<T> PythonObjectWithCheckedDowncast for T where T: PyTypeObject + PythonObject {
+    #[inline]
+    default fn downcast_from<'p>(py: Python<'p>, obj: PyObject)
+                                 -> Result<T, PythonObjectDowncastError<'p>> {
+        if T::type_object(py).is_instance(py, &obj) {
+            Ok( unsafe { T::unchecked_downcast_from(obj) })
+        } else {
+            Err(PythonObjectDowncastError(py, None))
+        }
+    }
 
-    /// Type name
-    fn type_name() -> &'static str { "Unknown" }
+    #[inline]
+    default fn downcast_from_with_msg<'p>(py: Python<'p>, obj: PyObject, msg: &'p str)
+                                          -> Result<T, PythonObjectDowncastError<'p>> {
+        if T::type_object(py).is_instance(py, &obj) {
+            Ok( unsafe { T::unchecked_downcast_from(obj) })
+        } else {
+            Err(PythonObjectDowncastError(py, Some(msg)))
+        }
+    }
 
-    /// Retrieves the type object for this Python object type.
-    fn type_object(Python) -> PyType;
-
+    #[inline]
+    default fn downcast_borrow_from<'a, 'p>(py: Python<'p>, obj: &'a PyObject)
+                                            -> Result<&'a T, PythonObjectDowncastError<'p>> {
+        if T::type_object(py).is_instance(py, obj) {
+            unsafe { Ok( T::unchecked_downcast_borrow_from(obj)) }
+        } else {
+            Err(PythonObjectDowncastError(py, None))
+        }
+    }
 }
 
 pub trait PyClone : Sized {
@@ -298,7 +324,7 @@ impl<'p> Python<'p> {
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> PyType where T: PythonObjectWithTypeObject {
+    pub fn get_type<T>(self) -> PyType where T: PyTypeObject {
         T::type_object(self)
     }
 

@@ -36,7 +36,7 @@ impl <'p> PyIterator<'p> {
         if unsafe { ffi::PyIter_Check(obj.as_ptr()) != 0 } {
             Ok(PyIterator { py: py, iter: obj })
         } else {
-            Err(PythonObjectDowncastError(py))
+            Err(PythonObjectDowncastError(py, None))
         }
     }
 

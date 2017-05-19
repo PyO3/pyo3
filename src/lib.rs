@@ -93,7 +93,8 @@ pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
 pub use err::{PyErr, PyResult};
 pub use objects::*;
-pub use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PythonObjectWithTypeObject, PyClone, PyDrop};
+pub use python::{Python, PythonObject,
+                 PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
 pub use class::{CompareOp};

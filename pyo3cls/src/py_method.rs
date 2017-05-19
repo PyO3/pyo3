@@ -473,9 +473,13 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
             quote! {
                 match match _iter.next().unwrap().as_ref() {
                     Some(obj) => {
-                        match <#opt_ty as _pyo3::FromPyObject>::extract(py, obj) {
-                            Ok(obj) => Ok(Some(obj)),
-                            Err(e) => Err(e),
+                        if obj == &py.None() {
+                            Ok(#default)
+                        } else {
+                            match <#opt_ty as _pyo3::FromPyObject>::extract(py, obj) {
+                                Ok(obj) => Ok(Some(obj)),
+                                Err(e) => Err(e)
+                            }
                         }
                     },
                     None => Ok(#default)
@@ -488,9 +492,13 @@ fn impl_arg_param(arg: &Arg, spec: &Vec<FnSpec>, body: &Tokens) -> Tokens {
             quote! {
                 match match _iter.next().unwrap().as_ref() {
                     Some(obj) => {
-                        match <#ty as _pyo3::FromPyObject>::extract(py, obj) {
-                            Ok(obj) => Ok(obj),
-                            Err(e) => Err(e),
+                        if obj == &py.None() {
+                            Ok(#default)
+                        } else {
+                            match <#ty as _pyo3::FromPyObject>::extract(py, obj) {
+                                Ok(obj) => Ok(obj),
+                                Err(e) => Err(e),
+                            }
                         }
                     },
                     None => Ok(#default)

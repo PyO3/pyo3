@@ -17,13 +17,13 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std;
-use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError,
-        PythonObjectWithTypeObject, PyClone, PyDrop};
+use python::{PythonObject, ToPythonPointer, Python, PythonObjectDowncastError, PyClone, PyDrop};
 use objects::{PyObject, PyType, exc};
 use ffi;
 use libc;
 use std::ptr;
 use libc::c_char;
+use class::PyTypeObject;
 use conversion::{ToPyObject, ToPyTuple};
 use std::ffi::CString;
 
@@ -46,7 +46,7 @@ use pyo3::{Python, PyDict};
 py_exception!(mymodule, CustomError);
 
 fn main() {
-    let gil = Python::acquire_gil();
+let gil = Python::acquire_gil();
     let py = gil.python();
     let ctx = PyDict::new(py);
 
@@ -72,31 +72,11 @@ macro_rules! py_exception {
             }
         }
 
-        impl $crate::PythonObjectWithCheckedDowncast for $name {
+        impl $crate::PyTypeObject for $name {
             #[inline]
-            fn downcast_from<'p>(py: $crate::Python<'p>, obj: $crate::PyObject)
-                -> Result<$name, $crate::PythonObjectDowncastError<'p>>
-            {
-                if <$name as $crate::PythonObjectWithTypeObject>::type_object(py).is_instance(py, &obj) {
-                    Ok(unsafe { $crate::PythonObject::unchecked_downcast_from(obj) })
-                } else {
-                    Err($crate::PythonObjectDowncastError(py))
-                }
+            fn type_name() -> &'static str {
+                "$name"
             }
-
-            #[inline]
-            fn downcast_borrow_from<'a, 'p>(py: $crate::Python<'p>, obj: &'a $crate::PyObject)
-                -> Result<&'a $name, $crate::PythonObjectDowncastError<'p>>
-            {
-                if <$name as $crate::PythonObjectWithTypeObject>::type_object(py).is_instance(py, obj) {
-                    Ok(unsafe { $crate::PythonObject::unchecked_downcast_borrow_from(obj) })
-                } else {
-                    Err($crate::PythonObjectDowncastError(py))
-                }
-            }
-        }
-
-        impl $crate::PythonObjectWithTypeObject for $name {
             #[inline]
             fn type_object(py: $crate::Python) -> $crate::PyType {
                 unsafe {
@@ -153,7 +133,7 @@ impl PyErr {
     /// Example:
     ///  `return Err(PyErr::new::<exc::TypeError, _>(py, "Error message"));`
     pub fn new<T, V>(py: Python, value: V) -> PyErr
-        where T: PythonObjectWithTypeObject, V: ToPyObject
+        where T: PyTypeObject, V: ToPyObject
     {
         PyErr::new_helper(py, py.get_type::<T>(), value.to_py_object(py).into_object())
     }

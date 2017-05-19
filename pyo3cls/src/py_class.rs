@@ -34,7 +34,6 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
     impl_to_py_object(&ast.ident).to_tokens(&mut tokens);
     impl_from_py_object(&ast.ident).to_tokens(&mut tokens);
     impl_python_object(&ast.ident).to_tokens(&mut tokens);
-    impl_checked_downcast(&ast.ident).to_tokens(&mut tokens);
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
     quote! {
@@ -106,42 +105,14 @@ fn impl_storage(cls: &syn::Ident, base: &syn::Ident, fields: &Vec<syn::Field>) -
 
         #accessors
 
-        impl _pyo3::PythonObjectWithTypeObject for #cls {
+        impl _pyo3::class::typeob::PyTypeObjectInfo for #cls {
             #[inline]
             fn type_name() -> &'static str { #cls_name }
 
             #[inline]
-            fn type_object(py: _pyo3::Python) -> _pyo3::PyType {
-                unsafe { <#cls as _pyo3::class::PyTypeObject>::initialized(py, None) }
-            }
-        }
-
-        impl _pyo3::class::PyTypeObject for #cls {
-
-            fn add_to_module(py: _pyo3::Python, module: &_pyo3::PyModule) -> _pyo3::PyResult<()> {
-                let ty = unsafe { #cls::initialized(py, module.name(py).ok()) };
-                module.add(py, stringify!(#cls), ty)
-            }
-
-            #[inline]
-            unsafe fn type_obj() -> &'static mut _pyo3::ffi::PyTypeObject {
+            fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
                 static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
-                &mut TYPE_OBJECT
-            }
-
-            unsafe fn initialized(py: _pyo3::Python, module_name: Option<&str>) -> _pyo3::PyType {
-                let mut ty = #cls::type_obj();
-
-                if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) != 0 {
-                    _pyo3::PyType::from_type_ptr(py, ty)
-                } else {
-                    // automatically initialize the class on-demand
-                    _pyo3::class::typeob::initialize_type::<#cls>(
-                        py, module_name, #cls_name, ty).expect(
-                        concat!("An error occurred while initializing class ",
-                                stringify!(#cls)));
-                    _pyo3::PyType::from_type_ptr(py, ty)
-                }
+                unsafe { &mut TYPE_OBJECT }
             }
         }
 
@@ -254,32 +225,6 @@ fn impl_python_object(cls: &syn::Ident) -> Tokens {
             #[inline]
             unsafe fn unchecked_downcast_borrow_from<'a>(obj: &'a _pyo3::PyObject) -> &'a Self {
                 std::mem::transmute(obj)
-            }
-        }
-    }
-}
-
-fn impl_checked_downcast(cls: &syn::Ident) -> Tokens {
-    quote! {
-        impl _pyo3::PythonObjectWithCheckedDowncast for #cls {
-            #[inline]
-            fn downcast_from<'p>(py: _pyo3::Python<'p>, obj: _pyo3::PyObject)
-                                 -> Result<#cls, _pyo3::PythonObjectDowncastError<'p>> {
-                if py.get_type::<#cls>().is_instance(py, &obj) {
-                    Ok(#cls { _unsafe_inner: obj })
-                } else {
-                    Err(_pyo3::PythonObjectDowncastError(py))
-                }
-            }
-
-            #[inline]
-            fn downcast_borrow_from<'a, 'p>(py: _pyo3::Python<'p>, obj: &'a _pyo3::PyObject)
-                                            -> Result<&'a #cls, _pyo3::PythonObjectDowncastError<'p>> {
-                if py.get_type::<#cls>().is_instance(py, obj) {
-                    unsafe { Ok(std::mem::transmute(obj)) }
-                } else {
-                    Err(_pyo3::PythonObjectDowncastError(py))
-                }
             }
         }
     }

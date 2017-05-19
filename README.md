@@ -15,8 +15,8 @@ Supported Python versions:
 * Python 3.5 and up
 
 Supported Rust version:
-* Rust 1.15.1 or later
-* On Windows, we require rustc 1.15.0-nightly
+* Rust 1.17.0-nightly or later
+* On Windows, we require rustc 1.17.0-nightly
 
 # Usage
 
@@ -64,7 +64,7 @@ On Windows, you will need to rename the output from \*.dll to \*.pyd.
 name = "rust2py"
 crate-type = ["cdylib"]
 
-[dependencies.cpython]
+[dependencies.pyo3]
 version = "0.1"
 features = ["extension-module"]
 ```
@@ -101,4 +101,4 @@ fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
 For `setup.py` integration, see https://github.com/PyO3/setuptools-rust
 
 
-** This is fork of rust-cpython project https://github.com/dgrunwald/rust-cpython **
+**This is fork of rust-cpython project https://github.com/dgrunwald/rust-cpython**

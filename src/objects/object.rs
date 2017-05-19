@@ -18,7 +18,7 @@
 
 use std::{mem, ptr};
 use ffi;
-use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectWithTypeObject, PythonObjectDowncastError};
+use python::{Python, PythonObject, PythonObjectWithCheckedDowncast, PythonObjectDowncastError};
 use objects::PyType;
 use err::PyResult;
 
@@ -122,7 +122,7 @@ impl PythonObjectWithCheckedDowncast for PyObject {
     }
 }
 
-impl PythonObjectWithTypeObject for PyObject {
+impl ::class::PyTypeObject for PyObject {
     #[inline]
     fn type_object(py: Python) -> PyType {
         unsafe { PyType::from_type_ptr(py, &mut ffi::PyBaseObject_Type) }

@@ -117,11 +117,11 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             ]).into_object()
         }
 
-        fn into_py_object(self, py: Python) -> PyObject {
-            PyTuple::new(py, &[
-                $(py_coerce_expr!(self.$n.into_py_object(py)).into_object(),)+
-            ]).into_object()
-        }
+        //fn into_py_object(self, py: Python) -> PyObject {
+        //    PyTuple::new(py, &[
+        //        $(py_coerce_expr!(self.$n.into_py_object(py)).into_object(),)+
+        //    ]).into_object()
+        //}
     }
 
     impl <$($T: ToPyObject),+> ToPyTuple for ($($T,)+) {
@@ -192,7 +192,6 @@ impl ToPyTuple for NoArgs {
         PyTuple::empty(py)
     }
 }
-
 
 /// Converts `()` to an empty Python tuple.
 impl ToPyTuple for () {

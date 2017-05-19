@@ -25,7 +25,6 @@ impl PyBool {
 
 /// Converts a rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
-
     #[inline]
     fn to_py_object(&self, py: Python) -> PyObject {
         PyBool::get(py, *self).into_object()

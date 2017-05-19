@@ -22,8 +22,7 @@ use std::os::raw::c_char;
 use python::{Python, PythonObject};
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, ToPyTuple};
-use objects::{PyObject, PyDict, exc};
-use class::PyTypeObject;
+use objects::{PyObject, PyDict, PyType, exc};
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
 
@@ -111,10 +110,23 @@ impl PyModule {
     /// sets `new_type.__module__` to this module's name,
     /// and adds the type to this module.
     pub fn add_class<'p, T>(&self, py: Python<'p>) -> PyResult<()>
-        where T: PyTypeObject
+        where T: ::class::BaseObject + PythonObject + ::class::typeob::PyTypeObjectInfo
     {
-        T::add_to_module(py, self)
+        let mut ty = <T as ::class::typeob::PyTypeObjectInfo>::type_object();
+        let type_name = <T as ::class::typeob::PyTypeObjectInfo>::type_name();
+
+        let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
+            unsafe { PyType::from_type_ptr(py, ty) }
+        } else {
+            // automatically initialize the class on-demand
+            let name = self.name(py)?;
+            ::class::typeob::initialize_type::<T>(
+                py, Some(name), type_name, ty).expect(
+                format!("An error occurred while initializing class {}",
+                        <T as ::class::typeob::PyTypeObjectInfo>::type_name()).as_ref());
+            unsafe { PyType::from_type_ptr(py, ty) }
+        };
+
+        self.add(py, type_name, ty)
     }
 }
-
-
