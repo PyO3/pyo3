@@ -75,7 +75,8 @@ impl PyByteArray {
 #[cfg(test)]
 mod test {
     use exc;
-    use python::{Python, PythonObject, PythonObjectWithTypeObject};
+    use class::PyTypeObject;
+    use python::{Python, PythonObject};
     use objects::PyByteArray;
 
     #[test]

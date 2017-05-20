@@ -11,6 +11,7 @@ use python::{Python, PythonObject, PyDrop};
 use objects::{exc, PyObject};
 use callback::{PyObjectCallbackConverter, LenResultConverter, UnitCallbackConverter};
 use conversion::{ToPyObject, FromPyObject};
+use class::methods::PyMethodDef;
 
 
 /// Mapping interface
@@ -28,6 +29,15 @@ pub trait PyMappingProtocol: PythonObject {
 
     fn __delitem__(&self, py: Python, key: Self::Key)
                    -> Self::Result where Self: PyMappingDelItemProtocol { unimplemented!() }
+
+    fn __iter__(&self, py: Python)
+                -> Self::Result where Self: PyMappingIterProtocol { unimplemented!() }
+
+    fn __contains__(&self, py: Python, value: Self::Value)
+                    -> Self::Result where Self: PyMappingContainsProtocol { unimplemented!() }
+
+    fn __reversed__(&self, py: Python)
+                    -> Self::Result where Self: PyMappingReversedProtocol { unimplemented!() }
 
 }
 
@@ -58,15 +68,35 @@ pub trait PyMappingDelItemProtocol: PyMappingProtocol {
     type Result: Into<PyResult<()>>;
 }
 
+pub trait PyMappingIterProtocol: PyMappingProtocol {
+    type Success: ToPyObject;
+    type Result: Into<PyResult<Self::Success>>;
+}
+
+pub trait PyMappingContainsProtocol: PyMappingProtocol {
+    type Value: for<'a> FromPyObject<'a>;
+    type Result: Into<PyResult<bool>>;
+}
+
+pub trait PyMappingReversedProtocol: PyMappingProtocol {
+    type Success: ToPyObject;
+    type Result: Into<PyResult<Self::Success>>;
+}
+
 #[doc(hidden)]
 pub trait PyMappingProtocolImpl {
     fn tp_as_mapping() -> Option<ffi::PyMappingMethods>;
+    fn methods() -> Vec<PyMethodDef>;
 }
 
 impl<T> PyMappingProtocolImpl for T {
     #[inline]
     default fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
         None
+    }
+    #[inline]
+    default fn methods() -> Vec<PyMethodDef> {
+        Vec::new()
     }
 }
 
@@ -84,6 +114,23 @@ impl<T> PyMappingProtocolImpl for T where T: PyMappingProtocol {
             mp_subscript: Self::mp_subscript(),
             mp_ass_subscript: f,
         })
+    }
+
+    #[inline]
+    fn methods() -> Vec<PyMethodDef> {
+        let mut methods = Vec::new();
+
+        if let Some(def) = <Self as PyMappingIterProtocolImpl>::__iter__() {
+            methods.push(def)
+        }
+        if let Some(def) = <Self as PyMappingContainsProtocolImpl>::__contains__() {
+            methods.push(def)
+        }
+        if let Some(def) = <Self as PyMappingReversedProtocolImpl>::__reversed__() {
+            methods.push(def)
+        }
+
+        methods
     }
 }
 
@@ -277,5 +324,48 @@ impl<T> PyMappingDelItemProtocolImpl for T
             })
         }
         Some(wrap::<T>)
+    }
+}
+
+
+#[doc(hidden)]
+pub trait PyMappingContainsProtocolImpl {
+    fn __contains__() -> Option<PyMethodDef>;
+}
+
+impl<T> PyMappingContainsProtocolImpl for T
+    where T: PyMappingProtocol
+{
+    #[inline]
+    default fn __contains__() -> Option<PyMethodDef> {
+        None
+    }
+}
+
+#[doc(hidden)]
+pub trait PyMappingReversedProtocolImpl {
+    fn __reversed__() -> Option<PyMethodDef>;
+}
+
+impl<T> PyMappingReversedProtocolImpl for T
+    where T: PyMappingProtocol
+{
+    #[inline]
+    default fn __reversed__() -> Option<PyMethodDef> {
+        None
+    }
+}
+
+#[doc(hidden)]
+pub trait PyMappingIterProtocolImpl {
+    fn __iter__() -> Option<PyMethodDef>;
+}
+
+impl<T> PyMappingIterProtocolImpl for T
+    where T: PyMappingProtocol
+{
+    #[inline]
+    default fn __iter__() -> Option<PyMethodDef> {
+        None
     }
 }

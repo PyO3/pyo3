@@ -5,9 +5,8 @@ use quote::Tokens;
 //   Add lifetime support for args with Rptr
 
 pub enum MethodProto {
-    Len{name: &'static str, proto: &'static str},
-    Unary{name: &'static str, proto: &'static str},
-    Binary{name: &'static str, arg: &'static str, proto: &'static str},
+    Unary{name: &'static str, pyres: bool, proto: &'static str, },
+    Binary{name: &'static str, arg: &'static str, pyres: bool, proto: &'static str},
     Ternary{name: &'static str, arg1: &'static str, arg2: &'static str, proto: &'static str},
     Quaternary{name: &'static str,
                arg1: &'static str,
@@ -19,9 +18,8 @@ impl MethodProto {
 
     pub fn eq(&self, name: &str) -> bool {
         match *self {
-            MethodProto::Len{name: n, proto: _} => n == name,
-            MethodProto::Unary{name: n, proto: _} => n == name,
-            MethodProto::Binary{name: n, arg: _, proto: _} => n == name,
+            MethodProto::Unary{name: n, pyres: _, proto: _} => n == name,
+            MethodProto::Binary{name: n, arg: _, pyres: _, proto: _} => n == name,
             MethodProto::Ternary{name: n, arg1: _, arg2: _, proto: _} => n == name,
             MethodProto::Quaternary{name: n, arg1: _, arg2: _, arg3: _, proto: _} => n == name,
         }
@@ -35,36 +33,45 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
     match sig.decl.output {
         syn::FunctionRetTy::Ty(ref ty) => {
             match *meth {
-                MethodProto::Len{name: _, proto} => {
-                    let p = syn::Ident::from(proto);
-                    quote! {
-                        impl #p for #cls {
-                            type Result = #ty;
-                        }
-                    }
-                },
-                MethodProto::Unary{name: _, proto} => {
+                MethodProto::Unary{name: _, pyres, proto} => {
                     let p = syn::Ident::from(proto);
                     let succ = get_res_success(ty);
 
-                    quote! {
-                        impl #p for #cls {
-                            type Success = #succ;
-                            type Result = #ty;
+                    if pyres {
+                        quote! {
+                            impl #p for #cls {
+                                type Success = #succ;
+                                type Result = #ty;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            impl #p for #cls {
+                                type Result = #ty;
+                            }
                         }
                     }
                 },
-                MethodProto::Binary{name: _, arg, proto} => {
+                MethodProto::Binary{name: _, arg, pyres, proto} => {
                     let p = syn::Ident::from(proto);
                     let arg_name = syn::Ident::from(arg);
                     let arg_ty = get_arg_ty(sig, 2);
                     let succ = get_res_success(ty);
 
-                    quote! {
-                        impl #p for #cls {
-                            type #arg_name = #arg_ty;
-                            type Success = #succ;
-                            type Result = #ty;
+                    if pyres {
+                        quote! {
+                            impl #p for #cls {
+                                type #arg_name = #arg_ty;
+                                type Success = #succ;
+                                type Result = #ty;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            impl #p for #cls {
+                                type #arg_name = #arg_ty;
+                                type Result = #ty;
+                            }
                         }
                     }
                 },

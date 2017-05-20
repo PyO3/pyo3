@@ -1,10 +1,11 @@
+#![feature(proc_macro, specialization)]
 #![allow(dead_code, unused_variables)]
 
-#[macro_use] extern crate pyo3;
+extern crate pyo3;
 
 use pyo3::*;
 use std::{mem, isize, iter};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use pyo3::ffi;
@@ -13,6 +14,7 @@ macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
         let d = PyDict::new($py);
         d.set_item($py, stringify!($val), &$val).unwrap();
+        //$py.run($code, None, Some(&d)).map_err(|e| e.print($py)).expect($code);
         $py.run($code, None, Some(&d)).expect($code);
     }}
 }
@@ -34,7 +36,8 @@ macro_rules! py_expect_exception {
 }
 
 
-py_class!(class EmptyClass |py| { });
+#[py::class]
+struct EmptyClass { }
 
 #[test]
 fn empty_class() {
@@ -47,7 +50,8 @@ fn empty_class() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
 
-py_class!(class EmptyClassInModule |py| { });
+#[py::class]
+struct EmptyClassInModule { }
 
 #[test]
 fn empty_class_in_module() {
@@ -61,11 +65,16 @@ fn empty_class_in_module() {
     assert_eq!(ty.getattr(py, "__module__").unwrap().extract::<String>(py).unwrap(), "test_module.nested");
 }
 
-py_class!(class EmptyClassWithNew |py| {
-    def __new__(_cls) -> PyResult<EmptyClassWithNew> {
+#[py::class]
+struct EmptyClassWithNew { }
+
+#[py::methods]
+impl EmptyClassWithNew {
+    #[__new__]
+    fn __new__(_cls: &PyType, py: Python) -> PyResult<EmptyClassWithNew> {
         EmptyClassWithNew::create_instance(py)
     }
-});
+}
 
 #[test]
 fn empty_class_with_new() {
@@ -75,12 +84,17 @@ fn empty_class_with_new() {
     assert!(typeobj.call(py, NoArgs, None).unwrap().cast_into::<EmptyClassWithNew>(py).is_ok());
 }
 
-py_class!(class NewWithOneArg |py| {
-    data _data: i32;
-    def __new__(_cls, arg: i32) -> PyResult<NewWithOneArg> {
+#[py::class]
+struct NewWithOneArg {
+    _data: i32,
+}
+#[py::methods]
+impl NewWithOneArg {
+    #[new]
+    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<NewWithOneArg> {
         NewWithOneArg::create_instance(py, arg)
     }
-});
+}
 
 #[test]
 fn new_with_one_arg() {
@@ -91,13 +105,19 @@ fn new_with_one_arg() {
     assert_eq!(*obj._data(py), 42);
 }
 
-py_class!(class NewWithTwoArgs |py| {
-    data _data1: i32;
-    data _data2: i32;
-    def __new__(_cls, arg1: i32, arg2: i32) -> PyResult<NewWithTwoArgs> {
+#[py::class]
+struct NewWithTwoArgs {
+    _data1: i32,
+    _data2: i32,
+}
+
+#[py::methods]
+impl NewWithTwoArgs {
+    #[new]
+    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<NewWithTwoArgs> {
         NewWithTwoArgs::create_instance(py, arg1, arg2)
     }
-});
+}
 
 #[test]
 fn new_with_two_args() {
@@ -118,10 +138,11 @@ impl Drop for TestDropCall {
     }
 }
 
-py_class!(class DataIsDropped |py| {
-    data member1: TestDropCall;
-    data member2: TestDropCall;
-});
+#[py::class]
+struct DataIsDropped {
+    member1: TestDropCall,
+    member2: TestDropCall,
+}
 
 #[test]
 fn data_is_dropped() {
@@ -140,13 +161,17 @@ fn data_is_dropped() {
     assert!(drop_called2.load(Ordering::Relaxed) == true);
 }
 
-py_class!(class InstanceMethod |py| {
-    data member: i32;
+#[py::class]
+struct InstanceMethod {
+    member: i32,
+}
 
-    def method(&self) -> PyResult<i32> {
+#[py::methods]
+impl InstanceMethod {
+    fn method(&self, py: Python) -> PyResult<i32> {
         Ok(*self.member(py))
     }
-});
+}
 
 #[test]
 fn instance_method() {
@@ -160,13 +185,16 @@ fn instance_method() {
     py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
 }
 
-py_class!(class InstanceMethodWithArgs |py| {
-    data member: i32;
-
-    def method(&self, multiplier: i32) -> PyResult<i32> {
+#[py::class]
+struct InstanceMethodWithArgs {
+    member: i32
+}
+#[py::methods]
+impl InstanceMethodWithArgs {
+    fn method(&self, py: Python, multiplier: i32) -> PyResult<i32> {
         Ok(*self.member(py) * multiplier)
     }
-});
+}
 
 #[test]
 fn instance_method_with_args() {
@@ -181,18 +209,22 @@ fn instance_method_with_args() {
     py.run("assert obj.method(multiplier=6) == 42", None, Some(&d)).unwrap();
 }
 
-py_class!(class ClassMethod |py| {
-    def __new__(cls) -> PyResult<ClassMethod> {
+#[py::class]
+struct ClassMethod {}
+#[py::methods]
+impl ClassMethod {
+    #[new]
+    fn __new__(cls: &PyType, py: Python) -> PyResult<ClassMethod> {
         ClassMethod::create_instance(py)
     }
 
-    @classmethod
-    def method(cls) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.name(py)))
-    }
-});
+    //#[classmethod]
+    //def method(cls) -> PyResult<String> {
+    //    Ok(format!("{}.method()!", cls.name(py)))
+    //}
+}
 
-#[test]
+//#[test]
 fn class_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -203,36 +235,41 @@ fn class_method() {
     py.run("assert C().method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
 }
 
-py_class!(class ClassMethodWithArgs |py| {
-    @classmethod
-    def method(cls, input: &str) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.name(py), input))
-    }
-});
+//py_class!(class ClassMethodWithArgs |py| {
+//    @classmethod
+//    def method(cls, input: &str) -> PyResult<String> {
+//        Ok(format!("{}.method({})", cls.name(py), input))
+//    }
+//});
 
-#[test]
-fn class_method_with_args() {
+//#[test]
+/*fn class_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
     let d = PyDict::new(py);
     d.set_item(py, "C", py.get_type::<ClassMethodWithArgs>()).unwrap();
     py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(&d)).unwrap();
-}
+}*/
 
-py_class!(class StaticMethod |py| {
-    def __new__(cls) -> PyResult<StaticMethod> {
+#[py::class]
+struct StaticMethod {}
+
+#[py::methods]
+impl StaticMethod {
+    #[new]
+    fn __new__(cls: &PyType, py: Python) -> PyResult<StaticMethod> {
         StaticMethod::create_instance(py)
     }
 
-    @staticmethod
-    def method() -> PyResult<&'static str> {
-        Ok("StaticMethod.method()!")
-    }
-});
+    //#[staticmethod]
+    //fn method(py: Python) -> PyResult<&'static str> {
+    //    Ok("StaticMethod.method()!")
+    //}
+}
 
-#[test]
-fn static_method() {
+//#[test]
+/*fn static_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -241,57 +278,44 @@ fn static_method() {
     d.set_item(py, "C", py.get_type::<StaticMethod>()).unwrap();
     py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
     py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
+}*/
+
+//py_class!(class StaticMethodWithArgs |py| {
+//    @staticmethod
+//    def method(input: i32) -> PyResult<String> {
+//        Ok(format!("0x{:x}", input))
+//    }
+//});
+
+//#[test]
+//fn static_method_with_args() {
+//    let gil = Python::acquire_gil();
+//    let py = gil.python();
+
+//    assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
+//    let d = PyDict::new(py);
+//    d.set_item(py, "C", py.get_type::<StaticMethodWithArgs>()).unwrap();
+//    py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
+//}
+
+#[py::class]
+struct GCIntegration {
+    self_ref: RefCell<PyObject>,
+    dropped: TestDropCall,
 }
 
-py_class!(class StaticMethodWithArgs |py| {
-    @staticmethod
-    def method(input: i32) -> PyResult<String> {
-        Ok(format!("0x{:x}", input))
-    }
-});
-
-#[test]
-fn static_method_with_args() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
-    let d = PyDict::new(py);
-    d.set_item(py, "C", py.get_type::<StaticMethodWithArgs>()).unwrap();
-    py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
-}
-
-py_class!(class StaticData |py| {
-    static VAL1 = 123;
-    static VAL2 = py.None();
-});
-
-#[test]
-fn static_data() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let d = PyDict::new(py);
-    d.set_item(py, "C", py.get_type::<StaticData>()).unwrap();
-    py.run("assert C.VAL1 == 123", None, Some(&d)).unwrap();
-    py.run("assert C.VAL2 is None", None, Some(&d)).unwrap();
-    assert!(py.run("C.VAL1 = 124", None, Some(&d)).is_err());
-}
-
-py_class!(class GCIntegration |py| {
-    data self_ref: RefCell<PyObject>;
-    data dropped: TestDropCall;
-
-    def __traverse__(&self, visit) {
+#[py::proto]
+impl PyGCProtocol for GCIntegration {
+    fn __traverse__(&self, py: Python, visit: PyVisit) -> Result<(), PyTraverseError> {
         visit.call(&*self.self_ref(py).borrow())
     }
 
-    def __clear__(&self) {
+    fn __clear__(&self, py: Python) {
         let old_ref = mem::replace(&mut *self.self_ref(py).borrow_mut(), py.None());
         // Release reference only after the mutable borrow has expired.
         old_ref.release_ref(py);
     }
-});
+}
 
 #[test]
 fn gc_integration() {
@@ -310,13 +334,17 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
-py_class!(class Len |py| {
-    data l: usize;
+#[py::class]
+pub struct Len {
+    l: usize
+}
 
-    def __len__(&self) -> PyResult<usize> {
+#[py::proto]
+impl PyMappingProtocol for Len {
+    fn __len__(&self, py: Python) -> PyResult<usize> {
         Ok(*self.l(py))
     }
-});
+}
 
 #[test]
 fn len() {
@@ -334,7 +362,8 @@ fn len() {
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
-py_class!(class Iterator |py| {
+
+/*py_class!(class Iterator |py| {
     data iter: RefCell<Box<iter::Iterator<Item=i32> + Send>>;
 
     def __iter__(&self) -> PyResult<Iterator> {
@@ -354,29 +383,34 @@ fn iterator() {
     let inst = Iterator::create_instance(py, RefCell::new(Box::new(5..8))).unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
-}
+}*/
 
-py_class!(class StringMethods |py| {
-    def __str__(&self) -> PyResult<&'static str> {
+/*
+#[py::class]
+struct StringMethods {}
+
+#[py::proto]
+impl PyObjectProtocol for StringMethods {
+    fn __str__(&self, py: Python) -> PyResult<&'static str> {
         Ok("str")
     }
 
-    def __repr__(&self) -> PyResult<&'static str> {
+    fn __repr__(&self, py: Python) -> PyResult<&'static str> {
         Ok("repr")
     }
 
-    def __format__(&self, format_spec: &str) -> PyResult<String> {
+    fn __format__(&self, py: Python, format_spec: &str) -> PyResult<String> {
         Ok(format!("format({})", format_spec))
     }
 
-    def __unicode__(&self) -> PyResult<PyString> {
-        Ok(PyString::new(py, "unicode"))
-    }
+    //fn __unicode__(&self) -> PyResult<PyString> {
+    //    Ok(PyString::new(py, "unicode"))
+    //}
 
-    def __bytes__(&self) -> PyResult<PyBytes> {
+    fn __bytes__(&self, py: Python) -> PyResult<PyBytes> {
         Ok(PyBytes::new(py, b"bytes"))
     }
-});
+}
 
 #[test]
 fn string_methods() {
@@ -387,8 +421,8 @@ fn string_methods() {
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
-}
-
+}*/
+/*
 #[test]
 fn python3_string_methods() {
     let gil = Python::acquire_gil();
@@ -396,20 +430,24 @@ fn python3_string_methods() {
 
     let obj = StringMethods::create_instance(py).unwrap();
     py_assert!(py, obj, "bytes(obj) == b'bytes'");
+}*/
+
+
+#[py::class]
+struct Comparisons {
+    val: i32,
 }
 
-
-py_class!(class Comparisons |py| {
-    data val: i32;
-
-    def __hash__(&self) -> PyResult<i32> {
-        Ok(*self.val(py))
+#[py::proto]
+impl PyObjectProtocol for Comparisons {
+    fn __hash__(&self, py: Python) -> PyResult<usize> {
+        Ok(*self.val(py) as usize)
     }
 
-    def __bool__(&self) -> PyResult<bool> {
+    fn __bool__(&self, py: Python) -> PyResult<bool> {
         Ok(*self.val(py) != 0)
     }
-});
+}
 
 
 #[test]
@@ -430,20 +468,22 @@ fn comparisons() {
 }
 
 
-py_class!(class Sequence |py| {
-    def __len__(&self) -> PyResult<usize> {
+/*#[py::class]
+struct Sequence {}
+
+#[py::proto]
+impl PySequenceProtocol for Sequence {
+    fn __len__(&self, py: Python) -> PyResult<usize> {
         Ok(5)
     }
 
-    def __getitem__(&self, key: PyObject) -> PyResult<PyObject> {
-        if let Ok(index) = key.extract::<i32>(py) {
-            if index == 5 {
-                return Err(PyErr::new::<exc::IndexError, NoArgs>(py, NoArgs));
-            }
+    fn __getitem__(&self, py: Python, key: isize) -> PyResult<PyObject> {
+        if key == 5 {
+            return Err(PyErr::new::<exc::IndexError, NoArgs>(py, NoArgs));
         }
         Ok(key)
     }
-});
+}
 
 #[test]
 fn sequence() {
@@ -453,14 +493,20 @@ fn sequence() {
     let c = Sequence::create_instance(py).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
     py_assert!(py, c, "c['abc'] == 'abc'");
-}
+}*/
 
 
-py_class!(class Callable |py| {
-    def __call__(&self, arg: i32) -> PyResult<i32> {
+#[py::class]
+struct Callable {}
+
+#[py::methods]
+impl Callable {
+
+    #[__call__]
+    fn __call__(&self, py: Python, arg: i32) -> PyResult<i32> {
         Ok(arg * 6)
     }
-});
+}
 
 #[test]
 fn callable() {
@@ -475,80 +521,97 @@ fn callable() {
     py_assert!(py, nc, "not callable(nc)");
 }
 
-py_class!(class SetItem |py| {
-    data key: Cell<i32>;
-    data val: Cell<i32>;
+#[py::class]
+struct SetItem {
+    key: i32,
+    val: i32,
+}
 
-    def __setitem__(&self, key: i32, val: i32) -> PyResult<()> {
-        self.key(py).set(key);
-        self.val(py).set(val);
+#[py::proto]
+impl PyMappingProtocol for SetItem {
+    fn __setitem__(&self, py: Python, key: i32, val: i32) -> PyResult<()> {
+        *self.key_mut(py) = key;
+        *self.val_mut(py) = val;
         Ok(())
     }
-});
+}
 
 #[test]
 fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = SetItem::create_instance(py, Cell::new(0), Cell::new(0)).unwrap();
+    let c = SetItem::create_instance(py, 0, 0).unwrap();
     py_run!(py, c, "c[1] = 2");
-    assert_eq!(c.key(py).get(), 1);
-    assert_eq!(c.val(py).get(), 2);
+    assert_eq!(*c.key(py), 1);
+    assert_eq!(*c.val(py), 2);
     py_expect_exception!(py, c, "del c[1]", NotImplementedError);
 }
 
-py_class!(class DelItem |py| {
-    data key: Cell<i32>;
+#[py::class]
+struct DelItem {
+    key: i32,
+}
 
-    def __delitem__(&self, key: i32) -> PyResult<()> {
-        self.key(py).set(key);
+#[py::proto]
+impl PyMappingProtocol for DelItem {
+    fn __delitem__(&self, py: Python, key: i32) -> PyResult<()> {
+        *self.key_mut(py) = key;
         Ok(())
     }
-});
+}
 
 #[test]
 fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = DelItem::create_instance(py, Cell::new(0)).unwrap();
+    let c = DelItem::create_instance(py, 0).unwrap();
     py_run!(py, c, "del c[1]");
-    assert_eq!(c.key(py).get(), 1);
+    assert_eq!(*c.key(py), 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
 }
 
-py_class!(class SetDelItem |py| {
-    data val: Cell<Option<i32>>;
+#[py::class]
+struct SetDelItem {
+    val: Option<i32>,
+}
 
-    def __setitem__(&self, key: i32, val: i32) -> PyResult<()> {
-        self.val(py).set(Some(val));
+#[py::proto]
+impl PyMappingProtocol for SetDelItem {
+    fn __setitem__(&self, py: Python, key: i32, val: i32) -> PyResult<()> {
+        *self.val_mut(py) = Some(val);
         Ok(())
     }
 
-    def __delitem__(&self, key: i32) -> PyResult<()> {
-        self.val(py).set(None);
+    fn __delitem__(&self, py: Python, key: i32) -> PyResult<()> {
+        *self.val_mut(py) = None;
         Ok(())
     }
-});
+}
 
 #[test]
 fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = SetDelItem::create_instance(py, Cell::new(None)).unwrap();
+    let c = SetDelItem::create_instance(py, None).unwrap();
     py_run!(py, c, "c[1] = 2");
-    assert_eq!(c.val(py).get(), Some(2));
+    assert_eq!(*c.val(py), Some(2));
     py_run!(py, c, "del c[1]");
-    assert_eq!(c.val(py).get(), None);
+    assert_eq!(*c.val(py), None);
 }
 
-py_class!(class Reversed |py| {
-    def __reversed__(&self) -> PyResult<&'static str> {
+#[py::class]
+struct Reversed {}
+
+#[py::proto]
+impl PyMappingProtocol for Reversed{
+    fn __reversed__(&self, py: Python) -> PyResult<&'static str> {
+        println!("__reversed__");
         Ok("I am reversed")
     }
-});
+}
 
 #[test]
 fn reversed() {
@@ -559,11 +622,15 @@ fn reversed() {
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
-py_class!(class Contains |py| {
-    def __contains__(&self, item: i32) -> PyResult<bool> {
+/*#[py::class]
+struct Contains {}
+
+#[py::proto]
+impl PyMappingProtocol for Contains {
+    fn __contains__(&self, py: Python, item: i32) -> PyResult<bool> {
         Ok(item >= 0)
     }
-});
+}
 
 #[test]
 fn contains() {
@@ -574,8 +641,9 @@ fn contains() {
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
     py_run!(py, c, "assert 'wrong type' not in c");
-}
+}*/
 
+/*
 py_class!(class UnaryArithmetic |py| {
     def __neg__(&self) -> PyResult<&'static str> {
         Ok("neg")
@@ -604,45 +672,53 @@ fn unary_arithmetic() {
     py_run!(py, c, "assert +c == 'pos'");
     py_run!(py, c, "assert abs(c) == 'abs'");
     py_run!(py, c, "assert ~c == 'invert'");
-}
+}*/
 
-py_class!(class BinaryArithmetic |py| {
+/*
+#[py::class]
+struct BinaryArithmetic {}
+
+#[py::proto]
+impl PyObjectProtocol for BinaryArithmetic {
     def __repr__(&self) -> PyResult<&'static str> {
         Ok("BA")
     }
+}
 
-    def __add__(lhs, rhs) -> PyResult<String> {
+#[py::proto]
+impl PyNumberProtocol for BinaryArithmetic {
+    fn __add__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
     }
 
-    def __sub__(lhs, rhs) -> PyResult<String> {
+    fn __sub__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} - {:?}", lhs, rhs))
     }
 
-    def __mul__(lhs, rhs) -> PyResult<String> {
+    fn __mul__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} * {:?}", lhs, rhs))
     }
 
-    def __lshift__(lhs, rhs) -> PyResult<String> {
+    fn __lshift__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} << {:?}", lhs, rhs))
     }
 
-    def __rshift__(lhs, rhs) -> PyResult<String> {
+    fn __rshift__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} >> {:?}", lhs, rhs))
     }
 
-    def __and__(lhs, rhs) -> PyResult<String> {
+    fn __and__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} & {:?}", lhs, rhs))
     }
 
-    def __xor__(lhs, rhs) -> PyResult<String> {
+    fn __xor__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} ^ {:?}", lhs, rhs))
     }
 
-    def __or__(lhs, rhs) -> PyResult<String> {
+    fn __or__(lhs, rhs) -> PyResult<String> {
         Ok(format!("{:?} | {:?}", lhs, rhs))
     }
-});
+}
 
 #[test]
 fn binary_arithmetic() {
@@ -668,8 +744,9 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
     py_run!(py, c, "assert c | 1 == 'BA | 1'");
     py_run!(py, c, "assert 1 | c == '1 | BA'");
-}
+}*/
 
+/*
 py_class!(class RichComparisons |py| {
     def __repr__(&self) -> PyResult<&'static str> {
         Ok("RC")
@@ -753,54 +830,62 @@ fn rich_comparisons_python_3_type_error() {
     py_expect_exception!(py, c2, "c2 >= 1", TypeError);
     py_expect_exception!(py, c2, "1 >= c2", TypeError);
 }
+ */
+/*
+#[py::class]
+struct InPlaceOperations {
+    value: u32
+}
 
-py_class!(class InPlaceOperations |py| {
-    data value: Cell<u32>;
-
-    def __repr__(&self) -> PyResult<String> {
+#[py::proto]
+impl PyObjectProtocol for InPlaceOperations {
+    fn __repr__(&self, py: Python) -> PyResult<String> {
         Ok(format!("IPO({:?})", self.value(py).get()))
     }
+}
 
-    def __iadd__(&self, other: u32) -> PyResult<Self> {
+#[py::proto]
+impl PyNumberProtocol for InPlaceOperations {
+    fn __iadd__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() + other);
         Ok(self.clone_ref(py))
     }
 
-    def __isub__(&self, other: u32) -> PyResult<Self> {
+    fn __isub__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() - other);
         Ok(self.clone_ref(py))
     }
 
-    def __imul__(&self, other: u32) -> PyResult<Self> {
+    fn __imul__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() * other);
         Ok(self.clone_ref(py))
     }
 
-    def __ilshift__(&self, other: u32) -> PyResult<Self> {
+    fn __ilshift__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() << other);
         Ok(self.clone_ref(py))
     }
 
-    def __irshift__(&self, other: u32) -> PyResult<Self> {
+    fn __irshift__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() >> other);
         Ok(self.clone_ref(py))
     }
 
-    def __iand__(&self, other: u32) -> PyResult<Self> {
+    fn __iand__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() & other);
         Ok(self.clone_ref(py))
     }
 
-    def __ixor__(&self, other: u32) -> PyResult<Self> {
+    fn __ixor__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() ^ other);
         Ok(self.clone_ref(py))
     }
 
-    def __ior__(&self, other: u32) -> PyResult<Self> {
+    fn __ior__(&self, py: Python, other: u32) -> PyResult<Self> {
         self.value(py).set(self.value(py).get() | other);
         Ok(self.clone_ref(py))
     }
-});
+}
 
 #[test]
 fn inplace_operations() {
@@ -831,60 +916,74 @@ fn inplace_operations() {
     let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
     py_run!(py, c, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
+*/
 
-py_class!(class ContextManager |py| {
-    data exit_called : Cell<bool>;
+#[py::class]
+struct ContextManager {
+    exit_called: bool
+}
 
-    def __enter__(&self) -> PyResult<i32> {
+#[py::proto]
+impl PyContextProtocol for ContextManager {
+
+    fn __enter__(&self, py: Python) -> PyResult<i32> {
         Ok(42)
     }
 
-    def __exit__(&self, ty: Option<PyType>, value: PyObject, traceback: PyObject) -> PyResult<bool> {
-        self.exit_called(py).set(true);
+    fn __exit__(&self, py: Python,
+                ty: Option<PyType>,
+                value: Option<PyObject>,
+                traceback: Option<PyObject>) -> PyResult<bool> {
+        *self.exit_called_mut(py) = true;
         if ty == Some(py.get_type::<exc::ValueError>()) {
             Ok(true)
         } else {
-            Ok(false)
+           Ok(false)
         }
     }
-});
+}
 
 #[test]
 fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = ContextManager::create_instance(py, Cell::new(false)).unwrap();
+    let c = ContextManager::create_instance(py, false).unwrap();
     py_run!(py, c, "with c as x:\n  assert x == 42");
-    assert!(c.exit_called(py).get());
+    assert!(*c.exit_called(py));
 
-    c.exit_called(py).set(false);
+    *c.exit_called_mut(py) = false;
     py_run!(py, c, "with c as x:\n  raise ValueError");
-    assert!(c.exit_called(py).get());
+    assert!(*c.exit_called(py));
 
-    c.exit_called(py).set(false);
+    *c.exit_called_mut(py) = false;
     py_expect_exception!(py, c, "with c as x:\n  raise NotImplementedError", NotImplementedError);
-    assert!(c.exit_called(py).get());
+    assert!(*c.exit_called(py));
 }
 
 
-py_class!(class ClassWithProperties |py| {
-    data num: Cell<i32>;
+#[py::class]
+struct ClassWithProperties {
+    num: i32
+}
 
-    def get_num(&self) -> PyResult<i32> {
-        Ok(self.num(py).get())
+#[py::methods]
+impl ClassWithProperties {
+
+    fn get_num(&self, py: Python) -> PyResult<i32> {
+        Ok(*self.num(py))
     }
 
-    property DATA {
-        get(&slf) -> PyResult<i32> {
-            Ok(slf.num(py).get())
-        }
-        set(&slf, value: i32) -> PyResult<()> {
-            slf.num(py).set(value);
-            Ok(())
-        }
+    #[getter(DATA)]
+    fn get_data(&self, py: Python) -> PyResult<i32> {
+        Ok(*self.num(py))
     }
-});
+    #[setter(DATA)]
+    fn set(&self, py: Python, value: i32) -> PyResult<()> {
+        *self.num_mut(py) = value;
+        Ok(())
+    }
+}
 
 
 #[test]
@@ -892,7 +991,7 @@ fn class_with_properties() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = ClassWithProperties::create_instance(py, Cell::new(10)).unwrap();
+    let inst = ClassWithProperties::create_instance(py, 10).unwrap();
 
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");

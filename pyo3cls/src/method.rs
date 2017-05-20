@@ -192,10 +192,10 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<FnAttr>) {
         match attr.value {
             syn::MetaItem::Word(ref name) => {
                 match name.as_ref() {
-                    "new" => {
+                    "new" | "__new__" => {
                         res = Some(FnType::FnNew)
                     },
-                    "call" => {
+                    "call" | "__call__" => {
                         res = Some(FnType::FnCall)
                     },
                     "setter" | "getter" => {

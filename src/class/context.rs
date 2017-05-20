@@ -65,7 +65,7 @@ impl<T> PyContextProtocolImpl for T where T: PyContextProtocol {
 }
 
 #[doc(hidden)]
-trait PyContextEnterProtocolImpl {
+pub trait PyContextEnterProtocolImpl {
     fn __enter__() -> Option<PyMethodDef>;
 }
 
@@ -78,6 +78,7 @@ impl<T> PyContextEnterProtocolImpl for T
     }
 }
 
+#[doc(hidden)]
 pub trait PyContextExitProtocolImpl {
     fn __exit__() -> Option<PyMethodDef>;
 }

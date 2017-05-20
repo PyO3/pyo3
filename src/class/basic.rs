@@ -16,11 +16,10 @@ use conversion::ToPyObject;
 use callback::{handle_callback, PyObjectCallbackConverter, HashConverter, UnitCallbackConverter};
 use class::{NO_METHODS, NO_PY_METHODS};
 
-// __new__
-// __init__
-// __call__
 // classmethod
 // staticmethod
+// __instancecheck__
+// __subclasscheck__
 
 
 /// Object customization
@@ -32,17 +31,17 @@ pub trait PyObjectProtocol {
 
     fn __delattr__(&self, py: Python, name: &PyObject) -> PyResult<()>;
 
-    // __instancecheck__
-    // __subclasscheck__
-    // __dir__
-
     fn __str__(&self, py: Python) -> PyResult<PyObject>;
 
     fn __repr__(&self, py: Python) -> PyResult<PyObject>;
 
-    fn __hash__(&self, py: Python) -> PyResult<u64>;
+    fn __format__(&self, py: Python, format_spec: &str) -> PyResult<PyObject>;
+
+    fn __hash__(&self, py: Python) -> PyResult<usize>;
 
     fn __bool__(&self, py: Python) -> PyResult<bool>;
+
+    fn __bytes__(&self, py: Python) -> PyResult<PyObject>;
 
     fn __richcmp__(&self, py: Python, other: &PyObject, op: CompareOp) -> PyResult<PyObject>;
 
@@ -60,23 +59,22 @@ impl<T> PyObjectProtocol for T {
     default fn __delattr__(&self, py: Python, _: &PyObject) -> PyResult<()> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
-
-    // __instancecheck__
-    // __subclasscheck__
-    // __iter__
-    // __next__
-    // __dir__
-
     default fn __str__(&self, py: Python) -> PyResult<PyObject> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
     default fn __repr__(&self, py: Python) -> PyResult<PyObject> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
-    default fn __hash__(&self, py: Python) -> PyResult<u64> {
+    default fn __format__(&self, py: Python, format_spec: &str) -> PyResult<PyObject> {
+        Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
+    }
+    default fn __hash__(&self, py: Python) -> PyResult<usize> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
     default fn __bool__(&self, py: Python) -> PyResult<bool> {
+        Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
+    }
+    default fn __bytes__(&self, py: Python) -> PyResult<PyObject> {
         Err(PyErr::new::<exc::NotImplementedError, _>(py, "Not implemented"))
     }
     default fn __richcmp__(&self, py: Python, _: &PyObject, _: CompareOp) -> PyResult<PyObject> {

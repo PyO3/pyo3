@@ -14,7 +14,7 @@ use callback::{handle_callback, PyObjectCallbackConverter,
 use class::NO_METHODS;
 
 
-/// Mapping interface
+/// Sequece interface
 pub trait PySequenceProtocol {
     fn __len__(&self, py: Python) -> PyResult<usize>;
 

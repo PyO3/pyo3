@@ -45,15 +45,19 @@ static ASYNC: Proto = Proto {
     methods: &[
         MethodProto::Unary {
             name: "__await__",
+            pyres: true,
             proto: "_pyo3::class::async::PyAsyncAwaitProtocol"},
         MethodProto::Unary{
             name: "__aiter__",
+            pyres: true,
             proto: "_pyo3::class::async::PyAsyncAiterProtocol"},
         MethodProto::Unary{
             name: "__anext__",
+            pyres: true,
             proto: "_pyo3::class::async::PyAsyncAnextProtocol"},
         MethodProto::Unary{
             name: "__aenter__",
+            pyres: true,
             proto: "_pyo3::class::async::PyAsyncAenterProtocol"},
         MethodProto::Quaternary {
             name: "__aexit__",
@@ -77,6 +81,7 @@ static CONTEXT: Proto = Proto {
     methods: &[
         MethodProto::Unary{
             name: "__enter__",
+            pyres: true,
             proto: "_pyo3::class::context::PyContextEnterProtocol"},
         MethodProto::Quaternary {
             name: "__exit__",
@@ -101,9 +106,11 @@ static ITER: Proto = Proto {
     methods: &[
         MethodProto::Unary{
             name: "__iter__",
+            pyres: true,
             proto: "_pyo3::class::iter::PyIterIterProtocol"},
         MethodProto::Unary{
             name: "__next__",
+            pyres: true,
             proto: "_pyo3::class::iter::PyIterNextProtocol"},
     ],
 };
@@ -111,14 +118,15 @@ static ITER: Proto = Proto {
 
 static MAPPING: Proto = Proto {
     name: "Mapping",
-    py_methods: &[],
     methods: &[
-        MethodProto::Len{
+        MethodProto::Unary{
             name: "__len__",
+            pyres: false,
             proto: "_pyo3::class::mapping::PyMappingLenProtocol"},
         MethodProto::Binary{
             name: "__getitem__",
             arg: "Key",
+            pyres: true,
             proto: "_pyo3::class::mapping::PyMappingGetItemProtocol"},
         MethodProto::Ternary{
             name: "__setitem__",
@@ -128,8 +136,37 @@ static MAPPING: Proto = Proto {
         MethodProto::Binary{
             name: "__delitem__",
             arg: "Key",
+            pyres: true,
             proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
+        MethodProto::Binary{
+            name: "__contains__",
+            arg: "Value",
+            pyres: false,
+            proto: "_pyo3::class::mapping::PyMappingContainsProtocol"},
+        MethodProto::Unary{
+            name: "__reversed__",
+            pyres: true,
+            proto: "_pyo3::class::mapping::PyMappingReversedProtocol"},
+        MethodProto::Unary{
+            name: "__iter__",
+            pyres: true,
+            proto: "_pyo3::class::mapping::PyMappingIterProtocol"},
     ],
+    py_methods: &[
+        PyMethod {
+            name: "__iter__",
+            proto: "_pyo3::class::mapping::PyMappingIterProtocolImpl",
+        },
+        PyMethod {
+            name: "__contains__",
+            proto: "_pyo3::class::mapping::PyMappingContainsProtocolImpl",
+        },
+        PyMethod {
+            name: "__reversed__",
+            proto: "_pyo3::class::mapping::PyMappingReversedProtocolImpl",
+        },
+    ],
+
 };
 
 
@@ -160,12 +197,15 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                             impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
                         "PySequenceProtocol" =>
-                            impl_protocol("_pyo3::class::mapping::PySequenceProtocolImpl",
+                            impl_protocol("_pyo3::class::sequence::PySequenceProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
                         "PyNumberProtocol" =>
                             impl_protocol("_pyo3::class::number::PyNumberProtocolImpl",
                                           path.clone(), ty, impl_items, &NUM_METHODS),
-                        _ => panic!("#[proto] can not be used with this block"),
+                        _ => {
+                            warn!("#[proto] can not be used with this block");
+                            Tokens::new()
+                        }
                     }
                 } else {
                     panic!("#[proto] can only be used with protocol trait implementations")

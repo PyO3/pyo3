@@ -2,8 +2,6 @@
 
 use syn;
 use quote::{Tokens, ToTokens};
-use utils::for_err_msg;
-
 use method::{FnArg, FnSpec, FnType};
 
 
@@ -207,7 +205,7 @@ fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
     let mut rargs = spec.args.clone();
     rargs.reverse();
     let mut body = body;
-    for arg in spec.args.iter() {
+    for arg in rargs.iter() {
         body = impl_arg_param(&arg, &spec, &body);
     }
 
