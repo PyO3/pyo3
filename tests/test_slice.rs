@@ -1,6 +1,7 @@
+#![feature(proc_macro, specialization)]
 #![allow(dead_code, unused_variables)]
 
-#[macro_use] extern crate pyo3;
+extern crate pyo3;
 
 use pyo3::*;
 
@@ -19,8 +20,12 @@ fn test_basics() {
 }
 
 
-py_class!(pub class Test |py| {
-    def __getitem__(&self, idx: PyObject) -> PyResult<PyObject> {
+#[py::class]
+struct Test {}
+
+#[py::proto]
+impl PyMappingProtocol for Test {
+    fn __getitem__(&self, py: Python, idx: PyObject) -> PyResult<PyObject> {
         if let Ok(slice) = PySlice::downcast_from(py, idx.clone_ref(py)) {
             let indices = slice.indices(py, 1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
@@ -34,7 +39,7 @@ py_class!(pub class Test |py| {
         }
         Err(PyErr::new::<exc::ValueError, _>(py, "error"))
     }
-});
+}
 
 #[test]
 fn test_cls_impl() {
