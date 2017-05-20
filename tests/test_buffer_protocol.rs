@@ -7,14 +7,15 @@ use std::ptr;
 use std::os::raw::{c_int, c_void};
 
 use pyo3::*;
-use pyo3::cls;
 
 
-py_class!(class TestClass |py| {
-    data vec: Vec<u8>;
-});
+#[py::class]
+struct TestClass {
+    vec: Vec<u8>,
+}
 
-#[cls::py_impl]
+
+#[py::proto]
 impl class::PyBufferProtocol for TestClass {
     fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
 

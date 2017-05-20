@@ -86,7 +86,6 @@ extern crate libc;
 #[macro_use]
 pub extern crate pyo3cls;
 
-pub use pyo3cls as cls;
 pub use pyo3cls::*;
 
 pub mod ffi;
