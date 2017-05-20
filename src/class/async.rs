@@ -10,7 +10,7 @@ use ffi;
 use err::PyResult;
 use python::{Python, PythonObject};
 use callback::PyObjectCallbackConverter;
-use class::methods::{PyMethodDef, PyMethodDefType};
+use class::methods::PyMethodDef;
 
 
 /// Awaitable interface
@@ -99,13 +99,11 @@ impl<T> PyAsyncProtocolImpl for T where T: PyAsyncProtocol {
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
 
-        if let Some(PyMethodDefType::Method(meth)) =
-            <Self as PyAsyncAenterProtocolImpl>::__aenter__() {
-                methods.push(meth)
-            }
-        if let Some(PyMethodDefType::Method(meth)) =
-            <Self as PyAsyncAexitProtocolImpl>::__aexit__() {
-                methods.push(meth)
+        if let Some(def) = <Self as PyAsyncAenterProtocolImpl>::__aenter__() {
+            methods.push(def)
+        }
+        if let Some(def) = <Self as PyAsyncAexitProtocolImpl>::__aexit__() {
+            methods.push(def)
         }
 
         methods
@@ -180,27 +178,27 @@ impl<T> PyAsyncAnextProtocolImpl for T
 }
 
 trait PyAsyncAenterProtocolImpl {
-    fn __aenter__() -> Option<PyMethodDefType>;
+    fn __aenter__() -> Option<PyMethodDef>;
 }
 
 impl<T> PyAsyncAenterProtocolImpl for T
     where T: PyAsyncProtocol
 {
     #[inline]
-    default fn __aenter__() -> Option<PyMethodDefType> {
+    default fn __aenter__() -> Option<PyMethodDef> {
         None
     }
 }
 
 pub trait PyAsyncAexitProtocolImpl {
-    fn __aexit__() -> Option<PyMethodDefType>;
+    fn __aexit__() -> Option<PyMethodDef>;
 }
 
 impl<T> PyAsyncAexitProtocolImpl for T
     where T: PyAsyncProtocol
 {
     #[inline]
-    default fn __aexit__() -> Option<PyMethodDefType> {
+    default fn __aexit__() -> Option<PyMethodDef> {
         None
     }
 }

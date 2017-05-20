@@ -4,6 +4,7 @@ use syn;
 use quote::{Tokens, ToTokens};
 
 use py_method;
+use method::FnSpec;
 use func::{MethodProto, impl_method_proto};
 
 
@@ -24,10 +25,6 @@ struct Proto {
 
 static DEFAULT_METHODS: Methods = Methods {
     methods: &[],
-};
-
-static CONTEXT_METHODS: Methods = Methods {
-    methods: &["__enter__", "__exit__"],
 };
 
 static DESCR_METHODS: Methods = Methods {
@@ -71,6 +68,29 @@ static ASYNC: Proto = Proto {
         PyMethod {
             name: "__aexit__",
             proto: "_pyo3::class::async::PyAsyncAexitProtocolImpl",
+        },
+    ],
+};
+
+static CONTEXT: Proto = Proto {
+    name: "Context",
+    methods: &[
+        MethodProto::Unary{
+            name: "__enter__",
+            proto: "_pyo3::class::context::PyContextEnterProtocol"},
+        MethodProto::Quaternary {
+            name: "__exit__",
+            arg1: "ExcType", arg2: "ExcValue", arg3: "Traceback",
+            proto: "_pyo3::class::context::PyContextExitProtocol"},
+    ],
+    py_methods: &[
+        PyMethod {
+            name: "__enter__",
+            proto: "_pyo3::class::context::PyContextEnterProtocolImpl",
+        },
+        PyMethod {
+            name: "__exit__",
+            proto: "_pyo3::class::context::PyContextExitProtocolImpl",
         },
     ],
 };
@@ -128,12 +148,11 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                             impl_proto_impl(ty, impl_items, &MAPPING),
                         "PyIterProtocol" =>
                             impl_proto_impl(ty, impl_items, &ITER),
+                        "PyContextProtocol" =>
+                            impl_proto_impl(ty, impl_items, &CONTEXT),
                         "PyBufferProtocol" =>
                             impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                        "PyContextProtocol" =>
-                            impl_protocol("_pyo3::class::context::PyContextProtocolImpl",
-                                          path.clone(), ty, impl_items, &CONTEXT_METHODS),
                         "PyDescrProtocol" =>
                             impl_protocol("_pyo3::class::descr::PyDescrProtocolImpl",
                                           path.clone(), ty, impl_items, &DESCR_METHODS),
@@ -176,16 +195,23 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Pr
                         let name = syn::Ident::from(m.name);
                         let proto = syn::Ident::from(m.proto);
 
-                        let meth = py_method::gen_py_method(
-                            ty, &iimpl.ident, sig, &mut iimpl.attrs);
+                        let fn_spec = FnSpec::parse(
+                            &iimpl.ident, sig, &mut iimpl.attrs);
+                        let meth = py_method::impl_wrap(ty, &iimpl.ident, &fn_spec);
 
                         py_methods.push(
                             quote! {
                                 impl #proto for #ty
                                 {
                                     #[inline]
-                                    fn #name() -> Option<_pyo3::class::methods::PyMethodDefType> {
-                                        Some(#meth)
+                                    fn #name() -> Option<_pyo3::class::methods::PyMethodDef> {
+                                        #meth
+
+                                        Some(_pyo3::class::PyMethodDef {
+                                            ml_name: stringify!(#name),
+                                            ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                                            ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
+                                            ml_doc: ""})
                                     }
                                 }
                             }

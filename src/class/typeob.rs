@@ -53,7 +53,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     // type name
     let name = match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, type_name)),
-        None => CString::new(stringify!(type_name))
+        None => CString::new(type_name)
     };
     let name = name.expect(
         "Module name/type name must not contain NUL byte").into_raw();
@@ -127,7 +127,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 
     // normal methods
-    let mut methods = py_class_method_defs::<T>();
+    let (new, call, mut methods) = py_class_method_defs::<T>();
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
         type_object.tp_methods = methods.as_ptr() as *mut _;
@@ -137,6 +137,10 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
 
         mem::forget(methods);
     }
+    // __new__ method
+    type_object.tp_new = new;
+    // __call__ method
+    type_object.tp_call = call;
 
     // properties
     let mut props = py_class_properties::<T>();
@@ -171,15 +175,12 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject) where T: Ba
     r
 }
 
-fn py_class_method_defs<T>() -> Vec<ffi::PyMethodDef> {
+fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
+                                 Option<ffi::PyCFunctionWithKeywords>,
+                                 Vec<ffi::PyMethodDef>)  {
     let mut defs = Vec::new();
-
-    for def in <T as class::context::PyContextProtocolImpl>::py_methods() {
-        match def {
-            &PyMethodDefType::Method(ref def) => defs.push(def.as_method_def()),
-            _ => (),
-        }
-    }
+    let mut call = None;
+    let mut new = None;
 
     for def in <T as class::number::PyNumberProtocolImpl>::py_methods() {
         match def {
@@ -189,15 +190,32 @@ fn py_class_method_defs<T>() -> Vec<ffi::PyMethodDef> {
     }
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
         match def {
-            &PyMethodDefType::Method(ref def) => defs.push(def.as_method_def()),
+            &PyMethodDefType::New(ref def) => {
+                if let class::methods::PyMethodType::PyNewFunc(meth) = def.ml_meth {
+                    new = Some(meth)
+                }
+            },
+            &PyMethodDefType::Call(ref def) => {
+                if let class::methods::PyMethodType::PyCFunctionWithKeywords(meth) = def.ml_meth {
+                    call = Some(meth)
+                } else {
+                    panic!("Method type is not supoorted by tp_call slot")
+                }
+            }
+            &PyMethodDefType::Method(ref def) => {
+                defs.push(def.as_method_def())
+            }
             _ => (),
         }
     }
     for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
         defs.push(def.as_method_def())
     }
+    for def in <T as class::context::PyContextProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
 
-    defs
+    (new, call, defs)
 }
 
 

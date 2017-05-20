@@ -6,6 +6,8 @@ use ffi;
 use class::NO_PY_METHODS;
 
 pub enum PyMethodDefType {
+    New(PyMethodDef),
+    Call(PyMethodDef),
     Method(PyMethodDef),
     Getter(PyGetterDef),
     Setter(PySetterDef),
@@ -16,6 +18,7 @@ pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
     PyNoArgsFunction(ffi::PyNoArgsFunction),
+    PyNewFunc(ffi::newfunc),
 }
 
 #[derive(Copy, Clone)]
@@ -62,6 +65,11 @@ impl PyMethodDef {
                 unsafe {
                     ::std::mem::transmute::<
                             ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
+                },
+            PyMethodType::PyNewFunc(meth) =>
+                unsafe {
+                    ::std::mem::transmute::<
+                            ffi::newfunc, ffi::PyCFunction>(meth)
                 },
         };
 

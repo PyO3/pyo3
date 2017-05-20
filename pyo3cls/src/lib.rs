@@ -17,6 +17,7 @@ mod py_impl;
 mod py_proto;
 mod py_method;
 mod func;
+mod method;
 mod utils;
 
 
