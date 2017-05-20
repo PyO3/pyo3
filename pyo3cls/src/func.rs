@@ -7,7 +7,10 @@ use quote::Tokens;
 pub enum MethodProto {
     Unary{name: &'static str, pyres: bool, proto: &'static str, },
     Binary{name: &'static str, arg: &'static str, pyres: bool, proto: &'static str},
-    Ternary{name: &'static str, arg1: &'static str, arg2: &'static str, proto: &'static str},
+    Ternary{name: &'static str,
+            arg1: &'static str,
+            arg2: &'static str,
+            pyres: bool, proto: &'static str},
     Quaternary{name: &'static str,
                arg1: &'static str,
                arg2: &'static str,
@@ -20,7 +23,7 @@ impl MethodProto {
         match *self {
             MethodProto::Unary{name: n, pyres: _, proto: _} => n == name,
             MethodProto::Binary{name: n, arg: _, pyres: _, proto: _} => n == name,
-            MethodProto::Ternary{name: n, arg1: _, arg2: _, proto: _} => n == name,
+            MethodProto::Ternary{name: n, arg1: _, arg2: _, pyres: _, proto: _} => n == name,
             MethodProto::Quaternary{name: n, arg1: _, arg2: _, arg3: _, proto: _} => n == name,
         }
     }
@@ -75,7 +78,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     }
                 },
-                MethodProto::Ternary{name: _, arg1, arg2, proto} => {
+                MethodProto::Ternary{name: _, arg1, arg2, pyres, proto} => {
                     let p = syn::Ident::from(proto);
                     let arg1_name = syn::Ident::from(arg1);
                     let arg1_ty = get_arg_ty(sig, 2);
@@ -83,12 +86,22 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     let arg2_ty = get_arg_ty(sig, 3);
                     let succ = get_res_success(ty);
 
-                    quote! {
-                        impl #p for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type Success = #succ;
-                            type Result = #ty;
+                    if pyres {
+                        quote! {
+                            impl #p for #cls {
+                                type #arg1_name = #arg1_ty;
+                                type #arg2_name = #arg2_ty;
+                                type Success = #succ;
+                                type Result = #ty;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            impl #p for #cls {
+                                type #arg1_name = #arg1_ty;
+                                type #arg2_name = #arg2_ty;
+                                type Result = #ty;
+                            }
                         }
                     }
                 },

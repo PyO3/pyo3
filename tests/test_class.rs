@@ -468,7 +468,7 @@ fn comparisons() {
 }
 
 
-/*#[py::class]
+#[py::class]
 struct Sequence {}
 
 #[py::proto]
@@ -477,7 +477,7 @@ impl PySequenceProtocol for Sequence {
         Ok(5)
     }
 
-    fn __getitem__(&self, py: Python, key: isize) -> PyResult<PyObject> {
+    fn __getitem__(&self, py: Python, key: isize) -> PyResult<isize> {
         if key == 5 {
             return Err(PyErr::new::<exc::IndexError, NoArgs>(py, NoArgs));
         }
@@ -492,8 +492,8 @@ fn sequence() {
 
     let c = Sequence::create_instance(py).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
-    py_assert!(py, c, "c['abc'] == 'abc'");
-}*/
+    py_expect_exception!(py, c, "c['abc']", TypeError);
+}
 
 
 #[py::class]
@@ -622,11 +622,11 @@ fn reversed() {
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
-/*#[py::class]
+#[py::class]
 struct Contains {}
 
 #[py::proto]
-impl PyMappingProtocol for Contains {
+impl PySequenceProtocol for Contains {
     fn __contains__(&self, py: Python, item: i32) -> PyResult<bool> {
         Ok(item >= 0)
     }
@@ -640,8 +640,8 @@ fn contains() {
     let c = Contains::create_instance(py).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
-    py_run!(py, c, "assert 'wrong type' not in c");
-}*/
+    py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
+}
 
 /*
 py_class!(class UnaryArithmetic |py| {

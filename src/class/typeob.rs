@@ -97,7 +97,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 
     // sequence methods
-    if let Some(meth) = ffi::PySequenceMethods::new::<T>() {
+    if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
         static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
         *(unsafe { &mut SQ_METHODS }) = meth;
         type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
@@ -212,6 +212,9 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
         defs.push(def.as_method_def())
     }
     for def in <T as class::context::PyContextProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
         defs.push(def.as_method_def())
     }
 

@@ -132,11 +132,12 @@ static MAPPING: Proto = Proto {
             name: "__setitem__",
             arg1: "Key",
             arg2: "Value",
+            pyres: false,
             proto: "_pyo3::class::mapping::PyMappingSetItemProtocol"},
         MethodProto::Binary{
             name: "__delitem__",
             arg: "Key",
-            pyres: true,
+            pyres: false,
             proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
         MethodProto::Binary{
             name: "__contains__",
@@ -166,7 +167,54 @@ static MAPPING: Proto = Proto {
             proto: "_pyo3::class::mapping::PyMappingReversedProtocolImpl",
         },
     ],
+};
 
+static SEQ: Proto = Proto {
+    name: "Sequence",
+    methods: &[
+        MethodProto::Unary{
+            name: "__len__",
+            pyres: false,
+            proto: "_pyo3::class::sequence::PySequenceLenProtocol"},
+        MethodProto::Unary{
+            name: "__getitem__",
+            pyres: true,
+            proto: "_pyo3::class::sequence::PySequenceGetItemProtocol"},
+        MethodProto::Binary{
+            name: "__setitem__",
+            arg: "Value",
+            pyres: false,
+            proto: "_pyo3::class::sequence::PyMappingSetItemProtocol"},
+        MethodProto::Binary{
+            name: "__delitem__",
+            arg: "Key",
+            pyres: false,
+            proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
+        MethodProto::Binary{
+            name: "__contains__",
+            arg: "Item",
+            pyres: false,
+            proto: "_pyo3::class::sequence::PySequenceContainsProtocol"},
+        MethodProto::Binary{
+            name: "__concat__",
+            arg: "Other",
+            pyres: true,
+            proto: "_pyo3::class::sequence::PySequenceConcatProtocol"},
+        MethodProto::Unary{
+            name: "__repeat__",
+            pyres: true,
+            proto: "_pyo3::class::sequence::PySequenceRepeatProtocol"},
+        MethodProto::Binary{
+            name: "__inplace_concat__",
+            arg: "Other",
+            pyres: true,
+            proto: "_pyo3::class::sequence::PySequenceInplaceConcatProtocol"},
+        MethodProto::Unary{
+            name: "__inplace_repeat__",
+            pyres: true,
+            proto: "_pyo3::class::sequence::PySequenceInplaceRepeatProtocol"},
+    ],
+    py_methods: &[],
 };
 
 
@@ -187,6 +235,8 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                             impl_proto_impl(ty, impl_items, &ITER),
                         "PyContextProtocol" =>
                             impl_proto_impl(ty, impl_items, &CONTEXT),
+                        "PySequenceProtocol" =>
+                            impl_proto_impl(ty, impl_items, &SEQ),
                         "PyBufferProtocol" =>
                             impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
@@ -195,9 +245,6 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                                           path.clone(), ty, impl_items, &DESCR_METHODS),
                         "PyGCProtocol" =>
                             impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
-                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                        "PySequenceProtocol" =>
-                            impl_protocol("_pyo3::class::sequence::PySequenceProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
                         "PyNumberProtocol" =>
                             impl_protocol("_pyo3::class::number::PyNumberProtocolImpl",

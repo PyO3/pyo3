@@ -58,13 +58,11 @@ pub trait PyMappingGetItemProtocol: PyMappingProtocol {
 pub trait PyMappingSetItemProtocol: PyMappingProtocol {
     type Key: for<'a> FromPyObject<'a>;
     type Value: for<'a> FromPyObject<'a>;
-    type Success: ToPyObject;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PyMappingDelItemProtocol: PyMappingProtocol {
     type Key: for<'a> FromPyObject<'a>;
-    type Success: ToPyObject;
     type Result: Into<PyResult<()>>;
 }
 
@@ -103,11 +101,11 @@ impl<T> PyMappingProtocolImpl for T {
 impl<T> PyMappingProtocolImpl for T where T: PyMappingProtocol {
     #[inline]
     fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
-        let mut f = Self::mp_ass_subscript();
-
-        if let Some(df) = Self::mp_del_subscript() {
-            f = Some(df)
-        }
+        let f = if let Some(df) = Self::mp_del_subscript() {
+            Some(df)
+        } else {
+            Self::mp_ass_subscript()
+        };
 
         Some(ffi::PyMappingMethods {
             mp_length: Self::mp_length(),

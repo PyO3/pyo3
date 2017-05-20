@@ -162,22 +162,23 @@ macro_rules! py_ternary_func {
 #[doc(hidden)]
 macro_rules! py_ssizearg_func {
     ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
-        unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
-                             arg: $crate::Py_ssize_t) -> *mut $crate::ffi::PyObject
-            where T: $trait + PythonObject
+        unsafe extern "C" fn wrap<T>(
+            slf: *mut $crate::ffi::PyObject,
+            arg: $crate::Py_ssize_t,
+        ) -> *mut $crate::ffi::PyObject
+            where T: $trait
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::callback::handle_callback(LOCATION, $conv, |py| {
-                let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
+                let slf = $crate::PyObject::from_borrowed_ptr(py,slf).unchecked_cast_into::<T>();
                 let ret = slf.$f(py, arg as isize);
                 $crate::PyDrop::release_ref(slf, py);
-                ret
+                ret.into()
             })
         }
-        Some(wrap::<T>)
+        Some(wrap::<$class>)
     }}
 }
-
 
 #[macro_export]
 #[doc(hidden)]
@@ -192,6 +193,32 @@ macro_rules! py_objobj_proc {
                 let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
                 let arg = PyObject::from_borrowed_ptr(py, arg);
                 let ret = slf.$f(py, &arg);
+                $crate::PyDrop::release_ref(arg, py);
+                $crate::PyDrop::release_ref(slf, py);
+                ret
+            })
+        }
+        Some(wrap::<T>)
+    }}
+}
+
+#[macro_export]
+#[doc(hidden)]
+    macro_rules! py_objobj_proc_ {
+    ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
+        unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
+                                     arg: *mut $crate::ffi::PyObject,
+        ) -> $crate::c_int
+            where T: $trait + PythonObject
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::callback::handle_callback(LOCATION, $conv, |py| {
+                let slf = $crate::PyObject::from_borrowed_ptr(py,slf).unchecked_cast_into::<T>();
+                let arg = PyObject::from_borrowed_ptr(py, arg);
+                let ret = match arg.extract(py) {
+                    Ok(arg) => slf.$f(py, arg).into(),
+                    Err(e) => Err(e),
+                };
                 $crate::PyDrop::release_ref(arg, py);
                 $crate::PyDrop::release_ref(slf, py);
                 ret
