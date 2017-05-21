@@ -53,9 +53,9 @@ impl <T, S> CallbackConverter<S> for PythonObjectCallbackConverter<T>
     }
 }
 
-pub struct BoolConverter;
+pub struct BoolCallbackConverter;
 
-impl CallbackConverter<bool> for BoolConverter {
+impl CallbackConverter<bool> for BoolCallbackConverter {
     type R = c_int;
 
     #[inline]

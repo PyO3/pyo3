@@ -3,218 +3,18 @@
 use syn;
 use quote::{Tokens, ToTokens};
 
+use defs;
 use py_method;
 use method::FnSpec;
-use func::{MethodProto, impl_method_proto};
+use func::impl_method_proto;
 
 
 struct Methods {
     methods: &'static [&'static str],
 }
 
-struct PyMethod {
-    name: &'static str,
-    proto: &'static str,
-}
-
-struct Proto {
-    name: &'static str,
-    methods: &'static [MethodProto],
-    py_methods: &'static [PyMethod],
-}
-
 static DEFAULT_METHODS: Methods = Methods {
     methods: &[],
-};
-
-static DESCR_METHODS: Methods = Methods {
-    methods: &["__delete__", "__set_name__"],
-};
-
-static NUM_METHODS: Methods = Methods {
-    methods: &[
-        "__radd__", "__rsub__", "__rmul__", "__rmatmul__", "__rtruediv__",
-        "__rfloordiv__", "__rmod__", "__rdivmod__", "__rpow__", "__rlshift__",
-        "__rrshift__", "__rand__", "__rxor__", "__ror__", "__complex__",
-        "__round__"
-    ],
-};
-
-static ASYNC: Proto = Proto {
-    name: "Async",
-    methods: &[
-        MethodProto::Unary {
-            name: "__await__",
-            pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAwaitProtocol"},
-        MethodProto::Unary{
-            name: "__aiter__",
-            pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAiterProtocol"},
-        MethodProto::Unary{
-            name: "__anext__",
-            pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAnextProtocol"},
-        MethodProto::Unary{
-            name: "__aenter__",
-            pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAenterProtocol"},
-        MethodProto::Quaternary {
-            name: "__aexit__",
-            arg1: "ExcType", arg2: "ExcValue", arg3: "Traceback",
-            proto: "_pyo3::class::async::PyAsyncAexitProtocol"},
-    ],
-    py_methods: &[
-        PyMethod {
-            name: "__aenter__",
-            proto: "_pyo3::class::async::PyAsyncAenterProtocolImpl",
-        },
-        PyMethod {
-            name: "__aexit__",
-            proto: "_pyo3::class::async::PyAsyncAexitProtocolImpl",
-        },
-    ],
-};
-
-static CONTEXT: Proto = Proto {
-    name: "Context",
-    methods: &[
-        MethodProto::Unary{
-            name: "__enter__",
-            pyres: true,
-            proto: "_pyo3::class::context::PyContextEnterProtocol"},
-        MethodProto::Quaternary {
-            name: "__exit__",
-            arg1: "ExcType", arg2: "ExcValue", arg3: "Traceback",
-            proto: "_pyo3::class::context::PyContextExitProtocol"},
-    ],
-    py_methods: &[
-        PyMethod {
-            name: "__enter__",
-            proto: "_pyo3::class::context::PyContextEnterProtocolImpl",
-        },
-        PyMethod {
-            name: "__exit__",
-            proto: "_pyo3::class::context::PyContextExitProtocolImpl",
-        },
-    ],
-};
-
-static ITER: Proto = Proto {
-    name: "Iter",
-    py_methods: &[],
-    methods: &[
-        MethodProto::Unary{
-            name: "__iter__",
-            pyres: true,
-            proto: "_pyo3::class::iter::PyIterIterProtocol"},
-        MethodProto::Unary{
-            name: "__next__",
-            pyres: true,
-            proto: "_pyo3::class::iter::PyIterNextProtocol"},
-    ],
-};
-
-
-static MAPPING: Proto = Proto {
-    name: "Mapping",
-    methods: &[
-        MethodProto::Unary{
-            name: "__len__",
-            pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingLenProtocol"},
-        MethodProto::Binary{
-            name: "__getitem__",
-            arg: "Key",
-            pyres: true,
-            proto: "_pyo3::class::mapping::PyMappingGetItemProtocol"},
-        MethodProto::Ternary{
-            name: "__setitem__",
-            arg1: "Key",
-            arg2: "Value",
-            pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingSetItemProtocol"},
-        MethodProto::Binary{
-            name: "__delitem__",
-            arg: "Key",
-            pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
-        MethodProto::Binary{
-            name: "__contains__",
-            arg: "Value",
-            pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingContainsProtocol"},
-        MethodProto::Unary{
-            name: "__reversed__",
-            pyres: true,
-            proto: "_pyo3::class::mapping::PyMappingReversedProtocol"},
-        MethodProto::Unary{
-            name: "__iter__",
-            pyres: true,
-            proto: "_pyo3::class::mapping::PyMappingIterProtocol"},
-    ],
-    py_methods: &[
-        PyMethod {
-            name: "__iter__",
-            proto: "_pyo3::class::mapping::PyMappingIterProtocolImpl",
-        },
-        PyMethod {
-            name: "__contains__",
-            proto: "_pyo3::class::mapping::PyMappingContainsProtocolImpl",
-        },
-        PyMethod {
-            name: "__reversed__",
-            proto: "_pyo3::class::mapping::PyMappingReversedProtocolImpl",
-        },
-    ],
-};
-
-static SEQ: Proto = Proto {
-    name: "Sequence",
-    methods: &[
-        MethodProto::Unary{
-            name: "__len__",
-            pyres: false,
-            proto: "_pyo3::class::sequence::PySequenceLenProtocol"},
-        MethodProto::Unary{
-            name: "__getitem__",
-            pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceGetItemProtocol"},
-        MethodProto::Binary{
-            name: "__setitem__",
-            arg: "Value",
-            pyres: false,
-            proto: "_pyo3::class::sequence::PyMappingSetItemProtocol"},
-        MethodProto::Binary{
-            name: "__delitem__",
-            arg: "Key",
-            pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
-        MethodProto::Binary{
-            name: "__contains__",
-            arg: "Item",
-            pyres: false,
-            proto: "_pyo3::class::sequence::PySequenceContainsProtocol"},
-        MethodProto::Binary{
-            name: "__concat__",
-            arg: "Other",
-            pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceConcatProtocol"},
-        MethodProto::Unary{
-            name: "__repeat__",
-            pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceRepeatProtocol"},
-        MethodProto::Binary{
-            name: "__inplace_concat__",
-            arg: "Other",
-            pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceInplaceConcatProtocol"},
-        MethodProto::Unary{
-            name: "__inplace_repeat__",
-            pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceInplaceRepeatProtocol"},
-    ],
-    py_methods: &[],
 };
 
 
@@ -225,30 +25,27 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                 if let Some(segment) = path.segments.last() {
                     match segment.ident.as_ref() {
                         "PyObjectProtocol" =>
-                            impl_protocol("_pyo3::class::basic::PyObjectProtocolImpl",
-                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                            impl_proto_impl(ty, impl_items, &defs::OBJECT),
                         "PyAsyncProtocol" =>
-                            impl_proto_impl(ty, impl_items, &ASYNC),
+                            impl_proto_impl(ty, impl_items, &defs::ASYNC),
                         "PyMappingProtocol" =>
-                            impl_proto_impl(ty, impl_items, &MAPPING),
+                            impl_proto_impl(ty, impl_items, &defs::MAPPING),
                         "PyIterProtocol" =>
-                            impl_proto_impl(ty, impl_items, &ITER),
+                            impl_proto_impl(ty, impl_items, &defs::ITER),
                         "PyContextProtocol" =>
-                            impl_proto_impl(ty, impl_items, &CONTEXT),
+                            impl_proto_impl(ty, impl_items, &defs::CONTEXT),
                         "PySequenceProtocol" =>
-                            impl_proto_impl(ty, impl_items, &SEQ),
+                            impl_proto_impl(ty, impl_items, &defs::SEQ),
+                        "PyNumberProtocol" =>
+                            impl_proto_impl(ty, impl_items, &defs::NUM),
+                        "PyDescrProtocol" =>
+                            impl_proto_impl(ty, impl_items, &defs::DESCR),
                         "PyBufferProtocol" =>
                             impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                        "PyDescrProtocol" =>
-                            impl_protocol("_pyo3::class::descr::PyDescrProtocolImpl",
-                                          path.clone(), ty, impl_items, &DESCR_METHODS),
                         "PyGCProtocol" =>
                             impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
-                        "PyNumberProtocol" =>
-                            impl_protocol("_pyo3::class::number::PyNumberProtocolImpl",
-                                          path.clone(), ty, impl_items, &NUM_METHODS),
                         _ => {
                             warn!("#[proto] can not be used with this block");
                             Tokens::new()
@@ -265,7 +62,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
     }
 }
 
-fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &Proto) -> Tokens {
+fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &defs::Proto) -> Tokens {
     let mut tokens = Tokens::new();
     let mut py_methods = Vec::new();
 

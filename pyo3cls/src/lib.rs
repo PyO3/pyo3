@@ -17,6 +17,7 @@ mod py_class;
 mod py_impl;
 mod py_proto;
 mod py_method;
+mod defs;
 mod func;
 mod method;
 mod utils;

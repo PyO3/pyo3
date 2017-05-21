@@ -385,7 +385,7 @@ fn iterator() {
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }*/
 
-/*
+
 #[py::class]
 struct StringMethods {}
 
@@ -399,7 +399,7 @@ impl PyObjectProtocol for StringMethods {
         Ok("repr")
     }
 
-    fn __format__(&self, py: Python, format_spec: &str) -> PyResult<String> {
+    fn __format__(&self, py: Python, format_spec: String) -> PyResult<String> {
         Ok(format!("format({})", format_spec))
     }
 
@@ -421,16 +421,8 @@ fn string_methods() {
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
-}*/
-/*
-#[test]
-fn python3_string_methods() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let obj = StringMethods::create_instance(py).unwrap();
     py_assert!(py, obj, "bytes(obj) == b'bytes'");
-}*/
+}
 
 
 #[py::class]
@@ -643,24 +635,30 @@ fn contains() {
     py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
 }
 
-/*
-py_class!(class UnaryArithmetic |py| {
-    def __neg__(&self) -> PyResult<&'static str> {
+
+
+#[py::class]
+struct UnaryArithmetic {}
+
+#[py::proto]
+impl PyNumberProtocol for UnaryArithmetic {
+
+    fn __neg__(&self, py: Python) -> PyResult<&'static str> {
         Ok("neg")
     }
 
-    def __pos__(&self) -> PyResult<&'static str> {
+    fn __pos__(&self, py: Python) -> PyResult<&'static str> {
         Ok("pos")
     }
 
-    def __abs__(&self) -> PyResult<&'static str> {
+    fn __abs__(&self, py: Python) -> PyResult<&'static str> {
         Ok("abs")
     }
 
-    def __invert__(&self) -> PyResult<&'static str> {
+    fn __invert__(&self, py: Python) -> PyResult<&'static str> {
         Ok("invert")
     }
-});
+}
 
 #[test]
 fn unary_arithmetic() {
@@ -672,51 +670,51 @@ fn unary_arithmetic() {
     py_run!(py, c, "assert +c == 'pos'");
     py_run!(py, c, "assert abs(c) == 'abs'");
     py_run!(py, c, "assert ~c == 'invert'");
-}*/
+}
 
-/*
+
 #[py::class]
 struct BinaryArithmetic {}
 
 #[py::proto]
 impl PyObjectProtocol for BinaryArithmetic {
-    def __repr__(&self) -> PyResult<&'static str> {
+    fn __repr__(&self, py: Python) -> PyResult<&'static str> {
         Ok("BA")
     }
 }
 
 #[py::proto]
 impl PyNumberProtocol for BinaryArithmetic {
-    fn __add__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} + {:?}", lhs, rhs))
+    fn __add__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} + {:?}", self.as_object(), rhs))
     }
 
-    fn __sub__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} - {:?}", lhs, rhs))
+    fn __sub__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} - {:?}", self.as_object(), rhs))
     }
 
-    fn __mul__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} * {:?}", lhs, rhs))
+    fn __mul__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} * {:?}", self.as_object(), rhs))
     }
 
-    fn __lshift__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} << {:?}", lhs, rhs))
+    fn __lshift__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} << {:?}", self.as_object(), rhs))
     }
 
-    fn __rshift__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} >> {:?}", lhs, rhs))
+    fn __rshift__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} >> {:?}", self.as_object(), rhs))
     }
 
-    fn __and__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} & {:?}", lhs, rhs))
+    fn __and__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} & {:?}", self.as_object(), rhs))
     }
 
-    fn __xor__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} ^ {:?}", lhs, rhs))
+    fn __xor__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} ^ {:?}", self.as_object(), rhs))
     }
 
-    fn __or__(lhs, rhs) -> PyResult<String> {
-        Ok(format!("{:?} | {:?}", lhs, rhs))
+    fn __or__(&self, py: Python, rhs: PyObject) -> PyResult<String> {
+        Ok(format!("{:?} | {:?}", self.as_object(), rhs))
     }
 }
 
@@ -744,15 +742,19 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
     py_run!(py, c, "assert c | 1 == 'BA | 1'");
     py_run!(py, c, "assert 1 | c == '1 | BA'");
-}*/
+}
 
-/*
-py_class!(class RichComparisons |py| {
-    def __repr__(&self) -> PyResult<&'static str> {
+
+#[py::class]
+struct RichComparisons {}
+
+#[py::proto]
+impl PyObjectProtocol for RichComparisons {
+    fn __repr__(&self, py: Python) -> PyResult<&'static str> {
         Ok("RC")
     }
 
-    def __richcmp__(&self, other: &PyObject, op: CompareOp) -> PyResult<String> {
+    fn __richcmp__(&self, py: Python, other: PyObject, op: CompareOp) -> PyResult<String> {
         match op {
             CompareOp::Lt => Ok(format!("{:?} < {:?}", self.as_object(), other)),
             CompareOp::Le => Ok(format!("{:?} <= {:?}", self.as_object(), other)),
@@ -762,21 +764,25 @@ py_class!(class RichComparisons |py| {
             CompareOp::Ge => Ok(format!("{:?} >= {:?}", self.as_object(), other))
         }
     }
-});
+}
 
-py_class!(class RichComparisons2 |py| {
-    def __repr__(&self) -> PyResult<&'static str> {
+#[py::class]
+struct RichComparisons2 {}
+
+#[py::proto]
+impl PyObjectProtocol for RichComparisons2 {
+    fn __repr__(&self, py: Python) -> PyResult<&'static str> {
         Ok("RC2")
     }
 
-    def __richcmp__(&self, other: &PyObject, op: CompareOp) -> PyResult<PyObject> {
+    fn __richcmp__(&self, py: Python, other: PyObject, op: CompareOp) -> PyResult<PyObject> {
         match op {
             CompareOp::Eq => Ok(true.to_py_object(py).into_object()),
             CompareOp::Ne => Ok(false.to_py_object(py).into_object()),
             _ => Ok(py.NotImplemented())
         }
     }
-});
+}
 
 #[test]
 fn rich_comparisons() {
@@ -805,7 +811,6 @@ fn rich_comparisons() {
 }
 
 #[test]
-#[cfg(feature="python3-sys")]
 fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -830,8 +835,7 @@ fn rich_comparisons_python_3_type_error() {
     py_expect_exception!(py, c2, "c2 >= 1", TypeError);
     py_expect_exception!(py, c2, "1 >= c2", TypeError);
 }
- */
-/*
+
 #[py::class]
 struct InPlaceOperations {
     value: u32
@@ -840,49 +844,49 @@ struct InPlaceOperations {
 #[py::proto]
 impl PyObjectProtocol for InPlaceOperations {
     fn __repr__(&self, py: Python) -> PyResult<String> {
-        Ok(format!("IPO({:?})", self.value(py).get()))
+        Ok(format!("IPO({:?})", self.value(py)))
     }
 }
 
 #[py::proto]
 impl PyNumberProtocol for InPlaceOperations {
     fn __iadd__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() + other);
+        *self.value_mut(py) = *self.value(py) + other;
         Ok(self.clone_ref(py))
     }
 
     fn __isub__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() - other);
+        *self.value_mut(py) = *self.value(py) - other;
         Ok(self.clone_ref(py))
     }
 
     fn __imul__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() * other);
+        *self.value_mut(py) = *self.value(py) * other;
         Ok(self.clone_ref(py))
     }
 
     fn __ilshift__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() << other);
+        *self.value_mut(py) = *self.value(py) << other;
         Ok(self.clone_ref(py))
     }
 
     fn __irshift__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() >> other);
+        *self.value_mut(py) = *self.value(py) >> other;
         Ok(self.clone_ref(py))
     }
 
     fn __iand__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() & other);
+        *self.value_mut(py) = *self.value(py) & other;
         Ok(self.clone_ref(py))
     }
 
     fn __ixor__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() ^ other);
+        *self.value_mut(py) = *self.value(py) ^ other;
         Ok(self.clone_ref(py))
     }
 
     fn __ior__(&self, py: Python, other: u32) -> PyResult<Self> {
-        self.value(py).set(self.value(py).get() | other);
+        *self.value_mut(py) = *self.value(py) | other;
         Ok(self.clone_ref(py))
     }
 }
@@ -892,31 +896,30 @@ fn inplace_operations() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(0)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 0).unwrap();
     py_run!(py, c, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(10)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 10).unwrap();
     py_run!(py, c, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(3)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 3).unwrap();
     py_run!(py, c, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(3)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 3).unwrap();
     py_run!(py, c, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 12).unwrap();
     py_run!(py, c, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 12).unwrap();
     py_run!(py, c, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 12).unwrap();
     py_run!(py, c, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
 
-    let c = InPlaceOperations::create_instance(py, Cell::new(12)).unwrap();
+    let c = InPlaceOperations::create_instance(py, 12).unwrap();
     py_run!(py, c, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
-*/
 
 #[py::class]
 struct ContextManager {

@@ -70,14 +70,16 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     type_object.tp_basicsize = <T as BaseObject>::size() as ffi::Py_ssize_t;
 
     // descriptor protocol
-    type_object.tp_descr_get = class::descr::get_descrfunc::<T>();
-    type_object.tp_descr_set = class::descr::set_descrfunc::<T>();
+    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
 
     // iterator methods
     <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
 
+    // basic methods
+    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
+
     // number methods
-    if let Some(meth) = ffi::PyNumberMethods::new::<T>() {
+    if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
         static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
         *(unsafe { &mut NB_METHODS }) = meth;
         type_object.tp_as_number = unsafe { &mut NB_METHODS };
@@ -182,12 +184,6 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
     let mut call = None;
     let mut new = None;
 
-    for def in <T as class::number::PyNumberProtocolImpl>::py_methods() {
-        match def {
-            &PyMethodDefType::Method(ref def) => defs.push(def.as_method_def()),
-            _ => (),
-        }
-    }
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
         match def {
             &PyMethodDefType::New(ref def) => {
@@ -208,6 +204,9 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
             _ => (),
         }
     }
+    for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
     for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
         defs.push(def.as_method_def())
     }
@@ -215,6 +214,12 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
         defs.push(def.as_method_def())
     }
     for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::number::PyNumberProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
         defs.push(def.as_method_def())
     }
 

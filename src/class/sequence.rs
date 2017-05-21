@@ -10,7 +10,7 @@ use err::{PyErr, PyResult};
 use python::{Python, PythonObject, PyDrop};
 use objects::{exc, PyObject};
 use callback::{PyObjectCallbackConverter,
-               LenResultConverter, UnitCallbackConverter, BoolConverter};
+               LenResultConverter, UnitCallbackConverter, BoolCallbackConverter};
 use ::{ToPyObject, FromPyObject};
 
 
@@ -318,7 +318,7 @@ impl<T> PySequenceContainsProtocolImpl for T
 {
     #[inline]
     fn sq_contains() -> Option<ffi::objobjproc> {
-        py_objobj_proc_!(PySequenceContainsProtocol, T::__contains__, BoolConverter)
+        py_objobj_proc_!(PySequenceContainsProtocol, T::__contains__, BoolCallbackConverter)
     }
 }
 
