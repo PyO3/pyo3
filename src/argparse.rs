@@ -445,9 +445,9 @@ pub fn with_extracted_or_default<P: ?Sized, R, F>(py: Python, obj: Option<&PyObj
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject};
+    use python::{Python};
     use objects::PyTuple;
-    use conversion::{ToPyObject, ToPyTuple};
+    use conversion::{ToPyTuple};
 
     #[test]
     pub fn test_parse() {
@@ -493,7 +493,7 @@ mod test {
         assert!(called);
 
         let mut called = false;
-        let tuple = PyTuple::new(py, &[]);
+        let tuple = PyTuple::empty(py);
         py_argparse!(py, None, &tuple, None, (x: usize = 42, y: &str = "abc") {
             assert_eq!(x, 42);
             assert_eq!(y, "abc");

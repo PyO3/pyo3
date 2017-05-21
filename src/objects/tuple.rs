@@ -16,7 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use python::{Python, PythonObject, ToPythonPointer, PyClone};
+use python::{Python, PythonObject, PyClone};
 use err::{self, PyErr, PyResult};
 use super::object::PyObject;
 use super::exc;
@@ -31,13 +31,13 @@ pyobject_newtype!(PyTuple, PyTuple_Check, PyTuple_Type);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.
-    pub fn new(py: Python, elements: &[PyObject]) -> PyTuple {
+    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> PyTuple {
         unsafe {
             let len = elements.len();
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
             let t = err::result_cast_from_owned_ptr::<PyTuple>(py, ptr).unwrap();
             for (i, e) in elements.iter().enumerate() {
-                ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.steal_ptr(py));
+                ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_py_object(py).steal_ptr());
             }
             t
         }
@@ -218,13 +218,12 @@ extract!(obj to NoArgs; py => {
 mod test {
     use PyTuple;
     use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
-    use conversion::ToPyObject;
 
     #[test]
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let tuple = PyTuple::downcast_from(py, (1, 2, 3).to_py_object(py)).unwrap();
+        let tuple = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, tuple.len(py));
         assert_eq!((1, 2, 3), tuple.into_object().extract(py).unwrap());
     }
