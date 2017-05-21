@@ -1,5 +1,4 @@
-PyO3 [![Build Status](https://travis-ci.org/PyO3/PyO3.svg?branch=master)](https://travis-ci.org/PyO3/PyO3)
-====================
+# PyO3 [![Build Status](https://travis-ci.org/PyO3/PyO3.svg?branch=master)](https://travis-ci.org/PyO3/PyO3)
 
 [Rust](http://www.rust-lang.org/) bindings for the [python](https://www.python.org/) interpreter.
 
@@ -12,13 +11,15 @@ PyO3 is licensed under the [APACHE-2.0 license](http://opensource.org/licenses/A
 Python is licensed under the [Python License](https://docs.python.org/2/license.html).
 
 Supported Python versions:
+
 * Python 3.5 and up
 
 Supported Rust version:
+
 * Rust 1.17.0-nightly or later
 * On Windows, we require rustc 1.17.0-nightly
 
-# Usage
+## Usage
 
 To use `pyo3`, add this to your `Cargo.toml`:
 
@@ -59,6 +60,7 @@ On Mac OS, you will need to rename the output from \*.dylib to \*.so.
 On Windows, you will need to rename the output from \*.dll to \*.pyd.
 
 **`Cargo.toml`:**
+
 ```toml
 [lib]
 name = "rust2py"
@@ -70,6 +72,7 @@ features = ["extension-module"]
 ```
 
 **`src/lib.rs`**
+
 ```rust
 #[macro_use] extern crate pyo3;
 
@@ -98,7 +101,7 @@ fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
 }
 ```
 
-For `setup.py` integration, see https://github.com/PyO3/setuptools-rust
+For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setuptools-rust)
 
 
 **This is fork of rust-cpython project https://github.com/dgrunwald/rust-cpython**
