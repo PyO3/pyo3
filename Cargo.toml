@@ -27,7 +27,7 @@ num-traits = "0.1"
 pyo3cls = { path = "pyo3cls" }
 
 [build-dependencies]
-regex = "0.1"
+regex = "0.2"
 
 [features]
 default = ["nightly"]

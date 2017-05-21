@@ -226,8 +226,8 @@ fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
     match version_re.captures(&line) {
         Some(cap) => Ok(PythonVersion {
-            major: cap.at(1).unwrap().parse().unwrap(),
-            minor: Some(cap.at(2).unwrap().parse().unwrap())
+            major: cap.get(1).unwrap().as_str().parse().unwrap(),
+            minor: Some(cap.get(2).unwrap().as_str().parse().unwrap())
         }),
         None => Err(
             format!("Unexpected response to version query {}", line))
