@@ -5,7 +5,8 @@ python:
 env:
   # - RUST_VERSION=1.17.0
   - RUST_VERSION=nightly
-sudo: false
+sudo: required
+dist: trusty
 install:
   - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
   - mkdir ~/rust-installer
