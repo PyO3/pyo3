@@ -20,7 +20,7 @@ impl PySet {
     /// Creates a new set.
     ///
     /// May panic when running out of memory.
-    pub fn new(py: Python, elements: &[PyObject]) -> PySet {
+    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> PySet {
         let list = elements.to_py_object(py);
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PySet_New(list.as_ptr()))
@@ -86,7 +86,7 @@ impl<T> ToPyObject for collections::HashSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
     fn to_py_object(&self, py: Python) -> PyObject {
-        let set = PySet::new(py, &[]);
+        let set = PySet::new::<T>(py, &[]);
         for val in self {
             set.add(py, val).unwrap();
         }
@@ -98,7 +98,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
     fn to_py_object(&self, py: Python) -> PyObject {
-        let set = PySet::new(py, &[]);
+        let set = PySet::new::<T>(py, &[]);
         for val in self {
             set.add(py, val).unwrap();
         }
@@ -110,7 +110,7 @@ impl PyFrozenSet {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
-    pub fn new(py: Python, elements: &[PyObject]) -> PyFrozenSet {
+    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> PyFrozenSet {
         let list = elements.to_py_object(py);
         unsafe {
             err::cast_from_owned_ptr_or_panic(py, ffi::PyFrozenSet_New(list.as_ptr()))
@@ -146,7 +146,7 @@ impl PyFrozenSet {
 #[cfg(test)]
 mod test {
     use std::collections::{HashSet};
-    use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
+    use python::{Python, PythonObjectWithCheckedDowncast};
     use conversion::ToPyObject;
     use super::{PySet, PyFrozenSet};
 
@@ -155,7 +155,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let set = PySet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PySet::new(py, &[1]);
         assert_eq!(1, set.len(py));
     }
 
@@ -176,7 +176,7 @@ mod test {
     fn test_set_clear() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PySet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PySet::new(py, &[1]);
         assert_eq!(1, set.len(py));
         set.clear(py);
         assert_eq!(0, set.len(py));
@@ -186,7 +186,7 @@ mod test {
     fn test_set_contains() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PySet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PySet::new(py, &[1]);
         assert!(set.contains(py, 1).unwrap());
     }
 
@@ -194,7 +194,7 @@ mod test {
     fn test_set_discard() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PySet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PySet::new(py, &[1]);
         set.discard(py, 2);
         assert_eq!(1, set.len(py));
         set.discard(py, 1);
@@ -205,8 +205,8 @@ mod test {
     fn test_set_add() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PySet::new(py, &[]);
-        set.add(py, 1).unwrap();
+        let set = PySet::new(py, &[1, 2]);
+        set.add(py, 1).unwrap();  // Add a dupliated element
         assert!(set.contains(py, 1).unwrap());
     }
 
@@ -214,7 +214,7 @@ mod test {
     fn test_set_pop() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PySet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PySet::new(py, &[1]);
         let val = set.pop(py);
         assert!(val.is_some());
         let val2 = set.pop(py);
@@ -226,7 +226,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let set = PySet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PySet::new(py, &[1]);
         for el in set.iter(py).unwrap() {
             assert_eq!(1i32, el.unwrap().extract::<i32>(py).unwrap());
         }
@@ -237,7 +237,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let set = PyFrozenSet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PyFrozenSet::new(py, &[1]);
         assert_eq!(1, set.len(py));
     }
 
@@ -245,7 +245,7 @@ mod test {
     fn test_frozenset_contains() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PyFrozenSet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PyFrozenSet::new(py, &[1]);
         assert!(set.contains(py, 1).unwrap());
     }
 
@@ -254,7 +254,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let set = PyFrozenSet::new(py, &[1.to_py_object(py).into_object()]);
+        let set = PyFrozenSet::new(py, &[1]);
         for el in set.iter(py).unwrap() {
             assert_eq!(1i32, el.unwrap().extract::<i32>(py).unwrap());
         }

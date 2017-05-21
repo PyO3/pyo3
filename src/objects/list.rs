@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 use err;
-use python::{Python, PythonObject, ToPythonPointer};
+use python::{Python, PythonObject};
 use objects::PyObject;
 use ffi::{self, Py_ssize_t};
 use conversion::ToPyObject;
@@ -29,12 +29,12 @@ pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 
 impl PyList {
     /// Construct a new list with the given elements.
-    pub fn new(py: Python, elements: &[PyObject]) -> PyList {
+    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> PyList {
         unsafe {
             let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
             let t = err::result_from_owned_ptr(py, ptr).unwrap().unchecked_cast_into::<PyList>();
             for (i, e) in elements.iter().enumerate() {
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.steal_ptr(py));
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.to_py_object(py).steal_ptr());
             }
             t
         }
@@ -110,15 +110,7 @@ impl <'a, 'p> Iterator for PyListIterator<'a, 'p> {
 impl <T> ToPyObject for [T] where T: ToPyObject {
 
     fn to_py_object(&self, py: Python) -> PyObject {
-        unsafe {
-            let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
-            let t = err::cast_from_owned_ptr_or_panic(py, ptr);
-            for (i, e) in self.iter().enumerate() {
-                let obj = e.to_py_object(py).into_object();
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj.steal_ptr());
-            }
-            t
-        }
+        PyList::new(py, self).into_object()
     }
 }
 
@@ -143,7 +135,7 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
+    use python::{Python, PythonObject};
     use conversion::ToPyObject;
     use objects::PyList;
 
@@ -151,8 +143,7 @@ mod test {
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![1,2,3,4];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::new(py, &[1, 2, 3, 4]);
         assert_eq!(4, list.len(py));
     }
 
@@ -161,7 +152,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::new(py, &v);
         assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
         assert_eq!(3, list.get_item(py, 1).extract::<i32>(py).unwrap());
         assert_eq!(5, list.get_item(py, 2).extract::<i32>(py).unwrap());
@@ -173,7 +164,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::new(py, &v);
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
         list.set_item(py, 0, val);
@@ -185,7 +176,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::new(py, &v);
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(4, list.len(py));
         assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
@@ -200,7 +191,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::new(py, &v);
         let mut idx = 0;
         for el in list.iter(py) {
             assert_eq!(v[idx], el.extract::<i32>(py).unwrap());
@@ -214,7 +205,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::new(py, &v);
         let v2 = list.into_object().extract::<Vec<i32>>(py).unwrap();
         assert_eq!(v, v2);
     }
