@@ -26,6 +26,7 @@ use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{self, PyErr, PyResult};
 use pythonrun::GILGuard;
 
+
 /// Marker type that indicates that the GIL is currently held.
 ///
 /// The 'Python' struct is a zero-size marker struct that is required for most Python operations.

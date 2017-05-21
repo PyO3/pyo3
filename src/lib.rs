@@ -90,6 +90,8 @@ pub use pyo3cls::*;
 
 pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
+mod pyptr;
+pub use pyptr::{Py, PyPtr};
 pub use err::{PyErr, PyResult};
 pub use objects::*;
 pub use python::{Python, PythonObject,
