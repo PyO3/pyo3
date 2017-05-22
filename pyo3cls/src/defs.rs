@@ -17,10 +17,11 @@ pub const OBJECT: Proto = Proto {
         MethodProto::Binary {
             name: "__getattr__",
             arg: "Name",
-            pyres: true,
+            //pyres: true,
+            pyres: false,
             proto: "_pyo3::class::basic::PyObjectGetAttrProtocol"},
         MethodProto::Ternary {
-            name: "__getattr__",
+            name: "__setattr__",
             arg1: "Name",
             arg2: "Value",
             pyres: true,

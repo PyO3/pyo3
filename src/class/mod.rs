@@ -37,9 +37,9 @@ pub static NO_METHODS: &'static [&'static str] = &[];
 pub static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 use ffi;
-use err::{self, PyResult};
-use objects::{PyObject, PyType};
-use python::{Python, PythonObject};
+use err::{PyErr, PyResult};
+use objects::PyObject;
+use python::Python;
 
 
 #[derive(Debug)]
@@ -54,7 +54,7 @@ pub enum CompareOp {
 
 
 /// A PythonObject that is usable as a base type for #[class]
-pub trait BaseObject : PythonObject {
+pub trait BaseObject {
     /// Gets the size of the object, in bytes.
     fn size() -> usize;
 
@@ -64,7 +64,7 @@ pub trait BaseObject : PythonObject {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(py: Python, ty: &PyType, val: Self::Type) -> PyResult<PyObject>;
+    unsafe fn alloc(py: Python, val: Self::Type) -> PyResult<*mut ffi::PyObject>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
@@ -81,9 +81,16 @@ impl BaseObject for PyObject {
 
     type Type = ();
 
-    unsafe fn alloc(py: Python, ty: &PyType, _init_val: ()) -> PyResult<PyObject> {
+    unsafe fn alloc(py: Python, _val: ()) -> PyResult<*mut ffi::PyObject> {
+        let ty = py.get_type::<PyObject>();
         let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
-        err::result_from_owned_ptr(py, ptr)
+        println!("alloc PyObject {}", ffi::Py_REFCNT(ptr));
+        //err::result_from_owned_ptr(py, ptr)
+        if ptr.is_null() {
+            return Err(PyErr::fetch(py))
+        } else {
+            Ok(ptr)
+        }
     }
 
     unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {

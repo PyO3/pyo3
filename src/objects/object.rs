@@ -144,6 +144,7 @@ impl PyObject {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(_py : Python, ptr : *mut ffi::PyObject) -> PyObject {
+        println!("from_borrowed_ptr: {} {:?} {}", ptr.is_null(), ptr, ffi::Py_REFCNT(ptr));
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
         PyObject { ptr: make_shared(ptr) }

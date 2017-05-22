@@ -196,7 +196,36 @@ impl <T> CallbackConverter<T> for HashConverter
 
 
 pub unsafe fn handle_callback<F, T, C>(location: &str, _c: C, f: F) -> C::R
-    where F: FnOnce(Python) -> PyResult<T>,
+    where F: for<'p> FnOnce(Python<'p>) -> PyResult<T>,
+          F: panic::UnwindSafe,
+          C: CallbackConverter<T>
+{
+    let guard = AbortOnDrop(location);
+    let ret = panic::catch_unwind(|| {
+        let py = Python::assume_gil_acquired();
+        match f(py) {
+            Ok(val) => {
+                C::convert(val, py)
+            }
+            Err(e) => {
+                e.restore(py);
+                C::error_value()
+            }
+        }
+    });
+    let ret = match ret {
+        Ok(r) => r,
+        Err(ref err) => {
+            handle_panic(Python::assume_gil_acquired(), err);
+            C::error_value()
+        }
+    };
+    mem::forget(guard);
+    ret
+}
+
+pub unsafe fn handle_callback2<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
+    where F: FnOnce(Python<'p>) -> PyResult<T>,
           F: panic::UnwindSafe,
           C: CallbackConverter<T>
 {

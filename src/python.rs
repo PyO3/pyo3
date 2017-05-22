@@ -41,6 +41,7 @@ use pythonrun::GILGuard;
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
 /// Trait implemented by all Python object types.
+
 pub trait PythonObject : Send + Sized + 'static {
     /// Casts the Python object to PyObject.
     fn as_object(&self) -> &PyObject;
@@ -71,6 +72,18 @@ pub trait PythonObjectWithCheckedDowncast : PythonObject {
 
     /// Cast from PyObject to a concrete Python object type.
     fn downcast_borrow_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
+}
+
+/// Trait implemented by Python object types that allow a checked downcast.
+pub trait PyWithCheckedDowncast<'p> : Sized {
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn downcast_from<S>(::Py<'p, S>) -> Result<::Py<'p, Self>, PythonObjectDowncastError<'p>>;
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn downcast_borrow_from<'source, S>(&'source ::Py<'p, S>)
+                                        -> Result<&'source Self, PythonObjectDowncastError<'p>>
+        where S: ::class::typeob::PyTypeObjectInfo;
 }
 
 impl<T> PythonObjectWithCheckedDowncast for T where T: PyTypeObject + PythonObject {

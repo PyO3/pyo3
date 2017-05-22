@@ -4,6 +4,7 @@ use quote::Tokens;
 // TODO:
 //   Add lifetime support for args with Rptr
 
+#[derive(Debug)]
 pub enum MethodProto {
     Unary{name: &'static str, pyres: bool, proto: &'static str, },
     Binary{name: &'static str, arg: &'static str, pyres: bool, proto: &'static str},
@@ -58,12 +59,13 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                 MethodProto::Binary{name: _, arg, pyres, proto} => {
                     let p = syn::Ident::from(proto);
                     let arg_name = syn::Ident::from(arg);
-                    let arg_ty = get_arg_ty(sig, 2);
+                    //let arg_ty = get_arg_ty(sig, 2);
+                    let arg_ty = get_arg_ty(sig, 1);
                     let succ = get_res_success(ty);
 
                     if pyres {
                         quote! {
-                            impl #p for #cls {
+                            impl<'a'> #p<'a> for #cls {
                                 type #arg_name = #arg_ty;
                                 type Success = #succ;
                                 type Result = #ty;
@@ -71,7 +73,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     } else {
                         quote! {
-                            impl #p for #cls {
+                            impl<'a> #p<'a> for #cls {
                                 type #arg_name = #arg_ty;
                                 type Result = #ty;
                             }

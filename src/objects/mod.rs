@@ -109,6 +109,16 @@ macro_rules! pyobject_newtype(
 
         impl $crate::class::typeob::PyTypeObjectInfo for $name {
             #[inline]
+            fn size() -> usize {
+                Self::offset() + $crate::std::mem::size_of::<$name>()
+            }
+
+            #[inline]
+            fn offset() -> usize {
+                0
+            }
+
+            #[inline]
             fn type_name() -> &'static str {
                 stringify!($name)
             }

@@ -45,6 +45,28 @@ macro_rules! py_unary_func_ {
 }
 
 #[macro_export]
+    #[doc(hidden)]
+    macro_rules! py_unary_func_2 {
+    ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {
+        py_unary_func_2!($trait, $class::$f, $conv, *mut $crate::ffi::PyObject);
+    };
+    ($trait:ident, $class:ident :: $f:ident, $conv:expr, $res_type:ty) => {{
+        unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $res_type
+            where T: $trait
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            $crate::callback::handle_callback(LOCATION, $conv, |py| {
+                let slf: $crate::Py<T> = $crate::Py::from_borrowed_ptr(py, slf);
+                let ret = slf.$f(py).into();
+                //$crate::PyDrop::release_ref(slf, py);
+                ret
+            })
+        }
+        Some(wrap::<$class>)
+    }}
+}
+
+#[macro_export]
 #[doc(hidden)]
     macro_rules! py_len_func {
     ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{

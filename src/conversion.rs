@@ -20,6 +20,8 @@ use ffi;
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple};
 use err::PyResult;
+use pyptr::{Py, PyPtr};
+
 
 /// Conversion trait that allows various objects to be converted into Python objects.
 pub trait ToPyObject {
@@ -112,6 +114,12 @@ pub trait FromPyObject<'source> : Sized {
     fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self>;
 }
 
+pub trait FromPyObj<'source> : Sized {
+    /// Extracts `Self` from the source `PyObject`.
+    fn extr<S>(py: &'source Py<'source, S>) -> PyResult<Self>
+        where S: ::class::typeob::PyTypeObjectInfo;
+}
+
 pub trait RefFromPyObject {
     fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R;
@@ -133,25 +141,6 @@ impl <T: ?Sized> RefFromPyObject for T
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
-/*impl<T> ToPyObject for T where T: PythonObject {
-    #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyClone::clone_ref(self, py).into_object()
-    }
-
-    #[inline]
-    default fn into_py_object(self, _py: Python) -> PyObject {
-        self.into_object()
-    }
-
-    #[inline]
-    default fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
-    {
-        f(PythonObject::as_object(self).as_ptr())
-    }
-}*/
-
 // ToPyObject for references
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 

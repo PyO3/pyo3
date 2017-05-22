@@ -43,7 +43,8 @@ impl<'a> FnSpec<'a> {
         let (fn_type, fn_attrs) = parse_attributes(meth_attrs);
 
         //let mut has_self = false;
-        let mut py = false;
+        //let mut py = false;
+        let mut py = true;
         let mut arguments = Vec::new();
 
         for input in sig.decl.inputs[1..].iter() {
@@ -73,7 +74,6 @@ impl<'a> FnSpec<'a> {
                     panic!("ignored argument: {:?}", name),
             }
         }
-
 
         FnSpec {
             tp: fn_type,
