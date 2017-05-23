@@ -79,20 +79,6 @@ macro_rules! pyobject_newtype(
             }
 
             #[inline]
-            fn downcast_from_with_msg<'p>(
-                py: ::python::Python<'p>,
-                obj: ::objects::object::PyObject, msg: &'p str)
-                -> Result<$name, ::python::PythonObjectDowncastError<'p>> {
-                unsafe {
-                    if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
-                        Ok($name(obj))
-                    } else {
-                        Err(::python::PythonObjectDowncastError(py, Some(msg)))
-                    }
-                }
-            }
-
-            #[inline]
             fn downcast_borrow_from<'a, 'p>(py: ::python::Python<'p>, obj: &'a ::objects::object::PyObject) -> Result<&'a $name, ::python::PythonObjectDowncastError<'p>> {
                 unsafe {
                     if ::ffi::$checkfunction(obj.as_ptr()) != 0 {
@@ -108,9 +94,11 @@ macro_rules! pyobject_newtype(
         pyobject_newtype!($name, $checkfunction);
 
         impl $crate::class::typeob::PyTypeObjectInfo for $name {
+            type Type = ();
+
             #[inline]
             fn size() -> usize {
-                Self::offset() + $crate::std::mem::size_of::<$name>()
+                $crate::std::mem::size_of::<$name>()
             }
 
             #[inline]
@@ -142,6 +130,58 @@ macro_rules! extract(
     }
 );
 
+#[macro_export]
+macro_rules! pyobject_newtype_(
+    ($name: ident, $checkfunction: ident, $typeobject: ident) => (
+        impl $crate::python::AsPy for $name {
+            #[inline]
+            fn py(&self) -> Python {
+                unsafe { $crate::python::Python::assume_gil_acquired() }
+            }
+        }
+
+        impl $crate::python::ToPythonPointer for $name {
+            #[inline]
+            fn as_ptr(&self) -> *mut ffi::PyObject {
+                self as *const _ as *mut ffi::PyObject
+            }
+
+            #[inline]
+            #[must_use]
+            fn steal_ptr(self, _py: Python) -> *mut ffi::PyObject {
+                let ptr = self.as_ptr();
+                $crate::mem::forget(self);
+                ptr
+            }
+        }
+
+        impl $crate::class::typeob::PyTypeObjectInfo for $name {
+            type Type = ();
+
+            #[inline]
+            fn size() -> usize {
+                0
+            }
+
+            #[inline]
+            fn offset() -> usize {
+                0
+            }
+
+            #[inline]
+            fn type_name() -> &'static str {
+                stringify!($name)
+            }
+            #[inline]
+            fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
+                unsafe { &mut $crate::ffi::$typeobject }
+            }
+        }
+    );
+);
+
+
+
 mod object;
 mod typeobject;
 mod module;
@@ -157,3 +197,59 @@ mod sequence;
 mod slice;
 mod set;
 pub mod exc;
+
+use std;
+
+use ffi;
+use class::typeob::PyTypeObjectInfo;
+
+pub struct PyObj;
+
+
+impl PyTypeObjectInfo for PyObj {
+    type Type = ();
+
+    #[inline]
+    fn size() -> usize {
+        std::mem::size_of::<ffi::PyObject>()
+    }
+
+    #[inline]
+    fn offset() -> usize {
+        0
+    }
+
+    #[inline]
+    fn type_name() -> &'static str {
+        "PyObject"
+    }
+
+    #[inline]
+    fn type_object() -> &'static mut ffi::PyTypeObject {
+        unsafe { &mut ffi::PyBaseObject_Type }
+    }
+}
+
+impl PyTypeObjectInfo for PyObject {
+    type Type = ();
+
+    #[inline]
+    fn size() -> usize {
+        std::mem::size_of::<ffi::PyObject>()
+    }
+
+    #[inline]
+    fn offset() -> usize {
+        0
+    }
+
+    #[inline]
+    fn type_name() -> &'static str {
+        "PyObject"
+    }
+
+    #[inline]
+    fn type_object() -> &'static mut ffi::PyTypeObject {
+        unsafe { &mut ffi::PyBaseObject_Type }
+    }
+}

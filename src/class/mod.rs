@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::mem;
-use std::os::raw::c_void;
+use std;
 
 #[macro_use] mod macros;
 
@@ -37,8 +36,7 @@ pub static NO_METHODS: &'static [&'static str] = &[];
 pub static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 use ffi;
-use err::{PyErr, PyResult};
-use objects::PyObject;
+use err::PyResult;
 use python::Python;
 
 
@@ -53,54 +51,55 @@ pub enum CompareOp {
 }
 
 
-/// A PythonObject that is usable as a base type for #[class]
 pub trait BaseObject {
-    /// Gets the size of the object, in bytes.
-    fn size() -> usize;
-
     type Type;
 
     /// Allocates a new object (usually by calling ty->tp_alloc),
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(py: Python, val: Self::Type) -> PyResult<*mut ffi::PyObject>;
+    unsafe fn alloc(_py: Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
+    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject);
+
 }
 
 
-impl BaseObject for PyObject {
-    #[inline]
-    fn size() -> usize {
-        mem::size_of::<ffi::PyObject>()
+/// A PythonObject that is usable as a base type for #[class]
+impl<T> BaseObject for T where T : typeob::PyTypeObjectInfo {
+    type Type = T::Type;
+
+    /// Allocates a new object (usually by calling ty->tp_alloc),
+    /// and initializes it using init_val.
+    /// `ty` must be derived from the Self type, and the resulting object
+    /// must be of type `ty`.
+    unsafe fn alloc(_py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
+        let obj = ffi::PyType_GenericAlloc(
+            <Self as typeob::PyTypeObjectInfo>::type_object(), 0);
+
+        let offset = <Self as typeob::PyTypeObjectInfo>::offset();
+        let ptr = (obj as *mut u8).offset(offset as isize) as *mut Self::Type;
+        std::ptr::write(ptr, value);
+
+        Ok(obj)
     }
 
-    type Type = ();
-
-    unsafe fn alloc(py: Python, _val: ()) -> PyResult<*mut ffi::PyObject> {
-        let ty = py.get_type::<PyObject>();
-        let ptr = ffi::PyType_GenericAlloc(ty.as_type_ptr(), 0);
-        println!("alloc PyObject {}", ffi::Py_REFCNT(ptr));
-        //err::result_from_owned_ptr(py, ptr)
-        if ptr.is_null() {
-            return Err(PyErr::fetch(py))
-        } else {
-            Ok(ptr)
-        }
-    }
-
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
     unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        // Unfortunately, there is no PyType_GenericFree, so
-        // we have to manually un-do the work of PyType_GenericAlloc:
+        let ptr = (obj as *mut u8).offset(
+            <Self as typeob::PyTypeObjectInfo>::offset() as isize) as *mut Self::Type;
+        std::ptr::drop_in_place(ptr);
+
         let ty = ffi::Py_TYPE(obj);
         if ffi::PyType_IS_GC(ty) != 0 {
-            ffi::PyObject_GC_Del(obj as *mut c_void);
+            ffi::PyObject_GC_Del(obj as *mut ::c_void);
         } else {
-            ffi::PyObject_Free(obj as *mut c_void);
+            ffi::PyObject_Free(obj as *mut ::c_void);
         }
         // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
         // so we need to call DECREF here:

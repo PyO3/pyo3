@@ -393,7 +393,7 @@ pub unsafe fn result_from_owned_ptr(py : Python, p : *mut ffi::PyObject) -> PyRe
     }
 }
 
-fn panic_after_error(_py: Python) -> ! {
+pub fn panic_after_error(_py: Python) -> ! {
     unsafe { ffi::PyErr_Print(); }
     panic!("Python API called failed");
 }
@@ -427,9 +427,10 @@ pub unsafe fn cast_from_owned_ptr_or_panic<T>(py : Python, p : *mut ffi::PyObjec
     }
 }
 
+
 /// Returns Ok if the error code is not -1.
 #[inline]
-pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
+    pub fn error_on_minusone(py : Python, result : libc::c_int) -> PyResult<()> {
     if result != -1 {
         Ok(())
     } else {

@@ -4,13 +4,14 @@ use std;
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::convert::{AsRef, AsMut};
 
 use ffi;
+use ::ToPyObject;
 use err::{self, PyResult};
-use python::{Python, PyClone};
+use python::Python;
 use class::BaseObject;
 use objects::PyObject;
-use ::ToPyObject;
 use class::typeob::PyTypeObjectInfo;
 
 
@@ -50,9 +51,14 @@ impl<T> PyPtr<T> {
     pub fn get_refcnt(&self) -> usize {
         unsafe { ffi::Py_REFCNT(self.inner) as usize }
     }
+
+    #[inline]
+    pub fn clone_ref(&self, _py: Python) -> PyPtr<T> {
+        PyPtr{inner: self.inner.clone(), _t: PhantomData}
+    }
 }
 
-// PyObject is thread-safe, because all operations on it require a Python<'p> token.
+// PyPtr is thread-safe, because all operations on it require a Python<'p> token.
 unsafe impl<T> Send for PyPtr<T> {}
 unsafe impl<T> Sync for PyPtr<T> {}
 
@@ -65,13 +71,6 @@ impl<T> Drop for PyPtr<T> {
 
         let _gil_guard = Python::acquire_gil();
         unsafe { ffi::Py_DECREF(self.inner); }
-    }
-}
-
-impl<T> PyClone for PyPtr<T> {
-    #[inline]
-    fn clone_ref(&self, _py: Python) -> PyPtr<T> {
-        PyPtr{inner: self.inner.clone(), _t: PhantomData}
     }
 }
 
@@ -175,16 +174,45 @@ impl<'p, T> Py<'p, T> where T: PyTypeObjectInfo
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn downcast_from(py: Python<'p>, ptr: *mut ffi::PyObject)
-                         -> Result<Py<'p, T>, ::PythonObjectDowncastError<'p>>
+    pub fn cast_from_borrowed(py: Python<'p>, ptr: *mut ffi::PyObject)
+                              -> Result<Py<'p, T>, ::PythonObjectDowncastError<'p>>
     {
-        println!("downcast from {:?}", ptr);
+        println!("cast from borrowed {:?}", ptr);
         let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
 
         if checked {
             Ok( unsafe { Py::from_borrowed_ptr(py, ptr) })
         } else {
             Err(::PythonObjectDowncastError(py, None))
+        }
+    }
+
+    /// Cast from ffi::PyObject ptr to a concrete object.
+    #[inline]
+    pub fn cast_from_owned(py: Python<'p>, ptr: *mut ffi::PyObject)
+                           -> Result<Py<'p, T>, ::PythonObjectDowncastError<'p>>
+    {
+        println!("cast from owned {:?}", ptr);
+        let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
+
+        if checked {
+            Ok( unsafe { Py::from_owned_ptr(py, ptr) })
+        } else {
+            Err(::PythonObjectDowncastError(py, None))
+        }
+    }
+
+    /// Cast from ffi::PyObject ptr to a concrete object.
+    #[inline]
+    pub fn cast_from_owned_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T>
+    {
+        println!("cast from {:?}", ptr);
+        let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
+
+        if checked {
+            unsafe { Py::from_owned_ptr(py, ptr) }
+        } else {
+            ::err::panic_after_error(py);
         }
     }
 
@@ -296,6 +324,20 @@ impl<'p, T> Deref for Py<'p, T> where T: PyTypeObjectInfo {
 
     fn deref(&self) -> &T {
         self.as_ref()
+    }
+}
+
+impl<'p, T> AsRef<T> for Py<'p, T> where T: PyTypeObjectInfo {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        self.as_ref()
+    }
+}
+
+impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeObjectInfo {
+    #[inline]
+    fn as_mut(&mut self) -> &mut T {
+        Py::<T>::as_mut(self)
     }
 }
 

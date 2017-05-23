@@ -58,6 +58,24 @@ pub trait PythonObject : Send + Sized + 'static {
     unsafe fn unchecked_downcast_borrow_from(&PyObject) -> &Self;
 }
 
+use ::PyObj;
+
+pub trait PythonObj : Send + Sized + 'static {
+    /// Casts the Python object to PyObj.
+    fn as_object(&self) -> &PyObj;
+
+    /// Casts the Python object to PyObject.
+    fn into_object(self) -> PyObject;
+
+    /// Unchecked downcast from PyObject to Self.
+    /// Undefined behavior if the input object does not have the expected type.
+    unsafe fn unchecked_downcast_from(PyObject) -> Self;
+
+    /// Unchecked downcast from PyObject to Self.
+    /// Undefined behavior if the input object does not have the expected type.
+    unsafe fn unchecked_downcast_borrow_from(&PyObject) -> &Self;
+}
+
 // Marker type that indicates an error while downcasting
 pub struct PythonObjectDowncastError<'p>(pub Python<'p>, pub Option<&'p str>);
 
@@ -65,10 +83,6 @@ pub struct PythonObjectDowncastError<'p>(pub Python<'p>, pub Option<&'p str>);
 pub trait PythonObjectWithCheckedDowncast : PythonObject {
     /// Cast from PyObject to a concrete Python object type.
     fn downcast_from<'p>(Python<'p>, PyObject) -> Result<Self, PythonObjectDowncastError<'p>>;
-
-    /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from_with_msg<'p>(
-        Python<'p>, PyObject, msg: &'p str) -> Result<Self, PythonObjectDowncastError<'p>>;
 
     /// Cast from PyObject to a concrete Python object type.
     fn downcast_borrow_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PythonObjectDowncastError<'p>>;
@@ -94,16 +108,6 @@ impl<T> PythonObjectWithCheckedDowncast for T where T: PyTypeObject + PythonObje
             Ok( unsafe { T::unchecked_downcast_from(obj) })
         } else {
             Err(PythonObjectDowncastError(py, None))
-        }
-    }
-
-    #[inline]
-    default fn downcast_from_with_msg<'p>(py: Python<'p>, obj: PyObject, msg: &'p str)
-                                          -> Result<T, PythonObjectDowncastError<'p>> {
-        if T::type_object(py).is_instance(py, &obj) {
-            Ok( unsafe { T::unchecked_downcast_from(obj) })
-        } else {
-            Err(PythonObjectDowncastError(py, Some(msg)))
         }
     }
 
@@ -186,6 +190,10 @@ impl ToPythonPointer for PyObject {
     fn steal_ptr(self, _py: Python) -> *mut ffi::PyObject {
         self.steal_ptr()
     }
+}
+
+pub trait AsPy {
+    fn py(&self) -> Python;
 }
 
 /// ToPythonPointer for borrowed Python pointers.

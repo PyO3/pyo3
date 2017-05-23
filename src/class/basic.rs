@@ -7,6 +7,7 @@
 
 use std::os::raw::c_int;
 
+use ::Py;
 use ::CompareOp;
 use ffi;
 use err::{PyErr, PyResult};
@@ -16,7 +17,6 @@ use conversion::{ToPyObject, FromPyObject};
 use callback::{handle_callback, PyObjectCallbackConverter,
                HashConverter, UnitCallbackConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
-use ::{Py, PyPtr};
 
 // classmethod
 // staticmethod
@@ -26,7 +26,7 @@ use ::{Py, PyPtr};
 
 /// Object customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'a>: PythonObject {
+pub trait PyObjectProtocol<'a> : Sized + 'static {
 
     fn __getattr__(&'a self, name: Self::Name)
                        -> Self::Result where Self: PyObjectGetAttrProtocol<'a>
@@ -194,7 +194,7 @@ impl<'a, T> PyObjectGetAttrProtocolImpl for T
                 //let name: &Py<T::Name> = {&arg1 as *const _}.as_ref().unwrap();
 
                 //::callback::handle_callback2(LOCATION, PyObjectCallbackConverter, |py| {
-                let ret = match Py::<T::Name>::downcast_from(py, arg) {
+                let ret = match Py::<T::Name>::cast_from_borrowed(py, arg) {
                     Ok(arg) => {
                         let name: &Py<T::Name> = {&arg as *const _}.as_ref().unwrap();
                         match name.extr() {

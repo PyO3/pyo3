@@ -122,13 +122,6 @@ impl PythonObjectWithCheckedDowncast for PyObject {
     }
 }
 
-impl ::class::PyTypeObject for PyObject {
-    #[inline]
-    fn type_object(py: Python) -> PyType {
-        unsafe { PyType::from_type_ptr(py, &mut ffi::PyBaseObject_Type) }
-    }
-}
-
 impl PyObject {
     /// Creates a PyObject instance for the given FFI pointer.
     /// This moves ownership over the pointer into the PyObject.
