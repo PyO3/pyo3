@@ -190,18 +190,24 @@ impl<'a, T> PyObjectGetAttrProtocolImpl for T
             {
                 println!("GETATTRO callback");
                 let py = Python::assume_gil_acquired();
+                //let arg1 = Py::from_borrowed_ptr(py, arg.clone());
+                //let name: &Py<T::Name> = {&arg1 as *const _}.as_ref().unwrap();
 
                 //::callback::handle_callback2(LOCATION, PyObjectCallbackConverter, |py| {
-                let arg1 = ::pyptr::from_borrowed_ptr(py, arg.clone());
-                let name: &Py<T::Name> = {&arg1 as *const _}.as_ref().unwrap();
-                let ret = match name.extr() {
-                    Ok(name) => {
-                        let slf: Py<T> = ::pyptr::from_borrowed_ptr(py, slf);
-                        let slf1: &Py<T> = {&slf as *const _}.as_ref().unwrap();
-                        let res = slf1.as_ref().__getattr__(name).into();
-                        res
-                    }
-                    Err(e) => Err(e),
+                let ret = match Py::<T::Name>::downcast_from(py, arg) {
+                    Ok(arg) => {
+                        let name: &Py<T::Name> = {&arg as *const _}.as_ref().unwrap();
+                        match name.extr() {
+                            Ok(name) => {
+                                let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                                let slf1: &Py<T> = {&slf as *const _}.as_ref().unwrap();
+                                let res = slf1.as_ref().__getattr__(name).into();
+                                res
+                            }
+                            Err(e) => Err(e.into()),
+                        }
+                    },
+                    Err(e) => Err(e.into()),
                 };
                 println!("GETATTRO callback 3 {:?}", ret);
 
