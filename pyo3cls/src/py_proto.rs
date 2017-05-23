@@ -71,7 +71,6 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &de
             syn::ImplItemKind::Method(ref mut sig, _) => {
                 for m in proto.methods {
                     if m.eq(iimpl.ident.as_ref()) {
-                        println!("test: {:?} {:?}", m, ty);
                         impl_method_proto(ty, sig, m).to_tokens(&mut tokens);
                     }
                 }
