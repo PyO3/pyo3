@@ -69,7 +69,7 @@ pub trait BaseObject {
 
 
 /// A PythonObject that is usable as a base type for #[class]
-impl<T> BaseObject for T where T : typeob::PyTypeObjectInfo {
+impl<T> BaseObject for T where T : typeob::PyTypeInfo {
     type Type = T::Type;
 
     /// Allocates a new object (usually by calling ty->tp_alloc),
@@ -78,10 +78,10 @@ impl<T> BaseObject for T where T : typeob::PyTypeObjectInfo {
     /// must be of type `ty`.
     unsafe fn alloc(_py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
         let obj = ffi::PyType_GenericAlloc(
-            <Self as typeob::PyTypeObjectInfo>::type_object(), 0);
+            <Self as typeob::PyTypeInfo>::type_object(), 0);
 
-        let offset = <Self as typeob::PyTypeObjectInfo>::offset();
-        let ptr = (obj as *mut u8).offset(offset as isize) as *mut Self::Type;
+        let offset = <Self as typeob::PyTypeInfo>::offset();
+        let ptr = (obj as *mut u8).offset(offset) as *mut Self::Type;
         std::ptr::write(ptr, value);
 
         Ok(obj)
@@ -92,7 +92,7 @@ impl<T> BaseObject for T where T : typeob::PyTypeObjectInfo {
     /// This function is used as tp_dealloc implementation.
     unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
         let ptr = (obj as *mut u8).offset(
-            <Self as typeob::PyTypeObjectInfo>::offset() as isize) as *mut Self::Type;
+            <Self as typeob::PyTypeInfo>::offset() as isize) as *mut Self::Type;
         std::ptr::drop_in_place(ptr);
 
         let ty = ffi::Py_TYPE(obj);

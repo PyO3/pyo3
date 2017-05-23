@@ -93,7 +93,7 @@ macro_rules! pyobject_newtype(
     ($name: ident, $checkfunction: ident, $typeobject: ident) => (
         pyobject_newtype!($name, $checkfunction);
 
-        impl $crate::class::typeob::PyTypeObjectInfo for $name {
+        impl $crate::class::typeob::PyTypeInfo for $name {
             type Type = ();
 
             #[inline]
@@ -102,7 +102,7 @@ macro_rules! pyobject_newtype(
             }
 
             #[inline]
-            fn offset() -> usize {
+            fn offset() -> isize {
                 0
             }
 
@@ -155,16 +155,16 @@ macro_rules! pyobject_newtype_(
             }
         }
 
-        impl $crate::class::typeob::PyTypeObjectInfo for $name {
+        impl $crate::class::typeob::PyTypeInfo for $name {
             type Type = ();
 
             #[inline]
             fn size() -> usize {
-                0
+                $crate::std::mem::size_of::<$name>()
             }
 
             #[inline]
-            fn offset() -> usize {
+            fn offset() -> isize {
                 0
             }
 
@@ -201,12 +201,12 @@ pub mod exc;
 use std;
 
 use ffi;
-use class::typeob::PyTypeObjectInfo;
+use class::typeob::PyTypeInfo;
 
 pub struct PyObj;
 
 
-impl PyTypeObjectInfo for PyObj {
+impl PyTypeInfo for PyObj {
     type Type = ();
 
     #[inline]
@@ -215,7 +215,7 @@ impl PyTypeObjectInfo for PyObj {
     }
 
     #[inline]
-    fn offset() -> usize {
+    fn offset() -> isize {
         0
     }
 
@@ -230,7 +230,7 @@ impl PyTypeObjectInfo for PyObj {
     }
 }
 
-impl PyTypeObjectInfo for PyObject {
+impl PyTypeInfo for PyObject {
     type Type = ();
 
     #[inline]
@@ -239,7 +239,7 @@ impl PyTypeObjectInfo for PyObject {
     }
 
     #[inline]
-    fn offset() -> usize {
+    fn offset() -> isize {
         0
     }
 

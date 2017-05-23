@@ -97,7 +97,7 @@ pub trait PyWithCheckedDowncast<'p> : Sized {
     /// Cast from PyObject to a concrete Python object type.
     fn downcast_borrow_from<'source, S>(&'source ::Py<'p, S>)
                                         -> Result<&'source Self, PythonObjectDowncastError<'p>>
-        where S: ::class::typeob::PyTypeObjectInfo;
+        where S: ::class::typeob::PyTypeInfo;
 }
 
 impl<T> PythonObjectWithCheckedDowncast for T where T: PyTypeObject + PythonObject {

@@ -117,7 +117,7 @@ pub trait FromPyObject<'source> : Sized {
 pub trait FromPyObj<'source> : Sized {
     /// Extracts `Self` from the source `PyObject`.
     fn extr<S>(py: &'source Py<'source, S>) -> PyResult<Self>
-        where S: ::class::typeob::PyTypeObjectInfo;
+        where S: ::class::typeob::PyTypeInfo;
 }
 
 pub trait RefFromPyObject {

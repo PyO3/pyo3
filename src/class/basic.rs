@@ -61,7 +61,7 @@ pub trait PyObjectProtocol<'a> : Sized + 'static {
 
 
 pub trait PyObjectGetAttrProtocol<'a>: PyObjectProtocol<'a> {
-    type Name: ::FromPyObj<'a> + ::class::typeob::PyTypeObjectInfo;
+    type Name: ::FromPyObj<'a> + ::class::typeob::PyTypeInfo;
     type Result: Into<PyResult<()>>;
 }
 
@@ -71,7 +71,7 @@ pub trait PyObjectGetAttrProtocol<'a>: PyObjectProtocol<'a> {
 //    type Result: Into<PyResult<Self::Success>>;
 //}
 pub trait PyObjectSetAttrProtocol<'a>: PyObjectProtocol<'a> {
-    type Name: FromPyObject<'a> + ::class::typeob::PyTypeObjectInfo + ::class::typeob::PyTypeObject + ::PythonObject;
+    type Name: FromPyObject<'a> + ::class::typeob::PyTypeInfo + ::class::typeob::PyTypeObject + ::PythonObject;
     type Value: FromPyObject<'a>;
     type Result: Into<PyResult<()>>;
 }
@@ -177,14 +177,14 @@ use callback::CallbackConverter;
 
 
 impl<'a, T> PyObjectGetAttrProtocolImpl for T
-    where T: PyObjectGetAttrProtocol<'a> + ::class::typeob::PyTypeObjectInfo
+    where T: PyObjectGetAttrProtocol<'a> + ::class::typeob::PyTypeInfo
 {
     #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
         //py_binary_func_!(PyObjectGetAttrProtocol, T::__getattr__, PyObjectCallbackConverter)
         unsafe extern "C" fn wrap<'a, T>(slf: *mut ffi::PyObject,
                                          arg: *mut ffi::PyObject) -> *mut ffi::PyObject
-            where T: PyObjectGetAttrProtocol<'a> + ::class::typeob::PyTypeObjectInfo
+            where T: PyObjectGetAttrProtocol<'a> + ::class::typeob::PyTypeInfo
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             {

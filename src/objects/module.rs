@@ -110,10 +110,10 @@ impl PyModule {
     /// sets `new_type.__module__` to this module's name,
     /// and adds the type to this module.
     pub fn add_class<'p, T>(&self, py: Python<'p>) -> PyResult<()>
-        where T: ::class::BaseObject + PythonObject + ::class::typeob::PyTypeObjectInfo
+        where T: ::class::BaseObject + PythonObject + ::class::typeob::PyTypeInfo
     {
-        let mut ty = <T as ::class::typeob::PyTypeObjectInfo>::type_object();
-        let type_name = <T as ::class::typeob::PyTypeObjectInfo>::type_name();
+        let mut ty = <T as ::class::typeob::PyTypeInfo>::type_object();
+        let type_name = <T as ::class::typeob::PyTypeInfo>::type_name();
 
         let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
             unsafe { PyType::from_type_ptr(py, ty) }
@@ -123,7 +123,7 @@ impl PyModule {
             ::class::typeob::initialize_type::<T>(
                 py, Some(name), type_name, ty).expect(
                 format!("An error occurred while initializing class {}",
-                        <T as ::class::typeob::PyTypeObjectInfo>::type_name()).as_ref());
+                        <T as ::class::typeob::PyTypeInfo>::type_name()).as_ref());
             unsafe { PyType::from_type_ptr(py, ty) }
         };
 

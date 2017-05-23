@@ -12,7 +12,7 @@ use err::{self, PyResult};
 use python::Python;
 use class::BaseObject;
 use objects::PyObject;
-use class::typeob::PyTypeObjectInfo;
+use class::typeob::PyTypeInfo;
 
 
 #[derive(Debug)]
@@ -46,7 +46,7 @@ impl<T> PyPtr<T> {
         ptr
     }
 
-    /// Gets the reference count of this Py object.
+    /// Gets the reference count of this PyPtr object.
     #[inline]
     pub fn get_refcnt(&self) -> usize {
         unsafe { ffi::Py_REFCNT(self.inner) as usize }
@@ -161,7 +161,7 @@ impl<'p, T> Py<'p, T>
 }
 
 
-impl<'p, T> Py<'p, T> where T: PyTypeObjectInfo
+impl<'p, T> Py<'p, T> where T: PyTypeInfo
 {
     /// Create new python object and move T instance under python management
     pub fn new(py: Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: BaseObject<Type=T>
@@ -218,28 +218,20 @@ impl<'p, T> Py<'p, T> where T: PyTypeObjectInfo
 
     #[inline]
     pub fn as_ref(&self) -> &T {
-        let align = std::mem::align_of::<T>();
-        let bs = <T as PyTypeObjectInfo>::size();
-
-        // round base_size up to next multiple of align
-        let offset = (bs + align - 1) / align * align;
+        let offset = <T as PyTypeInfo>::offset();
 
         unsafe {
-            let ptr = (self.inner as *mut u8).offset(offset as isize) as *mut T;
+            let ptr = (self.inner as *mut u8).offset(offset) as *mut T;
             ptr.as_ref().unwrap()
         }
     }
 
     #[inline]
     pub fn as_mut(&self) -> &mut T {
-        let align = std::mem::align_of::<T>();
-        let bs = <T as PyTypeObjectInfo>::size();
-
-        // round base_size up to next multiple of align
-        let offset = (bs + align - 1) / align * align;
+        let offset = <T as PyTypeInfo>::offset();
 
         unsafe {
-            let ptr = (self.inner as *mut u8).offset(offset as isize) as *mut T;
+            let ptr = (self.inner as *mut u8).offset(offset) as *mut T;
             ptr.as_mut().unwrap()
         }
     }
@@ -279,13 +271,9 @@ impl<'p, T> Py<'p, T> where T: PyTypeObjectInfo
     /// Undefined behavior if the input object does not have the expected type.
     #[inline]
     pub unsafe fn unchecked_downcast_borrow_from<'a, S>(py: &'a Py<'a, S>) -> &'a T {
-        let align = std::mem::align_of::<T>();
-        let bs = <T as PyTypeObjectInfo>::size();
+        let offset = <T as PyTypeInfo>::offset();
 
-        // round base_size up to next multiple of align
-        let offset = (bs + align - 1) / align * align;
-
-        let ptr = (py.inner as *mut u8).offset(offset as isize) as *mut T;
+        let ptr = (py.inner as *mut u8).offset(offset) as *mut T;
         ptr.as_ref().unwrap()
     }
 
@@ -319,7 +307,7 @@ impl<'p, T> Clone for Py<'p, T> {
     }
 }
 
-impl<'p, T> Deref for Py<'p, T> where T: PyTypeObjectInfo {
+impl<'p, T> Deref for Py<'p, T> where T: PyTypeInfo {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -327,21 +315,21 @@ impl<'p, T> Deref for Py<'p, T> where T: PyTypeObjectInfo {
     }
 }
 
-impl<'p, T> AsRef<T> for Py<'p, T> where T: PyTypeObjectInfo {
+impl<'p, T> AsRef<T> for Py<'p, T> where T: PyTypeInfo {
     #[inline]
     fn as_ref(&self) -> &T {
         self.as_ref()
     }
 }
 
-impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeObjectInfo {
+impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeInfo {
     #[inline]
     fn as_mut(&mut self) -> &mut T {
         Py::<T>::as_mut(self)
     }
 }
 
-impl<'p, T> ::PyWithCheckedDowncast<'p> for T where T: PyTypeObjectInfo
+impl<'p, T> ::PyWithCheckedDowncast<'p> for T where T: PyTypeInfo
 {
     #[inline]
     default fn downcast_from<S>(ob: Py<'p, S>)
@@ -360,7 +348,7 @@ impl<'p, T> ::PyWithCheckedDowncast<'p> for T where T: PyTypeObjectInfo
     #[inline]
     default fn downcast_borrow_from<'source, S>(
         ob: &'source Py<'p, S>) -> Result<&'source T, ::PythonObjectDowncastError<'p>>
-        where S: PyTypeObjectInfo
+        where S: PyTypeInfo
     {
         println!("downcast borrow from {:?}", ob);
         let checked = unsafe { ffi::PyObject_TypeCheck(ob.inner, T::type_object()) != 0 };
@@ -376,22 +364,22 @@ impl<'p, T> ::PyWithCheckedDowncast<'p> for T where T: PyTypeObjectInfo
 }
 
 impl<'source, T> ::FromPyObj<'source> for &'source T
-    where T: PyTypeObjectInfo
+    where T: PyTypeInfo
 {
     #[inline]
     default fn extr<S>(py: &'source Py<'source, S>) -> PyResult<&'source T>
-        where S: PyTypeObjectInfo
+        where S: PyTypeInfo
     {
         Ok(::PyWithCheckedDowncast::downcast_borrow_from(py)?)
     }
 }
 
 impl<'source, T> ::FromPyObj<'source> for Py<'source, T>
-    where T: PyTypeObjectInfo
+    where T: PyTypeInfo
 {
     #[inline]
     default fn extr<S>(py: &'source Py<'source, S>) -> PyResult<Py<'source, T>>
-        where S: PyTypeObjectInfo
+        where S: PyTypeInfo
     {
         Ok(::PyWithCheckedDowncast::downcast_from(py.clone())?)
     }
@@ -416,7 +404,7 @@ impl<'p, T> ToPyObject for Py<'p, T> {
     }
 }
 
-impl<'p, T> fmt::Debug for Py<'p, T> where T: PyTypeObjectInfo {
+impl<'p, T> fmt::Debug for Py<'p, T> where T: PyTypeInfo {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let repr_obj  = try!(unsafe {
             err::result_cast_from_owned_ptr::<::PyString>(self.py(), ffi::PyObject_Repr(self.as_ptr()))

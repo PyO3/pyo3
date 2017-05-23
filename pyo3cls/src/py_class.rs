@@ -32,22 +32,21 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
     let cls_name = quote! { #cls }.as_str().to_string();
 
     quote! {
-
-        impl _pyo3::class::typeob::PyTypeObjectInfo for #cls {
+        impl _pyo3::class::typeob::PyTypeInfo for #cls {
             type Type = #cls;
 
             #[inline]
             fn size() -> usize {
-                Self::offset() + std::mem::size_of::<#cls>()
+                Self::offset() as usize + std::mem::size_of::<#cls>()
             }
 
             #[inline]
-            fn offset() -> usize {
+            fn offset() -> isize {
                 let align = std::mem::align_of::<#cls>();
-                let bs = <#base as _pyo3::class::typeob::PyTypeObjectInfo>::size();
+                let bs = <#base as _pyo3::class::typeob::PyTypeInfo>::size();
 
                 // round base_size up to next multiple of align
-                (bs + align - 1) / align * align
+                ((bs + align - 1) / align * align) as isize
             }
 
             #[inline]
