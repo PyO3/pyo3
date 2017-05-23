@@ -235,7 +235,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 {
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
     let py = Python::assume_gil_acquired();
-    let r = <T as BaseObject>::dealloc(py, obj);
+    let r = <T as BaseObject>::dealloc(&py, obj);
     mem::forget(guard);
     r
 }

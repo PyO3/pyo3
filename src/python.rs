@@ -22,6 +22,7 @@ use std::marker::PhantomData;
 use std::os::raw::c_int;
 use ffi;
 use class::PyTypeObject;
+use class::typeob::PyTypeInfo;
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{self, PyErr, PyResult};
 use pythonrun::GILGuard;
@@ -315,6 +316,14 @@ impl<'p> Python<'p> {
 
             err::result_from_owned_ptr(self, res_ptr)
         }
+    }
+
+    /// Create new PyObject instance
+    #[inline]
+    pub fn init<T>(&'p self, value: T) -> PyResult<::Py<'p, T>>
+        where T: PyTypeInfo + ::class::BaseObject<Type=T>
+    {
+        ::Py::new(self, value)
     }
 
     /// Gets the Python builtin value `None`.

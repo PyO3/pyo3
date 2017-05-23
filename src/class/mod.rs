@@ -58,12 +58,12 @@ pub trait BaseObject {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(_py: Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
+    unsafe fn alloc(_py: &Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject);
+    unsafe fn dealloc(_py: &Python, obj: *mut ffi::PyObject);
 
 }
 
@@ -76,7 +76,7 @@ impl<T> BaseObject for T where T : typeob::PyTypeInfo {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(_py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
+    unsafe fn alloc(_py: &Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
         let obj = ffi::PyType_GenericAlloc(
             <Self as typeob::PyTypeInfo>::type_object(), 0);
 
@@ -90,7 +90,7 @@ impl<T> BaseObject for T where T : typeob::PyTypeInfo {
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
+    unsafe fn dealloc(_py: &Python, obj: *mut ffi::PyObject) {
         let ptr = (obj as *mut u8).offset(
             <Self as typeob::PyTypeInfo>::offset() as isize) as *mut Self::Type;
         std::ptr::drop_in_place(ptr);

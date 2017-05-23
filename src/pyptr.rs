@@ -164,7 +164,7 @@ impl<'p, T> Py<'p, T>
 impl<'p, T> Py<'p, T> where T: PyTypeInfo
 {
     /// Create new python object and move T instance under python management
-    pub fn new(py: Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: BaseObject<Type=T>
+    pub fn new(py: &Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: BaseObject<Type=T>
     {
         let ob = unsafe {
             try!(<T as BaseObject>::alloc(py, value))
