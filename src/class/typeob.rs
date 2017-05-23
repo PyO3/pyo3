@@ -158,7 +158,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         mem::forget(meth);
     } else {
         type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
-    }
+    }*/
 
     // sequence methods
     if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
@@ -170,6 +170,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
     }
 
+    /*
     // async methods
     if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
         static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;

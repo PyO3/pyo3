@@ -17,50 +17,49 @@ pub const OBJECT: Proto = Proto {
         MethodProto::Binary {
             name: "__getattr__",
             arg: "Name",
-            //pyres: true,
-            pyres: false,
+            pyres: true,
             proto: "::pyo3::class::basic::PyObjectGetAttrProtocol"},
         MethodProto::Ternary {
             name: "__setattr__",
             arg1: "Name",
             arg2: "Value",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectSetAttrProtocol"},
+            proto: "::pyo3::class::basic::PyObjectSetAttrProtocol"},
         MethodProto::Binary {
             name: "__delattr__",
             arg: "Name",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectDelAttrProtocol"},
+            proto: "::pyo3::class::basic::PyObjectDelAttrProtocol"},
         MethodProto::Unary {
             name: "__str__",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectStrProtocol"},
+            proto: "::pyo3::class::basic::PyObjectStrProtocol"},
         MethodProto::Unary {
             name: "__repr__",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectReprProtocol"},
+            proto: "::pyo3::class::basic::PyObjectReprProtocol"},
         MethodProto::Binary {
             name: "__format__",
             arg: "Format",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectFormatProtocol"},
+            proto: "::pyo3::class::basic::PyObjectFormatProtocol"},
         MethodProto::Unary {
             name: "__hash__",
             pyres: false,
-            proto: "_pyo3::class::basic::PyObjectHashProtocol"},
+            proto: "::pyo3::class::basic::PyObjectHashProtocol"},
         MethodProto::Unary {
             name: "__bytes__",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectBytesProtocol"},
+            proto: "::pyo3::class::basic::PyObjectBytesProtocol"},
         MethodProto::Unary {
             name: "__bool__",
             pyres: false,
-            proto: "_pyo3::class::basic::PyObjectBoolProtocol"},
+            proto: "::pyo3::class::basic::PyObjectBoolProtocol"},
         MethodProto::Binary {
             name: "__richcmp__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::basic::PyObjectRichcmpProtocol"},
+            proto: "::pyo3::class::basic::PyObjectRichcmpProtocol"},
     ],
     py_methods: &[
         PyMethod {
@@ -248,44 +247,44 @@ pub const SEQ: Proto = Proto {
         MethodProto::Unary{
             name: "__len__",
             pyres: false,
-            proto: "_pyo3::class::sequence::PySequenceLenProtocol"},
+            proto: "pyo3::class::sequence::PySequenceLenProtocol"},
         MethodProto::Unary{
             name: "__getitem__",
             pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceGetItemProtocol"},
+            proto: "pyo3::class::sequence::PySequenceGetItemProtocol"},
         MethodProto::Binary{
             name: "__setitem__",
             arg: "Value",
             pyres: false,
-            proto: "_pyo3::class::sequence::PyMappingSetItemProtocol"},
+            proto: "pyo3::class::sequence::PyMappingSetItemProtocol"},
         MethodProto::Binary{
             name: "__delitem__",
             arg: "Key",
             pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
+            proto: "pyo3::class::mapping::PyMappingDelItemProtocol"},
         MethodProto::Binary{
             name: "__contains__",
             arg: "Item",
             pyres: false,
-            proto: "_pyo3::class::sequence::PySequenceContainsProtocol"},
+            proto: "pyo3::class::sequence::PySequenceContainsProtocol"},
         MethodProto::Binary{
             name: "__concat__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceConcatProtocol"},
+            proto: "pyo3::class::sequence::PySequenceConcatProtocol"},
         MethodProto::Unary{
             name: "__repeat__",
             pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceRepeatProtocol"},
+            proto: "pyo3::class::sequence::PySequenceRepeatProtocol"},
         MethodProto::Binary{
             name: "__inplace_concat__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceInplaceConcatProtocol"},
+            proto: "pyo3::class::sequence::PySequenceInplaceConcatProtocol"},
         MethodProto::Unary{
             name: "__inplace_repeat__",
             pyres: true,
-            proto: "_pyo3::class::sequence::PySequenceInplaceRepeatProtocol"},
+            proto: "pyo3::class::sequence::PySequenceInplaceRepeatProtocol"},
     ],
     py_methods: &[],
 };

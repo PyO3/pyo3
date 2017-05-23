@@ -17,10 +17,10 @@
 // DEALINGS IN THE SOFTWARE.
 
 use ffi;
+use pyptr::Py;
 use python::{Python, PythonObject};
 use objects::{PyObject, PyTuple};
 use err::PyResult;
-use pyptr::{Py, PyPtr};
 
 
 /// Conversion trait that allows various objects to be converted into Python objects.
@@ -114,7 +114,7 @@ pub trait FromPyObject<'source> : Sized {
     fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self>;
 }
 
-pub trait FromPyObj<'source> : Sized {
+pub trait FromPyObj<'source> : ::class::typeob::PyTypeInfo + Sized {
     /// Extracts `Self` from the source `PyObject`.
     fn extr<S>(py: &'source Py<'source, S>) -> PyResult<Self>
         where S: ::class::typeob::PyTypeInfo;

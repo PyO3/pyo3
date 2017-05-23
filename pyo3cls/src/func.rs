@@ -182,7 +182,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                 },
             }
         },
-        _ => panic!("not supported"),
+        _ => panic!("fn return type is not supported"),
     }
 }
 
@@ -213,7 +213,7 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Ty {
             }
         },
         _ =>
-            panic!("not supported"),
+            panic!("fn arg type is not supported"),
     }
 }
 
@@ -228,15 +228,18 @@ fn get_res_success(ty: &syn::Ty) -> syn::Ty {
                         syn::PathParameters::AngleBracketed(ref data) => {
                             data.types[0].clone()
                         },
-                        _ => panic!("not supported"),
+                        _ => panic!("fn result type is not supported"),
                     },
-                    _ => panic!("not supported"),
+                    _ =>
+                        panic!("fn result type has to be PyResult or (), got {:?}",
+                               segment.ident.as_ref())
+
                 }
             } else {
-                panic!("not supported")
+                panic!("fn result is not supported {:?}", path)
             }
         }
-        _ => panic!("not supported"),
+        _ => panic!("not supported: {:?}", ty),
     }
 }
 
