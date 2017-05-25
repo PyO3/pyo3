@@ -80,7 +80,7 @@ use pyo3::{PyResult, Python};
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-py_module_init!(librust2py, PyInit_librust2py, |py, m| {
+py_module_init!(librust2py, PyInit__librust2py, |py, m| {
     try!(m.add(py, "__doc__", "This module is implemented in Rust."));
     try!(m.add(py, "sum_as_string", py_fn!(py, sum_as_string_py(a: i64, b:i64))));
     Ok(())
