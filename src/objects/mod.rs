@@ -13,7 +13,7 @@ pub use self::list::PyList;
 pub use self::num::{PyLong, PyFloat};
 //pub use self::sequence::PySequence;
 pub use self::slice::PySlice;
-pub use self::set::{PySet, PyFrozenSet};
+//pub use self::set::{PySet, PyFrozenSet};
 
 
 #[macro_export]
@@ -93,6 +93,6 @@ mod list;
 mod num;
 //mod sequence;
 mod slice;
-mod set;
+// mod set;
 mod object;
 pub mod exc;
