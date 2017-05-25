@@ -6,8 +6,8 @@ use std::ops::Deref;
 use std::convert::{AsRef, AsMut};
 
 use ffi;
-use ::ToPyObject;
 use err::{PyErr, PyResult, PyDowncastError};
+use conversion::{ToPyObject, IntoPyObject};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
 use typeob::{PyTypeInfo, PyObjectAlloc};
@@ -433,15 +433,11 @@ impl<'source, T> ::FromPyObject<'source> for Py<'source, T>
     }
 }
 
-impl<'a, T> ToPyObject for Py<'a, T> {
+impl <'a, T> ToPyObject for Py<'a, T> {
+
     #[inline]
     default fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
         PyObject::from_owned_ptr(py, self.inner)
-    }
-
-    #[inline]
-    default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
-        PyObject::from_borrowed_ptr(py, self.inner)
     }
 
     #[inline]
@@ -449,5 +445,23 @@ impl<'a, T> ToPyObject for Py<'a, T> {
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         f(self.inner)
+    }
+}
+
+
+impl <'a, T> IntoPyObject for Py<'a, T> {
+
+    #[inline]
+    default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
+        PyObject::from_borrowed_ptr(py, self.inner)
+    }
+}
+
+/// PyObject implements the `==` operator using reference equality:
+/// `obj1 == obj2` in rust is equivalent to `obj1 is obj2` in Python.
+impl<'p, T> PartialEq for Py<'p, T> {
+    #[inline]
+    fn eq(&self, o: &Py<T>) -> bool {
+        self.as_ptr() == o.as_ptr()
     }
 }

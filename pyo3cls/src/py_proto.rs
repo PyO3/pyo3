@@ -20,9 +20,9 @@ static DEFAULT_METHODS: Methods = Methods {
 
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
     match ast.node {
-        syn::ItemKind::Impl(_, _, _, ref path, ref ty, ref mut impl_items) => {
-            if let &Some(ref path) = path {
-                if let Some(segment) = path.segments.last() {
+        syn::ItemKind::Impl(_, _, ref mut gen, ref mut path, ref ty, ref mut impl_items) => {
+            if let &mut Some(ref mut path) = path {
+                let tokens = if let Some(ref mut segment) = path.segments.last() {
                     match segment.ident.as_ref() {
                         "PyObjectProtocol" =>
                             impl_proto_impl(ty, impl_items, &defs::OBJECT),
@@ -48,12 +48,28 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),
                         _ => {
                             warn!("#[proto] can not be used with this block");
-                            Tokens::new()
+                            return Tokens::new()
                         }
                     }
                 } else {
                     panic!("#[proto] can only be used with protocol trait implementations")
-                }
+                };
+
+                // attach lifetime
+                gen.lifetimes = vec![syn::LifetimeDef {
+                    attrs: vec![], bounds: vec![],
+                    lifetime: syn::Lifetime { ident: syn::Ident::from("\'p") },
+                }];
+
+                let seg = path.segments.pop().unwrap();
+                path.segments.push(syn::PathSegment{
+                    ident: seg.ident.clone(),
+                    parameters: syn::PathParameters::AngleBracketed(
+                        syn::AngleBracketedParameterData {
+                            lifetimes: vec![syn::Lifetime { ident: syn::Ident::from("\'p") }],
+                            types: vec![], bindings: vec![] })});
+
+                tokens
             } else {
                 panic!("#[proto] can only be used with protocol trait implementations")
             }
@@ -81,7 +97,7 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &de
 
                         let fn_spec = FnSpec::parse(
                             &iimpl.ident, sig, &mut iimpl.attrs);
-                        let meth = py_method::impl_wrap(ty, &iimpl.ident, &fn_spec);
+                        let meth = py_method::impl_proto_wrap(ty, &iimpl.ident, &fn_spec);
 
                         py_methods.push(
                             quote! {

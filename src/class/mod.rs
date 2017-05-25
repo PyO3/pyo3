@@ -4,21 +4,21 @@
 
 pub mod async;
 pub mod basic;
-//pub mod buffer;
-//pub mod context;
+pub mod buffer;
+pub mod context;
 pub mod descr;
 pub mod mapping;
 pub mod methods;
 pub mod number;
-//pub mod iter;
+pub mod iter;
 pub mod gc;
 pub mod sequence;
 
 pub use self::basic::PyObjectProtocol;
 pub use self::async::PyAsyncProtocol;
-//pub use self::iter::PyIterProtocol;
-//pub use self::buffer::PyBufferProtocol;
-//pub use self::context::PyContextProtocol;
+pub use self::iter::PyIterProtocol;
+pub use self::buffer::PyBufferProtocol;
+pub use self::context::PyContextProtocol;
 pub use self::descr::PyDescrProtocol;
 pub use self::number::PyNumberProtocol;
 pub use self::mapping::PyMappingProtocol;

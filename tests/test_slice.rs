@@ -12,7 +12,7 @@ fn test_basics() {
     let py = gil.python();
 
     let v = PySlice::new(py, 1, 10, 2);
-    let indices = v.indices(py, 100).unwrap();
+    let indices = v.indices(100).unwrap();
     assert_eq!(1, indices.start);
     assert_eq!(10, indices.stop);
     assert_eq!(2, indices.step);

@@ -69,9 +69,9 @@ pub use pyptr::{Py, PyPtr};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
-pub use python::Python;
+pub use python::{AsPy, Python};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
+pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};
 pub mod class;
 pub use class::*;
@@ -104,14 +104,14 @@ macro_rules! py_replace_expr {
     ($_t:tt $sub:expr) => {$sub};
 }
 
-mod python;
+pub mod python;
 mod err;
-mod callback;
 mod conversion;
 mod objects;
 mod objectprotocol;
 mod pythonrun;
-mod typeob;
+pub mod callback;
+pub mod typeob;
 pub mod argparse;
 pub mod function;
 pub mod buffer;

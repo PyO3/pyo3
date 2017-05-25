@@ -7,7 +7,7 @@ use libc;
 use pyptr::Py;
 use python::{Python, IntoPythonPointer};
 use objects::exc;
-use conversion::ToPyObject;
+use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
 
@@ -22,7 +22,7 @@ pub trait CallbackConverter<S> {
 pub struct PyObjectCallbackConverter;
 
 impl <S> CallbackConverter<S> for PyObjectCallbackConverter
-    where S: ToPyObject
+    where S: IntoPyObject
 {
     type R = *mut ffi::PyObject;
 
@@ -94,7 +94,7 @@ pub struct IterNextResultConverter;
 
 impl <T> CallbackConverter<Option<T>>
     for IterNextResultConverter
-    where T: ToPyObject
+    where T: IntoPyObject
 {
     type R = *mut ffi::PyObject;
 
@@ -167,9 +167,41 @@ impl <T> CallbackConverter<T> for HashConverter
 pub unsafe fn unref<'p, T>(p: Py<'p, T>) -> &Py<T> {
     {&p as *const _}.as_ref().unwrap()
 }
+pub unsafe fn unref_r<'p, T>(p: &'p Py<'p, T>) -> &'p Py<T> {
+    {p as *const _}.as_ref().unwrap()
+}
 
 pub unsafe fn handle<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
     where F: FnOnce(Python<'p>) -> PyResult<T>,
+          F: panic::UnwindSafe,
+          C: CallbackConverter<T>
+{
+    let guard = AbortOnDrop(location);
+    let ret = panic::catch_unwind(|| {
+        let py = Python::assume_gil_acquired();
+        match f(py) {
+            Ok(val) => {
+                C::convert(val, py)
+            }
+            Err(e) => {
+                e.restore(py);
+                C::error_value()
+            }
+        }
+    });
+    let ret = match ret {
+        Ok(r) => r,
+        Err(ref err) => {
+            handle_panic(Python::assume_gil_acquired(), err);
+            C::error_value()
+        }
+    };
+    mem::forget(guard);
+    ret
+}
+
+pub unsafe fn handle_cb<F, T, C>(location: &str, _c: C, f: F) -> C::R
+    where F: FnOnce(Python) -> PyResult<T>,
           F: panic::UnwindSafe,
           C: CallbackConverter<T>
 {

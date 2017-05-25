@@ -141,11 +141,11 @@ impl<'a> FnSpec<'a> {
 
 fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty) -> Option<&'a syn::Ty> {
     match ty {
-        &syn::Ty::Path(ref qs, ref path) => {
-            if let &Some(ref qs) = qs {
-                panic!("explicit Self type in a 'qualified path' is not supported: {:?} - {:?}",
-                       name, qs);
-            }
+        &syn::Ty::Path(_, ref path) => {
+            //if let &Some(ref qs) = qs {
+            //    panic!("explicit Self type in a 'qualified path' is not supported: {:?} - {:?}",
+            //           name, qs);
+            //}
 
             if let Some(segment) = path.segments.last() {
                 match segment.ident.as_ref() {

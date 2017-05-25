@@ -12,14 +12,6 @@ pub trait ToPyObject {
     /// Converts self into a Python object.
     fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject>;
 
-    /// Converts self into a Python object. (Consumes self)
-    #[inline]
-    fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject>
-        where Self: Sized
-    {
-        self.to_object(py)
-    }
-
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
     ///
@@ -32,25 +24,17 @@ pub trait ToPyObject {
         let obj = self.to_object(py).into_object();
         f(obj.as_ptr())
     }
-
-    // FFI functions that accept a borrowed reference will use:
-    //   input.with_borrowed_ptr(|obj| ffi::Call(obj)
-    // 1) input is &PyObject
-    //   -> with_borrowed_ptr() just forwards to the closure
-    // 2) input is PyObject
-    //   -> with_borrowed_ptr() just forwards to the closure
-    // 3) input is &str, int, ...
-    //   -> to_py_object() allocates new Python object; FFI call happens; PyObject::drop() calls Py_DECREF()
-    
-    // FFI functions that steal a reference will use:
-    //   let input = try!(input.into_py_object()); ffi::Call(input.steal_ptr())
-    // 1) input is &PyObject
-    //   -> into_py_object() calls Py_INCREF
-    // 2) input is PyObject
-    //   -> into_py_object() is no-op
-    // 3) input is &str, int, ...
-    //   -> into_py_object() allocates new Python object
 }
+
+pub trait IntoPyObject {
+
+    /// Converts self into a Python object. (Consumes self)
+    #[inline]
+    fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject>
+        where Self: Sized;
+
+}
+
 
 /// Conversion trait that allows various objects to be converted into PyTuple object.
 pub trait ToPyTuple {
@@ -115,6 +99,16 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
     }
 }
 
+// Default IntoPyObject implementation
+impl <T> IntoPyObject for T where T: ToPyObject
+{
+    #[inline]
+    default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> where Self: Sized
+    {
+        self.to_object(py)
+    }
+}
+
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
 // ToPyObject for references
@@ -123,11 +117,6 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
     #[inline]
     default fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
         <T as ToPyObject>::to_object(*self, py)
-    }
-
-    #[inline]
-    default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
-        <T as ToPyObject>::to_object(self, py)
     }
 
     #[inline]
@@ -148,6 +137,9 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
             None => py.None()
         }
     }
+}
+
+impl <T> IntoPyObject for Option<T> where T: IntoPyObject {
 
     fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
         match self {
@@ -157,6 +149,7 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
     }
 }
 
+
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
     fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
@@ -165,7 +158,7 @@ impl ToPyObject for () {
 }
 
 
-impl<'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
+impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
     fn extract<S>(obj: &'source Py<'source, S>) -> PyResult<Self>
         where S: PyTypeInfo
     {

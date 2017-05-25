@@ -116,11 +116,11 @@ pub const CONTEXT: Proto = Proto {
         MethodProto::Unary{
             name: "__enter__",
             pyres: true,
-            proto: "_pyo3::class::context::PyContextEnterProtocol"},
+            proto: "::pyo3::class::context::PyContextEnterProtocol"},
         MethodProto::Quaternary {
             name: "__exit__",
             arg1: "ExcType", arg2: "ExcValue", arg3: "Traceback",
-            proto: "_pyo3::class::context::PyContextExitProtocol"},
+            proto: "::pyo3::class::context::PyContextExitProtocol"},
     ],
     py_methods: &[
         PyMethod {
@@ -142,23 +142,23 @@ pub const DESCR: Proto = Proto {
             arg1: "Inst",
             arg2: "Owner",
             pyres: true,
-            proto: "_pyo3::class::descr::PyDescrGetProtocol"},
+            proto: "::pyo3::class::descr::PyDescrGetProtocol"},
         MethodProto::Ternary {
             name: "__set__",
             arg1: "Inst",
             arg2: "Value",
             pyres: true,
-            proto: "_pyo3::class::descr::PyDescrSetProtocol"},
+            proto: "::pyo3::class::descr::PyDescrSetProtocol"},
         MethodProto::Binary {
             name: "__det__",
             arg: "Inst",
             pyres: false,
-            proto: "_pyo3::class::descr::PyDescrDelProtocol"},
+            proto: "::pyo3::class::descr::PyDescrDelProtocol"},
         MethodProto::Binary {
             name: "__set_name__",
             arg: "Inst",
             pyres: false,
-            proto: "_pyo3::class::descr::PyDescrSetNameProtocol"},
+            proto: "::pyo3::class::descr::PyDescrSetNameProtocol"},
     ],
     py_methods: &[
         PyMethod {
@@ -179,11 +179,11 @@ pub const ITER: Proto = Proto {
         MethodProto::Unary{
             name: "__iter__",
             pyres: true,
-            proto: "_pyo3::class::iter::PyIterIterProtocol"},
+            proto: "::pyo3::class::iter::PyIterIterProtocol"},
         MethodProto::Unary{
             name: "__next__",
             pyres: true,
-            proto: "_pyo3::class::iter::PyIterNextProtocol"},
+            proto: "::pyo3::class::iter::PyIterNextProtocol"},
     ],
 };
 
@@ -296,249 +296,249 @@ pub const NUM: Proto = Proto {
             name: "__add__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberAddProtocol"},
+            proto: "::pyo3::class::number::PyNumberAddProtocol"},
         MethodProto::Binary {
             name: "__sub__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberSubProtocol"},
+            proto: "::pyo3::class::number::PyNumberSubProtocol"},
         MethodProto::Binary {
             name: "__mul__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberMulProtocol"},
+            proto: "::pyo3::class::number::PyNumberMulProtocol"},
         MethodProto::Binary {
             name: "__matmul__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberMatmulProtocol"},
+            proto: "::pyo3::class::number::PyNumberMatmulProtocol"},
         MethodProto::Binary {
             name: "__truediv__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberTruedivProtocol"},
+            proto: "::pyo3::class::number::PyNumberTruedivProtocol"},
         MethodProto::Binary {
             name: "__floordiv__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberFloordivProtocol"},
+            proto: "::pyo3::class::number::PyNumberFloordivProtocol"},
         MethodProto::Binary {
             name: "__mod__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberModProtocol"},
+            proto: "::pyo3::class::number::PyNumberModProtocol"},
         MethodProto::Binary {
             name: "__divmod__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberDivmodProtocol"},
+            proto: "::pyo3::class::number::PyNumberDivmodProtocol"},
         MethodProto::Ternary {
             name: "__pow__",
             arg1: "Other",
             arg2: "Modulo",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberPowProtocol"},
+            proto: "::pyo3::class::number::PyNumberPowProtocol"},
         MethodProto::Binary {
             name: "__lshift__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberLShiftProtocol"},
+            proto: "::pyo3::class::number::PyNumberLShiftProtocol"},
         MethodProto::Binary {
             name: "__rshift__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRShiftProtocol"},
+            proto: "::pyo3::class::number::PyNumberRShiftProtocol"},
         MethodProto::Binary {
             name: "__and__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberAndProtocol"},
+            proto: "::pyo3::class::number::PyNumberAndProtocol"},
         MethodProto::Binary {
             name: "__xor__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberXorProtocol"},
+            proto: "::pyo3::class::number::PyNumberXorProtocol"},
         MethodProto::Binary {
             name: "__or__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberOrProtocol"},
+            proto: "::pyo3::class::number::PyNumberOrProtocol"},
 
         MethodProto::Binary {
             name: "__radd__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRAddProtocol"},
+            proto: "::pyo3::class::number::PyNumberRAddProtocol"},
         MethodProto::Binary {
             name: "__rsub__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRSubProtocol"},
+            proto: "::pyo3::class::number::PyNumberRSubProtocol"},
         MethodProto::Binary {
             name: "__rmul__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRMulProtocol"},
+            proto: "::pyo3::class::number::PyNumberRMulProtocol"},
         MethodProto::Binary {
             name: "__rmatmul__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRMatmulProtocol"},
+            proto: "::pyo3::class::number::PyNumberRMatmulProtocol"},
         MethodProto::Binary {
             name: "__rtruediv__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRTruedivProtocol"},
+            proto: "::pyo3::class::number::PyNumberRTruedivProtocol"},
         MethodProto::Binary {
             name: "__rfloordiv__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRFloordivProtocol"},
+            proto: "::pyo3::class::number::PyNumberRFloordivProtocol"},
         MethodProto::Binary {
             name: "__rmod__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRModProtocol"},
+            proto: "::pyo3::class::number::PyNumberRModProtocol"},
         MethodProto::Binary {
             name: "__rdivmod__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRDivmodProtocol"},
+            proto: "::pyo3::class::number::PyNumberRDivmodProtocol"},
         MethodProto::Ternary {
             name: "__rpow__",
             arg1: "Other",
             arg2: "Modulo",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRPowProtocol"},
+            proto: "::pyo3::class::number::PyNumberRPowProtocol"},
         MethodProto::Binary {
             name: "__rlshift__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRLShiftProtocol"},
+            proto: "::pyo3::class::number::PyNumberRLShiftProtocol"},
         MethodProto::Binary {
             name: "__rrshift__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRRShiftProtocol"},
+            proto: "::pyo3::class::number::PyNumberRRShiftProtocol"},
         MethodProto::Binary {
             name: "__rand__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRAndProtocol"},
+            proto: "::pyo3::class::number::PyNumberRAndProtocol"},
         MethodProto::Binary {
             name: "__rxor__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRXorProtocol"},
+            proto: "::pyo3::class::number::PyNumberRXorProtocol"},
         MethodProto::Binary {
             name: "__ror__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberROrProtocol"},
+            proto: "::pyo3::class::number::PyNumberROrProtocol"},
 
         MethodProto::Binary {
             name: "__iadd__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIAddProtocol"},
+            proto: "::pyo3::class::number::PyNumberIAddProtocol"},
         MethodProto::Binary {
             name: "__isub__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberISubProtocol"},
+            proto: "::pyo3::class::number::PyNumberISubProtocol"},
         MethodProto::Binary {
             name: "__imul__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIMulProtocol"},
+            proto: "::pyo3::class::number::PyNumberIMulProtocol"},
         MethodProto::Binary {
             name: "__imatmul__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIMatmulProtocol"},
+            proto: "::pyo3::class::number::PyNumberIMatmulProtocol"},
         MethodProto::Binary {
             name: "__itruediv__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberITruedivProtocol"},
+            proto: "::pyo3::class::number::PyNumberITruedivProtocol"},
         MethodProto::Binary {
             name: "__ifloordiv__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIFloordivProtocol"},
+            proto: "::pyo3::class::number::PyNumberIFloordivProtocol"},
         MethodProto::Binary {
             name: "__imod__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIModProtocol"},
+            proto: "::pyo3::class::number::PyNumberIModProtocol"},
         MethodProto::Ternary {
             name: "__ipow__",
             arg1: "Other",
             arg2: "Modulo",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIPowProtocol"},
+            proto: "::pyo3::class::number::PyNumberIPowProtocol"},
         MethodProto::Binary {
             name: "__ilshift__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberILShiftProtocol"},
+            proto: "::pyo3::class::number::PyNumberILShiftProtocol"},
         MethodProto::Binary {
             name: "__irshift__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIRShiftProtocol"},
+            proto: "::pyo3::class::number::PyNumberIRShiftProtocol"},
         MethodProto::Binary {
             name: "__iand__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIAndProtocol"},
+            proto: "::pyo3::class::number::PyNumberIAndProtocol"},
         MethodProto::Binary {
             name: "__ixor__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIXorProtocol"},
+            proto: "::pyo3::class::number::PyNumberIXorProtocol"},
         MethodProto::Binary {
             name: "__ior__",
             arg: "Other",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIOrProtocol"},
+            proto: "::pyo3::class::number::PyNumberIOrProtocol"},
 
         MethodProto::Unary {
             name: "__neg__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberNegProtocol"},
+            proto: "::pyo3::class::number::PyNumberNegProtocol"},
         MethodProto::Unary {
             name: "__pos__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberPosProtocol"},
+            proto: "::pyo3::class::number::PyNumberPosProtocol"},
         MethodProto::Unary {
             name: "__abs__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberAbsProtocol"},
+            proto: "::pyo3::class::number::PyNumberAbsProtocol"},
         MethodProto::Unary {
             name: "__invert__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberInvertProtocol"},
+            proto: "::pyo3::class::number::PyNumberInvertProtocol"},
         MethodProto::Unary {
             name: "__complex__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberComplexProtocol"},
+            proto: "::pyo3::class::number::PyNumberComplexProtocol"},
         MethodProto::Unary {
             name: "__int__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIntProtocol"},
+            proto: "::pyo3::class::number::PyNumberIntProtocol"},
         MethodProto::Unary {
             name: "__float__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberFloatProtocol"},
+            proto: "::pyo3::class::number::PyNumberFloatProtocol"},
         MethodProto::Unary {
             name: "__round__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberRoundProtocol"},
+            proto: "::pyo3::class::number::PyNumberRoundProtocol"},
         MethodProto::Unary {
             name: "__index__",
             pyres: true,
-            proto: "_pyo3::class::number::PyNumberIndexProtocol"},
+            proto: "::pyo3::class::number::PyNumberIndexProtocol"},
     ],
     py_methods: &[
         PyMethod {

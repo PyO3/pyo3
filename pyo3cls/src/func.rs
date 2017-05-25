@@ -45,19 +45,19 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
 
                     let tmp = extract_decl(syn::parse_item(
                         quote! {fn test(&self)
-                                        -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                                        -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     sig.decl.output = tmp.output.clone();
 
                     if pyres {
                         quote! {
-                            impl<'a> #p<'a> for #cls {
+                            impl<'p> #p<'p> for #cls {
                                 type Success = #succ;
                                 type Result = #ty;
                             }
                         }
                     } else {
                         quote! {
-                            impl<'a> #p<'a> for #cls {
+                            impl<'p> #p<'p> for #cls {
                                 type Result = #ty;
                             }
                         }
@@ -72,18 +72,18 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     let tmp = extract_decl(syn::parse_item(
                         quote! {fn test(
                             &self,
-                            arg: <#cls as #p<'a>>::#arg_name)
-                                -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                            arg: <#cls as #p<'p>>::#arg_name)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     let tmp2 = extract_decl(syn::parse_item(
                         quote! {fn test(
                             &self,
-                            arg: Option<<#cls as #p<'a>>::#arg_name>)
-                                -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                            arg: Option<<#cls as #p<'p>>::#arg_name>)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     modify_arg_ty(sig, 1, &tmp, &tmp2);
 
                     if pyres {
                         quote! {
-                            impl<'a> #p<'a> for #cls {
+                            impl<'p> #p<'p> for #cls {
                                 type #arg_name = #arg_ty;
                                 type Success = #succ;
                                 type Result = #ty;
@@ -91,7 +91,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     } else {
                         quote! {
-                            impl<'a> #p<'a> for #cls {
+                            impl<'p> #p<'p> for #cls {
                                 type #arg_name = #arg_ty;
                                 type Result = #ty;
                             }
@@ -110,21 +110,21 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     let tmp = extract_decl(syn::parse_item(
                         quote! {fn test(
                             &self,
-                            arg1: <#cls as #p<'a>>::#arg1_name,
-                            arg2: <#cls as #p<'a>>::#arg2_name)
-                                -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                            arg1: <#cls as #p<'p>>::#arg1_name,
+                            arg2: <#cls as #p<'p>>::#arg2_name)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     let tmp2 = extract_decl(syn::parse_item(
                         quote! {fn test(
                             &self,
-                            arg1: Option<<#cls as #p<'a>>::#arg1_name>,
-                            arg2: Option<<#cls as #p<'a>>::#arg2_name>)
-                                -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+                            arg2: Option<<#cls as #p<'p>>::#arg2_name>)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     modify_arg_ty(sig, 1, &tmp, &tmp2);
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
 
                     if pyres {
                         quote! {
-                            impl<'a> #p<'a> for #cls {
+                            impl<'p> #p<'p> for #cls {
                                 type #arg1_name = #arg1_ty;
                                 type #arg2_name = #arg2_ty;
                                 type Success = #succ;
@@ -133,7 +133,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     } else {
                         quote! {
-                            impl<'a> #p<'a> for #cls {
+                            impl<'p> #p<'p> for #cls {
                                 type #arg1_name = #arg1_ty;
                                 type #arg2_name = #arg2_ty;
                                 type Result = #ty;
@@ -144,34 +144,34 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                 MethodProto::Quaternary{name: _, arg1, arg2, arg3, proto} => {
                     let p = syn::Ident::from(proto);
                     let arg1_name = syn::Ident::from(arg1);
-                    let arg1_ty = get_arg_ty(sig, 2);
+                    let arg1_ty = get_arg_ty(sig, 1);
                     let arg2_name = syn::Ident::from(arg2);
-                    let arg2_ty = get_arg_ty(sig, 3);
+                    let arg2_ty = get_arg_ty(sig, 2);
                     let arg3_name = syn::Ident::from(arg3);
-                    let arg3_ty = get_arg_ty(sig, 4);
+                    let arg3_ty = get_arg_ty(sig, 3);
                     let succ = get_res_success(ty);
 
                     // rewrite ty
                     let tmp = extract_decl(syn::parse_item(
                         quote! {fn test(
                             &self,
-                            arg1: <#cls as #p<'a>>::#arg1_name,
-                            arg2: <#cls as #p<'a>>::#arg2_name,
-                            arg3: <#cls as #p<'a>>::#arg3_name)
-                                -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                            arg1: <#cls as #p<'p>>::#arg1_name,
+                            arg2: <#cls as #p<'p>>::#arg2_name,
+                            arg3: <#cls as #p<'p>>::#arg3_name)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     let tmp2 = extract_decl(syn::parse_item(
                         quote! {fn test(
                             &self,
-                            arg1: Option<<#cls as #p<'a>>::#arg1_name>,
-                            arg2: Option<<#cls as #p<'a>>::#arg2_name>,
-                            arg3: Option<<#cls as #p<'a>>::#arg3_name>)
-                                -> <#cls as #p<'a>>::Result {}}.as_str()).unwrap());
+                            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+                            arg2: Option<<#cls as #p<'p>>::#arg2_name>,
+                            arg3: Option<<#cls as #p<'p>>::#arg3_name>)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     modify_arg_ty(sig, 1, &tmp, &tmp2);
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
                     modify_arg_ty(sig, 3, &tmp, &tmp2);
 
                     quote! {
-                        impl<'a> #p<'a> for #cls {
+                        impl<'p> #p<'p> for #cls {
                             type #arg1_name = #arg1_ty;
                             type #arg2_name = #arg2_ty;
                             type #arg3_name = #arg3_ty;
@@ -257,18 +257,18 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize,
 {
     let arg = sig.decl.inputs[idx].clone();
     match arg {
-        syn::FnArg::Captured(_, ref arg_ty) => {
+        syn::FnArg::Captured(ref pat, ref arg_ty) => {
             match arg_ty {
                 &syn::Ty::Path(_, ref path) => {
                     let seg = path.segments.last().unwrap().clone();
                     if seg.ident.as_ref() == "Option" {
-                        sig.decl.inputs[idx] = decl2.inputs[idx].clone();
+                        sig.decl.inputs[idx] = fix_name(pat, &decl2.inputs[idx]);
                     } else {
-                        sig.decl.inputs[idx] = decl1.inputs[idx].clone();
+                        sig.decl.inputs[idx] = fix_name(pat, &decl1.inputs[idx]);
                     }
                 },
                 _ => {
-                    sig.decl.inputs[idx] = decl1.inputs[idx].clone();
+                    sig.decl.inputs[idx] = fix_name(pat, &decl1.inputs[idx]);
                 }
             }
         },
@@ -277,4 +277,12 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize,
     }
 
     sig.decl.output = decl1.output.clone();
+}
+
+fn fix_name(pat: &syn::Pat, arg: &syn::FnArg) -> syn::FnArg {
+    match arg {
+        &syn::FnArg::Captured(_, ref arg_ty) =>
+            syn::FnArg::Captured(pat.clone(), arg_ty.clone()),
+        _ => panic!("func.rs::296"),
+    }
 }

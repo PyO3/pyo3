@@ -200,14 +200,14 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
 
     // number methods
-    /*if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
+    if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
         static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
         *(unsafe { &mut NB_METHODS }) = meth;
         type_object.tp_as_number = unsafe { &mut NB_METHODS };
         mem::forget(meth);
     } else {
         type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
-    }*/
+    }
 
     // mapping methods
     if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
@@ -240,7 +240,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     }
 
     // buffer protocol
-    /*if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
+    if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
         static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
         *(unsafe { &mut BUFFER_PROCS }) = meth;
         type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
@@ -277,7 +277,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
 
         // strange
         mem::forget(props);
-    }*/
+    }
 
     // register type object
     unsafe {
@@ -301,7 +301,6 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     r
 }
 
-/*
 fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
                                  Option<ffi::PyCFunctionWithKeywords>,
                                  Vec<ffi::PyMethodDef>)  {
@@ -378,4 +377,4 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     }
 
     defs.values().map(|i| i.clone()).collect()
-}*/
+}

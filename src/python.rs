@@ -171,10 +171,10 @@ impl<'p> Python<'p> {
 
     /// Create new PyObject instance
     #[inline]
-    pub fn init<T>(&'p self, value: T) -> PyResult<::Py<'p, T>>
+    pub fn init<T>(&'p self, value: T) -> Py<'p, T>
         where T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
-        ::Py::new(self, value)
+        Py::new(self, value).unwrap()
     }
 
     /// Gets the Python builtin value `None`.
