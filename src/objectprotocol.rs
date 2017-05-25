@@ -20,18 +20,20 @@ use std::fmt;
 use std::cmp::Ordering;
 use ffi;
 use libc;
-use python::{Python, PythonObject, ToPythonPointer};
+use pyptr::{Py, PyPtr};
+use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyDict, PyString};
 use conversion::{ToPyObject, ToPyTuple};
 use err::{PyErr, PyResult, self};
 
-/// Trait that contains methods 
-pub trait ObjectProtocol : PythonObject {
+
+impl<'p, T> Py<'p, T> {
+
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
     #[inline]
-    fn hasattr<N>(&self, py: Python, attr_name: N) -> PyResult<bool> where N: ToPyObject {
-        attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
+    pub fn hasattr<N>(&self, attr_name: N) -> PyResult<bool> where N: ToPyObject {
+        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
             Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
         })
     }
@@ -39,32 +41,33 @@ pub trait ObjectProtocol : PythonObject {
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-    fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject> where N: ToPyObject {
-        attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
-            err::result_from_owned_ptr(py,
-                ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
+    pub fn getattr<N>(&self, attr_name: N) -> PyResult<Py<'p, PyObject>> where N: ToPyObject
+    {
+        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
+            Py::from_owned_ptr_or_err(self.py(), ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
         })
     }
 
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     #[inline]
-    fn setattr<N, V>(&self, py: Python, attr_name: N, value: V) -> PyResult<()>
+    pub fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
         where N: ToPyObject, V: ToPyObject
     {
-        attr_name.with_borrowed_ptr(py, move |attr_name|
-            value.with_borrowed_ptr(py, |value| unsafe {
-                err::error_on_minusone(py,
-                    ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value))
+        attr_name.with_borrowed_ptr(
+            self.py(), move |attr_name|
+            value.with_borrowed_ptr(self.py(), |value| unsafe {
+                err::error_on_minusone(
+                    self.py(), ffi::PyObject_SetAttr(self.as_ptr(), attr_name, value))
             }))
     }
 
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
     #[inline]
-    fn delattr<N>(&self, py: Python, attr_name: N) -> PyResult<()> where N: ToPyObject {
-        attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
-            err::error_on_minusone(py,
+    pub fn delattr<N>(&self, attr_name: N) -> PyResult<()> where N: ToPyObject {
+        attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
+            err::error_on_minusone(self.py(),
                 ffi::PyObject_DelAttr(self.as_ptr(), attr_name))
         })
     }
@@ -84,8 +87,10 @@ pub trait ObjectProtocol : PythonObject {
     /// else:
     ///     raise TypeError("ObjectProtocol::compare(): All comparisons returned false")
     /// ```
-    fn compare<O>(&self, py: Python, other: O) -> PyResult<Ordering> where O: ToPyObject {
-        unsafe fn do_compare(py: Python, a: *mut ffi::PyObject, b: *mut ffi::PyObject) -> PyResult<Ordering> {
+    pub fn compare<O>(&self, other: O) -> PyResult<Ordering> where O: ToPyObject {
+        unsafe fn do_compare(py: Python,
+                             a: *mut ffi::PyObject,
+                             b: *mut ffi::PyObject) -> PyResult<Ordering> {
             let result = ffi::PyObject_RichCompareBool(a, b, ffi::Py_EQ);
             if result == 1 {
                 return Ok(Ordering::Equal);
@@ -107,8 +112,8 @@ pub trait ObjectProtocol : PythonObject {
             return Err(PyErr::new::<::exc::TypeError, _>(py, "ObjectProtocol::compare(): All comparisons returned false"));
         }
 
-        other.with_borrowed_ptr(py, |other| unsafe {
-            do_compare(py, self.as_ptr(), other)
+        other.with_borrowed_ptr(self.py(), |other| unsafe {
+            do_compare(self.py(), self.as_ptr(), other)
         })
     }
 
@@ -121,33 +126,34 @@ pub trait ObjectProtocol : PythonObject {
     ///   * CompareOp::Le: `self <= other`
     ///   * CompareOp::Gt: `self > other`
     ///   * CompareOp::Ge: `self >= other`
-    fn rich_compare<O>(&self, py: Python, other: O, compare_op: ::CompareOp) -> PyResult<PyObject> where O: ToPyObject {
-        other.with_borrowed_ptr(py, |other| unsafe {
-            err::result_cast_from_owned_ptr(py, ffi::PyObject_RichCompare(self.as_ptr(), other, compare_op as libc::c_int))
-        })
+    pub fn rich_compare<O>(&self, other: O, compare_op: ::CompareOp)
+                       -> PyResult<Py<'p, PyObject>> where O: ToPyObject {
+        unsafe {
+            other.with_borrowed_ptr(self.py(), |other| {
+                Py::cast_from_owned_nullptr(
+                    self.py(), ffi::PyObject_RichCompare(
+                        self.as_ptr(), other, compare_op as libc::c_int))
+            })
+        }
     }
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
-    fn repr(&self, py: Python) -> PyResult<PyString> {
-        unsafe {
-            err::result_cast_from_owned_ptr(py, ffi::PyObject_Repr(self.as_ptr()))
-        }
+    pub fn repr(&'p self) -> PyResult<Py<'p, PyString>> {
+        unsafe { Py::cast_from_owned_nullptr(self.py(), ffi::PyObject_Repr(self.as_ptr())) }
     }
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
-    fn str(&self, py: Python) -> PyResult<PyString> {
-        unsafe {
-            err::result_cast_from_owned_ptr(py, ffi::PyObject_Str(self.as_ptr()))
-        }
+    pub fn str(&'p self) -> PyResult<Py<'p, PyString>> {
+        unsafe { Py::cast_from_owned_nullptr(self.py(), ffi::PyObject_Str(self.as_ptr())) }
     }
 
     /// Determines whether this object is callable.
     #[inline]
-    fn is_callable(&self, _py: Python) -> bool {
+    pub fn is_callable(&self) -> bool {
         unsafe {
             ffi::PyCallable_Check(self.as_ptr()) != 0
         }
@@ -156,30 +162,34 @@ pub trait ObjectProtocol : PythonObject {
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
     #[inline]
-    fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+    pub fn call<'a, A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<Py<'p, PyObject>>
         where A: ToPyTuple
     {
-        args.with_borrowed_ptr(py, |args| unsafe {
-            err::result_from_owned_ptr(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs.as_ptr()))
-        })
+        let t = args.to_py_tuple(self.py());
+        unsafe {
+            Py::from_owned_ptr_or_err(
+                self.py(), ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
+        }
     }
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     #[inline]
-    fn call_method<A>(&self, py: Python, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+    pub fn call_method<A>(&self,
+                          name: &str, args: A,
+                          kwargs: Option<&PyDict>) -> PyResult<Py<'p, PyObject>>
         where A: ToPyTuple
     {
-        try!(self.getattr(py, name)).call(py, args, kwargs)
+        self.getattr(name)?.call(args, kwargs)
     }
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: 'hash(self)'
     #[inline]
-    fn hash(&self, py: Python) -> PyResult<::Py_hash_t> {
+    pub fn hash(&self) -> PyResult<::Py_hash_t> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(v)
         }
@@ -188,10 +198,10 @@ pub trait ObjectProtocol : PythonObject {
     /// Returns whether the object is considered to be true.
     /// This is equivalent to the Python expression: 'not not self'
     #[inline]
-    fn is_true(&self, py: Python) -> PyResult<bool> {
+    pub fn is_true(&self) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(v != 0)
         }
@@ -200,10 +210,10 @@ pub trait ObjectProtocol : PythonObject {
     /// Returns the length of the sequence or mapping.
     /// This is equivalent to the Python expression: 'len(self)'
     #[inline]
-    fn len(&self, py: Python) -> PyResult<usize> {
+    pub fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(v as usize)
         }
@@ -211,20 +221,22 @@ pub trait ObjectProtocol : PythonObject {
 
     /// This is equivalent to the Python expression: 'self[key]'
     #[inline]
-    fn get_item<K>(&self, py: Python, key: K) -> PyResult<PyObject> where K: ToPyObject {
-        key.with_borrowed_ptr(py, |key| unsafe {
-            err::result_from_owned_ptr(py,
-                ffi::PyObject_GetItem(self.as_ptr(), key))
+    pub fn get_item<K>(&self, key: K) -> PyResult<Py<'p, PyObject>> where K: ToPyObject {
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
+            Py::from_owned_ptr_or_err(self.py(), ffi::PyObject_GetItem(self.as_ptr(), key))
         })
     }
 
     /// Sets an item value.
     /// This is equivalent to the Python expression 'self[key] = value'.
     #[inline]
-    fn set_item<K, V>(&self, py: Python, key: K, value: V) -> PyResult<()> where K: ToPyObject, V: ToPyObject {
-        key.with_borrowed_ptr(py, move |key|
-            value.with_borrowed_ptr(py, |value| unsafe {
-                err::error_on_minusone(py,
+    pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
+        where K: ToPyObject, V: ToPyObject
+    {
+        key.with_borrowed_ptr(
+            self.py(), move |key|
+            value.with_borrowed_ptr(self.py(), |value| unsafe {
+                err::error_on_minusone(self.py(),
                     ffi::PyObject_SetItem(self.as_ptr(), key, value))
             }))
     }
@@ -232,46 +244,65 @@ pub trait ObjectProtocol : PythonObject {
     /// Deletes an item.
     /// This is equivalent to the Python expression 'del self[key]'.
     #[inline]
-    fn del_item<K>(&self, py: Python, key: K) -> PyResult<()> where K: ToPyObject {
+    pub fn del_item<K>(&self, py: Python, key: K) -> PyResult<()> where K: ToPyObject {
         key.with_borrowed_ptr(py, |key| unsafe {
             err::error_on_minusone(py,
                 ffi::PyObject_DelItem(self.as_ptr(), key))
         })
     }
 
-    /// Takes an object and returns an iterator for it.
-    /// This is typically a new iterator but if the argument
-    /// is an iterator, this returns itself.
-    #[inline]
-    fn iter<'p>(&self, py: Python<'p>) -> PyResult<::objects::PyIterator<'p>> {
-        let obj = try!(unsafe {
-            err::result_from_owned_ptr(py, ffi::PyObject_GetIter(self.as_ptr()))
-        });
-        Ok(try!(::objects::PyIterator::from_object(py, obj)))
-    }
+    // /// Takes an object and returns an iterator for it.
+    // /// This is typically a new iterator but if the argument
+    // /// is an iterator, this returns itself.
+    //#[inline]
+    //pub fn iter<'a>(&'a self) -> PyResult<Py<'p, ::objects::PyIterator<'a>>> {
+    //    Py::from_owned_ptr_or_err(self.py(), ffi::PyObject_GetIter(self.as_ptr()))
+    //}
 }
 
-impl ObjectProtocol for PyObject {}
+// impl ObjectProtocol for PyObject {}
 
-impl fmt::Debug for PyObject {
+
+impl<'p, T> fmt::Debug for Py<'p, T> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         // TODO: we shouldn't use fmt::Error when repr() fails
-        let gil_guard = Python::acquire_gil();
-        let py = gil_guard.python();
-        let repr_obj = try!(self.repr(py).map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy(py))
+        let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
+        f.write_str(&repr_obj.to_string_lossy())
     }
 }
 
-impl fmt::Display for PyObject {
+impl<'p, T> fmt::Display for Py<'p, T> {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         // TODO: we shouldn't use fmt::Error when str() fails
-        let gil_guard = Python::acquire_gil();
-        let py = gil_guard.python();
-        let str_obj = try!(self.str(py).map_err(|_| fmt::Error));
-        f.write_str(&str_obj.to_string_lossy(py))
+        let str_obj = try!(self.str().map_err(|_| fmt::Error));
+        f.write_str(&str_obj.to_string_lossy())
     }
 }
+
+impl<T> fmt::Debug for PyPtr<T> {
+    default fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // TODO: we shouldn't use fmt::Error when repr() fails
+        let r = self.as_ref(py);
+        let repr_obj = try!(r.repr().map_err(|_| fmt::Error));
+        f.write_str(&repr_obj.to_string_lossy())
+    }
+}
+
+impl<T> fmt::Display for PyPtr<T> {
+    default fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // TODO: we shouldn't use fmt::Error when repr() fails
+        let r = self.as_ref(py);
+        let repr_obj = try!(r.str().map_err(|_| fmt::Error));
+        f.write_str(&repr_obj.to_string_lossy())
+    }
+}
+
 
 #[cfg(test)]
 mod test {

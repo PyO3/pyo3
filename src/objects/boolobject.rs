@@ -1,32 +1,31 @@
+use ::{Py, PyObject};
 use ffi;
-use python::{Python, PythonObject};
-use err::PyResult;
-use super::{PyObject};
+use python::{Python, ToPythonPointer};
 use conversion::{ToPyObject};
 
 /// Represents a Python `bool`.
-pub struct PyBool(PyObject);
+pub struct PyBool;
 
 pyobject_newtype!(PyBool, PyBool_Check, PyBool_Type);
 
 impl PyBool {
     /// Depending on `val`, returns `py.True()` or `py.False()`.
     #[inline]
-    pub fn get(py: Python, val: bool) -> PyBool {
+    pub fn get<'p>(py: Python<'p>, val: bool) -> Py<'p, PyBool> {
         if val { py.True() } else { py.False() }
     }
 
     /// Gets whether this boolean is `true`.
     #[inline]
     pub fn is_true(&self) -> bool {
-        self.0.as_ptr() == unsafe { ::ffi::Py_True() }
+        self.as_ptr() == unsafe { ::ffi::Py_True() }
     }
 }
 
 /// Converts a rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
         PyBool::get(py, *self).into_object()
     }
 
@@ -42,9 +41,10 @@ impl ToPyObject for bool {
 /// Converts a Python `bool` to a rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-extract!(obj to bool; py => {
-    Ok(try!(obj.cast_as::<PyBool>(py)).is_true())
+pyobject_extract!(obj to bool => {
+    Ok(try!(obj.cast_as::<PyBool>()).is_true())
 });
+
 
 #[cfg(test)]
 mod test {

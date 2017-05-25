@@ -64,11 +64,11 @@ pub const OBJECT: Proto = Proto {
     py_methods: &[
         PyMethod {
             name: "__format__",
-            proto: "_pyo3::class::basic::PyObjectFormatProtocolImpl",
+            proto: "::pyo3::class::basic::PyObjectFormatProtocolImpl",
         },
         PyMethod {
             name: "__bytes__",
-            proto: "_pyo3::class::basic::PyObjectBytesProtocolImpl",
+            proto: "::pyo3::class::basic::PyObjectBytesProtocolImpl",
         },
     ]
 };
@@ -80,32 +80,32 @@ pub const ASYNC: Proto = Proto {
         MethodProto::Unary {
             name: "__await__",
             pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAwaitProtocol"},
+            proto: "::pyo3::class::async::PyAsyncAwaitProtocol"},
         MethodProto::Unary{
             name: "__aiter__",
             pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAiterProtocol"},
+            proto: "::pyo3::class::async::PyAsyncAiterProtocol"},
         MethodProto::Unary{
             name: "__anext__",
             pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAnextProtocol"},
+            proto: "::pyo3::class::async::PyAsyncAnextProtocol"},
         MethodProto::Unary{
             name: "__aenter__",
             pyres: true,
-            proto: "_pyo3::class::async::PyAsyncAenterProtocol"},
+            proto: "::pyo3::class::async::PyAsyncAenterProtocol"},
         MethodProto::Quaternary {
             name: "__aexit__",
             arg1: "ExcType", arg2: "ExcValue", arg3: "Traceback",
-            proto: "_pyo3::class::async::PyAsyncAexitProtocol"},
+            proto: "::pyo3::class::async::PyAsyncAexitProtocol"},
     ],
     py_methods: &[
         PyMethod {
             name: "__aenter__",
-            proto: "_pyo3::class::async::PyAsyncAenterProtocolImpl",
+            proto: "::pyo3::class::async::PyAsyncAenterProtocolImpl",
         },
         PyMethod {
             name: "__aexit__",
-            proto: "_pyo3::class::async::PyAsyncAexitProtocolImpl",
+            proto: "::pyo3::class::async::PyAsyncAexitProtocolImpl",
         },
     ],
 };
@@ -194,49 +194,49 @@ pub const MAPPING: Proto = Proto {
         MethodProto::Unary{
             name: "__len__",
             pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingLenProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingLenProtocol"},
         MethodProto::Binary{
             name: "__getitem__",
             arg: "Key",
             pyres: true,
-            proto: "_pyo3::class::mapping::PyMappingGetItemProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingGetItemProtocol"},
         MethodProto::Ternary{
             name: "__setitem__",
             arg1: "Key",
             arg2: "Value",
             pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingSetItemProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingSetItemProtocol"},
         MethodProto::Binary{
             name: "__delitem__",
             arg: "Key",
             pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingDelItemProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingDelItemProtocol"},
         MethodProto::Binary{
             name: "__contains__",
             arg: "Value",
             pyres: false,
-            proto: "_pyo3::class::mapping::PyMappingContainsProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingContainsProtocol"},
         MethodProto::Unary{
             name: "__reversed__",
             pyres: true,
-            proto: "_pyo3::class::mapping::PyMappingReversedProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingReversedProtocol"},
         MethodProto::Unary{
             name: "__iter__",
             pyres: true,
-            proto: "_pyo3::class::mapping::PyMappingIterProtocol"},
+            proto: "::pyo3::class::mapping::PyMappingIterProtocol"},
     ],
     py_methods: &[
         PyMethod {
             name: "__iter__",
-            proto: "_pyo3::class::mapping::PyMappingIterProtocolImpl",
+            proto: "::pyo3::class::mapping::PyMappingIterProtocolImpl",
         },
         PyMethod {
             name: "__contains__",
-            proto: "_pyo3::class::mapping::PyMappingContainsProtocolImpl",
+            proto: "::pyo3::class::mapping::PyMappingContainsProtocolImpl",
         },
         PyMethod {
             name: "__reversed__",
-            proto: "_pyo3::class::mapping::PyMappingReversedProtocolImpl",
+            proto: "::pyo3::class::mapping::PyMappingReversedProtocolImpl",
         },
     ],
 };

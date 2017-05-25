@@ -1,40 +1,26 @@
-// Copyright (c) 2015 Daniel Grunwald
+// Copyright (c) 2017-present PyO3 Project and Contributors
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
+// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use err;
-use python::{Python, PythonObject};
+use pyptr::Py;
+use python::{AsPy, Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
 use ffi::{self, Py_ssize_t};
-use conversion::ToPyObject;
+use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList(PyObject);
+pub struct PyList;
 
 pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 
 impl PyList {
     /// Construct a new list with the given elements.
-    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> PyList {
+    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> Py<'p, PyList> {
         unsafe {
             let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
-            let t = err::result_from_owned_ptr(py, ptr).unwrap().unchecked_cast_into::<PyList>();
+            let t = Py::<PyList>::cast_from_owned_ptr_or_panic(py, ptr);
             for (i, e) in elements.iter().enumerate() {
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.to_py_object(py).steal_ptr());
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
             t
         }
@@ -42,60 +28,61 @@ impl PyList {
 
     /// Gets the length of the list.
     #[inline]
-    pub fn len(&self, _py: Python) -> usize {
+    pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
-            ffi::PyList_Size(self.0.as_ptr()) as usize
+            ffi::PyList_Size(self.as_ptr()) as usize
         }
     }
 
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, py: Python, index: usize) -> PyObject {
+    pub fn get_item<'p>(&'p self, index: usize) -> Py<'p, PyObject> {
         // TODO: do we really want to panic here?
-        assert!(index < self.len(py));
+        assert!(index < self.len());
         unsafe {
-            PyObject::from_borrowed_ptr(py, ffi::PyList_GetItem(self.0.as_ptr(), index as Py_ssize_t))
+            Py::from_borrowed_ptr(
+                self.py(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
     /// Sets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn set_item(&self, _py: Python, index: usize, item: PyObject) {
-        let r = unsafe { ffi::PyList_SetItem(self.0.as_ptr(), index as Py_ssize_t, item.steal_ptr()) };
+    pub fn set_item<'p>(&self, index: usize, item: Py<'p, PyObject>) {
+        let r = unsafe { ffi::PyList_SetItem(
+            self.as_ptr(), index as Py_ssize_t, item.into_ptr()) };
         assert!(r == 0);
     }
 
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn insert_item(&self, _py: Python, index: usize, item: PyObject) {
-        let r = unsafe { ffi::PyList_Insert(self.0.as_ptr(), index as Py_ssize_t, item.as_ptr()) };
+    pub fn insert_item<'p>(&self, index: usize, item: Py<'p, PyObject>) {
+        let r = unsafe { ffi::PyList_Insert(self.as_ptr(), index as Py_ssize_t, item.as_ptr()) };
         assert!(r == 0);
     }
 
     #[inline]
-    pub fn iter<'a, 'p>(&'a self, py: Python<'p>) -> PyListIterator<'a, 'p> {
-        PyListIterator { py: py, list: self, index: 0 }
+    pub fn iter<'p>(&'p self) -> PyListIterator<'p> {
+        PyListIterator { list: self, index: 0 }
     }
 }
 
 /// Used by `PyList::iter()`.
-pub struct PyListIterator<'a, 'p> {
-    py: Python<'p>,
-    list: &'a PyList,
+pub struct PyListIterator<'p> {
+    list: &'p PyList,
     index: usize
 }
 
-impl <'a, 'p> Iterator for PyListIterator<'a, 'p> {
-    type Item = PyObject;
+impl <'p> Iterator for PyListIterator<'p> {
+    type Item = Py<'p, PyObject>;
 
     #[inline]
-    fn next(&mut self) -> Option<PyObject> {
-        if self.index < self.list.len(self.py) {
-            let item = self.list.get_item(self.py, self.index);
+    fn next(&mut self) -> Option<Py<'p, PyObject>> {
+        if self.index < self.list.len() {
+            let item = self.list.get_item(self.index);
             self.index += 1;
             Some(item)
         } else {
@@ -109,24 +96,36 @@ impl <'a, 'p> Iterator for PyListIterator<'a, 'p> {
 
 impl <T> ToPyObject for [T] where T: ToPyObject {
 
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyList::new(py, self).into_object()
+    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+        unsafe {
+            let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
+            let t = Py::cast_from_owned_ptr_or_panic(py, ptr);
+            for (i, e) in self.iter().enumerate() {
+                let obj = e.to_object(py).into_ptr();
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
+            }
+            t
+        }
     }
 }
 
 impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
-    fn to_py_object(&self, py: Python) -> PyObject {
-        self.as_slice().to_py_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+        self.as_slice().to_object(py)
     }
 
-    fn into_py_object(self, py: Python) -> PyObject {
+}
+
+impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
+
+    fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
-            let t = err::cast_from_owned_ptr_or_panic(py, ptr);
+            let t = Py::from_owned_ptr_or_panic(py, ptr);
             for (i, e) in self.into_iter().enumerate() {
-                let obj = e.into_py_object(py).into_object();
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj.steal_ptr());
+                let obj = e.into_object(py).into_ptr();
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
             t
         }
@@ -135,7 +134,7 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject};
+    use python::{Python, PythonObjectWithCheckedDowncast};
     use conversion::ToPyObject;
     use objects::PyList;
 
@@ -143,7 +142,8 @@ mod test {
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let list = PyList::new(py, &[1, 2, 3, 4]);
+        let v = vec![1,2,3,4];
+        let list = PyList::downcast_from(py, v.to_object(py)).unwrap();
         assert_eq!(4, list.len(py));
     }
 
@@ -152,7 +152,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
         assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
         assert_eq!(3, list.get_item(py, 1).extract::<i32>(py).unwrap());
         assert_eq!(5, list.get_item(py, 2).extract::<i32>(py).unwrap());
@@ -164,7 +164,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
         list.set_item(py, 0, val);
@@ -176,7 +176,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
         let val = 42i32.to_py_object(py).into_object();
         assert_eq!(4, list.len(py));
         assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
@@ -191,7 +191,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
         let mut idx = 0;
         for el in list.iter(py) {
             assert_eq!(v[idx], el.extract::<i32>(py).unwrap());
@@ -205,7 +205,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
         let v2 = list.into_object().extract::<Vec<i32>>(py).unwrap();
         assert_eq!(v, v2);
     }

@@ -1,31 +1,4 @@
-// Copyright (c) 2016 Daniel Grunwald
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-
-//#![cfg_attr(feature="nightly", feature(
-//    const_fn, // for GILProtected::new (#24111)
-//    shared, // for std::ptr::Shared (#27730)
-//    specialization, // for impl FromPyObject<'source> for Vec<...> (#31844)
-//))]
-
-#![feature(specialization, shared, const_fn)]
-
-// #![allow(unused_imports)] // because some imports are only necessary with python 2.x or 3.x
-
+#![feature(specialization, const_fn)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -72,7 +45,7 @@
 //!     let version: String = sys.get(py, "version")?.extract(py)?;
 //!
 //!     let locals = PyDict::new(py);
-//!     locals.set_item(py, "os", py.import("os")?)?;
+//!     locals.set_item("os", py.import("os")?)?;
 //!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
@@ -93,17 +66,16 @@ pub use ffi::{Py_ssize_t, Py_hash_t};
 
 pub mod pyptr;
 pub use pyptr::{Py, PyPtr};
-pub use python::PyWithCheckedDowncast;
-pub use conversion::FromPyObj;
 
-pub use err::{PyErr, PyResult};
+pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
-pub use python::{Python, PythonObject,
-                 PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PyClone, PyDrop};
+pub use python::Python;
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
 pub use class::{CompareOp};
-pub use objectprotocol::{ObjectProtocol};
+pub mod class;
+pub use class::*;
+pub use self::typeob::PyTypeObject;
 
 #[allow(non_camel_case_types)]
 
@@ -126,72 +98,23 @@ macro_rules! cstr(
 // AST coercion macros (https://danielkeep.github.io/tlborm/book/blk-ast-coercion.html)
 #[macro_export] #[doc(hidden)]
 macro_rules! py_coerce_expr { ($s:expr) => {$s} }
-#[macro_export] #[doc(hidden)]
-macro_rules! py_coerce_item { ($s:item) => {$s} }
 
 #[macro_export] #[doc(hidden)]
 macro_rules! py_replace_expr {
     ($_t:tt $sub:expr) => {$sub};
 }
 
-#[macro_export] #[doc(hidden)]
-macro_rules! py_impl_to_py_object_for_python_object {
-    ($T: ty) => (
-        /// Identity conversion: allows using existing `PyObject` instances where
-        /// `T: ToPyObject` is expected.
-        impl $crate::ToPyObject for $T where $T: $crate::PythonObject {
-            #[inline]
-            fn to_py_object(&self, py: $crate::Python) -> $crate::PyObject {
-                $crate::PyClone::clone_ref(self, py).into_object()
-            }
-
-            #[inline]
-            fn into_py_object(self, _py: $crate::Python) -> $crate::PyObject {
-                self.into_object()
-            }
-
-            #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
-                where F: FnOnce(*mut $crate::ffi::PyObject) -> R
-            {
-                f($crate::PythonObject::as_object(self).as_ptr())
-            }
-        }
-    )
-}
-
-#[macro_export] #[doc(hidden)]
-macro_rules! py_impl_from_py_object_for_python_object {
-    ($T:ty) => {
-        impl <'source> $crate::FromPyObject<'source> for $T {
-            #[inline]
-            fn extract(py: $crate::Python, obj: &'source $crate::PyObject) -> $crate::PyResult<$T> {
-                use $crate::PyClone;
-                Ok(try!(obj.clone_ref(py).cast_into::<$T>(py)))
-            }
-        }
-
-        impl <'source> $crate::FromPyObject<'source> for &'source $T {
-            #[inline]
-            fn extract(py: $crate::Python, obj: &'source $crate::PyObject) -> $crate::PyResult<&'source $T> {
-                Ok(try!(obj.cast_as::<$T>(py)))
-            }
-        }
-    }
-}
-
 mod python;
 mod err;
+mod callback;
 mod conversion;
 mod objects;
 mod objectprotocol;
 mod pythonrun;
+mod typeob;
 pub mod argparse;
 pub mod function;
 pub mod buffer;
-pub mod class;
-pub use class::*;
-pub mod callback;
 
 // re-export for simplicity
 pub use std::os::raw::*;
@@ -269,6 +192,8 @@ macro_rules! py_module_init {
     }
 }
 
+use python::IntoPythonPointer;
+
 #[doc(hidden)]
 pub unsafe fn py_module_init_impl(
     def: *mut ffi::PyModuleDef,
@@ -283,7 +208,7 @@ pub unsafe fn py_module_init_impl(
         return module;
     }
 
-    let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>(py) {
+    let module = match Py::<PyModule>::cast_from_owned_ptr(py, module) {
         Ok(m) => m,
         Err(e) => {
             PyErr::from(e).restore(py);
@@ -292,7 +217,7 @@ pub unsafe fn py_module_init_impl(
         }
     };
     let ret = match init(py, &module) {
-        Ok(()) => module.into_object().steal_ptr(),
+        Ok(()) => module.into_ptr(),
         Err(e) => {
             e.restore(py);
             ptr::null_mut()

@@ -8,11 +8,11 @@ use std::os::raw::c_int;
 use ::Py;
 use ffi;
 use err::{PyErr, PyResult};
-use objects::exc;
+use objects::{exc, PyObject};
 use callback::{PyObjectCallbackConverter,
                LenResultConverter, UnitCallbackConverter, BoolCallbackConverter};
-use class::typeob::PyTypeInfo;
-use ::{ToPyObject, FromPyObj};
+use typeob::PyTypeInfo;
+use conversion::{ToPyObject, FromPyObject};
 
 
 /// Sequece interface
@@ -59,7 +59,7 @@ pub trait PySequenceGetItemProtocol<'a>: PySequenceProtocol<'a> {
 }
 
 pub trait PySequenceSetItemProtocol<'a>: PySequenceProtocol<'a> {
-    type Value: FromPyObj<'a>;
+    type Value: FromPyObject<'a>;
     type Result: Into<PyResult<()>>;
 }
 
@@ -68,12 +68,12 @@ pub trait PySequenceDelItemProtocol<'a>: PySequenceProtocol<'a> {
 }
 
 pub trait PySequenceContainsProtocol<'a>: PySequenceProtocol<'a> {
-    type Item: FromPyObj<'a>;
+    type Item: FromPyObject<'a>;
     type Result: Into<PyResult<bool>>;
 }
 
 pub trait PySequenceConcatProtocol<'a>: PySequenceProtocol<'a> {
-    type Other: FromPyObj<'a>;
+    type Other: FromPyObject<'a>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -84,7 +84,7 @@ pub trait PySequenceRepeatProtocol<'a>: PySequenceProtocol<'a> {
 }
 
 pub trait PySequenceInplaceConcatProtocol<'a>: PySequenceProtocol<'a> + ToPyObject {
-    type Other: FromPyObj<'a>;
+    type Other: FromPyObject<'a>;
     type Result: Into<PyResult<Self>>;
 }
 
@@ -145,7 +145,7 @@ impl<'a, T> PySequenceLenProtocolImpl for T where T: PySequenceLenProtocol<'a>
 {
     #[inline]
     fn sq_length() -> Option<ffi::lenfunc> {
-        py_len_func2!(PySequenceLenProtocol, T::__len__, LenResultConverter)
+        py_len_func!(PySequenceLenProtocol, T::__len__, LenResultConverter)
     }
 }
 
@@ -191,24 +191,19 @@ impl<'a, T> PySequenceSetItemProtocolImpl for T where T: PySequenceSetItemProtoc
             where T: PySequenceSetItemProtocol<'a>
         {
             const LOCATION: &'static str = "foo.__setitem__()";
-            ::callback::handle_callback2(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
                 if value.is_null() {
                     Err(PyErr::new::<exc::NotImplementedError, _>(
                         py, format!("Item deletion not supported by {:?}",
                                     stringify!(T))))
                 } else {
-                    match Py::<T::Value>::cast_from_borrowed(py, value) {
+                    let value = PyObject::from_borrowed_ptr(py, value);
+                    match ::callback::unref(value).extract() {
                         Ok(value) => {
-                            let value1: &Py<T::Value> = {&value as *const _}.as_ref().unwrap();
-                            match value1.extr() {
-                                Ok(value) => {
-                                    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                    slf.as_ref().__setitem__(key as isize, value).into()
-                                },
-                                Err(e) => Err(e.into()),
-                            }
+                            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                            slf.as_ref().__setitem__(key as isize, value).into()
                         },
-                        Err(e) => Err(e.into())
+                        Err(e) => Err(e.into()),
                     }
                 }
             })
@@ -238,7 +233,7 @@ impl<'a, T> PySequenceDelItemProtocolImpl for T where T: PySequenceDelItemProtoc
             where T: PySequenceDelItemProtocol<'a>
         {
             const LOCATION: &'static str = "T.__detitem__()";
-            ::callback::handle_callback2(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
                 if value.is_null() {
                     let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
                     slf.__delitem__(key as isize).into()
@@ -259,29 +254,24 @@ impl<'a, T> PySequenceDelItemProtocolImpl for T
     #[inline]
     fn sq_del_item() -> Option<ffi::ssizeobjargproc> {
         unsafe extern "C" fn wrap<'a, T>(slf: *mut ffi::PyObject,
-                                     key: ffi::Py_ssize_t,
-                                     value: *mut ffi::PyObject) -> c_int
+                                         key: ffi::Py_ssize_t,
+                                         value: *mut ffi::PyObject) -> c_int
             where T: PySequenceSetItemProtocol<'a> + PySequenceDelItemProtocol<'a>
         {
             const LOCATION: &'static str = "T.__set/del_item__()";
 
-            ::callback::handle_callback2(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
                 if value.is_null() {
                     let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
                     slf.__delitem__(key as isize).into()
                 } else {
-                    match Py::<T::Value>::cast_from_borrowed(py, value) {
+                    let value = ::PyObject::from_borrowed_ptr(py, value);
+                    match ::callback::unref(value).extract() {
                         Ok(value) => {
-                            let value1: &Py<T::Value> = {&value as *const _}.as_ref().unwrap();
-                            match value1.extr() {
-                                Ok(value) => {
-                                    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                    slf.as_ref().__setitem__(key as isize, value).into()
-                                },
-                                Err(e) => Err(e.into()),
-                            }
+                            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                            slf.as_ref().__setitem__(key as isize, value).into()
                         },
-                        Err(e) => Err(e.into())
+                        Err(e) => Err(e.into()),
                     }
                 }
             })
@@ -312,18 +302,13 @@ impl<'a, T> PySequenceContainsProtocolImpl for T where T: PySequenceContainsProt
             where T: PySequenceContainsProtocol<'a>
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".__contains__()");
-            ::callback::handle_callback2(LOCATION, BoolCallbackConverter, |py| {
-                match Py::<T::Item>::cast_from_borrowed(py, arg) {
+            ::callback::handle(LOCATION, BoolCallbackConverter, |py| {
+                let arg = ::PyObject::from_borrowed_ptr(py, arg);
+                match ::callback::unref(arg).extract() {
                     Ok(arg) => {
-                        let item: &Py<T::Item> = {&arg as *const _}.as_ref().unwrap();
-                        match item.extr() {
-                            Ok(arg) => {
-                                let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                slf.as_ref().__contains__(arg).into()
-                            }
-                            Err(e) => Err(e.into()),
-                        }
-                    },
+                        let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                        slf.as_ref().__contains__(arg).into()
+                    }
                     Err(e) => Err(e.into()),
                 }
             })
@@ -348,8 +333,7 @@ impl<'a, T> PySequenceConcatProtocolImpl for T where T: PySequenceConcatProtocol
 {
     #[inline]
     fn sq_concat() -> Option<ffi::binaryfunc> {
-        py_binary_func_2!(PySequenceConcatProtocol,
-                          T::__concat__, Other, PyObjectCallbackConverter)
+        py_binary_func!(PySequenceConcatProtocol, T::__concat__, PyObjectCallbackConverter)
     }
 }
 
@@ -392,8 +376,8 @@ impl<'a, T> PySequenceInplaceConcatProtocolImpl for T
 {
     #[inline]
     fn sq_inplace_concat() -> Option<ffi::binaryfunc> {
-        py_binary_func_2!(PySequenceInplaceConcatProtocol,
-                          T::__inplace_concat__, Other, PyObjectCallbackConverter)
+        py_binary_func!(PySequenceInplaceConcatProtocol,
+                        T::__inplace_concat__, PyObjectCallbackConverter)
     }
 }
 

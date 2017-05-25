@@ -5,14 +5,14 @@ use std::ptr;
 use std::os::raw::c_char;
 use ffi;
 use python::{Python, ToPythonPointer, AsPy};
-use objects::{PyObj, PyObject};
+use objects::PyObject;
 use err::{PyResult, PyErr};
 use pyptr::Py;
 
 /// Represents a Python bytearray.
-pub struct PyByteArray(PyObject);
+pub struct PyByteArray;
 
-pyobject_newtype_!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
+pyobject_newtype!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
 
 
 impl PyByteArray {
@@ -24,15 +24,15 @@ impl PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         let ptr = unsafe {ffi::PyByteArray_FromStringAndSize(ptr, len)};
-        Py::cast_from_owned_or_panic(py, ptr)
+        unsafe { Py::cast_from_owned_ptr_or_panic(py, ptr) }
     }
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<'p>(py: Python<'p>, src: Py<PyObj>) -> PyResult<Py<'p, PyByteArray>> {
+    pub fn from<'p>(py: Python<'p>, src: Py<PyObject>) -> PyResult<Py<'p, PyByteArray>> {
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
-            Ok(Py::cast_from_owned_or_panic(py, res))
+            Ok(unsafe{Py::cast_from_owned_ptr_or_panic(py, res)})
         } else {
             Err(PyErr::fetch(py))
         }

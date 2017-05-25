@@ -10,12 +10,12 @@ use std::os::raw::c_int;
 use ::{Py, CompareOp};
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, PythonObject};
-use objects::exc;
-use conversion::{ToPyObject, FromPyObj};
+use python::{Python};
+use objects::{exc, PyObject};
+use typeob::PyTypeInfo;
+use conversion::{ToPyObject, FromPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, UnitCallbackConverter,
                BoolCallbackConverter};
-use class::typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
 // classmethod
@@ -26,7 +26,7 @@ use class::methods::PyMethodDef;
 
 /// Object customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'a> : PyTypeInfo + Sized + 'static {
+pub trait PyObjectProtocol<'a>: PyTypeInfo + Sized + 'static {
 
     fn __getattr__(&self, name: Self::Name)
                    -> Self::Result where Self: PyObjectGetAttrProtocol<'a> {unimplemented!()}
@@ -56,17 +56,17 @@ pub trait PyObjectProtocol<'a> : PyTypeInfo + Sized + 'static {
 
 
 pub trait PyObjectGetAttrProtocol<'a>: PyObjectProtocol<'a> {
-    type Name: FromPyObj<'a>;
+    type Name: FromPyObject<'a>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectSetAttrProtocol<'a>: PyObjectProtocol<'a> {
-    type Name: FromPyObj<'a>;
-    type Value: FromPyObj<'a>;
+    type Name: FromPyObject<'a>;
+    type Value: FromPyObject<'a>;
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectDelAttrProtocol<'a>: PyObjectProtocol<'a> {
-    type Name: FromPyObj<'a>;
+    type Name: FromPyObject<'a>;
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectStrProtocol<'a>: PyObjectProtocol<'a> {
@@ -78,7 +78,7 @@ pub trait PyObjectReprProtocol<'a>: PyObjectProtocol<'a> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectFormatProtocol<'a>: PyObjectProtocol<'a> {
-    type Format: FromPyObj<'a>;
+    type Format: FromPyObject<'a>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -93,7 +93,7 @@ pub trait PyObjectBytesProtocol<'a>: PyObjectProtocol<'a> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectRichcmpProtocol<'a>: PyObjectProtocol<'a> {
-    type Other: FromPyObj<'a>;
+    type Other: FromPyObject<'a>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -162,8 +162,7 @@ impl<'a, T> PyObjectGetAttrProtocolImpl for T where T: PyObjectGetAttrProtocol<'
 {
     #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
-        py_binary_func_2!(PyObjectGetAttrProtocol,
-                          T::__getattr__, Name, PyObjectCallbackConverter)
+        py_binary_func!(PyObjectGetAttrProtocol, T::__getattr__, PyObjectCallbackConverter)
     }
 }
 
@@ -189,34 +188,25 @@ impl<'a, T> PyObjectSetAttrProtocolImpl for T where T: PyObjectSetAttrProtocol<'
             where T: PyObjectSetAttrProtocol<'a>
         {
             const LOCATION: &'static str = "T.__setattr__()";
-            ::callback::handle_callback2(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
                 if value.is_null() {
                     return Err(PyErr::new::<exc::NotImplementedError, _>(
                         py, format!("Subscript deletion not supported by {:?}",
                                     stringify!(T))))
-                }
+                } else {
+                    let name = ::PyObject::from_borrowed_ptr(py, name);
+                    let value = ::PyObject::from_borrowed_ptr(py, value);
 
-                match Py::<T::Name>::cast_from_borrowed(py, name) {
-                    Ok(name) => {
-                        let name1: &Py<T::Name> = {&name as *const _}.as_ref().unwrap();
-                        match name1.extr() {
-                            Ok(name) => match Py::<T::Value>::cast_from_borrowed(py, value) {
-                                Ok(value) => {
-                                    let value1: &Py<T::Value> = {&value as *const _}.as_ref().unwrap();
-                                    match value1.extr() {
-                                        Ok(value) => {
-                                            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                            slf.as_ref().__setattr__(name, value).into()
-                                        },
-                                        Err(e) => Err(e.into()),
-                                    }
-                                },
-                                Err(e) => Err(e.into()),
+                    match ::callback::unref(name).extract() {
+                        Ok(name) => match ::callback::unref(value).extract() {
+                            Ok(value) => {
+                                let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                                slf.as_ref().__setattr__(name, value).into()
                             },
                             Err(e) => Err(e.into()),
-                        }
-                    },
-                    Err(e) => Err(e.into()),
+                        },
+                        Err(e) => Err(e.into()),
+                    }
                 }
             })
         }
@@ -245,18 +235,14 @@ impl<'a, T> PyObjectDelAttrProtocolImpl for T where T: PyObjectDelAttrProtocol<'
             where T: PyObjectDelAttrProtocol<'a>
         {
             const LOCATION: &'static str = "T.__detattr__()";
-            ::callback::handle_callback2(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
                 if value.is_null() {
-                    match Py::<T::Name>::cast_from_borrowed(py, name) {
+                    let name = ::PyObject::from_borrowed_ptr(py, name);
+
+                    match ::callback::unref(name).extract() {
                         Ok(name) => {
-                            let name1: &Py<T::Name> = {&name as *const _}.as_ref().unwrap();
-                            match name1.extr() {
-                                Ok(name) => {
-                                    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                    slf.as_ref().__delattr__(name).into()
-                                },
-                                Err(e) => Err(e.into()),
-                            }
+                            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                            slf.as_ref().__delattr__(name).into()
                         },
                         Err(e) => Err(e.into()),
                     }
@@ -282,41 +268,25 @@ impl<'a, T> PyObjectDelAttrProtocolImpl for T
             where T: PyObjectSetAttrProtocol<'a> + PyObjectDelAttrProtocol<'a>
         {
             const LOCATION: &'static str = "T.__detattr__()";
-            ::callback::handle_callback2(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
+                let name = ::PyObject::from_borrowed_ptr(py, name);
                 if value.is_null() {
-                    match Py::<<T as PyObjectDelAttrProtocol<'a>>::Name>::cast_from_borrowed(py, name) {
+                    match ::callback::unref(name).extract() {
                         Ok(name) => {
-                            let name1: &Py<<T as PyObjectDelAttrProtocol<'a>>::Name> = {&name as *const _}.as_ref().unwrap();
-                            match name1.extr() {
-                                Ok(name) => {
-                                    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                    slf.as_ref().__delattr__(name).into()
-                                },
-                                Err(e) => Err(e.into()),
-                            }
+                            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                            slf.as_ref().__delattr__(name).into()
                         },
                         Err(e) => Err(e.into()),
                     }
                 } else {
-                    match Py::<<T as PyObjectSetAttrProtocol<'a>>::Name>::cast_from_borrowed(py, name) {
-                        Ok(name) => {
-                            let name1: &Py<<T as PyObjectSetAttrProtocol<'a>>::Name> = {&name as *const _}.as_ref().unwrap();
-                            match name1.extr() {
-                                Ok(name) => match Py::<<T as PyObjectSetAttrProtocol<'a>>::Value>::cast_from_borrowed(py, value) {
-                                    Ok(value) => {
-                                        let value1: &Py<<T as PyObjectSetAttrProtocol<'a>>::Value> = {&value as *const _}.as_ref().unwrap();
-                                        match value1.extr() {
-                                            Ok(value) => {
-                                                let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                                slf.as_ref().__setattr__(name, value).into()
-                                            },
-                                            Err(e) => Err(e.into()),
-                                        }
-                                    },
-                                    Err(e) => Err(e.into()),
-                                },
-                                Err(e) => Err(e.into()),
-                            }
+                    let value = ::PyObject::from_borrowed_ptr(py, value);
+                    match ::callback::unref(name).extract() {
+                        Ok(name) => match ::callback::unref(value).extract() {
+                            Ok(value) => {
+                                let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                                slf.as_ref().__setattr__(name, value).into()
+                            },
+                            Err(e) => Err(e.into()),
                         },
                         Err(e) => Err(e.into()),
                     }
@@ -342,7 +312,7 @@ impl<'a, T> PyObjectStrProtocolImpl for T where T: PyObjectStrProtocol<'a>
 {
     #[inline]
     fn tp_str() -> Option<ffi::unaryfunc> {
-        py_unary_func_2!(PyObjectStrProtocol, T::__str__, PyObjectCallbackConverter)
+        py_unary_func!(PyObjectStrProtocol, T::__str__, PyObjectCallbackConverter)
     }
 }
 
@@ -360,7 +330,7 @@ impl<'a, T> PyObjectReprProtocolImpl for T where T: PyObjectReprProtocol<'a>
 {
     #[inline]
     fn tp_repr() -> Option<ffi::unaryfunc> {
-        py_unary_func_2!(PyObjectReprProtocol, T::__repr__, PyObjectCallbackConverter)
+        py_unary_func!(PyObjectReprProtocol, T::__repr__, PyObjectCallbackConverter)
     }
 }
 
@@ -403,7 +373,7 @@ impl<'a, T> PyObjectHashProtocolImpl for T where T: PyObjectHashProtocol<'a>
 {
     #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
-        py_unary_func_2!(PyObjectHashProtocol, T::__hash__, HashConverter, ffi::Py_hash_t)
+        py_unary_func!(PyObjectHashProtocol, T::__hash__, HashConverter, ffi::Py_hash_t)
     }
 }
 
@@ -421,7 +391,7 @@ impl<'a, T> PyObjectBoolProtocolImpl for T where T: PyObjectBoolProtocol<'a>
 {
     #[inline]
     fn nb_bool() -> Option<ffi::inquiry> {
-        py_unary_func_2!(PyObjectBoolProtocol, T::__bool__, BoolCallbackConverter, c_int)
+        py_unary_func!(PyObjectBoolProtocol, T::__bool__, BoolCallbackConverter, c_int)
     }
 }
 
@@ -445,22 +415,19 @@ impl<'a, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectRichcmpProtocol<'
             where T: PyObjectRichcmpProtocol<'a>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
-            ::callback::handle_callback2(LOCATION, PyObjectCallbackConverter, |py| {
+            ::callback::handle(LOCATION, PyObjectCallbackConverter, |py| {
                 match extract_op(py, op) {
-                    Ok(op) => match Py::<T::Other>::cast_from_borrowed(py, arg) {
-                        Ok(arg) => {
-                            let arg1: &Py<T::Other> = {&arg as *const _}.as_ref().unwrap();
-                            match arg1.extr() {
-                                Ok(arg) => {
-                                    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                                    slf.as_ref().__richcmp__(arg, op).into()
-                                }
-                                Err(e) => Err(e.into()),
+                    Ok(op) => {
+                        let arg = PyObject::from_borrowed_ptr(py, arg);
+                        match ::callback::unref(arg).extract() {
+                            Ok(arg) => {
+                                let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+                                slf.as_ref().__richcmp__(arg, op).into()
                             }
-                        },
-                        Err(e) => Err(e.into()),
+                            Err(e) => Err(e.into()),
+                        }
                     },
-                    Err(e) => Err(e),
+                    Err(e) => Err(e)
                 }
             })
         }
@@ -478,8 +445,8 @@ fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
         ffi::Py_GT => Ok(CompareOp::Gt),
         ffi::Py_GE => Ok(CompareOp::Ge),
         _ => Err(PyErr::new_lazy_init(
-            py.get_type::<exc::ValueError>(),
+            py.get_ptype::<exc::ValueError>(),
             Some("tp_richcompare called with invalid comparison operator"
-                 .to_py_object(py).into_object())))
+                 .to_object(py).into_pptr())))
     }
 }

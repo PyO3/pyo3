@@ -7,28 +7,28 @@ use std::mem;
 use std::os::raw::{c_int, c_void};
 
 use ffi;
-use python::{Python, PythonObject, PyDrop, ToPythonPointer};
-use objects::PyObject;
+use pyptr::Py;
+use python::{Python, ToPythonPointer};
 use callback::AbortOnDrop;
 use class::NO_METHODS;
+use typeob::PyTypeInfo;
 
 pub struct PyTraverseError(c_int);
 
 /// GC support
-pub trait PyGCProtocol {
+pub trait PyGCProtocol<'p> : PyTypeInfo {
 
-    fn __traverse__(&self, py: Python, visit: PyVisit) -> Result<(), PyTraverseError>;
+    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError>;
 
-    fn __clear__(&self, py: Python);
+    fn __clear__(&self);
 
 }
 
-impl<T> PyGCProtocol for T {
-    default fn __traverse__(&self, _: Python, _: PyVisit) -> Result<(), PyTraverseError> {
+impl<'p, T> PyGCProtocol<'p> for T where T: PyTypeInfo {
+    default fn __traverse__(&self, _: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
-
-    default fn __clear__(&self, _: Python) {}
+    default fn __clear__(&self) {}
 }
 
 #[doc(hidden)]
@@ -38,7 +38,7 @@ pub trait PyGCProtocolImpl {
     fn update_type_object(type_object: &mut ffi::PyTypeObject);
 }
 
-impl<T> PyGCProtocolImpl for T where T: PyGCProtocol + PythonObject {
+impl<'p, T> PyGCProtocolImpl for T where T: PyGCProtocol<'p> {
     default fn methods() -> &'static [&'static str] {
         NO_METHODS
     }
@@ -67,7 +67,7 @@ pub struct PyVisit<'a> {
 
 impl <'a> PyVisit<'a> {
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
-        where T: PythonObject
+        where T: ToPythonPointer
     {
         let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
         if r == 0 {
@@ -79,37 +79,35 @@ impl <'a> PyVisit<'a> {
 }
 
 #[doc(hidden)]
-unsafe extern "C" fn tp_traverse<T>(slf: *mut ffi::PyObject,
-                                    visit: ffi::visitproc,
-                                    arg: *mut c_void) -> c_int
-    where T: PyGCProtocol + PythonObject
+unsafe extern "C" fn tp_traverse<'p, T>(slf: *mut ffi::PyObject,
+                                        visit: ffi::visitproc,
+                                        arg: *mut c_void) -> c_int
+    where T: PyGCProtocol<'p>
 {
     const LOCATION: &'static str = concat!(stringify!(T), ".__traverse__()");
 
     let guard = AbortOnDrop(LOCATION);
     let py = Python::assume_gil_acquired();
     let visit = PyVisit { visit: visit, arg: arg, _py: py };
-    let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
+    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
 
-    let ret = match T::__traverse__(&slf, py, visit) {
+    let ret = match T::__traverse__(&slf, visit) {
         Ok(()) => 0,
         Err(PyTraverseError(code)) => code
     };
-    slf.release_ref(py);
-    mem::forget(guard);
+          mem::forget(guard);
     ret
 }
 
-unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
-    where T: PyGCProtocol + PythonObject
+unsafe extern "C" fn tp_clear<'p, T>(slf: *mut ffi::PyObject) -> c_int
+    where T: PyGCProtocol<'p>
 {
     const LOCATION: &'static str = concat!(stringify!(T), ".__clear__()");
 
     let guard = AbortOnDrop(LOCATION);
     let py = Python::assume_gil_acquired();
-    let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
-    T::__clear__(&slf, py);
-    slf.release_ref(py);
+    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+    T::__clear__(&slf);
     mem::forget(guard);
     0
 }

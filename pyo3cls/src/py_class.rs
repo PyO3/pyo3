@@ -5,7 +5,7 @@ use quote::Tokens;
 
 
 pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
-    let base = syn::Ident::from("_pyo3::PyObj");
+    let base = syn::Ident::from("_pyo3::PyObject");
 
     match ast.body {
         syn::Body::Struct(syn::VariantData::Struct(_)) => (),

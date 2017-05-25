@@ -9,49 +9,50 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::{Python, PythonObject};
 use objects::{PyObject, PyType};
 use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
+use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
-use ::{ToPyObject, FromPyObject};
+use conversion::{ToPyObject, FromPyObject};
+
 
 /// Descriptor interface
 #[allow(unused_variables)]
-pub trait PyDescrProtocol: PythonObject {
+pub trait PyDescrProtocol<'p>: PyTypeInfo {
 
-    fn __get__(&self, py: Python, instance: &PyObject, owner: Option<PyType>)
-               -> Self::Result where Self: PyDescrGetProtocol { unimplemented!() }
+    fn __get__(&self, instance: &'p PyObject, owner: Option<&'p PyType>)
+               -> Self::Result where Self: PyDescrGetProtocol<'p> { unimplemented!() }
 
-    fn __set__(&self, py: Python, instance: &PyObject, value: &PyObject)
-               -> Self::Result where Self: PyDescrSetProtocol { unimplemented!() }
+    fn __set__(&self, instance: &'p PyObject, value: &'p PyObject)
+               -> Self::Result where Self: PyDescrSetProtocol<'p> { unimplemented!() }
 
-    fn __delete__(&self, py: Python, instance: &PyObject)
-                  -> Self::Result where Self: PyDescrDeleteProtocol { unimplemented!() }
+    fn __delete__(&self, instance: &'p PyObject)
+                  -> Self::Result where Self: PyDescrDeleteProtocol<'p> { unimplemented!() }
 
-    fn __set_name__(&self, py: Python, instance: &PyObject)
-                    -> Self::Result where Self: PyDescrSetNameProtocol { unimplemented!() }
+    fn __set_name__(&self, instance: &'p PyObject)
+                    -> Self::Result where Self: PyDescrSetNameProtocol<'p> { unimplemented!() }
 }
 
-pub trait PyDescrGetProtocol: PyDescrProtocol {
-    type Inst: for<'a> FromPyObject<'a>;
-    type Owner: for<'a> FromPyObject<'a>;
+pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
+    type Inst: FromPyObject<'p>;
+    type Owner: FromPyObject<'p>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PyDescrSetProtocol: PyDescrProtocol {
-    type Inst: for<'a> FromPyObject<'a>;
-    type Value: for<'a> FromPyObject<'a>;
+pub trait PyDescrSetProtocol<'p>: PyDescrProtocol<'p> {
+    type Inst: FromPyObject<'p>;
+    type Value: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
 
-pub trait PyDescrDeleteProtocol: PyDescrProtocol {
-    type Inst: for<'a> FromPyObject<'a>;
+pub trait PyDescrDeleteProtocol<'p>: PyDescrProtocol<'p> {
+    type Inst: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
 
-pub trait PyDescrSetNameProtocol: PyDescrProtocol {
-    type Inst: for<'a> FromPyObject<'a>;
+pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
+    type Inst: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
 
@@ -59,12 +60,12 @@ pub trait PyDescrSetNameProtocol: PyDescrProtocol {
 pub trait PyDescrGetProtocolImpl {
     fn tp_descr_get() -> Option<ffi::descrgetfunc>;
 }
-impl<T> PyDescrGetProtocolImpl for T where T: PyDescrProtocol {
+impl<'p, T> PyDescrGetProtocolImpl for T where T: PyDescrProtocol<'p> {
     default fn tp_descr_get() -> Option<ffi::descrgetfunc> {
         None
     }
 }
-impl<T> PyDescrGetProtocolImpl for T where T: PyDescrGetProtocol
+impl<'p, T> PyDescrGetProtocolImpl for T where T: PyDescrGetProtocol<'p>
 {
     fn tp_descr_get() -> Option<ffi::descrgetfunc> {
         py_ternary_func!(PyDescrGetProtocol, T::__get__, PyObjectCallbackConverter)
@@ -73,12 +74,12 @@ impl<T> PyDescrGetProtocolImpl for T where T: PyDescrGetProtocol
 pub trait PyDescrSetProtocolImpl {
     fn tp_descr_set() -> Option<ffi::descrsetfunc>;
 }
-impl<T> PyDescrSetProtocolImpl for T where T: PyDescrProtocol {
+impl<'p, T> PyDescrSetProtocolImpl for T where T: PyDescrProtocol<'p> {
     default fn tp_descr_set() -> Option<ffi::descrsetfunc> {
         None
     }
 }
-impl<T> PyDescrSetProtocolImpl for T where T: PyDescrSetProtocol
+impl<'p, T> PyDescrSetProtocolImpl for T where T: PyDescrSetProtocol<'p>
 {
     fn tp_descr_set() -> Option<ffi::descrsetfunc> {
         py_ternary_func!(PyDescrSetProtocol, T::__set__, UnitCallbackConverter, c_int)
@@ -88,7 +89,7 @@ impl<T> PyDescrSetProtocolImpl for T where T: PyDescrSetProtocol
 pub trait PyDescrDelProtocolImpl {
     fn __del__() -> Option<PyMethodDef>;
 }
-impl<T> PyDescrDelProtocolImpl for T where T: PyDescrProtocol {
+impl<'p, T> PyDescrDelProtocolImpl for T where T: PyDescrProtocol<'p> {
     default fn __del__() -> Option<PyMethodDef> {
         None
     }
@@ -97,7 +98,7 @@ impl<T> PyDescrDelProtocolImpl for T where T: PyDescrProtocol {
 pub trait PyDescrSetNameProtocolImpl {
     fn __set_name__() -> Option<PyMethodDef>;
 }
-impl<T> PyDescrSetNameProtocolImpl for T where T: PyDescrProtocol {
+impl<'p, T> PyDescrSetNameProtocolImpl for T where T: PyDescrProtocol<'p> {
     default fn __set_name__() -> Option<PyMethodDef> {
         None
     }
@@ -117,7 +118,7 @@ impl<T> PyDescrProtocolImpl for T {
     }
 }
 
-impl<T> PyDescrProtocolImpl for T where T: PyDescrProtocol {
+impl<'p, T> PyDescrProtocolImpl for T where T: PyDescrProtocol<'p> {
     fn methods() -> Vec<PyMethodDef> {
         Vec::new()
     }

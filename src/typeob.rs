@@ -1,13 +1,17 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std;
 use std::mem;
 use std::ffi::CString;
 use std::collections::HashMap;
 
-use ::{ffi, class, PyErr, Python, PyResult, Py};
+use {ffi, class};
+use err::{PyErr, PyResult};
+use pyptr::Py;
+use python::Python;
 use objects::PyType;
 use callback::AbortOnDrop;
-use class::{BaseObject, PyMethodDefType};
+use class::methods::PyMethodDefType;
 
 
 /// Basic python type information
@@ -81,19 +85,74 @@ impl<'a, T> PyTypeInfo for Py<'a, T> where T: PyTypeInfo {
     }
 }
 
+pub trait PyObjectAlloc {
+    type Type;
+
+    /// Allocates a new object (usually by calling ty->tp_alloc),
+    /// and initializes it using init_val.
+    /// `ty` must be derived from the Self type, and the resulting object
+    /// must be of type `ty`.
+    unsafe fn alloc(_py: &Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
+
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
+    unsafe fn dealloc(_py: &Python, obj: *mut ffi::PyObject);
+}
+
+/// A PythonObject that is usable as a base type for #[class]
+impl<T> PyObjectAlloc for T where T : PyTypeInfo {
+    type Type = T::Type;
+
+    /// Allocates a new object (usually by calling ty->tp_alloc),
+    /// and initializes it using init_val.
+    /// `ty` must be derived from the Self type, and the resulting object
+    /// must be of type `ty`.
+    unsafe fn alloc(_py: &Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
+        let obj = ffi::PyType_GenericAlloc(
+            <Self as PyTypeInfo>::type_object(), 0);
+
+        let offset = <Self as PyTypeInfo>::offset();
+        let ptr = (obj as *mut u8).offset(offset) as *mut Self::Type;
+        std::ptr::write(ptr, value);
+
+        Ok(obj)
+    }
+
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
+    unsafe fn dealloc(_py: &Python, obj: *mut ffi::PyObject) {
+        let ptr = (obj as *mut u8).offset(
+            <Self as PyTypeInfo>::offset() as isize) as *mut Self::Type;
+        std::ptr::drop_in_place(ptr);
+
+        let ty = ffi::Py_TYPE(obj);
+        if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del(obj as *mut ::c_void);
+        } else {
+            ffi::PyObject_Free(obj as *mut ::c_void);
+        }
+        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+        // so we need to call DECREF here:
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+        }
+    }
+}
 
 /// Trait implemented by Python object types that have a corresponding type object.
 pub trait PyTypeObject {
 
     /// Retrieves the type object for this Python object type.
-    fn type_object(py: Python) -> PyType;
+    fn type_object<'p>(py: Python<'p>) -> Py<'p, PyType>;
 
 }
 
-impl<T> PyTypeObject for T where T: BaseObject + PyTypeInfo {
+impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
 
     #[inline]
-    fn type_object(py: Python) -> PyType {
+    fn type_object<'p>(py: Python<'p>) -> Py<'p, PyType> {
         let mut ty = <T as PyTypeInfo>::type_object();
 
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
@@ -108,9 +167,9 @@ impl<T> PyTypeObject for T where T: BaseObject + PyTypeInfo {
     }
 }
 
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str,
-                          type_object: &mut ffi::PyTypeObject) -> PyResult<PyType>
-    where T: BaseObject + PyTypeInfo
+pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_name: &str,
+                          type_object: &mut ffi::PyTypeObject) -> PyResult<Py<'p, PyType>>
+    where T: PyObjectAlloc + PyTypeInfo
 {
     // type name
     let name = match module_name {
@@ -129,10 +188,10 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     type_object.tp_basicsize = <T as PyTypeInfo>::size() as ffi::Py_ssize_t;
 
     // GC support
-    // <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
+    <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
 
     // descriptor protocol
-    // <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
+    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
 
     // iterator methods
     // <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
@@ -148,7 +207,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         mem::forget(meth);
     } else {
         type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
-    }
+    }*/
 
     // mapping methods
     if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
@@ -158,7 +217,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         mem::forget(meth);
     } else {
         type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
-    }*/
+    }
 
     // sequence methods
     if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
@@ -170,7 +229,6 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
     }
 
-    /*
     // async methods
     if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
         static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;
@@ -182,7 +240,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 
     // buffer protocol
-    if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
+    /*if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
         static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
         *(unsafe { &mut BUFFER_PROCS }) = meth;
         type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
@@ -231,16 +289,19 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 }
 
+
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where T: PyTypeInfo
 {
+    println!("DEALLOC: {:?}", obj);
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
     let py = Python::assume_gil_acquired();
-    let r = <T as BaseObject>::dealloc(&py, obj);
+    let r = <T as PyObjectAlloc>::dealloc(&py, obj);
     mem::forget(guard);
     r
 }
 
+/*
 fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
                                  Option<ffi::PyCFunctionWithKeywords>,
                                  Vec<ffi::PyMethodDef>)  {
@@ -317,4 +378,4 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     }
 
     defs.values().map(|i| i.clone()).collect()
-}
+}*/

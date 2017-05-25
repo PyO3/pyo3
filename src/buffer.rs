@@ -19,11 +19,13 @@
 use std::os::raw;
 use std::{mem, slice, cell};
 use std::ffi::CStr;
-use ffi;
 use libc;
-use err::{self, PyResult};
+
+use ffi;
 use exc;
-use python::{Python, PyDrop};
+use err::{self, PyResult};
+use pyptr::{Py};
+use python::{Python, ToPythonPointer};
 use objects::PyObject;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
@@ -137,10 +139,12 @@ fn validate(b: &ffi::Py_buffer) {
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
-    pub fn get(py: Python, obj: &PyObject) -> PyResult<PyBuffer> {
+    pub fn get<'p>(obj: Py<'p, PyObject>) -> PyResult<PyBuffer> {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
-            err::error_on_minusone(py, ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
+            err::error_on_minusone(
+                obj.py(),
+                ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
             validate(&buf);
             Ok(PyBuffer(buf))
         }
@@ -503,13 +507,6 @@ fn incompatible_format_error(py: Python) -> PyResult<()> {
 
 fn buffer_readonly_error(py: Python) -> PyResult<()> {
     Err(err::PyErr::new::<exc::BufferError, _>(py, "Cannot write to read-only buffer."))
-}
-
-impl PyDrop for PyBuffer {
-    #[inline]
-    fn release_ref(mut self, _py: Python) {
-        unsafe { ffi::PyBuffer_Release(&mut *self.0) }
-    }
 }
 
 impl Drop for PyBuffer {

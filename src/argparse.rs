@@ -19,10 +19,11 @@
 //! This module contains logic for parsing a python argument list.
 //! See also the macros `py_argparse!`, `py_fn!` and `py_method!`.
 
+use ffi;
+use pyptr::{Py};
 use python::Python;
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::RefFromPyObject;
-use ffi;
 use err::{self, PyResult};
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -41,30 +42,31 @@ pub struct ParamDescription<'a> {
 /// * kwargs: Keyword arguments
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
-pub fn parse_args(py: Python,
-                  fname: Option<&str>, params: &[ParamDescription],
-                  args: &PyTuple, kwargs: Option<&PyDict>,
-                  accept_args: bool, accept_kwargs: bool,
-                  output: &mut[Option<PyObject>]) -> PyResult<()>
+pub fn parse_args<'p>(py: Python<'p>,
+                      fname: Option<&str>, params: &[ParamDescription],
+                      args: &Py<'p, PyTuple>, kwargs: Option<&'p Py<'p, PyDict>>,
+                      accept_args: bool, accept_kwargs: bool,
+                      output: &mut[Option<Py<'p, PyObject>>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
 
-    let nargs = args.len(py);
-    let nkeywords = kwargs.map_or(0, |d| d.len(py));
+    let nargs = args.len()?;
+    let nkeywords = kwargs.map_or(0, |d| d.len().unwrap_or(0));
     if !accept_args && (nargs + nkeywords > params.len()) {
-        return Err(err::PyErr::new::<exc::TypeError, _>(py,
+        return Err(err::PyErr::new::<exc::TypeError, _>(
+            py,
             format!("{}{} takes at most {} argument{} ({} given)",
                     fname.unwrap_or("function"),
                     if fname.is_some() { "()" } else { "" },
                     params.len(),
                     if params.len() == 1 { "s" } else { "" },
                     nargs + nkeywords
-                )));
+            )));
     }
     let mut used_keywords = 0;
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(py, p.name)) {
+        match kwargs.and_then(|d| d.as_ref().get_item(p.name)) {
             Some(kwarg) => {
                 *out = Some(kwarg);
                 used_keywords += 1;
@@ -76,13 +78,13 @@ pub fn parse_args(py: Python,
             },
             None => {
                 if i < nargs {
-                    *out = Some(args.get_item(py, i));
+                    *out = Some(args.as_ref().get_item(i));
                 } else {
                     *out = None;
                     if !p.is_optional {
-                        return Err(err::PyErr::new::<exc::TypeError, _>(py,
-                            format!("Required argument ('{}') (pos {}) not found",
-                                    p.name, i+1)));
+                        return Err(err::PyErr::new::<exc::TypeError, _>(
+                            py, format!("Required argument ('{}') (pos {}) not found",
+                                        p.name, i+1)));
                     }
                 }
             }
@@ -90,8 +92,8 @@ pub fn parse_args(py: Python,
     }
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
-        for (key, _value) in kwargs.unwrap().items(py) {
-            let key = try!(try!(key.cast_as::<PyString>(py)).to_string(py));
+        for (key, _value) in kwargs.unwrap().items() {
+            let key = try!(try!(key.cast_as::<PyString>()).to_string());
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(py,
                     format!("'{}' is an invalid keyword argument for this function",
@@ -351,11 +353,11 @@ macro_rules! py_argparse_raw {
 
 #[inline]
 #[doc(hidden)]
-pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
+pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Py<'p, PyDict>> {
     if ptr.is_null() {
         None
     } else {
-        Some(PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into())
+        Some(Py::<PyDict>::from_borrowed_ptr(py, ptr))
     }
 }
 
@@ -430,9 +432,12 @@ macro_rules! py_argparse_extract {
 }
 
 #[doc(hidden)] // used in py_argparse_extract!() macro
-pub fn with_extracted_or_default<P: ?Sized, R, F>(py: Python, obj: Option<&PyObject>, f: F, default: &'static P) -> PyResult<R>
+pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
+    py: Python<'p>,
+    obj: Option<&'p Py<'p,PyObject>>,
+    f: F, default: &'static P) -> PyResult<R>
     where F: FnOnce(&P) -> PyResult<R>,
-          P: RefFromPyObject
+          P: RefFromPyObject<'p>
 {
     match obj {
         Some(obj) => match P::with_extracted(py, obj, f) {

@@ -1,9 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std::os::raw::c_long;
+use pyptr::Py;
 use objects::PyObject;
-use python::{Python, PythonObject};
-use err::{self, PyErr, PyResult};
+use python::{AsPy, Python, ToPythonPointer};
+use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use conversion::ToPyObject;
 
@@ -35,18 +36,18 @@ pyobject_newtype!(PySlice, PySlice_Check, PySlice_Type);
 
 impl PySlice {
     /// Construct a new slice with the given elements.
-    pub fn new(py: Python, start: isize, stop: isize, step: isize) -> PySlice {
+    pub fn new<'p>(py: Python<'p>, start: isize, stop: isize, step: isize) -> Py<'p, PySlice> {
         unsafe {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            err::result_from_owned_ptr(py, ptr).unwrap().unchecked_cast_into::<PySlice>()
+            Py::from_owned_ptr_or_panic(py, ptr)
         }
     }
 
     /// Retrieve the start, stop, and step indices from the slice object slice assuming a sequence of length length, and store the length of the slice in slicelength.
     #[inline]
-    pub fn indices(&self, py: Python, length: c_long) -> PyResult<PySliceIndices> {
+    pub fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
             let slicelen: isize = 0;
@@ -54,7 +55,7 @@ impl PySlice {
             let stop: isize = 0;
             let step: isize = 0;
             let r = ffi::PySlice_GetIndicesEx(
-                self.0.as_ptr(), length as Py_ssize_t,
+                self.as_ptr(), length as Py_ssize_t,
                 &start as *const _ as *mut _,
                 &stop as *const _ as *mut _,
                 &step as *const _ as *mut _,
@@ -67,14 +68,14 @@ impl PySlice {
                     slicelength: slicelen,
                 })
             } else {
-                Err(PyErr::fetch(py))
+                Err(PyErr::fetch(self.py()))
             }
         }
     }
 }
 
 impl ToPyObject for PySliceIndices {
-    fn to_py_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
         PySlice::new(py, self.start, self.stop, self.step).into_object()
     }
 }

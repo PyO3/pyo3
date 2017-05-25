@@ -1,18 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::convert::{AsRef, AsMut};
 
 use ffi;
 use ::ToPyObject;
-use err::{self, PyResult};
-use python::Python;
-use class::BaseObject;
+use err::{PyErr, PyResult, PyDowncastError};
+use python::{Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
-use class::typeob::PyTypeInfo;
+use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
 #[derive(Debug)]
@@ -30,22 +28,6 @@ impl<T> PyPtr<T> {
         Py{inner: self.inner, _t: PhantomData, _py: PhantomData}
     }
 
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
-    #[inline]
-    pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner
-    }
-
-    /// Gets the underlying FFI pointer.
-    /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.
-    #[inline]
-    #[must_use]
-    pub fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.inner;
-        std::mem::forget(self);
-        ptr
-    }
-
     /// Gets the reference count of this PyPtr object.
     #[inline]
     pub fn get_refcnt(&self) -> usize {
@@ -55,6 +37,26 @@ impl<T> PyPtr<T> {
     #[inline]
     pub fn clone_ref(&self, _py: Python) -> PyPtr<T> {
         PyPtr{inner: self.inner.clone(), _t: PhantomData}
+    }
+}
+
+impl<T> ToPythonPointer for PyPtr<T> {
+    /// Gets the underlying FFI pointer, returns a borrowed pointer.
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.inner
+    }
+}
+
+impl<T> IntoPythonPointer for PyPtr<T> {
+    /// Gets the underlying FFI pointer.
+    /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.
+    #[inline]
+    #[must_use]
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.inner;
+        std::mem::forget(self);
+        ptr
     }
 }
 
@@ -92,6 +94,31 @@ impl<'p, T> Py<'p, T>
         Py {inner: ptr, _t: PhantomData, _py: PhantomData}
     }
 
+    /// Cast from ffi::PyObject ptr to a concrete object.
+    #[inline]
+    pub unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T>
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error(py);
+        } else {
+            Py::from_owned_ptr(py, ptr)
+        }
+    }
+
+    /// Construct Py<'p, PyObj> from the result of a Python FFI call that
+    /// returns a new reference (owned pointer).
+    /// Returns `Err(PyErr)` if the pointer is `null`.
+    /// Unsafe because the pointer might be invalid.
+    pub unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                        -> PyResult<Py<'p, T>>
+    {
+        if ptr.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(Py::from_owned_ptr(py, ptr))
+        }
+    }
+
     /// Creates a Py instance for the given FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
@@ -100,6 +127,20 @@ impl<'p, T> Py<'p, T>
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
         Py {inner: ptr, _t: PhantomData, _py: PhantomData}
+    }
+
+    /// Creates a Py instance for the given FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr_opt(_py: Python<'p>,
+                                        ptr: *mut ffi::PyObject) -> Option<Py<'p, T>> {
+        if ptr.is_null() {
+            None
+        } else {
+            debug_assert!(ffi::Py_REFCNT(ptr) > 0);
+            ffi::Py_INCREF(ptr);
+            Some(Py {inner: ptr, _t: PhantomData, _py: PhantomData})
+        }
     }
 
     /// Retrieve Python instance, the GIL is already acquired and
@@ -133,20 +174,13 @@ impl<'p, T> Py<'p, T>
         ptr
     }
 
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
+    /// Converts Py<'p, T> -> Py<'p, PyObject>
+    /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    pub fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner
-    }
-
-    /// Gets the underlying FFI pointer.
-    /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.
-    #[inline]
-    #[must_use]
-    pub fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.inner;
+    pub fn into_object(self) -> Py<'p, PyObject> {
+        let p = Py {inner: self.inner, _t: PhantomData, _py: PhantomData};
         std::mem::forget(self);
-        ptr
+        p
     }
 
     /// Unchecked downcast from other Py<S> to Self<T.
@@ -158,61 +192,72 @@ impl<'p, T> Py<'p, T>
         std::mem::forget(py);
         res
     }
+
+    pub fn clone_ref(&self) -> Py<'p, T> {
+        unsafe { ffi::Py_INCREF(self.inner) };
+        Py {inner: self.inner, _t: self._t, _py: self._py}
+    }
 }
 
 
 impl<'p, T> Py<'p, T> where T: PyTypeInfo
 {
     /// Create new python object and move T instance under python management
-    pub fn new(py: &Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: BaseObject<Type=T>
+    pub fn new(py: &Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: PyObjectAlloc<Type=T>
     {
         let ob = unsafe {
-            try!(<T as BaseObject>::alloc(py, value))
+            try!(<T as PyObjectAlloc>::alloc(py, value))
         };
         Ok(Py{inner: ob, _t: PhantomData, _py: PhantomData})
     }
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn cast_from_borrowed(py: Python<'p>, ptr: *mut ffi::PyObject)
-                              -> Result<Py<'p, T>, ::PythonObjectDowncastError<'p>>
+    pub fn cast_from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                  -> Result<Py<'p, T>, ::PyDowncastError<'p>>
     {
-        println!("cast from borrowed {:?}", ptr);
         let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
 
         if checked {
             Ok( unsafe { Py::from_borrowed_ptr(py, ptr) })
         } else {
-            Err(::PythonObjectDowncastError(py, None))
+            Err(::PyDowncastError(py, None))
         }
     }
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn cast_from_owned(py: Python<'p>, ptr: *mut ffi::PyObject)
-                           -> Result<Py<'p, T>, ::PythonObjectDowncastError<'p>>
+    pub fn cast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
+                               -> Result<Py<'p, T>, ::PyDowncastError<'p>>
     {
-        println!("cast from owned {:?}", ptr);
         let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
 
         if checked {
             Ok( unsafe { Py::from_owned_ptr(py, ptr) })
         } else {
-            Err(::PythonObjectDowncastError(py, None))
+            Err(::PyDowncastError(py, None))
         }
     }
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn cast_from_owned_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T>
+    pub unsafe fn cast_from_owned_ptr_or_panic(py: Python<'p>,
+                                               ptr: *mut ffi::PyObject) -> Py<'p, T>
     {
-        println!("cast from {:?}", ptr);
-        let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
-
-        if checked {
-            unsafe { Py::from_owned_ptr(py, ptr) }
+        if ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 {
+            Py::from_owned_ptr(py, ptr)
         } else {
             ::err::panic_after_error(py);
+        }
+    }
+
+    pub fn cast_from_owned_nullptr(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                   -> PyResult<Py<'p, T>>
+    {
+        if ptr.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Py::cast_from_owned_ptr(py, ptr).map_err(|e| e.into())
         }
     }
 
@@ -237,34 +282,46 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    /// Fails with `PythonObjectDowncastError` if the object is not of the expected type.
-    /// This is a wrapper function around `PythonObjectWithCheckedDowncast::downcast_from()`.
+    /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast<D>(&self) -> Result<Py<'p, D>, ::PythonObjectDowncastError<'p>>
-        where D: ::PyWithCheckedDowncast<'p>
+    pub fn cast<D>(&self) -> Result<Py<'p, D>, PyDowncastError<'p>>
+        where D: PyTypeInfo
     {
-        ::PyWithCheckedDowncast::downcast_from(self.clone())
+        let checked = unsafe { ffi::PyObject_TypeCheck(self.inner, D::type_object()) != 0 };
+        if checked {
+            Ok( unsafe { Py::<D>::unchecked_downcast_from(self.clone_ref()) })
+        } else {
+            Err(PyDowncastError(self.py(), None))
+        }
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    /// Fails with `PythonObjectDowncastError` if the object is not of the expected type.
-    /// This is a wrapper function around `PythonObjectWithCheckedDowncast::downcast_from()`.
+    /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast_into<D>(self) -> Result<Py<'p, D>, ::PythonObjectDowncastError<'p>>
-        where D: ::PyWithCheckedDowncast<'p>
+    pub fn cast_into<D>(self) -> Result<Py<'p, D>, PyDowncastError<'p>>
+        where D: PyTypeInfo
     {
-        ::PyWithCheckedDowncast::downcast_from(self)
+        let checked = unsafe { ffi::PyObject_TypeCheck(self.inner, D::type_object()) != 0 };
+        if checked {
+            Ok( unsafe { Py::<D>::unchecked_downcast_from(self) })
+        } else {
+            Err(PyDowncastError(self.py(), None))
+        }
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    /// Fails with `PythonObjectDowncastError` if the object is not of the expected type.
-    /// This is a wrapper function around
-    /// `PythonObjectWithCheckedDowncast::downcast_borrow_from()`.
+    /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast_as<D>(&'p self) -> Result<&'p D, ::PythonObjectDowncastError<'p>>
-        where D: ::PyWithCheckedDowncast<'p>
+    pub fn cast_as<'s, D>(&'s self) -> Result<&'s D, PyDowncastError<'p>>
+        where D: PyTypeInfo
     {
-        ::PyWithCheckedDowncast::downcast_borrow_from(&self)
+        let checked = unsafe { ffi::PyObject_TypeCheck(self.inner, D::type_object()) != 0 };
+
+        if checked {
+            Ok( unsafe { Py::<D>::unchecked_downcast_borrow_from(self) })
+        } else {
+            Err(PyDowncastError(self.py(), None))
+        }
     }
 
     /// Unchecked downcast from Py<'p, S> to &'p S.
@@ -278,12 +335,32 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     }
 
     /// Extracts some type from the Python object.
-    /// This is a wrapper function around `FromPyObject::from_py_object()`.
+    /// This is a wrapper function around `FromPyObject::extract()`.
     #[inline]
-    pub fn extr<D>(&'p self) -> PyResult<D>
-        where D: ::conversion::FromPyObj<'p>
+    pub fn extract<D>(&'p self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
     {
-        ::conversion::FromPyObj::extr(&self)
+        ::conversion::FromPyObject::extract(&self)
+    }
+}
+
+impl<'p, T> ToPythonPointer for Py<'p, T> {
+    /// Gets the underlying FFI pointer, returns a borrowed pointer.
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.inner
+    }
+}
+
+impl<'p, T> IntoPythonPointer for Py<'p, T> {
+
+    /// Gets the underlying FFI pointer.
+    /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.
+    #[inline]
+    #[must_use]
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.inner;
+        std::mem::forget(self);
+        ptr
     }
 }
 
@@ -329,71 +406,42 @@ impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeInfo {
     }
 }
 
-impl<'p, T> ::PyWithCheckedDowncast<'p> for T where T: PyTypeInfo
+impl<'source, T> ::FromPyObject<'source> for &'source T
+    where T: PyTypeInfo
 {
     #[inline]
-    default fn downcast_from<S>(ob: Py<'p, S>)
-                                -> Result<Py<'p, T>, ::PythonObjectDowncastError<'p>>
-    {
-        println!("downcast from");
-        let checked = unsafe { ffi::PyObject_TypeCheck(ob.inner, T::type_object()) != 0 };
-
-        if checked {
-            Ok( unsafe { Py::<T>::unchecked_downcast_from(ob) })
-        } else {
-            Err(::PythonObjectDowncastError(ob.py(), None))
-        }
-    }
-
-    #[inline]
-    default fn downcast_borrow_from<'source, S>(
-        ob: &'source Py<'p, S>) -> Result<&'source T, ::PythonObjectDowncastError<'p>>
+    default fn extract<S>(py: &'source Py<'source, S>) -> PyResult<&'source T>
         where S: PyTypeInfo
     {
-        println!("downcast borrow from {:?}", ob);
-        let checked = unsafe { ffi::PyObject_TypeCheck(ob.inner, T::type_object()) != 0 };
+        Ok(py.cast_as()?)
+    }
+}
 
-        println!("downcast borrow from {:?} {:?}", checked, ob.inner);
-
+impl<'source, T> ::FromPyObject<'source> for Py<'source, T>
+    where T: PyTypeInfo
+{
+    #[inline]
+    default fn extract<S>(py: &'source Py<'source, S>) -> PyResult<Py<'source, T>>
+        where S: PyTypeInfo
+    {
+        let checked = unsafe { ffi::PyObject_TypeCheck(py.inner, T::type_object()) != 0 };
         if checked {
-            Ok( unsafe { Py::<T>::unchecked_downcast_borrow_from(ob) })
+            Ok( unsafe { Py::<T>::from_borrowed_ptr(py.py(), py.as_ptr()) })
         } else {
-            Err(::PythonObjectDowncastError(ob.py(), None))
+            Err(PyDowncastError(py.py(), None).into())
         }
     }
 }
 
-impl<'source, T> ::FromPyObj<'source> for &'source T
-    where T: PyTypeInfo
-{
+impl<'a, T> ToPyObject for Py<'a, T> {
     #[inline]
-    default fn extr<S>(py: &'source Py<'source, S>) -> PyResult<&'source T>
-        where S: PyTypeInfo
-    {
-        Ok(::PyWithCheckedDowncast::downcast_borrow_from(py)?)
-    }
-}
-
-impl<'source, T> ::FromPyObj<'source> for Py<'source, T>
-    where T: PyTypeInfo
-{
-    #[inline]
-    default fn extr<S>(py: &'source Py<'source, S>) -> PyResult<Py<'source, T>>
-        where S: PyTypeInfo
-    {
-        Ok(::PyWithCheckedDowncast::downcast_from(py.clone())?)
-    }
-}
-
-impl<'p, T> ToPyObject for Py<'p, T> {
-    #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
-        unsafe {PyObject::from_owned_ptr(py, self.inner)}
+    default fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+        PyObject::from_owned_ptr(py, self.inner)
     }
 
     #[inline]
-    fn into_py_object(self, py: Python) -> PyObject {
-        unsafe {PyObject::from_borrowed_ptr(py, self.inner)}
+    default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
+        PyObject::from_borrowed_ptr(py, self.inner)
     }
 
     #[inline]
@@ -401,14 +449,5 @@ impl<'p, T> ToPyObject for Py<'p, T> {
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         f(self.inner)
-    }
-}
-
-impl<'p, T> fmt::Debug for Py<'p, T> where T: PyTypeInfo {
-    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let repr_obj  = try!(unsafe {
-            err::result_cast_from_owned_ptr::<::PyString>(self.py(), ffi::PyObject_Repr(self.as_ptr()))
-        }.map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy(self.py()))
     }
 }
