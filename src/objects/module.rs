@@ -25,6 +25,7 @@ use conversion::{ToPyObject, ToPyTuple};
 use objects::{PyObject, PyDict, PyType, exc};
 use err::{self, PyResult, PyErr};
 use std::ffi::{CStr, CString};
+use class::PyTypeObject;
 
 /// Represents a Python module object.
 pub struct PyModule(PyObject);
@@ -128,5 +129,26 @@ impl PyModule {
         };
 
         self.add(py, type_name, ty)
+    }
+}
+
+impl PyTypeObject for PyModule {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyModule_Type) }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use class::PyTypeObject;
+    use python::{Python, PythonObject};
+    use objects::PyModule;
+
+    #[test]
+    fn test_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyModule::type_object(py);
+        assert_eq!(typ.name(py), "module");
     }
 }

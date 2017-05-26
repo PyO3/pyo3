@@ -26,6 +26,8 @@ use python::{Python, PythonObject, ToPythonPointer};
 use super::{exc, PyObject};
 use err::{self, PyResult, PyErr};
 use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python string.
 pub struct PyString(PyObject);
@@ -278,10 +280,23 @@ impl RefFromPyObject for str {
     }
 }
 
+impl PyTypeObject for PyString {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyUnicode_Type) }
+    }
+}
+
+impl PyTypeObject for PyBytes {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyBytes_Type) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject};
     use conversion::{ToPyObject, RefFromPyObject};
+    use class::PyTypeObject;
 
     #[test]
     fn test_non_bmp() {
@@ -305,6 +320,26 @@ mod test {
                 called = true;
             }).unwrap();
         assert!(called);
+    }
+
+    #[test]
+    fn test_string_type_object() {
+        use super::PyString;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyString::type_object(py);
+        assert_eq!(typ.name(py), "str");
+    }
+
+    #[test]
+    fn test_bytes_type_object() {
+        use super::PyBytes;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyBytes::type_object(py);
+        assert_eq!(typ.name(py), "bytes");
     }
 }
 

@@ -96,7 +96,7 @@ pub use python::{Python, PythonObject,
                  PythonObjectWithCheckedDowncast, PythonObjectDowncastError, PyClone, PyDrop};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, ToPyTuple};
-pub use class::{CompareOp};
+pub use class::{CompareOp, PyTypeObject, is_instance};
 pub use objectprotocol::{ObjectProtocol};
 
 #[allow(non_camel_case_types)]

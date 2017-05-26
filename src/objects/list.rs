@@ -21,6 +21,8 @@ use python::{Python, PythonObject};
 use objects::PyObject;
 use ffi::{self, Py_ssize_t};
 use conversion::ToPyObject;
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python `list`.
 pub struct PyList(PyObject);
@@ -133,11 +135,18 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
     }
 }
 
+impl PyTypeObject for PyList {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyList_Type) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
     use objects::PyList;
+    use class::PyTypeObject;
 
     #[test]
     fn test_len() {
@@ -208,5 +217,13 @@ mod test {
         let list = PyList::new(py, &v);
         let v2 = list.into_object().extract::<Vec<i32>>(py).unwrap();
         assert_eq!(v, v2);
+    }
+
+    #[test]
+    fn test_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyList::type_object(py);
+        assert_eq!(typ.name(py), "list");
     }
 }

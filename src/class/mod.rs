@@ -102,3 +102,33 @@ impl BaseObject for PyObject {
         }
     }
 }
+
+
+pub fn is_instance(py: Python, obj: &PyObject, typ: &PyType) -> PyResult<bool> {
+    let result = unsafe {
+        ffi::PyObject_IsInstance(obj.as_ptr(), typ.as_ptr())
+    };
+    if result == -1 {
+        Err(err::PyErr::fetch(py))
+    } else if result == 1 {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use python::{Python, PythonObject};
+    use objects::{PyBool, PyList};
+    use super::{is_instance, PyTypeObject};
+
+    #[test]
+    fn test_isinstance() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        assert!(is_instance(py, py.True().as_object(), &PyBool::type_object(py)).unwrap());
+        let list = PyList::new(py, &[1, 2, 3, 4]);
+        assert!(!is_instance(py, list.as_object(), &PyBool::type_object(py)).unwrap());
+    }
+}

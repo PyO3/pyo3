@@ -7,6 +7,8 @@ use ffi;
 use python::{Python, PythonObject, ToPythonPointer};
 use objects::PyObject;
 use err::{self, PyResult, PyErr};
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python bytearray.
 pub struct PyByteArray(PyObject);
@@ -71,6 +73,12 @@ impl PyByteArray {
     }
 }
 
+impl PyTypeObject for PyByteArray {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyByteArray_Type) }
+    }
+}
+
 
 #[cfg(test)]
 mod test {
@@ -101,5 +109,13 @@ mod test {
         } else {
             panic!("error");
         }
+    }
+
+    #[test]
+    fn test_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyByteArray::type_object(py);
+        assert_eq!(typ.name(py), "bytearray");
     }
 }
