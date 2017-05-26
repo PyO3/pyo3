@@ -1,5 +1,6 @@
 use syn;
 use quote::Tokens;
+use utils::print_err;
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -63,10 +64,14 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     }
                 },
-                MethodProto::Binary{name: _, arg, pyres, proto} => {
+                MethodProto::Binary{name: n, arg, pyres, proto} => {
+                    if sig.decl.inputs.len() < 2 {
+                        println!("Not enough arguments for {}", n);
+                        return Tokens::new();
+                    }
                     let p = syn::Ident::from(proto);
                     let arg_name = syn::Ident::from(arg);
-                    let arg_ty = get_arg_ty(sig, 1);
+                    let arg_ty = get_arg_ty(sig, 2);
                     let succ = get_res_success(ty);
 
                     let tmp = extract_decl(syn::parse_item(
@@ -79,7 +84,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                             &self,
                             arg: Option<<#cls as #p<'p>>::#arg_name>)
                                 -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
-                    modify_arg_ty(sig, 1, &tmp, &tmp2);
+                    modify_arg_ty(sig, 2, &tmp, &tmp2);
 
                     if pyres {
                         quote! {
@@ -98,12 +103,16 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     }
                 },
-                MethodProto::Ternary{name: _, arg1, arg2, pyres, proto} => {
+                MethodProto::Ternary{name: n, arg1, arg2, pyres, proto} => {
+                    if sig.decl.inputs.len() < 3 {
+                        print_err(format!("Not enough arguments {}", n), quote!(sig));
+                        return Tokens::new();
+                    }
                     let p = syn::Ident::from(proto);
                     let arg1_name = syn::Ident::from(arg1);
-                    let arg1_ty = get_arg_ty(sig, 1);
+                    let arg1_ty = get_arg_ty(sig, 2);
                     let arg2_name = syn::Ident::from(arg2);
-                    let arg2_ty = get_arg_ty(sig, 2);
+                    let arg2_ty = get_arg_ty(sig, 3);
                     let succ = get_res_success(ty);
 
                     // rewrite ty
@@ -119,8 +128,8 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                             arg1: Option<<#cls as #p<'p>>::#arg1_name>,
                             arg2: Option<<#cls as #p<'p>>::#arg2_name>)
                                 -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
-                    modify_arg_ty(sig, 1, &tmp, &tmp2);
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
+                    modify_arg_ty(sig, 3, &tmp, &tmp2);
 
                     if pyres {
                         quote! {
@@ -141,14 +150,18 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     }
                 },
-                MethodProto::Quaternary{name: _, arg1, arg2, arg3, proto} => {
+                MethodProto::Quaternary{name: n, arg1, arg2, arg3, proto} => {
+                    if sig.decl.inputs.len() < 4 {
+                        print_err(format!("Not enough arguments {}", n), quote!(sig));
+                        return Tokens::new();
+                    }
                     let p = syn::Ident::from(proto);
                     let arg1_name = syn::Ident::from(arg1);
-                    let arg1_ty = get_arg_ty(sig, 1);
+                    let arg1_ty = get_arg_ty(sig, 2);
                     let arg2_name = syn::Ident::from(arg2);
-                    let arg2_ty = get_arg_ty(sig, 2);
+                    let arg2_ty = get_arg_ty(sig, 3);
                     let arg3_name = syn::Ident::from(arg3);
-                    let arg3_ty = get_arg_ty(sig, 3);
+                    let arg3_ty = get_arg_ty(sig, 4);
                     let succ = get_res_success(ty);
 
                     // rewrite ty
@@ -166,9 +179,9 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                             arg2: Option<<#cls as #p<'p>>::#arg2_name>,
                             arg3: Option<<#cls as #p<'p>>::#arg3_name>)
                                 -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
-                    modify_arg_ty(sig, 1, &tmp, &tmp2);
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
                     modify_arg_ty(sig, 3, &tmp, &tmp2);
+                    modify_arg_ty(sig, 4, &tmp, &tmp2);
 
                     quote! {
                         impl<'p> #p<'p> for #cls {
@@ -262,13 +275,13 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize,
                 &syn::Ty::Path(_, ref path) => {
                     let seg = path.segments.last().unwrap().clone();
                     if seg.ident.as_ref() == "Option" {
-                        sig.decl.inputs[idx] = fix_name(pat, &decl2.inputs[idx]);
+                        sig.decl.inputs[idx] = fix_name(pat, &decl2.inputs[idx-1]);
                     } else {
-                        sig.decl.inputs[idx] = fix_name(pat, &decl1.inputs[idx]);
+                        sig.decl.inputs[idx] = fix_name(pat, &decl1.inputs[idx-1]);
                     }
                 },
                 _ => {
-                    sig.decl.inputs[idx] = fix_name(pat, &decl1.inputs[idx]);
+                    sig.decl.inputs[idx] = fix_name(pat, &decl1.inputs[idx-1]);
                 }
             }
         },

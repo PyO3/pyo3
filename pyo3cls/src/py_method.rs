@@ -38,19 +38,27 @@ fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
 pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let cb = impl_call(cls, name, &spec);
     let body = impl_arg_params(&spec, cb);
+    let output = &spec.output;
 
     quote! {
+        #[allow(unused_mut)]
         unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject,
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            _pyo3::callback::handle(LOCATION, _pyo3::callback::PyObjectCallbackConverter, |py| {
+            _pyo3::callback::cb_meth::<_, *mut _pyo3::ffi::PyObject>(LOCATION, |py| {
+                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
+
                 let args: _pyo3::Py<_pyo3::PyTuple> = _pyo3::Py::from_borrowed_ptr(py, args);
                 let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
                     _pyo3::argparse::get_kwargs(py, kwargs);
 
-                #body
+                let result: #output = {
+                    #body
+                };
+                _pyo3::callback::cb_convert(
+                    _pyo3::callback::PyObjectCallbackConverter, py, result)
             })
         }
     }
@@ -151,8 +159,7 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
 fn impl_call(cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
     quote! {{
-        let slf: _pyo3::Py<#cls> = _pyo3::Py::from_borrowed_ptr(py, slf);
-        slf.as_mut().#fname(#(#names),*)
+        slf.#fname(py, #(#names),*)
     }}
 }
 
@@ -270,7 +277,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
                             if obj == &py.None() {
                                 Ok(#default)
                             } else {
-                                match _pyo3::callback::unref_r(obj).extract() {
+                                match obj.extract() {
                                     Ok(obj) => Ok(Some(obj)),
                                     Err(e) => Err(e)
                                 }
@@ -290,7 +297,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
                         if obj == &py.None() {
                             Ok(#default)
                         } else {
-                            match _pyo3::callback::unref_r(obj).extract() {
+                            match obj.extract() {
                                 Ok(obj) => Ok(obj),
                                 Err(e) => Err(e),
                             }
@@ -305,8 +312,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
         }
         else {
             quote! {
-                match _pyo3::callback::unref_r(
-                    _iter.next().unwrap().as_ref().unwrap()).extract()
+                match _iter.next().unwrap().as_ref().unwrap().extract()
                 {
                     Ok(#name) => {
                         #body

@@ -58,6 +58,7 @@ fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
                 unused_qualifications, unused_variables)]
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
+            use pyo3::callback::CallbackConverter;
 
             #tokens
         };

@@ -33,6 +33,7 @@ pub struct FnSpec<'a> {
     pub tp: FnType,
     pub attrs: Vec<FnAttr>,
     pub args: Vec<FnArg<'a>>,
+    pub output: syn::Ty,
 }
 
 impl<'a> FnSpec<'a> {
@@ -43,8 +44,7 @@ impl<'a> FnSpec<'a> {
         let (fn_type, fn_attrs) = parse_attributes(meth_attrs);
 
         //let mut has_self = false;
-        //let mut py = false;
-        let mut py = true;
+        let mut py = false;
         let mut arguments = Vec::new();
 
         for input in sig.decl.inputs[1..].iter() {
@@ -75,10 +75,16 @@ impl<'a> FnSpec<'a> {
             }
         }
 
+        let ty = match sig.decl.output {
+            syn::FunctionRetTy::Default => syn::Ty::Infer,
+            syn::FunctionRetTy::Ty(ref ty) => ty.clone()
+        };
+
         FnSpec {
             tp: fn_type,
             attrs: fn_attrs,
-            args: arguments
+            args: arguments,
+            output: ty,
         }
     }
 

@@ -250,6 +250,40 @@ pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: 
     ret
 }
 
+pub unsafe fn cb_meth<F, R>(location: &str, f: F) -> *mut ffi::PyObject
+    where F: for<'p> FnOnce(Python<'p>) -> *mut ffi::PyObject,
+          F: panic::UnwindSafe
+{
+    let guard = AbortOnDrop(location);
+    let ret = panic::catch_unwind(|| {
+        let py = Python::assume_gil_acquired();
+        f(py)
+    });
+    let ret = match ret {
+        Ok(r) => r,
+        Err(ref err) => {
+            handle_panic(Python::assume_gil_acquired(), err);
+            ptr::null_mut()
+        }
+    };
+    mem::forget(guard);
+    ret
+}
+
+#[inline]
+pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
+    where C: CallbackConverter<T>
+{
+    match value {
+        Ok(val) => C::convert(val, py),
+        Err(e) => {
+            e.restore(py);
+            C::error_value()
+        }
+    }
+}
+
+
 pub fn handle_panic(_py: Python, _panic: &any::Any) {
     unsafe {
         ffi::PyErr_SetString(ffi::PyExc_SystemError, "Rust panic\0".as_ptr() as *const i8);
