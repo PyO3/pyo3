@@ -23,6 +23,8 @@ use super::exc;
 use ffi::{self, Py_ssize_t};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple};
 use std::slice;
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python tuple object.
 pub struct PyTuple(PyObject);
@@ -214,9 +216,17 @@ extract!(obj to NoArgs; py => {
 });
 
 
+impl PyTypeObject for PyTuple {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyTuple_Type) }
+    }
+}
+
+
 #[cfg(test)]
 mod test {
     use PyTuple;
+    use class::PyTypeObject;
     use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
 
     #[test]
@@ -226,6 +236,14 @@ mod test {
         let tuple = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, tuple.len(py));
         assert_eq!((1, 2, 3), tuple.into_object().extract(py).unwrap());
+    }
+
+    #[test]
+    fn test_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyTuple::type_object(py);
+        assert_eq!(typ.name(py), "tuple");
     }
 }
 

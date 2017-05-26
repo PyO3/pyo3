@@ -3,6 +3,8 @@ use python::{Python, PythonObject};
 use err::PyResult;
 use super::{PyObject};
 use conversion::{ToPyObject};
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python `bool`.
 pub struct PyBool(PyObject);
@@ -39,6 +41,12 @@ impl ToPyObject for bool {
     }
 }
 
+impl PyTypeObject for PyBool {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyBool_Type) }
+    }
+}
+
 /// Converts a Python `bool` to a rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
@@ -50,6 +58,7 @@ extract!(obj to bool; py => {
 mod test {
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
+    use class::PyTypeObject;
 
     #[test]
     fn test_true() {
@@ -67,5 +76,15 @@ mod test {
         assert!(!py.False().is_true());
         assert_eq!(false, py.False().as_object().extract(py).unwrap());
         assert!(false.to_py_object(py).as_object() == py.False().as_object());
+    }
+
+    #[test]
+    fn test_type_object() {
+        use super::PyBool;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyBool::type_object(py);
+        assert_eq!(typ.name(py), "bool");
     }
 }

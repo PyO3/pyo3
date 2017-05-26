@@ -23,6 +23,7 @@ use err::{PyResult, result_from_owned_ptr};
 use ffi;
 use std::ffi::CStr;
 use std::borrow::Cow;
+use class::PyTypeObject;
 
 /// Represents a reference to a Python type object.
 pub struct PyType(PyObject);
@@ -31,6 +32,12 @@ pyobject_newtype!(PyType, PyType_Check, PyType_Type);
 
 impl PyType {
     /// Retrieves the underlying FFI pointer associated with this Python object.
+    #[inline]
+    pub fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.0.as_ptr()
+    }
+
+    /// Retrieves the underlying FFI pointer as `PyTypeObject` pointer associated with this Python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
         self.0.as_ptr() as *mut ffi::PyTypeObject
@@ -83,3 +90,23 @@ impl PartialEq for PyType {
 }
 impl Eq for PyType { }
 
+impl PyTypeObject for PyType {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyType_Type) }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use class::PyTypeObject;
+    use python::{Python};
+    use super::PyType;
+
+    #[test]
+    fn test_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyType::type_object(py);
+        assert_eq!(typ.name(py), "type");
+    }
+}

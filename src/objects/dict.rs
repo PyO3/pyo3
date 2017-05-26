@@ -22,6 +22,8 @@ use conversion::ToPyObject;
 use objects::{PyObject, PyList};
 use err::{self, PyResult, PyErr};
 use std::{mem, collections, hash, cmp};
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python `dict`.
 pub struct PyDict(PyObject);
@@ -152,12 +154,19 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     }
 }
 
+impl PyTypeObject for PyDict {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyDict_Type) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use python::{Python, PythonObject, PythonObjectWithCheckedDowncast};
     use conversion::ToPyObject;
     use objects::{PyDict, PyTuple};
     use std::collections::{BTreeMap, HashMap};
+    use class::PyTypeObject;
 
     #[test]
     fn test_len() {
@@ -298,6 +307,7 @@ mod test {
         assert!( py_map.get_item(py, 1).unwrap().extract::<i32>(py).unwrap() == 1);
     }
 
+    #[test]
     fn test_btreemap_to_python() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -309,5 +319,13 @@ mod test {
 
         assert!(py_map.len(py) == 1);
         assert!( py_map.get_item(py, 1).unwrap().extract::<i32>(py).unwrap() == 1);
+    }
+
+    #[test]
+    fn test_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyDict::type_object(py);
+        assert_eq!(typ.name(py), "dict");
     }
 }

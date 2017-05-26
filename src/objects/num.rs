@@ -26,6 +26,8 @@ use super::object::PyObject;
 use super::exc;
 use ffi;
 use conversion::{ToPyObject, FromPyObject};
+use class::PyTypeObject;
+use objects::PyType;
 
 /// Represents a Python `int` object.
 ///
@@ -202,11 +204,24 @@ extract!(obj to f32; py => {
     Ok(try!(obj.extract::<f64>(py)) as f32)
 });
 
+impl PyTypeObject for PyLong {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyLong_Type) }
+    }
+}
+
+impl PyTypeObject for PyFloat {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyFloat_Type) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std;
     use python::{Python, PythonObject};
     use conversion::ToPyObject;
+    use class::PyTypeObject;
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (
@@ -249,7 +264,7 @@ mod test {
         assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<i32>(py).is_err());
     }
-    
+
     #[test]
     fn test_i64_max() {
         let gil = Python::acquire_gil();
@@ -260,7 +275,7 @@ mod test {
         assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<u32>(py).is_err());
     }
-    
+
     #[test]
     fn test_i64_min() {
         let gil = Python::acquire_gil();
@@ -271,7 +286,7 @@ mod test {
         assert!(obj.extract::<i32>(py).is_err());
         assert!(obj.extract::<u64>(py).is_err());
     }
-    
+
     #[test]
     fn test_u64_max() {
         let gil = Python::acquire_gil();
@@ -281,5 +296,25 @@ mod test {
         println!("{:?}", obj);
         assert_eq!(v, obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<i64>(py).is_err());
+    }
+
+    #[test]
+    fn test_long_type_object() {
+        use super::PyLong;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyLong::type_object(py);
+        assert_eq!(typ.name(py), "int");
+    }
+
+    #[test]
+    fn test_float_type_object() {
+        use super::PyFloat;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyFloat::type_object(py);
+        assert_eq!(typ.name(py), "float");
     }
 }

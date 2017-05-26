@@ -6,6 +6,8 @@ use python::{Python, PythonObject};
 use conversion::ToPyObject;
 use objects::{PyObject, PyIterator};
 use err::{self, PyResult, PyErr};
+use class::PyTypeObject;
+use objects::PyType;
 
 
 /// Represents a Python `set`
@@ -143,12 +145,25 @@ impl PyFrozenSet {
     }
 }
 
+impl PyTypeObject for PySet {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PySet_Type) }
+    }
+}
+
+impl PyTypeObject for PyFrozenSet {
+    fn type_object(py: Python) -> PyType {
+        unsafe { PyType::from_type_ptr(py, &mut ffi::PyFrozenSet_Type) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::{HashSet};
     use python::{Python, PythonObjectWithCheckedDowncast};
     use conversion::ToPyObject;
     use super::{PySet, PyFrozenSet};
+    use class::PyTypeObject;
 
     #[test]
     fn test_set_new() {
@@ -258,5 +273,21 @@ mod test {
         for el in set.iter(py).unwrap() {
             assert_eq!(1i32, el.unwrap().extract::<i32>(py).unwrap());
         }
+    }
+
+    #[test]
+    fn test_set_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PySet::type_object(py);
+        assert_eq!(typ.name(py), "set");
+    }
+
+    #[test]
+    fn test_frozenset_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typ = PyFrozenSet::type_object(py);
+        assert_eq!(typ.name(py), "frozenset");
     }
 }
