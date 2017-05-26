@@ -6,7 +6,7 @@ use libc;
 
 use pyptr::Py;
 use python::{Python, IntoPythonPointer};
-use objects::{exc, PyObject};
+use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
@@ -227,36 +227,23 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
 }
 
 #[allow(unused_mut)]
-pub unsafe fn cb_binary<Slf, F, T, C>(location: &str,
-                                      slf: *mut ffi::PyObject,
-                                      arg: *mut ffi::PyObject,
-                                      _c: C, f: F) -> C::R
-    where F: for<'p> FnOnce(Python<'p>, &'p mut Slf, Py<'p, PyObject>) -> PyResult<T>,
+pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: F) -> c_int
+    where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> c_int,
           F: panic::UnwindSafe,
           Slf: ::typeob::PyTypeInfo,
-          C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         let mut slf: Py<Slf> = Py::from_borrowed_ptr(py, slf);
-        let arg = PyObject::from_borrowed_ptr(py, arg);
 
-        match f(py, slf.as_mut(), arg) {
-            Ok(val) => {
-                C::convert(val, py)
-            }
-            Err(e) => {
-                e.restore(py);
-                C::error_value()
-            }
-        }
+        f(py, slf.as_mut())
     });
     let ret = match ret {
         Ok(r) => r,
         Err(ref err) => {
             handle_panic(Python::assume_gil_acquired(), err);
-            C::error_value()
+            -1
         }
     };
     mem::forget(guard);

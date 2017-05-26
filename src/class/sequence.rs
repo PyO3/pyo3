@@ -9,8 +9,7 @@ use ffi;
 use python::Python;
 use err::{PyErr, PyResult};
 use objects::{exc, PyObject};
-use callback::{PyObjectCallbackConverter,
-               LenResultConverter, UnitCallbackConverter, BoolCallbackConverter};
+use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
 use typeob::PyTypeInfo;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
@@ -193,17 +192,26 @@ impl<T> PySequenceSetItemProtocolImpl for T where T: for<'p> PySequenceSetItemPr
             where T: for<'p> PySequenceSetItemProtocol<'p>
         {
             const LOCATION: &'static str = "foo.__setitem__()";
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
+            ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
-                    Err(PyErr::new::<exc::NotImplementedError, _>(
-                        py, format!("Item deletion not supported by {:?}", stringify!(T))))
+                    let e = PyErr::new::<exc::NotImplementedError, _>(
+                        py, format!("Item deletion not supported by {:?}", stringify!(T)));
+                    e.restore(py);
+                    return -1
                 } else {
                     let value = PyObject::from_borrowed_ptr(py, value);
-                    match value.extract() {
+                    let result = match value.extract() {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
                         },
                         Err(e) => Err(e.into()),
+                    };
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
+                        }
                     }
                 }
             })
@@ -233,13 +241,22 @@ impl<T> PySequenceDelItemProtocolImpl for T where T: for<'p> PySequenceDelItemPr
             where T: for<'p> PySequenceDelItemProtocol<'p>
         {
             const LOCATION: &'static str = "T.__detitem__()";
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
+            ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
-                    slf.__delitem__(py, key as isize).into()
+                    let result = slf.__delitem__(py, key as isize).into();
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
+                        }
+                    }
                 } else {
-                    Err(PyErr::new::<exc::NotImplementedError, _>(
+                    let e = PyErr::new::<exc::NotImplementedError, _>(
                         py, format!("Item assignment not supported by {:?}",
-                                    stringify!(T))))
+                                    stringify!(T)));
+                    e.restore(py);
+                    return -1
                 }
             })
         }
@@ -258,17 +275,30 @@ impl<T> PySequenceDelItemProtocolImpl for T
             where T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>
         {
             const LOCATION: &'static str = "T.__set/del_item__()";
-
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
+            ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
-                    slf.__delitem__(py, key as isize).into()
+                    let result = slf.__delitem__(py, key as isize).into();
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
+                        }
+                    }
                 } else {
                     let value = ::PyObject::from_borrowed_ptr(py, value);
-                    match value.extract() {
+                    let result = match value.extract() {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
                         },
                         Err(e) => Err(e.into()),
+                    };
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
+                        }
                     }
                 }
             })

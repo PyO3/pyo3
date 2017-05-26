@@ -120,14 +120,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract<S>(obj: Py<'s, S>) -> PyResult<Self>
+        fn extract<S>(obj: &'s Py<'s, S>) -> PyResult<Self>
             where S: ::typeob::PyTypeInfo
         {
             let t = try!(obj.cast_as::<&PyTuple>());
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $( try!(t.get_item($n).extract::<$T>()), )+
+                    $( try!(slice[$n].extract::<$T>()), )+
                 ))
             } else {
                 Err(wrong_tuple_length(obj.py(), t, $length))
@@ -137,19 +137,19 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
 });
 
 tuple_conversion!(1, (ref0, 0, A));
-//tuple_conversion!(2, (ref0, 0, A), (ref1, 1, B));
-//tuple_conversion!(3, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C));
-//tuple_conversion!(4, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D));
-//tuple_conversion!(5, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-//  (ref4, 4, E));
-//tuple_conversion!(6, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-//  (ref4, 4, E), (ref5, 5, F));
-//tuple_conversion!(7, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-//  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G));
-//tuple_conversion!(8, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-//  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H));
-//tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-//  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H), (ref8, 8, I));
+tuple_conversion!(2, (ref0, 0, A), (ref1, 1, B));
+tuple_conversion!(3, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C));
+tuple_conversion!(4, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D));
+tuple_conversion!(5, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
+  (ref4, 4, E));
+tuple_conversion!(6, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
+  (ref4, 4, E), (ref5, 5, F));
+tuple_conversion!(7, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
+  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G));
+tuple_conversion!(8, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
+  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H));
+tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
+  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H), (ref8, 8, I));
 
 // Empty tuple:
 

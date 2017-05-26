@@ -21,7 +21,7 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use pyptr::{Py, PyPtr};
-use python::{AsPy, Python, ToPythonPointer};
+use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyDict, PyString};
 use conversion::{ToPyObject, ToPyTuple};
 use err::{PyErr, PyResult, self};

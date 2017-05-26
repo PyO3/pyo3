@@ -76,7 +76,7 @@ pub trait ToPyTuple {
 /// the inherent method `PyObject::extract()` can be used.
 pub trait FromPyObject<'source> : Sized {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract<S>(py: Py<'source, S>) -> PyResult<Self>
+    fn extract<S>(py: &'source Py<'source, S>) -> PyResult<Self>
         where S: PyTypeInfo;
 }
 
@@ -159,7 +159,7 @@ impl ToPyObject for () {
 
 
 impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
-    fn extract<S>(obj: Py<'source, S>) -> PyResult<Self>
+    fn extract<S>(obj: &'source Py<'source, S>) -> PyResult<Self>
         where S: PyTypeInfo
     {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {

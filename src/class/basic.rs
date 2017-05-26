@@ -15,8 +15,7 @@ use python::{Python, IntoPythonPointer};
 use objects::{exc, PyObject};
 use typeob::PyTypeInfo;
 use conversion::{ToPyObject, FromPyObject, IntoPyObject};
-use callback::{PyObjectCallbackConverter, HashConverter, UnitCallbackConverter,
-               BoolCallbackConverter};
+use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
 
 // classmethod
@@ -189,34 +188,7 @@ impl<T> PyObjectSetAttrProtocolImpl for T where T: for<'p> PyObjectSetAttrProtoc
 {
     #[inline]
     fn tp_setattro() -> Option<ffi::setattrofunc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                     name: *mut ffi::PyObject,
-                                     value: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PyObjectSetAttrProtocol<'p>
-        {
-            const LOCATION: &'static str = "T.__setattr__()";
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
-                if value.is_null() {
-                    return Err(PyErr::new::<exc::NotImplementedError, _>(
-                        py, format!("Subscript deletion not supported by {:?}",
-                                    stringify!(T))))
-                } else {
-                    let name = ::PyObject::from_borrowed_ptr(py, name);
-                    let value = ::PyObject::from_borrowed_ptr(py, value);
-
-                    match name.extract() {
-                        Ok(name) => match value.extract() {
-                            Ok(value) => {
-                                slf.__setattr__(py, name, value).into()
-                            },
-                            Err(e) => Err(e.into()),
-                        },
-                        Err(e) => Err(e.into()),
-                    }
-                }
-            })
-        }
-        Some(wrap::<T>)
+        py_func_set!(PyObjectSetAttrProtocol, T::__setattr__)
     }
 }
 
@@ -235,68 +207,16 @@ impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtoc
 {
     #[inline]
     default fn tp_delattro() -> Option<ffi::setattrofunc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                         name: *mut ffi::PyObject,
-                                         value: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PyObjectDelAttrProtocol<'p>
-        {
-            const LOCATION: &'static str = "T.__detattr__()";
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
-                if value.is_null() {
-                    let name = ::PyObject::from_borrowed_ptr(py, name);
-
-                    match name.extract() {
-                        Ok(name) => {
-                            slf.__delattr__(py, name).into()
-                        },
-                        Err(e) => Err(e.into()),
-                    }
-                } else {
-                    Err(PyErr::new::<exc::NotImplementedError, _>(
-                        py, format!("Set attribute not supported by {:?}", stringify!(T))))
-                }
-            })
-        }
-        Some(wrap::<T>)
+        py_func_del!(PyObjectDelAttrProtocol, T::__delattr__)
     }
 }
-
-
 impl<T> PyObjectDelAttrProtocolImpl for T
     where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>
 {
     #[inline]
     fn tp_delattro() -> Option<ffi::setattrofunc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                     name: *mut ffi::PyObject,
-                                     value: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>
-        {
-            const LOCATION: &'static str = "T.__detattr__()";
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
-                let name = ::PyObject::from_borrowed_ptr(py, name);
-                if value.is_null() {
-                    match name.extract() {
-                        Ok(name) => {
-                            slf.__delattr__(py, name).into()
-                        },
-                        Err(e) => Err(e.into()),
-                    }
-                } else {
-                    let value = ::PyObject::from_borrowed_ptr(py, value);
-                    match name.extract() {
-                        Ok(name) => match value.extract() {
-                            Ok(value) => {
-                                slf.__setattr__(py, name, value).into()
-                            },
-                            Err(e) => Err(e.into()),
-                        },
-                        Err(e) => Err(e.into()),
-                    }
-                }
-            })
-        }
-        Some(wrap::<T>)
+        py_func_set_del!(PyObjectSetAttrProtocol, PyObjectDelAttrProtocol,
+                         T::__setattr__/__delattr__)
     }
 }
 
@@ -426,10 +346,10 @@ impl<T> PyObjectRichcmpProtocolImpl for T where T: for<'p> PyObjectRichcmpProtoc
             let ret = std::panic::catch_unwind(|| {
                 let py = Python::assume_gil_acquired();
                 let slf = Py::<T>::from_borrowed_ptr(py, slf);
+                let arg = PyObject::from_borrowed_ptr(py, arg);
 
                 let res = match extract_op(py, op) {
                     Ok(op) => {
-                        let arg = PyObject::from_borrowed_ptr(py, arg);
                         match arg.extract() {
                             Ok(arg) => {
                                 slf.as_ref().__richcmp__(py, arg, op).into()

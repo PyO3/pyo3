@@ -71,7 +71,7 @@ macro_rules! pyobject_extract(
         impl<'source> ::conversion::FromPyObject<'source>
             for $t
         {
-            fn extract<S>($obj: ::Py<'source, S>) -> $crate::PyResult<Self>
+            fn extract<S>($obj: &'source ::Py<'source, S>) -> $crate::PyResult<Self>
                 where S: ::typeob::PyTypeInfo
             {
                 $body

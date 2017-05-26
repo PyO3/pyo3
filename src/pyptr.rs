@@ -341,9 +341,9 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
     #[inline]
-    pub fn extract<D>(self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
+    pub fn extract<D>(&'p self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
     {
-        ::conversion::FromPyObject::extract(self)
+        ::conversion::FromPyObject::extract(&self)
     }
 }
 
@@ -419,21 +419,21 @@ impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeInfo {
     }
 }
 
-//impl<'source, T> ::FromPyObject<'source> for &'source T
-//    where T: PyTypeInfo
-//{
-//    #[inline]
-//    default fn extract<S: 'source>(py: Py<'source, S>) -> PyResult<&'source T>
-//        where S: PyTypeInfo
-//    {
-//        Ok(py.cast_as()?)
-//    }
-//}
+impl<'source, T> ::FromPyObject<'source> for &'source T
+    where T: PyTypeInfo
+{
+    #[inline]
+    default fn extract<S>(py: &'source Py<'source, S>) -> PyResult<&'source T>
+        where S: PyTypeInfo
+    {
+        Ok(py.cast_as()?)
+    }
+}
 
 impl<'source, T> ::FromPyObject<'source> for Py<'source, T> where T: PyTypeInfo
 {
     #[inline]
-    default fn extract<S>(py: Py<'source, S>) -> PyResult<Py<'source, T>>
+    default fn extract<S>(py: &'source Py<'source, S>) -> PyResult<Py<'source, T>>
         where S: PyTypeInfo
     {
         let checked = unsafe { ffi::PyObject_TypeCheck(py.inner, T::type_object()) != 0 };

@@ -117,7 +117,7 @@ macro_rules! int_convert_u64_or_i64 (
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract<S>(py: Py<'source, S>) -> PyResult<$rust_type>
+            fn extract<S>(py: &'source Py<'source, S>) -> PyResult<$rust_type>
                 where S: PyTypeInfo
             {
                 let ptr = py.as_ptr();
