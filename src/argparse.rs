@@ -23,7 +23,7 @@ use ffi;
 use pyptr::{Py};
 use python::Python;
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
-use conversion::RefFromPyObject;
+//use conversion::RefFromPyObject;
 use err::{self, PyResult};
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -103,7 +103,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     }
     Ok(())
 }
-
+/*
 /// This macro is used to parse a parameter list into a set of variables.
 ///
 /// Syntax: `py_argparse!(py, fname, args, kwargs, (parameter-list) { body })`
@@ -335,7 +335,7 @@ macro_rules! py_argparse_impl {
             Err(e) => Err(e)
         }
     }};
-}
+}*/
 
 // Like py_argparse_impl!(), but accepts `*mut ffi::PyObject` for $args and $kwargs.
 #[macro_export]
@@ -361,6 +361,7 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
     }
 }
 
+/*
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_argparse_param_description {
@@ -447,6 +448,7 @@ pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
         None => f(default)
     }
 }
+*/
 
 #[cfg(test)]
 mod test {

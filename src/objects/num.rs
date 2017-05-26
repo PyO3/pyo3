@@ -84,10 +84,11 @@ macro_rules! int_fits_larger_int(
         }
 
         pyobject_extract!(obj to $rust_type => {
+            let py = obj.py();
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.py()))
+                None => Err(overflow_error(py))
             }
         });
     )
@@ -116,7 +117,7 @@ macro_rules! int_convert_u64_or_i64 (
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract<S>(py: &'source Py<'source, S>) -> PyResult<$rust_type>
+            fn extract<S>(py: Py<'source, S>) -> PyResult<$rust_type>
                 where S: PyTypeInfo
             {
                 let ptr = py.as_ptr();

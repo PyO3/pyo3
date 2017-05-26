@@ -9,6 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
+use python::Python;
 use objects::PyObject;
 use typeob::PyTypeInfo;
 use callback::{handle, UnitCallbackConverter};
@@ -18,9 +19,10 @@ use class::NO_METHODS;
 /// Buffer protocol interface
 pub trait PyBufferProtocol<'p> : PyTypeInfo {
 
-    fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()>;
+    fn bf_getbuffer(&'p self, py: Python<'p>,
+                    view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()>;
 
-    fn bf_releasebuffer(&self, view: *mut ffi::Py_buffer) -> PyResult<()>;
+    fn bf_releasebuffer(&'p self, py: Python<'p>, view: *mut ffi::Py_buffer) -> PyResult<()>;
 }
 
 #[doc(hidden)]
@@ -36,10 +38,12 @@ impl<T> PyBufferProtocolImpl for T {
 
 impl<'p, T> PyBufferProtocol<'p> for T where T: PyTypeInfo {
 
-    default fn bf_getbuffer(&self, _view: *mut ffi::Py_buffer, _flags: c_int) -> PyResult<()> {
+    default fn bf_getbuffer(&'p self, _py: Python<'p>,
+                            _view: *mut ffi::Py_buffer, _flags: c_int) -> PyResult<()> {
         Ok(())
     }
-    default fn bf_releasebuffer(&self, _view: *mut ffi::Py_buffer) -> PyResult<()> {
+    default fn bf_releasebuffer(&'p self, _py: Python<'p>,
+                                _view: *mut ffi::Py_buffer) -> PyResult<()> {
         Ok(())
     }
 }
@@ -70,7 +74,7 @@ impl ffi::PyBufferProcs {
                             const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
                             handle(LOCATION, UnitCallbackConverter, |py| {
                                 let slf = PyObject::from_borrowed_ptr(py, slf);
-                                slf.bf_getbuffer(arg1, arg2)
+                                slf.bf_getbuffer(py, arg1, arg2)
                             })
                         }
                         Some(wrap::<T>)

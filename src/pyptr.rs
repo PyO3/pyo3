@@ -8,7 +8,7 @@ use std::convert::{AsRef, AsMut};
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
-use python::{Python, ToPythonPointer, IntoPythonPointer};
+use python::{AsPy, Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
@@ -312,13 +312,17 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     /// Casts the PyObject to a concrete Python object type.
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast_as<'s, D>(&'s self) -> Result<&'s D, PyDowncastError<'p>>
+    pub fn cast_as<D>(&'p self) -> Result<&'p D, PyDowncastError<'p>>
         where D: PyTypeInfo
     {
         let checked = unsafe { ffi::PyObject_TypeCheck(self.inner, D::type_object()) != 0 };
 
         if checked {
-            Ok( unsafe { Py::<D>::unchecked_downcast_borrow_from(self) })
+            Ok(
+                unsafe {
+                    let offset = <D as PyTypeInfo>::offset();
+                    let ptr = (self.inner as *mut u8).offset(offset) as *mut D;
+                    ptr.as_ref().unwrap() })
         } else {
             Err(PyDowncastError(self.py(), None))
         }
@@ -337,9 +341,18 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
     #[inline]
-    pub fn extract<D>(&'p self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
+    pub fn extract<D>(self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
     {
-        ::conversion::FromPyObject::extract(&self)
+        ::conversion::FromPyObject::extract(self)
+    }
+}
+
+impl<'p, T> AsPy<'p> for Py<'p, T> {
+    /// Retrieve Python instance, the GIL is already acquired and
+    /// stays acquired for the lifetime `'p`.
+    #[inline]
+    fn py<'a>(&'a self) -> Python<'p> {
+        unsafe { Python::assume_gil_acquired() }
     }
 }
 
@@ -406,22 +419,21 @@ impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeInfo {
     }
 }
 
-impl<'source, T> ::FromPyObject<'source> for &'source T
-    where T: PyTypeInfo
-{
-    #[inline]
-    default fn extract<S>(py: &'source Py<'source, S>) -> PyResult<&'source T>
-        where S: PyTypeInfo
-    {
-        Ok(py.cast_as()?)
-    }
-}
+//impl<'source, T> ::FromPyObject<'source> for &'source T
+//    where T: PyTypeInfo
+//{
+//    #[inline]
+//    default fn extract<S: 'source>(py: Py<'source, S>) -> PyResult<&'source T>
+//        where S: PyTypeInfo
+//    {
+//        Ok(py.cast_as()?)
+//    }
+//}
 
-impl<'source, T> ::FromPyObject<'source> for Py<'source, T>
-    where T: PyTypeInfo
+impl<'source, T> ::FromPyObject<'source> for Py<'source, T> where T: PyTypeInfo
 {
     #[inline]
-    default fn extract<S>(py: &'source Py<'source, S>) -> PyResult<Py<'source, T>>
+    default fn extract<S>(py: Py<'source, S>) -> PyResult<Py<'source, T>>
         where S: PyTypeInfo
     {
         let checked = unsafe { ffi::PyObject_TypeCheck(py.inner, T::type_object()) != 0 };
@@ -447,7 +459,6 @@ impl <'a, T> ToPyObject for Py<'a, T> {
         f(self.inner)
     }
 }
-
 
 impl <'a, T> IntoPyObject for Py<'a, T> {
 

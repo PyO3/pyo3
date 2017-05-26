@@ -6,7 +6,7 @@ use libc;
 
 use pyptr::Py;
 use python::{Python, IntoPythonPointer};
-use objects::exc;
+use objects::{exc, PyObject};
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
@@ -163,14 +163,6 @@ impl <T> CallbackConverter<T> for HashConverter
 }
 
 
-// very unsafe util for callbacks, maybe bug un rust compiler?
-pub unsafe fn unref<'p, T>(p: Py<'p, T>) -> &Py<T> {
-    {&p as *const _}.as_ref().unwrap()
-}
-pub unsafe fn unref_r<'p, T>(p: &'p Py<'p, T>) -> &'p Py<T> {
-    {p as *const _}.as_ref().unwrap()
-}
-
 pub unsafe fn handle<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
     where F: FnOnce(Python<'p>) -> PyResult<T>,
           F: panic::UnwindSafe,
@@ -200,15 +192,20 @@ pub unsafe fn handle<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
     ret
 }
 
-pub unsafe fn handle_cb<F, T, C>(location: &str, _c: C, f: F) -> C::R
-    where F: FnOnce(Python) -> PyResult<T>,
+#[allow(unused_mut)]
+pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
+                                     slf: *mut ffi::PyObject, _c: C, f: F) -> C::R
+    where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> PyResult<T>,
           F: panic::UnwindSafe,
+          Slf: ::typeob::PyTypeInfo,
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        match f(py) {
+        let mut slf: Py<Slf> = Py::from_borrowed_ptr(py, slf);
+
+        match f(py, slf.as_mut()) {
             Ok(val) => {
                 C::convert(val, py)
             }
@@ -229,7 +226,44 @@ pub unsafe fn handle_cb<F, T, C>(location: &str, _c: C, f: F) -> C::R
     ret
 }
 
-fn handle_panic(_py: Python, _panic: &any::Any) {
+#[allow(unused_mut)]
+pub unsafe fn cb_binary<Slf, F, T, C>(location: &str,
+                                      slf: *mut ffi::PyObject,
+                                      arg: *mut ffi::PyObject,
+                                      _c: C, f: F) -> C::R
+    where F: for<'p> FnOnce(Python<'p>, &'p mut Slf, Py<'p, PyObject>) -> PyResult<T>,
+          F: panic::UnwindSafe,
+          Slf: ::typeob::PyTypeInfo,
+          C: CallbackConverter<T>
+{
+    let guard = AbortOnDrop(location);
+    let ret = panic::catch_unwind(|| {
+        let py = Python::assume_gil_acquired();
+        let mut slf: Py<Slf> = Py::from_borrowed_ptr(py, slf);
+        let arg = PyObject::from_borrowed_ptr(py, arg);
+
+        match f(py, slf.as_mut(), arg) {
+            Ok(val) => {
+                C::convert(val, py)
+            }
+            Err(e) => {
+                e.restore(py);
+                C::error_value()
+            }
+        }
+    });
+    let ret = match ret {
+        Ok(r) => r,
+        Err(ref err) => {
+            handle_panic(Python::assume_gil_acquired(), err);
+            C::error_value()
+        }
+    };
+    mem::forget(guard);
+    ret
+}
+
+pub fn handle_panic(_py: Python, _panic: &any::Any) {
     unsafe {
         ffi::PyErr_SetString(ffi::PyExc_SystemError, "Rust panic\0".as_ptr() as *const i8);
     }

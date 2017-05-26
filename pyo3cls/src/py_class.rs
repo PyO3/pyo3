@@ -69,12 +69,12 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
             }
         }
 
-        //impl<'p> _pyo3::python::AsPy<'p> for &'p #cls {
-        //    #[inline]
-        //    fn py<'a>(&'a self) -> _pyo3::Python<'p> {
-        //        unsafe { _pyo3::python::Python::assume_gil_acquired() }
-        //    }
-        //}
+        impl<'p> _pyo3::python::AsPy<'p> for &'p #cls {
+            #[inline]
+            fn py<'a>(&'a self) -> _pyo3::Python<'p> {
+                unsafe { _pyo3::python::Python::assume_gil_acquired() }
+            }
+        }
 
         impl<'p> _pyo3::python::AsPy<'p> for &'p mut #cls {
             #[inline]

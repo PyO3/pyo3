@@ -18,17 +18,18 @@ pub struct PyTraverseError(c_int);
 /// GC support
 pub trait PyGCProtocol<'p> : PyTypeInfo {
 
-    fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError>;
+    fn __traverse__(&'p self, py: Python<'p>, visit: PyVisit) -> Result<(), PyTraverseError>;
 
-    fn __clear__(&self);
+    fn __clear__(&'p mut self, py: Python<'p>);
 
 }
 
 impl<'p, T> PyGCProtocol<'p> for T where T: PyTypeInfo {
-    default fn __traverse__(&self, _: PyVisit) -> Result<(), PyTraverseError> {
+    default fn __traverse__(&'p self, _py: Python<'p>, _: PyVisit)
+                            -> Result<(), PyTraverseError> {
         Ok(())
     }
-    default fn __clear__(&self) {}
+    default fn __clear__(&'p mut self, _py: Python<'p>) {}
 }
 
 #[doc(hidden)]
@@ -79,10 +80,10 @@ impl <'a> PyVisit<'a> {
 }
 
 #[doc(hidden)]
-unsafe extern "C" fn tp_traverse<'p, T>(slf: *mut ffi::PyObject,
-                                        visit: ffi::visitproc,
-                                        arg: *mut c_void) -> c_int
-    where T: PyGCProtocol<'p>
+unsafe extern "C" fn tp_traverse<T>(slf: *mut ffi::PyObject,
+                                    visit: ffi::visitproc,
+                                    arg: *mut c_void) -> c_int
+    where T: for<'p> PyGCProtocol<'p>
 {
     const LOCATION: &'static str = concat!(stringify!(T), ".__traverse__()");
 
@@ -91,23 +92,23 @@ unsafe extern "C" fn tp_traverse<'p, T>(slf: *mut ffi::PyObject,
     let visit = PyVisit { visit: visit, arg: arg, _py: py };
     let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
 
-    let ret = match T::__traverse__(&slf, visit) {
+    let ret = match T::__traverse__(&slf, py, visit) {
         Ok(()) => 0,
         Err(PyTraverseError(code)) => code
     };
-          mem::forget(guard);
+    mem::forget(guard);
     ret
 }
 
-unsafe extern "C" fn tp_clear<'p, T>(slf: *mut ffi::PyObject) -> c_int
-    where T: PyGCProtocol<'p>
+unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
+    where T: for<'p> PyGCProtocol<'p>
 {
     const LOCATION: &'static str = concat!(stringify!(T), ".__clear__()");
 
     let guard = AbortOnDrop(LOCATION);
     let py = Python::assume_gil_acquired();
     let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-    T::__clear__(&slf);
+    T::__clear__(slf.as_mut(), py);
     mem::forget(guard);
     0
 }

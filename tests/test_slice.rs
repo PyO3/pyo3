@@ -24,17 +24,19 @@ fn test_basics() {
 struct Test {}
 
 #[py::proto]
-impl PyMappingProtocol for Test {
-    fn __getitem__(&self, idx: &PyObject) -> PyResult<PyObject> {
-        if let Ok(slice) = PySlice::downcast_from(py, idx.clone_ref(py)) {
-            let indices = slice.indices(py, 1000)?;
+impl<'p> PyMappingProtocol<'p> for Test {
+    fn __getitem__(&self, idx: Py<'p, PyObject>) -> PyResult<Py<'p, PyObject>> {
+        let py = self.py();
+
+        if let Ok(slice) = idx.cast_as::<PySlice>() {
+            let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".to_py_object(py).into_object())
+                return Ok("slice".to_object(py).into_object())
             }
         }
-        else if let Ok(idx) = idx.extract::<isize>(py) {
+        else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".to_py_object(py).into_object())
+                return Ok("int".to_object(py).into_object())
             }
         }
         Err(PyErr::new::<exc::ValueError, _>(py, "error"))
@@ -46,9 +48,9 @@ fn test_cls_impl() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = Test::create_instance(py).unwrap();
+    let ob = py.init(Test{});
     let d = PyDict::new(py);
-    d.set_item(py, "ob", ob).unwrap();
+    d.set_item("ob", ob).unwrap();
 
     py.run("assert ob[1] == 'int'", None, Some(&d)).unwrap();
     py.run("assert ob[100:200:1] == 'slice'", None, Some(&d)).unwrap();

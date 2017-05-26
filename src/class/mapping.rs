@@ -8,6 +8,7 @@ use std::os::raw::c_int;
 use ffi;
 use err::{PyErr, PyResult};
 use pyptr::Py;
+use python::Python;
 use objects::{exc, PyObject};
 use callback::{PyObjectCallbackConverter, LenResultConverter, UnitCallbackConverter};
 use conversion::{ToPyObject, FromPyObject};
@@ -19,25 +20,25 @@ use class::methods::PyMethodDef;
 #[allow(unused_variables)]
 pub trait PyMappingProtocol<'p>: PyTypeInfo + Sized + 'static {
 
-    fn __len__(&self)
+    fn __len__(&'p self, py: Python<'p>)
                -> Self::Result where Self: PyMappingLenProtocol<'p> {unimplemented!()}
 
-    fn __getitem__(&self, key: Self::Key)
+    fn __getitem__(&'p self, py: Python<'p>, key: Self::Key)
                    -> Self::Result where Self: PyMappingGetItemProtocol<'p> {unimplemented!()}
 
-    fn __setitem__(&self, key: Self::Key, value: Self::Value)
+    fn __setitem__(&'p self, py: Python<'p>, key: Self::Key, value: Self::Value)
                    -> Self::Result where Self: PyMappingSetItemProtocol<'p> {unimplemented!()}
 
-    fn __delitem__(&self, key: Self::Key)
+    fn __delitem__(&'p self, py: Python<'p>, key: Self::Key)
                    -> Self::Result where Self: PyMappingDelItemProtocol<'p> {unimplemented!()}
 
-    fn __iter__(&self)
+    fn __iter__(&'p self, py: Python<'p>)
                 -> Self::Result where Self: PyMappingIterProtocol<'p> {unimplemented!()}
 
-    fn __contains__(&self, value: Self::Value)
+    fn __contains__(&'p self, py: Python<'p>, value: Self::Value)
                     -> Self::Result where Self: PyMappingContainsProtocol<'p> {unimplemented!()}
 
-    fn __reversed__(&self)
+    fn __reversed__(&'p self, py: Python<'p>)
                     -> Self::Result where Self: PyMappingReversedProtocol<'p> {unimplemented!()}
 
 }
@@ -145,7 +146,7 @@ impl<'p, T> PyMappingLenProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<'p, T> PyMappingLenProtocolImpl for T where T: PyMappingLenProtocol<'p>
+impl<T> PyMappingLenProtocolImpl for T where T: for<'p> PyMappingLenProtocol<'p>
 {
     #[inline]
     fn mp_length() -> Option<ffi::lenfunc> {
@@ -165,11 +166,12 @@ impl<'p, T> PyMappingGetItemProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<'p, T> PyMappingGetItemProtocolImpl for T where T: PyMappingGetItemProtocol<'p>
+impl<T> PyMappingGetItemProtocolImpl for T where T: for<'p> PyMappingGetItemProtocol<'p>
 {
     #[inline]
     fn mp_subscript() -> Option<ffi::binaryfunc> {
-        py_binary_func!(PyMappingGetItemProtocol, T::__getitem__, PyObjectCallbackConverter)
+        py_binary_func!(PyMappingGetItemProtocol,
+                        T::__getitem__, T::Success, PyObjectCallbackConverter)
     }
 }
 
@@ -185,35 +187,35 @@ impl<'p, T> PyMappingSetItemProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<'p, T> PyMappingSetItemProtocolImpl for T where T: PyMappingSetItemProtocol<'p>
+impl<T> PyMappingSetItemProtocolImpl for T where T: for<'p> PyMappingSetItemProtocol<'p>
 {
     #[inline]
     fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
-        unsafe extern "C" fn wrap<'p, T>(slf: *mut ffi::PyObject,
-                                         key: *mut ffi::PyObject,
-                                         value: *mut ffi::PyObject) -> c_int
-            where T: PyMappingSetItemProtocol<'p>
+        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
+                                     key: *mut ffi::PyObject,
+                                     value: *mut ffi::PyObject) -> c_int
+            where T: for<'p> PyMappingSetItemProtocol<'p>
         {
             const LOCATION: &'static str = "T.__setitem__()";
-            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
-                if value.is_null() {
+            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
+                let res = if value.is_null() {
                     Err(PyErr::new::<exc::NotImplementedError, _>(
                         py, format!("Subscript deletion not supported by {:?}",
                                     stringify!(T))))
                 } else {
                     let key = PyObject::from_borrowed_ptr(py, key);
-                    match ::callback::unref(key).extract() {
+                    match key.extract() {
                         Ok(key) => {
-                            let slf = Py::<T>::from_borrowed_ptr(py, slf);
                             let value = PyObject::from_borrowed_ptr(py, value);
-                            match ::callback::unref(value).extract() {
-                                Ok(value) => slf.__setitem__(key, value).into(),
+                            match value.extract() {
+                                Ok(value) => slf.__setitem__(py, key, value).into(),
                                 Err(e) => Err(e),
                             }
                         },
                         Err(e) => Err(e),
                     }
-                }
+                };
+                res
             })
         }
         Some(wrap::<T>)
@@ -233,23 +235,22 @@ impl<'p, T> PyMappingDelItemProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<'p, T> PyMappingDelItemProtocolImpl for T where T: PyMappingDelItemProtocol<'p>
+impl<T> PyMappingDelItemProtocolImpl for T where T: for<'p> PyMappingDelItemProtocol<'p>
 {
     #[inline]
     default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
-        unsafe extern "C" fn wrap<'p, T>(slf: *mut ffi::PyObject,
-                                         key: *mut ffi::PyObject,
-                                         value: *mut ffi::PyObject) -> c_int
-            where T: PyMappingDelItemProtocol<'p>
+        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
+                                     key: *mut ffi::PyObject,
+                                     value: *mut ffi::PyObject) -> c_int
+            where T: for<'p> PyMappingDelItemProtocol<'p>
         {
             const LOCATION: &'static str = "T.__detitem__()";
-            ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
+            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
                 if value.is_null() {
                     let key = PyObject::from_borrowed_ptr(py, key);
-                    match ::callback::unref(key).extract() {
+                    match key.extract() {
                         Ok(key) => {
-                            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-                            slf.__delitem__(key).into()
+                            slf.__delitem__(py, key).into()
                         },
                         Err(e) => Err(e),
                     }
@@ -265,15 +266,15 @@ impl<'p, T> PyMappingDelItemProtocolImpl for T where T: PyMappingDelItemProtocol
 }
 
 
-impl<'p, T> PyMappingDelItemProtocolImpl for T
-    where T: PyMappingSetItemProtocol<'p> + PyMappingDelItemProtocol<'p>
+impl<T> PyMappingDelItemProtocolImpl for T
+    where T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>
 {
     #[inline]
     fn mp_del_subscript() -> Option<ffi::objobjargproc> {
-        unsafe extern "C" fn wrap<'p, T>(slf: *mut ffi::PyObject,
-                                         key: *mut ffi::PyObject,
-                                         value: *mut ffi::PyObject) -> c_int
-            where T: PyMappingSetItemProtocol<'p> + PyMappingDelItemProtocol<'p>
+        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
+                                     key: *mut ffi::PyObject,
+                                     value: *mut ffi::PyObject) -> c_int
+            where T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>
         {
             const LOCATION: &'static str = "T.__set/del_item__()";
             ::callback::handle(LOCATION, UnitCallbackConverter, |py| {
@@ -281,16 +282,16 @@ impl<'p, T> PyMappingDelItemProtocolImpl for T
                 let key = PyObject::from_borrowed_ptr(py, key);
 
                 if value.is_null() {
-                    match ::callback::unref(key).extract() {
-                        Ok(key) => slf.__delitem__(key).into(),
+                    match key.extract() {
+                        Ok(key) => slf.__delitem__(py, key).into(),
                         Err(e) => Err(e)
                     }
                 } else {
-                    match ::callback::unref(key).extract() {
+                    match key.extract() {
                         Ok(key) => {
                             let value = PyObject::from_borrowed_ptr(py, value);
-                            match ::callback::unref(value).extract() {
-                                Ok(value) => slf.__setitem__(key, value).into(),
+                            match value.extract() {
+                                Ok(value) => slf.__setitem__(py, key, value).into(),
                                 Err(e) => Err(e),
                             }
                         },

@@ -188,26 +188,26 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     type_object.tp_basicsize = <T as PyTypeInfo>::size() as ffi::Py_ssize_t;
 
     // GC support
-    <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
+    //<T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
 
     // descriptor protocol
-    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
+    //<T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
 
     // iterator methods
     // <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
 
     // basic methods
-    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
+    //<T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
 
     // number methods
-    if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
+    /*if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
         static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
         *(unsafe { &mut NB_METHODS }) = meth;
         type_object.tp_as_number = unsafe { &mut NB_METHODS };
         mem::forget(meth);
     } else {
         type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
-    }
+    }*/
 
     // mapping methods
     if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
@@ -220,7 +220,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     }
 
     // sequence methods
-    if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
+    /*if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
         static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
         *(unsafe { &mut SQ_METHODS }) = meth;
         type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
@@ -277,7 +277,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
 
         // strange
         mem::forget(props);
-    }
+    }*/
 
     // register type object
     unsafe {
@@ -328,6 +328,7 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
             _ => (),
         }
     }
+    /*
     for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
         defs.push(def.as_method_def())
     }
@@ -345,7 +346,7 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
     }
     for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
         defs.push(def.as_method_def())
-    }
+    }*/
 
     (new, call, defs)
 }
