@@ -177,10 +177,10 @@ impl PyErr {
             ptype: if ptype.is_null() {
                 py.get_ptype::<exc::SystemError>()
             } else {
-                Py::<PyType>::from_owned_ptr(py, ptype).into_pptr()
+                Py::<PyType>::from_borrowed_ptr(py, ptype).into_pptr()
             },
-            pvalue: PyObject::from_owned_pptr_opt(py, pvalue),
-            ptraceback: PyObject::from_owned_pptr_opt(py, ptraceback)
+            pvalue: PyObject::from_borrowed_pptr_opt(py, pvalue),
+            ptraceback: PyObject::from_borrowed_pptr_opt(py, ptraceback)
         }
     }
 

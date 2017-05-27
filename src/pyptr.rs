@@ -25,7 +25,9 @@ impl<T> PyPtr<T> {
     }
 
     pub fn into_ref<'p>(self, _py: Python<'p>) -> Py<'p, T> {
-        Py{inner: self.inner, _t: PhantomData, _py: PhantomData}
+        let p = Py{inner: self.inner, _t: PhantomData, _py: PhantomData};
+        std::mem::forget(self);
+        p
     }
 
     /// Gets the reference count of this PyPtr object.
@@ -54,6 +56,7 @@ impl<T> IntoPythonPointer for PyPtr<T> {
     #[inline]
     #[must_use]
     fn into_ptr(self) -> *mut ffi::PyObject {
+        println!("INTO PTR: {:?}", self.inner);
         let ptr = self.inner;
         std::mem::forget(self);
         ptr

@@ -80,24 +80,24 @@ pub trait FromPyObject<'source> : Sized {
         where S: PyTypeInfo;
 }
 
-/*pub trait RefFromPyObject<'p> : Sized {
-    fn with_extracted<F, R>(py: Python<'p>, obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
-        where F: FnOnce(Self) -> R;
+pub trait RefFromPyObject<'p> {
+    fn with_extracted<F, R>(obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
+        where F: FnOnce(&Self) -> R;
 }
 
 impl <'p, T: ?Sized> RefFromPyObject<'p> for T
     where for<'a> &'a T: FromPyObject<'p> + Sized
 {
     #[inline]
-    fn with_extracted<F, R>(_py: Python<'p>, obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
-        where F: FnOnce(Self) -> R
+    fn with_extracted<F, R>(obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
+        where F: FnOnce(&Self) -> R
     {
         match FromPyObject::extract(obj) {
             Ok(val) => Ok(f(val)),
             Err(e) => Err(e)
         }
     }
-}*/
+}
 
 // Default IntoPyObject implementation
 impl <T> IntoPyObject for T where T: ToPyObject

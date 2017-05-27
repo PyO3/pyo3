@@ -13,7 +13,7 @@ use ffi;
 use python::{AsPy, Python, ToPythonPointer};
 use super::{exc, PyObject};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject}; //RefFromPyObject,
+use conversion::{ToPyObject, RefFromPyObject};
 
 /// Represents a Python string.
 pub struct PyString;
@@ -245,9 +245,9 @@ impl ToPyObject for String {
 
 // /// Allows extracting strings from Python objects.
 // /// Accepts Python `str` and `unicode` objects.
-//pyobject_extract!(obj to Cow<'source, str> => {
-//    try!(obj.cast_as::<PyString>()).to_string()
-//});
+pyobject_extract!(obj to Cow<'source, str> => {
+    try!(obj.cast_as::<PyString>()).to_string()
+});
 
 
 /// Allows extracting strings from Python objects.
@@ -258,19 +258,19 @@ pyobject_extract!(obj to String => {
 });
 
 
-/*impl<'p> RefFromPyObject<'p> for str {
-    fn with_extracted<F, R>(py: Python<'p>, obj: &Py<'p, PyObject>, f: F) -> PyResult<R>
+impl<'p> RefFromPyObject<'p> for str {
+    fn with_extracted<F, R>(obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
-        let p = PyObject::from_borrowed_ptr(py, obj.as_ptr());
+        let p = PyObject::from_borrowed_ptr(obj.py(), obj.as_ptr());
         let s = try!(p.extract::<Cow<str>>());
         Ok(f(&s))
     }
-}*/
+}
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject};
+    use python::Python;
     use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
