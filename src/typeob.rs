@@ -109,6 +109,8 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
     unsafe fn alloc(_py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
+        let _ = <T as PyTypeObject>::type_object(_py);
+
         let obj = ffi::PyType_GenericAlloc(
             <Self as PyTypeInfo>::type_object(), 0);
 
@@ -329,24 +331,24 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
         }
     }
 
-    //for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
-    //    defs.push(def.as_method_def())
-    //}
-    //for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
-    //    defs.push(def.as_method_def())
-    //}
-    //for def in <T as class::context::PyContextProtocolImpl>::methods() {
-    //    defs.push(def.as_method_def())
-    //}
-    //for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
-    //defs.push(def.as_method_def())
-    //}
-    //for def in <T as class::number::PyNumberProtocolImpl>::methods() {
-    //    defs.push(def.as_method_def())
-    //}
-    //for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
-    //    defs.push(def.as_method_def())
-    //}
+    for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::context::PyContextProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
+    defs.push(def.as_method_def())
+    }
+    for def in <T as class::number::PyNumberProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
+    for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
+        defs.push(def.as_method_def())
+    }
 
     (new, call, defs)
 }

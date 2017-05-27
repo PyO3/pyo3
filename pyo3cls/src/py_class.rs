@@ -79,5 +79,31 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
                 }
             }
         }
+
+        impl std::fmt::Debug for #cls {
+            fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+                unsafe {
+                    let py = _pyo3::Python::assume_gil_acquired();
+                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    let repr = try!(_pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                        py, _pyo3::ffi::PyObject_Repr(ptr)).map_err(|_| std::fmt::Error));
+
+                    f.write_str(&repr.to_string_lossy())
+                }
+            }
+        }
+
+        impl std::fmt::Display for #cls {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+                unsafe {
+                    let py = _pyo3::Python::assume_gil_acquired();
+                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    let s = try!(_pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                        py, _pyo3::ffi::PyObject_Str(ptr)).map_err(|_| std::fmt::Error));
+
+                    f.write_str(&s.to_string_lossy())
+                }
+            }
+        }
     }
 }

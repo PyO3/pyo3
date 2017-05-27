@@ -2,7 +2,7 @@
 
 use std;
 use std::marker::PhantomData;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::convert::{AsRef, AsMut};
 
 use ffi;
@@ -81,6 +81,15 @@ impl<T> IntoPythonPointer for PyPtr<T> {
         ptr
     }
 }
+
+impl<T> IntoPyObject for PyPtr<T> {
+
+    #[inline]
+    fn into_object<'a>(self, py: Python<'a>) -> Py<'a, PyObject> {
+        self.into_ref(py).into_object()
+    }
+}
+
 
 // PyPtr is thread-safe, because all operations on it require a Python<'p> token.
 unsafe impl<T> Send for PyPtr<T> {}
@@ -424,6 +433,13 @@ impl<'p, T> Deref for Py<'p, T> where T: PyTypeInfo {
 
     fn deref(&self) -> &T {
         self.as_ref()
+    }
+}
+
+impl<'p, T> DerefMut for Py<'p, T> where T: PyTypeInfo {
+
+    fn deref_mut(&mut self) -> &mut T {
+        self.as_mut()
     }
 }
 

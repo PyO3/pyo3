@@ -222,14 +222,14 @@ impl<T> PythonToken<T> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyPtr<PyObject> {
+    pub fn None(&self) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> PyPtr<PyBool> {
+    pub fn True(&self) -> PyPtr<PyBool> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_True()) }
     }
 
@@ -243,24 +243,24 @@ impl<T> PythonToken<T> {
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyPtr<PyObject> {
+    pub fn NotImplemented(&self) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<U>(self) -> PyPtr<PyType> where U: PyTypeObject {
+    pub fn get_type<U>(&self) -> PyPtr<PyType> where U: PyTypeObject {
         U::type_object(Python(PhantomData)).into_pptr()
     }
 
     /// Execute closure `F` with Python instance.
     /// Retrieve Python instance under the assumption that the GIL is already acquired
     /// at this point, and stays acquired during closure call.
-    pub fn with_py<'p, F>(self, f: F) where F: FnOnce(Python<'p>)
+    pub fn with<'p, F>(&self, f: F) where F: FnOnce(Python<'p>)
     {
         f(Python(PhantomData))
     }
 
-    pub fn with_token<P, F>(self, f: F) -> PyPtr<P>
+    pub fn with_token<P, F>(&self, f: F) -> PyPtr<P>
         where F: FnOnce(PythonToken<P>) -> P,
               P: PyTypeInfo + PyObjectAlloc<Type=P>
     {
