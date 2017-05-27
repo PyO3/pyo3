@@ -8,7 +8,8 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
     let base = syn::Ident::from("_pyo3::PyObject");
 
     match ast.body {
-        syn::Body::Struct(syn::VariantData::Struct(_)) => (),
+        syn::Body::Struct(syn::VariantData::Struct(_)) => {
+        },
         _ => panic!("#[class] can only be used with notmal structs"),
     }
 
@@ -22,7 +23,6 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
             use std;
-            use pyo3::python::IntoPythonPointer;
 
             #tokens
         };
@@ -30,6 +30,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
 }
 
 fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
+    let token_name = syn::Ident::from("__py_token");
     let cls_name = quote! { #cls }.as_str().to_string();
 
     quote! {
@@ -60,12 +61,22 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
             }
         }
 
-        impl _pyo3::IntoPyObject for #cls {
+        impl _pyo3::python::ToPythonPointer for #cls {
             #[inline]
-            fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> where Self: Sized
-            {
-                let ptr = py.init(self).into_ptr();
-                _pyo3::PyObject::from_owned_ptr(py, ptr)
+            fn as_ptr(&self) -> *mut ffi::PyObject {
+                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                unsafe {
+                    {self as *const _ as *mut u8}.offset(-offset) as *mut _pyo3::ffi::PyObject
+                }
+            }
+        }
+
+        impl _pyo3::python::PyClone for #cls {
+            fn clone_ref(&self) -> PyPtr<#cls> {
+                unsafe {
+                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    _pyo3::PyPtr::from_borrowed_ptr(ptr)
+                }
             }
         }
     }

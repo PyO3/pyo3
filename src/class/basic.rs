@@ -31,10 +31,10 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __getattr__(&'p self, py: Python<'p>, name: Self::Name)
                    -> Self::Result where Self: PyObjectGetAttrProtocol<'p> {unimplemented!()}
 
-    fn __setattr__(&'p self, py: Python<'p>, name: Self::Name, value: Self::Value)
+    fn __setattr__(&'p mut self, py: Python<'p>, name: Self::Name, value: Self::Value)
                    -> Self::Result where Self: PyObjectSetAttrProtocol<'p> {unimplemented!()}
 
-    fn __delattr__(&'p self, py: Python<'p>, name: Self::Name)
+    fn __delattr__(&'p mut self, py: Python<'p>, name: Self::Name)
                    -> Self::Result where Self: PyObjectDelAttrProtocol<'p> {unimplemented!()}
 
     fn __str__(&'p self, py: Python<'p>)

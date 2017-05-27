@@ -24,13 +24,13 @@ pub trait PyAsyncProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __aiter__(&'p self, py: Python<'p>)
                  -> Self::Result where Self: PyAsyncAiterProtocol<'p> { unimplemented!() }
 
-    fn __anext__(&'p self, py: Python<'p>)
+    fn __anext__(&'p mut self, py: Python<'p>)
                  -> Self::Result where Self: PyAsyncAnextProtocol<'p> { unimplemented!() }
 
-    fn __aenter__(&'p self, py: Python<'p>)
+    fn __aenter__(&'p mut self, py: Python<'p>)
                   -> Self::Result where Self: PyAsyncAenterProtocol<'p> { unimplemented!() }
 
-    fn __aexit__(&'p self, py: Python<'p>,
+    fn __aexit__(&'p mut self, py: Python<'p>,
                  exc_type: Option<Self::ExcType>,
                  exc_value: Option<Self::ExcValue>,
                  traceback: Option<Self::Traceback>)

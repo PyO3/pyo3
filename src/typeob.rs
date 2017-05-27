@@ -92,12 +92,12 @@ pub trait PyObjectAlloc {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(_py: &Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
+    unsafe fn alloc(_py: Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(_py: &Python, obj: *mut ffi::PyObject);
+    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject);
 }
 
 /// A PythonObject that is usable as a base type for #[class]
@@ -108,7 +108,7 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(_py: &Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
+    unsafe fn alloc(_py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
         let obj = ffi::PyType_GenericAlloc(
             <Self as PyTypeInfo>::type_object(), 0);
 
@@ -122,7 +122,7 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(_py: &Python, obj: *mut ffi::PyObject) {
+    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
         let ptr = (obj as *mut u8).offset(
             <Self as PyTypeInfo>::offset() as isize) as *mut Self::Type;
         std::ptr::drop_in_place(ptr);
@@ -296,7 +296,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     println!("DEALLOC: {:?}", obj);
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
     let py = Python::assume_gil_acquired();
-    let r = <T as PyObjectAlloc>::dealloc(&py, obj);
+    let r = <T as PyObjectAlloc>::dealloc(py, obj);
     mem::forget(guard);
     r
 }
@@ -329,24 +329,24 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
         }
     }
 
-    for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
-    }
-    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
-    }
-    for def in <T as class::context::PyContextProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
-    }
-    for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
-    }
-    for def in <T as class::number::PyNumberProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
-    }
-    for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
-    }
+    //for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
+    //    defs.push(def.as_method_def())
+    //}
+    //for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
+    //    defs.push(def.as_method_def())
+    //}
+    //for def in <T as class::context::PyContextProtocolImpl>::methods() {
+    //    defs.push(def.as_method_def())
+    //}
+    //for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
+    //defs.push(def.as_method_def())
+    //}
+    //for def in <T as class::number::PyNumberProtocolImpl>::methods() {
+    //    defs.push(def.as_method_def())
+    //}
+    //for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
+    //    defs.push(def.as_method_def())
+    //}
 
     (new, call, defs)
 }

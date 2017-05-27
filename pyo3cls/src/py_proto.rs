@@ -95,8 +95,7 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &de
                         let name = syn::Ident::from(m.name);
                         let proto = syn::Ident::from(m.proto);
 
-                        let fn_spec = FnSpec::parse(
-                            &iimpl.ident, sig, &mut iimpl.attrs);
+                        let fn_spec = FnSpec::parse(&iimpl.ident, sig, &mut iimpl.attrs);
                         let meth = py_method::impl_proto_wrap(ty, &iimpl.ident, &fn_spec);
 
                         py_methods.push(

@@ -32,7 +32,6 @@ pub trait IntoPyObject {
     #[inline]
     fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject>
         where Self: Sized;
-
 }
 
 
@@ -100,7 +99,7 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
 }
 
 // Default IntoPyObject implementation
-impl <T> IntoPyObject for T where T: ToPyObject
+impl<T> IntoPyObject for T where T: ToPyObject
 {
     #[inline]
     default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> where Self: Sized
@@ -139,7 +138,7 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
     }
 }
 
-impl <T> IntoPyObject for Option<T> where T: IntoPyObject {
+impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
     fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
         match self {

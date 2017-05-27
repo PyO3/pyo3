@@ -23,10 +23,10 @@ pub trait PyMappingProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __getitem__(&'p self, py: Python<'p>, key: Self::Key)
                    -> Self::Result where Self: PyMappingGetItemProtocol<'p> {unimplemented!()}
 
-    fn __setitem__(&'p self, py: Python<'p>, key: Self::Key, value: Self::Value)
+    fn __setitem__(&'p mut self, py: Python<'p>, key: Self::Key, value: Self::Value)
                    -> Self::Result where Self: PyMappingSetItemProtocol<'p> {unimplemented!()}
 
-    fn __delitem__(&'p self, py: Python<'p>, key: Self::Key)
+    fn __delitem__(&'p mut self, py: Python<'p>, key: Self::Key)
                    -> Self::Result where Self: PyMappingDelItemProtocol<'p> {unimplemented!()}
 
     fn __iter__(&'p self, py: Python<'p>)

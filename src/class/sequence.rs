@@ -23,10 +23,10 @@ pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __getitem__(&'p self, py: Python<'p>, key: isize) -> Self::Result
         where Self: PySequenceGetItemProtocol<'p> { unimplemented!() }
 
-    fn __setitem__(&'p self, py: Python<'p>, key: isize, value: Self::Value) -> Self::Result
+    fn __setitem__(&'p mut self, py: Python<'p>, key: isize, value: Self::Value) -> Self::Result
         where Self: PySequenceSetItemProtocol<'p> { unimplemented!() }
 
-    fn __delitem__(&'p self, py: Python<'p>, key: isize) -> Self::Result
+    fn __delitem__(&'p mut self, py: Python<'p>, key: isize) -> Self::Result
         where Self: PySequenceDelItemProtocol<'p> { unimplemented!() }
 
     fn __contains__(&'p self, py: Python<'p>, item: Self::Item) -> Self::Result
@@ -38,10 +38,10 @@ pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __repeat__(&'p self, py: Python<'p>, count: isize) -> Self::Result
         where Self: PySequenceRepeatProtocol<'p> { unimplemented!() }
 
-    fn __inplace_concat__(&'p self, py: Python<'p>, other: Self::Other) -> Self::Result
+    fn __inplace_concat__(&'p mut self, py: Python<'p>, other: Self::Other) -> Self::Result
         where Self: PySequenceInplaceConcatProtocol<'p> { unimplemented!() }
 
-    fn __inplace_repeat__(&'p self, py: Python<'p>, count: isize) -> Self::Result
+    fn __inplace_repeat__(&'p mut self, py: Python<'p>, count: isize) -> Self::Result
         where Self: PySequenceInplaceRepeatProtocol<'p> { unimplemented!() }
 }
 

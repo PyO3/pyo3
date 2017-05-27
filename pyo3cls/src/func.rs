@@ -42,12 +42,14 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
             match *meth {
                 MethodProto::Unary{name: _, pyres, proto} => {
                     let p = syn::Ident::from(proto);
-                    let succ = get_res_success(ty);
+                    let (ty, succ) = get_res_success(ty);
 
                     let tmp = extract_decl(syn::parse_item(
                         quote! {fn test(&self)
                                         -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     sig.decl.output = tmp.output.clone();
+                    modify_self_ty(sig);
+                    modify_py_ty(sig);
 
                     if pyres {
                         quote! {
@@ -65,14 +67,14 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     }
                 },
                 MethodProto::Binary{name: n, arg, pyres, proto} => {
-                    if sig.decl.inputs.len() < 2 {
+                    if sig.decl.inputs.len() <= 2 {
                         println!("Not enough arguments for {}", n);
                         return Tokens::new();
                     }
                     let p = syn::Ident::from(proto);
                     let arg_name = syn::Ident::from(arg);
                     let arg_ty = get_arg_ty(sig, 2);
-                    let succ = get_res_success(ty);
+                    let (ty, succ) = get_res_success(ty);
 
                     let tmp = extract_decl(syn::parse_item(
                         quote! {fn test(
@@ -85,6 +87,8 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                             arg: Option<<#cls as #p<'p>>::#arg_name>)
                                 -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
+                    modify_self_ty(sig);
+                    modify_py_ty(sig);
 
                     if pyres {
                         quote! {
@@ -104,7 +108,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     }
                 },
                 MethodProto::Ternary{name: n, arg1, arg2, pyres, proto} => {
-                    if sig.decl.inputs.len() < 3 {
+                    if sig.decl.inputs.len() <= 3 {
                         print_err(format!("Not enough arguments {}", n), quote!(sig));
                         return Tokens::new();
                     }
@@ -113,7 +117,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     let arg1_ty = get_arg_ty(sig, 2);
                     let arg2_name = syn::Ident::from(arg2);
                     let arg2_ty = get_arg_ty(sig, 3);
-                    let succ = get_res_success(ty);
+                    let (ty, succ) = get_res_success(ty);
 
                     // rewrite ty
                     let tmp = extract_decl(syn::parse_item(
@@ -130,6 +134,8 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                                 -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
                     modify_arg_ty(sig, 3, &tmp, &tmp2);
+                    modify_self_ty(sig);
+                    modify_py_ty(sig);
 
                     if pyres {
                         quote! {
@@ -151,7 +157,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     }
                 },
                 MethodProto::Quaternary{name: n, arg1, arg2, arg3, proto} => {
-                    if sig.decl.inputs.len() < 4 {
+                    if sig.decl.inputs.len() <= 4 {
                         print_err(format!("Not enough arguments {}", n), quote!(sig));
                         return Tokens::new();
                     }
@@ -162,7 +168,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     let arg2_ty = get_arg_ty(sig, 3);
                     let arg3_name = syn::Ident::from(arg3);
                     let arg3_ty = get_arg_ty(sig, 4);
-                    let succ = get_res_success(ty);
+                    let (ty, succ) = get_res_success(ty);
 
                     // rewrite ty
                     let tmp = extract_decl(syn::parse_item(
@@ -182,6 +188,8 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                     modify_arg_ty(sig, 2, &tmp, &tmp2);
                     modify_arg_ty(sig, 3, &tmp, &tmp2);
                     modify_arg_ty(sig, 4, &tmp, &tmp2);
+                    modify_self_ty(sig);
+                    modify_py_ty(sig);
 
                     quote! {
                         impl<'p> #p<'p> for #cls {
@@ -202,7 +210,7 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
 
 // TODO: better arg ty detection
 fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Ty {
-    match sig.decl.inputs[idx] {
+    let mut ty = match sig.decl.inputs[idx] {
         syn::FnArg::Captured(_, ref arg_ty) => {
             match arg_ty {
                 &syn::Ty::Path(_, ref path) => {
@@ -220,25 +228,38 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Ty {
                     }
                     arg_ty.clone()
                 },
-                _ => {
-                    arg_ty.clone()
-                }
+                _ => arg_ty.clone()
             }
         },
-        _ =>
-            panic!("fn arg type is not supported"),
+        _ => panic!("fn arg type is not supported"),
+    };
+
+    match ty {
+        syn::Ty::Rptr(ref mut lifetime, _) => {
+            match lifetime {
+                &mut None => {
+                    *lifetime = Some(syn::Lifetime {ident: syn::Ident::from("'p")})
+                }
+                _ => (),
+            }
+        }
+        _ => ()
     }
+
+    ty
 }
 
 // Success
-fn get_res_success(ty: &syn::Ty) -> syn::Ty {
-    match ty {
+fn get_res_success(ty: &syn::Ty) -> (Tokens, syn::Ty) {
+    let result;
+    let mut succ = match ty {
         &syn::Ty::Path(_, ref path) => {
             if let Some(segment) = path.segments.last() {
                 match segment.ident.as_ref() {
                     // check result type
                     "PyResult" => match segment.parameters {
                         syn::PathParameters::AngleBracketed(ref data) => {
+                            result = true;
                             data.types[0].clone()
                         },
                         _ => panic!("fn result type is not supported"),
@@ -253,7 +274,40 @@ fn get_res_success(ty: &syn::Ty) -> syn::Ty {
             }
         }
         _ => panic!("not supported: {:?}", ty),
+    };
+
+    // add lifetime to Py<T>
+    match succ {
+        syn::Ty::Path(_, ref mut path) => {
+            let last = path.segments.len()-1;
+            let seg = path.segments[last].clone();
+
+            if seg.ident.as_ref() == "Py" {
+                if let syn::PathParameters::AngleBracketed(ref data) = seg.parameters {
+                    path.segments[last] = syn::PathSegment{
+                        ident: seg.ident.clone(),
+                        parameters: syn::PathParameters::AngleBracketed(
+                            syn::AngleBracketedParameterData{
+                                lifetimes: vec![syn::Lifetime {
+                                    ident: syn::Ident::from("'p")}],
+                                types: data.types.clone(),
+                                bindings: data.bindings.clone(),
+                            })
+                    }
+                }
+            }
+        }
+        _ => (),
     }
+
+    // result
+    let res = if result {
+        quote! {PyResult<#succ>}
+    } else {
+        quote! {#ty}
+    };
+    
+    (res, succ)
 }
 
 
@@ -285,12 +339,53 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize,
                 }
             }
         },
-        _ =>
-            panic!("not supported"),
+        _ => panic!("not supported"),
     }
 
     sig.decl.output = decl1.output.clone();
 }
+
+fn modify_self_ty(sig: &mut syn::MethodSig)
+{
+    match sig.decl.inputs[0] {
+        syn::FnArg::SelfRef(ref mut lifetime, _) => {
+            *lifetime = Some(syn::Lifetime {ident: syn::Ident::from("'p")})
+        },
+        _ => panic!("not supported"),
+    }
+}
+
+// modify Python signature
+fn modify_py_ty(sig: &mut syn::MethodSig)
+{
+    match sig.decl.inputs[1] {
+        syn::FnArg::Captured(_, ref mut arg_ty) => {
+            match arg_ty {
+                &mut syn::Ty::Path(_, ref mut path) => {
+                    let last = path.segments.len()-1;
+                    let seg = path.segments[last].clone();
+                    if seg.ident.as_ref() == "Python" {
+                        if let syn::PathParameters::AngleBracketed(ref data) = seg.parameters {
+                            path.segments[last] = syn::PathSegment{
+                                ident: seg.ident.clone(),
+                                parameters: syn::PathParameters::AngleBracketed(
+                                    syn::AngleBracketedParameterData{
+                                        lifetimes: vec![syn::Lifetime {
+                                            ident: syn::Ident::from("'p")}],
+                                        types: data.types.clone(),
+                                        bindings: data.bindings.clone(),
+                                    })
+                            }
+                        }
+                    }
+                },
+                _ => (),
+            }
+        },
+        _ => panic!("not supported"),
+    }
+}
+
 
 fn fix_name(pat: &syn::Pat, arg: &syn::FnArg) -> syn::FnArg {
     match arg {

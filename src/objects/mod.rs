@@ -22,22 +22,22 @@ macro_rules! pyobject_newtype(
 
         impl<'p> $crate::python::AsPy<'p> for &'p $name {
             #[inline]
-            fn py<'a>(&'a self) -> Python<'p> {
+            fn py<'a>(&'a self) -> $crate::Python<'p> {
                 unsafe { $crate::python::Python::assume_gil_acquired() }
             }
         }
 
         impl $crate::python::ToPythonPointer for $name {
             #[inline]
-            fn as_ptr(&self) -> *mut ffi::PyObject {
-                self as *const _ as *mut ffi::PyObject
+            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
+                self as *const _ as *mut $crate::ffi::PyObject
             }
         }
 
         impl<'a> $crate::python::ToPythonPointer for &'a $name {
             #[inline]
-            fn as_ptr(&self) -> *mut ffi::PyObject {
-                self as *const _ as *mut ffi::PyObject
+            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
+                self as *const _ as *mut $crate::ffi::PyObject
             }
         }
 
@@ -61,6 +61,32 @@ macro_rules! pyobject_newtype(
             #[inline]
             fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
                 unsafe { &mut $crate::ffi::$typeobject }
+            }
+        }
+
+        impl $crate::std::fmt::Debug for $name {
+            default fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
+                           -> Result<(), $crate::std::fmt::Error>
+            {
+                let py = unsafe { $crate::python::Python::assume_gil_acquired() };
+                let s = unsafe { $crate::Py::<$crate::PyString>::cast_from_owned_nullptr(
+                    py, $crate::ffi::PyObject_Repr(
+                        $crate::python::ToPythonPointer::as_ptr(self))) };
+                let repr_obj = try!(s.map_err(|_| $crate::std::fmt::Error));
+                f.write_str(&repr_obj.to_string_lossy())
+            }
+        }
+
+        impl $crate::std::fmt::Display for $name {
+            fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
+                   -> Result<(), $crate::std::fmt::Error>
+            {
+                let py = unsafe { $crate::python::Python::assume_gil_acquired() };
+                let s = unsafe { $crate::Py::<$crate::PyString>::cast_from_owned_nullptr(
+                    py, $crate::ffi::PyObject_Str(
+                        $crate::python::ToPythonPointer::as_ptr(self))) };
+                let str_obj = try!(s.map_err(|_| $crate::std::fmt::Error));
+                f.write_str(&str_obj.to_string_lossy())
             }
         }
     );

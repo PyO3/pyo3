@@ -16,10 +16,10 @@ use callback::PyObjectCallbackConverter;
 /// Iterator protocol
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p> : PyTypeInfo {
-    fn __iter__(&'p self, py: Python<'p>)
+    fn __iter__(&'p mut self, py: Python<'p>)
                 -> Self::Result where Self: PyIterIterProtocol<'p> { unimplemented!() }
 
-    fn __next__(&'p self, py: Python<'p>)
+    fn __next__(&'p mut self, py: Python<'p>)
                 -> Self::Result where Self: PyIterNextProtocol<'p> { unimplemented!() }
 
 }

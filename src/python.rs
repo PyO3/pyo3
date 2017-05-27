@@ -1,20 +1,6 @@
-// Copyright (c) 2015 Daniel Grunwald
+// Copyright (c) 2017-present PyO3 Project and Contributors
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
+// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std;
 use std::ffi::CString;
@@ -42,10 +28,18 @@ use pythonrun::GILGuard;
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
+pub struct PythonToken<T>(PhantomData<T>);
+
 
 pub trait AsPy<'p> {
     fn py<'a>(&'a self) -> Python<'p>;
 }
+
+
+pub trait PyClone : Sized {
+    fn clone_ref(&self) -> PyPtr<Self>;
+}
+
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
 pub trait ToPythonPointer {
@@ -55,7 +49,8 @@ pub trait ToPythonPointer {
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
 pub trait IntoPythonPointer {
-    /// Retrieves the underlying FFI pointer (as a borrowed pointer).
+    /// Retrieves the underlying FFI pointer. Whether pointer owned or borrowed
+    /// depends on implementation.
     fn into_ptr(self) -> *mut ffi::PyObject;
 }
 
@@ -81,6 +76,7 @@ impl <T> IntoPythonPointer for Option<T> where T: IntoPythonPointer {
         }
     }
 }
+
 
 impl<'p> Python<'p> {
     /// Retrieve Python instance under the assumption that the GIL is already acquired at this point,
@@ -169,14 +165,6 @@ impl<'p> Python<'p> {
         }
     }
 
-    /// Create new PyObject instance
-    #[inline]
-    pub fn init<T>(&'p self, value: T) -> Py<'p, T>
-        where T: PyTypeInfo + PyObjectAlloc<Type=T>
-    {
-        Py::new(self, value).unwrap()
-    }
-
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -219,7 +207,68 @@ impl<'p> Python<'p> {
     pub fn import(self, name : &str) -> PyResult<Py<'p, PyModule>> {
         PyModule::import(self, name)
     }
+
+    pub fn with_token<T, F>(self, f: F) -> Py<'p, T>
+        where F: FnOnce(PythonToken<T>) -> T,
+              T: PyTypeInfo + PyObjectAlloc<Type=T>
+    {
+        let value = f(PythonToken(PhantomData));
+        Py::new(self, value).unwrap()
+    }
 }
+
+impl<T> PythonToken<T> {
+
+    /// Gets the Python builtin value `None`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn None(self) -> PyPtr<PyObject> {
+        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_None()) }
+    }
+
+    /// Gets the Python builtin value `True`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn True(self) -> PyPtr<PyBool> {
+        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_True()) }
+    }
+
+    /// Gets the Python builtin value `False`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn False(self) -> PyPtr<PyBool> {
+        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_False()) }
+    }
+
+    /// Gets the Python builtin value `NotImplemented`.
+    #[allow(non_snake_case)] // the Python keyword starts with uppercase
+    #[inline]
+    pub fn NotImplemented(self) -> PyPtr<PyObject> {
+        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
+    }
+
+    /// Gets the Python type object for type T.
+    pub fn get_type<U>(self) -> PyPtr<PyType> where U: PyTypeObject {
+        U::type_object(Python(PhantomData)).into_pptr()
+    }
+
+    /// Execute closure `F` with Python instance.
+    /// Retrieve Python instance under the assumption that the GIL is already acquired
+    /// at this point, and stays acquired during closure call.
+    pub fn with_py<'p, F>(self, f: F) where F: FnOnce(Python<'p>)
+    {
+        f(Python(PhantomData))
+    }
+
+    pub fn with_token<P, F>(self, f: F) -> PyPtr<P>
+        where F: FnOnce(PythonToken<P>) -> P,
+              P: PyTypeInfo + PyObjectAlloc<Type=P>
+    {
+        let value = f(PythonToken(PhantomData));
+        Py::new(Python(PhantomData), value).unwrap().into_pptr()
+    }
+}
+
 
 #[cfg(test)]
 mod test {

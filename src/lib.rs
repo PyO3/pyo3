@@ -69,9 +69,9 @@ pub use pyptr::{Py, PyPtr};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
-pub use python::{AsPy, Python};
+pub use python::{AsPy, Python, PythonToken};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, /*RefFromPyObject,*/ ToPyObject, IntoPyObject, ToPyTuple};
+pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};
 pub mod class;
 pub use class::*;

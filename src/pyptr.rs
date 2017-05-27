@@ -20,6 +20,26 @@ pub struct PyPtr<T> {
 }
 
 impl<T> PyPtr<T> {
+    /// Creates a PyPtr instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the Py.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    #[inline]
+    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyPtr<T> {
+        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
+        PyPtr {inner: ptr, _t: PhantomData}
+    }
+
+    /// Creates a PyPTr instance for the given FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    /// Caller of this method has to have valid Py object.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyPtr<T> {
+        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
+        ffi::Py_INCREF(ptr);
+        PyPtr {inner: ptr, _t: PhantomData}
+    }
+
     pub fn as_ref<'p>(&self, _py: Python<'p>) -> Py<'p, T> {
         Py{inner: self.inner, _t: PhantomData, _py: PhantomData}
     }
@@ -56,7 +76,6 @@ impl<T> IntoPythonPointer for PyPtr<T> {
     #[inline]
     #[must_use]
     fn into_ptr(self) -> *mut ffi::PyObject {
-        println!("INTO PTR: {:?}", self.inner);
         let ptr = self.inner;
         std::mem::forget(self);
         ptr
@@ -206,7 +225,7 @@ impl<'p, T> Py<'p, T>
 impl<'p, T> Py<'p, T> where T: PyTypeInfo
 {
     /// Create new python object and move T instance under python management
-    pub fn new(py: &Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: PyObjectAlloc<Type=T>
+    pub fn new(py: Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: PyObjectAlloc<Type=T>
     {
         let ob = unsafe {
             try!(<T as PyObjectAlloc>::alloc(py, value))
@@ -463,10 +482,10 @@ impl <'a, T> ToPyObject for Py<'a, T> {
     }
 }
 
-impl <'a, T> IntoPyObject for Py<'a, T> {
+impl<'p, T> IntoPyObject for Py<'p, T> {
 
     #[inline]
-    default fn into_object<'p>(self, py: Python<'p>) -> Py<'p, PyObject> {
+    default fn into_object<'a>(self, py: Python<'a>) -> Py<'a, PyObject> {
         PyObject::from_borrowed_ptr(py, self.inner)
     }
 }
