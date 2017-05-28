@@ -4,26 +4,27 @@
 
 use std::slice;
 
-use ::Py;
+use ::{Py, PyPtr};
 use ffi::{self, Py_ssize_t};
-use python::{AsPy, Python, ToPythonPointer, IntoPythonPointer};
+use python::{Python, PythonToken, Token,
+             ToPythonPointer, IntoPythonPointer, PythonObjectWithToken};
 use err::{PyErr, PyResult};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple};
 use super::exc;
 use super::PyObject;
 
 /// Represents a Python tuple object.
-pub struct PyTuple;
+pub struct PyTuple(PythonToken<PyTuple>);
 
 pyobject_newtype!(PyTuple, PyTuple_Check, PyTuple_Type);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> Py<'p, PyTuple> {
+    pub fn new<'p, T: ToPyObject>(py: Token, elements: &[T]) -> PyPtr<PyTuple> {
         unsafe {
             let len = elements.len();
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
-            let t = Py::from_owned_ptr_or_panic(py, ptr);
+            let t = PyPtr::from_owned_ptr_or_panic(ptr);
             for (i, e) in elements.iter().enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
@@ -32,9 +33,9 @@ impl PyTuple {
     }
 
     /// Retrieves the empty tuple.
-    pub fn empty<'p>(py: Python<'p>) -> Py<'p, PyTuple> {
+    pub fn empty(py: Token) -> PyPtr<PyTuple> {
         unsafe {
-            Py::from_owned_ptr_or_panic(py, ffi::PyTuple_New(0))
+            PyPtr::from_owned_ptr_or_panic(ffi::PyTuple_New(0))
         }
     }
 
@@ -50,14 +51,13 @@ impl PyTuple {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item<'p>(&self, index: usize) -> Py<'p, PyObject> {
+    pub fn get_item<'p>(&self, index: usize) -> &PyObject {
         // TODO: reconsider whether we should panic
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
-            std::mem::transmute(
-                PyObject::from_borrowed_ptr(
-                    self.py(), ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)))
+            self.token().from_owned_ptr(
+                ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
@@ -84,27 +84,27 @@ impl PyTuple {
 use std;
 
 impl<'a> ToPyTuple for Py<'a, PyTuple> {
-    fn to_py_tuple<'p>(&self, _py: Python<'p>) -> Py<'p, PyTuple> {
-        unsafe { std::mem::transmute(self.clone()) }
+    fn to_py_tuple(&self, _py: Token) -> PyPtr<PyTuple> {
+        self.as_pptr()
     }
 }
 
 impl<'a> ToPyTuple for &'a str {
-    fn to_py_tuple<'p>(&self, py: Python<'p>) -> Py<'p, PyTuple> {
+    fn to_py_tuple(&self, py: Token) -> PyPtr<PyTuple> {
         PyTuple::new(py, &[py_coerce_expr!(self.to_object(py))])
     }
 }
 
-fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(py: Token, t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.",
                       expected_length, t.len());
     PyErr::new_lazy_init(
-        py.get_ptype::<exc::ValueError>(), Some(msg.to_object(py).into_pptr()))
+        py.get_type::<exc::ValueError>(), Some(msg.to_object(py)))
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+        fn to_object(&self, py: Token) -> PyPtr<PyObject> {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_object(py)),)+
             ]).into_object()
@@ -112,7 +112,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl <$($T: ToPyObject),+> ToPyTuple for ($($T,)+) {
-        fn to_py_tuple<'p>(&self, py: Python<'p>) -> Py<'p, PyTuple> {
+        fn to_py_tuple(&self, py: Token) -> PyPtr<PyTuple> {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_object(py)),)+
             ])
@@ -130,7 +130,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     $( try!(slice[$n].extract::<$T>()), )+
                 ))
             } else {
-                Err(wrong_tuple_length(obj.py(), t, $length))
+                Err(wrong_tuple_length(obj.token(), t, $length))
             }
         }
     }
@@ -169,7 +169,7 @@ pub struct NoArgs;
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyObject for NoArgs {
 
-    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
         PyTuple::empty(py).into_object()
     }
 }
@@ -177,7 +177,7 @@ impl ToPyObject for NoArgs {
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyTuple for NoArgs {
 
-    fn to_py_tuple<'p>(&self, py: Python<'p>) -> Py<'p, PyTuple> {
+    fn to_py_tuple(&self, py: Token) -> PyPtr<PyTuple> {
         PyTuple::empty(py)
     }
 }
@@ -185,7 +185,7 @@ impl ToPyTuple for NoArgs {
 /// Converts `()` to an empty Python tuple.
 impl ToPyTuple for () {
 
-    fn to_py_tuple<'p>(&self, py: Python<'p>) -> Py<'p, PyTuple> {
+    fn to_py_tuple(&self, py: Token) -> PyPtr<PyTuple> {
         PyTuple::empty(py)
     }
 }
@@ -198,7 +198,7 @@ pyobject_extract!(obj to NoArgs => {
     if t.len() == 0 {
         Ok(NoArgs)
     } else {
-        Err(wrong_tuple_length(obj.py(), t, 0))
+        Err(wrong_tuple_length(obj.token(), t, 0))
     }
 });
 

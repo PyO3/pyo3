@@ -6,15 +6,33 @@ use quote::Tokens;
 
 pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
     let base = syn::Ident::from("_pyo3::PyObject");
+    let mut token: Option<syn::Ident> = None;
 
     match ast.body {
-        syn::Body::Struct(syn::VariantData::Struct(_)) => {
+        syn::Body::Struct(syn::VariantData::Struct(ref mut fields)) => {
+            for field in fields.iter_mut() {
+                let mut attrs = vec![];
+                for attr in field.attrs.iter() {
+                    match attr.value {
+                        syn::MetaItem::Word(ref a) => {
+                            if a.as_ref() == "token" {
+                                token = field.ident.clone();
+                                continue
+                            }
+                        },
+                        _ => (),
+                    }
+                    attrs.push(attr.clone());
+                    println!("FIELD: {:?}", attr);
+                }
+                field.attrs = attrs;
+            }
         },
         _ => panic!("#[class] can only be used with notmal structs"),
     }
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
-    let tokens = impl_class(&ast.ident, &base);
+    let tokens = impl_class(&ast.ident, &base, token);
 
     quote! {
         #[feature(specialization)]
@@ -23,15 +41,53 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
             use std;
+            use pyo3::python::PythonObjectWithToken;
 
             #tokens
         };
     }
 }
 
-fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
-    let token_name = syn::Ident::from("__py_token");
+fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) -> Tokens {
     let cls_name = quote! { #cls }.as_str().to_string();
+
+    let extra = if let Some(token) = token {
+        Some(quote! {
+            impl _pyo3::python::PythonObjectWithToken for #cls {
+            fn token<'p>(&'p self) -> _pyo3::python::Token<'p> {
+                    self.#token.token()
+                }
+            }
+
+            /*impl std::fmt::Debug for #cls {
+                fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+                    self.token().with(|py| {
+                        let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                        let repr = unsafe {
+                            _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                                py, _pyo3::ffi::PyObject_Repr(ptr))
+                                .map_err(|_| std::fmt::Error)? };
+                        f.write_str(&repr.to_string_lossy())
+                    })
+                }
+            }
+
+            impl std::fmt::Display for #cls {
+                fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+                    self.token().with(|py| {
+                        let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                        let s = unsafe {
+                            _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                                py, _pyo3::ffi::PyObject_Str(ptr)
+                            ).map_err(|_| std::fmt::Error)?};
+                        f.write_str(&s.to_string_lossy())
+                    })
+                }
+            }*/
+        })
+    } else {
+        None
+    };
 
     quote! {
         impl _pyo3::typeob::PyTypeInfo for #cls {
@@ -61,49 +117,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident) -> Tokens {
             }
         }
 
-        impl _pyo3::python::ToPythonPointer for #cls {
-            #[inline]
-            fn as_ptr(&self) -> *mut ffi::PyObject {
-                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                unsafe {
-                    {self as *const _ as *mut u8}.offset(-offset) as *mut _pyo3::ffi::PyObject
-                }
-            }
-        }
-
-        impl _pyo3::python::PyClone for #cls {
-            fn clone_ref(&self) -> PyPtr<#cls> {
-                unsafe {
-                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
-                    _pyo3::PyPtr::from_borrowed_ptr(ptr)
-                }
-            }
-        }
-
-        impl std::fmt::Debug for #cls {
-            fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                unsafe {
-                    let py = _pyo3::Python::assume_gil_acquired();
-                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
-                    let repr = try!(_pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
-                        py, _pyo3::ffi::PyObject_Repr(ptr)).map_err(|_| std::fmt::Error));
-
-                    f.write_str(&repr.to_string_lossy())
-                }
-            }
-        }
-
-        impl std::fmt::Display for #cls {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                unsafe {
-                    let py = _pyo3::Python::assume_gil_acquired();
-                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
-                    let s = try!(_pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
-                        py, _pyo3::ffi::PyObject_Str(ptr)).map_err(|_| std::fmt::Error));
-
-                    f.write_str(&s.to_string_lossy())
-                }
-            }
-        }
+        #extra
     }
 }

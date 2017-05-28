@@ -69,7 +69,7 @@ pub use pyptr::{Py, PyPtr};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
-pub use python::{AsPy, Python, PythonToken};
+pub use python::{Python, PythonToken, IntoPythonPointer, PythonObjectWithToken};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};
@@ -192,7 +192,6 @@ macro_rules! py_module_init {
     }
 }
 
-use python::IntoPythonPointer;
 
 #[doc(hidden)]
 pub unsafe fn py_module_init_impl(
@@ -208,10 +207,10 @@ pub unsafe fn py_module_init_impl(
         return module;
     }
 
-    let module = match Py::<PyModule>::cast_from_owned_ptr(py, module) {
+    let module = match Py::<PyModule>::cast_from_owned_ptr(py.token(), module) {
         Ok(m) => m,
         Err(e) => {
-            PyErr::from(e).restore(py);
+            PyErr::from(e).restore(py.token());
             mem::forget(guard);
             return ptr::null_mut();
         }
@@ -219,7 +218,7 @@ pub unsafe fn py_module_init_impl(
     let ret = match init(py, &module) {
         Ok(()) => module.into_ptr(),
         Err(e) => {
-            e.restore(py);
+            e.restore(py.token());
             ptr::null_mut()
         }
     };

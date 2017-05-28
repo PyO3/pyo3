@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std::os::raw::c_long;
-use pyptr::Py;
+use pyptr::PyPtr;
 use objects::PyObject;
-use python::{AsPy, Python, ToPythonPointer};
+use python::{Python, PythonToken, ToPythonPointer, Token};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use conversion::ToPyObject;
@@ -30,18 +30,18 @@ impl PySliceIndices {
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted
 /// at the moment by PySlice object.
-pub struct PySlice(PyObject);
+pub struct PySlice(PythonToken<PySlice>);
 
 pyobject_newtype!(PySlice, PySlice_Check, PySlice_Type);
 
 impl PySlice {
     /// Construct a new slice with the given elements.
-    pub fn new<'p>(py: Python<'p>, start: isize, stop: isize, step: isize) -> Py<'p, PySlice> {
+    pub fn new<'p>(py: Token, start: isize, stop: isize, step: isize) -> PyPtr<PySlice> {
         unsafe {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            Py::from_owned_ptr_or_panic(py, ptr)
+            PyPtr::from_owned_ptr_or_panic(py, ptr)
         }
     }
 
@@ -68,14 +68,14 @@ impl PySlice {
                     slicelength: slicelen,
                 })
             } else {
-                Err(PyErr::fetch(self.py()))
+                Err(PyErr::fetch(self.token()))
             }
         }
     }
 }
 
 impl ToPyObject for PySliceIndices {
-    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
-        PySlice::new(py, self.start, self.stop, self.step).into_object()
+    fn to_object<'p>(&self, py: Token) -> PyPtr<PyObject> {
+        PySlice::new(py, self.start, self.stop, self.step)
     }
 }

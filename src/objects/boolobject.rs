@@ -1,17 +1,17 @@
-use ::{Py, PyObject};
+use ::{Py, PyPtr, PyObject};
 use ffi;
-use python::{Python, ToPythonPointer};
+use python::{Python, PythonToken, ToPythonPointer, Token};
 use conversion::{ToPyObject};
 
 /// Represents a Python `bool`.
-pub struct PyBool;
+pub struct PyBool(PythonToken<PyBool>);
 
 pyobject_newtype!(PyBool, PyBool_Check, PyBool_Type);
 
 impl PyBool {
     /// Depending on `val`, returns `py.True()` or `py.False()`.
     #[inline]
-    pub fn get<'p>(py: Python<'p>, val: bool) -> Py<'p, PyBool> {
+    pub fn get(py: Token, val: bool) -> PyPtr<PyBool> {
         if val { py.True() } else { py.False() }
     }
 
@@ -25,12 +25,12 @@ impl PyBool {
 /// Converts a rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
         PyBool::get(py, *self).into_object()
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Token, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         // Avoid unnecessary Py_INCREF/Py_DECREF pair

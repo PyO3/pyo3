@@ -6,14 +6,14 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use pyptr::Py;
-use python::{AsPy, Python, ToPythonPointer};
+use pyptr::{Py, PyPtr};
+use python::{Python, PythonToken, ToPythonPointer, Token, PythonObjectWithToken};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
 use err::PyResult;
 
 /// Represents a reference to a Python type object.
-pub struct PyType;
+pub struct PyType(PythonToken<PyType>);
 
 pyobject_newtype!(PyType, PyType_Check, PyType_Type);
 
@@ -28,8 +28,8 @@ impl PyType {
     /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> Py<PyType> {
-        Py::from_borrowed_ptr(py, p as *mut ffi::PyObject)
+    pub unsafe fn from_type_ptr(_py: Token, p: *mut ffi::PyTypeObject) -> PyPtr<PyType> {
+        PyPtr::from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
     /// Gets the name of the PyType.
@@ -54,13 +54,13 @@ impl PyType {
     // /// Calls the type object, thus creating a new instance.
     // /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     #[inline]
-    pub fn call<'p, A>(&'p self, args: A, kwargs: Option<&PyDict>) -> PyResult<Py<'p, PyObject>>
+    pub fn call<'p, A>(&'p self, args: A, kwargs: Option<&PyDict>) -> PyResult<PyPtr<PyObject>>
         where A: ToPyTuple
     {
-        let args = args.to_py_tuple(self.py());
+        let args = args.to_py_tuple(self.token());
         unsafe {
-            Py::from_owned_ptr_or_err(
-                self.py(), ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs.as_ptr()))
+            PyPtr::from_owned_ptr_or_err(
+                self.token(), ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs.as_ptr()))
         }
     }
 }

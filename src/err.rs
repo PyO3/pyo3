@@ -4,7 +4,7 @@ use libc;
 
 use ffi;
 use pyptr::{Py, PyPtr};
-use python::{ToPythonPointer, Python, IntoPythonPointer};
+use python::{ToPythonPointer, Python, IntoPythonPointer, Token, PythonObjectWithToken};
 use objects::{PyObject, PyType, exc};
 use typeob::{PyTypeObject};
 use conversion::{ToPyObject, ToPyTuple};
@@ -102,7 +102,7 @@ pub type PyResult<T> = Result<T, PyErr>;
 
 
 // Marker type that indicates an error while downcasting
-pub struct PyDowncastError<'p>(pub Python<'p>, pub Option<&'p str>);
+pub struct PyDowncastError<'p>(pub Token<'p>, pub Option<&'p str>);
 
 
 impl PyErr {
@@ -117,15 +117,15 @@ impl PyErr {
     ///
     /// Example:
     ///  `return Err(PyErr::new::<exc::TypeError, _>(py, "Error message"));`
-    pub fn new<T, V>(py: Python, value: V) -> PyErr
+    pub fn new<T, V>(py: Token, value: V) -> PyErr
         where T: PyTypeObject, V: ToPyObject
     {
-        PyErr::new_helper(py, py.get_ptype::<T>(), value.to_object(py).into_pptr())
+        PyErr::new_helper(py, py.get_type::<T>(), value.to_object(py))
     }
 
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
-    pub fn occurred(_ : Python) -> bool {
+    pub fn occurred(_ : Token) -> bool {
         unsafe { !ffi::PyErr_Occurred().is_null() }
     }
 
@@ -157,7 +157,7 @@ impl PyErr {
     /// Retrieves the current error from the Python interpreter's global state.
     /// The error is cleared from the Python interpreter.
     /// If no error is set, returns a `SystemError`.
-    pub fn fetch(py: Python) -> PyErr {
+    pub fn fetch(py: Token) -> PyErr {
         unsafe {
             let mut ptype      : *mut ffi::PyObject = std::mem::uninitialized();
             let mut pvalue     : *mut ffi::PyObject = std::mem::uninitialized();
@@ -167,7 +167,7 @@ impl PyErr {
         }
     }
 
-    unsafe fn new_from_ffi_tuple(py: Python,
+    unsafe fn new_from_ffi_tuple(py: Token,
                                  ptype: *mut ffi::PyObject,
                                  pvalue: *mut ffi::PyObject,
                                  ptraceback: *mut ffi::PyObject) -> PyErr {
@@ -175,16 +175,16 @@ impl PyErr {
         // and because we mustn't panic in normalize().
         PyErr {
             ptype: if ptype.is_null() {
-                py.get_ptype::<exc::SystemError>()
+                py.get_type::<exc::SystemError>()
             } else {
-                Py::<PyType>::from_borrowed_ptr(py, ptype).into_pptr()
+                PyPtr::from_borrowed_ptr(ptype)
             },
-            pvalue: PyObject::from_borrowed_pptr_opt(py, pvalue),
-            ptraceback: PyObject::from_borrowed_pptr_opt(py, ptraceback)
+            pvalue: PyPtr::from_borrowed_ptr_opt(py, pvalue),
+            ptraceback: PyPtr::from_borrowed_ptr_opt(py, ptraceback)
         }
     }
 
-    fn new_helper(_py: Python, ty: PyPtr<PyType>, value: PyPtr<PyObject>) -> PyErr {
+    fn new_helper(_py: Token, ty: PyPtr<PyType>, value: PyPtr<PyObject>) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
         PyErr {
             ptype: ty,
@@ -198,28 +198,28 @@ impl PyErr {
     /// `obj` must be an Python exception instance, the PyErr will use that instance.
     /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new instance of that type.
     /// Otherwise, a `TypeError` is created instead.
-    pub fn from_instance<O>(py: Python, obj: O) -> PyErr where O: ToPyObject {
+    pub fn from_instance<O>(py: Token, obj: O) -> PyErr where O: ToPyObject {
         PyErr::from_instance_helper(py, obj.to_object(py))
     }
 
-    fn from_instance_helper<'p>(py: Python<'p>, obj: Py<'p, PyObject>) -> PyErr {
+    fn from_instance_helper<'p>(py: Token, obj: PyPtr<PyObject>) -> PyErr {
         if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: unsafe { Py::<PyType>::from_borrowed_ptr(
-                    py, ffi::PyExceptionInstance_Class(obj.as_ptr())).into_pptr() },
-                pvalue: Some(obj.into_pptr()),
+                ptype: unsafe { PyPtr::<PyType>::from_borrowed_ptr(
+                    ffi::PyExceptionInstance_Class(obj.as_ptr())) },
+                pvalue: Some(obj),
                 ptraceback: None
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: unsafe { Py::<PyType>::unchecked_downcast_from(obj).into_pptr() },
+                ptype: unsafe { PyPtr::<PyType>::unchecked_downcast_from(obj) },
                 pvalue: None,
                 ptraceback: None
             }
         } else {
             PyErr {
-                ptype: py.get_ptype::<exc::TypeError>(),
-                pvalue: Some("exceptions must derive from BaseException".to_object(py).into_pptr()),
+                ptype: py.get_type::<exc::TypeError>(),
+                pvalue: Some("exceptions must derive from BaseException".to_object(py)),
                 ptraceback: None
             }
         }
@@ -241,26 +241,26 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
     #[inline]
-    pub fn new_err<'p, A>(py: Python<'p>, exc: Py<'p, PyType>, args: A) -> PyErr
+    pub fn new_err<'p, A>(py: Token, exc: Py<'p, PyType>, args: A) -> PyErr
         where A: 'p + ToPyTuple
     {
         let exc = exc.clone_ref();
         let pval = args.to_py_tuple(py);
         PyErr {
             ptype: exc.into_pptr(),
-            pvalue: Some(pval.into_object().into_pptr()),
+            pvalue: Some(pval.into_object()),
             ptraceback: None
         }
     }
 
     /// Print a standard traceback to sys.stderr.
-    pub fn print(self, py: Python) {
+    pub fn print(self, py: Token) {
         self.restore(py);
         unsafe { ffi::PyErr_PrintEx(0) }
     }
 
     /// Print a standard traceback to sys.stderr.
-    pub fn print_and_set_sys_last_vars(self, py: Python) {
+    pub fn print_and_set_sys_last_vars(self, py: Token) {
         self.restore(py);
         unsafe { ffi::PyErr_PrintEx(1) }
     }
@@ -268,7 +268,7 @@ impl PyErr {
     /// Return true if the current exception matches the exception in `exc`.
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
-    pub fn matches<T>(&self, py: Python, exc: T) -> bool
+    pub fn matches<T>(&self, py: Token, exc: T) -> bool
         where T: ToPyObject
     {
         exc.with_borrowed_ptr(py, |exc| unsafe {
@@ -277,7 +277,7 @@ impl PyErr {
     }
 
     /// Normalizes the error. This ensures that the exception value is an instance of the exception type.
-    pub fn normalize(&mut self, py: Python) {
+    pub fn normalize(&mut self, py: Token) {
         // The normalization helper function involves temporarily moving out of the &mut self,
         // which requires some unsafe trickery:
         unsafe {
@@ -288,7 +288,7 @@ impl PyErr {
 
     /// Helper function for normalizing the error by deconstructing and reconstructing the PyErr.
     /// Must not panic for safety in normalize()
-    fn into_normalized(self, py: Python) -> PyErr {
+    fn into_normalized(self, py: Token) -> PyErr {
         let PyErr { ptype, pvalue, ptraceback } = self;
         let mut ptype = ptype.into_ptr();
         let mut pvalue = pvalue.into_ptr();
@@ -300,25 +300,25 @@ impl PyErr {
     }
 
     /// Retrieves the exception type.
-    pub fn get_type<'p>(&self, py: Python<'p>) -> Py<'p, PyType> {
+    pub fn get_type<'p>(&self, py: Token<'p>) -> Py<'p, PyType> {
         self.ptype.as_ref(py)
     }
 
     /// Retrieves the exception instance for this error.
     /// This method takes `&mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    pub fn instance<'p>(&mut self, py: Python<'p>) -> Py<'p, PyObject> {
+    pub fn instance<'p>(&mut self, py: Token<'p>) -> Py<'p, PyObject> {
         self.normalize(py);
         match self.pvalue {
             Some(ref instance) => instance.as_ref(py),
-            None => py.None()
+            None => py.None().as_ref(py),
         }
     }
 
     /// Writes the error back to the Python interpreter's global state.
     /// This is the opposite of `PyErr::fetch()`.
     #[inline]
-    pub fn restore(self, _py: Python) {
+    pub fn restore(self, _py: Token) {
         let PyErr { ptype, pvalue, ptraceback } = self;
         unsafe {
             ffi::PyErr_Restore(ptype.into_ptr(), pvalue.into_ptr(), ptraceback.into_ptr())
@@ -327,10 +327,11 @@ impl PyErr {
 
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
-    pub fn warn(py: Python, category: &PyObject, message: &str, stacklevel: i32) -> PyResult<()> {
+    pub fn warn(py: Token, category: &PyObject, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message).unwrap();
         unsafe {
-            error_on_minusone(py, ffi::PyErr_WarnEx(category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
+            error_on_minusone(py, ffi::PyErr_WarnEx(
+                category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
         }
     }
 }
@@ -349,7 +350,7 @@ impl PyErr {
 /// Converts `PyDowncastError` to Python `TypeError`.
 impl <'p> std::convert::From<PyDowncastError<'p>> for PyErr {
     fn from(err: PyDowncastError<'p>) -> PyErr {
-        PyErr::new_lazy_init(err.0.get_ptype::<exc::TypeError>(), None)
+        PyErr::new_lazy_init(err.0.get_type::<exc::TypeError>(), None)
     }
 }
 
@@ -367,14 +368,14 @@ impl std::convert::From<PyErr> for std::io::Error {
     }
 }
 
-pub fn panic_after_error(_py: Python) -> ! {
+pub fn panic_after_error() -> ! {
     unsafe { ffi::PyErr_Print(); }
     panic!("Python API called failed");
 }
 
 /// Returns Ok if the error code is not -1.
 #[inline]
-pub fn error_on_minusone(py: Python, result: libc::c_int) -> PyResult<()> {
+pub fn error_on_minusone(py: Token, result: libc::c_int) -> PyResult<()> {
     if result != -1 {
         Ok(())
     } else {

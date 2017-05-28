@@ -11,7 +11,7 @@ use std::os::raw::c_int;
 use ::{Py, CompareOp};
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, IntoPythonPointer};
+use python::{Python, IntoPythonPointer, PythonObjectWithToken};
 use objects::{exc, PyObject};
 use typeob::PyTypeInfo;
 use conversion::{ToPyObject, FromPyObject, IntoPyObject};
@@ -345,8 +345,8 @@ impl<T> PyObjectRichcmpProtocolImpl for T where T: for<'p> PyObjectRichcmpProtoc
             let guard = ::callback::AbortOnDrop(LOCATION);
             let ret = std::panic::catch_unwind(|| {
                 let py = Python::assume_gil_acquired();
-                let slf = Py::<T>::from_borrowed_ptr(py, slf);
-                let arg = PyObject::from_borrowed_ptr(py, arg);
+                let slf = Py::<T>::from_borrowed_ptr(py.token(), slf);
+                let arg = PyObject::from_borrowed_ptr(py.token(), arg);
 
                 let res = match extract_op(py, op) {
                     Ok(op) => {
@@ -361,10 +361,10 @@ impl<T> PyObjectRichcmpProtocolImpl for T where T: for<'p> PyObjectRichcmpProtoc
                 };
                 match res {
                     Ok(val) => {
-                        val.into_object(py).into_ptr()
+                        val.into_object(py.token()).into_ptr()
                     }
                     Err(e) => {
-                        e.restore(py);
+                        e.restore(py.token());
                         std::ptr::null_mut()
                     }
                 }
@@ -394,8 +394,8 @@ fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
         ffi::Py_GT => Ok(CompareOp::Gt),
         ffi::Py_GE => Ok(CompareOp::Ge),
         _ => Err(PyErr::new_lazy_init(
-            py.get_ptype::<exc::ValueError>(),
+            py.get_type::<exc::ValueError>(),
             Some("tp_richcompare called with invalid comparison operator"
-                 .to_object(py).into_pptr())))
+                 .to_object(py.token()))))
     }
 }

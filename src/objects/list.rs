@@ -3,13 +3,14 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use pyptr::Py;
-use python::{AsPy, Python, ToPythonPointer, IntoPythonPointer};
+use python::{Python, ToPythonPointer, IntoPythonPointer,
+             PythonToken, PythonObjectWithToken, PythonTokenApi};
 use objects::PyObject;
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList;
+pub struct PyList(PythonToken<PyList>);
 
 pyobject_newtype!(PyList, PyList_Check, PyList_Type);
 
@@ -38,12 +39,12 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item<'p>(&'p self, index: usize) -> Py<'p, PyObject> {
+    pub fn get_item(&self, index: usize) -> &PyObject {
         // TODO: do we really want to panic here?
         assert!(index < self.len());
         unsafe {
-            Py::from_borrowed_ptr(
-                self.py(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
+            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
+            self.py_token().from_owned(ptr)
         }
     }
 

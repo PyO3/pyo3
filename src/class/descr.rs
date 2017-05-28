@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::Python;
+use python::{Python, PythonObjectWithToken};
 use objects::{PyObject, PyType};
 use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use typeob::PyTypeInfo;

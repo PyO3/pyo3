@@ -28,16 +28,28 @@ use pythonrun::GILGuard;
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
+#[derive(Copy, Clone)]
+pub struct Token<'p>(PhantomData<&'p GILGuard>);
+
 pub struct PythonToken<T>(PhantomData<T>);
 
 
-pub trait AsPy<'p> {
-    fn py<'a>(&'a self) -> Python<'p>;
+pub trait PythonObjectWithToken : Sized {
+    fn token<'p>(&'p self) -> Token<'p>;
 }
-
 
 pub trait PyClone : Sized {
     fn clone_ref(&self) -> PyPtr<Self>;
+}
+
+impl<T> PyClone for T where T: ToPythonPointer {
+    #[inline]
+    fn clone_ref(&self) -> PyPtr<T> {
+        unsafe {
+            let ptr = <T as ToPythonPointer>::as_ptr(self);
+            PyPtr::from_borrowed_ptr(ptr)
+        }
+    }
 }
 
 
@@ -45,6 +57,17 @@ pub trait PyClone : Sized {
 pub trait ToPythonPointer {
     /// Retrieves the underlying FFI pointer (as a borrowed pointer).
     fn as_ptr(&self) -> *mut ffi::PyObject;
+
+}
+
+impl<'p, T> ToPythonPointer for T where T: PyTypeInfo + PythonObjectWithToken {
+    #[inline]
+    default fn as_ptr(&self) -> *mut ffi::PyObject {
+        let offset = <T as PyTypeInfo>::offset();
+        unsafe {
+            {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
+        }
+    }
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
@@ -56,7 +79,18 @@ pub trait IntoPythonPointer {
 
 
 /// Convert None into a null pointer.
-impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
+/*impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        match *self {
+            Some(ref t) => t.as_ptr(),
+            None => std::ptr::null_mut()
+        }
+    }
+}*/
+
+/// Convert None into a null pointer.
+impl<'p, T> ToPythonPointer for Option<&'p T> where T: ToPythonPointer {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         match *self {
@@ -116,7 +150,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn eval(self, code: &str, globals: Option<&PyDict>,
-                locals: Option<&PyDict>) -> PyResult<Py<'p, PyObject>> {
+                locals: Option<&PyDict>) -> PyResult<PyPtr<PyObject>> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -137,13 +171,13 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
-                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<Py<'p, PyObject>> {
+                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyPtr<PyObject>> {
         let code = CString::new(code).unwrap();
 
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
             if mptr.is_null() {
-                return Err(PyErr::fetch(self));
+                return Err(PyErr::fetch(self.token()));
             }
 
             let mdict = ffi::PyModule_GetDict(mptr);
@@ -161,75 +195,58 @@ impl<'p> Python<'p> {
             let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
                 start, globals, locals, 0 as *mut _);
 
-            Py::from_owned_ptr_or_err(self, res_ptr)
+            PyPtr::from_owned_ptr_or_err(self.token(), res_ptr)
         }
     }
 
-    /// Gets the Python builtin value `None`.
-    #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
-    pub fn None(self) -> Py<'p, PyObject> {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
-    }
-
-    /// Gets the Python builtin value `True`.
-    #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
-    pub fn True(self) -> Py<'p, PyBool> {
-        unsafe { Py::from_borrowed_ptr(self, ffi::Py_True()) }
-    }
-
-    /// Gets the Python builtin value `False`.
-    #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
-    pub fn False(self) -> Py<'p, PyBool> {
-        unsafe { Py::from_borrowed_ptr(self, ffi::Py_False()) }
-    }
-
-    /// Gets the Python builtin value `NotImplemented`.
-    #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
-    pub fn NotImplemented(self) -> Py<'p, PyObject> {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
-    }
-
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> Py<'p, PyType> where T: PyTypeObject {
-        T::type_object(self)
-    }
-
-    /// Gets the Python type object for type T.
-    pub fn get_ptype<T>(self) -> PyPtr<PyType> where T: PyTypeObject {
-        T::type_object(self).into_pptr()
+    pub fn get_type<T>(self) -> PyPtr<PyType> where T: PyTypeObject {
+        T::type_object(self.token())
     }
 
     /// Import the Python module with the specified name.
     pub fn import(self, name : &str) -> PyResult<Py<'p, PyModule>> {
-        PyModule::import(self, name)
+        PyModule::import(self.token(), name)
     }
 
-    pub fn with_token<T, F>(self, f: F) -> Py<'p, T>
+    pub fn with_token<T, F>(self, f: F) -> PyPtr<T>
         where F: FnOnce(PythonToken<T>) -> T,
               T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
         let value = f(PythonToken(PhantomData));
-        Py::new(self, value).unwrap()
+        if let Ok(ob) = Py::new(self.token(), value) {
+            println!("created: {:?}", &ob as *const _);
+            ob.into_pptr()
+        } else {
+            ::err::panic_after_error()
+        }
+    }
+//}
+
+//impl<'p> PythonObjectWithToken<'p> for Python<'p> {
+    pub fn token(self) -> Token<'p> {
+        Token(PhantomData)
     }
 }
 
 impl<T> PythonToken<T> {
+    pub fn token(&self) -> Token {
+        Token(PhantomData)
+    }
+}
 
+impl<'p> Token<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(&self) -> PyPtr<PyObject> {
+    pub fn None(self) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(&self) -> PyPtr<PyBool> {
+    pub fn True(self) -> PyPtr<PyBool> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_True()) }
     }
 
@@ -243,32 +260,51 @@ impl<T> PythonToken<T> {
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(&self) -> PyPtr<PyObject> {
+    pub fn NotImplemented(self) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<U>(&self) -> PyPtr<PyType> where U: PyTypeObject {
-        U::type_object(Python(PhantomData)).into_pptr()
+    #[inline]
+    pub fn get_type<U>(self) -> PyPtr<PyType> where U: PyTypeObject {
+        U::type_object(self)
     }
 
     /// Execute closure `F` with Python instance.
     /// Retrieve Python instance under the assumption that the GIL is already acquired
     /// at this point, and stays acquired during closure call.
-    pub fn with<'p, F>(&self, f: F) where F: FnOnce(Python<'p>)
+    pub fn with<F, R>(self, f: F) -> R where F: FnOnce(Python<'p>) -> R
     {
         f(Python(PhantomData))
     }
 
-    pub fn with_token<P, F>(&self, f: F) -> PyPtr<P>
-        where F: FnOnce(PythonToken<P>) -> P,
-              P: PyTypeInfo + PyObjectAlloc<Type=P>
+    /// Convert raw pointer into referece
+    #[inline]
+    pub unsafe fn from_owned_ptr<P>(self, ptr: *mut ffi::PyObject) -> &'p P
     {
-        let value = f(PythonToken(PhantomData));
-        Py::new(Python(PhantomData), value).unwrap().into_pptr()
+        std::mem::transmute(ptr)
+    }
+
+    #[inline]
+    pub unsafe fn from_owned_ptr_opt<P>(self, ptr: *mut ffi::PyObject) -> Option<&'p P>
+    {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(std::mem::transmute(ptr))
+        }
+    }
+
+    #[inline]
+    pub unsafe fn from_owned_ptr_or_panic<P>(self, ptr: *mut ffi::PyObject) -> &'p P
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            std::mem::transmute(ptr)
+        }
     }
 }
-
 
 #[cfg(test)]
 mod test {

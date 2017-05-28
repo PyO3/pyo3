@@ -9,8 +9,8 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use pyptr::Py;
-use python::{Python, ToPythonPointer};
+use pyptr::{Py, PyPtr};
+use python::{Python, ToPythonPointer, Token};
 use err::PyResult;
 use super::tuple::PyTuple;
 use super::typeobject::PyType;
@@ -23,7 +23,7 @@ macro_rules! exc_type(
 
         impl $crate::PyTypeObject for $name {
             #[inline]
-            fn type_object<'p>(py: $crate::Python<'p>) -> $crate::Py<'p, PyType> {
+            fn type_object(py: $crate::python::Token) -> $crate::PyPtr<PyType> {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }
@@ -84,12 +84,11 @@ exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 
 impl UnicodeDecodeError {
 
-    pub fn new<'p>(py: Python<'p>, encoding: &CStr, input: &[u8],
-                   range: ops::Range<usize>, reason: &CStr)
-                   -> PyResult<Py<'p, UnicodeDecodeError>> {
+    pub fn new(py: Token, encoding: &CStr, input: &[u8], range: ops::Range<usize>, reason: &CStr)
+               -> PyResult<PyPtr<UnicodeDecodeError>> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            Py::from_owned_ptr_or_err(
+            PyPtr::from_owned_ptr_or_err(
                 py, ffi::PyUnicodeDecodeError_Create(
                     encoding.as_ptr(),
                     input.as_ptr(),
@@ -100,9 +99,8 @@ impl UnicodeDecodeError {
         }
     }
 
-    pub fn new_utf8<'p>(py: Python<'p>, input: &[u8],
-                        err: std::str::Utf8Error)
-                        -> PyResult<Py<'p, UnicodeDecodeError>>
+    pub fn new_utf8<'p>(py: Token, input: &[u8], err: std::str::Utf8Error)
+                        -> PyResult<PyPtr<UnicodeDecodeError>>
     {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))

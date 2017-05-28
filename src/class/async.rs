@@ -8,7 +8,7 @@
 
 use ffi;
 use err::PyResult;
-use python::Python;
+use python::{Python, PythonObjectWithToken};
 use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;

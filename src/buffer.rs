@@ -143,7 +143,7 @@ impl PyBuffer {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(
-                obj.py(),
+                obj.token(),
                 ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
             validate(&buf);
             Ok(PyBuffer(buf))
@@ -401,7 +401,7 @@ impl PyBuffer {
             return incompatible_format_error(py);
         }
         unsafe {
-            err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
+            err::error_on_minusone(py.token(), ffi::PyBuffer_ToContiguous(
                 target.as_ptr() as *mut raw::c_void,
                 &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
                 self.0.len,
@@ -436,7 +436,7 @@ impl PyBuffer {
         unsafe {
             // Copy the buffer into the uninitialized space in the vector.
             // Due to T:Copy, we don't need to be concerned with Drop impls.
-            err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
+            err::error_on_minusone(py.token(), ffi::PyBuffer_ToContiguous(
                 vec.as_mut_ptr() as *mut raw::c_void,
                 &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
                 self.0.len,
@@ -487,7 +487,7 @@ impl PyBuffer {
             return incompatible_format_error(py);
         }
         unsafe {
-            err::error_on_minusone(py, ffi::PyBuffer_FromContiguous(
+            err::error_on_minusone(py.token(), ffi::PyBuffer_FromContiguous(
                 &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
                 source.as_ptr() as *mut raw::c_void,
                 self.0.len,
@@ -498,15 +498,18 @@ impl PyBuffer {
 }
 
 fn slice_length_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(py, "Slice length does not match buffer length."))
+    Err(err::PyErr::new::<exc::BufferError, _>(
+        py.token(), "Slice length does not match buffer length."))
 }
 
 fn incompatible_format_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(py, "Slice type is incompatible with buffer format."))
+    Err(err::PyErr::new::<exc::BufferError, _>(
+        py.token(), "Slice type is incompatible with buffer format."))
 }
 
 fn buffer_readonly_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(py, "Cannot write to read-only buffer."))
+    Err(err::PyErr::new::<exc::BufferError, _>(
+        py.token(), "Cannot write to read-only buffer."))
 }
 
 impl Drop for PyBuffer {

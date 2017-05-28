@@ -21,9 +21,9 @@
 
 use ffi;
 use pyptr::{Py};
-use python::Python;
+use python::{Python, PythonObjectWithToken};
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
-//use conversion::RefFromPyObject;
+use conversion::RefFromPyObject;
 use err::{self, PyResult};
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -44,17 +44,17 @@ pub struct ParamDescription<'a> {
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
-                      args: &Py<'p, PyTuple>, kwargs: Option<&'p Py<'p, PyDict>>,
+                      args: &'p PyTuple, kwargs: Option<&'p PyDict>,
                       accept_args: bool, accept_kwargs: bool,
-                      output: &mut[Option<Py<'p, PyObject>>]) -> PyResult<()>
+                      output: &mut[Option<&'p PyObject>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
 
-    let nargs = args.len()?;
-    let nkeywords = kwargs.map_or(0, |d| d.len().unwrap_or(0));
+    let nargs = args.len();
+    let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
-            py,
+            py.token(),
             format!("{}{} takes at most {} argument{} ({} given)",
                     fname.unwrap_or("function"),
                     if fname.is_some() { "()" } else { "" },
@@ -66,25 +66,27 @@ pub fn parse_args<'p>(py: Python<'p>,
     let mut used_keywords = 0;
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.as_ref().get_item(p.name)) {
+        match kwargs.and_then(|d| d.get_item(p.name)) {
             Some(kwarg) => {
                 *out = Some(kwarg);
                 used_keywords += 1;
                 if i < nargs {
-                    return Err(err::PyErr::new::<exc::TypeError, _>(py,
+                    return Err(err::PyErr::new::<exc::TypeError, _>(
+                        py.token(),
                         format!("Argument given by name ('{}') and position ({})",
                                 p.name, i+1)));
                 }
             },
             None => {
                 if i < nargs {
-                    *out = Some(args.as_ref().get_item(i));
+                    *out = Some(args.get_item(i));
                 } else {
                     *out = None;
                     if !p.is_optional {
                         return Err(err::PyErr::new::<exc::TypeError, _>(
-                            py, format!("Required argument ('{}') (pos {}) not found",
-                                        p.name, i+1)));
+                            py.token(),
+                            format!("Required argument ('{}') (pos {}) not found",
+                                    p.name, i+1)));
                     }
                 }
             }
@@ -95,7 +97,8 @@ pub fn parse_args<'p>(py: Python<'p>,
         for (key, _value) in kwargs.unwrap().items() {
             let key = try!(try!(key.cast_as::<PyString>()).to_string());
             if !params.iter().any(|p| p.name == key) {
-                return Err(err::PyErr::new::<exc::TypeError, _>(py,
+                return Err(err::PyErr::new::<exc::TypeError, _>(
+                    py.token(),
                     format!("'{}' is an invalid keyword argument for this function",
                             key)));
             }
@@ -103,7 +106,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     }
     Ok(())
 }
-/*
+
 /// This macro is used to parse a parameter list into a set of variables.
 ///
 /// Syntax: `py_argparse!(py, fname, args, kwargs, (parameter-list) { body })`
@@ -335,7 +338,7 @@ macro_rules! py_argparse_impl {
             Err(e) => Err(e)
         }
     }};
-}*/
+}
 
 // Like py_argparse_impl!(), but accepts `*mut ffi::PyObject` for $args and $kwargs.
 #[macro_export]
@@ -357,7 +360,7 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
     if ptr.is_null() {
         None
     } else {
-        Some(Py::<PyDict>::from_borrowed_ptr(py, ptr))
+        Some(Py::<PyDict>::from_borrowed_ptr(py.token(), ptr))
     }
 }
 

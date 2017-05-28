@@ -5,7 +5,7 @@ use std::{any, mem, ptr, isize, io, panic};
 use libc;
 
 use pyptr::Py;
-use python::{Python, IntoPythonPointer};
+use python::{Python, IntoPythonPointer, PythonObjectWithToken};
 use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
@@ -27,7 +27,7 @@ impl<S> CallbackConverter<S> for PyObjectCallbackConverter
     type R = *mut ffi::PyObject;
 
     fn convert(val: S, py: Python) -> *mut ffi::PyObject {
-        val.into_object(py).into_ptr()
+        val.into_object(py.token()).into_ptr()
     }
 
     #[inline]
@@ -62,7 +62,8 @@ impl CallbackConverter<usize> for LenResultConverter {
         if val <= (isize::MAX as usize) {
             val as isize
         } else {
-            PyErr::new_lazy_init(py.get_ptype::<exc::OverflowError>(), None).restore(py);
+            PyErr::new_lazy_init(
+                py.get_type::<exc::OverflowError>(), None).restore(py.token());
             -1
         }
     }
@@ -176,7 +177,7 @@ pub unsafe fn handle<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
                 C::convert(val, py)
             }
             Err(e) => {
-                e.restore(py);
+                e.restore(py.token());
                 C::error_value()
             }
         }
@@ -203,14 +204,14 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let mut slf: Py<Slf> = Py::from_borrowed_ptr(py, slf);
+        let mut slf: Py<Slf> = Py::from_borrowed_ptr(py.token(), slf);
 
         match f(py, slf.as_mut()) {
             Ok(val) => {
                 C::convert(val, py)
             }
             Err(e) => {
-                e.restore(py);
+                e.restore(py.token());
                 C::error_value()
             }
         }
@@ -235,7 +236,7 @@ pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: 
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let mut slf: Py<Slf> = Py::from_borrowed_ptr(py, slf);
+        let mut slf: Py<Slf> = Py::from_borrowed_ptr(py.token(), slf);
 
         f(py, slf.as_mut())
     });
@@ -297,7 +298,7 @@ pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
     match value {
         Ok(val) => C::convert(val, py),
         Err(e) => {
-            e.restore(py);
+            e.restore(py.token());
             C::error_value()
         }
     }

@@ -3,15 +3,15 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use pyptr::Py;
-use python::{AsPy, Python, ToPythonPointer};
+use pyptr::{Py, PyPtr};
+use python::{Python, Token, PythonToken, ToPythonPointer, PythonObjectWithToken};
 use conversion::ToPyObject;
-use objects::{PyObject, PyList};
+use objects::{PyObject}; //, PyList};
 use err::{self, PyResult, PyErr};
 use std::{mem, collections, hash, cmp};
 
 /// Represents a Python `dict`.
-pub struct PyDict;
+pub struct PyDict(PythonToken<PyDict>);
 
 pyobject_newtype!(PyDict, PyDict_Check, PyDict_Type);
 
@@ -20,15 +20,15 @@ impl PyDict {
     /// Creates a new empty dictionary.
     ///
     /// May panic when running out of memory.
-    pub fn new<'p>(py: Python<'p>) -> Py<'p, PyDict> {
-        unsafe { Py::<PyDict>::cast_from_owned_ptr_or_panic(py, ffi::PyDict_New()) }
+    pub fn new(py: Token) -> Py<PyDict> {
+        unsafe { Py::from_owned_ptr_or_panic(py, ffi::PyDict_New()) }
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.
     /// Corresponds to `dict(self)` in Python.
-    pub fn copy<'p>(&'p self) -> PyResult<Py<'p, PyDict>> {
+    pub fn copy<'p>(&'p self) -> PyResult<PyPtr<PyDict>> {
         unsafe {
-            Py::from_owned_ptr_or_err(self.py(), ffi::PyDict_Copy(self.as_ptr()))
+            PyPtr::from_owned_ptr_or_err(self.token(), ffi::PyDict_Copy(self.as_ptr()))
         }
     }
 
@@ -48,20 +48,20 @@ impl PyDict {
     /// Determine if the dictionary contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
+        key.with_borrowed_ptr(self.token(), |key| unsafe {
             match ffi::PyDict_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py()))
+                _ => Err(PyErr::fetch(self.token()))
             }
         })
     }
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<'p, K>(&'p self, key: K) -> Option<Py<'p, PyObject>> where K: ToPyObject {
-        key.with_borrowed_ptr(self.py(), |key| unsafe {
-            Py::from_borrowed_ptr_opt(self.py(), ffi::PyDict_GetItem(self.as_ptr(), key))
+    pub fn get_item<K>(&self, key: K) -> Option<&PyObject> where K: ToPyObject {
+        key.with_borrowed_ptr(self.token(), |key| unsafe {
+            self.token().from_owned_ptr_opt(ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }
 
@@ -69,57 +69,55 @@ impl PyDict {
     /// This is equivalent to the Python expression `self[key] = value`.
     pub fn set_item<K, V>(&self, key: K, value: V)
                           -> PyResult<()> where K: ToPyObject, V: ToPyObject {
-        let py = self.py();
         key.with_borrowed_ptr(
-            self.py(), move |key|
-            value.with_borrowed_ptr(py, |value| unsafe {
+            self.token(), move |key|
+            value.with_borrowed_ptr(self.token(), |value| unsafe {
                 err::error_on_minusone(
-                    py, ffi::PyDict_SetItem(self.as_ptr(), key, value))
+                    self.token(), ffi::PyDict_SetItem(self.as_ptr(), key, value))
             }))
     }
 
     /// Deletes an item.
     /// This is equivalent to the Python expression `del self[key]`.
-    pub fn del_item<K>(&self, py: Python, key: K) -> PyResult<()> where K: ToPyObject {
-        key.with_borrowed_ptr(py, |key| unsafe {
+    pub fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToPyObject {
+        key.with_borrowed_ptr(self.token(), |key| unsafe {
             err::error_on_minusone(
-                py, ffi::PyDict_DelItem(self.as_ptr(), key))
+                self.token(), ffi::PyDict_DelItem(self.as_ptr(), key))
         })
     }
 
     // List of dict items.
     // This is equivalent to the python expression `list(dict.items())`.
-    pub fn items_list(&self) -> Py<PyList> {
-        unsafe {
-            Py::from_owned_ptr_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr()))
-        }
-    }
+    //pub fn items_list(&self) -> Py<PyList> {
+    //    unsafe {
+    //        Py::from_owned_ptr_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr()))
+    //    }
+    //}
 
     /// Returns the list of (key, value) pairs in this dictionary.
-    pub fn items(&self) -> Vec<(Py<PyObject>, Py<PyObject>)> {
+    pub fn items(&self) -> Vec<(&PyObject, &PyObject)> {
         // Note that we don't provide an iterator because
         // PyDict_Next() is unsafe to use when the dictionary might be changed
         // by other python code.
-        let py = self.py();
+        let token = self.token();
         let mut vec = Vec::with_capacity(self.len());
         unsafe {
             let mut pos = 0;
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
-                vec.push((PyObject::from_borrowed_ptr(py, key),
-                          PyObject::from_borrowed_ptr(py, value)));
+                vec.push((token.from_owned_ptr(key), token.from_owned_ptr(value)));
             }
         }
         vec
     }
 }
 
-impl <K, V> ToPyObject for collections::HashMap<K, V>
+/*impl <K, V> ToPyObject for collections::HashMap<K, V>
     where K: hash::Hash+cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
@@ -132,14 +130,14 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     where K: cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
+    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_object()
+        dict.into_pptr().into_object()
     }
-}
+}*/
 
 #[cfg(test)]
 mod test {
