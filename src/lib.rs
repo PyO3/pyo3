@@ -69,6 +69,7 @@ pub use pyptr::{Py, PyPtr};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
+pub use objectprotocol::ObjectProtocol;
 pub use python::{Python, PythonToken, IntoPythonPointer, PythonObjectWithToken};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
@@ -207,10 +208,10 @@ pub unsafe fn py_module_init_impl(
         return module;
     }
 
-    let module = match Py::<PyModule>::cast_from_owned_ptr(py.token(), module) {
+    let module = match Py::<PyModule>::cast_from_owned_ptr(py, module) {
         Ok(m) => m,
         Err(e) => {
-            PyErr::from(e).restore(py.token());
+            PyErr::from(e).restore(py);
             mem::forget(guard);
             return ptr::null_mut();
         }
@@ -218,7 +219,7 @@ pub unsafe fn py_module_init_impl(
     let ret = match init(py, &module) {
         Ok(()) => module.into_ptr(),
         Err(e) => {
-            e.restore(py.token());
+            e.restore(py);
             ptr::null_mut()
         }
     };

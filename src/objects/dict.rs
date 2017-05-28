@@ -4,7 +4,7 @@
 
 use ffi;
 use pyptr::{Py, PyPtr};
-use python::{Python, Token, PythonToken, ToPythonPointer, PythonObjectWithToken};
+use python::{Python, PythonToken, ToPythonPointer, PythonObjectWithToken};
 use conversion::ToPyObject;
 use objects::{PyObject}; //, PyList};
 use err::{self, PyResult, PyErr};
@@ -20,7 +20,7 @@ impl PyDict {
     /// Creates a new empty dictionary.
     ///
     /// May panic when running out of memory.
-    pub fn new(py: Token) -> Py<PyDict> {
+    pub fn new(py: Python) -> Py<PyDict> {
         unsafe { Py::from_owned_ptr_or_panic(py, ffi::PyDict_New()) }
     }
 
@@ -113,16 +113,16 @@ impl PyDict {
     }
 }
 
-/*impl <K, V> ToPyObject for collections::HashMap<K, V>
+impl <K, V> ToPyObject for collections::HashMap<K, V>
     where K: hash::Hash+cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_object()
+        dict.into_object_pptr()
     }
 }
 
@@ -130,14 +130,14 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     where K: cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_pptr().into_object()
+        dict.into_object_pptr()
     }
-}*/
+}
 
 #[cfg(test)]
 mod test {

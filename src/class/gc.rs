@@ -8,7 +8,7 @@ use std::os::raw::{c_int, c_void};
 
 use ffi;
 use pyptr::Py;
-use python::{Python, ToPythonPointer, PythonObjectWithToken};
+use python::{Python, ToPythonPointer};
 use callback::AbortOnDrop;
 use class::NO_METHODS;
 use typeob::PyTypeInfo;
@@ -90,7 +90,7 @@ unsafe extern "C" fn tp_traverse<T>(slf: *mut ffi::PyObject,
     let guard = AbortOnDrop(LOCATION);
     let py = Python::assume_gil_acquired();
     let visit = PyVisit { visit: visit, arg: arg, _py: py };
-    let slf: Py<T> = Py::from_borrowed_ptr(py.token(), slf);
+    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
 
     let ret = match T::__traverse__(&slf, py, visit) {
         Ok(()) => 0,
@@ -107,7 +107,7 @@ unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
 
     let guard = AbortOnDrop(LOCATION);
     let py = Python::assume_gil_acquired();
-    let slf: Py<T> = Py::from_borrowed_ptr(py.token(), slf);
+    let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
     T::__clear__(slf.as_mut(), py);
     mem::forget(guard);
     0

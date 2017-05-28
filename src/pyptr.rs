@@ -8,12 +8,11 @@ use std::convert::{AsRef, AsMut};
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
-use python::{Python, ToPythonPointer, IntoPythonPointer, Token, PythonObjectWithToken};
+use python::{Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
-#[derive(Debug)]
 pub struct PyPtr<T> {
     inner: *mut ffi::PyObject,
     _t: PhantomData<T>,
@@ -33,7 +32,7 @@ impl<T> PyPtr<T> {
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
-    pub unsafe fn from_owned_ptr_or_err(py: Token, ptr: *mut ffi::PyObject) -> PyResult<PyPtr<T>>
+    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyPtr<T>>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
@@ -67,7 +66,7 @@ impl<T> PyPtr<T> {
     /// Creates a Py instance for the given FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_opt(_py: Token,
+    pub unsafe fn from_borrowed_ptr_opt(_py: Python,
                                         ptr: *mut ffi::PyObject) -> Option<PyPtr<T>> {
         if ptr.is_null() {
             None
@@ -78,11 +77,11 @@ impl<T> PyPtr<T> {
         }
     }
 
-    pub fn as_ref<'p>(&self, py: Token<'p>) -> Py<'p, T> {
+    pub fn as_ref<'p>(&self, py: Python<'p>) -> Py<'p, T> {
         unsafe { Py::from_borrowed_ptr(py, self.inner) }
     }
 
-    pub fn into_ref<'p>(self, py: Token<'p>) -> Py<'p, T> {
+    pub fn into_ref<'p>(self, py: Python<'p>) -> Py<'p, T> {
         let p = Py{inner: self.inner, _t: PhantomData, py: py};
         std::mem::forget(self);
         p
@@ -142,7 +141,7 @@ impl<T> IntoPythonPointer for PyPtr<T> {
 impl<T> IntoPyObject for PyPtr<T> {
 
     #[inline]
-    fn into_object<'a>(self, py: Token) -> PyPtr<PyObject> {
+    fn into_object<'a>(self, _py: Python) -> PyPtr<PyObject> {
         self.into_object()
     }
 }
@@ -168,7 +167,7 @@ impl<T> Drop for PyPtr<T> {
 pub struct Py<'p, T> {
     pub inner: *mut ffi::PyObject,
     _t: PhantomData<T>,
-    py: Token<'p>,
+    py: Python<'p>,
 }
 
 impl<'p, T> Py<'p, T>
@@ -177,14 +176,14 @@ impl<'p, T> Py<'p, T>
     /// This moves ownership over the pointer into the Py.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr(py: Token<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T> {
+    pub unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T> {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         Py {inner: ptr, _t: PhantomData, py: py}
     }
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(py: Token<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T>
+    pub unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T>
     {
         if ptr.is_null() {
             ::err::panic_after_error();
@@ -197,7 +196,7 @@ impl<'p, T> Py<'p, T>
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
-    pub unsafe fn from_owned_ptr_or_err(py: Token<'p>, ptr: *mut ffi::PyObject)
+    pub unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject)
                                         -> PyResult<Py<'p, T>>
     {
         if ptr.is_null() {
@@ -211,7 +210,7 @@ impl<'p, T> Py<'p, T>
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(py: Token<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T> {
+    pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Py<'p, T> {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
         Py {inner: ptr, _t: PhantomData, py: py}
@@ -220,7 +219,7 @@ impl<'p, T> Py<'p, T>
     /// Creates a Py instance for the given FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_opt(py: Token<'p>,
+    pub unsafe fn from_borrowed_ptr_opt(py: Python<'p>,
                                         ptr: *mut ffi::PyObject) -> Option<Py<'p, T>> {
         if ptr.is_null() {
             None
@@ -255,6 +254,15 @@ impl<'p, T> Py<'p, T>
         ptr
     }
 
+    /// Consumes a Py<T> instance and creates a PyPtr<PyObject> instance.
+    /// Ownership moves over to the PyPtr<T> instance, Does not call Py_INCREF() on the ptr.
+    #[inline]
+    pub fn into_object_pptr(self) -> PyPtr<PyObject> {
+        let ptr = PyPtr { inner: self.inner, _t: PhantomData };
+        std::mem::forget(self);
+        ptr
+    }
+
     /// Converts Py<'p, T> -> Py<'p, PyObject>
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
@@ -279,7 +287,7 @@ impl<'p, T> Py<'p, T>
         Py {inner: self.inner, _t: self._t, py: self.py}
     }
 
-    pub fn token<'a>(&'a self) -> Token<'p> {
+    pub fn token<'a>(&'a self) -> Python<'p> {
         self.py
     }
 }
@@ -288,7 +296,7 @@ impl<'p, T> Py<'p, T>
 impl<'p, T> Py<'p, T> where T: PyTypeInfo
 {
     /// Create new python object and move T instance under python management
-    pub fn new(py: Token<'p>, value: T) -> PyResult<Py<'p, T>> where T: PyObjectAlloc<Type=T>
+    pub fn new(py: Python<'p>, value: T) -> PyResult<Py<'p, T>> where T: PyObjectAlloc<Type=T>
     {
         let ob = unsafe {
             try!(<T as PyObjectAlloc>::alloc(py, value))
@@ -298,7 +306,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn cast_from_borrowed_ptr(py: Token<'p>, ptr: *mut ffi::PyObject)
+    pub fn cast_from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
                                   -> Result<Py<'p, T>, ::PyDowncastError<'p>>
     {
         let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
@@ -312,7 +320,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn cast_from_owned_ptr(py: Token<'p>, ptr: *mut ffi::PyObject)
+    pub fn cast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
                                -> Result<Py<'p, T>, ::PyDowncastError<'p>>
     {
         let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
@@ -326,7 +334,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub unsafe fn cast_from_owned_ptr_or_panic(py: Token<'p>,
+    pub unsafe fn cast_from_owned_ptr_or_panic(py: Python<'p>,
                                                ptr: *mut ffi::PyObject) -> Py<'p, T>
     {
         if ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 {
@@ -336,7 +344,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
         }
     }
 
-    pub fn cast_from_owned_nullptr(py: Token<'p>, ptr: *mut ffi::PyObject)
+    pub fn cast_from_owned_nullptr(py: Python<'p>, ptr: *mut ffi::PyObject)
                                    -> PyResult<Py<'p, T>>
     {
         if ptr.is_null() {
@@ -434,7 +442,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
 
 //impl<'p, T> PythonObjectWithToken for Py<'p, T> {
 //    fn token(&self) -> Token {
-//        self.py.token()
+//        self.py
 //    }
 //}
 
@@ -539,12 +547,12 @@ impl<'source, T> ::FromPyObject<'source> for Py<'source, T> where T: PyTypeInfo
 impl <'a, T> ToPyObject for Py<'a, T> {
 
     #[inline]
-    default fn to_object<'p>(&self, py: Token) -> PyPtr<PyObject> {
+    default fn to_object<'p>(&self, _py: Python) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(self.inner) }
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Token, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         f(self.inner)
@@ -554,12 +562,12 @@ impl <'a, T> ToPyObject for Py<'a, T> {
 impl<T> ToPyObject for PyPtr<T> {
 
     #[inline]
-    default fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    default fn to_object(&self, _py: Python) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(self.inner) }
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Token, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         f(self.inner)
@@ -569,7 +577,7 @@ impl<T> ToPyObject for PyPtr<T> {
 impl<'p, T> IntoPyObject for Py<'p, T> {
 
     #[inline]
-    default fn into_object(self, py: Token) -> PyPtr<PyObject> {
+    default fn into_object(self, _py: Python) -> PyPtr<PyObject> {
         let ptr = unsafe { PyPtr::from_owned_ptr(self.inner) };
         std::mem::forget(self);
         ptr
@@ -581,6 +589,13 @@ impl<'p, T> IntoPyObject for Py<'p, T> {
 impl<'p, T> PartialEq for Py<'p, T> {
     #[inline]
     fn eq(&self, o: &Py<T>) -> bool {
+        self.as_ptr() == o.as_ptr()
+    }
+}
+
+impl<'p, T> PartialEq for PyPtr<T> {
+    #[inline]
+    fn eq(&self, o: &PyPtr<T>) -> bool {
         self.as_ptr() == o.as_ptr()
     }
 }

@@ -8,9 +8,11 @@ use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
 use pyptr::{Py, PyPtr};
-use python::{Python, PythonToken, ToPythonPointer, PythonObjectWithToken, Token};
-use objects::{PyObject, PyDict, PyType, exc};
+use python::{PythonToken, ToPythonPointer, PythonObjectWithToken, Python};
+use objects::{PyDict, PyType, exc};
+use objectprotocol::ObjectProtocol;
 use err::{PyResult, PyErr};
+
 
 /// Represents a Python module object.
 pub struct PyModule(PythonToken<PyModule>);
@@ -19,7 +21,7 @@ pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
 
 impl PyModule {
     /// Create a new module object with the `__name__` attribute set to name.
-    pub fn new<'p>(py: Token<'p>, name: &str) -> PyResult<Py<'p, PyModule>> {
+    pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<Py<'p, PyModule>> {
         let name = CString::new(name).unwrap();
         unsafe {
             Py::cast_from_owned_nullptr(py, ffi::PyModule_New(name.as_ptr()))
@@ -27,7 +29,7 @@ impl PyModule {
     }
 
     /// Import the Python module with the specified name.
-    pub fn import<'p>(py: Token<'p>, name: &str) -> PyResult<Py<'p, PyModule>> {
+    pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<Py<'p, PyModule>> {
         let name = CString::new(name).unwrap();
         unsafe {
             Py::cast_from_owned_nullptr(py, ffi::PyImport_ImportModule(name.as_ptr()))
@@ -92,7 +94,6 @@ impl PyModule {
             unsafe { PyType::from_type_ptr(self.token(), ty) }
         };
 
-        //  PyObject::from_borrowed_ptr(self.py(), self.as_ptr()).setattr(type_name, ty)
-        Ok(())
+        self.setattr(type_name, ty)
     }
 }

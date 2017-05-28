@@ -54,36 +54,32 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
     let extra = if let Some(token) = token {
         Some(quote! {
             impl _pyo3::python::PythonObjectWithToken for #cls {
-            fn token<'p>(&'p self) -> _pyo3::python::Token<'p> {
-                    self.#token.token()
+            fn token<'p>(&'p self) -> _pyo3::python::Python<'p> {
+                self.#token.token()
                 }
             }
 
-            /*impl std::fmt::Debug for #cls {
+            impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    self.token().with(|py| {
-                        let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
-                        let repr = unsafe {
-                            _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
-                                py, _pyo3::ffi::PyObject_Repr(ptr))
-                                .map_err(|_| std::fmt::Error)? };
-                        f.write_str(&repr.to_string_lossy())
-                    })
+                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    let repr = unsafe {
+                        _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                            self.token(), _pyo3::ffi::PyObject_Repr(ptr))
+                            .map_err(|_| std::fmt::Error)? };
+                    f.write_str(&repr.to_string_lossy())
                 }
             }
 
             impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    self.token().with(|py| {
-                        let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
-                        let s = unsafe {
-                            _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
-                                py, _pyo3::ffi::PyObject_Str(ptr)
-                            ).map_err(|_| std::fmt::Error)?};
-                        f.write_str(&s.to_string_lossy())
-                    })
+                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    let s = unsafe {
+                        _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                            self.token(), _pyo3::ffi::PyObject_Str(ptr)
+                        ).map_err(|_| std::fmt::Error)?};
+                    f.write_str(&s.to_string_lossy())
                 }
-            }*/
+            }
         })
     } else {
         None

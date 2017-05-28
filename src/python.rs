@@ -28,14 +28,17 @@ use pythonrun::GILGuard;
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
-#[derive(Copy, Clone)]
-pub struct Token<'p>(PhantomData<&'p GILGuard>);
-
 pub struct PythonToken<T>(PhantomData<T>);
+
+impl<T> PythonToken<T> {
+    pub fn token<'p>(&'p self) -> Python<'p> {
+        Python(PhantomData)
+    }
+}
 
 
 pub trait PythonObjectWithToken : Sized {
-    fn token<'p>(&'p self) -> Token<'p>;
+    fn token<'p>(&'p self) -> Python<'p>;
 }
 
 pub trait PyClone : Sized {
@@ -177,7 +180,7 @@ impl<'p> Python<'p> {
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
             if mptr.is_null() {
-                return Err(PyErr::fetch(self.token()));
+                return Err(PyErr::fetch(self));
             }
 
             let mdict = ffi::PyModule_GetDict(mptr);
@@ -195,47 +198,32 @@ impl<'p> Python<'p> {
             let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
                 start, globals, locals, 0 as *mut _);
 
-            PyPtr::from_owned_ptr_or_err(self.token(), res_ptr)
+            PyPtr::from_owned_ptr_or_err(self, res_ptr)
         }
     }
 
     /// Gets the Python type object for type T.
     pub fn get_type<T>(self) -> PyPtr<PyType> where T: PyTypeObject {
-        T::type_object(self.token())
+        T::type_object(self)
     }
 
     /// Import the Python module with the specified name.
     pub fn import(self, name : &str) -> PyResult<Py<'p, PyModule>> {
-        PyModule::import(self.token(), name)
+        PyModule::import(self, name)
     }
 
-    pub fn with_token<T, F>(self, f: F) -> PyPtr<T>
+    pub fn with_token<T, F>(self, f: F) -> Py<'p, T>
         where F: FnOnce(PythonToken<T>) -> T,
               T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
         let value = f(PythonToken(PhantomData));
-        if let Ok(ob) = Py::new(self.token(), value) {
-            println!("created: {:?}", &ob as *const _);
-            ob.into_pptr()
+        if let Ok(ob) = Py::new(self, value) {
+            ob
         } else {
             ::err::panic_after_error()
         }
     }
-//}
 
-//impl<'p> PythonObjectWithToken<'p> for Python<'p> {
-    pub fn token(self) -> Token<'p> {
-        Token(PhantomData)
-    }
-}
-
-impl<T> PythonToken<T> {
-    pub fn token(&self) -> Token {
-        Token(PhantomData)
-    }
-}
-
-impl<'p> Token<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -262,12 +250,6 @@ impl<'p> Token<'p> {
     #[inline]
     pub fn NotImplemented(self) -> PyPtr<PyObject> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
-    }
-
-    /// Gets the Python type object for type T.
-    #[inline]
-    pub fn get_type<U>(self) -> PyPtr<PyType> where U: PyTypeObject {
-        U::type_object(self)
     }
 
     /// Execute closure `F` with Python instance.

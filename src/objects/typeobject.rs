@@ -6,8 +6,8 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use pyptr::{Py, PyPtr};
-use python::{Python, PythonToken, ToPythonPointer, Token, PythonObjectWithToken};
+use pyptr::{PyPtr};
+use python::{Python, PythonToken, ToPythonPointer, PythonObjectWithToken};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
 use err::PyResult;
@@ -28,7 +28,7 @@ impl PyType {
     /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_type_ptr(_py: Token, p: *mut ffi::PyTypeObject) -> PyPtr<PyType> {
+    pub unsafe fn from_type_ptr(_py: Python, p: *mut ffi::PyTypeObject) -> PyPtr<PyType> {
         PyPtr::from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 

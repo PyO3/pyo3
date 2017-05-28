@@ -4,7 +4,7 @@ use std;
 use std::ptr;
 use std::os::raw::c_char;
 use ffi;
-use python::{Python, PythonToken, ToPythonPointer, Token};
+use python::{PythonToken, ToPythonPointer, Python, PythonObjectWithToken};
 use objects::PyObject;
 use err::{PyResult, PyErr};
 use pyptr::Py;
@@ -20,7 +20,7 @@ impl PyByteArray {
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Token<'p>, src: &[u8]) -> Py<'p, PyByteArray> {
+    pub fn new<'p>(py: Python<'p>, src: &[u8]) -> Py<'p, PyByteArray> {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         let ptr = unsafe {ffi::PyByteArray_FromStringAndSize(ptr, len)};
@@ -29,12 +29,12 @@ impl PyByteArray {
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<'p>(py: Python<'p>, src: Py<PyObject>) -> PyResult<Py<'p, PyByteArray>> {
+    pub fn from<'p>(src: Py<'p, PyObject>) -> PyResult<Py<'p, PyByteArray>> {
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
-            Ok(unsafe{Py::cast_from_owned_ptr_or_panic(py, res)})
+            Ok(unsafe{Py::cast_from_owned_ptr_or_panic(src.token(), res)})
         } else {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(src.token()))
         }
     }
 
@@ -63,7 +63,7 @@ impl PyByteArray {
             if result == 0 {
                 Ok(())
             } else {
-                Err(PyErr::fetch(self.py()))
+                Err(PyErr::fetch(self.token()))
             }
         }
     }

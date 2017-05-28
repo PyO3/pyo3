@@ -14,7 +14,7 @@ use pyo3::python::ToPythonPointer;
 
 macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
-        let d = PyDict::new($py);
+        let d = PyDict::new($py.token());
         d.set_item(stringify!($val), &$val).unwrap();
         //$py.run($code, None, Some(&d)).map_err(|e| e.print($py)).expect($code);
         $py.run($code, None, Some(&d)).expect($code);
@@ -27,11 +27,11 @@ macro_rules! py_assert {
 
 macro_rules! py_expect_exception {
     ($py:expr, $val:ident, $code:expr, $err:ident) => {{
-        let d = PyDict::new($py);
+        let d = PyDict::new($py.token());
         d.set_item(stringify!($val), &$val).unwrap();
         let res = $py.run($code, None, Some(&d));
         let err = res.unwrap_err();
-        if !err.matches($py, $py.get_type::<exc::$err>()) {
+        if !err.matches($py.token(), $py.token().get_type::<exc::$err>()) {
             panic!(format!("Expected {} but got {:?}", stringify!($err), err))
         }
     }}
@@ -46,8 +46,9 @@ fn empty_class() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClass>();
+    let to = typeobj.as_ref(py.token());
     // By default, don't allow creating instances from python.
-    assert!(typeobj.call(NoArgs, None).is_err());
+    assert!(to.call(NoArgs, None).is_err());
 
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
@@ -59,7 +60,7 @@ struct EmptyClassInModule { }
 fn empty_class_in_module() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let module = PyModule::new(py, "test_module.nested").unwrap();
+    let module = PyModule::new(py.token(), "test_module.nested").unwrap();
     module.add_class::<EmptyClassInModule>().unwrap();
 
     let ty = module.getattr("EmptyClassInModule").unwrap();
@@ -83,12 +84,14 @@ fn empty_class_with_new() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClassWithNew>();
-    assert!(typeobj.call(NoArgs, None).unwrap().cast_into::<EmptyClassWithNew>().is_ok());
+    let to = typeobj.as_ref(py.token());
+    assert!(to.call(NoArgs, None).unwrap().cast_into::<EmptyClassWithNew>().is_ok());
 }
 
 #[py::class]
 struct NewWithOneArg {
     _data: i32,
+    #[token]
     token: PythonToken<NewWithOneArg>
 }
 #[py::methods]
@@ -690,7 +693,10 @@ fn unary_arithmetic() {
 
 
 #[py::class]
-struct BinaryArithmetic {token: PythonToken<BinaryArithmetic>}
+struct BinaryArithmetic {
+    #[token]
+    token: PythonToken<BinaryArithmetic>
+}
 
 #[py::proto]
 impl PyObjectProtocol for BinaryArithmetic {
@@ -796,11 +802,11 @@ impl PyObjectProtocol for RichComparisons2 {
     }
 
     fn __richcmp__(&self, py: Python,
-                   other: &PyObject, op: CompareOp) -> PyResult<Py<PyObject>> {
+                   other: &PyObject, op: CompareOp) -> PyResult<PyPtr<PyObject>> {
         match op {
-            CompareOp::Eq => Ok(true.to_object(py).into_object()),
-            CompareOp::Ne => Ok(false.to_object(py).into_object()),
-            _ => Ok(py.NotImplemented())
+            CompareOp::Eq => Ok(true.to_object(py.token()).into_object()),
+            CompareOp::Ne => Ok(false.to_object(py.token()).into_object()),
+            _ => Ok(py.token().NotImplemented())
         }
     }
 }

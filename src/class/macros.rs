@@ -16,7 +16,7 @@ macro_rules! py_unary_func {
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
                 let res = slf.as_mut().$f(py).into();
 
                 match res {
@@ -25,7 +25,7 @@ macro_rules! py_unary_func {
                             ::convert(val, py)
                     }
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         <$conv as $crate::callback::CallbackConverter<$res_type>>
                             ::error_value()
                     }
@@ -60,7 +60,7 @@ macro_rules! py_unary_func_self {
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
                 let res = slf.$f(py).into();
 
                 match res {
@@ -69,7 +69,7 @@ macro_rules! py_unary_func_self {
                             ::convert(val, py)
                     }
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         <$conv as $crate::callback::CallbackConverter<$res_type>>
                             ::error_value()
                     }
@@ -126,8 +126,8 @@ macro_rules! py_binary_func{
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
-                let arg = $crate::PyObject::from_borrowed_ptr(py.token(), arg);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
+                let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
                 let result = match arg.extract() {
                     Ok(arg) => {
@@ -142,7 +142,7 @@ macro_rules! py_binary_func{
                             ::convert(val, py)
                     }
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         <$conv as $crate::callback::CallbackConverter<$res_type>>
                             ::error_value()
                     }
@@ -178,8 +178,8 @@ macro_rules! py_binary_self_func{
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf1 = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
-                let arg = $crate::PyObject::from_borrowed_ptr(py.token(), arg);
+                let mut slf1 = $crate::Py::<T>::from_borrowed_ptr(py, slf);
+                let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
                 let result = match arg.extract() {
                     Ok(arg) => {
@@ -193,7 +193,7 @@ macro_rules! py_binary_self_func{
                         slf
                     }
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         $crate::std::ptr::null_mut()
                     }
                 }
@@ -228,7 +228,7 @@ macro_rules! py_ssizearg_func {
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
 
                 let result = slf.as_mut().$f(py, arg as isize).into();
                 match result {
@@ -237,7 +237,7 @@ macro_rules! py_ssizearg_func {
                             ::convert(val, py)
                     }
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         <$conv as $crate::callback::CallbackConverter<$res_type>>
                             ::error_value()
                     }
@@ -276,9 +276,9 @@ macro_rules! py_ternary_func{
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
-                let arg1 = $crate::PyObject::from_borrowed_ptr(py.token(), arg1);
-                let arg2 = $crate::PyObject::from_borrowed_ptr(py.token(), arg2);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
+                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
+                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
 
                 let result = match arg1.extract() {
                     Ok(arg1) => match arg2.extract() {
@@ -294,7 +294,7 @@ macro_rules! py_ternary_func{
                             ::convert(val, py)
                     }
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         <$conv as $crate::callback::CallbackConverter<$res_type>>
                             ::error_value()
                     }
@@ -333,9 +333,9 @@ macro_rules! py_ternary_self_func{
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf1 = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
-                let arg1 = $crate::PyObject::from_borrowed_ptr(py.token(), arg1);
-                let arg2 = $crate::PyObject::from_borrowed_ptr(py.token(), arg2);
+                let mut slf1 = $crate::Py::<T>::from_borrowed_ptr(py, slf);
+                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
+                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
 
                 let result = match arg1.extract() {
                     Ok(arg1) => match arg2.extract() {
@@ -348,7 +348,7 @@ macro_rules! py_ternary_self_func{
                 match result {
                     Ok(_) => slf,
                     Err(e) => {
-                        e.restore(py.token());
+                        e.restore(py);
                         $crate::std::ptr::null_mut()
                     }
                 }
@@ -385,13 +385,13 @@ macro_rules! py_func_set{
             $crate::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
                     let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py.token(), format!("Subscript deletion not supported by {:?}",
+                        py, format!("Subscript deletion not supported by {:?}",
                                             stringify!(T)));
-                    e.restore(py.token());
+                    e.restore(py);
                     return -1
                 } else {
-                    let name = ::PyObject::from_borrowed_ptr(py.token(), name);
-                    let value = ::PyObject::from_borrowed_ptr(py.token(), value);
+                    let name = ::PyObject::from_borrowed_ptr(py, name);
+                    let value = ::PyObject::from_borrowed_ptr(py, value);
                     let result = match name.extract() {
                         Ok(name) => match value.extract() {
                             Ok(value) => {
@@ -405,7 +405,7 @@ macro_rules! py_func_set{
                         Ok(_) =>
                             0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }
@@ -432,10 +432,10 @@ macro_rules! py_func_del{
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
 
                 if value.is_null() {
-                    let name = PyObject::from_borrowed_ptr(py.token(), name);
+                    let name = PyObject::from_borrowed_ptr(py, name);
                     let result = match name.extract() {
                         Ok(name) =>
                             slf.as_mut().$f(py, name).into(),
@@ -445,15 +445,15 @@ macro_rules! py_func_del{
                         Ok(_) =>
                             0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }
                 } else {
                     let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py.token(), format!("Subscript assignment not supported by {:?}",
+                        py, format!("Subscript assignment not supported by {:?}",
                                             stringify!(T)));
-                    e.restore(py.token());
+                    e.restore(py);
                     return -1
 
                 }
@@ -490,8 +490,8 @@ macro_rules! py_func_set_del{
             let guard = $crate::callback::AbortOnDrop(LOCATION);
             let ret = $crate::std::panic::catch_unwind(|| {
                 let py = $crate::Python::assume_gil_acquired();
-                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py.token(), slf);
-                let name = PyObject::from_borrowed_ptr(py.token(), name);
+                let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
+                let name = PyObject::from_borrowed_ptr(py, name);
 
                 if value.is_null() {
                     let result = match name.extract() {
@@ -503,12 +503,12 @@ macro_rules! py_func_set_del{
                         Ok(_) =>
                             0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }
                 } else {
-                    let value = ::PyObject::from_borrowed_ptr(py.token(), value);
+                    let value = ::PyObject::from_borrowed_ptr(py, value);
                     let result = match name.extract() {
                         Ok(name) => match value.extract() {
                             Ok(value) => {
@@ -522,7 +522,7 @@ macro_rules! py_func_set_del{
                         Ok(_) =>
                             0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }

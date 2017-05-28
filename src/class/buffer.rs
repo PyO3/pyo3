@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::{Python, PythonObjectWithToken};
+use python::Python;
 use objects::PyObject;
 use typeob::PyTypeInfo;
 use callback::{handle, UnitCallbackConverter};
@@ -73,7 +73,7 @@ impl ffi::PyBufferProcs {
                         {
                             const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
                             handle(LOCATION, UnitCallbackConverter, |py| {
-                                let slf = PyObject::from_borrowed_ptr(py.token(), slf);
+                                let slf = PyObject::from_borrowed_ptr(py, slf);
                                 slf.bf_getbuffer(py, arg1, arg2)
                             })
                         }

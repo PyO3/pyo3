@@ -1,7 +1,7 @@
 use ffi;
 use err::PyResult;
 use pyptr::{Py, PyPtr};
-use python::{Python, ToPythonPointer, Token};
+use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyTuple};
 use typeob::{PyTypeInfo};
 
@@ -10,7 +10,7 @@ use typeob::{PyTypeInfo};
 pub trait ToPyObject {
 
     /// Converts self into a Python object.
-    fn to_object(&self, py: Token) -> PyPtr<PyObject>;
+    fn to_object<'p>(&self, py: Python<'p>) -> PyPtr<PyObject>;
 
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -18,7 +18,7 @@ pub trait ToPyObject {
     /// May be more efficient than `to_py_object` because it does not need
     /// to touch any reference counts when the input object already is a Python object.
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Token, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         let obj = self.to_object(py).into_object();
@@ -30,7 +30,7 @@ pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
     #[inline]
-    fn into_object(self, py: Token) -> PyPtr<PyObject>
+    fn into_object(self, py: Python) -> PyPtr<PyObject>
         where Self: Sized;
 }
 
@@ -39,12 +39,12 @@ pub trait IntoPyObject {
 pub trait ToPyTuple {
 
     /// Converts self into a PyTuple object.
-    fn to_py_tuple(&self, py: Token) -> PyPtr<PyTuple>;
+    fn to_py_tuple<'p>(&self, py: Python<'p>) -> PyPtr<PyTuple>;
 
     /// Converts self into a PyTuple object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Token, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         let obj = self.to_py_tuple(py);
@@ -102,7 +102,7 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
 impl<T> IntoPyObject for T where T: ToPyObject
 {
     #[inline]
-    default fn into_object(self, py: Token) -> PyPtr<PyObject> where Self: Sized
+    default fn into_object(self, py: Python) -> PyPtr<PyObject> where Self: Sized
     {
         self.to_object(py)
     }
@@ -114,12 +114,12 @@ impl<T> IntoPyObject for T where T: ToPyObject
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 
     #[inline]
-    default fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    default fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         <T as ToPyObject>::to_object(*self, py)
     }
 
     #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Token, f: F) -> R
+    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         <T as ToPyObject>::with_borrowed_ptr(*self, py, f)
@@ -130,7 +130,7 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 /// `Option::None` is converted to Python `None`.
 impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
-    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         match *self {
             Some(ref val) => val.to_object(py),
             None => py.None()
@@ -140,7 +140,7 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
 impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Token) -> PyPtr<PyObject> {
+    fn into_object(self, py: Python) -> PyPtr<PyObject> {
         match self {
             Some(val) => val.into_object(py),
             None => py.None()
@@ -151,7 +151,7 @@ impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         py.None()
     }
 }

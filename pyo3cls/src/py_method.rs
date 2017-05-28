@@ -48,10 +48,10 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py.token(), slf);
+                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
 
                 let args: _pyo3::Py<_pyo3::PyTuple> =
-                    _pyo3::Py::from_borrowed_ptr(py.token(), args);
+                    _pyo3::Py::from_borrowed_ptr(py, args);
                 let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
                     _pyo3::argparse::get_kwargs(py, kwargs);
 
@@ -78,10 +78,10 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py.token(), slf);
+                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
 
                 let args: _pyo3::Py<_pyo3::PyTuple> =
-                    _pyo3::Py::from_borrowed_ptr(py.token(), args);
+                    _pyo3::Py::from_borrowed_ptr(py, args);
                 let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
                     _pyo3::argparse::get_kwargs(py, kwargs);
 
@@ -111,9 +111,9 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
 
             _pyo3::callback::cb_meth(LOCATION, |py| {
                 let cls: _pyo3::Py<_pyo3::PyType> = _pyo3::Py::from_borrowed_ptr(
-                    py.token(), cls as *mut _pyo3::ffi::PyObject);
+                    py, cls as *mut _pyo3::ffi::PyObject);
                 let args: _pyo3::Py<_pyo3::PyTuple> =
-                    _pyo3::Py::from_borrowed_ptr(py.token(), args);
+                    _pyo3::Py::from_borrowed_ptr(py, args);
                 let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
                     _pyo3::argparse::get_kwargs(py, kwargs);
 
@@ -161,8 +161,8 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".setter", stringify!(#name), "()");
             _pyo3::callback::cb_setter(LOCATION, |py| {
-                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py.token(), slf);
-                let value = _pyo3::PyObject::from_borrowed_ptr(py.token(), value);
+                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
+                let value = _pyo3::PyObject::from_borrowed_ptr(py, value);
 
                 let result = match <#val_ty as _pyo3::FromPyObject>::extract(&value) {
                     Ok(val) => slf.#name(py, val),

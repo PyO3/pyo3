@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use {ffi, class};
 use err::{PyErr, PyResult};
 use pyptr::{Py, PyPtr};
-use python::{Python, PythonObjectWithToken, Token};
+use python::{Python};
 use objects::PyType;
 use callback::AbortOnDrop;
 use class::methods::PyMethodDefType;
@@ -92,12 +92,12 @@ pub trait PyObjectAlloc {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(py: Token, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
+    unsafe fn alloc(py: Python, value: Self::Type) -> PyResult<*mut ffi::PyObject>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(py: Token, obj: *mut ffi::PyObject);
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
 }
 
 /// A PythonObject that is usable as a base type for #[class]
@@ -108,16 +108,13 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// and initializes it using init_val.
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
-    unsafe fn alloc(py: Token, value: T::Type) -> PyResult<*mut ffi::PyObject> {
+    unsafe fn alloc(py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
         let _ = <T as PyTypeObject>::type_object(py);
 
         let obj = ffi::PyType_GenericAlloc(
             <Self as PyTypeInfo>::type_object(), 0);
 
         let offset = <Self as PyTypeInfo>::offset();
-        println!("alloc {} {:?} {} {}", offset, obj, <Self as PyTypeInfo>::size(),
-                 <Self as PyTypeInfo>::type_object().tp_basicsize);
-
         let ptr = (obj as *mut u8).offset(offset) as *mut Self::Type;
         std::ptr::write(ptr, value);
 
@@ -127,7 +124,7 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(py: Token, obj: *mut ffi::PyObject) {
+    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
         let ptr = (obj as *mut u8).offset(
             <Self as PyTypeInfo>::offset() as isize) as *mut Self::Type;
         std::ptr::drop_in_place(ptr);
@@ -150,14 +147,14 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
 pub trait PyTypeObject {
 
     /// Retrieves the type object for this Python object type.
-    fn type_object(py: Token) -> PyPtr<PyType>;
+    fn type_object(py: Python) -> PyPtr<PyType>;
 
 }
 
 impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
 
     #[inline]
-    fn type_object<'p>(py: Token) -> PyPtr<PyType> {
+    fn type_object<'p>(py: Python) -> PyPtr<PyType> {
         let mut ty = <T as PyTypeInfo>::type_object();
 
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
@@ -172,7 +169,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
     }
 }
 
-pub fn initialize_type<'p, T>(py: Token, module_name: Option<&str>, type_name: &str,
+pub fn initialize_type<'p, T>(py: Python, module_name: Option<&str>, type_name: &str,
                           type_object: &mut ffi::PyTypeObject) -> PyResult<PyPtr<PyType>>
     where T: PyObjectAlloc + PyTypeInfo
 {
@@ -302,7 +299,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     println!("DEALLOC: {:?}", obj);
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
     let py = Python::assume_gil_acquired();
-    let r = <T as PyObjectAlloc>::dealloc(py.token(), obj);
+    let r = <T as PyObjectAlloc>::dealloc(py, obj);
     mem::forget(guard);
     r
 }

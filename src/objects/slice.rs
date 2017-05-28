@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std::os::raw::c_long;
-use pyptr::PyPtr;
+use pyptr::{Py, PyPtr};
 use objects::PyObject;
-use python::{Python, PythonToken, ToPythonPointer, Token};
+use python::{PythonToken, ToPythonPointer, Python, PythonObjectWithToken};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use conversion::ToPyObject;
@@ -36,12 +36,12 @@ pyobject_newtype!(PySlice, PySlice_Check, PySlice_Type);
 
 impl PySlice {
     /// Construct a new slice with the given elements.
-    pub fn new<'p>(py: Token, start: isize, stop: isize, step: isize) -> PyPtr<PySlice> {
+    pub fn new<'p>(py: Python<'p>, start: isize, stop: isize, step: isize) -> Py<'p, PySlice> {
         unsafe {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            PyPtr::from_owned_ptr_or_panic(py, ptr)
+            Py::from_owned_ptr_or_panic(py, ptr)
         }
     }
 
@@ -75,7 +75,7 @@ impl PySlice {
 }
 
 impl ToPyObject for PySliceIndices {
-    fn to_object<'p>(&self, py: Token) -> PyPtr<PyObject> {
-        PySlice::new(py, self.start, self.stop, self.step)
+    fn to_object<'p>(&self, py: Python) -> PyPtr<PyObject> {
+        PySlice::new(py, self.start, self.stop, self.step).into_object_pptr()
     }
 }

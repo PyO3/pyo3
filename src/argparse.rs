@@ -54,7 +54,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
-            py.token(),
+            py,
             format!("{}{} takes at most {} argument{} ({} given)",
                     fname.unwrap_or("function"),
                     if fname.is_some() { "()" } else { "" },
@@ -72,7 +72,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                 used_keywords += 1;
                 if i < nargs {
                     return Err(err::PyErr::new::<exc::TypeError, _>(
-                        py.token(),
+                        py,
                         format!("Argument given by name ('{}') and position ({})",
                                 p.name, i+1)));
                 }
@@ -84,7 +84,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                     *out = None;
                     if !p.is_optional {
                         return Err(err::PyErr::new::<exc::TypeError, _>(
-                            py.token(),
+                            py,
                             format!("Required argument ('{}') (pos {}) not found",
                                     p.name, i+1)));
                     }
@@ -98,7 +98,7 @@ pub fn parse_args<'p>(py: Python<'p>,
             let key = try!(try!(key.cast_as::<PyString>()).to_string());
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
-                    py.token(),
+                    py,
                     format!("'{}' is an invalid keyword argument for this function",
                             key)));
             }
@@ -360,7 +360,7 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
     if ptr.is_null() {
         None
     } else {
-        Some(Py::<PyDict>::from_borrowed_ptr(py.token(), ptr))
+        Some(Py::<PyDict>::from_borrowed_ptr(py, ptr))
     }
 }
 

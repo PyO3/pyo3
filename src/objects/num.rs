@@ -12,7 +12,7 @@ use ffi;
 use super::exc;
 use super::PyObject;
 use typeob::PyTypeInfo;
-use python::{Python, PythonToken, ToPythonPointer, PythonObjectWithToken, Token};
+use python::{PythonToken, ToPythonPointer, Python};
 use err::{PyResult, PyErr};
 use conversion::{ToPyObject, FromPyObject};
 
@@ -37,7 +37,7 @@ pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 impl PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new(_py: Token, val: c_double) -> PyPtr<PyFloat> {
+    pub fn new(_py: Python, val: c_double) -> PyPtr<PyFloat> {
         unsafe {
             PyPtr::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val))
         }
@@ -53,7 +53,7 @@ impl PyFloat {
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-            fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+            fn to_object(&self, _py: Python) -> PyPtr<PyObject> {
                 unsafe {
                     PyPtr::from_owned_ptr_or_panic(ffi::PyLong_FromLong(*self as c_long))
                 }
@@ -78,7 +78,7 @@ macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+            fn to_object(&self, py: Python) -> PyPtr<PyObject> {
                 (*self as $larger_type).to_object(py)
             }
         }
@@ -96,7 +96,7 @@ macro_rules! int_fits_larger_int(
 
 
 fn err_if_invalid_value<'p, T: PartialEq>
-    (py: Token, invalid_value: T, actual_value: T) -> PyResult<T>
+    (py: Python, invalid_value: T, actual_value: T) -> PyResult<T>
 {
     if actual_value == invalid_value && PyErr::occurred(py) {
         Err(PyErr::fetch(py))
@@ -109,7 +109,7 @@ macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl ToPyObject for $rust_type {
 
-            fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+            fn to_object(&self, _py: Python) -> PyPtr<PyObject> {
                 unsafe {
                     PyPtr::from_owned_ptr_or_panic($pylong_from_ll_or_ull(*self))
                 }
@@ -169,7 +169,7 @@ int_fits_larger_int!(usize, u64);
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         PyFloat::new(py, *self).into_object()
     }
 }
@@ -183,12 +183,12 @@ pyobject_extract!(obj to f64 => {
     }
 });
 
-fn overflow_error(py: Token) -> PyErr {
+fn overflow_error(py: Python) -> PyErr {
     PyErr::new_lazy_init(py.get_type::<exc::OverflowError>(), None)
 }
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Token) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
         PyFloat::new(py, *self as f64).into_object()
     }
 }

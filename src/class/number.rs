@@ -5,7 +5,7 @@
 
 use ffi;
 use err::PyResult;
-use python::{Python, PythonObjectWithToken};
+use python::Python;
 use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
@@ -135,7 +135,7 @@ pub trait PyNumberSubProtocol<'p>: PyNumberProtocol<'p> {
 }
 pub trait PyNumberMulProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyNumberMatmulProtocol<'p>: PyNumberProtocol<'p> {
@@ -931,7 +931,7 @@ impl<'p, T> PyNumberNegProtocolImpl for T where T: PyNumberProtocol<'p> {
     default fn nb_negative() -> Option<ffi::unaryfunc> {None}
 }
 impl<T> PyNumberNegProtocolImpl for T
-    where T: for<'p> PyNumberNegProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PyNumberNegProtocol<'p>
 {
     #[inline]
     fn nb_negative() -> Option<ffi::unaryfunc> {
@@ -946,7 +946,7 @@ impl<'p, T> PyNumberPosProtocolImpl for T where T: PyNumberProtocol<'p> {
     default fn nb_positive() -> Option<ffi::unaryfunc> {None}
 }
 impl<T> PyNumberPosProtocolImpl for T
-    where T: for<'p> PyNumberPosProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PyNumberPosProtocol<'p>
 {
     fn nb_positive() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberPosProtocol, T::__pos__, T::Success, PyObjectCallbackConverter)
@@ -960,7 +960,7 @@ impl<'p, T> PyNumberAbsProtocolImpl for T where T: PyNumberProtocol<'p> {
     default fn nb_absolute() -> Option<ffi::unaryfunc> {None}
 }
 impl<T> PyNumberAbsProtocolImpl for T
-    where T: for<'p> PyNumberAbsProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PyNumberAbsProtocol<'p>
 {
     fn nb_absolute() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberAbsProtocol, T::__abs__, T::Success, PyObjectCallbackConverter)
@@ -974,7 +974,7 @@ impl<'p, T> PyNumberInvertProtocolImpl for T where T: PyNumberProtocol<'p> {
     default fn nb_invert() -> Option<ffi::unaryfunc> {None}
 }
 impl<T> PyNumberInvertProtocolImpl for T
-    where T: for<'p> PyNumberInvertProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PyNumberInvertProtocol<'p>
 {
     fn nb_invert() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberInvertProtocol, T::__invert__,
@@ -989,7 +989,7 @@ impl<'p, T> PyNumberIntProtocolImpl for T where T: PyNumberProtocol<'p> {
     default fn nb_int() -> Option<ffi::unaryfunc> {None}
 }
 impl<T> PyNumberIntProtocolImpl for T
-    where T: for<'p> PyNumberIntProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PyNumberIntProtocol<'p>
 {
     fn nb_int() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberIntProtocol, T::__int__,
@@ -1003,8 +1003,8 @@ trait PyNumberFloatProtocolImpl {
 impl<'p, T> PyNumberFloatProtocolImpl for T where T: PyNumberProtocol<'p> {
     default fn nb_float() -> Option<ffi::unaryfunc> {None}
 }
-impl<T> PyNumberFloatProtocolImpl for T
-    where T: for<'p> PyNumberFloatProtocol<'p>  + ToPyObject + IntoPyObject {
+impl<T> PyNumberFloatProtocolImpl for T where T: for<'p> PyNumberFloatProtocol<'p>
+{
     fn nb_float() -> Option<ffi::unaryfunc> {
         py_unary_func!(PyNumberFloatProtocol, T::__float__,
                        T::Success, PyObjectCallbackConverter)

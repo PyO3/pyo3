@@ -6,7 +6,7 @@
 use std::os::raw::c_int;
 
 use ffi;
-use python::{Python, PythonObjectWithToken};
+use python::Python;
 use err::{PyErr, PyResult};
 use objects::{exc, PyObject};
 use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
@@ -195,12 +195,12 @@ impl<T> PySequenceSetItemProtocolImpl for T where T: for<'p> PySequenceSetItemPr
             ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
                     let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py.token(),
+                        py,
                         format!("Item deletion not supported by {:?}", stringify!(T)));
-                    e.restore(py.token());
+                    e.restore(py);
                     return -1
                 } else {
-                    let value = PyObject::from_borrowed_ptr(py.token(), value);
+                    let value = PyObject::from_borrowed_ptr(py, value);
                     let result = match value.extract() {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
@@ -210,7 +210,7 @@ impl<T> PySequenceSetItemProtocolImpl for T where T: for<'p> PySequenceSetItemPr
                     match result {
                         Ok(_) => 0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }
@@ -248,15 +248,15 @@ impl<T> PySequenceDelItemProtocolImpl for T where T: for<'p> PySequenceDelItemPr
                     match result {
                         Ok(_) => 0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }
                 } else {
                     let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py.token(), format!("Item assignment not supported by {:?}",
+                        py, format!("Item assignment not supported by {:?}",
                                             stringify!(T)));
-                    e.restore(py.token());
+                    e.restore(py);
                     return -1
                 }
             })
@@ -282,12 +282,12 @@ impl<T> PySequenceDelItemProtocolImpl for T
                     match result {
                         Ok(_) => 0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }
                 } else {
-                    let value = ::PyObject::from_borrowed_ptr(py.token(), value);
+                    let value = ::PyObject::from_borrowed_ptr(py, value);
                     let result = match value.extract() {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
@@ -297,7 +297,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                     match result {
                         Ok(_) => 0,
                         Err(e) => {
-                            e.restore(py.token());
+                            e.restore(py);
                             -1
                         }
                     }

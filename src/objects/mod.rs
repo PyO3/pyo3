@@ -6,13 +6,13 @@ pub use self::module::PyModule;
 pub use self::string::{PyBytes, PyString, PyStringData};
 //pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
-//pub use self::bytearray::PyByteArray;
+pub use self::bytearray::PyByteArray;
 pub use self::tuple::{PyTuple, NoArgs};
 pub use self::dict::PyDict;
 //pub use self::list::PyList;
 pub use self::num::{PyLong, PyFloat};
 //pub use self::sequence::PySequence;
-//pub use self::slice::PySlice;
+pub use self::slice::PySlice;
 //pub use self::set::{PySet, PyFrozenSet};
 
 
@@ -44,7 +44,7 @@ macro_rules! pyobject_newtype(
         }
 
         impl $crate::python::PythonObjectWithToken for $name {
-            fn token<'p>(&'p self) -> $crate::python::Token<'p> {
+            fn token<'p>(&'p self) -> $crate::python::Python<'p> {
                 self.0.token()
             }
         }
@@ -98,12 +98,12 @@ mod string;
 mod dict;
 //mod iterator;
 mod boolobject;
-//mod bytearray;
+mod bytearray;
 mod tuple;
 //mod list;
 mod num;
 //mod sequence;
-//mod slice;
+mod slice;
 // mod set;
 mod object;
 pub mod exc;
