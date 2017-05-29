@@ -110,6 +110,21 @@ pub const ASYNC: Proto = Proto {
     ],
 };
 
+pub const BUFFER: Proto = Proto {
+    name: "Buffer",
+    methods: &[
+        MethodProto::Unary{
+            name: "bf_getbuffer",
+            pyres: false,
+            proto: "::pyo3::class::buffer::PyBufferGetBufferProtocol"},
+        MethodProto::Unary{
+            name: "bf_releasebuffer",
+            pyres: false,
+            proto: "::pyo3::class::buffer::PyBufferReleaseBufferProtocol"},
+    ],
+    py_methods: &[],
+};
+
 pub const CONTEXT: Proto = Proto {
     name: "Context",
     methods: &[
@@ -133,6 +148,8 @@ pub const CONTEXT: Proto = Proto {
         },
     ],
 };
+
+
 
 pub const DESCR: Proto = Proto {
     name: "Descriptor",

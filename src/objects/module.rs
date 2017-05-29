@@ -8,10 +8,11 @@ use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
 use ::pptr;
+use conversion::ToPyTuple;
 use pyptr::PyPtr;
 use python::{ToPythonPointer, Python};
 use token::PythonObjectWithGilToken;
-use objects::{PyDict, PyType, exc};
+use objects::{PyObject, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use err::{PyResult, PyErr};
 
@@ -77,6 +78,15 @@ impl<'p> PyModule<'p> {
     /// May fail if the module does not have a `__file__` attribute.
     pub fn filename<'a>(&'a self) -> PyResult<&'a str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
+    }
+
+    /// Calls a function in the module.
+    /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>)
+                   -> PyResult<PyObject<'p>>
+        where A: ToPyTuple
+    {
+        self.getattr(name)?.call(args, kwargs)
     }
 
     /// Adds a new extension type to the module.

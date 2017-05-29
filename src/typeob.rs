@@ -248,7 +248,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     }
 
     // buffer protocol
-    if let Some(meth) = ffi::PyBufferProcs::new::<T>() {
+    if let Some(meth) = <T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer() {
         static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
         *(unsafe { &mut BUFFER_PROCS }) = meth;
         type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };

@@ -83,12 +83,12 @@ pub trait PySequenceRepeatProtocol<'p>: PySequenceProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + ToPyObject {
+pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPyObject {
     type Other: FromPyObject<'p>;
     type Result: Into<PyResult<Self>>;
 }
 
-pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + ToPyObject {
+pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPyObject {
     type Result: Into<PyResult<Self>>;
 }
 
@@ -112,7 +112,6 @@ impl<'p, T> PySequenceProtocolImpl for T where T: PySequenceProtocol<'p> {
         } else {
             Self::sq_ass_item()
         };
-
 
         Some(ffi::PySequenceMethods {
             sq_length: Self::sq_length(),
@@ -161,8 +160,7 @@ impl<'p, T> PySequenceGetItemProtocolImpl for T where T: PySequenceProtocol<'p>
     }
 }
 
-impl<T> PySequenceGetItemProtocolImpl for T
-    where T: for<'p> PySequenceGetItemProtocol<'p> + ToPyObject + IntoPyObject
+impl<T> PySequenceGetItemProtocolImpl for T where T: for<'p> PySequenceGetItemProtocol<'p>
 {
     #[inline]
     fn sq_item() -> Option<ffi::ssizeargfunc> {
@@ -365,8 +363,7 @@ impl<'p, T> PySequenceRepeatProtocolImpl for T
     }
 }
 
-impl<T> PySequenceRepeatProtocolImpl for T
-    where T: for<'p> PySequenceRepeatProtocol<'p> + ToPyObject + IntoPyObject
+impl<T> PySequenceRepeatProtocolImpl for T where T: for<'p> PySequenceRepeatProtocol<'p>
 {
     #[inline]
     fn sq_repeat() -> Option<ffi::ssizeargfunc> {
@@ -388,7 +385,7 @@ impl<'p, T> PySequenceInplaceConcatProtocolImpl for T where T: PySequenceProtoco
 }
 
 impl<T> PySequenceInplaceConcatProtocolImpl for T
-    where T: for<'p> PySequenceInplaceConcatProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PySequenceInplaceConcatProtocol<'p>
 {
     #[inline]
     fn sq_inplace_concat() -> Option<ffi::binaryfunc> {
@@ -410,7 +407,7 @@ impl<'p, T> PySequenceInplaceRepeatProtocolImpl for T where T: PySequenceProtoco
 }
 
 impl<T> PySequenceInplaceRepeatProtocolImpl for T
-    where T: for<'p> PySequenceInplaceRepeatProtocol<'p> + ToPyObject + IntoPyObject
+    where T: for<'p> PySequenceInplaceRepeatProtocol<'p>
 {
     #[inline]
     fn sq_inplace_repeat() -> Option<ffi::ssizeargfunc> {

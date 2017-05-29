@@ -477,7 +477,9 @@ fn comparisons() {
 
 
 #[py::class]
-struct Sequence {token: PythonToken<Sequence>}
+struct Sequence {
+    #[token]
+    token: PythonToken<Sequence>}
 
 #[py::proto]
 impl PySequenceProtocol for Sequence {
@@ -619,7 +621,6 @@ struct Reversed {token: PythonToken<Reversed>}
 #[py::proto]
 impl PyMappingProtocol for Reversed{
     fn __reversed__(&self, py: Python) -> PyResult<&'static str> {
-        println!("__reversed__");
         Ok("I am reversed")
     }
 }

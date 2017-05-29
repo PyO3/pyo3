@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PyObjectMarker, PythonToken, PythonObjectWithGilToken};
+use token::{PyObjectMarker, PythonToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
 use pyptr::{Py, PyPtr};
@@ -253,33 +253,6 @@ impl<'p> Python<'p> {
     pub fn with<F, R>(self, f: F) -> R where F: FnOnce(Python<'p>) -> R
     {
         f(Python(PhantomData))
-    }
-
-    /// Convert raw pointer into referece
-    #[inline]
-    pub unsafe fn from_owned_ptr<P>(self, ptr: *mut ffi::PyObject) -> &'p P
-    {
-        std::mem::transmute(ptr)
-    }
-
-    #[inline]
-    pub unsafe fn from_owned_ptr_opt<P>(self, ptr: *mut ffi::PyObject) -> Option<&'p P>
-    {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(std::mem::transmute(ptr))
-        }
-    }
-
-    #[inline]
-    pub unsafe fn from_owned_ptr_or_panic<P>(self, ptr: *mut ffi::PyObject) -> &'p P
-    {
-        if ptr.is_null() {
-            ::err::panic_after_error();
-        } else {
-            std::mem::transmute(ptr)
-        }
     }
 }
 

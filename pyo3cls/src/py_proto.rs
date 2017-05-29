@@ -41,8 +41,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                         "PyDescrProtocol" =>
                             impl_proto_impl(ty, impl_items, &defs::DESCR),
                         "PyBufferProtocol" =>
-                            impl_protocol("_pyo3::class::buffer::PyBufferProtocolImpl",
-                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                            impl_proto_impl(ty, impl_items, &defs::BUFFER),
                         "PyGCProtocol" =>
                             impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
                                           path.clone(), ty, impl_items, &DEFAULT_METHODS),

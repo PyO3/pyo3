@@ -499,11 +499,11 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     }
 }
 
-//impl<'p, T> PythonObjectWithGilToken<'p> for Py<'p, T> {
-//    fn gil(&self) -> Python<'p> {
-//        self.py
-//    }
-//}
+impl<'p, T> PythonObjectWithGilToken<'p> for Py<'p, T> {
+    fn gil(&self) -> Python<'p> {
+        self.py
+    }
+}
 
 impl<'p, T> ToPythonPointer for Py<'p, T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.

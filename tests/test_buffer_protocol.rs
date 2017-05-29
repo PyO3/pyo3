@@ -19,7 +19,6 @@ struct TestClass {
 impl class::PyBufferProtocol for TestClass {
 
     fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
-
         if view == ptr::null_mut() {
             return Err(PyErr::new::<exc::BufferError, _>(py, "View is null"))
         }
@@ -75,6 +74,5 @@ fn test_buffer() {
 
     let d = PyDict::new(py);
     let _ = d.set_item("ob", t);
-
     py.run("assert bytes(ob) == b' 23'", None, Some(&d)).unwrap();
 }

@@ -105,7 +105,7 @@ impl<'p> PyDict<'p> {
     //}
 
     /// Returns the list of (key, value) pairs in this dictionary.
-    pub fn items(&self) -> Vec<(&PyObject, &PyObject)> {
+    pub fn items(&self) -> Vec<(PyObject<'p>, PyObject<'p>)> {
         // Note that we don't provide an iterator because
         // PyDict_Next() is unsafe to use when the dictionary might be changed
         // by other python code.
@@ -116,7 +116,8 @@ impl<'p> PyDict<'p> {
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
-                vec.push((token.from_owned_ptr(key), token.from_owned_ptr(value)));
+                vec.push((PyObject::from_owned_ptr(token, key),
+                          PyObject::from_owned_ptr(token, value)));
             }
         }
         vec
@@ -273,7 +274,7 @@ mod test {
 
     #[test]
     fn test_items() {
-    let gil = Python::acquire_gil();
+        let gil = Python::acquire_gil();
         let py = gil.python();
         let mut v = HashMap::new();
         v.insert(7, 32);

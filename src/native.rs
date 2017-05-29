@@ -1,12 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use ffi;
-use ppptr::pptr;
 use pyptr::PyPtr;
 use token::PyObjectMarker;
 use typeob::PyTypeInfo;
 use objects::PyObject;
-use python::ToPythonPointer;
 
 pub trait PyBaseObject : PyTypeInfo + Sized {}
 

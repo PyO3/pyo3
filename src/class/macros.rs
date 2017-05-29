@@ -53,7 +53,7 @@ macro_rules! py_unary_func_self {
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject)
                                      -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + $crate::ToPyObject + $crate::IntoPyObject
+            where T: for<'p> $trait<'p>
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
@@ -221,7 +221,7 @@ macro_rules! py_ssizearg_func {
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: $crate::Py_ssize_t) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + ToPyObject + IntoPyObject
+            where T: for<'p> $trait<'p>
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 

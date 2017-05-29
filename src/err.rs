@@ -1,5 +1,6 @@
 use std;
 use std::ffi::CString;
+use std::os::raw::c_char;
 use libc;
 
 use ffi;
@@ -34,7 +35,7 @@ let gil = Python::acquire_gil();
     let py = gil.python();
     let ctx = PyDict::new(py);
 
-    ctx.set_item(py, "CustomError", py.get_type::<CustomError>()).unwrap();
+    ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
 
     py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
     py.run("assert CustomError('oops').args == ('oops',)", None, Some(&ctx)).unwrap();
@@ -46,7 +47,7 @@ macro_rules! py_exception {
     ($module: ident, $name: ident, $base: ty) => {
         pub struct $name;
 
-        pyobject_newtype!($name);
+        pyobject_nativetype!($name);
 
         impl $name {
             pub fn new<'p, T: $crate::ToPyObject>(py: $crate::Python<'p>, args: T) -> $crate::PyErr {
@@ -56,11 +57,7 @@ macro_rules! py_exception {
 
         impl $crate::PyTypeObject for $name {
             #[inline]
-            fn type_name() -> &'static str {
-                "$name"
-            }
-            #[inline]
-            fn type_object(py: $crate::Python) -> $crate::PyType {
+            fn type_object<'p>(py: $crate::Python<'p>) -> $crate::PyType<'p> {
                 unsafe {
                     static mut type_object: *mut $crate::ffi::PyTypeObject = 0 as *mut $crate::ffi::PyTypeObject;
 
@@ -68,8 +65,7 @@ macro_rules! py_exception {
                         type_object = $crate::PyErr::new_type(
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
-                            Some($crate::PythonObject::into_object(py.get_type::<$base>())),
-                            None).as_type_ptr();
+                            Some(py.get_type::<$base>()), None);
                     }
 
                     $crate::PyType::from_type_ptr(py, type_object)
@@ -136,25 +132,26 @@ impl PyErr {
     ///
     /// `base` can be an existing exception type to subclass, or a tuple of classes
     /// `dict` specifies an optional dictionary of class variables and methods
-    /*pub fn new_type(py: Python, name: &str,
-                    base: Option<PyObject>, dict: Option<PyObject>) -> PyType {
+    pub fn new_type<'p>(py: Python<'p>, name: &str,
+                        base: Option<PyObject<'p>>, dict: Option<PyObject<'p>>) -> PyType<'p> {
         let base: *mut ffi::PyObject = match base {
-            None => ptr::null_mut(),
-            Some(obj) => obj.steal_ptr()
+            None => std::ptr::null_mut(),
+            Some(obj) => obj.into_ptr()
         };
 
         let dict: *mut ffi::PyObject = match dict {
-            None => ptr::null_mut(),
+            None => std::ptr::null_mut(),
             Some(obj) => obj.into_ptr(),
         };
 
         unsafe {
             let null_terminated_name = CString::new(name).unwrap();
-            let ptr: *mut ffi::PyObject = ffi::PyErr_NewException(
-                null_terminated_name.as_ptr() as *mut c_char, base, dict);
-            PyObject::from_borrowed_ptr(py, ptr).unchecked_cast_into::<PyType>()
+            let ptr = ffi::PyErr_NewException(
+                null_terminated_name.as_ptr() as *mut c_char,
+                base, dict) as *mut ffi::PyTypeObject;
+            PyType::from_type_ptr(py, ptr)
         }
-    }*/
+    }
 
     /// Retrieves the current error from the Python interpreter's global state.
     /// The error is cleared from the Python interpreter.
