@@ -26,6 +26,11 @@ impl<'p> PyDict<'p> {
         unsafe { PyDict(pptr::from_owned_ptr_or_panic(py, ffi::PyDict_New())) }
     }
 
+    /// Construct a new dict with the given raw pointer
+    pub fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyDict<'p> {
+        unsafe { PyDict(pptr::from_borrowed_ptr(py, ptr)) }
+    }
+
     /// Return a new dictionary that contains the same key-value pairs as self.
     /// Corresponds to `dict(self)` in Python.
     pub fn copy(&'p self) -> PyResult<PyDict<'p>> {
@@ -65,7 +70,7 @@ impl<'p> PyDict<'p> {
     /// Returns None if the item is not present, or if an error occurs.
     pub fn get_item<K>(&self, key: K) -> Option<PyObject> where K: ToPyObject {
         key.with_borrowed_ptr(self.token(), |key| unsafe {
-            PyObject::from_owned_ptr_or_opt(
+            PyObject::from_borrowed_ptr_or_opt(
                 self.token(), ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }

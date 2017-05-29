@@ -117,8 +117,8 @@ impl<T> PyPtr<T> {
     }
 
     #[inline]
-    pub fn clone_ref(&self) -> PyPtr<T> {
-        PyPtr{inner: self.inner.clone(), _t: PhantomData}
+    pub fn clone_ref(&self, _py: Python) -> PyPtr<T> {
+        unsafe { PyPtr::from_borrowed_ptr(self.inner) }
     }
 
     /// Unchecked downcast from other PyPtr<S> to PyPtr<S>.
@@ -129,6 +129,21 @@ impl<T> PyPtr<T> {
         let res = PyPtr {inner: py.inner, _t: PhantomData};
         std::mem::forget(py);
         res
+    }
+
+    /// Casts the PyPtr to a concrete Python object type.
+    /// Fails with `PyDowncastError` if the object is not of the expected type.
+    #[inline]
+    pub fn cast_into<'p, D>(self, py: Python<'p>) -> Result<D, PyDowncastError<'p>>
+        where D: ::PyDowncastInto<'p>
+    {
+        match <D as ::PyDowncastInto>::downcast_from_owned_ptr(py, self.inner) {
+            Ok(ptr) => {
+                std::mem::forget(self);
+                Ok(ptr)
+            }
+            Err(e) => Err(e)
+        }
     }
 }
 
@@ -547,11 +562,10 @@ impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeInfo {
 }
 
 impl<'source, T> ::FromPyObject<'source> for &'source T
-    where T: PyTypeInfo
+    where T: PyTypeInfo + ::PyDowncastFrom<'source>
 {
     #[inline]
     default fn extract(py: &'source PyObject<'source>) -> PyResult<&'source T>
-        //where S: PyTypeInfo
     {
         Ok(py.cast_as()?)
     }

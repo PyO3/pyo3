@@ -31,9 +31,19 @@ pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
 
 /// Trait implemented by Python object types that allow a checked downcast.
-pub trait PythonObjectWithCheckedDowncast<'p> : Sized {
+pub trait PyDowncastFrom<'p> : Sized {
+
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from(Py<'p, PyObject>) -> Result<Self, PyDowncastError<'p>>;
+    fn downcast_from(&'p PyObject<'p>) -> Result<&'p Self, PyDowncastError<'p>>;
+
+}
+
+
+/// Trait implemented by Python object types that allow a checked downcast.
+pub trait PyDowncastInto<'p> : Sized {
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn downcast_into(Python<'p>, PyObject) -> Result<Self, PyDowncastError<'p>>;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn downcast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
@@ -203,7 +213,7 @@ impl<'p> Python<'p> {
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> PyPtr<PyType> where T: PyTypeObject {
+    pub fn get_type<T>(self) -> PyType<'p> where T: PyTypeObject {
         T::type_object(self)
     }
 
@@ -230,14 +240,14 @@ impl<'p> Python<'p> {
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn True(self) -> PyBool<'p> {
-        PyBool::get(self, true)
+        PyBool::new(self, true)
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
     pub fn False(self) -> PyBool<'p> {
-        PyBool::get(self, false)
+        PyBool::new(self, false)
     }
 
     /// Gets the Python builtin value `NotImplemented`.

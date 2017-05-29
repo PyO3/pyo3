@@ -17,6 +17,7 @@ struct TestClass {
 
 #[py::proto]
 impl class::PyBufferProtocol for TestClass {
+
     fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
 
         if view == ptr::null_mut() {
@@ -31,7 +32,7 @@ impl class::PyBufferProtocol for TestClass {
             return Err(PyErr::new::<exc::BufferError, _>(py, "Object is not writable"))
         }
 
-        let bytes = self.vec(py);
+        let bytes = &self.vec;
 
         unsafe {
             (*view).buf = bytes.as_ptr() as *mut c_void;
@@ -70,10 +71,10 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = TestClass::create_instance(py, vec![b' ', b'2', b'3']).unwrap();
+    let t = py.with_token(|e| TestClass{vec: vec![b' ', b'2', b'3']});
 
     let d = PyDict::new(py);
-    let _ = d.set_item(py, "ob", t);
+    let _ = d.set_item("ob", t);
 
     py.run("assert bytes(ob) == b' 23'", None, Some(&d)).unwrap();
 }

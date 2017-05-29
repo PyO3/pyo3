@@ -58,7 +58,7 @@ impl<'p> pptr<'p> {
     /// This moves ownership over the pointer into the pptr<'p>.
     /// Returns None for null pointers; undefined behavior if the pointer is invalid.
     #[inline]
-     pub unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
+        pub unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
                                          -> Option<pptr<'p>> {
         if ptr.is_null() {
             None
@@ -80,8 +80,8 @@ impl<'p> pptr<'p> {
     /// Creates a Py instance for the given FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_opt(py: Python<'p>,
-                                        ptr: *mut ffi::PyObject) -> Option<pptr<'p>> {
+    pub unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                           -> Option<pptr<'p>> {
         if ptr.is_null() {
             None
         } else {

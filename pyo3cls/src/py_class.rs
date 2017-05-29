@@ -40,9 +40,6 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
-            use std;
-            use pyo3::PythonObjectWithToken;
-            use pyo3::python::PythonObjectWithCheckedDowncast;
 
             #tokens
         };
@@ -113,6 +110,26 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
                 static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
                 unsafe { &mut TYPE_OBJECT }
+            }
+        }
+
+        impl<'p> _pyo3::python::PyDowncastFrom<'p> for #cls
+        {
+            fn downcast_from(py: &'p _pyo3::PyObject<'p>)
+                             -> Result<&'p #cls, _pyo3::PyDowncastError<'p>>
+            {
+                unsafe {
+                    let checked = ffi::PyObject_TypeCheck(
+                        py.as_ptr(), <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
+
+                    if checked {
+                        let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                        let ptr = (py.as_ptr() as *mut u8).offset(offset) as *mut #cls;
+                        Ok(ptr.as_ref().unwrap())
+                    } else {
+                        Err(_pyo3::PyDowncastError(py.token(), None))
+                    }
+                }
             }
         }
 

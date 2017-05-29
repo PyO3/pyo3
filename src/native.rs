@@ -1,13 +1,14 @@
 
-// use python::{Python, ToPythonPointer, PythonObjectWithCheckedDowncast};
-// use err::{PyErr, PyResult};
-// use ppptr::pptr;
-// use pyptr::Py;
+use pyptr::PyPtr;
+use token::PyObjectMarker;
 use typeob::PyTypeInfo;
-// use conversion::{ToPyObject, FromPyObject};
 
 
-pub trait PyNativeObject : PyTypeInfo {}
+pub trait PyNativeObject : PyTypeInfo {
+
+    fn into_object(self) -> PyPtr<PyObjectMarker>;
+
+}
 
 
 /*impl<'a, T: Sized> FromPyObject<'a> for T

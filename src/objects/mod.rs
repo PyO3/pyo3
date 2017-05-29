@@ -17,71 +17,14 @@ pub use self::slice::PySlice;
 
 
 #[macro_export]
-macro_rules! pyobject_newtype(
-    ($name: ident, $checkfunction: ident, $typeobject: ident) => (
-
-        impl $crate::typeob::PyTypeInfo for $name {
-            type Type = ();
-
-            #[inline]
-            fn size() -> usize {
-                $crate::std::mem::size_of::<ffi::PyObject>()
-            }
-
-            #[inline]
-            fn offset() -> isize {
-                0
-            }
-
-            #[inline]
-            fn type_name() -> &'static str {
-                stringify!($name)
-            }
-            #[inline]
-            fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
-                unsafe { &mut $crate::ffi::$typeobject }
-            }
-        }
-
-        impl $crate::token::PythonObjectWithToken for $name {
-            fn token<'p>(&'p self) -> $crate::python::Python<'p> {
-                self.0.token()
-            }
-        }
-
-        impl $crate::std::fmt::Debug for $name {
-            default fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
-                           -> Result<(), $crate::std::fmt::Error>
-            {
-                let py = <$name as $crate::token::PythonObjectWithToken>::token(self);
-                let s = unsafe { $crate::Py::<$crate::PyString>::cast_from_owned_or_err(
-                    py, $crate::ffi::PyObject_Repr(
-                        $crate::python::ToPythonPointer::as_ptr(self))) };
-                let repr_obj = try!(s.map_err(|_| $crate::std::fmt::Error));
-                f.write_str(&repr_obj.to_string_lossy())
-            }
-        }
-
-        impl $crate::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
-                   -> Result<(), $crate::std::fmt::Error>
-            {
-                let py = <$name as $crate::token::PythonObjectWithToken>::token(self);
-                let s = unsafe { $crate::Py::<$crate::PyString>::cast_from_owned_or_err(
-                    py, $crate::ffi::PyObject_Str(
-                        $crate::python::ToPythonPointer::as_ptr(self))) };
-                let str_obj = try!(s.map_err(|_| $crate::std::fmt::Error));
-                f.write_str(&str_obj.to_string_lossy())
-            }
-        }
-    );
-);
-
-#[macro_export]
 macro_rules! pyobject_nativetype(
     ($name: ident, $checkfunction: ident, $typeobject: ident) => (
 
-        impl<'p> $crate::native::PyNativeObject for $name<'p> {}
+        impl<'p> $crate::native::PyNativeObject for $name<'p> {
+            fn into_object(self) -> $crate::PyPtr<$crate::PyObjectMarker> {
+                unsafe { $crate::std::mem::transmute(self) }
+            }
+        }
 
         impl<'p> $crate::typeob::PyTypeInfo for $name<'p> {
             type Type = ();
@@ -112,14 +55,36 @@ macro_rules! pyobject_nativetype(
             }
         }
 
-        impl<'p> $crate::python::PythonObjectWithCheckedDowncast<'p> for $name<'p>
+        impl<'p> $crate::python::PyDowncastFrom<'p> for $name<'p>
         {
-            fn downcast_from(py: $crate::Py<'p, $crate::PyObject>)
+            fn downcast_from(py: &'p $crate::PyObject<'p>)
+                             -> Result<&'p $name<'p>, $crate::PyDowncastError<'p>>
+            {
+                use $crate::{ToPythonPointer, PythonObjectWithToken};
+
+                unsafe {
+                    if $crate::ffi::$checkfunction(py.as_ptr()) > 0 {
+                        let ptr = py as *const _ as *mut u8 as *mut $name;
+                        Ok(ptr.as_ref().unwrap())
+                    } else {
+                        Err($crate::PyDowncastError(py.token(), None))
+                    }
+                }
+            }
+        }
+
+        impl<'p> $crate::python::PyDowncastInto<'p> for $name<'p>
+        {
+            fn downcast_into(py: $crate::Python<'p>, ob: $crate::PyObject)
                              -> Result<$name<'p>, $crate::PyDowncastError<'p>>
             {
-                let inst = $name(
-                    $crate::pptr::cast_from_borrowed_ptr::<$name>(py.token(), py.as_ptr())?);
-                Ok(inst)
+                match $crate::pptr::cast_from_owned_ptr::<$name>(py, ob.as_ptr()) {
+                    Ok(ptr) => {
+                        $crate::std::mem::forget(ob);
+                        Ok($name(ptr))
+                    },
+                    Err(e) => Err(e)
+                }
             }
 
             fn downcast_from_owned_ptr(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject)
@@ -134,6 +99,16 @@ macro_rules! pyobject_nativetype(
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
                 self.0.as_ptr()
+            }
+        }
+
+        impl<'p> $crate::python::IntoPythonPointer for $name<'p> {
+            /// Gets the underlying FFI pointer, returns a owned pointer.
+            #[inline]
+            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
+                let ptr = self.0.as_ptr();
+                $crate::std::mem::forget(self);
+                ptr
             }
         }
 
@@ -196,10 +171,9 @@ macro_rules! pyobject_nativetype(
             default fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                            -> Result<(), $crate::std::fmt::Error>
             {
-                use python::PythonObjectWithCheckedDowncast;
+                use $crate::python::PyDowncastInto;
 
                 let py = <$name as $crate::token::PythonObjectWithToken>::token(self);
-                println!("DEBUG {:?}", self.as_ptr());
                 let s = unsafe { $crate::PyString::downcast_from_owned_ptr(
                     py, $crate::ffi::PyObject_Repr(
                         $crate::python::ToPythonPointer::as_ptr(self))) };
@@ -212,8 +186,10 @@ macro_rules! pyobject_nativetype(
             fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                    -> Result<(), $crate::std::fmt::Error>
             {
+                use $crate::python::PyDowncastInto;
+
                 let py = <$name as $crate::token::PythonObjectWithToken>::token(self);
-                let s = unsafe { $crate::Py::<$crate::PyString>::cast_from_owned_or_err(
+                let s = unsafe { $crate::PyString::downcast_from_owned_ptr(
                     py, $crate::ffi::PyObject_Str(
                         $crate::python::ToPythonPointer::as_ptr(self))) };
                 let str_obj = try!(s.map_err(|_| $crate::std::fmt::Error));

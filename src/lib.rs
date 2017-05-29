@@ -76,7 +76,7 @@ pub use token::{PyObjectMarker, PythonToken, PythonObjectWithToken};
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use python::{Python, IntoPythonPointer};
+pub use python::{Python, ToPythonPointer, IntoPythonPointer, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};

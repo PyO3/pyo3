@@ -24,19 +24,18 @@ fn test_basics() {
 struct Test {}
 
 #[py::proto]
-impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: Py<'p, PyObject>) -> PyResult<Py<'p, PyObject>> {
-        let py = self.py();
-
+impl<'p> PyMappingProtocol<'p> for Test
+{
+    fn __getitem__(&self, py: Python, idx: PyObject<'p>) -> PyResult<PyPtr<PyObjectMarker>> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".to_object(py).into_object())
+                return Ok("slice".to_object(py))
             }
         }
         else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".to_object(py).into_object())
+                return Ok("int".to_object(py))
             }
         }
         Err(PyErr::new::<exc::ValueError, _>(py, "error"))
@@ -48,7 +47,7 @@ fn test_cls_impl() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = py.init(Test{});
+    let ob = py.with_token(|e| Test{});
     let d = PyDict::new(py);
     d.set_item("ob", ob).unwrap();
 

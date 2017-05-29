@@ -49,11 +49,8 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
                 let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
-
-                let args: _pyo3::Py<_pyo3::PyTuple> =
-                    _pyo3::Py::from_borrowed_ptr(py, args);
-                let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
-                    _pyo3::argparse::get_kwargs(py, kwargs);
+                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result: #output = {
                     #body
@@ -79,11 +76,8 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
                 let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
-
-                let args: _pyo3::Py<_pyo3::PyTuple> =
-                    _pyo3::Py::from_borrowed_ptr(py, args);
-                let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
-                    _pyo3::argparse::get_kwargs(py, kwargs);
+                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result = {
                     #body
@@ -110,12 +104,9 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name), "()");
 
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let cls: _pyo3::Py<_pyo3::PyType> = _pyo3::Py::from_borrowed_ptr(
-                    py, cls as *mut _pyo3::ffi::PyObject);
-                let args: _pyo3::Py<_pyo3::PyTuple> =
-                    _pyo3::Py::from_borrowed_ptr(py, args);
-                let kwargs: Option<_pyo3::Py<_pyo3::PyDict>> =
-                    _pyo3::argparse::get_kwargs(py, kwargs);
+                let cls = _pyo3::PyType::from_type_ptr(py, cls);
+                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result: #output = {
                     #body
@@ -184,7 +175,7 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
 fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
     quote! {{
-        slf.as_mut().#fname(py, #(#names),*)
+        slf.#fname(py, #(#names),*)
     }}
 }
 
@@ -297,7 +288,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
                 match
                     match _iter.next().unwrap().as_ref() {
                         Some(obj) => {
-                            if obj == &py.None() {
+                            if obj.is_none() {
                                 Ok(#default)
                             } else {
                                 match obj.extract() {
@@ -317,7 +308,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
             quote! {
                 match match _iter.next().unwrap().as_ref() {
                     Some(obj) => {
-                        if obj == &py.None() {
+                        if obj.is_none() {
                             Ok(#default)
                         } else {
                             match obj.extract() {

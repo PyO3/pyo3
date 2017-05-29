@@ -45,6 +45,18 @@ impl<'p> PyObject<'p> {
         unsafe { PyObject(pptr::from_borrowed_ptr(py, ptr)) }
     }
 
+    #[inline]
+    pub fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                    -> Option<PyObject<'p>> {
+        unsafe {
+            if let Some(ptr) = pptr::from_borrowed_ptr_or_opt(py, ptr) {
+                Some(PyObject(ptr))
+            } else {
+                None
+            }
+        }
+    }
+
     /// Transmutes a slice of owned FFI pointers to `&[Py<'p, PyObject>]`.
     /// Undefined behavior if any pointer in the slice is NULL or invalid.
     #[inline]
@@ -57,19 +69,20 @@ impl<'p> PyObject<'p> {
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
     pub fn cast_as<D>(&'p self) -> Result<&'p D, PyDowncastError<'p>>
-        where D: PyTypeInfo
+        //where D: PyTypeInfo
+    //{
+        where D: ::PyDowncastFrom<'p>
     {
-        unsafe {
-            let ptr = self as *const _ as *mut _;
-            let checked = ffi::PyObject_TypeCheck(ptr, D::type_object()) != 0;
+        <D as ::PyDowncastFrom>::downcast_from(&self)
+    }
 
-            if checked {
-                let ptr = ptr as *mut D;
-                Ok(ptr.as_ref().unwrap())
-            } else {
-                Err(PyDowncastError(self.token(), None))
-            }
-        }
+    /// Casts the PyObject to a concrete Python object type.
+    /// Fails with `PyDowncastError` if the object is not of the expected type.
+    #[inline]
+    pub fn cast_into<D>(self, py: Python<'p>) -> Result<D, PyDowncastError<'p>>
+        where D: ::PyDowncastInto<'p>
+    {
+        <D as ::PyDowncastInto>::downcast_into(py, self)
     }
 
     /// Extracts some type from the Python object.
@@ -78,5 +91,12 @@ impl<'p> PyObject<'p> {
     pub fn extract<D>(&'p self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
     {
         ::conversion::FromPyObject::extract(&self)
+    }
+}
+
+impl<'p> PartialEq for PyObject<'p> {
+    #[inline]
+    fn eq(&self, other: &PyObject) -> bool {
+        self.as_ptr() == other.as_ptr()
     }
 }

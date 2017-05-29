@@ -5,20 +5,21 @@
 use std::ffi::CStr;
 use std::borrow::Cow;
 
+use ::pptr;
 use ffi;
-use pyptr::{PyPtr};
-use token::{PythonToken, PythonObjectWithToken};
+use token::PythonObjectWithToken;
 use python::{Python, ToPythonPointer};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
 use err::PyResult;
 
 /// Represents a reference to a Python type object.
-pub struct PyType(PythonToken<PyType>);
+pub struct PyType<'p>(pptr<'p>);
 
-pyobject_newtype!(PyType, PyType_Check, PyType_Type);
+pyobject_nativetype!(PyType, PyType_Check, PyType_Type);
 
-impl PyType {
+
+impl<'p> PyType<'p> {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
     pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
@@ -29,8 +30,8 @@ impl PyType {
     /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_type_ptr(_py: Python, p: *mut ffi::PyTypeObject) -> PyPtr<PyType> {
-        PyPtr::from_borrowed_ptr(p as *mut ffi::PyObject)
+    pub unsafe fn from_type_ptr(py: Python<'p>, p: *mut ffi::PyTypeObject) -> PyType<'p> {
+        PyType(pptr::from_borrowed_ptr(py, p as *mut ffi::PyObject))
     }
 
     /// Gets the name of the PyType.
@@ -48,28 +49,28 @@ impl PyType {
 
     /// Return true if `obj` is an instance of `self`.
     #[inline]
-    pub fn is_instance(&self, _: Python, obj: &PyObject) -> bool {
+    pub fn is_instance<T: ToPythonPointer>(&self, obj: &T) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
     }
 
     // /// Calls the type object, thus creating a new instance.
     // /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     #[inline]
-    pub fn call<'p, A>(&'p self, args: A, kwargs: Option<&PyDict>) -> PyResult<PyPtr<PyObject>>
+    pub fn call<A>(&'p self, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject<'p>>
         where A: ToPyTuple
     {
         let args = args.to_py_tuple(self.token());
         unsafe {
-            PyPtr::from_owned_ptr_or_err(
+            PyObject::from_owned_ptr_or_err(
                 self.token(), ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs.as_ptr()))
         }
     }
 }
 
-impl PartialEq for PyType {
+impl<'p> PartialEq for PyType<'p> {
     #[inline]
-    fn eq(&self, o : &PyType) -> bool {
-        self.as_type_ptr() == o.as_type_ptr()
+    fn eq(&self, other: &PyType) -> bool {
+        self.as_type_ptr() == other.as_type_ptr()
     }
 }
-impl Eq for PyType { }
+impl<'p> Eq for PyType<'p> { }

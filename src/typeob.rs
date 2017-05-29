@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use {ffi, class};
 use err::{PyErr, PyResult};
-use pyptr::{Py, PyPtr};
+use pyptr::{Py};
 use python::{Python};
 use objects::PyType;
 use callback::AbortOnDrop;
@@ -153,14 +153,14 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
 pub trait PyTypeObject {
 
     /// Retrieves the type object for this Python object type.
-    fn type_object(py: Python) -> PyPtr<PyType>;
+    fn type_object<'p>(py: Python<'p>) -> PyType<'p>;
 
 }
 
 impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
 
     #[inline]
-    fn type_object<'p>(py: Python) -> PyPtr<PyType> {
+    fn type_object<'p>(py: Python<'p>) -> PyType<'p> {
         let mut ty = <T as PyTypeInfo>::type_object();
 
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
@@ -175,11 +175,10 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
     }
 }
 
-pub fn initialize_type<'p, T>(py: Python, module_name: Option<&str>, type_name: &str,
-                          type_object: &mut ffi::PyTypeObject) -> PyResult<PyPtr<PyType>>
+pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_name: &str,
+                              type_object: &mut ffi::PyTypeObject) -> PyResult<PyType<'p>>
     where T: PyObjectAlloc + PyTypeInfo
 {
-    println!("=========== init type");
     // type name
     let name = match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, type_name)),

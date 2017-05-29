@@ -94,6 +94,11 @@ pub trait ObjectProtocol {
     /// This is equivalent to the Python expression: 'not not self'
     fn is_true(&self) -> PyResult<bool>;
 
+    /// Returns whether the object is considered to be None.
+    /// This is equivalent to the Python expression: 'is None'
+    #[inline]
+    fn is_none(&self) -> bool;
+
     /// Returns the length of the sequence or mapping.
     /// This is equivalent to the Python expression: 'len(self)'
     fn len(&self) -> PyResult<usize>;
@@ -303,6 +308,13 @@ impl<T> ObjectProtocol for T where T: PythonObjectWithToken + ToPythonPointer {
         } else {
             Ok(v != 0)
         }
+    }
+
+    /// Returns whether the object is considered to be None.
+    /// This is equivalent to the Python expression: 'is None'
+    #[inline]
+    fn is_none(&self) -> bool {
+        unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
     /// Returns the length of the sequence or mapping.

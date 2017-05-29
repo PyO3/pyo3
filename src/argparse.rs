@@ -20,7 +20,6 @@
 //! See also the macros `py_argparse!`, `py_fn!` and `py_method!`.
 
 use ffi;
-use pyptr::Py;
 use python::Python;
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::RefFromPyObject;
@@ -44,7 +43,7 @@ pub struct ParamDescription<'a> {
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
-                      args: &'p PyTuple, kwargs: Option<&'p Py<'p, PyDict>>,
+                      args: &'p PyTuple<'p>, kwargs: Option<&'p PyDict<'p>>,
                       accept_args: bool, accept_kwargs: bool,
                       output: &mut[Option<PyObject<'p>>]) -> PyResult<()>
 {
@@ -356,11 +355,11 @@ macro_rules! py_argparse_raw {
 
 #[inline]
 #[doc(hidden)]
-pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Py<'p, PyDict>> {
+pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<PyDict<'p>> {
     if ptr.is_null() {
         None
     } else {
-        Some(Py::<PyDict>::from_borrowed_ptr(py, ptr))
+        Some(PyDict::from_borrowed_ptr(py, ptr))
     }
 }
 

@@ -33,6 +33,11 @@ impl<'p> PyTuple<'p> {
         }
     }
 
+    /// Construct a new tuple with the given raw pointer
+    pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyTuple<'p> {
+        PyTuple(pptr::from_borrowed_ptr(py, ptr))
+    }
+
     /// Retrieves the empty tuple.
     pub fn empty(py: Python<'p>) -> PyTuple<'p> {
         unsafe {
@@ -122,7 +127,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn extract(obj: &'s PyObject<'s>) -> PyResult<Self>
             //where S: ::typeob::PyTypeInfo
         {
-            let t = try!(obj.cast_as::<&PyTuple>());
+            let t = try!(obj.cast_as::<PyTuple>());
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
