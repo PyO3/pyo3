@@ -2,64 +2,61 @@
 
 use std;
 
+use ::pptr;
 use ffi;
-use pyptr::{Py, PyPtr};
-use err::{PyDowncastError};
-use python::{PythonToken, Python, PythonObjectWithToken};
+use err::{PyResult, PyDowncastError};
+use python::{Python, ToPythonPointer};
+use token::PythonObjectWithToken;
 use typeob::PyTypeInfo;
 
-pub struct PyObject(PythonToken<PyObject>);
 
-pyobject_newtype!(PyObject, PyObject_Check, PyBaseObject_Type);
+pub struct PyObject<'p>(pptr<'p>);
 
-impl PyObject {
+pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type);
+
+
+impl<'p> PyObject<'p> {
 
     #[inline]
-    pub fn from_owned_ptr(py: Python, ptr: *mut ffi::PyObject) -> Py<PyObject> {
-        unsafe { Py::from_owned_ptr(py, ptr) }
+    pub fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyObject<'p> {
+        unsafe { PyObject(pptr::from_owned_ptr(py, ptr)) }
     }
 
     #[inline]
-    pub fn from_borrowed_ptr(py: Python, ptr: *mut ffi::PyObject) -> Py<PyObject> {
-        unsafe { Py::from_borrowed_ptr(py, ptr) }
+    pub fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                     -> PyResult<PyObject<'p>> {
+        unsafe { Ok(PyObject(pptr::from_owned_ptr_or_err(py, ptr)?)) }
     }
 
-    /// Creates a PyObject instance for the given FFI pointer.
-    /// This moves ownership over the pointer into the PyObject.
-    /// Returns None for null pointers; undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_pptr_opt(py: Python, ptr: *mut ffi::PyObject)
-                                      -> Option<PyPtr<PyObject>> {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(PyObject::from_owned_ptr(py, ptr).into_pptr())
+    pub fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                     -> Option<PyObject<'p>> {
+        unsafe {
+            if let Some(ptr) = pptr::from_owned_ptr_or_opt(py, ptr) {
+                Some(PyObject(ptr))
+            } else {
+                None
+            }
         }
     }
 
-    /// Returns None for null pointers; undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_borrowed_pptr_opt(py: Python, ptr: *mut ffi::PyObject)
-                                         -> Option<PyPtr<PyObject>> {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(PyObject::from_borrowed_ptr(py, ptr).into_pptr())
-        }
+    pub fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyObject<'p> {
+        unsafe { PyObject(pptr::from_borrowed_ptr(py, ptr)) }
     }
 
     /// Transmutes a slice of owned FFI pointers to `&[Py<'p, PyObject>]`.
     /// Undefined behavior if any pointer in the slice is NULL or invalid.
     #[inline]
     pub unsafe fn borrow_from_owned_ptr_slice<'a>(ptr: &'a [*mut ffi::PyObject])
-                                                  -> &'a [Py<'a, PyObject>] {
+                                                  -> &'a [PyObject<'p>] {
         std::mem::transmute(ptr)
     }
 
     /// Casts the PyObject to a concrete Python object type.
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast_as<'p, D>(&'p self) -> Result<&'p D, PyDowncastError<'p>>
+    pub fn cast_as<D>(&'p self) -> Result<&'p D, PyDowncastError<'p>>
         where D: PyTypeInfo
     {
         unsafe {
@@ -73,5 +70,13 @@ impl PyObject {
                 Err(PyDowncastError(self.token(), None))
             }
         }
+    }
+
+    /// Extracts some type from the Python object.
+    /// This is a wrapper function around `FromPyObject::extract()`.
+    #[inline]
+    pub fn extract<D>(&'p self) -> PyResult<D> where D: ::conversion::FromPyObject<'p>
+    {
+        ::conversion::FromPyObject::extract(&self)
     }
 }

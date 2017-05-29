@@ -6,8 +6,9 @@ use ffi;
 use pyptr::{Py, PyPtr};
 use python::{ToPythonPointer, IntoPythonPointer, Python};
 use objects::{PyObject, PyType, exc};
+use token::PyObjectMarker;
 use typeob::{PyTypeObject};
-use conversion::{ToPyObject, ToPyTuple};
+use conversion::{ToPyObject, ToPyTuple, IntoPyObject};
 
 /**
 Defines a new exception type.
@@ -91,9 +92,9 @@ pub struct PyErr {
     /// a tuple of arguments to be passed to `ptype`'s constructor,
     /// or a single argument to be passed to `ptype`'s constructor.
     /// Call `PyErr::instance()` to get the exception instance in all cases.
-    pub pvalue: Option<PyPtr<PyObject>>,
+    pub pvalue: Option<PyPtr<PyObjectMarker>>,
     /// The `PyTraceBack` object associated with the error.
-    pub ptraceback: Option<PyPtr<PyObject>>,
+    pub ptraceback: Option<PyPtr<PyObjectMarker>>,
 }
 
 
@@ -184,7 +185,7 @@ impl PyErr {
         }
     }
 
-    fn new_helper(_py: Python, ty: PyPtr<PyType>, value: PyPtr<PyObject>) -> PyErr {
+    fn new_helper(_py: Python, ty: PyPtr<PyType>, value: PyPtr<PyObjectMarker>) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
         PyErr {
             ptype: ty,
@@ -202,7 +203,7 @@ impl PyErr {
         PyErr::from_instance_helper(py, obj.to_object(py))
     }
 
-    fn from_instance_helper<'p>(py: Python, obj: PyPtr<PyObject>) -> PyErr {
+    fn from_instance_helper<'p>(py: Python, obj: PyPtr<PyObjectMarker>) -> PyErr {
         if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {
                 ptype: unsafe { PyPtr::<PyType>::from_borrowed_ptr(
@@ -229,7 +230,7 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
     /// `value` is the exception instance, or a tuple of arguments to pass to the exception constructor.
     #[inline]
-    pub fn new_lazy_init(exc: PyPtr<PyType>, value: Option<PyPtr<PyObject>>) -> PyErr {
+    pub fn new_lazy_init(exc: PyPtr<PyType>, value: Option<PyPtr<PyObjectMarker>>) -> PyErr {
         PyErr {
             ptype: exc,
             pvalue: value,
@@ -248,7 +249,7 @@ impl PyErr {
         let pval = args.to_py_tuple(py);
         PyErr {
             ptype: exc.into_pptr(),
-            pvalue: Some(pval.into_object()),
+            pvalue: Some(pval.into_object(py)),
             ptraceback: None
         }
     }
@@ -307,11 +308,11 @@ impl PyErr {
     /// Retrieves the exception instance for this error.
     /// This method takes `&mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    pub fn instance<'p>(&mut self, py: Python<'p>) -> Py<'p, PyObject> {
+    pub fn instance<'p>(&mut self, py: Python<'p>) -> PyObject<'p> {
         self.normalize(py);
         match self.pvalue {
-            Some(ref instance) => instance.as_ref(py),
-            None => py.None().as_ref(py),
+            Some(ref instance) => instance.as_ref(py).into_pyobject(),
+            None => py.None().as_ref(py).into_pyobject(),
         }
     }
 

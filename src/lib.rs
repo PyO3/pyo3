@@ -67,10 +67,16 @@ pub use ffi::{Py_ssize_t, Py_hash_t};
 pub mod pyptr;
 pub use pyptr::{Py, PyPtr};
 
+mod ppptr;
+pub use ppptr::pptr;
+
+mod token;
+pub use token::{PyObjectMarker, PythonToken, PythonObjectWithToken};
+
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use python::{Python, PythonToken, IntoPythonPointer, PythonObjectWithToken};
+pub use python::{Python, IntoPythonPointer};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};
@@ -106,6 +112,7 @@ macro_rules! py_replace_expr {
 }
 
 pub mod python;
+pub mod native;
 mod err;
 mod conversion;
 mod objects;

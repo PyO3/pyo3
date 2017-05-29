@@ -9,8 +9,9 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
+use token::{PyObjectMarker, PythonToken, PythonObjectWithToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
-use err::{PyErr, PyResult};
+use err::{PyErr, PyResult, PyDowncastError};
 use pyptr::{Py, PyPtr};
 use pythonrun::GILGuard;
 
@@ -28,18 +29,17 @@ use pythonrun::GILGuard;
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
-pub struct PythonToken<T>(PhantomData<T>);
 
-impl<T> PythonToken<T> {
-    pub fn token<'p>(&'p self) -> Python<'p> {
-        Python(PhantomData)
-    }
+/// Trait implemented by Python object types that allow a checked downcast.
+pub trait PythonObjectWithCheckedDowncast<'p> : Sized {
+    /// Cast from PyObject to a concrete Python object type.
+    fn downcast_from(Py<'p, PyObject>) -> Result<Self, PyDowncastError<'p>>;
+
+    /// Cast from ffi::PyObject to a concrete Python object type.
+    fn downcast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
+                               -> Result<Self, PyDowncastError<'p>>;
 }
 
-
-pub trait PythonObjectWithToken : Sized {
-    fn token<'p>(&'p self) -> Python<'p>;
-}
 
 pub trait PyClone : Sized {
     fn clone_ref(&self) -> PyPtr<Self>;
@@ -153,7 +153,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn eval(self, code: &str, globals: Option<&PyDict>,
-                locals: Option<&PyDict>) -> PyResult<PyPtr<PyObject>> {
+                locals: Option<&PyDict>) -> PyResult<PyObject<'p>> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -174,7 +174,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
-                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyPtr<PyObject>> {
+                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyObject<'p>> {
         let code = CString::new(code).unwrap();
 
         unsafe {
@@ -198,7 +198,7 @@ impl<'p> Python<'p> {
             let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
                 start, globals, locals, 0 as *mut _);
 
-            PyPtr::from_owned_ptr_or_err(self, res_ptr)
+            PyObject::from_owned_ptr_or_err(self, res_ptr)
         }
     }
 
@@ -208,7 +208,7 @@ impl<'p> Python<'p> {
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<Py<'p, PyModule>> {
+    pub fn import(self, name : &str) -> PyResult<PyModule<'p>> {
         PyModule::import(self, name)
     }
 
@@ -216,39 +216,34 @@ impl<'p> Python<'p> {
         where F: FnOnce(PythonToken<T>) -> T,
               T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
-        let value = f(PythonToken(PhantomData));
-        if let Ok(ob) = Py::new(self, value) {
-            ob
-        } else {
-            ::err::panic_after_error()
-        }
+        ::token::with_token(self, f)
     }
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyPtr<PyObject> {
+    pub fn None(self) -> PyPtr<PyObjectMarker> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> PyPtr<PyBool> {
-        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_True()) }
+    pub fn True(self) -> PyBool<'p> {
+        PyBool::get(self, true)
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> PyPtr<PyBool> {
-        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_False()) }
+    pub fn False(self) -> PyBool<'p> {
+        PyBool::get(self, false)
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyPtr<PyObject> {
+    pub fn NotImplemented(self) -> PyPtr<PyObjectMarker> {
         unsafe { PyPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 

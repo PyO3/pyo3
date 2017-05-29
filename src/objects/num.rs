@@ -7,14 +7,14 @@ extern crate num_traits;
 use self::num_traits::cast::cast;
 use std::os::raw::{c_long, c_double};
 
-use ::{Py, PyPtr};
+use ::{PyPtr, pptr};
 use ffi;
 use super::exc;
-use super::PyObject;
-use typeob::PyTypeInfo;
-use python::{PythonToken, ToPythonPointer, Python};
+use objects::PyObject;
+use token::{PyObjectMarker, PythonObjectWithToken};
+use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{ToPyObject, FromPyObject, IntoPyObject};
 
 /// Represents a Python `int` object.
 ///
@@ -22,8 +22,8 @@ use conversion::{ToPyObject, FromPyObject};
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
-pub struct PyLong(PythonToken<PyLong>);
-pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
+pub struct PyLong<'p>(pptr<'p>);
+pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
 
 /// Represents a Python `float` object.
 ///
@@ -31,21 +31,21 @@ pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat(PythonToken<PyFloat>);
-pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
+pub struct PyFloat<'p>(pptr<'p>);
+pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 
-impl PyFloat {
+impl<'p> PyFloat<'p> {
     /// Creates a new Python `float` object.
-    pub fn new(_py: Python, val: c_double) -> PyPtr<PyFloat> {
+    pub fn new(py: Python<'p>, val: c_double) -> PyFloat<'p> {
         unsafe {
-            PyPtr::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val))
+            PyFloat(pptr::from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val)))
         }
     }
 
     /// Gets the value of this float.
     pub fn value(&self) -> c_double {
-        unsafe { ffi::PyFloat_AsDouble(self.as_ptr()) }
+        unsafe { ffi::PyFloat_AsDouble(self.0.as_ptr()) }
     }
 }
 
@@ -53,7 +53,7 @@ impl PyFloat {
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-            fn to_object(&self, _py: Python) -> PyPtr<PyObject> {
+            fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
                 unsafe {
                     PyPtr::from_owned_ptr_or_panic(ffi::PyLong_FromLong(*self as c_long))
                 }
@@ -78,7 +78,7 @@ macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object(&self, py: Python) -> PyPtr<PyObject> {
+            fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
                 (*self as $larger_type).to_object(py)
             }
         }
@@ -109,7 +109,7 @@ macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl ToPyObject for $rust_type {
 
-            fn to_object(&self, _py: Python) -> PyPtr<PyObject> {
+            fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
                 unsafe {
                     PyPtr::from_owned_ptr_or_panic($pylong_from_ll_or_ull(*self))
                 }
@@ -117,8 +117,8 @@ macro_rules! int_convert_u64_or_i64 (
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract<S>(py: &'source Py<'source, S>) -> PyResult<$rust_type>
-                where S: PyTypeInfo
+            fn extract(py: &'source PyObject) -> PyResult<$rust_type>
+                //where S: PyTypeInfo
             {
                 let ptr = py.as_ptr();
                 unsafe {
@@ -169,8 +169,8 @@ int_fits_larger_int!(usize, u64);
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
-        PyFloat::new(py, *self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyFloat::new(py, *self).into_object(py)
     }
 }
 
@@ -188,8 +188,8 @@ fn overflow_error(py: Python) -> PyErr {
 }
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
-        PyFloat::new(py, *self as f64).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyFloat::new(py, *self as f64).into_object(py)
     }
 }
 

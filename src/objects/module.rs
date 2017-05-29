@@ -7,32 +7,39 @@ use ffi;
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
-use pyptr::{Py, PyPtr};
-use python::{PythonToken, ToPythonPointer, PythonObjectWithToken, Python};
+use ::pptr;
+use pyptr::PyPtr;
+use python::{ToPythonPointer, Python};
+use token::PythonObjectWithToken;
 use objects::{PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use err::{PyResult, PyErr};
 
 
 /// Represents a Python module object.
-pub struct PyModule(PythonToken<PyModule>);
+pub struct PyModule<'p>(pptr<'p>);
 
-pyobject_newtype!(PyModule, PyModule_Check, PyModule_Type);
+pyobject_nativetype!(PyModule, PyModule_Check, PyModule_Type);
 
-impl PyModule {
+
+impl<'p> PyModule<'p> {
     /// Create a new module object with the `__name__` attribute set to name.
-    pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<Py<'p, PyModule>> {
+    pub fn new(py: Python<'p>, name: &str) -> PyResult<PyModule<'p>> {
         let name = CString::new(name).unwrap();
         unsafe {
-            Py::cast_from_owned_nullptr(py, ffi::PyModule_New(name.as_ptr()))
+            let ptr = pptr::cast_from_owned_nullptr::<PyModule>(
+                py, ffi::PyModule_New(name.as_ptr()))?;
+            Ok(PyModule(ptr))
         }
     }
 
     /// Import the Python module with the specified name.
-    pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<Py<'p, PyModule>> {
+    pub fn import(py: Python<'p>, name: &str) -> PyResult<PyModule<'p>> {
         let name = CString::new(name).unwrap();
         unsafe {
-            Py::cast_from_owned_nullptr(py, ffi::PyImport_ImportModule(name.as_ptr()))
+            let ptr = pptr::cast_from_owned_nullptr::<PyModule>(
+                py, ffi::PyImport_ImportModule(name.as_ptr()))?;
+            Ok(PyModule(ptr))
         }
     }
 
@@ -52,7 +59,8 @@ impl PyModule {
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    self.token(), try!(exc::UnicodeDecodeError::new_utf8(self.token(), slice, e))))
+                    self.token(),
+                    try!(exc::UnicodeDecodeError::new_utf8(self.token(), slice, e))))
             }
         }
     }
@@ -76,7 +84,7 @@ impl PyModule {
     /// This is a convenience function that initializes the `class`,
     /// sets `new_type.__module__` to this module's name,
     /// and adds the type to this module.
-    pub fn add_class<'p, T>(&self) -> PyResult<()>
+    pub fn add_class<T>(&self) -> PyResult<()>
         where T: ::typeob::PyTypeInfo
     {
         let mut ty = <T as ::typeob::PyTypeInfo>::type_object();

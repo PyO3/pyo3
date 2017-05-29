@@ -35,6 +35,12 @@ pub trait PyTypeInfo {
 
 }
 
+pub trait PyObjectCtor : PyTypeInfo {
+
+    unsafe fn from_ptr(ptr: *mut ffi::PyObject) -> Self;
+
+}
+
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;

@@ -1,17 +1,18 @@
-use ::{PyPtr, PyObject};
+use ::{pptr, PyPtr};
 use ffi;
-use python::{PythonToken, ToPythonPointer, Python};
-use conversion::{ToPyObject};
+use token::PyObjectMarker;
+use python::{ToPythonPointer, Python};
+use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `bool`.
-pub struct PyBool(PythonToken<PyBool>);
+pub struct PyBool<'p>(pptr<'p>);
 
-pyobject_newtype!(PyBool, PyBool_Check, PyBool_Type);
+pyobject_nativetype!(PyBool, PyBool_Check, PyBool_Type);
 
-impl PyBool {
+impl<'p> PyBool<'p> {
     /// Depending on `val`, returns `py.True()` or `py.False()`.
     #[inline]
-    pub fn get(py: Python, val: bool) -> PyPtr<PyBool> {
+    pub fn get(py: Python<'p>, val: bool) -> PyBool<'p> {
         if val { py.True() } else { py.False() }
     }
 
@@ -25,8 +26,8 @@ impl PyBool {
 /// Converts a rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
-        PyBool::get(py, *self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyBool::get(py, *self).into_object(py)
     }
 
     #[inline]

@@ -2,33 +2,37 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use ::pptr;
 use ffi;
-use pyptr::{Py, PyPtr};
-use python::{Python, PythonToken, ToPythonPointer, PythonObjectWithToken};
-use conversion::ToPyObject;
-use objects::{PyObject}; //, PyList};
+use pyptr::PyPtr;
+use python::{Python, ToPythonPointer};
+use conversion::{ToPyObject, IntoPyObject};
+use objects::PyObject;
+use token::{PyObjectMarker, PythonObjectWithToken}; //, PyList};
 use err::{self, PyResult, PyErr};
 use std::{mem, collections, hash, cmp};
 
 /// Represents a Python `dict`.
-pub struct PyDict(PythonToken<PyDict>);
+pub struct PyDict<'p>(pptr<'p>);
 
-pyobject_newtype!(PyDict, PyDict_Check, PyDict_Type);
+pyobject_nativetype!(PyDict, PyDict_Check, PyDict_Type);
 
 
-impl PyDict {
+impl<'p> PyDict<'p> {
     /// Creates a new empty dictionary.
     ///
     /// May panic when running out of memory.
-    pub fn new(py: Python) -> Py<PyDict> {
-        unsafe { Py::from_owned_ptr_or_panic(py, ffi::PyDict_New()) }
+    pub fn new(py: Python<'p>) -> PyDict<'p> {
+        unsafe { PyDict(pptr::from_owned_ptr_or_panic(py, ffi::PyDict_New())) }
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.
     /// Corresponds to `dict(self)` in Python.
-    pub fn copy<'p>(&'p self) -> PyResult<PyPtr<PyDict>> {
+    pub fn copy(&'p self) -> PyResult<PyDict<'p>> {
         unsafe {
-            PyPtr::from_owned_ptr_or_err(self.token(), ffi::PyDict_Copy(self.as_ptr()))
+            Ok(PyDict(
+                pptr::from_owned_ptr_or_err(self.token(), ffi::PyDict_Copy(self.0.as_ptr()))?
+            ))
         }
     }
 
@@ -59,9 +63,10 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyObject> where K: ToPyObject {
+    pub fn get_item<K>(&self, key: K) -> Option<PyObject> where K: ToPyObject {
         key.with_borrowed_ptr(self.token(), |key| unsafe {
-            self.token().from_owned_ptr_opt(ffi::PyDict_GetItem(self.as_ptr(), key))
+            PyObject::from_owned_ptr_or_opt(
+                self.token(), ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }
 
@@ -117,12 +122,12 @@ impl <K, V> ToPyObject for collections::HashMap<K, V>
     where K: hash::Hash+cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_object_pptr()
+        dict.into_object(py)
     }
 }
 
@@ -130,12 +135,12 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     where K: cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_object_pptr()
+        dict.into_object(py)
     }
 }
 

@@ -8,22 +8,23 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 
-use ::{Py, PyPtr};
+use ::{Py, PyPtr, pptr};
 use ffi;
-use python::{PythonToken, ToPythonPointer, Python, PythonObjectWithToken};
+use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
+use token::{PyObjectMarker, PythonObjectWithToken};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject, RefFromPyObject};
+use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 
 /// Represents a Python string.
-pub struct PyString(PythonToken<PyString>);
+pub struct PyString<'p>(pptr<'p>);
 
-pyobject_newtype!(PyString, PyUnicode_Check, PyUnicode_Type);
+pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type);
 
 /// Represents a Python byte string.
-pub struct PyBytes(PythonToken<PyBytes>);
+pub struct PyBytes<'p>(pptr<'p>);
 
-pyobject_newtype!(PyBytes, PyBytes_Check, PyBytes_Type);
+pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type);
 
 
 /// Enum of possible Python string representations.
@@ -133,29 +134,29 @@ impl <'a> PyStringData<'a> {
     }
 }
 
-impl PyString {
+impl<'p> PyString<'p> {
+
     /// Creates a new Python string object.
     ///
-    /// On Python 2.7, this function will create a byte string if the
-    /// input string is ASCII-only; and a unicode string otherwise.
-    /// Use `PyUnicode::new()` to always create a unicode string.
-    ///
     /// Panics if out of memory.
-    pub fn new<'p>(_py: Python, s: &str) -> PyPtr<PyString> {
+    pub fn new(py: Python<'p>, s: &str) -> PyString<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyPtr::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len))
+            PyString(pptr::from_owned_ptr_or_panic(
+                py, ffi::PyUnicode_FromStringAndSize(ptr, len)))
         }
     }
 
-    pub fn from_object<'p>(src: &PyObject, encoding: &str, errors: &str)
-                           -> PyResult<PyPtr<PyString>> {
+    pub fn from_object(src: &'p PyObject, encoding: &str, errors: &str)
+                       -> PyResult<PyString<'p>> {
         unsafe {
-            PyPtr::from_owned_ptr_or_err(
-                src.token(), ffi::PyUnicode_FromEncodedObject(
-                    src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))
-                .map_err(|e| e.into())
+            Ok(PyString(
+                pptr::from_owned_ptr_or_err(
+                    src.token(), ffi::PyUnicode_FromEncodedObject(
+                        src.as_ptr(),
+                        encoding.as_ptr() as *const i8,
+                        errors.as_ptr() as *const i8))?))
         }
     }
 
@@ -191,17 +192,17 @@ impl PyString {
     }
 }
 
-impl PyBytes {
+impl<'p> PyBytes<'p> {
     /// Creates a new Python byte string object.
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> Py<'p, PyBytes> {
+    pub fn new(py: Python<'p>, s: &[u8]) -> PyBytes<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            Py::cast_from_owned_ptr_or_panic(
-                py, ffi::PyBytes_FromStringAndSize(ptr, len))
+            PyBytes(pptr::from_owned_ptr_or_panic(
+                py, ffi::PyBytes_FromStringAndSize(ptr, len)))
         }
     }
 
@@ -219,8 +220,8 @@ impl PyBytes {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
-        PyString::new(py, self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyString::new(py, self).into_object(py)
     }
 }
 
@@ -228,8 +229,8 @@ impl ToPyObject for str {
 /// See `PyString::new` for details on the conversion.
 impl <'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
-        PyString::new(py, self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyString::new(py, self).into_object(py)
     }
 }
 
@@ -237,8 +238,8 @@ impl <'a> ToPyObject for Cow<'a, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
-        PyString::new(py, self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyString::new(py, self).into_object(py)
     }
 }
 

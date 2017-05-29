@@ -20,8 +20,8 @@
 //! See also the macros `py_argparse!`, `py_fn!` and `py_method!`.
 
 use ffi;
-use pyptr::{Py};
-use python::{Python, PythonObjectWithToken};
+use pyptr::Py;
+use python::Python;
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
 use conversion::RefFromPyObject;
 use err::{self, PyResult};
@@ -44,9 +44,9 @@ pub struct ParamDescription<'a> {
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
-                      args: &'p PyTuple, kwargs: Option<&'p PyDict>,
+                      args: &'p PyTuple, kwargs: Option<&'p Py<'p, PyDict>>,
                       accept_args: bool, accept_kwargs: bool,
-                      output: &mut[Option<&'p PyObject>]) -> PyResult<()>
+                      output: &mut[Option<PyObject<'p>>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
 

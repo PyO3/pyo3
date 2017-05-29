@@ -7,7 +7,8 @@ use std::borrow::Cow;
 
 use ffi;
 use pyptr::{PyPtr};
-use python::{Python, PythonToken, ToPythonPointer, PythonObjectWithToken};
+use token::{PythonToken, PythonObjectWithToken};
+use python::{Python, ToPythonPointer};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
 use err::PyResult;

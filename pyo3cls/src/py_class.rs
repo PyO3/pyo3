@@ -41,7 +41,8 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
             use std;
-            use pyo3::python::PythonObjectWithToken;
+            use pyo3::PythonObjectWithToken;
+            use pyo3::python::PythonObjectWithCheckedDowncast;
 
             #tokens
         };
@@ -53,7 +54,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
 
     let extra = if let Some(token) = token {
         Some(quote! {
-            impl _pyo3::python::PythonObjectWithToken for #cls {
+            impl _pyo3::PythonObjectWithToken for #cls {
             fn token<'p>(&'p self) -> _pyo3::python::Python<'p> {
                 self.#token.token()
                 }
@@ -63,9 +64,10 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
                     let repr = unsafe {
-                        _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
+                        PyString::downcast_from_owned_ptr(
                             self.token(), _pyo3::ffi::PyObject_Repr(ptr))
-                            .map_err(|_| std::fmt::Error)? };
+                            .map_err(|_| std::fmt::Error)?
+                    };
                     f.write_str(&repr.to_string_lossy())
                 }
             }
@@ -73,11 +75,12 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
-                    let s = unsafe {
-                        _pyo3::Py::<_pyo3::PyString>::cast_from_owned_nullptr(
-                            self.token(), _pyo3::ffi::PyObject_Str(ptr)
-                        ).map_err(|_| std::fmt::Error)?};
-                    f.write_str(&s.to_string_lossy())
+                    let str_obj = unsafe {
+                        PyString::downcast_from_owned_ptr(
+                            self.token(), _pyo3::ffi::PyObject_Str(ptr))
+                            .map_err(|_| std::fmt::Error)?
+                    };
+                    f.write_str(&str_obj.to_string_lossy())
                 }
             }
         })

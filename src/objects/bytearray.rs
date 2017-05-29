@@ -4,35 +4,38 @@ use std;
 use std::ptr;
 use std::os::raw::c_char;
 use ffi;
-use python::{PythonToken, ToPythonPointer, Python, PythonObjectWithToken};
+use python::{Python, ToPythonPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
 use pyptr::Py;
+use ppptr::pptr;
+
 
 /// Represents a Python bytearray.
-pub struct PyByteArray(PythonToken<PyByteArray>);
+pub struct PyByteArray<'p>(pptr<'p>);
 
-pyobject_newtype!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
+pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
 
 
-impl PyByteArray {
+impl<'p> PyByteArray<'p> {
     /// Creates a new Python bytearray object.
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, src: &[u8]) -> Py<'p, PyByteArray> {
+    pub fn new<'a>(py: Python<'a>, src: &[u8]) -> PyByteArray<'a> {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         let ptr = unsafe {ffi::PyByteArray_FromStringAndSize(ptr, len)};
-        unsafe { Py::cast_from_owned_ptr_or_panic(py, ptr) }
+        unsafe { PyByteArray(pptr::cast_from_owned_ptr_or_panic::<PyByteArray>(py, ptr)) }
     }
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<'p>(src: Py<'p, PyObject>) -> PyResult<Py<'p, PyByteArray>> {
+    pub fn from(src: Py<'p, PyObject>) -> PyResult<PyByteArray<'p>> {
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
-            Ok(unsafe{Py::cast_from_owned_ptr_or_panic(src.token(), res)})
+            Ok(unsafe{ PyByteArray(
+                pptr::cast_from_owned_ptr_or_panic::<PyByteArray>(src.token(), res))})
         } else {
             Err(PyErr::fetch(src.token()))
         }
@@ -43,15 +46,15 @@ impl PyByteArray {
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
-            ffi::PyByteArray_Size(self.as_ptr()) as usize
+            ffi::PyByteArray_Size(self.0.as_ptr()) as usize
         }
     }
 
     /// Gets the Python bytearray data as byte slice.
     pub fn data(&self) -> &mut [u8] {
         unsafe {
-            let buffer = ffi::PyByteArray_AsString(self.as_ptr()) as *mut u8;
-            let length = ffi::PyByteArray_Size(self.as_ptr()) as usize;
+            let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;
+            let length = ffi::PyByteArray_Size(self.0.as_ptr()) as usize;
             std::slice::from_raw_parts_mut(buffer, length)
         }
     }
@@ -59,11 +62,11 @@ impl PyByteArray {
     /// Resize bytearray object.
     pub fn resize(&self, len: usize) -> PyResult<()> {
         unsafe {
-            let result = ffi::PyByteArray_Resize(self.as_ptr(), len as ffi::Py_ssize_t);
+            let result = ffi::PyByteArray_Resize(self.0.as_ptr(), len as ffi::Py_ssize_t);
             if result == 0 {
                 Ok(())
             } else {
-                Err(PyErr::fetch(self.token()))
+                Err(PyErr::fetch(self.0.token()))
             }
         }
     }

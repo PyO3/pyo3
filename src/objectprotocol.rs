@@ -7,8 +7,9 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use pyptr::{Py, PyPtr};
-use python::{Python, ToPythonPointer, PythonObjectWithToken};
+use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyDict, PyString};
+use token::PythonObjectWithToken;
 use conversion::{ToPyObject, ToPyTuple};
 use typeob::PyTypeInfo;
 use err::{PyErr, PyResult, self};
@@ -220,7 +221,7 @@ impl<T> ObjectProtocol for T where T: PythonObjectWithToken + ToPythonPointer {
                        -> PyResult<Py<PyObject>> where O: ToPyObject {
         unsafe {
             other.with_borrowed_ptr(self.token(), |other| {
-                Py::cast_from_owned_nullptr(
+                Py::cast_from_owned_or_err(
                     self.token(), ffi::PyObject_RichCompare(
                         self.as_ptr(), other, compare_op as libc::c_int))
             })
@@ -231,14 +232,14 @@ impl<T> ObjectProtocol for T where T: PythonObjectWithToken + ToPythonPointer {
     /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
     fn repr(&self) -> PyResult<Py<PyString>> {
-        unsafe { Py::cast_from_owned_nullptr(self.token(), ffi::PyObject_Repr(self.as_ptr())) }
+        unsafe { Py::cast_from_owned_or_err(self.token(), ffi::PyObject_Repr(self.as_ptr())) }
     }
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
     fn str(&self) -> PyResult<Py<PyString>> {
-        unsafe { Py::cast_from_owned_nullptr(self.token(), ffi::PyObject_Str(self.as_ptr())) }
+        unsafe { Py::cast_from_owned_or_err(self.token(), ffi::PyObject_Str(self.as_ptr())) }
     }
 
     /// Determines whether this object is callable.

@@ -42,3 +42,5 @@ pub enum CompareOp {
     Gt = ffi::Py_GT as isize,
     Ge = ffi::Py_GE as isize
 }
+
+pub trait PyCustomObject : Sized {}
