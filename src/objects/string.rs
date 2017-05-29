@@ -8,11 +8,11 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 
-use ::{Py, PyPtr, pptr};
+use ::{PyPtr, pptr};
 use ffi;
 use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
-use token::{PyObjectMarker, PythonObjectWithToken};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 use err::{PyResult, PyErr};
 use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 
@@ -153,7 +153,7 @@ impl<'p> PyString<'p> {
         unsafe {
             Ok(PyString(
                 pptr::from_owned_ptr_or_err(
-                    src.token(), ffi::PyUnicode_FromEncodedObject(
+                    src.gil(), ffi::PyUnicode_FromEncodedObject(
                         src.as_ptr(),
                         encoding.as_ptr() as *const i8,
                         errors.as_ptr() as *const i8))?))
@@ -168,7 +168,7 @@ impl<'p> PyString<'p> {
             let mut size : ffi::Py_ssize_t = mem::uninitialized();
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
             if data.is_null() {
-                PyErr::fetch(self.token()).print(self.token());
+                PyErr::fetch(self.gil()).print(self.gil());
                 panic!("PyUnicode_AsUTF8AndSize failed");
             }
             PyStringData::Utf8(std::slice::from_raw_parts(data, size as usize))
@@ -180,7 +180,7 @@ impl<'p> PyString<'p> {
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     pub fn to_string(&self) -> PyResult<Cow<str>> {
-        self.data().to_string(self.token())
+        self.data().to_string(self.gil())
     }
 
     /// Convert the `PyString` into a Rust string.
@@ -259,10 +259,10 @@ pyobject_extract!(obj to String => {
 
 
 impl<'p> RefFromPyObject<'p> for str {
-    fn with_extracted<F, R>(obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &'p PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
-        let p = PyObject::from_borrowed_ptr(obj.token(), obj.as_ptr());
+        let p = PyObject::from_borrowed_ptr(obj.gil(), obj.as_ptr());
         let s = try!(p.extract::<Cow<str>>());
         Ok(f(&s))
     }
@@ -278,8 +278,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "\u{1F30F}";
-        let py_string = s.to_py_object(py).into_object();
-        assert_eq!(s, py_string.extract::<String>(py).unwrap());
+        let py_string = s.to_object(py);
+        assert_eq!(s, py_string.as_object(py).extract::<String>().unwrap());
     }
 
     #[test]
@@ -287,9 +287,9 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "Hello Python";
-        let py_string = s.to_py_object(py).into_object();
+        let py_string = s.to_object(py);
         let mut called = false;
-        RefFromPyObject::with_extracted(py, &py_string,
+        RefFromPyObject::with_extracted(&py_string.as_object(py),
             |s2: &str| {
                 assert_eq!(s, s2);
                 called = true;

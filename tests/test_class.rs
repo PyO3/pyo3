@@ -804,8 +804,8 @@ impl PyObjectProtocol for RichComparisons2 {
     fn __richcmp__(&self, py: Python,
                    other: &'p PyObject<'p>, op: CompareOp) -> PyResult<PyPtr<PyObjectMarker>> {
         match op {
-            CompareOp::Eq => Ok(true.to_object(py).into_object()),
-            CompareOp::Ne => Ok(false.to_object(py).into_object()),
+            CompareOp::Eq => Ok(true.to_object(py).park()),
+            CompareOp::Ne => Ok(false.to_object(py).park()),
             _ => Ok(py.NotImplemented())
         }
     }

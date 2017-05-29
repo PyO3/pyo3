@@ -11,7 +11,7 @@ use ::{PyPtr, pptr};
 use ffi;
 use super::exc;
 use objects::PyObject;
-use token::{PyObjectMarker, PythonObjectWithToken};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
 use conversion::{ToPyObject, FromPyObject, IntoPyObject};
@@ -62,12 +62,12 @@ macro_rules! int_fits_c_long(
 
         pyobject_extract!(obj to $rust_type => {
             let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
-            if val == -1 && PyErr::occurred(obj.token()) {
-                return Err(PyErr::fetch(obj.token()));
+            if val == -1 && PyErr::occurred(obj.gil()) {
+                return Err(PyErr::fetch(obj.gil()));
             }
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.token()))
+                None => Err(overflow_error(obj.gil()))
             }
         });
     )
@@ -84,7 +84,7 @@ macro_rules! int_fits_larger_int(
         }
 
         pyobject_extract!(obj to $rust_type => {
-            let py = obj.token();
+            let py = obj.gil();
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
@@ -123,13 +123,13 @@ macro_rules! int_convert_u64_or_i64 (
                 let ptr = py.as_ptr();
                 unsafe {
                     if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(py.token(), !0, $pylong_as_ull_or_ull(ptr))
+                        err_if_invalid_value(py.gil(), !0, $pylong_as_ull_or_ull(ptr))
                     } else {
                         let num = ffi::PyNumber_Long(ptr);
                         if num.is_null() {
-                            Err(PyErr::fetch(py.token()))
+                            Err(PyErr::fetch(py.gil()))
                         } else {
-                            err_if_invalid_value(py.token(), !0, $pylong_as_ull_or_ull(num))
+                            err_if_invalid_value(py.gil(), !0, $pylong_as_ull_or_ull(num))
                         }
                     }
                 }
@@ -176,8 +176,8 @@ impl ToPyObject for f64 {
 
 pyobject_extract!(obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
-    if v == -1.0 && PyErr::occurred(obj.token()) {
-        Err(PyErr::fetch(obj.token()))
+    if v == -1.0 && PyErr::occurred(obj.gil()) {
+        Err(PyErr::fetch(obj.gil()))
     } else {
         Ok(v)
     }
@@ -210,8 +210,8 @@ mod test {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 let val = 123 as $t1;
-                let obj = val.to_object(py).into_object();
-                assert_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                let obj = val.to_object(py).into_object(py);
+                assert_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
             }
         )
     );
@@ -239,10 +239,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u32::MAX;
-        let obj = v.to_py_object(py).into_object();
-        assert_eq!(v, obj.extract::<u32>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<u32>().unwrap());
+        assert_eq!(v as u64, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<i32>().is_err());
     }
     
     #[test]
@@ -250,10 +250,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::i64::MAX;
-        let obj = v.to_py_object(py).into_object();
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<u32>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert_eq!(v as u64, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<u32>().is_err());
     }
     
     #[test]
@@ -261,10 +261,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::i64::MIN;
-        let obj = v.to_py_object(py).into_object();
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
-        assert!(obj.extract::<u64>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert!(obj.extract::<i32>().is_err());
+        assert!(obj.extract::<u64>().is_err());
     }
     
     #[test]
@@ -272,9 +272,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u64::MAX;
-        let obj = v.to_py_object(py).into_object();
-        println!("{:?}", obj);
-        assert_eq!(v, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i64>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<i64>().is_err());
     }
 }

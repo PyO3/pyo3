@@ -10,7 +10,7 @@ use std::ffi::{CStr, CString};
 use ::pptr;
 use pyptr::PyPtr;
 use python::{ToPythonPointer, Python};
-use token::PythonObjectWithToken;
+use token::PythonObjectWithGilToken;
 use objects::{PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use err::{PyResult, PyErr};
@@ -53,14 +53,14 @@ impl<'p> PyModule<'p> {
 
     unsafe fn str_from_ptr<'a>(&'a self, ptr: *const c_char) -> PyResult<&'a str> {
         if ptr.is_null() {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.gil()))
         } else {
             let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    self.token(),
-                    try!(exc::UnicodeDecodeError::new_utf8(self.token(), slice, e))))
+                    self.gil(),
+                    try!(exc::UnicodeDecodeError::new_utf8(self.gil(), slice, e))))
             }
         }
     }
@@ -91,15 +91,15 @@ impl<'p> PyModule<'p> {
         let type_name = <T as ::typeob::PyTypeInfo>::type_name();
 
         let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-            unsafe { PyType::from_type_ptr(self.token(), ty) }
+            unsafe { PyType::from_type_ptr(self.gil(), ty) }
         } else {
             // automatically initialize the class
             let name = self.name()?;
-            ::typeob::initialize_type::<T>(self.token(), Some(name), type_name, ty)
+            ::typeob::initialize_type::<T>(self.gil(), Some(name), type_name, ty)
                 .expect(
                     format!("An error occurred while initializing class {}",
                             <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
-            unsafe { PyType::from_type_ptr(self.token(), ty) }
+            unsafe { PyType::from_type_ptr(self.gil(), ty) }
         };
 
         self.setattr(type_name, ty)

@@ -7,8 +7,8 @@ use ffi;
 use python::{Python, ToPythonPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
-use pyptr::Py;
 use ppptr::pptr;
+use token::PythonObjectWithGilToken;
 
 
 /// Represents a Python bytearray.
@@ -31,13 +31,13 @@ impl<'p> PyByteArray<'p> {
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from(src: Py<'p, PyObject>) -> PyResult<PyByteArray<'p>> {
+    pub fn from(src: &'p PyObject<'p>) -> PyResult<PyByteArray<'p>> {
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
             Ok(unsafe{ PyByteArray(
-                pptr::cast_from_owned_ptr_or_panic::<PyByteArray>(src.token(), res))})
+                pptr::cast_from_owned_ptr_or_panic::<PyByteArray>(src.gil(), res))})
         } else {
-            Err(PyErr::fetch(src.token()))
+            Err(PyErr::fetch(src.gil()))
         }
     }
 
@@ -75,9 +75,10 @@ impl<'p> PyByteArray<'p> {
 
 #[cfg(test)]
 mod test {
+    use ::ToPyObject;
     use exc;
-    use class::PyTypeObject;
     use python::Python;
+    use typeob::PyTypeObject;
     use objects::PyByteArray;
 
     #[test]
@@ -90,17 +91,20 @@ mod test {
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());
 
-        //let bytearray = PyByteArray::from(py, bytearray.into_object()).unwrap();
-        //assert_eq!(src.len(), bytearray.len(py));
-        //assert_eq!(src, bytearray.data(py));
+        let ba = bytearray.to_object(py);
+        let bytearray = PyByteArray::from(ba.as_object(py)).unwrap();
+        assert_eq!(src.len(), bytearray.len());
+        assert_eq!(src, bytearray.data());
 
         bytearray.resize(20).unwrap();
         assert_eq!(20, bytearray.len());
 
-        //if let Err(mut err) = PyByteArray::from(py, py.None()) {
-        //    assert!(exc::TypeError::type_object(py).is_instance(py, &err.instance(py)))
-        //} else {
-        //    panic!("error");
-        //}
+        let none = py.None();
+        if let Err(mut err) = PyByteArray::from(none.as_object(py)) {
+            assert!(exc::TypeError::type_object(py).is_instance(&err.instance(py)))
+        } else {
+            panic!("error");
+        }
+        drop(none);
     }
 }

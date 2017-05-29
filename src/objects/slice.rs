@@ -8,7 +8,7 @@ use python::{ToPythonPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use conversion::{ToPyObject, IntoPyObject};
-use token::{PyObjectMarker, PythonObjectWithToken};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 
 /// Represents a Python `slice` indices
 pub struct PySliceIndices {
@@ -71,7 +71,7 @@ impl<'p> PySlice<'p> {
                     slicelength: slicelen,
                 })
             } else {
-                Err(PyErr::fetch(self.token()))
+                Err(PyErr::fetch(self.gil()))
             }
         }
     }

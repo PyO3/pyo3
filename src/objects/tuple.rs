@@ -10,7 +10,7 @@ use err::{PyErr, PyResult};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
 use objects::PyObject;
-use token::{PyObjectMarker, PythonObjectWithToken};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 use super::exc;
 
 /// Represents a Python tuple object.
@@ -63,7 +63,7 @@ impl<'p> PyTuple<'p> {
         assert!(index < self.len());
         unsafe {
             PyObject::from_owned_ptr(
-                self.token(), ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
+                self.gil(), ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
@@ -134,7 +134,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     $( try!(slice[$n].extract::<$T>()), )+
                 ))
             } else {
-                Err(wrong_tuple_length(obj.token(), t, $length))
+                Err(wrong_tuple_length(obj.gil(), t, $length))
             }
         }
     }
@@ -202,7 +202,7 @@ pyobject_extract!(obj to NoArgs => {
     if t.len() == 0 {
         Ok(NoArgs)
     } else {
-        Err(wrong_tuple_length(obj.token(), t, 0))
+        Err(wrong_tuple_length(obj.gil(), t, 0))
     }
 });
 
@@ -210,16 +210,17 @@ pyobject_extract!(obj to NoArgs => {
 #[cfg(test)]
 mod test {
     use PyTuple;
-    use python::{Python, PythonObjectWithCheckedDowncast};
+    use python::{Python, PyDowncastInto};
+    use conversion::IntoPyObject;
     use conversion::ToPyObject;
 
     #[test]
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let tuple = PyTuple::downcast_from(py, (1, 2, 3).to_py_object(py)).unwrap();
-        assert_eq!(3, tuple.len(py));
-        assert_eq!((1, 2, 3), tuple.into_object().extract(py).unwrap());
+        let tuple = PyTuple::downcast_into(py, (1, 2, 3).to_object(py).into_object(py)).unwrap();
+        assert_eq!(3, tuple.len());
+        assert_eq!((1, 2, 3), tuple.into_object(py).as_object(py).extract().unwrap());
     }
 }
 

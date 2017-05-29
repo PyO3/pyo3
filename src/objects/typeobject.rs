@@ -7,7 +7,7 @@ use std::borrow::Cow;
 
 use ::pptr;
 use ffi;
-use token::PythonObjectWithToken;
+use token::PythonObjectWithGilToken;
 use python::{Python, ToPythonPointer};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
@@ -59,10 +59,10 @@ impl<'p> PyType<'p> {
     pub fn call<A>(&'p self, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject<'p>>
         where A: ToPyTuple
     {
-        let args = args.to_py_tuple(self.token());
+        let args = args.to_py_tuple(self.gil());
         unsafe {
             PyObject::from_owned_ptr_or_err(
-                self.token(), ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs.as_ptr()))
+                self.gil(), ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs.as_ptr()))
         }
     }
 }

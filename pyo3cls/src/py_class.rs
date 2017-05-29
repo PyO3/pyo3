@@ -52,8 +52,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
     let extra = if let Some(token) = token {
         Some(quote! {
             impl _pyo3::PythonObjectWithToken for #cls {
-            fn token<'p>(&'p self) -> _pyo3::python::Python<'p> {
-                self.#token.token()
+                fn token<'p>(&'p self) -> _pyo3::python::Python<'p> {
+                    self.#token.token()
                 }
             }
 
@@ -127,10 +127,14 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                         let ptr = (py.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                         Ok(ptr.as_ref().unwrap())
                     } else {
-                        Err(_pyo3::PyDowncastError(py.token(), None))
+                        Err(_pyo3::PyDowncastError(py.gil(), None))
                     }
                 }
             }
+        }
+
+        impl _pyo3::class::PyCustomObject for #cls {
+
         }
 
         #extra

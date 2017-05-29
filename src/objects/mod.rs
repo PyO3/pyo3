@@ -20,12 +20,6 @@ pub use self::slice::PySlice;
 macro_rules! pyobject_nativetype(
     ($name: ident, $checkfunction: ident, $typeobject: ident) => (
 
-        impl<'p> $crate::native::PyNativeObject for $name<'p> {
-            fn into_object(self) -> $crate::PyPtr<$crate::PyObjectMarker> {
-                unsafe { $crate::std::mem::transmute(self) }
-            }
-        }
-
         impl<'p> $crate::typeob::PyTypeInfo for $name<'p> {
             type Type = ();
 
@@ -49,8 +43,19 @@ macro_rules! pyobject_nativetype(
             }
         }
 
-        impl<'p> $crate::token::PythonObjectWithToken for $name<'p> {
-            fn token<'a>(&'a self) -> $crate::python::Python<'a> {
+        impl<'p> $crate::native::PyBaseObject for $name<'p> {}
+
+        impl<'p> $crate::native::PyNativeObject<'p> for $name<'p> {
+            fn as_object(self) -> $crate::PyObject<'p> {
+                unsafe { $crate::std::mem::transmute(self) }
+            }
+            fn into_object(self) -> $crate::PyPtr<$crate::PyObjectMarker> {
+                unsafe { $crate::std::mem::transmute(self) }
+            }
+        }
+
+        impl<'p> $crate::token::PythonObjectWithGilToken<'p> for $name<'p> {
+            fn gil(&self) -> $crate::python::Python<'p> {
                 self.0.token()
             }
         }
@@ -60,14 +65,14 @@ macro_rules! pyobject_nativetype(
             fn downcast_from(py: &'p $crate::PyObject<'p>)
                              -> Result<&'p $name<'p>, $crate::PyDowncastError<'p>>
             {
-                use $crate::{ToPythonPointer, PythonObjectWithToken};
+                use $crate::{ToPythonPointer, PythonObjectWithGilToken};
 
                 unsafe {
                     if $crate::ffi::$checkfunction(py.as_ptr()) > 0 {
                         let ptr = py as *const _ as *mut u8 as *mut $name;
                         Ok(ptr.as_ref().unwrap())
                     } else {
-                        Err($crate::PyDowncastError(py.token(), None))
+                        Err($crate::PyDowncastError(py.gil(), None))
                     }
                 }
             }
@@ -116,12 +121,11 @@ macro_rules! pyobject_nativetype(
         {
             /// Extracts `Self` from the source `Py<PyObject>`.
             fn extract(py: &'a $crate::PyObject<'a>) -> $crate::PyResult<Self>
-                //where S: $crate::typeob::PyTypeInfo
             {
-                use $crate::token::PythonObjectWithToken;
+                use $crate::token::PythonObjectWithGilToken;
 
                 Ok($name(
-                    $crate::pptr::cast_from_borrowed_ptr::<$name>(py.token(), py.as_ptr())?))
+                    $crate::pptr::cast_from_borrowed_ptr::<$name>(py.gil(), py.as_ptr())?))
             }
         }
 
@@ -129,14 +133,13 @@ macro_rules! pyobject_nativetype(
         {
             /// Extracts `Self` from the source `PyObject`.
             fn extract(py: &'a $crate::PyObject<'a>) -> $crate::PyResult<Self>
-                //where S: $crate::typeob::PyTypeInfo
             {
                 unsafe {
                     if ffi::$checkfunction(py.as_ptr()) != 0 {
                         Ok($crate::std::mem::transmute(py))
                     } else {
                         Err($crate::PyDowncastError(
-                            $crate::token::PythonObjectWithToken::token(py), None).into())
+                            $crate::token::PythonObjectWithGilToken::gil(py), None).into())
                     }
                 }
             }
@@ -145,8 +148,8 @@ macro_rules! pyobject_nativetype(
         impl<'a> $crate::ToPyObject for $name<'a>
         {
             #[inline]
-            default fn to_object<'p>(&self, _py: $crate::Python<'p>)
-                                     -> $crate::PyPtr<$crate::PyObjectMarker> {
+            fn to_object<'p>(&self, _py: $crate::Python<'p>)
+                             -> $crate::PyPtr<$crate::PyObjectMarker> {
                 unsafe { $crate::PyPtr::from_borrowed_ptr(self.0.as_ptr()) }
             }
 
@@ -168,12 +171,12 @@ macro_rules! pyobject_nativetype(
         }
 
         impl<'p> $crate::std::fmt::Debug for $name<'p> {
-            default fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
-                           -> Result<(), $crate::std::fmt::Error>
+            fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
+                   -> Result<(), $crate::std::fmt::Error>
             {
                 use $crate::python::PyDowncastInto;
 
-                let py = <$name as $crate::token::PythonObjectWithToken>::token(self);
+                let py = <$name as $crate::token::PythonObjectWithGilToken>::gil(self);
                 let s = unsafe { $crate::PyString::downcast_from_owned_ptr(
                     py, $crate::ffi::PyObject_Repr(
                         $crate::python::ToPythonPointer::as_ptr(self))) };
@@ -188,7 +191,7 @@ macro_rules! pyobject_nativetype(
             {
                 use $crate::python::PyDowncastInto;
 
-                let py = <$name as $crate::token::PythonObjectWithToken>::token(self);
+                let py = <$name as $crate::token::PythonObjectWithGilToken>::gil(self);
                 let s = unsafe { $crate::PyString::downcast_from_owned_ptr(
                     py, $crate::ffi::PyObject_Str(
                         $crate::python::ToPythonPointer::as_ptr(self))) };

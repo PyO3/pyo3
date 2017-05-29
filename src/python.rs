@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PyObjectMarker, PythonToken, PythonObjectWithToken};
+use token::{PyObjectMarker, PythonToken, PythonObjectWithGilToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
 use pyptr::{Py, PyPtr};
@@ -73,16 +73,6 @@ pub trait ToPythonPointer {
 
 }
 
-impl<'p, T> ToPythonPointer for T where T: PyTypeInfo + PythonObjectWithToken {
-    #[inline]
-    default fn as_ptr(&self) -> *mut ffi::PyObject {
-        let offset = <T as PyTypeInfo>::offset();
-        unsafe {
-            {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
-        }
-    }
-}
-
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
 pub trait IntoPythonPointer {
     /// Retrieves the underlying FFI pointer. Whether pointer owned or borrowed
@@ -94,7 +84,7 @@ pub trait IntoPythonPointer {
 /// Convert None into a null pointer.
 /*impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
     #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
+    default fn as_ptr(&self) -> *mut ffi::PyObject {
         match *self {
             Some(ref t) => t.as_ptr(),
             None => std::ptr::null_mut()
@@ -105,7 +95,7 @@ pub trait IntoPythonPointer {
 /// Convert None into a null pointer.
 impl<'p, T> ToPythonPointer for Option<&'p T> where T: ToPythonPointer {
     #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
+    default fn as_ptr(&self) -> *mut ffi::PyObject {
         match *self {
             Some(ref t) => t.as_ptr(),
             None => std::ptr::null_mut()
@@ -303,18 +293,18 @@ mod test {
         let py = gil.python();
 
         // Make sure builtin names are accessible
-        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract().unwrap();
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
-        d.set_item(py, "foo", 13).unwrap();
+        d.set_item("foo", 13).unwrap();
 
         // Inject our own local namespace
-        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract().unwrap();
         assert_eq!(v, 42);
 
         // Make sure builtin names are still accessible when using a local namespace
-        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract().unwrap();
         assert_eq!(v, 2);
     }
 }

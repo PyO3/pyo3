@@ -33,14 +33,15 @@ pub fn with_token<'p, T, F>(py: Python<'p>, f: F) -> Py<'p, T>
 }
 
 
+pub trait PythonObjectWithGilToken<'p> : Sized {
+    fn gil(&self) -> Python<'p>;
+}
+
 pub trait PythonObjectWithToken : Sized {
     fn token<'p>(&'p self) -> Python<'p>;
 }
 
-
 pub struct PyObjectMarker;
-
-//pyobject_newtype!(PyObject, PyObject_Check, PyBaseObject_Type);
 
 
 impl PyObjectMarker {

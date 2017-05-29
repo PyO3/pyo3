@@ -5,7 +5,7 @@ use err::{PyErr, PyResult};
 use python::{Python, ToPythonPointer};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
-
+#[allow(non_camel_case_types)]
 pub struct pptr<'p>(Python<'p>, *mut ffi::PyObject);
 
 

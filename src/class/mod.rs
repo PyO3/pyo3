@@ -32,6 +32,8 @@ pub static NO_METHODS: &'static [&'static str] = &[];
 pub static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 use ffi;
+use typeob::PyTypeInfo;
+use python::ToPythonPointer;
 
 #[derive(Debug)]
 pub enum CompareOp {
@@ -43,4 +45,14 @@ pub enum CompareOp {
     Ge = ffi::Py_GE as isize
 }
 
-pub trait PyCustomObject : Sized {}
+pub trait PyCustomObject : PyTypeInfo + Sized {}
+
+impl<'p, T> ToPythonPointer for T where T: PyCustomObject {
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        let offset = <T as PyTypeInfo>::offset();
+        unsafe {
+            {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
+        }
+    }
+}

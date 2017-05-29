@@ -10,7 +10,7 @@ use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
 use objects::PyObject;
 use python::{Python, ToPythonPointer, IntoPythonPointer};
-use token::{PyObjectMarker, PythonObjectWithToken};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
@@ -104,10 +104,23 @@ impl<T> PyPtr<T> {
     /// Converts PyPtr<T> -> PyPtr<PyObject>
     /// Consumes `self` without calling `Py_INCREF()`
     #[inline]
-    pub fn into_object(self) -> PyPtr<PyObjectMarker> {
+    pub fn park(self) -> PyPtr<PyObjectMarker> {
         let p = PyPtr {inner: self.inner, _t: PhantomData};
         std::mem::forget(self);
         p
+    }
+
+    /// Converts PyPtr<T> -> &PyObject<'p>.
+    #[inline]
+    pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject<'p> {
+        unsafe { std::mem::transmute(self) }
+    }
+
+    /// Converts PyPtr<T> -> PyObject<'p>
+    /// Consumes `self` without calling `Py_DECREF()`
+    #[inline]
+    pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject<'p> {
+        unsafe { std::mem::transmute(self) }
     }
 
     /// Gets the reference count of this PyPtr object.
@@ -171,7 +184,7 @@ impl<T> IntoPyObject for PyPtr<T> {
 
     #[inline]
     fn into_object<'a>(self, _py: Python) -> PyPtr<PyObjectMarker> {
-        self.into_object()
+        self.park()
     }
 }
 
@@ -326,12 +339,14 @@ impl<'p, T> Py<'p, T>
         res
     }
 
+    #[inline]
     pub fn clone_ref(&self) -> Py<'p, T> {
         unsafe { ffi::Py_INCREF(self.inner) };
         Py {inner: self.inner, _t: self._t, py: self.py}
     }
 
-    pub fn token<'a>(&'a self) -> Python<'p> {
+    #[inline]
+    pub fn gil(&self) -> Python<'p> {
         self.py
     }
 }
@@ -375,6 +390,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
         }
     }
 
+    #[inline]
     pub fn cast_from_owned_or_err(py: Python<'p>, ptr: *mut ffi::PyObject)
                                   -> PyResult<Py<'p, T>>
     {
@@ -460,7 +476,7 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
                     let ptr = (self.inner as *mut u8).offset(offset) as *mut D;
                     ptr.as_ref().unwrap() })
         } else {
-            Err(PyDowncastError(self.token(), None))
+            Err(PyDowncastError(self.py, None))
         }
     }
 
@@ -483,8 +499,8 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     }
 }
 
-//impl<'p, T> PythonObjectWithToken for Py<'p, T> {
-//    fn token(&self) -> Token {
+//impl<'p, T> PythonObjectWithGilToken<'p> for Py<'p, T> {
+//    fn gil(&self) -> Python<'p> {
 //        self.py
 //    }
 //}
@@ -575,14 +591,13 @@ impl<'source, T> ::FromPyObject<'source> for Py<'source, T> where T: PyTypeInfo
 {
     #[inline]
     default fn extract(py: &'source PyObject<'source>) -> PyResult<Py<'source, T>>
-    // where S: PyTypeInfo
     {
         let ptr = py.as_ptr();
         let checked = unsafe { ffi::PyObject_TypeCheck(ptr, T::type_object()) != 0 };
         if checked {
-            Ok( unsafe { Py::<T>::from_borrowed_ptr(py.token(), ptr) })
+            Ok( unsafe { Py::<T>::from_borrowed_ptr(py.gil(), ptr) })
         } else {
-            Err(PyDowncastError(py.token(), None).into())
+            Err(PyDowncastError(py.gil(), None).into())
         }
     }
 }

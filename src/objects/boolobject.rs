@@ -52,16 +52,17 @@ pyobject_extract!(obj to bool => {
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject};
+    use python::{Python};
     use conversion::ToPyObject;
+    use ::PyNativeObject;
 
     #[test]
     fn test_true() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(py.True().is_true());
-        assert_eq!(true, py.True().as_object().extract(py).unwrap());
-        assert!(true.to_py_object(py).as_object() == py.True().as_object());
+        assert_eq!(true, py.True().as_object().extract().unwrap());
+        assert!(true.to_object(py).into_object(py) == py.True().as_object());
     }
 
     #[test]
@@ -69,7 +70,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(!py.False().is_true());
-        assert_eq!(false, py.False().as_object().extract(py).unwrap());
-        assert!(false.to_py_object(py).as_object() == py.False().as_object());
+        assert_eq!(false, py.False().as_object().extract().unwrap());
+        assert!(false.to_object(py).into_object(py) == py.False().as_object());
     }
 }

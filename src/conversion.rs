@@ -1,6 +1,6 @@
 use ffi;
 use err::PyResult;
-use pyptr::{Py, PyPtr};
+use pyptr::PyPtr;
 use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyTuple};
 use token::PyObjectMarker;
@@ -21,7 +21,7 @@ pub trait ToPyObject {
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
-        let obj = self.to_object(py).into_object();
+        let obj = self.to_object(py).park();
         f(obj.as_ptr())
     }
 }
@@ -79,7 +79,7 @@ pub trait FromPyObject<'source> : Sized {
 }
 
 pub trait RefFromPyObject<'p> {
-    fn with_extracted<F, R>(obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &'p PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R;
 }
 
@@ -87,7 +87,7 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
     where for<'a> &'a T: FromPyObject<'p> + Sized
 {
     #[inline]
-    fn with_extracted<F, R>(obj: &'p Py<'p, PyObject>, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &'p PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R
     {
         match FromPyObject::extract(obj) {

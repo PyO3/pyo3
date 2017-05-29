@@ -179,7 +179,7 @@ impl PyErr {
             ptype: if ptype.is_null() {
                 py.get_type::<exc::SystemError>().into_object()
             } else {
-                PyPtr::<PyObjectMarker>::from_owned_ptr(ptype).into_object()
+                PyPtr::<PyObjectMarker>::from_owned_ptr(ptype).park()
             },
             pvalue: PyPtr::from_owned_ptr_or_opt(py, pvalue),
             ptraceback: PyPtr::from_owned_ptr_or_opt(py, ptraceback)
@@ -386,12 +386,12 @@ pub fn error_on_minusone(py: Python, result: libc::c_int) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use {Python, PyErr};
+    use ::{Python, PyErr};
     use objects::exc;
 
     #[test]
     fn set_typeerror() {
-        let gil = Python::acqduire_gil();
+        let gil = Python::acquire_gil();
         let py = gil.python();
         PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None).restore(py);
         assert!(PyErr::occurred(py));

@@ -6,8 +6,6 @@ use ::pptr;
 use ffi;
 use err::{PyResult, PyDowncastError};
 use python::{Python, ToPythonPointer};
-use token::PythonObjectWithToken;
-use typeob::PyTypeInfo;
 
 
 pub struct PyObject<'p>(pptr<'p>);
@@ -69,8 +67,6 @@ impl<'p> PyObject<'p> {
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
     pub fn cast_as<D>(&'p self) -> Result<&'p D, PyDowncastError<'p>>
-        //where D: PyTypeInfo
-    //{
         where D: ::PyDowncastFrom<'p>
     {
         <D as ::PyDowncastFrom>::downcast_from(&self)

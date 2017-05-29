@@ -331,7 +331,7 @@ macro_rules! py_argparse_impl {
                 // We'll have to generate a bunch of nested `match` statements
                 // (at least until we can use ? + catch, assuming that will be hygienic wrt. macros),
                 // so use a recursive helper macro for that:
-                py_argparse_extract!( py, _iter, $body,
+                py_argparse_extract!(py, _iter, $body,
                     [ $( { $pname : $ptype = $detail } )* ])
             },
             Err(e) => Err(e)
@@ -344,11 +344,9 @@ macro_rules! py_argparse_impl {
 #[doc(hidden)]
 macro_rules! py_argparse_raw {
     ($py:ident, $fname:expr, $args:expr, $kwargs:expr, $plist:tt $body:block) => {{
-        let args: $crate::PyTuple = $crate::PyObject::from_borrowed_ptr($py, $args).unchecked_cast_into();
+        let args: $crate::PyTuple = $crate::PyTuple::from_borrowed_ptr($py, $args);
         let kwargs: Option<$crate::PyDict> = $crate::argparse::get_kwargs($py, $kwargs);
         let ret = py_argparse_impl!($py, $fname, &args, kwargs.as_ref(), $body, $plist);
-        $crate::PyDrop::release_ref(args, $py);
-        $crate::PyDrop::release_ref(kwargs, $py);
         ret
     }};
 }
@@ -363,7 +361,7 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
     }
 }
 
-/*
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_argparse_param_description {
@@ -394,7 +392,8 @@ macro_rules! py_argparse_extract {
     ) => {
         // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
         // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
-        match <$ptype as $crate::FromPyObject>::extract($py, $iter.next().unwrap().as_ref().unwrap()) {
+        match <$ptype as $crate::FromPyObject>::extract(
+            $iter.next().unwrap().as_ref().unwrap()) {
             Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
             Err(e) => Err(e)
         }
@@ -405,8 +404,8 @@ macro_rules! py_argparse_extract {
     ) => {
         // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
         // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
-        match <$rtype as $crate::RefFromPyObject>::with_extracted($py,
-                                                                  $iter.next().unwrap().as_ref().unwrap(),
+        match <$rtype as $crate::RefFromPyObject>::with_extracted(
+            $iter.next().unwrap().as_ref().unwrap(),
             |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*])
         ) {
             Ok(v) => v,
@@ -417,7 +416,7 @@ macro_rules! py_argparse_extract {
     ( $py:expr, $iter:expr, $body:block,
         [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {} ] } $($tail:tt)* ]
     ) => {
-        match $iter.next().unwrap().as_ref().map(|obj| obj.extract::<_>($py)).unwrap_or(Ok($default)) {
+        match $iter.next().unwrap().as_ref().map(|obj| obj.extract::<_>()).unwrap_or(Ok($default)) {
             Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
             Err(e) => Err(e)
         }
@@ -427,8 +426,7 @@ macro_rules! py_argparse_extract {
         [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {$rtype:ty} ] } $($tail:tt)* ]
     ) => {
         //unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
-        $crate::argparse::with_extracted_or_default($py,
-            $iter.next().unwrap().as_ref(),
+        $crate::argparse::with_extracted_or_default($iter.next().unwrap().as_ref(),
             |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*]),
             $default)
     };
@@ -436,24 +434,22 @@ macro_rules! py_argparse_extract {
 
 #[doc(hidden)] // used in py_argparse_extract!() macro
 pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
-    py: Python<'p>,
-    obj: Option<&'p Py<'p,PyObject>>,
-    f: F, default: &'static P) -> PyResult<R>
+    obj: Option<&'p PyObject>, f: F, default: &'static P) -> PyResult<R>
     where F: FnOnce(&P) -> PyResult<R>,
           P: RefFromPyObject<'p>
 {
     match obj {
-        Some(obj) => match P::with_extracted(py, obj, f) {
+        Some(obj) => match P::with_extracted(obj, f) {
             Ok(result) => result,
             Err(e) => Err(e)
         },
         None => f(default)
     }
 }
-*/
+
 
 #[cfg(test)]
-mod test {
+    mod test {
     use python::{Python};
     use objects::PyTuple;
     use conversion::{ToPyTuple};
@@ -480,7 +476,7 @@ mod test {
         let mut called = false;
         let tuple = ("abc",).to_py_tuple(py);
         py_argparse!(py, None, &tuple, None, (x) {
-            assert_eq!(*x, tuple.get_item(py, 0));
+            assert_eq!(*x, tuple.get_item(0));
             called = true;
             Ok(())
         }).unwrap();

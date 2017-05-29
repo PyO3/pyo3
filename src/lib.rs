@@ -71,7 +71,7 @@ mod ppptr;
 pub use ppptr::pptr;
 
 mod token;
-pub use token::{PyObjectMarker, PythonToken, PythonObjectWithToken};
+pub use token::{PyObjectMarker, PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
@@ -82,6 +82,7 @@ pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, To
 pub use class::{CompareOp};
 pub mod class;
 pub use class::*;
+pub use native::PyNativeObject;
 pub use self::typeob::PyTypeObject;
 
 #[allow(non_camel_case_types)]
@@ -112,7 +113,7 @@ macro_rules! py_replace_expr {
 }
 
 pub mod python;
-pub mod native;
+mod native;
 mod err;
 mod conversion;
 mod objects;
@@ -122,7 +123,7 @@ pub mod callback;
 pub mod typeob;
 pub mod argparse;
 pub mod function;
-pub mod buffer;
+// pub mod buffer;
 
 // re-export for simplicity
 pub use std::os::raw::*;

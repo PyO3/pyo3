@@ -115,7 +115,7 @@ macro_rules! py_fn_impl {
             kwargs: *mut $crate::ffi::PyObject)
         -> *mut $crate::ffi::PyObject
         {
-            $crate::callback::handle_callback(
+            $crate::callback::handle(
                 stringify!($f), $crate::callback::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,

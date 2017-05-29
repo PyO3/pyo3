@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_variables)]
 #![feature(proc_macro, specialization)]
 
-#[macro_use] extern crate pyo3;
+extern crate pyo3;
 
 use std::ptr;
 use std::os::raw::{c_int, c_void};
