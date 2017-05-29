@@ -353,7 +353,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T where T: for<'p> PyObjectRichcmpProtoc
                     Ok(op) => {
                         match arg.extract() {
                             Ok(arg) => {
-                                slf.as_ref().__richcmp__(py, arg, op).into()
+                                slf.__richcmp__(py, arg, op).into()
                             }
                             Err(e) => Err(e.into()),
                         }
