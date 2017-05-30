@@ -28,9 +28,6 @@ pub use self::gc::{PyVisit, PyGCProtocol, PyTraverseError};
 pub use self::methods::{PyMethodDef, PyMethodDefType, PyMethodType,
                         PyGetterDef, PySetterDef};
 
-pub static NO_METHODS: &'static [&'static str] = &[];
-pub static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
-
 use ffi;
 use typeob::PyTypeInfo;
 

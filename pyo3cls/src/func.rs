@@ -7,6 +7,7 @@ use utils::print_err;
 
 #[derive(Debug)]
 pub enum MethodProto {
+    Free{name: &'static str, proto: &'static str, },
     Unary{name: &'static str, pyres: bool, proto: &'static str, },
     Binary{name: &'static str, arg: &'static str, pyres: bool, proto: &'static str},
     Ternary{name: &'static str,
@@ -23,6 +24,7 @@ impl MethodProto {
 
     pub fn eq(&self, name: &str) -> bool {
         match *self {
+            MethodProto::Free{name: n, proto: _} => n == name,
             MethodProto::Unary{name: n, pyres: _, proto: _} => n == name,
             MethodProto::Binary{name: n, arg: _, pyres: _, proto: _} => n == name,
             MethodProto::Ternary{name: n, arg1: _, arg2: _, pyres: _, proto: _} => n == name,
@@ -37,9 +39,20 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                          meth: &MethodProto) -> Tokens {
     let decl = sig.decl.clone();
 
+    match *meth {
+        MethodProto::Free{name: _, proto} => {
+            let p = syn::Ident::from(proto);
+            return quote! {
+                impl<'p> #p<'p> for #cls {}
+            }
+        },
+        _ => (),
+    };
+
     match decl.output {
         syn::FunctionRetTy::Ty(ref ty) => {
             match *meth {
+                MethodProto::Free{name: _, proto: _} => unreachable!(),
                 MethodProto::Unary{name: _, pyres, proto} => {
                     let p = syn::Ident::from(proto);
                     let (ty, succ) = get_res_success(ty);
@@ -264,10 +277,8 @@ fn get_res_success(ty: &syn::Ty) -> (Tokens, syn::Ty) {
                         },
                         _ => panic!("fn result type is not supported"),
                     },
-                    _ =>
-                        panic!("fn result type has to be PyResult or (), got {:?}",
-                               segment.ident.as_ref())
-
+                    _ => panic!("fn result type has to be PyResult or (), got {:?}",
+                                segment.ident.as_ref())
                 }
             } else {
                 panic!("fn result is not supported {:?}", path)

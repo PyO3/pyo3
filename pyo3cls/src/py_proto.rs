@@ -9,15 +9,6 @@ use method::FnSpec;
 use func::impl_method_proto;
 
 
-struct Methods {
-    methods: &'static [&'static str],
-}
-
-static DEFAULT_METHODS: Methods = Methods {
-    methods: &[],
-};
-
-
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
     match ast.node {
         syn::ItemKind::Impl(_, _, ref mut gen, ref mut path, ref ty, ref mut impl_items) => {
@@ -43,8 +34,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                         "PyBufferProtocol" =>
                             impl_proto_impl(ty, impl_items, &defs::BUFFER),
                         "PyGCProtocol" =>
-                            impl_protocol("_pyo3::class::gc::PyGCProtocolImpl",
-                                          path.clone(), ty, impl_items, &DEFAULT_METHODS),
+                            impl_proto_impl(ty, impl_items, &defs::GC),
                         _ => {
                             warn!("#[proto] can not be used with this block");
                             return Tokens::new()
@@ -141,75 +131,6 @@ fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &de
             #tokens
 
             #(#py_methods)*
-        };
-    }
-}
-
-fn impl_protocol(name: &'static str,
-                 path: syn::Path, ty: &Box<syn::Ty>,
-                 impls: &mut Vec<syn::ImplItem>, methods: &Methods) -> Tokens {
-    let mut py_methods = Vec::new();
-
-    // get method names in impl block
-    let mut meth = Vec::new();
-    for iimpl in impls.iter_mut() {
-        match iimpl.node {
-            syn::ImplItemKind::Method(ref mut sig, _) => {
-                if methods.methods.contains(&iimpl.ident.as_ref()) {
-                    py_methods.push(py_method::gen_py_method(
-                        ty, &iimpl.ident, sig, &mut iimpl.attrs));
-                } else {
-                    meth.push(String::from(iimpl.ident.as_ref()));
-                }
-            },
-            _ => (),
-        }
-    }
-
-    // set trait name
-    let mut path = path;
-    {
-        let mut last = path.segments.last_mut().unwrap();
-        last.ident = syn::Ident::from(name);
-    }
-
-    let i = syn::Ident::from(name);
-    let tokens = if py_methods.is_empty() {
-        quote! {
-            impl #i for #ty {
-                fn methods() -> &'static [&'static str] {
-                    static METHODS: &'static [&'static str] = &[#(#meth),*];
-                    METHODS
-                }
-            }
-        }
-    } else {
-        quote! {
-            impl #i for #ty {
-                fn methods() -> &'static [&'static str] {
-                    static METHODS: &'static [&'static str] = &[#(#meth,),*];
-                    METHODS
-                }
-
-                fn py_methods() -> &'static [pyo3::class::PyMethodDefType] {
-                    static METHODS: &'static [pyo3::class::PyMethodDefType] = &[
-                        #(#py_methods),*
-                    ];
-                    METHODS
-                }
-            }
-        }
-    };
-    let name = name.split("::").last().unwrap();
-    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_{}", name));
-    quote! {
-        #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes,
-                unused_qualifications, unused_variables)]
-        const #dummy_const: () = {
-            extern crate pyo3 as _pyo3;
-
-            #tokens
         };
     }
 }

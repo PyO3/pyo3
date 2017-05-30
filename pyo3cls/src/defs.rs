@@ -149,7 +149,18 @@ pub const CONTEXT: Proto = Proto {
     ],
 };
 
-
+pub const GC: Proto = Proto {
+    name: "GC",
+    methods: &[
+        MethodProto::Free{
+            name: "__traverse__",
+            proto: "::pyo3::class::gc::PyGCTraverseProtocol"},
+        MethodProto::Free{
+            name: "__clear__",
+            proto: "::pyo3::class::gc::PyGCClearProtocol"},
+    ],
+    py_methods: &[],
+};
 
 pub const DESCR: Proto = Proto {
     name: "Descriptor",

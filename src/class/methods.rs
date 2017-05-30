@@ -3,7 +3,8 @@
 use std::ffi::CString;
 
 use ffi;
-use class::NO_PY_METHODS;
+
+static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 pub enum PyMethodDefType {
     New(PyMethodDef),
