@@ -185,17 +185,9 @@ impl<'p> Python<'p> {
                 return Err(PyErr::fetch(self));
             }
 
-            let mdict = ffi::PyModule_GetDict(mptr);
-
-            let globals = match globals {
-                Some(g) => g.as_ptr(),
-                None => mdict,
-            };
-
-            let locals = match locals {
-                Some(l) => l.as_ptr(),
-                None => globals
-            };
+            let globals = globals.map(|g| g.as_ptr())
+                                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
+            let locals = locals.map(|l| l.as_ptr()).unwrap_or(globals);
 
             let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
                 start, globals, locals, 0 as *mut _);
@@ -273,6 +265,10 @@ mod test {
 
         let d = PyDict::new(py);
         d.set_item("foo", 13).unwrap();
+
+        // Inject our own global namespace
+        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract(py).unwrap();
+        assert_eq!(v, 42);
 
         // Inject our own local namespace
         let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract().unwrap();
