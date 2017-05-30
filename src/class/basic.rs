@@ -5,16 +5,18 @@
 //! more information on python async support
 //! https://docs.python.org/3/reference/datamodel.html#basic-customization
 
+use std;
 use std::os::raw::c_int;
 
-use ::CompareOp;
+use ::{Py, CompareOp};
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, PythonObject, PyDrop};
-use objects::{exc, PyObject};
-use conversion::{ToPyObject, FromPyObject};
-use callback::{handle_callback, PyObjectCallbackConverter,
-               HashConverter, UnitCallbackConverter, BoolCallbackConverter};
+use python::{Python, IntoPythonPointer};
+use objects::PyObject;
+use objects::exc;
+use typeob::PyTypeInfo;
+use conversion::{ToPyObject, FromPyObject, IntoPyObject};
+use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
 
 // classmethod
@@ -25,79 +27,79 @@ use class::methods::PyMethodDef;
 
 /// Object customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol: PythonObject {
+pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
 
-    fn __getattr__(&self, py: Python, name: Self::Name)
-                   -> Self::Result where Self: PyObjectGetAttrProtocol { unimplemented!() }
+    fn __getattr__(&'p self, py: Python<'p>, name: Self::Name)
+                   -> Self::Result where Self: PyObjectGetAttrProtocol<'p> {unimplemented!()}
 
-    fn __setattr__(&self, py: Python, name: Self::Name, value: Self::Value)
-                   -> Self::Result where Self: PyObjectSetAttrProtocol { unimplemented!() }
+    fn __setattr__(&'p mut self, py: Python<'p>, name: Self::Name, value: Self::Value)
+                   -> Self::Result where Self: PyObjectSetAttrProtocol<'p> {unimplemented!()}
 
-    fn __delattr__(&self, py: Python, name: Self::Name)
-                   -> Self::Result where Self: PyObjectDelAttrProtocol { unimplemented!() }
+    fn __delattr__(&'p mut self, py: Python<'p>, name: Self::Name)
+                   -> Self::Result where Self: PyObjectDelAttrProtocol<'p> {unimplemented!()}
 
-    fn __str__(&self, py: Python)
-               -> Self::Result where Self: PyObjectStrProtocol { unimplemented!() }
+    fn __str__(&'p self, py: Python<'p>)
+               -> Self::Result where Self: PyObjectStrProtocol<'p> {unimplemented!()}
 
-    fn __repr__(&self, py: Python)
-                -> Self::Result where Self: PyObjectReprProtocol { unimplemented!() }
+    fn __repr__(&'p self, py: Python<'p>)
+                -> Self::Result where Self: PyObjectReprProtocol<'p> {unimplemented!()}
 
-    fn __format__(&self, py: Python, format_spec: Self::Format)
-                  -> Self::Result where Self: PyObjectFormatProtocol { unimplemented!() }
+    fn __format__(&'p self, py: Python<'p>, format_spec: Self::Format)
+                  -> Self::Result where Self: PyObjectFormatProtocol<'p> {unimplemented!()}
 
-    fn __hash__(&self, py: Python)
-                -> Self::Result where Self: PyObjectHashProtocol { unimplemented!() }
+    fn __hash__(&'p self, py: Python<'p>)
+                -> Self::Result where Self: PyObjectHashProtocol<'p> {unimplemented!()}
 
-    fn __bool__(&self, py: Python)
-                -> Self::Result where Self: PyObjectBoolProtocol { unimplemented!() }
+    fn __bool__(&'p self, py: Python<'p>)
+                -> Self::Result where Self: PyObjectBoolProtocol<'p> {unimplemented!()}
 
-    fn __bytes__(&self, py: Python)
-                 -> Self::Result where Self: PyObjectBytesProtocol { unimplemented!() }
+    fn __bytes__(&'p self, py: Python<'p>)
+                 -> Self::Result where Self: PyObjectBytesProtocol<'p> {unimplemented!()}
 
-    fn __richcmp__(&self, py: Python, other: Self::Other, op: CompareOp)
-                   -> Self::Result where Self: PyObjectRichcmpProtocol { unimplemented!() }
+    fn __richcmp__(&'p self, py: Python<'p>, other: Self::Other, op: CompareOp)
+                   -> Self::Result where Self: PyObjectRichcmpProtocol<'p> {unimplemented!()}
 }
 
 
-pub trait PyObjectGetAttrProtocol: PyObjectProtocol {
-    type Name: for<'a> FromPyObject<'a>;
+pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
+    type Name: FromPyObject<'p>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
-pub trait PyObjectSetAttrProtocol: PyObjectProtocol {
-    type Name: for<'a> FromPyObject<'a>;
-    type Value: for<'a> FromPyObject<'a>;
+pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
+    type Name: FromPyObject<'p>;
+    type Value: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
-pub trait PyObjectDelAttrProtocol: PyObjectProtocol {
-    type Name: for<'a> FromPyObject<'a>;
+pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
+    type Name: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
-pub trait PyObjectStrProtocol: PyObjectProtocol {
+pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
-pub trait PyObjectReprProtocol: PyObjectProtocol {
+pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
-pub trait PyObjectFormatProtocol: PyObjectProtocol {
-    type Format: for<'a> FromPyObject<'a>;
+pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
+    type Format: FromPyObject<'p>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
-pub trait PyObjectHashProtocol: PyObjectProtocol {
+pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<usize>>;
 }
-pub trait PyObjectBoolProtocol: PyObjectProtocol {
+pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<bool>>;
 }
-pub trait PyObjectBytesProtocol: PyObjectProtocol {
+pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
-pub trait PyObjectRichcmpProtocol: PyObjectProtocol {
-    type Other: for<'a> FromPyObject<'a>;
+pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
+    type Other: FromPyObject<'p>;
     type Success: ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -121,7 +123,7 @@ impl<T> PyObjectProtocolImpl for T {
     }
 }
 
-impl<T> PyObjectProtocolImpl for T where T: PyObjectProtocol {
+impl<'p, T> PyObjectProtocolImpl for T where T: PyObjectProtocol<'p> {
     #[inline]
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
@@ -155,21 +157,19 @@ impl<T> PyObjectProtocolImpl for T where T: PyObjectProtocol {
 trait PyObjectGetAttrProtocolImpl {
     fn tp_getattro() -> Option<ffi::binaryfunc>;
 }
-
-impl<T> PyObjectGetAttrProtocolImpl for T
-    where T: PyObjectProtocol
+impl<'p, T> PyObjectGetAttrProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_getattro() -> Option<ffi::binaryfunc> {
         None
     }
 }
-
-impl<T> PyObjectGetAttrProtocolImpl for T where T: PyObjectGetAttrProtocol
+impl<T> PyObjectGetAttrProtocolImpl for T where T: for<'p> PyObjectGetAttrProtocol<'p>
 {
     #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
-        py_binary_func_!(PyObjectGetAttrProtocol, T::__getattr__, PyObjectCallbackConverter)
+        py_binary_func!(PyObjectGetAttrProtocol,
+                        T::__getattr__, T::Success, PyObjectCallbackConverter)
     }
 }
 
@@ -178,52 +178,18 @@ trait PyObjectSetAttrProtocolImpl {
     fn tp_setattro() -> Option<ffi::setattrofunc>;
 }
 
-impl<T> PyObjectSetAttrProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectSetAttrProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_setattro() -> Option<ffi::setattrofunc> {
         None
     }
 }
-
-impl<T> PyObjectSetAttrProtocolImpl for T where T: PyObjectSetAttrProtocol
+impl<T> PyObjectSetAttrProtocolImpl for T where T: for<'p> PyObjectSetAttrProtocol<'p>
 {
     #[inline]
     fn tp_setattro() -> Option<ffi::setattrofunc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                     name: *mut ffi::PyObject,
-                                     value: *mut ffi::PyObject) -> c_int
-            where T: PyObjectSetAttrProtocol
-        {
-            const LOCATION: &'static str = "T.__setattr__()";
-            ::callback::handle_callback(LOCATION, UnitCallbackConverter, |py| {
-                let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
-                let name = PyObject::from_borrowed_ptr(py, name);
-
-                let ret = match name.extract(py) {
-                    Ok(key) =>
-                        if value.is_null() {
-                            Err(PyErr::new::<exc::NotImplementedError, _>(
-                                py, format!("Subscript deletion not supported by {:?}",
-                                            stringify!(T))))
-                        } else {
-                            let value = PyObject::from_borrowed_ptr(py, value);
-                            let ret = match value.extract(py) {
-                                Ok(value) => slf.__setattr__(py, key, value).into(),
-                                Err(e) => Err(e),
-                            };
-                            PyDrop::release_ref(value, py);
-                            ret
-                        },
-                    Err(e) => Err(e),
-                };
-
-                PyDrop::release_ref(name, py);
-                PyDrop::release_ref(slf, py);
-                ret
-            })
-        }
-        Some(wrap::<T>)
+        py_func_set!(PyObjectSetAttrProtocol, T::__setattr__)
     }
 }
 
@@ -231,92 +197,27 @@ impl<T> PyObjectSetAttrProtocolImpl for T where T: PyObjectSetAttrProtocol
 trait PyObjectDelAttrProtocolImpl {
     fn tp_delattro() -> Option<ffi::setattrofunc>;
 }
-
-impl<T> PyObjectDelAttrProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectDelAttrProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_delattro() -> Option<ffi::setattrofunc> {
         None
     }
 }
-
-impl<T> PyObjectDelAttrProtocolImpl for T where T: PyObjectDelAttrProtocol
+impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtocol<'p>
 {
     #[inline]
     default fn tp_delattro() -> Option<ffi::setattrofunc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                     name: *mut ffi::PyObject,
-                                     value: *mut ffi::PyObject) -> c_int
-            where T: PyObjectDelAttrProtocol
-        {
-            const LOCATION: &'static str = "T.__detattr__()";
-            ::callback::handle_callback(LOCATION, UnitCallbackConverter, |py| {
-                let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
-                let name = PyObject::from_borrowed_ptr(py, name);
-
-                let ret = match name.extract(py) {
-                    Ok(name) =>
-                        if value.is_null() {
-                            slf.__delattr__(py, name).into()
-                        } else {
-                            Err(PyErr::new::<exc::NotImplementedError, _>(
-                                py, format!("Set attribute not supported by {:?}",
-                                            stringify!(T))))
-                        },
-                    Err(e) => Err(e),
-                };
-
-                PyDrop::release_ref(name, py);
-                PyDrop::release_ref(slf, py);
-                ret
-            })
-        }
-        Some(wrap::<T>)
+        py_func_del!(PyObjectDelAttrProtocol, T::__delattr__)
     }
 }
-
-
 impl<T> PyObjectDelAttrProtocolImpl for T
-    where T: PyObjectSetAttrProtocol + PyObjectDelAttrProtocol
+    where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>
 {
     #[inline]
     fn tp_delattro() -> Option<ffi::setattrofunc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                     name: *mut ffi::PyObject,
-                                     value: *mut ffi::PyObject) -> c_int
-            where T: PyObjectSetAttrProtocol + PyObjectDelAttrProtocol
-        {
-            const LOCATION: &'static str = "T.__detattr__()";
-            ::callback::handle_callback(LOCATION, UnitCallbackConverter, |py| {
-                let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
-                let name = PyObject::from_borrowed_ptr(py, name);
-
-                let ret = if value.is_null() {
-                    match name.extract(py) {
-                        Ok(key) => slf.__delattr__(py, key).into(),
-                        Err(e) => Err(e)
-                    }
-                } else {
-                    match name.extract(py) {
-                        Ok(name) => {
-                            let value = PyObject::from_borrowed_ptr(py, value);
-                            let ret = match value.extract(py) {
-                                Ok(value) => slf.__setattr__(py, name, value).into(),
-                                Err(e) => Err(e),
-                            };
-                            PyDrop::release_ref(value, py);
-                            ret
-                        },
-                        Err(e) => Err(e),
-                    }
-                };
-
-                PyDrop::release_ref(name, py);
-                PyDrop::release_ref(slf, py);
-                ret
-            })
-        }
-        Some(wrap::<T>)
+        py_func_set_del!(PyObjectSetAttrProtocol, PyObjectDelAttrProtocol,
+                         T::__setattr__/__delattr__)
     }
 }
 
@@ -324,36 +225,38 @@ impl<T> PyObjectDelAttrProtocolImpl for T
 trait PyObjectStrProtocolImpl {
     fn tp_str() -> Option<ffi::unaryfunc>;
 }
-impl<T> PyObjectStrProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectStrProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_str() -> Option<ffi::unaryfunc> {
         None
     }
 }
-impl<T> PyObjectStrProtocolImpl for T where T: PyObjectStrProtocol
+impl<T> PyObjectStrProtocolImpl for T where T: for<'p> PyObjectStrProtocol<'p>
 {
     #[inline]
     fn tp_str() -> Option<ffi::unaryfunc> {
-        py_unary_func_!(PyObjectStrProtocol, T::__str__, PyObjectCallbackConverter)
+        py_unary_func!(PyObjectStrProtocol, T::__str__,
+                       <T as PyObjectStrProtocol>::Success, PyObjectCallbackConverter)
     }
 }
 
 trait PyObjectReprProtocolImpl {
     fn tp_repr() -> Option<ffi::unaryfunc>;
 }
-impl<T> PyObjectReprProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectReprProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_repr() -> Option<ffi::unaryfunc> {
         None
     }
 }
-impl<T> PyObjectReprProtocolImpl for T where T: PyObjectReprProtocol
+impl<T> PyObjectReprProtocolImpl for T where T: for<'p> PyObjectReprProtocol<'p>
 {
     #[inline]
     fn tp_repr() -> Option<ffi::unaryfunc> {
-        py_unary_func_!(PyObjectReprProtocol, T::__repr__, PyObjectCallbackConverter)
+        py_unary_func!(PyObjectReprProtocol,
+                       T::__repr__, T::Success, PyObjectCallbackConverter)
     }
 }
 
@@ -361,7 +264,7 @@ impl<T> PyObjectReprProtocolImpl for T where T: PyObjectReprProtocol
 pub trait PyObjectFormatProtocolImpl {
     fn __format__() -> Option<PyMethodDef>;
 }
-impl<T> PyObjectFormatProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectFormatProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn __format__() -> Option<PyMethodDef> {
@@ -373,7 +276,7 @@ impl<T> PyObjectFormatProtocolImpl for T where T: PyObjectProtocol
 pub trait PyObjectBytesProtocolImpl {
     fn __bytes__() -> Option<PyMethodDef>;
 }
-impl<T> PyObjectBytesProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectBytesProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn __bytes__() -> Option<PyMethodDef> {
@@ -385,74 +288,98 @@ impl<T> PyObjectBytesProtocolImpl for T where T: PyObjectProtocol
 trait PyObjectHashProtocolImpl {
     fn tp_hash() -> Option<ffi::hashfunc>;
 }
-impl<T> PyObjectHashProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectHashProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_hash() -> Option<ffi::hashfunc> {
         None
     }
 }
-impl<T> PyObjectHashProtocolImpl for T where T: PyObjectHashProtocol
+impl<T> PyObjectHashProtocolImpl for T where T: for<'p> PyObjectHashProtocol<'p>
 {
     #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
-        py_unary_func_!(PyObjectHashProtocol, T::__hash__, HashConverter, ffi::Py_hash_t)
+        py_unary_func!(PyObjectHashProtocol,
+                       T::__hash__, usize, HashConverter, ffi::Py_hash_t)
     }
 }
 
 trait PyObjectBoolProtocolImpl {
     fn nb_bool() -> Option<ffi::inquiry>;
 }
-impl<T> PyObjectBoolProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectBoolProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn nb_bool() -> Option<ffi::inquiry> {
         None
     }
 }
-impl<T> PyObjectBoolProtocolImpl for T where T: PyObjectBoolProtocol
+impl<T> PyObjectBoolProtocolImpl for T where T: for<'p> PyObjectBoolProtocol<'p>
 {
     #[inline]
     fn nb_bool() -> Option<ffi::inquiry> {
-        py_unary_func_!(PyObjectBoolProtocol, T::__bool__, BoolCallbackConverter, c_int)
+        py_unary_func!(PyObjectBoolProtocol, T::__bool__, bool, BoolCallbackConverter, c_int)
     }
 }
 
 trait PyObjectRichcmpProtocolImpl {
     fn tp_richcompare() -> Option<ffi::richcmpfunc>;
 }
-impl<T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol
+impl<'p, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol<'p>
 {
     #[inline]
     default fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         None
     }
 }
-impl<T> PyObjectRichcmpProtocolImpl for T where T: PyObjectRichcmpProtocol
+impl<T> PyObjectRichcmpProtocolImpl for T where T: for<'p> PyObjectRichcmpProtocol<'p>
 {
     #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject,
                                      op: c_int) -> *mut ffi::PyObject
-            where T: PyObjectRichcmpProtocol
+            where T: for<'p> PyObjectRichcmpProtocol<'p>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
-            handle_callback(LOCATION, PyObjectCallbackConverter, |py| {
-                let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
+
+            let guard = ::callback::AbortOnDrop(LOCATION);
+            let ret = std::panic::catch_unwind(|| {
+                let py = Python::assume_gil_acquired();
+                let slf = Py::<T>::from_borrowed_ptr(py, slf);
                 let arg = PyObject::from_borrowed_ptr(py, arg);
 
-                let ret = match arg.extract(py) {
-                    Ok(arg) => match extract_op(py, op) {
-                        Ok(op) => slf.__richcmp__(py, arg, op).into(),
-                        Err(e) => Err(e)
+                let res = match extract_op(py, op) {
+                    Ok(op) => {
+                        match arg.extract() {
+                            Ok(arg) => {
+                                slf.__richcmp__(py, arg, op).into()
+                            }
+                            Err(e) => Err(e.into()),
+                        }
                     },
                     Err(e) => Err(e)
                 };
-                PyDrop::release_ref(arg, py);
-                PyDrop::release_ref(slf, py);
-                ret
-            })
+                match res {
+                    Ok(val) => {
+                        val.into_object(py).into_ptr()
+                    }
+                    Err(e) => {
+                        e.restore(py);
+                        std::ptr::null_mut()
+                    }
+                }
+            });
+
+            let ret = match ret {
+                Ok(r) => r,
+                Err(ref err) => {
+                    ::callback::handle_panic(Python::assume_gil_acquired(), err);
+                    std::ptr::null_mut()
+                }
+            };
+            std::mem::forget(guard);
+            ret
         }
         Some(wrap::<T>)
     }
@@ -470,6 +397,6 @@ fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
         _ => Err(PyErr::new_lazy_init(
             py.get_type::<exc::ValueError>(),
             Some("tp_richcompare called with invalid comparison operator"
-                 .to_py_object(py).into_object())))
+                 .to_object(py))))
     }
 }

@@ -861,3 +861,7 @@ pub const Py_NE : c_int = 3;
 pub const Py_GT : c_int = 4;
 pub const Py_GE : c_int = 5;
 
+
+pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
+    1
+}

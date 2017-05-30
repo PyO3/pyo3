@@ -17,10 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 use std::ptr;
+
+use ffi;
+use pyptr::Py;
 use python::Python;
 use objects::PyObject;
-use ffi;
-use err;
 
 #[macro_export]
 #[doc(hidden)]
@@ -89,7 +90,7 @@ macro_rules! py_method_def {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
 ///     let dict = PyDict::new(py);
-///     dict.set_item(py, "multiply", py_fn!(py, multiply(lhs: i32, rhs: i32))).unwrap();
+///     dict.set_item("multiply", py_fn!(py, multiply(lhs: i32, rhs: i32))).unwrap();
 ///     py.run("print(multiply(6, 7))", None, Some(&dict)).unwrap();
 /// }
 /// ```
@@ -114,7 +115,7 @@ macro_rules! py_fn_impl {
             kwargs: *mut $crate::ffi::PyObject)
         -> *mut $crate::ffi::PyObject
         {
-            $crate::callback::handle_callback(
+            $crate::callback::handle(
                 stringify!($f), $crate::callback::PyObjectCallbackConverter,
                 |py| {
                     py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,
@@ -138,6 +139,7 @@ macro_rules! py_fn_impl {
 
 
 #[allow(dead_code)]
-pub unsafe fn py_fn_impl(py: Python, method_def: *mut ffi::PyMethodDef) -> PyObject {
-    err::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
+pub unsafe fn py_fn_impl<'p>(py: Python<'p>,
+                             method_def: *mut ffi::PyMethodDef) -> Py<'p, PyObject> {
+    Py::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
 }

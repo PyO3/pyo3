@@ -1,31 +1,20 @@
-// Copyright (c) 2015 Daniel Grunwald
+// Copyright (c) 2017-present PyO3 Project and Contributors
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
+// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 extern crate num_traits;
 
 use self::num_traits::cast::cast;
 use std::os::raw::{c_long, c_double};
-use python::{Python, PythonObject};
-use err::{self, PyResult, PyErr};
-use super::object::PyObject;
-use super::exc;
+
+use ::{PyPtr, pptr};
 use ffi;
-use conversion::{ToPyObject, FromPyObject};
+use super::exc;
+use objects::PyObject;
+use token::{PyObjectMarker, PythonObjectWithGilToken};
+use python::{ToPythonPointer, Python};
+use err::{PyResult, PyErr};
+use conversion::{ToPyObject, FromPyObject, IntoPyObject};
 
 /// Represents a Python `int` object.
 ///
@@ -33,8 +22,8 @@ use conversion::{ToPyObject, FromPyObject};
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
-pub struct PyLong(PyObject);
-pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
+pub struct PyLong<'p>(pptr<'p>);
+pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
 
 /// Represents a Python `float` object.
 ///
@@ -42,44 +31,43 @@ pyobject_newtype!(PyLong, PyLong_Check, PyLong_Type);
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat(PyObject);
-pyobject_newtype!(PyFloat, PyFloat_Check, PyFloat_Type);
+pub struct PyFloat<'p>(pptr<'p>);
+pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 
-impl PyFloat {
+impl<'p> PyFloat<'p> {
     /// Creates a new Python `float` object.
-    pub fn new(py: Python, val: c_double) -> PyFloat {
+    pub fn new(py: Python<'p>, val: c_double) -> PyFloat<'p> {
         unsafe {
-            err::cast_from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val))
+            PyFloat(pptr::from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val)))
         }
     }
 
     /// Gets the value of this float.
-    pub fn value(&self, _py: Python) -> c_double {
+    pub fn value(&self) -> c_double {
         unsafe { ffi::PyFloat_AsDouble(self.0.as_ptr()) }
     }
 }
 
+
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-
-            fn to_py_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
                 unsafe {
-                    err::from_owned_ptr_or_panic(py,
-                        ffi::PyLong_FromLong(*self as c_long))
+                    PyPtr::from_owned_ptr_or_panic(ffi::PyLong_FromLong(*self as c_long))
                 }
             }
         }
 
-        extract!(obj to $rust_type; py => {
+        pyobject_extract!(obj to $rust_type => {
             let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
-            if val == -1 && PyErr::occurred(py) {
-                return Err(PyErr::fetch(py));
+            if val == -1 && PyErr::occurred(obj.gil()) {
+                return Err(PyErr::fetch(obj.gil()));
             }
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(py))
+                None => Err(overflow_error(obj.gil()))
             }
         });
     )
@@ -90,13 +78,14 @@ macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_py_object(&self, py: Python) -> PyObject {
-                (*self as $larger_type).to_py_object(py)
+            fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+                (*self as $larger_type).to_object(py)
             }
         }
 
-        extract!(obj to $rust_type; py => {
-            let val = try!(obj.extract::<$larger_type>(py));
+        pyobject_extract!(obj to $rust_type => {
+            let py = obj.gil();
+            let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
                 None => Err(overflow_error(py))
@@ -118,24 +107,30 @@ fn err_if_invalid_value<'p, T: PartialEq>
 
 macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
-        impl <'p> ToPyObject for $rust_type {
+        impl ToPyObject for $rust_type {
 
-            fn to_py_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
                 unsafe {
-                    err::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
+                    PyPtr::from_owned_ptr_or_panic($pylong_from_ll_or_ull(*self))
                 }
             }
         }
 
-        impl <'source> FromPyObject<'source> for $rust_type {
-            fn extract(py: Python, obj: &'source PyObject) -> PyResult<$rust_type> {
-                let ptr = obj.as_ptr();
+        impl<'source> FromPyObject<'source> for $rust_type {
+            fn extract(py: &'source PyObject) -> PyResult<$rust_type>
+                //where S: PyTypeInfo
+            {
+                let ptr = py.as_ptr();
                 unsafe {
                     if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(py, !0, $pylong_as_ull_or_ull(ptr))
+                        err_if_invalid_value(py.gil(), !0, $pylong_as_ull_or_ull(ptr))
                     } else {
-                        let num = try!(err::result_from_owned_ptr(py, ffi::PyNumber_Long(ptr)));
-                        err_if_invalid_value(py, !0, $pylong_as_ull_or_ull(num.as_ptr()))
+                        let num = ffi::PyNumber_Long(ptr);
+                        if num.is_null() {
+                            Err(PyErr::fetch(py.gil()))
+                        } else {
+                            err_if_invalid_value(py.gil(), !0, $pylong_as_ull_or_ull(num))
+                        }
                     }
                 }
             }
@@ -174,15 +169,15 @@ int_fits_larger_int!(usize, u64);
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
 impl ToPyObject for f64 {
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, *self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyFloat::new(py, *self).into_object(py)
     }
 }
 
-extract!(obj to f64; py => {
+pyobject_extract!(obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
-    if v == -1.0 && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
+    if v == -1.0 && PyErr::occurred(obj.gil()) {
+        Err(PyErr::fetch(obj.gil()))
     } else {
         Ok(v)
     }
@@ -193,19 +188,19 @@ fn overflow_error(py: Python) -> PyErr {
 }
 
 impl ToPyObject for f32 {
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, *self as f64).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyFloat::new(py, *self as f64).into_object(py)
     }
 }
 
-extract!(obj to f32; py => {
-    Ok(try!(obj.extract::<f64>(py)) as f32)
+pyobject_extract!(obj to f32 => {
+    Ok(try!(obj.extract::<f64>()) as f32)
 });
 
 #[cfg(test)]
 mod test {
     use std;
-    use python::{Python, PythonObject};
+    use python::Python;
     use conversion::ToPyObject;
 
     macro_rules! num_to_py_object_and_back (
@@ -215,8 +210,8 @@ mod test {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 let val = 123 as $t1;
-                let obj = val.to_py_object(py).into_object();
-                assert_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                let obj = val.to_object(py).into_object(py);
+                assert_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
             }
         )
     );
@@ -244,10 +239,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u32::MAX;
-        let obj = v.to_py_object(py).into_object();
-        assert_eq!(v, obj.extract::<u32>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<u32>().unwrap());
+        assert_eq!(v as u64, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<i32>().is_err());
     }
     
     #[test]
@@ -255,10 +250,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::i64::MAX;
-        let obj = v.to_py_object(py).into_object();
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<u32>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert_eq!(v as u64, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<u32>().is_err());
     }
     
     #[test]
@@ -266,10 +261,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::i64::MIN;
-        let obj = v.to_py_object(py).into_object();
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
-        assert!(obj.extract::<u64>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<i64>().unwrap());
+        assert!(obj.extract::<i32>().is_err());
+        assert!(obj.extract::<u64>().is_err());
     }
     
     #[test]
@@ -277,9 +272,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u64::MAX;
-        let obj = v.to_py_object(py).into_object();
-        println!("{:?}", obj);
-        assert_eq!(v, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i64>(py).is_err());
+        let obj = v.to_object(py).into_object(py);
+        assert_eq!(v, obj.extract::<u64>().unwrap());
+        assert!(obj.extract::<i64>().is_err());
     }
 }

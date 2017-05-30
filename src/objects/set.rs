@@ -1,17 +1,19 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
+
 use std::{hash, collections};
 use ffi;
-use python::{Python, PythonObject};
+use pyptr::Py;
+use python::Python;
 use conversion::ToPyObject;
-use objects::{PyObject, PyIterator};
+use objects::PyObject; //, PyIterator};
 use err::{self, PyResult, PyErr};
 
 
 /// Represents a Python `set`
-pub struct PySet(PyObject);
+pub struct PySet;
 /// Represents a  Python `frozenset`
-pub struct PyFrozenSet(PyObject);
+pub struct PyFrozenSet;
 
 pyobject_newtype!(PySet, PySet_Check, PySet_Type);
 pyobject_newtype!(PyFrozenSet, PyFrozenSet_Check, PyFrozenSet_Type);
@@ -85,7 +87,7 @@ impl PySet {
 impl<T> ToPyObject for collections::HashSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_py_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
         let set = PySet::new::<T>(py, &[]);
         for val in self {
             set.add(py, val).unwrap();
@@ -97,7 +99,7 @@ impl<T> ToPyObject for collections::HashSet<T>
 impl<T> ToPyObject for collections::BTreeSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_py_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> Py<'p, PyObject> {
         let set = PySet::new::<T>(py, &[]);
         for val in self {
             set.add(py, val).unwrap();

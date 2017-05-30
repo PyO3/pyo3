@@ -19,11 +19,13 @@
 use std::os::raw;
 use std::{mem, slice, cell};
 use std::ffi::CStr;
-use ffi;
 use libc;
-use err::{self, PyResult};
+
+use ffi;
 use exc;
-use python::{Python, PyDrop};
+use err::{self, PyResult};
+use pyptr::{Py};
+use python::{Python, ToPythonPointer};
 use objects::PyObject;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
@@ -137,10 +139,12 @@ fn validate(b: &ffi::Py_buffer) {
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
-    pub fn get(py: Python, obj: &PyObject) -> PyResult<PyBuffer> {
+    pub fn get<'p>(obj: &PyObject<'p>) -> PyResult<PyBuffer> {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
-            err::error_on_minusone(py, ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
+            err::error_on_minusone(
+                obj.token(),
+                ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
             validate(&buf);
             Ok(PyBuffer(buf))
         }
@@ -494,22 +498,18 @@ impl PyBuffer {
 }
 
 fn slice_length_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(py, "Slice length does not match buffer length."))
+    Err(err::PyErr::new::<exc::BufferError, _>(
+        py, "Slice length does not match buffer length."))
 }
 
 fn incompatible_format_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(py, "Slice type is incompatible with buffer format."))
+    Err(err::PyErr::new::<exc::BufferError, _>(
+        py, "Slice type is incompatible with buffer format."))
 }
 
 fn buffer_readonly_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(py, "Cannot write to read-only buffer."))
-}
-
-impl PyDrop for PyBuffer {
-    #[inline]
-    fn release_ref(mut self, _py: Python) {
-        unsafe { ffi::PyBuffer_Release(&mut *self.0) }
-    }
+    Err(err::PyErr::new::<exc::BufferError, _>(
+        py, "Cannot write to read-only buffer."))
 }
 
 impl Drop for PyBuffer {
@@ -565,12 +565,13 @@ impl_element!(isize, SignedInteger);
 impl_element!(f32, Float);
 impl_element!(f64, Float);
 
-#[cfg(test)]
+
+//#[cfg(test)]
 mod test {
     use std;
-    use python::{Python, PythonObject, PyDrop};
+    use python::{Python};
     use conversion::ToPyObject;
-    use objects::{PySequence, PyList, PyTuple, PyIterator};
+    use objects::{PyList, PyTuple};//, PySequence, PyIterator};
     use objectprotocol::ObjectProtocol;
     use super::PyBuffer;
 
@@ -585,7 +586,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let bytes = py.eval("b'abcde'", None, None).unwrap();
-        let buffer = PyBuffer::get(py, &bytes).unwrap();
+        let buffer = PyBuffer::get(&bytes).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 5);
         assert_eq!(buffer.format().to_str().unwrap(), "B");
@@ -620,8 +621,9 @@ mod test {
     fn test_array_buffer() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let array = py.import("array").unwrap().as_object().call_method(py, "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
-        let buffer = PyBuffer::get(py, &array).unwrap();
+        let array = py.import("array").unwrap().call_method(
+            "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
+        let buffer = PyBuffer::get(&array).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 4);
         assert_eq!(buffer.format().to_str().unwrap(), "f");

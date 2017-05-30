@@ -1,39 +1,16 @@
-// Copyright (c) 2015 Daniel Grunwald
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-
 use ffi;
-use python::{Python, PythonObject};
-use objects::{PyObject, PyTuple};
 use err::PyResult;
+use pyptr::PyPtr;
+use python::{Python, ToPythonPointer};
+use objects::{PyObject, PyTuple};
+use token::PyObjectMarker;
 
-/// Conversion trait that allows various objects to be converted into Python objects.
+
+/// Conversion trait that allows various objects to be converted into PyObject
 pub trait ToPyObject {
 
     /// Converts self into a Python object.
-    fn to_py_object(&self, py: Python) -> PyObject;
-
-    /// Converts self into a Python object. (Consumes self)
-    #[inline]
-    fn into_py_object(self, py: Python) -> PyObject
-        where Self: Sized
-    {
-        self.to_py_object(py)
-    }
+    fn to_object<'p>(&self, py: Python<'p>) -> PyPtr<PyObjectMarker>;
 
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -44,34 +21,25 @@ pub trait ToPyObject {
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
-        let obj = self.to_py_object(py).into_object();
+        let obj = self.to_object(py).park();
         f(obj.as_ptr())
     }
-
-    // FFI functions that accept a borrowed reference will use:
-    //   input.with_borrowed_ptr(|obj| ffi::Call(obj)
-    // 1) input is &PyObject
-    //   -> with_borrowed_ptr() just forwards to the closure
-    // 2) input is PyObject
-    //   -> with_borrowed_ptr() just forwards to the closure
-    // 3) input is &str, int, ...
-    //   -> to_py_object() allocates new Python object; FFI call happens; PyObject::drop() calls Py_DECREF()
-    
-    // FFI functions that steal a reference will use:
-    //   let input = try!(input.into_py_object()); ffi::Call(input.steal_ptr())
-    // 1) input is &PyObject
-    //   -> into_py_object() calls Py_INCREF
-    // 2) input is PyObject
-    //   -> into_py_object() is no-op
-    // 3) input is &str, int, ...
-    //   -> into_py_object() allocates new Python object
 }
+
+pub trait IntoPyObject {
+
+    /// Converts self into a Python object. (Consumes self)
+    #[inline]
+    fn into_object(self, py: Python) -> PyPtr<PyObjectMarker>
+        where Self: Sized;
+}
+
 
 /// Conversion trait that allows various objects to be converted into PyTuple object.
 pub trait ToPyTuple {
 
     /// Converts self into a PyTuple object.
-    fn to_py_tuple(&self, py: Python) -> PyTuple;
+    fn to_py_tuple<'p>(&self, py: Python<'p>) -> PyTuple<'p>;
 
     /// Converts self into a PyTuple object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -79,13 +47,11 @@ pub trait ToPyTuple {
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
-        let obj = self.to_py_tuple(py).into_object();
+        let obj = self.to_py_tuple(py);
         f(obj.as_ptr())
     }
 }
 
-py_impl_to_py_object_for_python_object!(PyObject);
-py_impl_from_py_object_for_python_object!(PyObject);
 
 /// FromPyObject is implemented by various types that can be extracted from a Python object.
 ///
@@ -109,60 +75,46 @@ py_impl_from_py_object_for_python_object!(PyObject);
 /// the inherent method `PyObject::extract()` can be used.
 pub trait FromPyObject<'source> : Sized {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self>;
+    fn extract(py: &'source PyObject<'source>) -> PyResult<Self>;
 }
 
-pub trait RefFromPyObject {
-    fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
+pub trait RefFromPyObject<'p> {
+    fn with_extracted<F, R>(obj: &'p PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R;
 }
 
-impl <T: ?Sized> RefFromPyObject for T
-    where for<'a> &'a T: FromPyObject<'a>
+impl <'p, T: ?Sized> RefFromPyObject<'p> for T
+    where for<'a> &'a T: FromPyObject<'p> + Sized
 {
     #[inline]
-    fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &'p PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R
     {
-        match FromPyObject::extract(py, obj) {
+        match FromPyObject::extract(obj) {
             Ok(val) => Ok(f(val)),
             Err(e) => Err(e)
         }
     }
 }
 
+// Default IntoPyObject implementation
+impl<T> IntoPyObject for T where T: ToPyObject
+{
+    #[inline]
+    default fn into_object(self, py: Python) -> PyPtr<PyObjectMarker>
+    {
+        self.to_object(py)
+    }
+}
+
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
-/*impl<T> ToPyObject for T where T: PythonObject {
-    #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyClone::clone_ref(self, py).into_object()
-    }
-
-    #[inline]
-    default fn into_py_object(self, _py: Python) -> PyObject {
-        self.into_object()
-    }
-
-    #[inline]
-    default fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
-    {
-        f(PythonObject::as_object(self).as_ptr())
-    }
-}*/
-
 // ToPyObject for references
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 
     #[inline]
-    default fn to_py_object(&self, py: Python) -> PyObject {
-        <T as ToPyObject>::to_py_object(*self, py)
-    }
-
-    #[inline]
-    fn into_py_object(self, py: Python) -> PyObject {
-        <T as ToPyObject>::to_py_object(self, py)
+    default fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        <T as ToPyObject>::to_object(*self, py)
     }
 
     #[inline]
@@ -177,35 +129,40 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 /// `Option::None` is converted to Python `None`.
 impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
-    fn to_py_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         match *self {
-            Some(ref val) => val.to_py_object(py).into_object(),
-            None => py.None()
-        }
-    }
-
-    fn into_py_object(self, py: Python) -> PyObject {
-        match self {
-            Some(val) => val.into_py_object(py).into_object(),
+            Some(ref val) => val.to_object(py),
             None => py.None()
         }
     }
 }
 
+impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
+
+    fn into_object(self, py: Python) -> PyPtr<PyObjectMarker> {
+        match self {
+            Some(val) => val.into_object(py),
+            None => py.None()
+        }
+    }
+}
+
+
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_py_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         py.None()
     }
 }
 
 
 impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
-    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+    fn extract(obj: &'source PyObject) -> PyResult<Self>
+    {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {
-            match T::extract(py, obj) {
+            match T::extract(obj) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(e)
             }

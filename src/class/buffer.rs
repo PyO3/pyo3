@@ -9,83 +9,77 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::{Python, PythonObject};
-use objects::PyObject;
-use callback::{handle_callback, UnitCallbackConverter};
-use class::NO_METHODS;
+use python::Python;
+use typeob::PyTypeInfo;
+use callback::UnitCallbackConverter;
 
 
 /// Buffer protocol interface
-pub trait PyBufferProtocol {
+#[allow(unused_variables)]
+pub trait PyBufferProtocol<'p> : PyTypeInfo + Sized + 'static
+{
+    fn bf_getbuffer(&'p self, py: Python<'p>,
+                    view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
+        where Self: PyBufferGetBufferProtocol<'p> { unimplemented!() }
 
-    fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int)
-                    -> PyResult<()>;
-
-    fn bf_releasebuffer(&self, py: Python, view: *mut ffi::Py_buffer)
-                        -> PyResult<()>;
+    fn bf_releasebuffer(&'p self, py: Python<'p>, view: *mut ffi::Py_buffer) -> Self::Result
+        where Self: PyBufferReleaseBufferProtocol<'p> { unimplemented!() }
 }
+
+pub trait PyBufferGetBufferProtocol<'p>: PyBufferProtocol<'p> {
+    type Result: Into<PyResult<()>>;
+}
+
+pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
+    type Result: Into<PyResult<()>>;
+}
+
 
 #[doc(hidden)]
 pub trait PyBufferProtocolImpl {
-    fn methods() -> &'static [&'static str];
+    fn tp_as_buffer() -> Option<ffi::PyBufferProcs>;
 }
 
 impl<T> PyBufferProtocolImpl for T {
-    default fn methods() -> &'static [&'static str] {
-        NO_METHODS
+    default fn tp_as_buffer() -> Option<ffi::PyBufferProcs> { None }
+}
+
+impl<'p, T> PyBufferProtocolImpl for T where T: PyBufferProtocol<'p> {
+    #[inline]
+    fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
+        Some(ffi::PyBufferProcs{
+            bf_getbuffer: Self::cb_bf_getbuffer(),
+            bf_releasebuffer: None,
+        })
     }
 }
 
-impl<T> PyBufferProtocol for T {
+trait PyBufferGetBufferProtocolImpl {
+    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc>;
+}
 
-    default fn bf_getbuffer(&self, _py: Python,
-                            _view: *mut ffi::Py_buffer, _flags: c_int) -> PyResult<()> {
-        Ok(())
-    }
-    default fn bf_releasebuffer(&self, _py: Python,
-                                _view: *mut ffi::Py_buffer) -> PyResult<()> {
-        Ok(())
+impl<'p, T> PyBufferGetBufferProtocolImpl for T where T: PyBufferProtocol<'p>
+{
+    #[inline]
+    default fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
+        None
     }
 }
 
-
-impl ffi::PyBufferProcs {
-
-    /// Construct PyBufferProcs struct for PyTypeObject.tp_as_buffer
-    pub fn new<T>() -> Option<ffi::PyBufferProcs>
-        where T: PyBufferProtocol + PyBufferProtocolImpl + PythonObject
-    {
-        let methods = T::methods();
-        if methods.is_empty() {
-            return None
+impl<T> PyBufferGetBufferProtocolImpl for T where T: for<'p> PyBufferGetBufferProtocol<'p>
+{
+    #[inline]
+    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
+        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
+                                     arg1: *mut ffi::Py_buffer,
+                                     arg2: c_int) -> c_int
+            where T: for<'p> PyBufferGetBufferProtocol<'p>
+        {
+            const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
+            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
+                slf.bf_getbuffer(py, arg1, arg2).into()
+            })
         }
-
-        let mut buf_procs: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
-
-        for name in methods {
-            match name {
-                &"bf_getbuffer" => {
-                    buf_procs.bf_getbuffer = {
-                        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer, arg2: c_int) -> c_int
-                            where T: PyBufferProtocol + PythonObject
-                        {
-                            const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
-                            handle_callback(LOCATION, UnitCallbackConverter,
-                                            |py| {
-                                                let slf = PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<T>();
-                                                let result = slf.bf_getbuffer(py, arg1, arg2);
-                                                ::PyDrop::release_ref(slf, py);
-                                                result
-                                            }
-                            )
-                        }
-                        Some(wrap::<T>)
-                    }
-                },
-                _ => ()
-            }
-        }
-
-        Some(buf_procs)
+        Some(wrap::<T>)
     }
 }

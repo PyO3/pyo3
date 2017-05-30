@@ -33,6 +33,7 @@ pub struct FnSpec<'a> {
     pub tp: FnType,
     pub attrs: Vec<FnAttr>,
     pub args: Vec<FnArg<'a>>,
+    pub output: syn::Ty,
 }
 
 impl<'a> FnSpec<'a> {
@@ -74,11 +75,16 @@ impl<'a> FnSpec<'a> {
             }
         }
 
+        let ty = match sig.decl.output {
+            syn::FunctionRetTy::Default => syn::Ty::Infer,
+            syn::FunctionRetTy::Ty(ref ty) => ty.clone()
+        };
 
         FnSpec {
             tp: fn_type,
             attrs: fn_attrs,
-            args: arguments
+            args: arguments,
+            output: ty,
         }
     }
 
@@ -141,11 +147,11 @@ impl<'a> FnSpec<'a> {
 
 fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty) -> Option<&'a syn::Ty> {
     match ty {
-        &syn::Ty::Path(ref qs, ref path) => {
-            if let &Some(ref qs) = qs {
-                panic!("explicit Self type in a 'qualified path' is not supported: {:?} - {:?}",
-                       name, qs);
-            }
+        &syn::Ty::Path(_, ref path) => {
+            //if let &Some(ref qs) = qs {
+            //    panic!("explicit Self type in a 'qualified path' is not supported: {:?} - {:?}",
+            //           name, qs);
+            //}
 
             if let Some(segment) = path.segments.last() {
                 match segment.ident.as_ref() {

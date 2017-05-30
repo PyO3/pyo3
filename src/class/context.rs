@@ -5,33 +5,34 @@
 //!
 
 use err::PyResult;
-use python::{Python, PythonObject};
+use python::Python;
+use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
 
 /// Context manager interface
 #[allow(unused_variables)]
-pub trait PyContextProtocol: PythonObject {
+pub trait PyContextProtocol<'p>: PyTypeInfo {
 
-    fn __enter__(&self, py: Python)
-                  -> Self::Result where Self: PyContextEnterProtocol { unimplemented!() }
+    fn __enter__(&'p mut self, py: Python<'p>)
+                 -> Self::Result where Self: PyContextEnterProtocol<'p> {unimplemented!()}
 
-    fn __exit__(&self, py: Python,
+    fn __exit__(&'p mut self, py: Python<'p>,
                 exc_type: Option<Self::ExcType>,
                 exc_value: Option<Self::ExcValue>,
                 traceback: Option<Self::Traceback>)
-                -> Self::Result where Self: PyContextExitProtocol { unimplemented!() }
+                -> Self::Result where Self: PyContextExitProtocol<'p> { unimplemented!() }
 }
 
-pub trait PyContextEnterProtocol: PyContextProtocol {
+pub trait PyContextEnterProtocol<'p>: PyContextProtocol<'p> {
     type Success: ::ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PyContextExitProtocol: PyContextProtocol {
-    type ExcType: for<'a> ::FromPyObject<'a>;
-    type ExcValue: for<'a> ::FromPyObject<'a>;
-    type Traceback: for<'a> ::FromPyObject<'a>;
+pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
+    type ExcType: ::FromPyObject<'p>;
+    type ExcValue: ::FromPyObject<'p>;
+    type Traceback: ::FromPyObject<'p>;
     type Success: ::ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -48,7 +49,7 @@ impl<T> PyContextProtocolImpl for T {
     }
 }
 
-impl<T> PyContextProtocolImpl for T where T: PyContextProtocol {
+impl<'p, T> PyContextProtocolImpl for T where T: PyContextProtocol<'p> {
     #[inline]
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
@@ -69,8 +70,7 @@ pub trait PyContextEnterProtocolImpl {
     fn __enter__() -> Option<PyMethodDef>;
 }
 
-impl<T> PyContextEnterProtocolImpl for T
-    where T: PyContextProtocol
+impl<'p, T> PyContextEnterProtocolImpl for T where T: PyContextProtocol<'p>
 {
     #[inline]
     default fn __enter__() -> Option<PyMethodDef> {
@@ -83,8 +83,7 @@ pub trait PyContextExitProtocolImpl {
     fn __exit__() -> Option<PyMethodDef>;
 }
 
-impl<T> PyContextExitProtocolImpl for T
-    where T: PyContextProtocol
+impl<'p, T> PyContextExitProtocolImpl for T where T: PyContextProtocol<'p>
 {
     #[inline]
     default fn __exit__() -> Option<PyMethodDef> {

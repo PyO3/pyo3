@@ -1,41 +1,30 @@
-// Copyright (c) 2015 Daniel Grunwald
+// Copyright (c) 2017-present PyO3 Project and Contributors
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
+// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std;
 use std::{mem, str, char};
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::os::raw::c_char;
+
+use ::{PyPtr, pptr};
 use ffi;
-use python::{Python, PythonObject, ToPythonPointer};
+use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
-use err::{self, PyResult, PyErr};
-use conversion::{FromPyObject, RefFromPyObject, ToPyObject};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
+use err::{PyResult, PyErr};
+use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 
 /// Represents a Python string.
-pub struct PyString(PyObject);
+pub struct PyString<'p>(pptr<'p>);
 
-pyobject_newtype!(PyString, PyUnicode_Check, PyUnicode_Type);
+pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type);
 
 /// Represents a Python byte string.
-pub struct PyBytes(PyObject);
+pub struct PyBytes<'p>(pptr<'p>);
 
-pyobject_newtype!(PyBytes, PyBytes_Check, PyBytes_Type);
+pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type);
 
 
 /// Enum of possible Python string representations.
@@ -145,40 +134,41 @@ impl <'a> PyStringData<'a> {
     }
 }
 
-impl PyString {
+impl<'p> PyString<'p> {
+
     /// Creates a new Python string object.
     ///
-    /// On Python 2.7, this function will create a byte string if the
-    /// input string is ASCII-only; and a unicode string otherwise.
-    /// Use `PyUnicode::new()` to always create a unicode string.
-    ///
     /// Panics if out of memory.
-    pub fn new(py: Python, s: &str) -> PyString {
+    pub fn new(py: Python<'p>, s: &str) -> PyString<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            err::cast_from_owned_ptr_or_panic(py,
-                                              ffi::PyUnicode_FromStringAndSize(ptr, len))
+            PyString(pptr::from_owned_ptr_or_panic(
+                py, ffi::PyUnicode_FromStringAndSize(ptr, len)))
         }
     }
 
-    pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str) -> PyResult<PyString> {
+    pub fn from_object(src: &'p PyObject, encoding: &str, errors: &str)
+                       -> PyResult<PyString<'p>> {
         unsafe {
-            err::result_cast_from_owned_ptr(
-                py, ffi::PyUnicode_FromEncodedObject(
-                    src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))
+            Ok(PyString(
+                pptr::from_owned_ptr_or_err(
+                    src.gil(), ffi::PyUnicode_FromEncodedObject(
+                        src.as_ptr(),
+                        encoding.as_ptr() as *const i8,
+                        errors.as_ptr() as *const i8))?))
         }
     }
 
     /// Gets the python string data in its underlying representation.
-    pub fn data(&self, py: Python) -> PyStringData {
+    pub fn data(&self) -> PyStringData {
         // TODO: return the original representation instead
         // of forcing the UTF-8 representation to be created.
         unsafe {
             let mut size : ffi::Py_ssize_t = mem::uninitialized();
-            let data = ffi::PyUnicode_AsUTF8AndSize(self.as_ptr(), &mut size) as *const u8;
+            let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
             if data.is_null() {
-                PyErr::fetch(py).print(py);
+                PyErr::fetch(self.gil()).print(self.gil());
                 panic!("PyUnicode_AsUTF8AndSize failed");
             }
             PyStringData::Utf8(std::slice::from_raw_parts(data, size as usize))
@@ -189,35 +179,35 @@ impl PyString {
     ///
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
-    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
-        self.data(py).to_string(py)
+    pub fn to_string(&self) -> PyResult<Cow<str>> {
+        self.data().to_string(self.gil())
     }
 
     /// Convert the `PyString` into a Rust string.
     ///
     /// Unpaired surrogates invalid UTF-8 sequences are
     /// replaced with U+FFFD REPLACEMENT CHARACTER.
-    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
-        self.data(py).to_string_lossy()
+    pub fn to_string_lossy(&self) -> Cow<str> {
+        self.data().to_string_lossy()
     }
 }
 
-impl PyBytes {
+impl<'p> PyBytes<'p> {
     /// Creates a new Python byte string object.
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(py: Python, s: &[u8]) -> PyBytes {
+    pub fn new(py: Python<'p>, s: &[u8]) -> PyBytes<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            err::cast_from_owned_ptr_or_panic(py,
-                ffi::PyBytes_FromStringAndSize(ptr, len))
+            PyBytes(pptr::from_owned_ptr_or_panic(
+                py, ffi::PyBytes_FromStringAndSize(ptr, len)))
         }
     }
 
     /// Gets the Python string data as byte slice.
-    pub fn data(&self, _py: Python) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
@@ -230,8 +220,8 @@ impl PyBytes {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyString::new(py, self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyString::new(py, self).into_object(py)
     }
 }
 
@@ -239,8 +229,8 @@ impl ToPyObject for str {
 /// See `PyString::new` for details on the conversion.
 impl <'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyString::new(py, self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyString::new(py, self).into_object(py)
     }
 }
 
@@ -248,39 +238,39 @@ impl <'a> ToPyObject for Cow<'a, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_py_object(&self, py: Python) -> PyObject {
-        PyString::new(py, self).into_object()
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+        PyString::new(py, self).into_object(py)
     }
 }
+
+// /// Allows extracting strings from Python objects.
+// /// Accepts Python `str` and `unicode` objects.
+pyobject_extract!(obj to Cow<'source, str> => {
+    try!(obj.cast_as::<PyString>()).to_string()
+});
+
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-impl <'source> FromPyObject<'source> for Cow<'source, str> {
-    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
-        try!(obj.cast_as::<PyString>(py)).to_string(py)
-    }
-}
+pyobject_extract!(obj to String => {
+    let s = try!(obj.cast_as::<PyString>());
+    s.to_string().map(Cow::into_owned)
+});
 
-/// Allows extracting strings from Python objects.
-/// Accepts Python `str` and `unicode` objects.
-impl <'source> FromPyObject<'source> for String {
-    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
-        obj.extract::<Cow<str>>(py).map(Cow::into_owned)
-    }
-}
 
-impl RefFromPyObject for str {
-    fn with_extracted<F, R>(py: Python, obj: &PyObject, f: F) -> PyResult<R>
+impl<'p> RefFromPyObject<'p> for str {
+    fn with_extracted<F, R>(obj: &'p PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
-        let s = try!(obj.extract::<Cow<str>>(py));
+        let p = PyObject::from_borrowed_ptr(obj.gil(), obj.as_ptr());
+        let s = try!(p.extract::<Cow<str>>());
         Ok(f(&s))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObject};
+    use python::Python;
     use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
@@ -288,8 +278,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "\u{1F30F}";
-        let py_string = s.to_py_object(py).into_object();
-        assert_eq!(s, py_string.extract::<String>(py).unwrap());
+        let py_string = s.to_object(py);
+        assert_eq!(s, py_string.as_object(py).extract::<String>().unwrap());
     }
 
     #[test]
@@ -297,9 +287,9 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "Hello Python";
-        let py_string = s.to_py_object(py).into_object();
+        let py_string = s.to_object(py);
         let mut called = false;
-        RefFromPyObject::with_extracted(py, &py_string,
+        RefFromPyObject::with_extracted(&py_string.as_object(py),
             |s2: &str| {
                 assert_eq!(s, s2);
                 called = true;
@@ -307,4 +297,3 @@ mod test {
         assert!(called);
     }
 }
-

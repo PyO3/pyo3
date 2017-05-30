@@ -8,27 +8,28 @@
 
 use ffi;
 use err::PyResult;
-use python::{Python, PythonObject};
+use python::Python;
+use typeob::PyTypeInfo;
 use callback::PyObjectCallbackConverter;
 
 
 /// Iterator protocol
 #[allow(unused_variables)]
-pub trait PyIterProtocol : PythonObject {
-    fn __iter__(&self, py: Python)
-                 -> Self::Result where Self: PyIterIterProtocol { unimplemented!() }
+pub trait PyIterProtocol<'p> : PyTypeInfo {
+    fn __iter__(&'p mut self, py: Python<'p>)
+                -> Self::Result where Self: PyIterIterProtocol<'p> { unimplemented!() }
 
-    fn __next__(&self, py: Python)
-                -> Self::Result where Self: PyIterNextProtocol { unimplemented!() }
+    fn __next__(&'p mut self, py: Python<'p>)
+                -> Self::Result where Self: PyIterNextProtocol<'p> { unimplemented!() }
 
 }
 
-pub trait PyIterIterProtocol: PyIterProtocol {
+pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
     type Success: ::ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PyIterNextProtocol: PyIterProtocol {
+pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Success: ::ToPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -44,7 +45,7 @@ impl<T> PyIterProtocolImpl for T {
     default fn tp_as_iter(_: &mut ffi::PyTypeObject) {}
 }
 
-impl<T> PyIterProtocolImpl for T where T: PyIterProtocol {
+impl<'p, T> PyIterProtocolImpl for T where T: PyIterProtocol<'p> {
     #[inline]
     fn tp_as_iter(typeob: &mut ffi::PyTypeObject) {
         typeob.tp_iter = Self::tp_iter();
@@ -56,8 +57,7 @@ trait PyIterIterProtocolImpl {
     fn tp_iter() -> Option<ffi::getiterfunc>;
 }
 
-impl<T> PyIterIterProtocolImpl for T
-    where T: PyIterProtocol
+impl<'p, T> PyIterIterProtocolImpl for T where T: PyIterProtocol<'p>
 {
     #[inline]
     default fn tp_iter() -> Option<ffi::getiterfunc> {
@@ -65,12 +65,11 @@ impl<T> PyIterIterProtocolImpl for T
     }
 }
 
-impl<T> PyIterIterProtocolImpl for T
-    where T: PyIterIterProtocol
+impl<T> PyIterIterProtocolImpl for T where T: for<'p> PyIterIterProtocol<'p>
 {
     #[inline]
     fn tp_iter() -> Option<ffi::getiterfunc> {
-        py_unary_func_!(PyIterIterProtocol, T::__iter__, PyObjectCallbackConverter)
+        py_unary_func!(PyIterIterProtocol, T::__iter__, T::Success, PyObjectCallbackConverter)
     }
 }
 
@@ -78,8 +77,8 @@ trait PyIterNextProtocolImpl {
     fn tp_iternext() -> Option<ffi::iternextfunc>;
 }
 
-impl<T> PyIterNextProtocolImpl for T
-    where T: PyIterProtocol
+impl<'p, T> PyIterNextProtocolImpl for T
+    where T: PyIterProtocol<'p>
 {
     #[inline]
     default fn tp_iternext() -> Option<ffi::iternextfunc> {
@@ -87,11 +86,10 @@ impl<T> PyIterNextProtocolImpl for T
     }
 }
 
-impl<T> PyIterNextProtocolImpl for T
-    where T: PyIterNextProtocol
+impl<T> PyIterNextProtocolImpl for T where T: for<'p> PyIterNextProtocol<'p>
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unary_func_!(PyIterNextProtocol, T::__next__, PyObjectCallbackConverter)
+        py_unary_func!(PyIterNextProtocol, T::__next__, T::Success, PyObjectCallbackConverter)
     }
 }
