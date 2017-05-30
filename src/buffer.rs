@@ -24,7 +24,7 @@ use libc;
 use ffi;
 use exc;
 use err::{self, PyResult};
-use pyptr::{Py};
+use pointers::{Py};
 use python::{Python, ToPythonPointer};
 use objects::PyObject;
 

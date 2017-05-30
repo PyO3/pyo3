@@ -1,4 +1,4 @@
-use ::{pptr, PyPtr};
+use ::{pyptr, PyPtr};
 use ffi;
 use token::PyObjectMarker;
 use python::{ToPythonPointer, Python};
@@ -6,7 +6,7 @@ use native::PyNativeObject;
 use conversion::ToPyObject;
 
 /// Represents a Python `bool`.
-pub struct PyBool<'p>(pptr<'p>);
+pub struct PyBool<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyBool, PyBool_Check, PyBool_Type);
 
@@ -15,7 +15,7 @@ impl<'p> PyBool<'p> {
     #[inline]
     pub fn new(py: Python<'p>, val: bool) -> PyBool<'p> {
         unsafe { PyBool(
-            pptr::from_borrowed_ptr(py, if val { ffi::Py_True() } else { ffi::Py_False() })
+            pyptr::from_borrowed_ptr(py, if val { ffi::Py_True() } else { ffi::Py_False() })
         )}
     }
 

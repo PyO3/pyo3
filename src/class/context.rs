@@ -25,7 +25,7 @@ pub trait PyContextProtocol<'p>: PyTypeInfo {
 }
 
 pub trait PyContextEnterProtocol<'p>: PyContextProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -33,7 +33,7 @@ pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
     type ExcType: ::FromPyObject<'p>;
     type ExcValue: ::FromPyObject<'p>;
     type Traceback: ::FromPyObject<'p>;
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 

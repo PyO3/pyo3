@@ -3,20 +3,20 @@
 
 use std::{hash, collections};
 use ffi;
-use pyptr::PyPtr;
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer};
-use conversion::{ToPyObject, IntoPyObject};
+use conversion::ToPyObject;
 use objects::{PyObject, PyIterator};
 use err::{self, PyResult, PyErr};
-use pptr;
+use pyptr;
 use token::{PyObjectMarker, PythonObjectWithGilToken};
 use objectprotocol::ObjectProtocol;
 
 
 /// Represents a Python `set`
-pub struct PySet<'p>(pptr<'p>);
+pub struct PySet<'p>(pyptr<'p>);
 /// Represents a  Python `frozenset`
-pub struct PyFrozenSet<'p>(pptr<'p>);
+pub struct PyFrozenSet<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PySet, PySet_Check, PySet_Type);
 pyobject_nativetype!(PyFrozenSet, PyFrozenSet_Check, PyFrozenSet_Type);
@@ -29,7 +29,7 @@ impl<'p> PySet<'p> {
         let list = elements.to_object(py);
         unsafe {
             let ptr = ffi::PySet_New(list.as_ptr());
-            PySet(pptr::from_owned_ptr_or_panic(py, ptr))
+            PySet(pyptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
@@ -95,7 +95,7 @@ impl<T> ToPyObject for collections::HashSet<T>
         for val in self {
             set.add(val).unwrap();
         }
-        set.into_object(py)
+        set.to_object(py)
     }
 }
 
@@ -107,7 +107,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
         for val in self {
             set.add(val).unwrap();
         }
-        set.into_object(py)
+        set.to_object(py)
     }
 }
 
@@ -119,7 +119,7 @@ impl<'p> PyFrozenSet<'p> {
         let list = elements.to_object(py);
         unsafe {
             let ptr = ffi::PyFrozenSet_New(list.as_ptr());
-            PyFrozenSet(pptr::from_owned_ptr_or_panic(py, ptr))
+            PyFrozenSet(pyptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 

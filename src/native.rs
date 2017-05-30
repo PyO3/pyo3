@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use pyptr::PyPtr;
+use pointers::{pptr, PyPtr};
 use token::PyObjectMarker;
 use objects::PyObject;
 
@@ -8,9 +8,13 @@ pub trait PyBaseObject : Sized {}
 
 pub trait PyNativeObject<'p> : PyBaseObject {
 
+    fn park(self) -> pptr;
+
     fn as_object(self) -> PyObject<'p>;
 
     fn into_object(self) -> PyPtr<PyObjectMarker>;
+
+    fn clone_object(&self) -> Self;
 
 }
 

@@ -15,7 +15,7 @@ use python::{Python, IntoPythonPointer};
 use objects::PyObject;
 use objects::exc;
 use typeob::PyTypeInfo;
-use conversion::{ToPyObject, FromPyObject, IntoPyObject};
+use conversion::{FromPyObject, IntoPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
 
@@ -63,7 +63,7 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
@@ -76,16 +76,16 @@ pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
     type Format: FromPyObject<'p>;
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
@@ -95,12 +95,12 @@ pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<bool>>;
 }
 pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -396,7 +396,6 @@ fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
         ffi::Py_GE => Ok(CompareOp::Ge),
         _ => Err(PyErr::new_lazy_init(
             py.get_type::<exc::ValueError>(),
-            Some("tp_richcompare called with invalid comparison operator"
-                 .to_object(py))))
+            Some("tp_richcompare called with invalid comparison operator".into_object(py))))
     }
 }

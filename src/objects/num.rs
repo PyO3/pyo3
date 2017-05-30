@@ -7,14 +7,14 @@ extern crate num_traits;
 use self::num_traits::cast::cast;
 use std::os::raw::{c_long, c_double};
 
-use ::{PyPtr, pptr};
+use ::{PyPtr, pyptr};
 use ffi;
 use super::exc;
 use objects::PyObject;
 use token::{PyObjectMarker, PythonObjectWithGilToken};
 use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject, FromPyObject, IntoPyObject};
+use conversion::{ToPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
 ///
@@ -22,7 +22,7 @@ use conversion::{ToPyObject, FromPyObject, IntoPyObject};
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
-pub struct PyLong<'p>(pptr<'p>);
+pub struct PyLong<'p>(pyptr<'p>);
 pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
 
 /// Represents a Python `float` object.
@@ -31,7 +31,7 @@ pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat<'p>(pptr<'p>);
+pub struct PyFloat<'p>(pyptr<'p>);
 pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type);
 
 
@@ -39,7 +39,7 @@ impl<'p> PyFloat<'p> {
     /// Creates a new Python `float` object.
     pub fn new(py: Python<'p>, val: c_double) -> PyFloat<'p> {
         unsafe {
-            PyFloat(pptr::from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val)))
+            PyFloat(pyptr::from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val)))
         }
     }
 
@@ -170,7 +170,7 @@ int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUns
 
 impl ToPyObject for f64 {
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyFloat::new(py, *self).into_object(py)
+        PyFloat::new(py, *self).to_object(py)
     }
 }
 
@@ -189,7 +189,7 @@ fn overflow_error(py: Python) -> PyErr {
 
 impl ToPyObject for f32 {
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyFloat::new(py, *self as f64).into_object(py)
+        PyFloat::new(py, *self as f64).to_object(py)
     }
 }
 

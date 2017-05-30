@@ -4,10 +4,11 @@
 
 use std::fmt;
 use std::cmp::Ordering;
+
 use ffi;
 use libc;
-use ppptr::pptr;
-use pyptr::{Py, PyPtr};
+use pyptr;
+use pointers::{pptr, Py, PyPtr};
 use python::{Python, PyDowncastInto, ToPythonPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator};
 use token::PythonObjectWithGilToken;
@@ -373,7 +374,7 @@ impl<'p, T> ObjectProtocol<'p> for T where T: PythonObjectWithGilToken<'p> + ToP
     #[inline]
     fn iter(&self) -> PyResult<PyIterator<'p>> {
         unsafe {
-            let ptr = pptr::from_owned_ptr_or_err(
+            let ptr = pyptr::from_owned_ptr_or_err(
                 self.gil(), ffi::PyObject_GetIter(self.as_ptr()))?;
             PyIterator::from_object(self.gil(), ptr).map_err(|e| e.into())
         }
@@ -421,6 +422,31 @@ impl<'p, T> fmt::Display for PyPtr<T> where T: ObjectProtocol<'p> + PyTypeInfo {
         // TODO: we shouldn't use fmt::Error when repr() fails
         let r = self.as_ref(py);
         let repr_obj = try!(r.as_ref().str().map_err(|_| fmt::Error));
+        f.write_str(&repr_obj.to_string_lossy())
+    }
+}
+
+
+impl fmt::Debug for pptr {
+    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // TODO: we shouldn't use fmt::Error when repr() fails
+        let r = self.as_object(py);
+        let repr_obj = try!(r.repr().map_err(|_| fmt::Error));
+        f.write_str(&repr_obj.to_string_lossy())
+    }
+}
+
+impl fmt::Display for pptr {
+    default fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // TODO: we shouldn't use fmt::Error when repr() fails
+        let r = self.as_object(py);
+        let repr_obj = try!(r.str().map_err(|_| fmt::Error));
         f.write_str(&repr_obj.to_string_lossy())
     }
 }

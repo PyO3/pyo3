@@ -7,7 +7,7 @@ use std::mem;
 use std::os::raw::{c_int, c_void};
 
 use ffi;
-use pyptr::Py;
+use pointers::Py;
 use python::{Python, ToPythonPointer};
 use callback::AbortOnDrop;
 use typeob::PyTypeInfo;

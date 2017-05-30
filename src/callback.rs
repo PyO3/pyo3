@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use std::{any, mem, ptr, isize, io, panic};
 use libc;
 
-use pyptr::Py;
+use pointers::Py;
 use python::{Python, IntoPythonPointer};
 use objects::exc;
 use conversion::IntoPyObject;

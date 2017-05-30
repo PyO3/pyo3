@@ -9,7 +9,7 @@ use python::Python;
 use objects::exc;
 use objects::PyObject;
 use callback::{PyObjectCallbackConverter, LenResultConverter};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{IntoPyObject, FromPyObject};
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
@@ -51,7 +51,7 @@ pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
 
 pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -67,7 +67,7 @@ pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 pub trait PyMappingIterProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -77,7 +77,7 @@ pub trait PyMappingContainsProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 

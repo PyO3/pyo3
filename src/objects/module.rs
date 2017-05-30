@@ -7,9 +7,9 @@ use ffi;
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
-use ::pptr;
+use ::pyptr;
 use conversion::{ToPyObject, ToPyTuple};
-use pyptr::PyPtr;
+use pointers::PyPtr;
 use python::{ToPythonPointer, Python};
 use token::PythonObjectWithGilToken;
 use objects::{PyObject, PyDict, PyType, exc};
@@ -18,7 +18,7 @@ use err::{PyResult, PyErr};
 
 
 /// Represents a Python module object.
-pub struct PyModule<'p>(pptr<'p>);
+pub struct PyModule<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyModule, PyModule_Check, PyModule_Type);
 
@@ -28,7 +28,7 @@ impl<'p> PyModule<'p> {
     pub fn new(py: Python<'p>, name: &str) -> PyResult<PyModule<'p>> {
         let name = CString::new(name).unwrap();
         unsafe {
-            let ptr = pptr::cast_from_owned_nullptr::<PyModule>(
+            let ptr = pyptr::cast_from_owned_ptr_or_err::<PyModule>(
                 py, ffi::PyModule_New(name.as_ptr()))?;
             Ok(PyModule(ptr))
         }
@@ -38,7 +38,7 @@ impl<'p> PyModule<'p> {
     pub fn import(py: Python<'p>, name: &str) -> PyResult<PyModule<'p>> {
         let name = CString::new(name).unwrap();
         unsafe {
-            let ptr = pptr::cast_from_owned_nullptr::<PyModule>(
+            let ptr = pyptr::cast_from_owned_ptr_or_err::<PyModule>(
                 py, ffi::PyImport_ImportModule(name.as_ptr()))?;
             Ok(PyModule(ptr))
         }

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use {ffi, class};
 use err::{PyErr, PyResult};
-use pyptr::{Py};
+use pointers::{Py};
 use python::{Python};
 use objects::PyType;
 use callback::AbortOnDrop;

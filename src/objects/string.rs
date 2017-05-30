@@ -8,21 +8,21 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 
-use ::{PyPtr, pptr};
+use ::{PyPtr, pyptr};
 use ffi;
 use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
 use token::{PyObjectMarker, PythonObjectWithGilToken};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
+use conversion::{ToPyObject, RefFromPyObject};
 
 /// Represents a Python string.
-pub struct PyString<'p>(pptr<'p>);
+pub struct PyString<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type);
 
 /// Represents a Python byte string.
-pub struct PyBytes<'p>(pptr<'p>);
+pub struct PyBytes<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type);
 
@@ -143,7 +143,7 @@ impl<'p> PyString<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyString(pptr::from_owned_ptr_or_panic(
+            PyString(pyptr::from_owned_ptr_or_panic(
                 py, ffi::PyUnicode_FromStringAndSize(ptr, len)))
         }
     }
@@ -152,7 +152,7 @@ impl<'p> PyString<'p> {
                        -> PyResult<PyString<'p>> {
         unsafe {
             Ok(PyString(
-                pptr::from_owned_ptr_or_err(
+                pyptr::from_owned_ptr_or_err(
                     src.gil(), ffi::PyUnicode_FromEncodedObject(
                         src.as_ptr(),
                         encoding.as_ptr() as *const i8,
@@ -201,7 +201,7 @@ impl<'p> PyBytes<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyBytes(pptr::from_owned_ptr_or_panic(
+            PyBytes(pyptr::from_owned_ptr_or_panic(
                 py, ffi::PyBytes_FromStringAndSize(ptr, len)))
         }
     }
@@ -221,7 +221,7 @@ impl<'p> PyBytes<'p> {
 impl ToPyObject for str {
     #[inline]
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyString::new(py, self).into_object(py)
+        PyString::new(py, self).to_object(py)
     }
 }
 
@@ -230,7 +230,7 @@ impl ToPyObject for str {
 impl <'a> ToPyObject for Cow<'a, str> {
     #[inline]
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyString::new(py, self).into_object(py)
+        PyString::new(py, self).to_object(py)
     }
 }
 
@@ -239,7 +239,7 @@ impl <'a> ToPyObject for Cow<'a, str> {
 impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyString::new(py, self).into_object(py)
+        PyString::new(py, self).to_object(py)
     }
 }
 

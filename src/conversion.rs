@@ -1,6 +1,6 @@
 use ffi;
 use err::PyResult;
-use pyptr::PyPtr;
+use pointers::{pptr, PyPtr};
 use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyTuple};
 use token::PyObjectMarker;
@@ -30,7 +30,7 @@ pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
     #[inline]
-    fn into_object(self, py: Python) -> PyPtr<PyObjectMarker>
+    fn into_object(self, py: Python) -> pptr
         where Self: Sized;
 }
 
@@ -101,9 +101,9 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
 impl<T> IntoPyObject for T where T: ToPyObject
 {
     #[inline]
-    default fn into_object(self, py: Python) -> PyPtr<PyObjectMarker>
+    default fn into_object(self, py: Python) -> pptr
     {
-        self.to_object(py)
+        self.to_object(py).park()
     }
 }
 
@@ -132,14 +132,14 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         match *self {
             Some(ref val) => val.to_object(py),
-            None => py.None()
+            None => py.None().into_pobject(),
         }
     }
 }
 
 impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn into_object(self, py: Python) -> pptr {
         match self {
             Some(val) => val.into_object(py),
             None => py.None()
@@ -151,7 +151,7 @@ impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        py.None()
+        py.None().into_pobject()
     }
 }
 

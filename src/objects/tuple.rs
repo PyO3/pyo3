@@ -4,7 +4,7 @@
 
 use std::slice;
 
-use ::{PyPtr, pptr};
+use ::{PyPtr, pyptr};
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
@@ -14,7 +14,7 @@ use token::{PyObjectMarker, PythonObjectWithGilToken};
 use super::exc;
 
 /// Represents a Python tuple object.
-pub struct PyTuple<'p>(pptr<'p>);
+pub struct PyTuple<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyTuple, PyTuple_Check, PyTuple_Type);
 
@@ -29,19 +29,19 @@ impl<'p> PyTuple<'p> {
             for (i, e) in elements.iter().enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
-            PyTuple(pptr::from_owned_ptr_or_panic(py, ptr))
+            PyTuple(pyptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
     /// Construct a new tuple with the given raw pointer
     pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyTuple<'p> {
-        PyTuple(pptr::from_borrowed_ptr(py, ptr))
+        PyTuple(pyptr::from_borrowed_ptr(py, ptr))
     }
 
     /// Retrieves the empty tuple.
     pub fn empty(py: Python<'p>) -> PyTuple<'p> {
         unsafe {
-            PyTuple(pptr::from_owned_ptr_or_panic(py, ffi::PyTuple_New(0)))
+            PyTuple(pyptr::from_owned_ptr_or_panic(py, ffi::PyTuple_New(0)))
         }
     }
 
@@ -89,7 +89,7 @@ impl<'p> PyTuple<'p> {
 
 impl<'a> ToPyTuple for PyTuple<'a> {
     fn to_py_tuple<'p>(&self, py: Python<'p>) -> PyTuple<'p> {
-        unsafe { PyTuple(pptr::from_borrowed_ptr(py, self.0.as_ptr())) }
+        unsafe { PyTuple(pyptr::from_borrowed_ptr(py, self.0.as_ptr())) }
     }
 }
 
@@ -103,7 +103,7 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.",
                       expected_length, t.len());
     PyErr::new_lazy_init(
-        py.get_type::<exc::ValueError>(), Some(msg.to_object(py)))
+        py.get_type::<exc::ValueError>(), Some(msg.into_object(py)))
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
@@ -111,7 +111,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn to_object<'p>(&self, py: Python<'p>) -> PyPtr<PyObjectMarker> {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_object(py)),)+
-            ]).into_object(py)
+            ]).to_object(py)
         }
     }
 
@@ -175,7 +175,7 @@ pub struct NoArgs;
 impl ToPyObject for NoArgs {
 
     fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyTuple::empty(py).into_object(py)
+        PyTuple::empty(py).to_object(py)
     }
 }
 

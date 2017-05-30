@@ -9,10 +9,10 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PyObjectMarker, PythonToken};
+use token::{PythonToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
-use pyptr::{Py, PyPtr};
+use pointers::{Py, PyPtr, pptr};
 use pythonrun::GILGuard;
 
 
@@ -42,9 +42,8 @@ pub trait PyDowncastFrom<'p> : Sized {
 /// Trait implemented by Python object types that allow a checked downcast.
 pub trait PyDowncastInto<'p> : Sized {
 
-    /// Cast from PyObject to a concrete Python object type.
-    fn downcast_into<I>(Python<'p>, I)
-                        -> Result<Self, PyDowncastError<'p>>
+    /// Cast Self to a concrete Python object type.
+    fn downcast_into<I>(Python<'p>, I) -> Result<Self, PyDowncastError<'p>>
         where I: ToPythonPointer + IntoPythonPointer;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
@@ -216,8 +215,8 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyPtr<PyObjectMarker> {
-        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_None()) }
+    pub fn None(self) -> pptr {
+        unsafe { pptr::from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
@@ -237,8 +236,8 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyPtr<PyObjectMarker> {
-        unsafe { PyPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
+    pub fn NotImplemented(self) -> pptr {
+        unsafe { pptr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
     /// Execute closure `F` with Python instance.

@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use ppptr::pptr;
+use ppptr::pyptr;
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
 use err::{PyErr, PyResult, PyDowncastError};
@@ -12,7 +12,7 @@ use err::{PyErr, PyResult, PyDowncastError};
 ///
 /// Unlike other python objects, this class includes a `Python<'p>` token
 /// so that PyIterator can implement the rust `Iterator` trait.
-pub struct PyIterator<'p>(pptr<'p>);
+pub struct PyIterator<'p>(pyptr<'p>);
 
 
 impl <'p> PyIterator<'p> {
@@ -24,7 +24,7 @@ impl <'p> PyIterator<'p> {
         unsafe {
             let ptr = obj.into_ptr();
             if ffi::PyIter_Check(ptr) != 0 {
-                Ok(PyIterator(pptr::from_borrowed_ptr(py, ptr)))
+                Ok(PyIterator(pyptr::from_borrowed_ptr(py, ptr)))
             } else {
                 ffi::Py_DECREF(ptr);
                 Err(PyDowncastError(py, None))

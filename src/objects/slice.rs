@@ -2,12 +2,12 @@
 
 use std::os::raw::c_long;
 
-use ::pptr;
-use pyptr::PyPtr;
+use ::pyptr;
+use pointers::PyPtr;
 use python::{ToPythonPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
-use conversion::{ToPyObject, IntoPyObject};
+use conversion::ToPyObject;
 use token::{PyObjectMarker, PythonObjectWithGilToken};
 
 /// Represents a Python `slice` indices
@@ -32,7 +32,7 @@ impl PySliceIndices {
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted
 /// at the moment by PySlice object.
-pub struct PySlice<'p>(pptr<'p>);
+pub struct PySlice<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PySlice, PySlice_Check, PySlice_Type);
 
@@ -44,7 +44,7 @@ impl<'p> PySlice<'p> {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            PySlice(pptr::from_owned_ptr_or_panic(py, ptr))
+            PySlice(pyptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
@@ -79,6 +79,6 @@ impl<'p> PySlice<'p> {
 
 impl ToPyObject for PySliceIndices {
     fn to_object<'p>(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PySlice::new(py, self.start, self.stop, self.step).into_object(py)
+        PySlice::new(py, self.start, self.stop, self.step).to_object(py)
     }
 }

@@ -25,12 +25,12 @@ pub trait PyIterProtocol<'p> : PyTypeInfo {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 

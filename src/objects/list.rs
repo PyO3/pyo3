@@ -2,17 +2,17 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use ::pptr;
+use ::pyptr;
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use pyptr::PyPtr;
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
 use token::{PyObjectMarker, PythonObjectWithGilToken};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList<'p>(pptr<'p>);
+pub struct PyList<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyList, PyList_Check, PyList_Type);
 
@@ -24,7 +24,7 @@ impl<'p> PyList<'p> {
             for (i, e) in elements.iter().enumerate() {
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
-            PyList(pptr::from_owned_ptr_or_panic(py, ptr))
+            PyList(pyptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
@@ -125,14 +125,14 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn into_object(self, py: Python) -> ::pptr {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {
                 let obj = e.into_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyPtr::from_owned_ptr_or_panic(ptr)
+            ::pptr::from_owned_ptr_or_panic(ptr)
         }
     }
 }

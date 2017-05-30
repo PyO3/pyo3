@@ -9,9 +9,10 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use pyptr::{Py, PyPtr};
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer};
 use err::PyResult;
+use native::PyNativeObject;
 use super::tuple::PyTuple;
 use super::typeobject::PyType;
 
@@ -110,10 +111,10 @@ impl UnicodeDecodeError {
 
 impl StopIteration {
 
-    pub fn stop_iteration<'p>(_py: Python<'p>, args: Py<'p, PyTuple>) {
+    pub fn stop_iteration<'p>(args: PyTuple<'p>) {
         unsafe {
             ffi::PyErr_SetObject(
-                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.into_object().as_ptr());
+                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.park().as_ptr());
         }
     }
 }

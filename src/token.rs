@@ -4,7 +4,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use ffi;
-use pyptr::{Py, PyPtr};
+use pointers::{Py, PyPtr};
 use err::{PyResult};
 use python::{Python, ToPythonPointer, PyDowncastInto};
 use objects::PyString;

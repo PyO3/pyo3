@@ -5,7 +5,7 @@
 use std::ffi::CStr;
 use std::borrow::Cow;
 
-use ::pptr;
+use ::pyptr;
 use ffi;
 use token::PythonObjectWithGilToken;
 use python::{Python, ToPythonPointer};
@@ -14,7 +14,7 @@ use objects::{PyObject, PyDict};
 use err::PyResult;
 
 /// Represents a reference to a Python type object.
-pub struct PyType<'p>(pptr<'p>);
+pub struct PyType<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyType, PyType_Check, PyType_Type);
 
@@ -31,7 +31,7 @@ impl<'p> PyType<'p> {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_type_ptr(py: Python<'p>, p: *mut ffi::PyTypeObject) -> PyType<'p> {
-        PyType(pptr::from_borrowed_ptr(py, p as *mut ffi::PyObject))
+        PyType(pyptr::from_borrowed_ptr(py, p as *mut ffi::PyObject))
     }
 
     /// Gets the name of the PyType.

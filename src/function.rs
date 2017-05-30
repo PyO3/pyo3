@@ -19,7 +19,7 @@
 use std::ptr;
 
 use ffi;
-use pyptr::Py;
+use pointers::Py;
 use python::Python;
 use objects::PyObject;
 

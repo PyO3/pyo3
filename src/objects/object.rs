@@ -2,13 +2,13 @@
 
 use std;
 
-use ::pptr;
+use ::pyptr;
 use ffi;
 use err::{PyResult, PyDowncastError};
 use python::{Python, ToPythonPointer};
 
 
-pub struct PyObject<'p>(pptr<'p>);
+pub struct PyObject<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type);
 
@@ -17,20 +17,20 @@ impl<'p> PyObject<'p> {
 
     #[inline]
     pub fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyObject<'p> {
-        unsafe { PyObject(pptr::from_owned_ptr(py, ptr)) }
+        unsafe { PyObject(pyptr::from_owned_ptr(py, ptr)) }
     }
 
     #[inline]
     pub fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject)
                                      -> PyResult<PyObject<'p>> {
-        unsafe { Ok(PyObject(pptr::from_owned_ptr_or_err(py, ptr)?)) }
+        unsafe { Ok(PyObject(pyptr::from_owned_ptr_or_err(py, ptr)?)) }
     }
 
     #[inline]
     pub fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
                                      -> Option<PyObject<'p>> {
         unsafe {
-            if let Some(ptr) = pptr::from_owned_ptr_or_opt(py, ptr) {
+            if let Some(ptr) = pyptr::from_owned_ptr_or_opt(py, ptr) {
                 Some(PyObject(ptr))
             } else {
                 None
@@ -40,14 +40,14 @@ impl<'p> PyObject<'p> {
 
     #[inline]
     pub fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyObject<'p> {
-        unsafe { PyObject(pptr::from_borrowed_ptr(py, ptr)) }
+        unsafe { PyObject(pyptr::from_borrowed_ptr(py, ptr)) }
     }
 
     #[inline]
     pub fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
                                     -> Option<PyObject<'p>> {
         unsafe {
-            if let Some(ptr) = pptr::from_borrowed_ptr_or_opt(py, ptr) {
+            if let Some(ptr) = pyptr::from_borrowed_ptr_or_opt(py, ptr) {
                 Some(PyObject(ptr))
             } else {
                 None

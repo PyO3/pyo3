@@ -14,7 +14,7 @@ use objects::{PyType, PyObject};
 use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{IntoPyObject, FromPyObject};
 
 
 /// Descriptor interface
@@ -37,7 +37,7 @@ pub trait PyDescrProtocol<'p>: PyTypeInfo {
 pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
     type Inst: FromPyObject<'p>;
     type Owner: FromPyObject<'p>;
-    type Success: ToPyObject;
+    type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 

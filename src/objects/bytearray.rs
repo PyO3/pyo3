@@ -7,12 +7,12 @@ use ffi;
 use python::{Python, ToPythonPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
-use ppptr::pptr;
+use ppptr::pyptr;
 use token::PythonObjectWithGilToken;
 
 
 /// Represents a Python bytearray.
-pub struct PyByteArray<'p>(pptr<'p>);
+pub struct PyByteArray<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
 
@@ -26,7 +26,7 @@ impl<'p> PyByteArray<'p> {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         let ptr = unsafe {ffi::PyByteArray_FromStringAndSize(ptr, len)};
-        unsafe { PyByteArray(pptr::cast_from_owned_ptr_or_panic::<PyByteArray>(py, ptr)) }
+        unsafe { PyByteArray(pyptr::cast_from_owned_ptr_or_panic::<PyByteArray>(py, ptr)) }
     }
 
     /// Creates a new Python bytearray object
@@ -36,7 +36,7 @@ impl<'p> PyByteArray<'p> {
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
             Ok(unsafe{ PyByteArray(
-                pptr::cast_from_owned_ptr_or_panic::<PyByteArray>(src.gil(), res))})
+                pyptr::cast_from_owned_ptr_or_panic::<PyByteArray>(src.gil(), res))})
         } else {
             Err(PyErr::fetch(src.gil()))
         }

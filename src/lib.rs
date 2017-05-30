@@ -64,11 +64,11 @@ pub use pyo3cls::*;
 pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
-pub mod pyptr;
-pub use pyptr::{Py, PyPtr};
+pub mod pointers;
+pub use pointers::{Py, PyPtr, pptr};
 
 mod ppptr;
-pub use ppptr::pptr;
+pub use ppptr::{pyptr};
 
 mod token;
 pub use token::{PyObjectMarker, PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};

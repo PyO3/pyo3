@@ -39,22 +39,22 @@ pub trait PyAsyncProtocol<'p>: PyTypeInfo + Sized + 'static {
 
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -62,7 +62,7 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type ExcType: ::FromPyObject<'p>;
     type ExcValue: ::FromPyObject<'p>;
     type Traceback: ::FromPyObject<'p>;
-    type Success: ::ToPyObject;
+    type Success: ::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 

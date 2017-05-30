@@ -2,18 +2,18 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use ::pptr;
+use ::pyptr;
 use ffi;
-use pyptr::PyPtr;
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer, PyDowncastInto};
-use conversion::{ToPyObject, IntoPyObject};
+use conversion::{ToPyObject};
 use objects::{PyObject, PyList};
 use token::{PyObjectMarker, PythonObjectWithGilToken};
 use err::{self, PyResult, PyErr};
 use std::{mem, collections, hash, cmp};
 
 /// Represents a Python `dict`.
-pub struct PyDict<'p>(pptr<'p>);
+pub struct PyDict<'p>(pyptr<'p>);
 
 pyobject_nativetype!(PyDict, PyDict_Check, PyDict_Type);
 
@@ -23,12 +23,12 @@ impl<'p> PyDict<'p> {
     ///
     /// May panic when running out of memory.
     pub fn new(py: Python<'p>) -> PyDict<'p> {
-        unsafe { PyDict(pptr::from_owned_ptr_or_panic(py, ffi::PyDict_New())) }
+        unsafe { PyDict(pyptr::from_owned_ptr_or_panic(py, ffi::PyDict_New())) }
     }
 
     /// Construct a new dict with the given raw pointer
     pub fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyDict<'p> {
-        unsafe { PyDict(pptr::from_borrowed_ptr(py, ptr)) }
+        unsafe { PyDict(pyptr::from_borrowed_ptr(py, ptr)) }
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.
@@ -36,7 +36,7 @@ impl<'p> PyDict<'p> {
     pub fn copy(&'p self) -> PyResult<PyDict<'p>> {
         unsafe {
             Ok(PyDict(
-                pptr::from_owned_ptr_or_err(self.gil(), ffi::PyDict_Copy(self.0.as_ptr()))?
+                pyptr::from_owned_ptr_or_err(self.gil(), ffi::PyDict_Copy(self.0.as_ptr()))?
             ))
         }
     }
@@ -134,7 +134,7 @@ impl <K, V> ToPyObject for collections::HashMap<K, V>
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_object(py)
+        dict.to_object(py)
     }
 }
 
@@ -147,7 +147,7 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.into_object(py)
+        dict.to_object(py)
     }
 }
 
