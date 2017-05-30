@@ -119,6 +119,8 @@ pub trait ObjectProtocol<'p> {
     // /// This is typically a new iterator but if the argument
     // /// is an iterator, this returns itself.
     // fn iter<'a>(&'a self) -> PyResult<Py<'p, ::objects::PyIterator<'a>>>;
+
+    fn get_refcnt(&self) -> isize;
 }
 
 
@@ -371,6 +373,10 @@ impl<'p, T> ObjectProtocol<'p> for T where T: PythonObjectWithGilToken<'p> + ToP
     //pub fn iter<'a>(&'a self) -> PyResult<Py<'p, ::objects::PyIterator<'a>>> {
     //    Py::from_owned_ptr_or_err(self.py(), ffi::PyObject_GetIter(self.as_ptr()))
     //}
+
+    fn get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
+    }
 }
 
 

@@ -42,11 +42,11 @@
 //!
 //! fn hello(py: Python) -> PyResult<()> {
 //!     let sys = py.import("sys")?;
-//!     let version: String = sys.get(py, "version")?.extract(py)?;
+//!     let version: String = sys.get("version")?.extract()?;
 //!
 //!     let locals = PyDict::new(py);
 //!     locals.set_item("os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
+//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
@@ -145,14 +145,14 @@ pub use std::os::raw::*;
 /// use pyo3::{Python, PyResult, PyObject};
 ///
 /// py_module_init!(hello, PyInit_hello, |py, m| {
-///     m.add(py, "__doc__", "Module documentation string")?;
-///     m.add(py, "run", py_fn!(py, run()))?;
+///     m.add("__doc__", "Module documentation string")?;
+///     m.add("run", py_fn!(py, run()))?;
 ///     Ok(())
 /// });
 ///
 /// fn run(py: Python) -> PyResult<PyObject> {
 ///     println!("Rust says: Hello Python!");
-///     Ok(py.None())
+///     Ok(py.None().into_object(py))
 /// }
 /// # fn main() {}
 /// ```

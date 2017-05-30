@@ -449,7 +449,7 @@ pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
 
 
 #[cfg(test)]
-    mod test {
+mod test {
     use python::{Python};
     use objects::PyTuple;
     use conversion::{ToPyTuple};

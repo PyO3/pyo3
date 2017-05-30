@@ -88,6 +88,11 @@ impl<'p> PyObject<'p> {
     {
         ::conversion::FromPyObject::extract(&self)
     }
+
+    pub fn get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
+
+    }
 }
 
 impl<'p> PartialEq for PyObject<'p> {

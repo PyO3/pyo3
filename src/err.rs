@@ -47,7 +47,7 @@ macro_rules! py_exception {
     ($module: ident, $name: ident, $base: ty) => {
         pub struct $name;
 
-        pyobject_nativetype!($name);
+        // pyobject_nativetype!($name);
 
         impl $name {
             pub fn new<'p, T: $crate::ToPyObject>(py: $crate::Python<'p>, args: T) -> $crate::PyErr {
@@ -59,13 +59,14 @@ macro_rules! py_exception {
             #[inline]
             fn type_object<'p>(py: $crate::Python<'p>) -> $crate::PyType<'p> {
                 unsafe {
+                    #[allow(non_upper_case_globals)]
                     static mut type_object: *mut $crate::ffi::PyTypeObject = 0 as *mut $crate::ffi::PyTypeObject;
 
                     if type_object.is_null() {
                         type_object = $crate::PyErr::new_type(
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
-                            Some(py.get_type::<$base>()), None);
+                            Some(py.get_type::<$base>()), None).as_type_ptr();
                     }
 
                     $crate::PyType::from_type_ptr(py, type_object)
@@ -133,7 +134,7 @@ impl PyErr {
     /// `base` can be an existing exception type to subclass, or a tuple of classes
     /// `dict` specifies an optional dictionary of class variables and methods
     pub fn new_type<'p>(py: Python<'p>, name: &str,
-                        base: Option<PyObject<'p>>, dict: Option<PyObject<'p>>) -> PyType<'p> {
+                        base: Option<PyType<'p>>, dict: Option<PyObject<'p>>) -> PyType<'p> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
             Some(obj) => obj.into_ptr()
@@ -333,17 +334,6 @@ impl PyErr {
         }
     }
 }
-
-
-/*impl PyClone for PyErr {
-    fn clone_ref(&self, py: Python) -> PyErr {
-        PyErr {
-            ptype: self.ptype.clone_ref(py),
-            pvalue: self.pvalue.clone_ref(py),
-            ptraceback: self.ptraceback.clone_ref(py)
-        }
-    }
-}*/
 
 /// Converts `PyDowncastError` to Python `TypeError`.
 impl <'p> std::convert::From<PyDowncastError<'p>> for PyErr {

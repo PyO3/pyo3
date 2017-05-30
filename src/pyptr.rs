@@ -113,6 +113,7 @@ impl<T> PyPtr<T> {
     /// Converts PyPtr<T> -> &PyObject<'p>.
     #[inline]
     pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject<'p> {
+        unsafe {ffi::Py_INCREF(self.inner)};
         unsafe { std::mem::transmute(self) }
     }
 

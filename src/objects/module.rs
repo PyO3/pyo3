@@ -8,7 +8,7 @@ use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
 use ::pptr;
-use conversion::ToPyTuple;
+use conversion::{ToPyObject, ToPyTuple};
 use pyptr::PyPtr;
 use python::{ToPythonPointer, Python};
 use token::PythonObjectWithGilToken;
@@ -87,6 +87,19 @@ impl<'p> PyModule<'p> {
         where A: ToPyTuple
     {
         self.getattr(name)?.call(args, kwargs)
+    }
+
+    /// Gets a member from the module.
+    /// This is equivalent to the Python expression: `getattr(module, name)`
+    pub fn get(&self, name: &str) -> PyResult<PyObject> {
+        self.getattr(name)
+    }
+
+    /// Adds a member to the module.
+    ///
+    /// This is a convenience function which can be used from the module's initialization function.
+    pub fn add<V>(&self, name: &str, value: V) -> PyResult<()> where V: ToPyObject {
+        self.setattr(name, value)
     }
 
     /// Adds a new extension type to the module.

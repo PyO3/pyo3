@@ -32,6 +32,7 @@ impl<'p> PyByteArray<'p> {
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
     pub fn from(src: &'p PyObject<'p>) -> PyResult<PyByteArray<'p>> {
+        println!("FROM: {:?} {}", src.as_ptr(), src.get_refcnt());
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
             Ok(unsafe{ PyByteArray(
@@ -77,7 +78,7 @@ impl<'p> PyByteArray<'p> {
 mod test {
     use ::ToPyObject;
     use exc;
-    use python::Python;
+    use python::{Python, ToPythonPointer};
     use typeob::PyTypeObject;
     use objects::PyByteArray;
 
@@ -100,6 +101,7 @@ mod test {
         assert_eq!(20, bytearray.len());
 
         let none = py.None();
+        println!("NONE: {:?} {}", none.as_ptr(), none.get_refcnt());
         if let Err(mut err) = PyByteArray::from(none.as_object(py)) {
             assert!(exc::TypeError::type_object(py).is_instance(&err.instance(py)))
         } else {

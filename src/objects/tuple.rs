@@ -62,7 +62,7 @@ impl<'p> PyTuple<'p> {
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
-            PyObject::from_owned_ptr(
+            PyObject::from_borrowed_ptr(
                 self.gil(), ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
@@ -89,7 +89,7 @@ impl<'p> PyTuple<'p> {
 
 impl<'a> ToPyTuple for PyTuple<'a> {
     fn to_py_tuple<'p>(&self, py: Python<'p>) -> PyTuple<'p> {
-        unsafe { PyTuple(pptr::from_owned_ptr_or_panic(py, self.0.as_ptr())) }
+        unsafe { PyTuple(pptr::from_borrowed_ptr(py, self.0.as_ptr())) }
     }
 }
 

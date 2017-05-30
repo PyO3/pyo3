@@ -90,7 +90,7 @@ macro_rules! py_method_def {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
 ///     let dict = PyDict::new(py);
-///     dict.set_item(py, "multiply", py_fn!(py, multiply(lhs: i32, rhs: i32))).unwrap();
+///     dict.set_item("multiply", py_fn!(py, multiply(lhs: i32, rhs: i32))).unwrap();
 ///     py.run("print(multiply(6, 7))", None, Some(&dict)).unwrap();
 /// }
 /// ```

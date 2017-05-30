@@ -1,8 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std;
+
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, ToPythonPointer};
+use python::{Python, PyDowncastInto, ToPythonPointer};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 #[allow(non_camel_case_types)]
@@ -174,5 +176,23 @@ impl<'p> Drop for pptr<'p> {
                      self.1, ffi::Py_REFCNT(self.1), &self as *const _);
         }
         unsafe { ffi::Py_DECREF(self.1); }
+    }
+}
+
+impl<'p> std::fmt::Debug for pptr<'p> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        let repr = unsafe { ::PyString::downcast_from_owned_ptr(
+            self.0, ffi::PyObject_Repr(self.1)) };
+        let repr = repr.map_err(|_| std::fmt::Error)?;
+        f.write_str(&repr.to_string_lossy())
+    }
+}
+
+impl<'p> std::fmt::Display for pptr<'p> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        let ob = unsafe { ::PyString::downcast_from_owned_ptr(
+            self.0, ffi::PyObject_Str(self.1)) };
+        let ob = ob.map_err(|_| std::fmt::Error)?;
+        f.write_str(&ob.to_string_lossy())
     }
 }

@@ -443,6 +443,7 @@ fn string_methods() {
 #[py::class]
 struct Comparisons {
     val: i32,
+    #[token]
     token: PythonToken<Comparisons>,
 }
 
@@ -451,7 +452,6 @@ impl PyObjectProtocol for Comparisons {
     fn __hash__(&self, py: Python) -> PyResult<usize> {
         Ok(self.val as usize)
     }
-
     fn __bool__(&self, py: Python) -> PyResult<bool> {
         Ok(self.val != 0)
     }
@@ -994,15 +994,11 @@ fn context_manager() {
     assert!(c.exit_called);
 
     c.exit_called = false;
-
-    //TODO: re-enable
-
-    //py_expect_exception!(
-    //    py, c, "with c as x:\n  raise NotImplementedError",
-    //    NotImplementedError);
-    //assert!(c.exit_called);
+    py_expect_exception!(
+        py, c, "with c as x:\n  raise NotImplementedError",
+        NotImplementedError);
+    assert!(c.exit_called);
 }
-
 
 #[py::class]
 struct ClassWithProperties {
