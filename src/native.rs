@@ -2,10 +2,9 @@
 
 use pyptr::PyPtr;
 use token::PyObjectMarker;
-use typeob::PyTypeInfo;
 use objects::PyObject;
 
-pub trait PyBaseObject : PyTypeInfo + Sized {}
+pub trait PyBaseObject : Sized {}
 
 pub trait PyNativeObject<'p> : PyBaseObject {
 

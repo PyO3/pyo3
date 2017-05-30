@@ -4,21 +4,21 @@ pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
 pub use self::string::{PyBytes, PyString, PyStringData};
-//pub use self::iterator::PyIterator;
+pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::tuple::{PyTuple, NoArgs};
 pub use self::dict::PyDict;
-//pub use self::list::PyList;
+pub use self::list::PyList;
 pub use self::num::{PyLong, PyFloat};
-//pub use self::sequence::PySequence;
+pub use self::sequence::PySequence;
 pub use self::slice::PySlice;
 //pub use self::set::{PySet, PyFrozenSet};
 
 
 #[macro_export]
 macro_rules! pyobject_nativetype(
-    ($name: ident, $checkfunction: ident, $typeobject: ident) => (
+    ($name: ident, $checkfunction: ident, $typeobject: ident) => {
 
         impl<'p> $crate::typeob::PyTypeInfo for $name<'p> {
             type Type = ();
@@ -42,6 +42,11 @@ macro_rules! pyobject_nativetype(
                 unsafe { &mut $crate::ffi::$typeobject }
             }
         }
+
+        pyobject_nativetype!($name, $checkfunction);
+    };
+
+    ($name: ident, $checkfunction: ident) => (
 
         impl<'p> $crate::native::PyBaseObject for $name<'p> {}
 
@@ -80,22 +85,32 @@ macro_rules! pyobject_nativetype(
 
         impl<'p> $crate::python::PyDowncastInto<'p> for $name<'p>
         {
-            fn downcast_into(py: $crate::Python<'p>, ob: $crate::PyObject)
-                             -> Result<$name<'p>, $crate::PyDowncastError<'p>>
+            fn downcast_into<I>(py: $crate::Python<'p>, ob: I)
+                                -> Result<Self, $crate::PyDowncastError<'p>>
+                where I: $crate::ToPythonPointer + $crate::IntoPythonPointer
             {
-                match $crate::pptr::cast_from_owned_ptr::<$name>(py, ob.as_ptr()) {
-                    Ok(ptr) => {
-                        $crate::std::mem::forget(ob);
-                        Ok($name(ptr))
-                    },
-                    Err(e) => Err(e)
+                unsafe{
+                    let ptr = ob.into_ptr();
+                    if ffi::$checkfunction(ptr) != 0 {
+                        Ok($name(pptr::from_owned_ptr(py, ptr)))
+                    } else {
+                        $crate::ffi::Py_DECREF(ptr);
+                        Err($crate::PyDowncastError(py, None))
+                    }
                 }
             }
 
             fn downcast_from_owned_ptr(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject)
                                        -> Result<$name<'p>, $crate::PyDowncastError<'p>>
             {
-                Ok($name($crate::pptr::cast_from_owned_ptr::<$name>(py, ptr)?))
+                unsafe{
+                    if ffi::$checkfunction(ptr) != 0 {
+                        Ok($name(pptr::from_owned_ptr(py, ptr)))
+                    } else {
+                        $crate::ffi::Py_DECREF(ptr);
+                        Err($crate::PyDowncastError(py, None))
+                    }
+                }
             }
         }
 
@@ -124,8 +139,13 @@ macro_rules! pyobject_nativetype(
             {
                 use $crate::token::PythonObjectWithGilToken;
 
-                Ok($name(
-                    $crate::pptr::cast_from_borrowed_ptr::<$name>(py.gil(), py.as_ptr())?))
+                unsafe {
+                    if ffi::$checkfunction(py.as_ptr()) != 0 {
+                        Ok( $name($crate::pptr::from_borrowed_ptr(py.gil(), py.as_ptr())) )
+                    } else {
+                        Err(::PyDowncastError(py.gil(), None).into())
+                    }
+                }
             }
         }
 
@@ -222,13 +242,13 @@ mod typeobject;
 mod module;
 mod string;
 mod dict;
-//mod iterator;
+mod iterator;
 mod boolobject;
 mod bytearray;
 mod tuple;
-//mod list;
+mod list;
 mod num;
-//mod sequence;
+mod sequence;
 mod slice;
 // mod set;
 mod object;

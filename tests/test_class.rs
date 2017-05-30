@@ -55,7 +55,7 @@ fn empty_class() {
 #[py::class]
 struct EmptyClassInModule { }
 
-//#[test]
+#[test]
 fn empty_class_in_module() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -153,7 +153,7 @@ struct DataIsDropped {
     token: PythonToken<DataIsDropped>,
 }
 
-//#[test]
+#[test]
 fn data_is_dropped() {
     let gil = Python::acquire_gil();
     let py = gil.python();

@@ -78,7 +78,7 @@ impl<'p> PyByteArray<'p> {
 mod test {
     use ::ToPyObject;
     use exc;
-    use python::{Python, ToPythonPointer};
+    use python::Python;
     use typeob::PyTypeObject;
     use objects::PyByteArray;
 
@@ -101,7 +101,6 @@ mod test {
         assert_eq!(20, bytearray.len());
 
         let none = py.None();
-        println!("NONE: {:?} {}", none.as_ptr(), none.get_refcnt());
         if let Err(mut err) = PyByteArray::from(none.as_object(py)) {
             assert!(exc::TypeError::type_object(py).is_instance(&err.instance(py)))
         } else {

@@ -3,10 +3,12 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ::pptr;
-use pyptr::{Py, PyPtr};
-use python::{Python, ToPythonPointer, IntoPythonPointer, PythonToken, PythonObjectWithToken};
-use objects::PyObject;
+use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
+use pyptr::PyPtr;
+use python::{Python, ToPythonPointer, IntoPythonPointer};
+use objects::PyObject;
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
@@ -38,30 +40,35 @@ impl<'p> PyList<'p> {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyObject {
-        // TODO: do we really want to panic here?
-        assert!(index < self.len());
+    pub fn get_item(&self, index: isize) -> PyObject<'p> {
         unsafe {
-            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            self.py_token().from_owned(ptr)
+            PyObject::from_borrowed_ptr(
+                self.gil(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
     /// Sets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn set_item(&self, index: usize, item: Py<'p, PyObject>) {
-        let r = unsafe { ffi::PyList_SetItem(
-            self.as_ptr(), index as Py_ssize_t, item.into_ptr()) };
-        assert!(r == 0);
+    pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()>
+        where I: ToPyObject
+    {
+        item.with_borrowed_ptr(self.gil(), |item| unsafe {
+            err::error_on_minusone(
+                self.gil(), ffi::PyList_SetItem(self.as_ptr(), index, item))
+        })
     }
 
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn insert_item(&self, index: usize, item: Py<'p, PyObject>) {
-        let r = unsafe { ffi::PyList_Insert(self.as_ptr(), index as Py_ssize_t, item.as_ptr()) };
-        assert!(r == 0);
+    pub fn insert_item<I>(&self, index: isize, item: I) -> PyResult<()>
+        where I: ToPyObject
+    {
+        item.with_borrowed_ptr(self.gil(), |item| unsafe {
+            err::error_on_minusone(
+                self.gil(), ffi::PyList_Insert(self.as_ptr(), index, item))
+        })
     }
 
     #[inline]
@@ -73,15 +80,15 @@ impl<'p> PyList<'p> {
 /// Used by `PyList::iter()`.
 pub struct PyListIterator<'p> {
     list: &'p PyList<'p>,
-    index: usize
+    index: isize
 }
 
 impl <'p> Iterator for PyListIterator<'p> {
-    type Item = Py<'p, PyObject>;
+    type Item = PyObject<'p>;
 
     #[inline]
-    fn next(&mut self) -> Option<&'p PyObject> {
-        if self.index < self.list.len() {
+    fn next(&mut self) -> Option<PyObject<'p>> {
+        if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
             Some(item)
@@ -96,7 +103,7 @@ impl <'p> Iterator for PyListIterator<'p> {
 
 impl <T> ToPyObject for [T] where T: ToPyObject {
 
-    fn to_object(&self, py: Python) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
@@ -110,7 +117,7 @@ impl <T> ToPyObject for [T] where T: ToPyObject {
 
 impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
-    fn to_object<'p>(&self, py: Python<'p>) -> PyPtr<PyObject> {
+    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
         self.as_slice().to_object(py)
     }
 
@@ -118,7 +125,7 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> PyPtr<PyObject> {
+    fn into_object(self, py: Python) -> PyPtr<PyObjectMarker> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {
@@ -132,8 +139,8 @@ impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 
 #[cfg(test)]
 mod test {
-    use python::{Python, PythonObjectWithCheckedDowncast};
-    use conversion::ToPyObject;
+    use python::{Python, PyDowncastInto};
+    use conversion::{ToPyObject, IntoPyObject};
     use objects::PyList;
 
     #[test]
@@ -141,8 +148,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![1,2,3,4];
-        let list = PyList::downcast_from(py, v.to_object(py)).unwrap();
-        assert_eq!(4, list.len(py));
+        let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
+        assert_eq!(4, list.len());
     }
 
     #[test]
@@ -150,11 +157,11 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
-        assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
-        assert_eq!(3, list.get_item(py, 1).extract::<i32>(py).unwrap());
-        assert_eq!(5, list.get_item(py, 2).extract::<i32>(py).unwrap());
-        assert_eq!(7, list.get_item(py, 3).extract::<i32>(py).unwrap());
+        let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
     }
 
     #[test]
@@ -162,11 +169,11 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
-        let val = 42i32.to_py_object(py).into_object();
-        assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
-        list.set_item(py, 0, val);
-        assert_eq!(42, list.get_item(py, 0).extract::<i32>(py).unwrap());
+        let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
+        let val = 42i32.to_object(py).into_object(py);
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        list.set_item(0, val).unwrap();
+        assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
     }
 
     #[test]
@@ -174,14 +181,14 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
-        let val = 42i32.to_py_object(py).into_object();
-        assert_eq!(4, list.len(py));
-        assert_eq!(2, list.get_item(py, 0).extract::<i32>(py).unwrap());
-        list.insert_item(py, 0, val);
-        assert_eq!(5, list.len(py));
-        assert_eq!(42, list.get_item(py, 0).extract::<i32>(py).unwrap());
-        assert_eq!(2, list.get_item(py, 1).extract::<i32>(py).unwrap());
+        let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
+        let val = 42i32.to_object(py).into_object(py);
+        assert_eq!(4, list.len());
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        list.insert_item(0, val).unwrap();
+        assert_eq!(5, list.len());
+        assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
     }
 
     #[test]
@@ -189,10 +196,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
+        let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
         let mut idx = 0;
-        for el in list.iter(py) {
-            assert_eq!(v[idx], el.extract::<i32>(py).unwrap());
+        for el in list.iter() {
+            assert_eq!(v[idx], el.extract::<i32>().unwrap());
             idx += 1;
         }
         assert_eq!(idx, v.len());
@@ -203,8 +210,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::downcast_from(py, v.to_py_object(py)).unwrap();
-        let v2 = list.into_object().extract::<Vec<i32>>(py).unwrap();
+        let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
+        let v2 = list.into_object(py).into_object(py).extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
     }
 }

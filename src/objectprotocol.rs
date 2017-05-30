@@ -6,9 +6,10 @@ use std::fmt;
 use std::cmp::Ordering;
 use ffi;
 use libc;
+use ppptr::pptr;
 use pyptr::{Py, PyPtr};
 use python::{Python, PyDowncastInto, ToPythonPointer};
-use objects::{PyObject, PyDict, PyString};
+use objects::{PyObject, PyDict, PyString, PyIterator};
 use token::PythonObjectWithGilToken;
 use conversion::{ToPyObject, ToPyTuple};
 use typeob::PyTypeInfo;
@@ -115,10 +116,10 @@ pub trait ObjectProtocol<'p> {
     /// This is equivalent to the Python expression 'del self[key]'.
     fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToPyObject;
 
-    // /// Takes an object and returns an iterator for it.
-    // /// This is typically a new iterator but if the argument
-    // /// is an iterator, this returns itself.
-    // fn iter<'a>(&'a self) -> PyResult<Py<'p, ::objects::PyIterator<'a>>>;
+    /// Takes an object and returns an iterator for it.
+    /// This is typically a new iterator but if the argument
+    /// is an iterator, this returns itself.
+    fn iter(&self) -> PyResult<PyIterator<'p>>;
 
     fn get_refcnt(&self) -> isize;
 }
@@ -366,13 +367,17 @@ impl<'p, T> ObjectProtocol<'p> for T where T: PythonObjectWithGilToken<'p> + ToP
         })
     }
 
-    // /// Takes an object and returns an iterator for it.
-    // /// This is typically a new iterator but if the argument
-    // /// is an iterator, this returns itself.
-    //#[inline]
-    //pub fn iter<'a>(&'a self) -> PyResult<Py<'p, ::objects::PyIterator<'a>>> {
-    //    Py::from_owned_ptr_or_err(self.py(), ffi::PyObject_GetIter(self.as_ptr()))
-    //}
+    /// Takes an object and returns an iterator for it.
+    /// This is typically a new iterator but if the argument
+    /// is an iterator, this returns itself.
+    #[inline]
+    fn iter(&self) -> PyResult<PyIterator<'p>> {
+        unsafe {
+            let ptr = pptr::from_owned_ptr_or_err(
+                self.gil(), ffi::PyObject_GetIter(self.as_ptr()))?;
+            PyIterator::from_object(self.gil(), ptr).map_err(|e| e.into())
+        }
+    }
 
     fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) }

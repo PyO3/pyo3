@@ -4,7 +4,7 @@ use std;
 
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, PyDowncastInto, ToPythonPointer};
+use python::{Python, PyDowncastInto, ToPythonPointer, IntoPythonPointer};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 #[allow(non_camel_case_types)]
@@ -164,6 +164,17 @@ impl<'p> ToPythonPointer for pptr<'p> {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.1
+    }
+}
+
+impl<'p> IntoPythonPointer for pptr<'p> {
+    /// Gets the underlying FFI pointer, returns a owned pointer.
+    #[inline]
+    #[must_use]
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.1;
+        std::mem::forget(self);
+        ptr
     }
 }
 

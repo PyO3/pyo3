@@ -5,10 +5,10 @@
 use ::pptr;
 use ffi;
 use pyptr::PyPtr;
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPythonPointer, PyDowncastInto};
 use conversion::{ToPyObject, IntoPyObject};
-use objects::PyObject;
-use token::{PyObjectMarker, PythonObjectWithGilToken}; //, PyList};
+use objects::{PyObject, PyList};
+use token::{PyObjectMarker, PythonObjectWithGilToken};
 use err::{self, PyResult, PyErr};
 use std::{mem, collections, hash, cmp};
 
@@ -98,11 +98,12 @@ impl<'p> PyDict<'p> {
 
     // List of dict items.
     // This is equivalent to the python expression `list(dict.items())`.
-    //pub fn items_list(&self) -> Py<PyList> {
-    //    unsafe {
-    //        Py::from_owned_ptr_or_panic(self.py(), ffi::PyDict_Items(self.as_ptr()))
-    //    }
-    //}
+    pub fn items_list(&self) -> PyList<'p> {
+        unsafe {
+            PyList::downcast_from_owned_ptr(
+                self.gil(), ffi::PyDict_Items(self.as_ptr())).unwrap()
+        }
+    }
 
     /// Returns the list of (key, value) pairs in this dictionary.
     pub fn items(&self) -> Vec<(PyObject<'p>, PyObject<'p>)> {
@@ -153,9 +154,9 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
 #[cfg(test)]
 mod test {
     use std::collections::{BTreeMap, HashMap};
-    use python::{Python};
+    use python::{Python, PyDowncastInto};
     use conversion::ToPyObject;
-    use objects::{PyDict}; //, PyTuple};
+    use objects::{PyDict, PyTuple};
     use ::PyDowncastFrom;
 
 
@@ -251,7 +252,7 @@ mod test {
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
 
-    /*#[test]
+    #[test]
     fn test_items_list() {
     let gil = Python::acquire_gil();
         let py = gil.python();
@@ -259,18 +260,18 @@ mod test {
         v.insert(7, 32);
         v.insert(8, 42);
         v.insert(9, 123);
-        let dict = PyDict::downcast_from(py, v.to_py_object(py)).unwrap();
+        let dict = PyDict::downcast_into(py, v.to_object(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
-        for el in dict.items_list(py).iter(py) {
+        for el in dict.items_list().iter() {
             let tuple = el.cast_into::<PyTuple>(py).unwrap();
-            key_sum += tuple.get_item(py, 0).extract::<i32>(py).unwrap();
-            value_sum += tuple.get_item(py, 1).extract::<i32>(py).unwrap();
+            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
+            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
         }
         assert_eq!(7 + 8 + 9, key_sum);
         assert_eq!(32 + 42 + 123, value_sum);
-    }*/
+    }
 
     #[test]
     fn test_items() {

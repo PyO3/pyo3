@@ -133,6 +133,16 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             }
         }
 
+        impl _pyo3::python::ToPythonPointer for #cls {
+            #[inline]
+            fn as_ptr(&self) -> *mut ffi::PyObject {
+                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                unsafe {
+                    {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
+                }
+            }
+        }
+
         impl _pyo3::class::PyCustomObject for #cls {
 
         }

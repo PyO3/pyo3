@@ -43,7 +43,9 @@ pub trait PyDowncastFrom<'p> : Sized {
 pub trait PyDowncastInto<'p> : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_into(Python<'p>, PyObject) -> Result<Self, PyDowncastError<'p>>;
+    fn downcast_into<I>(Python<'p>, I)
+                        -> Result<Self, PyDowncastError<'p>>
+        where I: ToPythonPointer + IntoPythonPointer;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn downcast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
