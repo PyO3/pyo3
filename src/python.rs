@@ -267,7 +267,7 @@ mod test {
         d.set_item("foo", 13).unwrap();
 
         // Inject our own global namespace
-        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract().unwrap();
         assert_eq!(v, 42);
 
         // Inject our own local namespace
