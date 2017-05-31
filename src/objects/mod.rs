@@ -55,7 +55,10 @@ macro_rules! pyobject_nativetype(
                 unsafe { $crate::std::mem::transmute(self) }
             }
             fn as_object(self) -> $crate::PyObject<'p> {
-                unsafe { $crate::std::mem::transmute(self) }
+                unsafe {
+                    $crate::ffi::Py_INCREF(self.as_ptr());
+                    $crate::std::mem::transmute(self)
+                }
             }
             fn clone_object(&self) -> $name<'p> {
                 use $crate::{ToPythonPointer, PythonObjectWithGilToken};

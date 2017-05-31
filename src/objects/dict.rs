@@ -28,8 +28,9 @@ impl<'p> PyDict<'p> {
     }
 
     /// Construct a new dict with the given raw pointer
-    pub fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyDict<'p> {
-        unsafe { PyDict(pyptr::from_borrowed_ptr(py, ptr)) }
+    /// Undefined behavior if the pointer is NULL or invalid.
+    pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyDict<'p> {
+        PyDict(pyptr::from_borrowed_ptr(py, ptr))
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.

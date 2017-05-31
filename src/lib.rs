@@ -216,7 +216,7 @@ pub unsafe fn py_module_init_impl(
         return module;
     }
 
-    let module = match Py::<PyModule>::cast_from_owned_ptr(py, module) {
+    let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>(py) {
         Ok(m) => m,
         Err(e) => {
             PyErr::from(e).restore(py);

@@ -9,7 +9,6 @@ use std::ffi::{CStr, CString};
 
 use ::pyptr;
 use conversion::{ToPyObject, ToPyTuple};
-use pointers::PyPtr;
 use python::{ToPythonPointer, Python};
 use token::PythonObjectWithGilToken;
 use objects::{PyObject, PyDict, PyType, exc};
@@ -46,9 +45,9 @@ impl<'p> PyModule<'p> {
 
     /// Return the dictionary object that implements module's namespace;
     /// this object is the same as the `__dict__` attribute of the module object.
-    pub fn dict(&self) -> PyPtr<PyDict> {
+    pub fn dict(&self) -> PyDict<'p> {
         unsafe {
-            PyPtr::from_borrowed_ptr(ffi::PyModule_GetDict(self.as_ptr()))
+            PyDict::from_borrowed_ptr(self.gil(), ffi::PyModule_GetDict(self.as_ptr()))
         }
     }
 

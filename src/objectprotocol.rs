@@ -408,7 +408,7 @@ impl<'p, T> fmt::Debug for PyPtr<T> where T: ObjectProtocol<'p> + PyTypeInfo {
         let py = gil.python();
 
         // TODO: we shouldn't use fmt::Error when repr() fails
-        let r = self.as_ref(py);
+        let r = self.as_object(py);
         let repr_obj = try!(r.repr().map_err(|_| fmt::Error));
         f.write_str(&repr_obj.to_string_lossy())
     }
@@ -420,8 +420,8 @@ impl<'p, T> fmt::Display for PyPtr<T> where T: ObjectProtocol<'p> + PyTypeInfo {
         let py = gil.python();
 
         // TODO: we shouldn't use fmt::Error when repr() fails
-        let r = self.as_ref(py);
-        let repr_obj = try!(r.as_ref().str().map_err(|_| fmt::Error));
+        let r = self.as_object(py);
+        let repr_obj = try!(r.str().map_err(|_| fmt::Error));
         f.write_str(&repr_obj.to_string_lossy())
     }
 }

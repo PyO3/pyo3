@@ -19,7 +19,6 @@
 use std::ptr;
 
 use ffi;
-use pointers::Py;
 use python::Python;
 use objects::PyObject;
 
@@ -140,6 +139,6 @@ macro_rules! py_fn_impl {
 
 #[allow(dead_code)]
 pub unsafe fn py_fn_impl<'p>(py: Python<'p>,
-                             method_def: *mut ffi::PyMethodDef) -> Py<'p, PyObject> {
-    Py::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
+                             method_def: *mut ffi::PyMethodDef) -> PyObject<'p> {
+    PyObject::from_owned_ptr_or_panic(py, ffi::PyCFunction_New(method_def, ptr::null_mut()))
 }

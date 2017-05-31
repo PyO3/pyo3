@@ -12,7 +12,7 @@ use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use token::{PythonToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
-use pointers::{Py, PyPtr, pptr};
+use pointers::{Py, pptr};
 use pythonrun::GILGuard;
 
 
@@ -49,21 +49,6 @@ pub trait PyDowncastInto<'p> : Sized {
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn downcast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
                                -> Result<Self, PyDowncastError<'p>>;
-}
-
-
-pub trait PyClone : Sized {
-    fn clone_ref(&self) -> PyPtr<Self>;
-}
-
-impl<T> PyClone for T where T: ToPythonPointer {
-    #[inline]
-    fn clone_ref(&self) -> PyPtr<T> {
-        unsafe {
-            let ptr = <T as ToPythonPointer>::as_ptr(self);
-            PyPtr::from_borrowed_ptr(ptr)
-        }
-    }
 }
 
 

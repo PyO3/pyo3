@@ -1,9 +1,10 @@
 use ffi;
 use err::PyResult;
 use pointers::pptr;
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPythonPointer, PyDowncastFrom};
 use objects::{PyObject, PyTuple};
 use native::PyNativeObject;
+use typeob::PyTypeInfo;
 
 
 /// Conversion trait that allows various objects to be converted into PyObject
@@ -147,7 +148,6 @@ impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
     }
 }
 
-
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
@@ -155,6 +155,16 @@ impl ToPyObject for () {
     }
 }
 
+/// Extract reference to instance from PyObject
+impl<'source, T> ::FromPyObject<'source> for &'source T
+    where T: PyTypeInfo + PyDowncastFrom<'source>
+{
+    #[inline]
+    default fn extract(py: &'source PyObject<'source>) -> PyResult<&'source T>
+    {
+        Ok(py.cast_as()?)
+    }
+}
 
 impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
     fn extract(obj: &'source PyObject) -> PyResult<Self>
