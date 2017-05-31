@@ -11,7 +11,6 @@ use std::ffi::CStr;
 use ffi;
 use python::{Python, ToPythonPointer, Park};
 use err::PyResult;
-use native::PyNativeObject;
 use super::{PyTuple, PyType, PyTypePtr};
 
 macro_rules! exc_type(

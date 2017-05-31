@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use libc;
 
 use ffi;
-use python::{ToPythonPointer, IntoPythonPointer, Python, Park, Unpark, PyDowncastInto};
+use python::{ToPythonPointer, IntoPythonPointer, Python, Park, PyDowncastInto};
 use objects::{PyObject, PyObjectPtr, PyType, PyTypePtr, exc};
 use native::PyNativeObject;
 use typeob::{PyTypeObject};

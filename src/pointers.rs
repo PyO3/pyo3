@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 use std::convert::{AsRef, AsMut};
 
 use ffi;
-use err::{PyErr, PyResult, PyDowncastError};
+use err::{PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
 use objects::{PyObject, PyObjectPtr};
 use python::{Python, ToPythonPointer, IntoPythonPointer};

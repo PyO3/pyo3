@@ -566,7 +566,7 @@ impl_element!(f32, Float);
 impl_element!(f64, Float);
 
 
-//#[cfg(test)]
+#[cfg(test)]
 mod test {
     use std;
     use python::{Python};
