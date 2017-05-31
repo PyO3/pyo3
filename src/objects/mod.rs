@@ -57,9 +57,6 @@ macro_rules! pyobject_nativetype(
             fn as_object(self) -> $crate::PyObject<'p> {
                 unsafe { $crate::std::mem::transmute(self) }
             }
-            fn into_object(self) -> $crate::PyPtr<$crate::PyObjectMarker> {
-                unsafe { $crate::std::mem::transmute(self) }
-            }
             fn clone_object(&self) -> $name<'p> {
                 use $crate::{ToPythonPointer, PythonObjectWithGilToken};
                 unsafe {
@@ -177,9 +174,8 @@ macro_rules! pyobject_nativetype(
         impl<'a> $crate::ToPyObject for $name<'a>
         {
             #[inline]
-            fn to_object<'p>(&self, _py: $crate::Python<'p>)
-                             -> $crate::PyPtr<$crate::PyObjectMarker> {
-                unsafe { $crate::PyPtr::from_borrowed_ptr(self.0.as_ptr()) }
+            fn to_object<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObject<'p> {
+                $crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())
             }
 
             #[inline]

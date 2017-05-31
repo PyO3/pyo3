@@ -4,11 +4,10 @@ use std::os::raw::c_char;
 use libc;
 
 use ffi;
-use pointers::{pptr, PyPtr};
+use pointers::pptr;
 use python::{ToPythonPointer, IntoPythonPointer, Python};
 use objects::{PyObject, PyType, exc};
 use native::PyNativeObject;
-use token::PyObjectMarker;
 use typeob::{PyTypeObject};
 use conversion::{ToPyObject, ToPyTuple, IntoPyObject};
 
@@ -117,9 +116,9 @@ impl PyErr {
     /// Example:
     ///  `return Err(PyErr::new::<exc::TypeError, _>(py, "Error message"));`
     pub fn new<T, V>(py: Python, value: V) -> PyErr
-        where T: PyTypeObject, V: ToPyObject
+        where T: PyTypeObject, V: IntoPyObject
     {
-        PyErr::new_helper(py, py.get_type::<T>().park(), value.to_object(py))
+        PyErr::new_helper(py, py.get_type::<T>().park(), value.into_object(py))
     }
 
     /// Gets whether an error is present in the Python interpreter's global state.
@@ -184,11 +183,11 @@ impl PyErr {
         }
     }
 
-    fn new_helper(_py: Python, ty: pptr, value: PyPtr<PyObjectMarker>) -> PyErr {
+    fn new_helper(_py: Python, ty: pptr, value: pptr) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
         PyErr {
             ptype: ty,
-            pvalue: Some(value.park()),
+            pvalue: Some(value),
             ptraceback: None
         }
     }
@@ -198,21 +197,21 @@ impl PyErr {
     /// `obj` must be an Python exception instance, the PyErr will use that instance.
     /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new instance of that type.
     /// Otherwise, a `TypeError` is created instead.
-    pub fn from_instance<O>(py: Python, obj: O) -> PyErr where O: ToPyObject {
-        PyErr::from_instance_helper(py, obj.to_object(py))
+    pub fn from_instance<O>(py: Python, obj: O) -> PyErr where O: IntoPyObject {
+        PyErr::from_instance_helper(py, obj.into_object(py))
     }
 
-    fn from_instance_helper<'p>(py: Python, obj: PyPtr<PyObjectMarker>) -> PyErr {
+    fn from_instance_helper<'p>(py: Python, obj: pptr) -> PyErr {
         if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {
                 ptype: unsafe { pptr::from_borrowed_ptr(
                     ffi::PyExceptionInstance_Class(obj.as_ptr())) },
-                pvalue: Some(obj.park()),
+                pvalue: Some(obj),
                 ptraceback: None
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: obj.park(),
+                ptype: obj,
                 pvalue: None,
                 ptraceback: None
             }

@@ -1,16 +1,16 @@
 use ffi;
 use err::PyResult;
-use pointers::{pptr, PyPtr};
+use pointers::pptr;
 use python::{Python, ToPythonPointer};
 use objects::{PyObject, PyTuple};
-use token::PyObjectMarker;
+use native::PyNativeObject;
 
 
 /// Conversion trait that allows various objects to be converted into PyObject
 pub trait ToPyObject {
 
     /// Converts self into a Python object.
-    fn to_object<'p>(&self, py: Python<'p>) -> PyPtr<PyObjectMarker>;
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p>;
 
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -113,7 +113,7 @@ impl<T> IntoPyObject for T where T: ToPyObject
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 
     #[inline]
-    default fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    default fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         <T as ToPyObject>::to_object(*self, py)
     }
 
@@ -129,10 +129,10 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 /// `Option::None` is converted to Python `None`.
 impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         match *self {
             Some(ref val) => val.to_object(py),
-            None => py.None().into_pobject(),
+            None => py.None().into_object(py),
         }
     }
 }
@@ -150,8 +150,8 @@ impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        py.None().into_pobject()
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        py.None().into_object(py)
     }
 }
 

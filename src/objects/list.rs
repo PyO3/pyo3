@@ -5,10 +5,9 @@
 use ::pyptr;
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use pointers::PyPtr;
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use objects::PyObject;
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use token::PythonObjectWithGilToken;
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
@@ -103,21 +102,21 @@ impl <'p> Iterator for PyListIterator<'p> {
 
 impl <T> ToPyObject for [T] where T: ToPyObject {
 
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyPtr::from_owned_ptr_or_panic(ptr)
+            PyObject::from_owned_ptr_or_panic(py, ptr)
         }
     }
 }
 
 impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         self.as_slice().to_object(py)
     }
 
@@ -170,7 +169,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
-        let val = 42i32.to_object(py).into_object(py);
+        let val = 42i32.to_object(py);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         list.set_item(0, val).unwrap();
         assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
@@ -182,7 +181,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
-        let val = 42i32.to_object(py).into_object(py);
+        let val = 42i32.to_object(py);
         assert_eq!(4, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         list.insert_item(0, val).unwrap();

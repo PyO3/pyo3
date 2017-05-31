@@ -1,7 +1,7 @@
-use ::{pyptr, PyPtr};
+use pyptr;
 use ffi;
-use token::PyObjectMarker;
 use python::{ToPythonPointer, Python};
+use objects::PyObject;
 use native::PyNativeObject;
 use conversion::ToPyObject;
 
@@ -29,8 +29,8 @@ impl<'p> PyBool<'p> {
 /// Converts a rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyBool::new(py, *self).into_object()
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyBool::new(py, *self).as_object()
     }
 
     #[inline]
@@ -62,7 +62,7 @@ mod test {
         let py = gil.python();
         assert!(py.True().is_true());
         assert_eq!(true, py.True().as_object().extract().unwrap());
-        assert!(true.to_object(py).into_object(py) == py.True().as_object());
+        assert!(true.to_object(py) == py.True().as_object());
     }
 
     #[test]
@@ -71,6 +71,6 @@ mod test {
         let py = gil.python();
         assert!(!py.False().is_true());
         assert_eq!(false, py.False().as_object().extract().unwrap());
-        assert!(false.to_object(py).into_object(py) == py.False().as_object());
+        assert!(false.to_object(py) == py.False().as_object());
     }
 }

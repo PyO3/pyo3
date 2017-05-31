@@ -2,15 +2,16 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use ::pyptr;
+use std::{mem, collections, hash, cmp};
+
 use ffi;
-use pointers::PyPtr;
+use pyptr;
 use python::{Python, ToPythonPointer, PyDowncastInto};
 use conversion::{ToPyObject};
 use objects::{PyObject, PyList};
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use token::PythonObjectWithGilToken;
 use err::{self, PyResult, PyErr};
-use std::{mem, collections, hash, cmp};
+use native::PyNativeObject;
 
 /// Represents a Python `dict`.
 pub struct PyDict<'p>(pyptr<'p>);
@@ -129,12 +130,12 @@ impl <K, V> ToPyObject for collections::HashMap<K, V>
     where K: hash::Hash+cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.to_object(py)
+        dict.as_object()
     }
 }
 
@@ -142,19 +143,19 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     where K: cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.to_object(py)
+        dict.as_object()
     }
 }
 
 #[cfg(test)]
 mod test {
     use std::collections::{BTreeMap, HashMap};
-    use python::{Python, PyDowncastInto};
+    use python::Python;
     use conversion::ToPyObject;
     use objects::{PyDict, PyTuple};
     use ::PyDowncastFrom;
@@ -166,11 +167,11 @@ mod test {
         let py = gil.python();
         let mut v = HashMap::new();
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert_eq!(0, dict.len());
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict2 = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict2 = PyDict::downcast_from(&ob).unwrap();
         assert_eq!(1, dict2.len());
     }
 
@@ -181,7 +182,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert_eq!(true, dict.contains(7i32).unwrap());
         assert_eq!(false, dict.contains(8i32).unwrap());
     }
@@ -193,7 +194,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
         assert_eq!(None, dict.get_item(8i32));
     }
@@ -205,7 +206,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(42i32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
@@ -219,7 +220,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
@@ -234,7 +235,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert!(dict.del_item(7i32).is_ok());
         assert_eq!(0, dict.len());
         assert_eq!(None, dict.get_item(7i32));
@@ -247,7 +248,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         assert!(dict.del_item(7i32).is_ok()); // change
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
@@ -260,7 +261,8 @@ mod test {
         v.insert(7, 32);
         v.insert(8, 42);
         v.insert(9, 123);
-        let dict = PyDict::downcast_into(py, v.to_object(py)).unwrap();
+        let ob = v.to_object(py);
+        let dict = PyDict::downcast_from(&ob).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
@@ -282,7 +284,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_object(py)).unwrap();
+        let dict = PyDict::downcast_from(&ob).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
@@ -303,7 +305,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = PyDict::downcast_from(m.as_object(py)).unwrap();
+        let py_map = PyDict::downcast_from(&m).unwrap();
 
         assert!(py_map.len() == 1);
         assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -318,7 +320,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = PyDict::downcast_from(m.as_object(py)).unwrap();
+        let py_map = PyDict::downcast_from(&m).unwrap();
 
         assert!(py_map.len() == 1);
         assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

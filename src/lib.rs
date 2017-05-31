@@ -71,7 +71,7 @@ mod ppptr;
 pub use ppptr::{pyptr};
 
 mod token;
-pub use token::{PyObjectMarker, PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};
+pub use token::{PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;

@@ -8,12 +8,13 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 
-use ::{PyPtr, pyptr};
 use ffi;
+use pyptr;
 use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use token::PythonObjectWithGilToken;
 use err::{PyResult, PyErr};
+use native::PyNativeObject;
 use conversion::{ToPyObject, RefFromPyObject};
 
 /// Represents a Python string.
@@ -220,8 +221,8 @@ impl<'p> PyBytes<'p> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyString::new(py, self).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyString::new(py, self).as_object()
     }
 }
 
@@ -229,8 +230,8 @@ impl ToPyObject for str {
 /// See `PyString::new` for details on the conversion.
 impl <'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyString::new(py, self).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyString::new(py, self).as_object()
     }
 }
 
@@ -238,8 +239,8 @@ impl <'a> ToPyObject for Cow<'a, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyString::new(py, self).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyString::new(py, self).as_object()
     }
 }
 
@@ -271,6 +272,7 @@ impl<'p> RefFromPyObject<'p> for str {
 #[cfg(test)]
 mod test {
     use python::Python;
+    use native::PyNativeObject;
     use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
@@ -279,7 +281,7 @@ mod test {
         let py = gil.python();
         let s = "\u{1F30F}";
         let py_string = s.to_object(py);
-        assert_eq!(s, py_string.as_object(py).extract::<String>().unwrap());
+        assert_eq!(s, py_string.as_object().extract::<String>().unwrap());
     }
 
     #[test]
@@ -289,7 +291,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
         let mut called = false;
-        RefFromPyObject::with_extracted(&py_string.as_object(py),
+        RefFromPyObject::with_extracted(&py_string.as_object(),
             |s2: &str| {
                 assert_eq!(s, s2);
                 called = true;

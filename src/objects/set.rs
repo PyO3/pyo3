@@ -3,14 +3,13 @@
 
 use std::{hash, collections};
 use ffi;
-use pointers::PyPtr;
+use pyptr;
 use python::{Python, ToPythonPointer};
 use conversion::ToPyObject;
-use objects::{PyObject, PyIterator};
+use objects::PyObject;
 use err::{self, PyResult, PyErr};
-use pyptr;
-use token::{PyObjectMarker, PythonObjectWithGilToken};
-use objectprotocol::ObjectProtocol;
+use native::PyNativeObject;
+use token::{PythonObjectWithGilToken};
 
 
 /// Represents a Python `set`
@@ -80,34 +79,29 @@ impl<'p> PySet<'p> {
                 ffi::PySet_Pop(self.as_ptr()))
         }
     }
-
-    #[inline]
-    pub fn iter(&self) -> PyResult<PyIterator<'p>> {
-        Ok(self.to_object(self.gil()).into_object(self.gil()).iter()?)
-    }
 }
 
 impl<T> ToPyObject for collections::HashSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         let set = PySet::new::<T>(py, &[]);
         for val in self {
             set.add(val).unwrap();
         }
-        set.to_object(py)
+        set.as_object()
     }
 }
 
 impl<T> ToPyObject for collections::BTreeSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
         let set = PySet::new::<T>(py, &[]);
         for val in self {
             set.add(val).unwrap();
         }
-        set.to_object(py)
+        set.as_object()
     }
 }
 
@@ -141,18 +135,15 @@ impl<'p> PyFrozenSet<'p> {
             }
         })
     }
-
-    #[inline]
-    pub fn iter(&self) -> PyResult<PyIterator<'p>> {
-        Ok(self.to_object(self.gil()).into_object(self.gil()).iter()?)
-    }
 }
 
 #[cfg(test)]
 mod test {
     use std::collections::{HashSet};
-    use python::{Python, PyDowncastFrom};
+    use python::{Python, PyDowncastInto};
+    use native::PyNativeObject;
     use conversion::ToPyObject;
+    use objectprotocol::ObjectProtocol;
     use super::{PySet, PyFrozenSet};
 
     #[test]
@@ -171,11 +162,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = PySet::downcast_from(ob.as_object(py)).unwrap();
+        let set = PySet::downcast_into(py, ob.as_object()).unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = PySet::downcast_from(ob.as_object(py)).unwrap();
+        let set2 = PySet::downcast_into(py, ob.as_object()).unwrap();
         assert_eq!(1, set2.len());
     }
 

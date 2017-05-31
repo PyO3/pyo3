@@ -7,13 +7,14 @@ extern crate num_traits;
 use self::num_traits::cast::cast;
 use std::os::raw::{c_long, c_double};
 
-use ::{PyPtr, pyptr};
 use ffi;
-use super::exc;
+use pyptr;
+use objects::exc;
 use objects::PyObject;
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use token::PythonObjectWithGilToken;
 use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
+use native::PyNativeObject;
 use conversion::{ToPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
@@ -53,9 +54,9 @@ impl<'p> PyFloat<'p> {
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-            fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
+            fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
                 unsafe {
-                    PyPtr::from_owned_ptr_or_panic(ffi::PyLong_FromLong(*self as c_long))
+                    PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(*self as c_long))
                 }
             }
         }
@@ -78,7 +79,7 @@ macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
+            fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
                 (*self as $larger_type).to_object(py)
             }
         }
@@ -108,10 +109,10 @@ fn err_if_invalid_value<'p, T: PartialEq>
 macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl ToPyObject for $rust_type {
-
-            fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
+            #[inline]
+            fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
                 unsafe {
-                    PyPtr::from_owned_ptr_or_panic($pylong_from_ll_or_ull(*self))
+                    PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
                 }
             }
         }
@@ -169,8 +170,8 @@ int_fits_larger_int!(usize, u64);
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyFloat::new(py, *self).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyFloat::new(py, *self).as_object()
     }
 }
 
@@ -188,8 +189,8 @@ fn overflow_error(py: Python) -> PyErr {
 }
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyFloat::new(py, *self as f64).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyFloat::new(py, *self as f64).as_object()
     }
 }
 
@@ -210,7 +211,7 @@ mod test {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 let val = 123 as $t1;
-                let obj = val.to_object(py).into_object(py);
+                let obj = val.to_object(py);
                 assert_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
             }
         )
@@ -239,7 +240,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u32::MAX;
-        let obj = v.to_object(py).into_object(py);
+        let obj = v.to_object(py);
         assert_eq!(v, obj.extract::<u32>().unwrap());
         assert_eq!(v as u64, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<i32>().is_err());
@@ -250,7 +251,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::i64::MAX;
-        let obj = v.to_object(py).into_object(py);
+        let obj = v.to_object(py);
         assert_eq!(v, obj.extract::<i64>().unwrap());
         assert_eq!(v as u64, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<u32>().is_err());
@@ -261,7 +262,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::i64::MIN;
-        let obj = v.to_object(py).into_object(py);
+        let obj = v.to_object(py);
         assert_eq!(v, obj.extract::<i64>().unwrap());
         assert!(obj.extract::<i32>().is_err());
         assert!(obj.extract::<u64>().is_err());
@@ -272,7 +273,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = std::u64::MAX;
-        let obj = v.to_object(py).into_object(py);
+        let obj = v.to_object(py);
         assert_eq!(v, obj.extract::<u64>().unwrap());
         assert!(obj.extract::<i64>().is_err());
     }

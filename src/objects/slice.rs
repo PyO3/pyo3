@@ -3,12 +3,13 @@
 use std::os::raw::c_long;
 
 use ::pyptr;
-use pointers::PyPtr;
 use python::{ToPythonPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
+use native::PyNativeObject;
+use objects::PyObject;
 use conversion::ToPyObject;
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use token::PythonObjectWithGilToken;
 
 /// Represents a Python `slice` indices
 pub struct PySliceIndices {
@@ -78,7 +79,7 @@ impl<'p> PySlice<'p> {
 }
 
 impl ToPyObject for PySliceIndices {
-    fn to_object<'p>(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PySlice::new(py, self.start, self.stop, self.step).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PySlice::new(py, self.start, self.stop, self.step).as_object()
     }
 }

@@ -479,7 +479,7 @@ mod test {
         use std::cmp::Ordering;
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let one = 1i32.to_object(py).into_object(py);
+        let one = 1i32.to_object(py);
         assert_eq!(one.compare(1).unwrap(), Ordering::Equal);
         assert_eq!(one.compare(2).unwrap(), Ordering::Less);
         assert_eq!(one.compare(0).unwrap(), Ordering::Greater);

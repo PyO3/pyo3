@@ -27,6 +27,12 @@ impl<'p> PyObject<'p> {
     }
 
     #[inline]
+    pub fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                   -> PyObject<'p> {
+        unsafe { PyObject(pyptr::from_owned_ptr_or_panic(py, ptr)) }
+    }
+
+    #[inline]
     pub fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
                                      -> Option<PyObject<'p>> {
         unsafe {

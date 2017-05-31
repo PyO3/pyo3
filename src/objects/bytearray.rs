@@ -93,7 +93,7 @@ mod test {
         assert_eq!(src, bytearray.data());
 
         let ba = bytearray.to_object(py);
-        let bytearray = PyByteArray::from(ba.as_object(py)).unwrap();
+        let bytearray = PyByteArray::from(&ba).unwrap();
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());
 

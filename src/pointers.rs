@@ -10,7 +10,7 @@ use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
 use objects::PyObject;
 use python::{Python, ToPythonPointer, IntoPythonPointer};
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use token::PythonObjectWithGilToken;
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
@@ -120,13 +120,6 @@ impl pptr {
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
     pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject<'p> {
-        unsafe { std::mem::transmute(self) }
-    }
-
-    /// Converts `pptr` instance -> PyObject<'p>
-    /// Consumes `self` without calling `Py_DECREF()`
-    #[inline]
-    pub fn into_pobject(self) -> PyPtr<PyObjectMarker> {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -503,15 +496,6 @@ impl<'p, T> Py<'p, T>
         ptr
     }
 
-    /// Converts Py<'p, T> -> Py<'p, PyObject>
-    /// Consumes `self` without calling `Py_DECREF()`
-    #[inline]
-    pub fn into_object(self) -> Py<'p, PyObjectMarker> {
-        let p = Py {inner: self.inner, _t: PhantomData, py: self.py};
-        std::mem::forget(self);
-        p
-    }
-
     /// Converts Py<'p, T> -> PyObject<'p>. Calls Py_INCREF() on the ptr.
     #[inline]
     pub fn as_pyobject(&self) -> &PyObject<'p> {
@@ -801,8 +785,8 @@ impl<'source, T> ::FromPyObject<'source> for Py<'source, T> where T: PyTypeInfo
 impl <'a, T> ToPyObject for Py<'a, T> {
 
     #[inline]
-    default fn to_object<'p>(&self, _py: Python) -> PyPtr<PyObjectMarker> {
-        unsafe { PyPtr::from_borrowed_ptr(self.inner) }
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyObject::from_borrowed_ptr(py, self.inner)
     }
 
     #[inline]
@@ -816,8 +800,8 @@ impl <'a, T> ToPyObject for Py<'a, T> {
 impl<T> ToPyObject for PyPtr<T> {
 
     #[inline]
-    default fn to_object(&self, _py: Python) -> PyPtr<PyObjectMarker> {
-        unsafe { PyPtr::from_borrowed_ptr(self.inner) }
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyObject::from_borrowed_ptr(py, self.inner)
     }
 
     #[inline]

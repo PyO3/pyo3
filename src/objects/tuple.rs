@@ -4,13 +4,14 @@
 
 use std::slice;
 
-use ::{PyPtr, pyptr};
+use pyptr;
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
 use objects::PyObject;
-use token::{PyObjectMarker, PythonObjectWithGilToken};
+use native::PyNativeObject;
+use token::PythonObjectWithGilToken;
 use super::exc;
 
 /// Represents a Python tuple object.
@@ -108,10 +109,10 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object<'p>(&self, py: Python<'p>) -> PyPtr<PyObjectMarker> {
+        fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_object(py)),)+
-            ]).to_object(py)
+            ]).as_object()
         }
     }
 
@@ -125,7 +126,6 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(obj: &'s PyObject<'s>) -> PyResult<Self>
-            //where S: ::typeob::PyTypeInfo
         {
             let t = try!(obj.cast_as::<PyTuple>());
             let slice = t.as_slice();
@@ -174,8 +174,8 @@ pub struct NoArgs;
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyObject for NoArgs {
 
-    fn to_object(&self, py: Python) -> PyPtr<PyObjectMarker> {
-        PyTuple::empty(py).to_object(py)
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+        PyTuple::empty(py).as_object()
     }
 }
 
