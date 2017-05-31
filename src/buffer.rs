@@ -570,8 +570,8 @@ impl_element!(f64, Float);
 mod test {
     use std;
     use python::{Python};
-    use conversion::ToPyObject;
-    use objects::{PyList, PyTuple};//, PySequence, PyIterator};
+    //use conversion::ToPyObject;
+    //use objects::{PyList, PyTuple};//, PySequence, PyIterator};
     use objectprotocol::ObjectProtocol;
     use super::PyBuffer;
 

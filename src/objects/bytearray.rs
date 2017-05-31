@@ -8,13 +8,15 @@ use python::{Python, ToPythonPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
 use ppptr::pyptr;
+use pointers::PPyPtr;
 use token::PythonObjectWithGilToken;
 
 
 /// Represents a Python bytearray.
 pub struct PyByteArray<'p>(pyptr<'p>);
+pub struct PyByteArrayPtr(PPyPtr);
 
-pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
+pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type, PyByteArrayPtr);
 
 
 impl<'p> PyByteArray<'p> {
@@ -101,7 +103,7 @@ mod test {
         assert_eq!(20, bytearray.len());
 
         let none = py.None();
-        if let Err(mut err) = PyByteArray::from(none.as_object(py)) {
+        if let Err(mut err) = PyByteArray::from(&none) {
             assert!(exc::TypeError::type_object(py).is_instance(&err.instance(py)))
         } else {
             panic!("error");

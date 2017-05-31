@@ -4,13 +4,16 @@ use std;
 
 use ::pyptr;
 use ffi;
-use err::{PyResult, PyDowncastError};
+use pointers::PPyPtr;
+use err::{PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPythonPointer};
 
 
 pub struct PyObject<'p>(pyptr<'p>);
 
-pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type);
+pub struct PyObjectPtr(PPyPtr);
+
+pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type, PyObjectPtr);
 
 
 impl<'p> PyObject<'p> {
@@ -105,5 +108,85 @@ impl<'p> PartialEq for PyObject<'p> {
     #[inline]
     fn eq(&self, other: &PyObject) -> bool {
         self.as_ptr() == other.as_ptr()
+    }
+}
+
+impl PyObjectPtr {
+    /// Creates a `PyObjectPtr` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `PyObjectPtr`.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    #[inline]
+    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyObjectPtr {
+        PyObjectPtr(PPyPtr::from_owned_ptr(ptr))
+    }
+
+    /// Creates a `PyObjectPtr` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `PyObjectPtr`.
+    /// Returns None for null pointers; undefined behavior if the pointer is invalid.
+    #[inline]
+    pub fn from_owned_ptr_or_opt(ptr: *mut ffi::PyObject) -> Option<PyObjectPtr> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(PyObjectPtr(unsafe{PPyPtr::from_owned_ptr(ptr)}))
+        }
+    }
+
+    /// Construct `PyObjectPtr` from the result of a Python FFI call that
+    /// returns a new reference (owned pointer).
+    /// Returns `Err(PyErr)` if the pointer is `null`; undefined behavior if the
+    /// pointer is invalid.
+    pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObjectPtr>
+    {
+        if ptr.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(PyObjectPtr(unsafe{PPyPtr::from_owned_ptr(ptr)}))
+        }
+    }
+
+    /// Construct `PyObjectPtr` instance for the given Python FFI pointer.
+    /// Panics if the pointer is `null`; undefined behavior if the pointer is invalid.
+    #[inline]
+    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> PyObjectPtr
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            PyObjectPtr(PPyPtr::from_owned_ptr(ptr))
+        }
+    }
+
+    /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyObjectPtr {
+        PyObjectPtr(PPyPtr::from_borrowed_ptr(ptr))
+    }
+
+    /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    /// Returns None for null pointers; undefined behavior if the pointer is invalid.
+    #[inline]
+    pub fn from_borrowed_ptr_or_opt(ptr: *mut ffi::PyObject) -> Option<PyObjectPtr> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(PyObjectPtr(unsafe{PPyPtr::from_borrowed_ptr(ptr)}))
+        }
+    }
+
+    /// Construct `PyObjectPtr` instance for the given Python FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    /// Panics if the pointer is `null`; undefined behavior if the pointer is invalid.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr_or_panic(ptr: *mut ffi::PyObject) -> PyObjectPtr
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            PyObjectPtr(PPyPtr::from_borrowed_ptr(ptr))
+        }
     }
 }

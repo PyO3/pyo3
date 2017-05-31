@@ -5,15 +5,17 @@
 use ::pyptr;
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use python::{Python, ToPythonPointer, IntoPythonPointer};
+use pointers::PPyPtr;
+use python::{Python, ToPythonPointer, IntoPythonPointer, Park};
 use objects::PyObject;
 use token::PythonObjectWithGilToken;
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
 pub struct PyList<'p>(pyptr<'p>);
+pub struct PyListPtr(PPyPtr);
 
-pyobject_nativetype!(PyList, PyList_Check, PyList_Type);
+pyobject_nativetype!(PyList, PyList_Check, PyList_Type, PyListPtr);
 
 impl<'p> PyList<'p> {
     /// Construct a new list with the given elements.
@@ -131,7 +133,7 @@ impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
                 let obj = e.into_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            ::PyObjectPtr::from_owned_ptr_or_panic(ptr)
+            ::PyObject::from_owned_ptr_or_panic(py, ptr).park()
         }
     }
 }
@@ -139,6 +141,7 @@ impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 #[cfg(test)]
 mod test {
     use python::{Python, PyDowncastInto};
+    use native::PyNativeObject;
     use conversion::{ToPyObject, IntoPyObject};
     use objects::PyList;
 
@@ -210,7 +213,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let list = PyList::downcast_into(py, v.to_object(py)).unwrap();
-        let v2 = list.into_object(py).into_object(py).extract::<Vec<i32>>().unwrap();
+        let v2 = list.as_object().extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
     }
 }

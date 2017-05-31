@@ -3,6 +3,7 @@
 use std::os::raw::c_long;
 
 use ::pyptr;
+use pointers::PPyPtr;
 use python::{ToPythonPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
@@ -10,6 +11,14 @@ use native::PyNativeObject;
 use objects::PyObject;
 use conversion::ToPyObject;
 use token::PythonObjectWithGilToken;
+
+/// Represents a Python `slice`. Only `c_long` indeces supprted
+/// at the moment by PySlice object.
+pub struct PySlice<'p>(pyptr<'p>);
+pub struct PySlicePtr(PPyPtr);
+
+pyobject_nativetype!(PySlice, PySlice_Check, PySlice_Type, PySlicePtr);
+
 
 /// Represents a Python `slice` indices
 pub struct PySliceIndices {
@@ -30,12 +39,6 @@ impl PySliceIndices {
     }
 }
 
-
-/// Represents a Python `slice`. Only `c_long` indeces supprted
-/// at the moment by PySlice object.
-pub struct PySlice<'p>(pyptr<'p>);
-
-pyobject_nativetype!(PySlice, PySlice_Check, PySlice_Type);
 
 impl<'p> PySlice<'p> {
 

@@ -328,7 +328,7 @@ impl PyGCProtocol for GCIntegration {
     }
 
     fn __clear__(&mut self, py: Python) {
-        *self.self_ref.borrow_mut() = py.None();
+        *self.self_ref.borrow_mut() = py.None().park();
     }
 }
 
@@ -339,7 +339,7 @@ fn gc_integration() {
 
     let drop_called = Arc::new(AtomicBool::new(false));
     let mut inst = py.with_token(|t| GCIntegration{
-        self_ref: RefCell::new(py.None()),
+        self_ref: RefCell::new(py.None().park()),
         dropped: TestDropCall { drop_called: drop_called.clone() },
         token: t});
 

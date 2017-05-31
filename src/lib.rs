@@ -65,7 +65,7 @@ pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
 pub mod pointers;
-pub use pointers::{Py, PyPtr, PyObjectPtr};
+pub use pointers::{Py, PyPtr, PPyPtr};
 
 mod ppptr;
 pub use ppptr::{pyptr};
@@ -76,7 +76,9 @@ pub use token::{PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use python::{Python, ToPythonPointer, IntoPythonPointer, PyDowncastFrom, PyDowncastInto};
+pub use python::{Python, ToPythonPointer, IntoPythonPointer,
+                 Park, Unpark,
+                 PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};
@@ -152,7 +154,7 @@ pub use std::os::raw::*;
 ///
 /// fn run(py: Python) -> PyResult<PyObject> {
 ///     println!("Rust says: Hello Python!");
-///     Ok(py.None().into_object(py))
+///     Ok(py.None())
 /// }
 /// # fn main() {}
 /// ```

@@ -10,9 +10,9 @@ use std::os::raw::c_int;
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use token::{PythonToken};
-use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
+use objects::{PyObject, PyObjectPtr, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
-use pointers::{Py, PyObjectPtr};
+use pointers::{Py};
 use pythonrun::GILGuard;
 
 
@@ -51,6 +51,16 @@ pub trait PyDowncastInto<'p> : Sized {
                                -> Result<Self, PyDowncastError<'p>>;
 }
 
+pub trait Park : Sized {
+    type Target;
+    fn park(self) -> Self::Target;
+}
+
+pub trait Unpark<'p> : Sized {
+    type Target;
+
+    fn unpark(self, py: Python<'p>) -> Self::Target;
+}
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
 pub trait ToPythonPointer {
@@ -200,8 +210,8 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObjectPtr {
-        unsafe { PyObjectPtr::from_borrowed_ptr(ffi::Py_None()) }
+    pub fn None(self) -> PyObject<'p> {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.

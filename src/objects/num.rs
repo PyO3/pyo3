@@ -12,6 +12,7 @@ use pyptr;
 use objects::exc;
 use objects::PyObject;
 use token::PythonObjectWithGilToken;
+use pointers::PPyPtr;
 use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
 use native::PyNativeObject;
@@ -24,7 +25,8 @@ use conversion::{ToPyObject, FromPyObject};
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 pub struct PyLong<'p>(pyptr<'p>);
-pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
+pub struct PyLongPtr(PPyPtr);
+pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type, PyLongPtr);
 
 /// Represents a Python `float` object.
 ///
@@ -33,7 +35,8 @@ pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
 pub struct PyFloat<'p>(pyptr<'p>);
-pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type);
+pub struct PyFloatPtr(PPyPtr);
+pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type, PyFloatPtr);
 
 
 impl<'p> PyFloat<'p> {

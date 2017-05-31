@@ -9,6 +9,7 @@ use std::ffi::{CStr, CString};
 
 use ::pyptr;
 use conversion::{ToPyObject, ToPyTuple};
+use pointers::PPyPtr;
 use python::{ToPythonPointer, Python};
 use token::PythonObjectWithGilToken;
 use objects::{PyObject, PyDict, PyType, exc};
@@ -18,8 +19,9 @@ use err::{PyResult, PyErr};
 
 /// Represents a Python module object.
 pub struct PyModule<'p>(pyptr<'p>);
+pub struct PyModulePtr(PPyPtr);
 
-pyobject_nativetype!(PyModule, PyModule_Check, PyModule_Type);
+pyobject_nativetype!(PyModule, PyModule_Check, PyModule_Type, PyModulePtr);
 
 
 impl<'p> PyModule<'p> {

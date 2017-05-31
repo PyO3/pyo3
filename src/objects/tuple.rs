@@ -7,6 +7,7 @@ use std::slice;
 use pyptr;
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
+use pointers::PPyPtr;
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
 use objects::PyObject;
@@ -16,8 +17,8 @@ use super::exc;
 
 /// Represents a Python tuple object.
 pub struct PyTuple<'p>(pyptr<'p>);
-
-pyobject_nativetype!(PyTuple, PyTuple_Check, PyTuple_Type);
+pub struct PyTuplePtr(PPyPtr);
+pyobject_nativetype!(PyTuple, PyTuple_Check, PyTuple_Type, PyTuplePtr);
 
 
 impl<'p> PyTuple<'p> {

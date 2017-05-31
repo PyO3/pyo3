@@ -10,6 +10,7 @@ use std::os::raw::c_char;
 
 use ffi;
 use pyptr;
+use pointers::PPyPtr;
 use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
 use token::PythonObjectWithGilToken;
@@ -19,13 +20,13 @@ use conversion::{ToPyObject, RefFromPyObject};
 
 /// Represents a Python string.
 pub struct PyString<'p>(pyptr<'p>);
-
-pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type);
+pub struct PyStringPtr(PPyPtr);
+pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type, PyStringPtr);
 
 /// Represents a Python byte string.
 pub struct PyBytes<'p>(pyptr<'p>);
-
-pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type);
+pub struct PyBytesPtr(PPyPtr);
+pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type, PyBytesPtr);
 
 
 /// Enum of possible Python string representations.

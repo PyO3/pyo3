@@ -4,9 +4,8 @@ use std::os::raw::c_char;
 use libc;
 
 use ffi;
-use pointers::PyObjectPtr;
-use python::{ToPythonPointer, IntoPythonPointer, Python};
-use objects::{PyObject, PyType, exc};
+use python::{ToPythonPointer, IntoPythonPointer, Python, Park, Unpark, PyDowncastInto};
+use objects::{PyObject, PyObjectPtr, PyType, PyTypePtr, exc};
 use native::PyNativeObject;
 use typeob::{PyTypeObject};
 use conversion::{ToPyObject, ToPyTuple, IntoPyObject};
@@ -82,7 +81,7 @@ macro_rules! py_exception {
 #[derive(Debug)]
 pub struct PyErr {
     /// The type of the exception. This should be either a `PyClass` or a `PyType`.
-    pub ptype: PyObjectPtr,
+    pub ptype: PyTypePtr,
     /// The value of the exception.
     ///
     /// This can be either an instance of `ptype`,
@@ -176,14 +175,14 @@ impl PyErr {
             ptype: if ptype.is_null() {
                 py.get_type::<exc::SystemError>().park()
             } else {
-                PyObjectPtr::from_owned_ptr(ptype)
+                PyTypePtr::from_owned_ptr(ptype)
             },
             pvalue: PyObjectPtr::from_owned_ptr_or_opt(pvalue),
             ptraceback: PyObjectPtr::from_owned_ptr_or_opt(ptraceback)
         }
     }
 
-    fn new_helper(_py: Python, ty: PyObjectPtr, value: PyObjectPtr) -> PyErr {
+    fn new_helper(_py: Python, ty: PyTypePtr, value: PyObjectPtr) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
         PyErr {
             ptype: ty,
@@ -204,14 +203,14 @@ impl PyErr {
     fn from_instance_helper<'p>(py: Python, obj: PyObjectPtr) -> PyErr {
         if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: unsafe { PyObjectPtr::from_borrowed_ptr(
+                ptype: unsafe { PyTypePtr::from_borrowed_ptr(
                     ffi::PyExceptionInstance_Class(obj.as_ptr())) },
                 pvalue: Some(obj),
                 ptraceback: None
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: obj,
+                ptype: PyTypePtr::downcast_into(py, obj).unwrap(),
                 pvalue: None,
                 ptraceback: None
             }
@@ -246,7 +245,7 @@ impl PyErr {
         let pval = args.to_py_tuple(py);
         PyErr {
             ptype: exc.park(),
-            pvalue: Some(pval.park()),
+            pvalue: Some(pval.into_object(py)),
             ptraceback: None
         }
     }
@@ -309,7 +308,7 @@ impl PyErr {
         self.normalize(py);
         match self.pvalue {
             Some(ref instance) => instance.as_object(py).clone_object(),
-            None => py.None().as_object(py).clone_object(),
+            None => py.None().as_object().clone_object(),
         }
     }
 
