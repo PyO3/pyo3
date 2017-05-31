@@ -12,7 +12,7 @@ use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use token::{PythonToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
-use pointers::{Py, pptr};
+use pointers::{Py, PyObjectPtr};
 use pythonrun::GILGuard;
 
 
@@ -200,8 +200,8 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> pptr {
-        unsafe { pptr::from_borrowed_ptr(ffi::Py_None()) }
+    pub fn None(self) -> PyObjectPtr {
+        unsafe { PyObjectPtr::from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
@@ -221,8 +221,8 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> pptr {
-        unsafe { pptr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
+    pub fn NotImplemented(self) -> PyObjectPtr {
+        unsafe { PyObjectPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
     /// Execute closure `F` with Python instance.

@@ -124,14 +124,14 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> ::pptr {
+    fn into_object(self, py: Python) -> ::PyObjectPtr {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {
                 let obj = e.into_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            ::pptr::from_owned_ptr_or_panic(ptr)
+            ::PyObjectPtr::from_owned_ptr_or_panic(ptr)
         }
     }
 }

@@ -1,6 +1,6 @@
 use ffi;
 use err::PyResult;
-use pointers::pptr;
+use pointers::PyObjectPtr;
 use python::{Python, ToPythonPointer, PyDowncastFrom};
 use objects::{PyObject, PyTuple};
 use native::PyNativeObject;
@@ -31,7 +31,7 @@ pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
     #[inline]
-    fn into_object(self, py: Python) -> pptr
+    fn into_object(self, py: Python) -> PyObjectPtr
         where Self: Sized;
 }
 
@@ -102,7 +102,7 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
 impl<T> IntoPyObject for T where T: ToPyObject
 {
     #[inline]
-    default fn into_object(self, py: Python) -> pptr
+    default fn into_object(self, py: Python) -> PyObjectPtr
     {
         self.to_object(py).park()
     }
@@ -140,7 +140,7 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
 impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> pptr {
+    fn into_object(self, py: Python) -> PyObjectPtr {
         match self {
             Some(val) => val.into_object(py),
             None => py.None()

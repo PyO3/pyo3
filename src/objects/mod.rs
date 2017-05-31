@@ -51,7 +51,7 @@ macro_rules! pyobject_nativetype(
         impl<'p> $crate::native::PyBaseObject for $name<'p> {}
 
         impl<'p> $crate::native::PyNativeObject<'p> for $name<'p> {
-            fn park(self) -> $crate::pptr {
+            fn park(self) -> $crate::PyObjectPtr {
                 unsafe { $crate::std::mem::transmute(self) }
             }
             fn as_object(self) -> $crate::PyObject<'p> {
@@ -192,7 +192,7 @@ macro_rules! pyobject_nativetype(
         impl<'a> $crate::IntoPyObject for $name<'a>
         {
             #[inline]
-            fn into_object(self, _py: $crate::Python) -> $crate::pptr
+            fn into_object(self, _py: $crate::Python) -> $crate::PyObjectPtr
             {
                 unsafe { $crate::std::mem::transmute(self) }
             }

@@ -65,7 +65,7 @@ pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
 pub mod pointers;
-pub use pointers::{Py, PyPtr, pptr};
+pub use pointers::{Py, PyPtr, PyObjectPtr};
 
 mod ppptr;
 pub use ppptr::{pyptr};
@@ -123,7 +123,7 @@ pub mod callback;
 pub mod typeob;
 pub mod argparse;
 pub mod function;
-// pub mod buffer;
+pub mod buffer;
 
 // re-export for simplicity
 pub use std::os::raw::*;

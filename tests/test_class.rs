@@ -316,7 +316,7 @@ impl StaticMethod {
 
 #[py::class]
 struct GCIntegration {
-    self_ref: RefCell<pptr>,
+    self_ref: RefCell<PyObjectPtr>,
     dropped: TestDropCall,
     token: PythonToken<GCIntegration>,
 }
@@ -804,7 +804,7 @@ impl PyObjectProtocol for RichComparisons2 {
     }
 
     fn __richcmp__(&self, py: Python,
-                   other: &'p PyObject<'p>, op: CompareOp) -> PyResult<pptr> {
+                   other: &'p PyObject<'p>, op: CompareOp) -> PyResult<PyObjectPtr> {
         match op {
             CompareOp::Eq => Ok(true.to_object(py).park()),
             CompareOp::Ne => Ok(false.to_object(py).park()),

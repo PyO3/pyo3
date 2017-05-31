@@ -15,92 +15,92 @@ use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
 #[allow(non_camel_case_types)]
-pub struct pptr(*mut ffi::PyObject);
+pub struct PyObjectPtr(*mut ffi::PyObject);
 
-// `pptr` is thread-safe, because all operations on it require a Python<'p> token.
-unsafe impl Send for pptr {}
-unsafe impl Sync for pptr {}
+// `PyObjectPtr` is thread-safe, because all operations on it require a Python<'p> token.
+unsafe impl Send for PyObjectPtr {}
+unsafe impl Sync for PyObjectPtr {}
 
 
-impl pptr {
-    /// Creates a `pptr` instance for the given FFI pointer.
-    /// This moves ownership over the pointer into the `pptr`.
+impl PyObjectPtr {
+    /// Creates a `PyObjectPtr` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `PyObjectPtr`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> pptr {
+    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyObjectPtr {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
-        pptr(ptr)
+        PyObjectPtr(ptr)
     }
 
-    /// Creates a `pptr` instance for the given FFI pointer.
-    /// This moves ownership over the pointer into the `pptr`.
+    /// Creates a `PyObjectPtr` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `PyObjectPtr`.
     /// Returns None for null pointers; undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_opt(ptr: *mut ffi::PyObject) -> Option<pptr> {
+    pub unsafe fn from_owned_ptr_or_opt(ptr: *mut ffi::PyObject) -> Option<PyObjectPtr> {
         if ptr.is_null() {
             None
         } else {
-            Some(pptr::from_owned_ptr(ptr))
+            Some(PyObjectPtr::from_owned_ptr(ptr))
         }
     }
 
-    /// Construct `pptr` from the result of a Python FFI call that
+    /// Construct `PyObjectPtr` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`; undefined behavior if the
     /// pointer is invalid.
-    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<pptr>
+    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObjectPtr>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(pptr::from_owned_ptr(ptr))
+            Ok(PyObjectPtr::from_owned_ptr(ptr))
         }
     }
 
-    /// Construct `pptr` instance for the given Python FFI pointer.
+    /// Construct `PyObjectPtr` instance for the given Python FFI pointer.
     /// Panics if the pointer is `null`; undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> pptr
+    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> PyObjectPtr
     {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
-            pptr::from_owned_ptr(ptr)
+            PyObjectPtr::from_owned_ptr(ptr)
         }
     }
 
-    /// Creates a `pptr` instance for the given Python FFI pointer.
+    /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> pptr {
+    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyObjectPtr {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
-        pptr::from_owned_ptr(ptr)
+        PyObjectPtr::from_owned_ptr(ptr)
     }
 
-    /// Creates a `pptr` instance for the given Python FFI pointer.
+    /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns None for null pointers; undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_or_opt(ptr: *mut ffi::PyObject) -> Option<pptr> {
+    pub unsafe fn from_borrowed_ptr_or_opt(ptr: *mut ffi::PyObject) -> Option<PyObjectPtr> {
         if ptr.is_null() {
             None
         } else {
-            Some(pptr::from_borrowed_ptr(ptr))
+            Some(PyObjectPtr::from_borrowed_ptr(ptr))
         }
     }
 
-    /// Construct `pptr` instance for the given Python FFI pointer.
+    /// Construct `PyObjectPtr` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Panics if the pointer is `null`; undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_or_panic(ptr: *mut ffi::PyObject) -> pptr
+    pub unsafe fn from_borrowed_ptr_or_panic(ptr: *mut ffi::PyObject) -> PyObjectPtr
     {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
-            pptr::from_borrowed_ptr(ptr)
+            PyObjectPtr::from_borrowed_ptr(ptr)
         }
     }
 
@@ -116,7 +116,7 @@ impl pptr {
         unsafe { std::mem::transmute(self) }
     }
 
-    /// Converts `pptr` instance -> PyObject<'p>
+    /// Converts `PyObjectPtr` instance -> PyObject<'p>
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
     pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject<'p> {
@@ -125,11 +125,11 @@ impl pptr {
 
     /// Clone self, Calls Py_INCREF() on the ptr.
     #[inline]
-    pub fn clone_ref(&self, _py: Python) -> pptr {
-        unsafe { pptr::from_borrowed_ptr(self.0) }
+    pub fn clone_ref(&self, _py: Python) -> PyObjectPtr {
+        unsafe { PyObjectPtr::from_borrowed_ptr(self.0) }
     }
 
-    /// Casts the `pptr` imstance to a concrete Python object type.
+    /// Casts the `PyObjectPtr` imstance to a concrete Python object type.
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
     pub fn cast_into<'p, D>(self, py: Python<'p>) -> Result<D, PyDowncastError<'p>>
@@ -148,7 +148,7 @@ impl pptr {
     // }
 }
 
-impl ToPythonPointer for pptr {
+impl ToPythonPointer for PyObjectPtr {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -156,7 +156,7 @@ impl ToPythonPointer for pptr {
     }
 }
 
-impl IntoPythonPointer for pptr {
+impl IntoPythonPointer for PyObjectPtr {
     /// Gets the underlying FFI pointer, returns a owned pointer.
     #[inline]
     #[must_use]
@@ -167,27 +167,27 @@ impl IntoPythonPointer for pptr {
     }
 }
 
-impl IntoPyObject for pptr {
+impl IntoPyObject for PyObjectPtr {
     #[inline]
-    fn into_object(self, _py: Python) -> pptr {
+    fn into_object(self, _py: Python) -> PyObjectPtr {
         self
     }
 }
 
-impl PartialEq for pptr {
+impl PartialEq for PyObjectPtr {
     #[inline]
-    fn eq(&self, o: &pptr) -> bool {
+    fn eq(&self, o: &PyObjectPtr) -> bool {
         self.0 == o.0
     }
 }
 
 
-/// Dropping a `pptr` instance decrements the reference count on the object by 1.
-impl Drop for pptr {
+/// Dropping a `PyObjectPtr` instance decrements the reference count on the object by 1.
+impl Drop for PyObjectPtr {
 
     fn drop(&mut self) {
         unsafe {
-            println!("drop pptr: {:?} {} {:?}",
+            println!("drop PyObjectPtr: {:?} {} {:?}",
                      self.0, ffi::Py_REFCNT(self.0), &self as *const _);
         }
         let _gil_guard = Python::acquire_gil();
@@ -203,10 +203,10 @@ pub struct PyPtr<T> {
 
 impl<T> PyPtr<T> {
 
-    /// Converts PyPtr<T> -> pptr
+    /// Converts PyPtr<T> -> PyObjectPtr
     /// Consumes `self` without calling `Py_INCREF()`
     #[inline]
-    pub fn park(self) -> pptr {
+    pub fn park(self) -> PyObjectPtr {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -298,7 +298,7 @@ impl<T> ToPyObject for PyPtr<T> {
 impl<T> IntoPyObject for PyPtr<T> {
 
     #[inline]
-    fn into_object<'a>(self, _py: Python) -> pptr {
+    fn into_object<'a>(self, _py: Python) -> PyObjectPtr {
         self.park()
     }
 }
@@ -498,7 +498,7 @@ impl <'a, T> ToPyObject for Py<'a, T> {
 impl<'p, T> IntoPyObject for Py<'p, T> {
 
     #[inline]
-    default fn into_object(self, _py: Python) -> pptr {
+    default fn into_object(self, _py: Python) -> PyObjectPtr {
         unsafe { std::mem::transmute(self) }
     }
 }

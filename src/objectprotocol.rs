@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use ffi;
 use libc;
 use pyptr;
-use pointers::{pptr, Py, PyPtr};
+use pointers::{PyObjectPtr, Py, PyPtr};
 use python::{Python, PyDowncastInto, ToPythonPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator};
 use token::PythonObjectWithGilToken;
@@ -427,7 +427,7 @@ impl<'p, T> fmt::Display for PyPtr<T> where T: ObjectProtocol<'p> + PyTypeInfo {
 }
 
 
-impl fmt::Debug for pptr {
+impl fmt::Debug for PyObjectPtr {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -439,7 +439,7 @@ impl fmt::Debug for pptr {
     }
 }
 
-impl fmt::Display for pptr {
+impl fmt::Display for PyObjectPtr {
     default fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let gil = Python::acquire_gil();
         let py = gil.python();

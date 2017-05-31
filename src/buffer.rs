@@ -24,8 +24,8 @@ use libc;
 use ffi;
 use exc;
 use err::{self, PyResult};
-use pointers::{Py};
 use python::{Python, ToPythonPointer};
+use token::PythonObjectWithGilToken;
 use objects::PyObject;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
@@ -143,7 +143,7 @@ impl PyBuffer {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(
-                obj.token(),
+                obj.gil(),
                 ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
             validate(&buf);
             Ok(PyBuffer(buf))
