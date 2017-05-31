@@ -27,7 +27,7 @@ build:
 	cargo build $(CARGO_FLAGS)
 
 test: build
-	cargo test $(CARGO_FLAGS) --lib
+	cargo test $(CARGO_FLAGS)
 
 #ifeq ($(NIGHTLY),1)
 # ast-json output is only supported on nightly
