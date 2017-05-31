@@ -190,6 +190,7 @@ macro_rules! py_binary_self_func{
 
                 match result {
                     Ok(_) => {
+                        ffi::Py_INCREF(slf);
                         slf
                     }
                     Err(e) => {
