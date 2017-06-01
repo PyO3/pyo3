@@ -7,9 +7,8 @@ use ffi;
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
-use ::pyptr;
 use conversion::{ToPyObject, ToPyTuple};
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use token::PythonObjectWithGilToken;
 use objects::{PyObject, PyDict, PyType, exc};
@@ -18,7 +17,7 @@ use err::{PyResult, PyErr};
 
 
 /// Represents a Python module object.
-pub struct PyModule<'p>(pyptr<'p>);
+pub struct PyModule<'p>(Ptr<'p>);
 pub struct PyModulePtr(PyPtr);
 
 pyobject_nativetype!(PyModule, PyModule_Check, PyModule_Type, PyModulePtr);
@@ -28,21 +27,15 @@ impl<'p> PyModule<'p> {
     /// Create a new module object with the `__name__` attribute set to name.
     pub fn new(py: Python<'p>, name: &str) -> PyResult<PyModule<'p>> {
         let name = CString::new(name).unwrap();
-        unsafe {
-            let ptr = pyptr::cast_from_owned_ptr_or_err::<PyModule>(
-                py, ffi::PyModule_New(name.as_ptr()))?;
-            Ok(PyModule(ptr))
-        }
+        Ok(PyModule(Ptr::from_owned_ptr_or_err(
+            py, unsafe{ffi::PyModule_New(name.as_ptr())} )?))
     }
 
     /// Import the Python module with the specified name.
     pub fn import(py: Python<'p>, name: &str) -> PyResult<PyModule<'p>> {
         let name = CString::new(name).unwrap();
-        unsafe {
-            let ptr = pyptr::cast_from_owned_ptr_or_err::<PyModule>(
-                py, ffi::PyImport_ImportModule(name.as_ptr()))?;
-            Ok(PyModule(ptr))
-        }
+        Ok(PyModule(Ptr::from_owned_ptr_or_err(
+            py, unsafe{ffi::PyImport_ImportModule(name.as_ptr())} )?))
     }
 
     /// Return the dictionary object that implements module's namespace;

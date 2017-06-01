@@ -7,13 +7,12 @@ use ffi;
 use python::{Python, ToPythonPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
-use ppptr::pyptr;
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use token::PythonObjectWithGilToken;
 
 
 /// Represents a Python bytearray.
-pub struct PyByteArray<'p>(pyptr<'p>);
+pub struct PyByteArray<'p>(Ptr<'p>);
 pub struct PyByteArrayPtr(PyPtr);
 
 pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type, PyByteArrayPtr);
@@ -28,17 +27,15 @@ impl<'p> PyByteArray<'p> {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         let ptr = unsafe {ffi::PyByteArray_FromStringAndSize(ptr, len)};
-        unsafe { PyByteArray(pyptr::cast_from_owned_ptr_or_panic::<PyByteArray>(py, ptr)) }
+        PyByteArray(Ptr::from_owned_ptr_or_panic(py, ptr))
     }
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
     pub fn from(src: &'p PyObject<'p>) -> PyResult<PyByteArray<'p>> {
-        println!("FROM: {:?} {}", src.as_ptr(), src.get_refcnt());
         let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
         if res != ptr::null_mut() {
-            Ok(unsafe{ PyByteArray(
-                pyptr::cast_from_owned_ptr_or_panic::<PyByteArray>(src.gil(), res))})
+            Ok(PyByteArray(Ptr::from_owned_ptr_or_panic(src.gil(), res)))
         } else {
             Err(PyErr::fetch(src.gil()))
         }

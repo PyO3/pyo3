@@ -2,19 +2,16 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::fmt;
+use libc;
 use std::cmp::Ordering;
 
 use ffi;
-use libc;
-use pyptr;
-use pointers::{Py, PyPtr};
+use err::{PyErr, PyResult, self};
+use pointers::Ptr;
 use python::{Python, PyDowncastInto, ToPythonPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator};
 use token::PythonObjectWithGilToken;
 use conversion::{ToPyObject, ToPyTuple};
-use typeob::PyTypeInfo;
-use err::{PyErr, PyResult, self};
 
 
 pub trait ObjectProtocol<'p> {
@@ -374,7 +371,7 @@ impl<'p, T> ObjectProtocol<'p> for T where T: PythonObjectWithGilToken<'p> + ToP
     #[inline]
     fn iter(&self) -> PyResult<PyIterator<'p>> {
         unsafe {
-            let ptr = pyptr::from_owned_ptr_or_err(
+            let ptr = Ptr::from_owned_ptr_or_err(
                 self.gil(), ffi::PyObject_GetIter(self.as_ptr()))?;
             PyIterator::from_object(self.gil(), ptr).map_err(|e| e.into())
         }
@@ -382,47 +379,6 @@ impl<'p, T> ObjectProtocol<'p> for T where T: PythonObjectWithGilToken<'p> + ToP
 
     fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.as_ptr()) }
-    }
-}
-
-
-impl<'p, T> fmt::Debug for Py<'p, T> where T: ObjectProtocol<'p> + PyTypeInfo {
-    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        // TODO: we shouldn't use fmt::Error when repr() fails
-        let repr_obj = try!(self.repr().map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy())
-    }
-}
-
-impl<'p, T> fmt::Display for Py<'p, T> where T: ObjectProtocol<'p> + PyTypeInfo {
-    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        // TODO: we shouldn't use fmt::Error when str() fails
-        let str_obj = try!(self.str().map_err(|_| fmt::Error));
-        f.write_str(&str_obj.to_string_lossy())
-    }
-}
-
-impl fmt::Debug for PyPtr {
-    fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        // TODO: we shouldn't use fmt::Error when repr() fails
-        let r = self.as_object(py);
-        let repr_obj = try!(r.repr().map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy())
-    }
-}
-
-impl fmt::Display for PyPtr {
-    default fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        // TODO: we shouldn't use fmt::Error when repr() fails
-        let r = self.as_object(py);
-        let repr_obj = try!(r.str().map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy())
     }
 }
 

@@ -2,14 +2,13 @@
 
 use std;
 
-use ::pyptr;
 use ffi;
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use err::{PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPythonPointer};
 
 
-pub struct PyObject<'p>(pyptr<'p>);
+pub struct PyObject<'p>(Ptr<'p>);
 
 pub struct PyObjectPtr(PyPtr);
 
@@ -20,47 +19,43 @@ impl<'p> PyObject<'p> {
 
     #[inline]
     pub fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyObject<'p> {
-        unsafe { PyObject(pyptr::from_owned_ptr(py, ptr)) }
+        unsafe { PyObject(Ptr::from_owned_ptr(py, ptr)) }
     }
 
     #[inline]
     pub fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject)
                                      -> PyResult<PyObject<'p>> {
-        unsafe { Ok(PyObject(pyptr::from_owned_ptr_or_err(py, ptr)?)) }
+        Ok(PyObject(Ptr::from_owned_ptr_or_err(py, ptr)?))
     }
 
     #[inline]
     pub fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject)
                                    -> PyObject<'p> {
-        unsafe { PyObject(pyptr::from_owned_ptr_or_panic(py, ptr)) }
+        PyObject(Ptr::from_owned_ptr_or_panic(py, ptr))
     }
 
     #[inline]
     pub fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
                                      -> Option<PyObject<'p>> {
-        unsafe {
-            if let Some(ptr) = pyptr::from_owned_ptr_or_opt(py, ptr) {
-                Some(PyObject(ptr))
-            } else {
-                None
-            }
+        if let Some(ptr) = Ptr::from_owned_ptr_or_opt(py, ptr) {
+            Some(PyObject(ptr))
+        } else {
+            None
         }
     }
 
     #[inline]
     pub fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyObject<'p> {
-        unsafe { PyObject(pyptr::from_borrowed_ptr(py, ptr)) }
+        unsafe { PyObject(Ptr::from_borrowed_ptr(py, ptr)) }
     }
 
     #[inline]
     pub fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
                                     -> Option<PyObject<'p>> {
-        unsafe {
-            if let Some(ptr) = pyptr::from_borrowed_ptr_or_opt(py, ptr) {
-                Some(PyObject(ptr))
-            } else {
-                None
-            }
+        if let Some(ptr) = Ptr::from_borrowed_ptr_or_opt(py, ptr) {
+            Some(PyObject(ptr))
+        } else {
+            None
         }
     }
 

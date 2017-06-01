@@ -179,7 +179,7 @@ macro_rules! pyobject_nativetype(
             fn clone_object(&self) -> $name<'p> {
                 use $crate::{ToPythonPointer, PythonObjectWithGilToken};
                 unsafe {
-                    $name(pyptr::from_borrowed_ptr(self.gil(), self.as_ptr()))
+                    $name(Ptr::from_borrowed_ptr(self.gil(), self.as_ptr()))
                 }
             }
         }
@@ -223,7 +223,7 @@ macro_rules! pyobject_nativetype(
                 unsafe{
                     let ptr = ob.into_ptr();
                     if ffi::$checkfunction(ptr) != 0 {
-                        Ok($name(pyptr::from_owned_ptr(py, ptr)))
+                        Ok($name(Ptr::from_owned_ptr(py, ptr)))
                     } else {
                         $crate::ffi::Py_DECREF(ptr);
                         Err($crate::PyDowncastError(py, None))
@@ -236,7 +236,7 @@ macro_rules! pyobject_nativetype(
             {
                 unsafe{
                     if ffi::$checkfunction(ptr) != 0 {
-                        Ok($name(pyptr::from_owned_ptr(py, ptr)))
+                        Ok($name(Ptr::from_owned_ptr(py, ptr)))
                     } else {
                         $crate::ffi::Py_DECREF(ptr);
                         Err($crate::PyDowncastError(py, None))
@@ -272,7 +272,7 @@ macro_rules! pyobject_nativetype(
 
                 unsafe {
                     if ffi::$checkfunction(py.as_ptr()) != 0 {
-                        Ok( $name($crate::pyptr::from_borrowed_ptr(py.gil(), py.as_ptr())) )
+                        Ok( $name($crate::pointers::Ptr::from_borrowed_ptr(py.gil(), py.as_ptr())) )
                     } else {
                         Err(::PyDowncastError(py.gil(), None).into())
                     }

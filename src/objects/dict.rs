@@ -5,8 +5,7 @@
 use std::{mem, collections, hash, cmp};
 
 use ffi;
-use pyptr;
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{Python, ToPythonPointer, PyDowncastInto};
 use conversion::{ToPyObject};
 use objects::{PyObject, PyList};
@@ -15,7 +14,7 @@ use err::{self, PyResult, PyErr};
 use native::PyNativeObject;
 
 /// Represents a Python `dict`.
-pub struct PyDict<'p>(pyptr<'p>);
+pub struct PyDict<'p>(Ptr<'p>);
 pub struct PyDictPtr(PyPtr);
 
 pyobject_nativetype!(PyDict, PyDict_Check, PyDict_Type, PyDictPtr);
@@ -26,13 +25,13 @@ impl<'p> PyDict<'p> {
     ///
     /// May panic when running out of memory.
     pub fn new(py: Python<'p>) -> PyDict<'p> {
-        unsafe { PyDict(pyptr::from_owned_ptr_or_panic(py, ffi::PyDict_New())) }
+        unsafe { PyDict(Ptr::from_owned_ptr_or_panic(py, ffi::PyDict_New())) }
     }
 
     /// Construct a new dict with the given raw pointer
     /// Undefined behavior if the pointer is NULL or invalid.
     pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyDict<'p> {
-        PyDict(pyptr::from_borrowed_ptr(py, ptr))
+        PyDict(Ptr::from_borrowed_ptr(py, ptr))
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.
@@ -40,7 +39,7 @@ impl<'p> PyDict<'p> {
     pub fn copy(&'p self) -> PyResult<PyDict<'p>> {
         unsafe {
             Ok(PyDict(
-                pyptr::from_owned_ptr_or_err(self.gil(), ffi::PyDict_Copy(self.0.as_ptr()))?
+                Ptr::from_owned_ptr_or_err(self.gil(), ffi::PyDict_Copy(self.0.as_ptr()))?
             ))
         }
     }

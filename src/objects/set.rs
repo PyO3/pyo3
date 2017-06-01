@@ -3,9 +3,8 @@
 
 use std::{hash, collections};
 use ffi;
-use pyptr;
 use python::{Python, ToPythonPointer};
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use conversion::ToPyObject;
 use objects::PyObject;
 use err::{self, PyResult, PyErr};
@@ -14,11 +13,11 @@ use token::{PythonObjectWithGilToken};
 
 
 /// Represents a Python `set`
-pub struct PySet<'p>(pyptr<'p>);
+pub struct PySet<'p>(Ptr<'p>);
 pub struct PySetPtr(PyPtr);
 
 /// Represents a  Python `frozenset`
-pub struct PyFrozenSet<'p>(pyptr<'p>);
+pub struct PyFrozenSet<'p>(Ptr<'p>);
 pub struct PyFrozenSetPtr(PyPtr);
 
 pyobject_nativetype!(PySet, PySet_Check, PySet_Type, PySetPtr);
@@ -32,7 +31,7 @@ impl<'p> PySet<'p> {
         let list = elements.to_object(py);
         unsafe {
             let ptr = ffi::PySet_New(list.as_ptr());
-            PySet(pyptr::from_owned_ptr_or_panic(py, ptr))
+            PySet(Ptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
@@ -117,7 +116,7 @@ impl<'p> PyFrozenSet<'p> {
         let list = elements.to_object(py);
         unsafe {
             let ptr = ffi::PyFrozenSet_New(list.as_ptr());
-            PyFrozenSet(pyptr::from_owned_ptr_or_panic(py, ptr))
+            PyFrozenSet(Ptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 

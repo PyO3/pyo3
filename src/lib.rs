@@ -67,9 +67,6 @@ pub use ffi::{Py_ssize_t, Py_hash_t};
 pub mod pointers;
 pub use pointers::{Py, PyPtr};
 
-mod ppptr;
-pub use ppptr::{pyptr};
-
 mod token;
 pub use token::{PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};
 
@@ -116,6 +113,7 @@ macro_rules! py_replace_expr {
 
 pub mod python;
 mod native;
+mod fmt;
 mod err;
 mod conversion;
 mod objects;

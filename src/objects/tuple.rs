@@ -4,10 +4,9 @@
 
 use std::slice;
 
-use pyptr;
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
 use objects::PyObject;
@@ -16,7 +15,7 @@ use token::PythonObjectWithGilToken;
 use super::exc;
 
 /// Represents a Python tuple object.
-pub struct PyTuple<'p>(pyptr<'p>);
+pub struct PyTuple<'p>(Ptr<'p>);
 pub struct PyTuplePtr(PyPtr);
 pyobject_nativetype!(PyTuple, PyTuple_Check, PyTuple_Type, PyTuplePtr);
 
@@ -31,19 +30,19 @@ impl<'p> PyTuple<'p> {
             for (i, e) in elements.iter().enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
-            PyTuple(pyptr::from_owned_ptr_or_panic(py, ptr))
+            PyTuple(Ptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
     /// Construct a new tuple with the given raw pointer
     pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyTuple<'p> {
-        PyTuple(pyptr::from_borrowed_ptr(py, ptr))
+        PyTuple(Ptr::from_borrowed_ptr(py, ptr))
     }
 
     /// Retrieves the empty tuple.
     pub fn empty(py: Python<'p>) -> PyTuple<'p> {
         unsafe {
-            PyTuple(pyptr::from_owned_ptr_or_panic(py, ffi::PyTuple_New(0)))
+            PyTuple(Ptr::from_owned_ptr_or_panic(py, ffi::PyTuple_New(0)))
         }
     }
 
@@ -91,7 +90,7 @@ impl<'p> PyTuple<'p> {
 
 impl<'a> ToPyTuple for PyTuple<'a> {
     fn to_py_tuple<'p>(&self, py: Python<'p>) -> PyTuple<'p> {
-        unsafe { PyTuple(pyptr::from_borrowed_ptr(py, self.0.as_ptr())) }
+        unsafe { PyTuple(Ptr::from_borrowed_ptr(py, self.0.as_ptr())) }
     }
 }
 

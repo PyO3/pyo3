@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 use std::convert::{AsRef, AsMut};
 
 use ffi;
-use err::{PyResult, PyDowncastError};
+use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
 use objects::{PyObject, PyObjectPtr};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
@@ -123,6 +123,137 @@ impl Drop for PyPtr {
         unsafe { ffi::Py_DECREF(self.0); }
     }
 }
+
+#[allow(non_camel_case_types)]
+pub struct Ptr<'p>(*mut ffi::PyObject, Python<'p>);
+
+
+impl<'p> Ptr<'p> {
+
+    /// Create new python object and move T instance under python management
+    pub fn new<T>(py: Python<'p>, value: T) -> PyResult<Ptr<'p>> where T: PyObjectAlloc<Type=T>
+    {
+        let ptr = unsafe {
+            try!(<T as PyObjectAlloc>::alloc(py, value))
+        };
+        Ok(Ptr(ptr, py))
+    }
+
+    /// Creates a `Ptr` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `Ptr`.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    #[inline]
+    pub unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Ptr<'p> {
+        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
+        Ptr(ptr, py)
+    }
+
+    /// Cast from ffi::PyObject ptr to a concrete object.
+    #[inline]
+    pub fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Ptr<'p>
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            unsafe{
+                Ptr::from_owned_ptr(py, ptr)
+            }
+        }
+    }
+
+    /// Construct `Ptr<'p>` from the result of a Python FFI call that
+    /// returns a new reference (owned pointer).
+    /// Returns `Err(PyErr)` if the pointer is `null`.
+    /// Unsafe because the pointer might be invalid.
+    pub fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<Ptr<'p>>
+    {
+        if ptr.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(unsafe{
+                Ptr::from_owned_ptr(py, ptr)
+            })
+        }
+    }
+
+    /// Creates a Ptr<'p> instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the Ptr<'p>.
+    /// Returns None for null pointers; undefined behavior if the pointer is invalid.
+    #[inline]
+    pub fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Ptr<'p>> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe{
+                Ptr::from_owned_ptr(py, ptr)
+            })
+        }
+    }
+
+    /// Creates a `Ptr<'p>` instance for the given FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    /// Undefined behavior if the pointer is NULL or invalid.
+    #[inline]
+    pub unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Ptr<'p> {
+        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
+        ffi::Py_INCREF(ptr);
+        Ptr(ptr, py)
+    }
+
+    /// Creates a `Ptr<'p>` instance for the given FFI pointer.
+    /// Calls Py_INCREF() on the ptr.
+    #[inline]
+    pub fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Ptr<'p>> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe{ Ptr::from_borrowed_ptr(py, ptr) })
+        }
+    }
+
+    /// Gets the reference count of this Py object.
+    #[inline]
+    pub fn get_refcnt(&self) -> usize {
+        unsafe { ffi::Py_REFCNT(self.0) as usize }
+    }
+
+    pub fn token<'a>(&'a self) -> Python<'p> {
+        self.1
+    }
+}
+
+impl<'p> ToPythonPointer for Ptr<'p> {
+    /// Gets the underlying FFI pointer, returns a borrowed pointer.
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.0
+    }
+}
+
+impl<'p> IntoPythonPointer for Ptr<'p> {
+    /// Gets the underlying FFI pointer, returns a owned pointer.
+    #[inline]
+    #[must_use]
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.0;
+        std::mem::forget(self);
+        ptr
+    }
+}
+
+/// Dropping a `Ptr` instance decrements the reference count on the object by 1.
+impl<'p> Drop for Ptr<'p> {
+
+    fn drop(&mut self) {
+        unsafe {
+            println!("drop Ptr: {:?} {} {:?}",
+                     self.0, ffi::Py_REFCNT(self.0), &self as *const _);
+        }
+        unsafe { ffi::Py_DECREF(self.0); }
+    }
+}
+
+
 
 
 pub struct Py<'p, T> {

@@ -2,8 +2,7 @@
 
 use std::os::raw::c_long;
 
-use ::pyptr;
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
@@ -14,7 +13,7 @@ use token::PythonObjectWithGilToken;
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted
 /// at the moment by PySlice object.
-pub struct PySlice<'p>(pyptr<'p>);
+pub struct PySlice<'p>(Ptr<'p>);
 pub struct PySlicePtr(PyPtr);
 
 pyobject_nativetype!(PySlice, PySlice_Check, PySlice_Type, PySlicePtr);
@@ -48,7 +47,7 @@ impl<'p> PySlice<'p> {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            PySlice(pyptr::from_owned_ptr_or_panic(py, ptr))
+            PySlice(Ptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 

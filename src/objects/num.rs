@@ -8,11 +8,10 @@ use self::num_traits::cast::cast;
 use std::os::raw::{c_long, c_double};
 
 use ffi;
-use pyptr;
 use objects::exc;
 use objects::PyObject;
 use token::PythonObjectWithGilToken;
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
 use native::PyNativeObject;
@@ -24,7 +23,7 @@ use conversion::{ToPyObject, FromPyObject};
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
-pub struct PyLong<'p>(pyptr<'p>);
+pub struct PyLong<'p>(Ptr<'p>);
 pub struct PyLongPtr(PyPtr);
 pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type, PyLongPtr);
 
@@ -34,7 +33,7 @@ pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type, PyLongPtr);
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat<'p>(pyptr<'p>);
+pub struct PyFloat<'p>(Ptr<'p>);
 pub struct PyFloatPtr(PyPtr);
 pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type, PyFloatPtr);
 
@@ -43,7 +42,7 @@ impl<'p> PyFloat<'p> {
     /// Creates a new Python `float` object.
     pub fn new(py: Python<'p>, val: c_double) -> PyFloat<'p> {
         unsafe {
-            PyFloat(pyptr::from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val)))
+            PyFloat(Ptr::from_owned_ptr_or_panic(py, ffi::PyFloat_FromDouble(val)))
         }
     }
 

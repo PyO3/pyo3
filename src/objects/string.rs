@@ -9,8 +9,7 @@ use std::borrow::Cow;
 use std::os::raw::c_char;
 
 use ffi;
-use pyptr;
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
 use token::PythonObjectWithGilToken;
@@ -19,12 +18,12 @@ use native::PyNativeObject;
 use conversion::{ToPyObject, RefFromPyObject};
 
 /// Represents a Python string.
-pub struct PyString<'p>(pyptr<'p>);
+pub struct PyString<'p>(Ptr<'p>);
 pub struct PyStringPtr(PyPtr);
 pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type, PyStringPtr);
 
 /// Represents a Python byte string.
-pub struct PyBytes<'p>(pyptr<'p>);
+pub struct PyBytes<'p>(Ptr<'p>);
 pub struct PyBytesPtr(PyPtr);
 pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type, PyBytesPtr);
 
@@ -145,7 +144,7 @@ impl<'p> PyString<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyString(pyptr::from_owned_ptr_or_panic(
+            PyString(Ptr::from_owned_ptr_or_panic(
                 py, ffi::PyUnicode_FromStringAndSize(ptr, len)))
         }
     }
@@ -154,7 +153,7 @@ impl<'p> PyString<'p> {
                        -> PyResult<PyString<'p>> {
         unsafe {
             Ok(PyString(
-                pyptr::from_owned_ptr_or_err(
+                Ptr::from_owned_ptr_or_err(
                     src.gil(), ffi::PyUnicode_FromEncodedObject(
                         src.as_ptr(),
                         encoding.as_ptr() as *const i8,
@@ -203,7 +202,7 @@ impl<'p> PyBytes<'p> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyBytes(pyptr::from_owned_ptr_or_panic(
+            PyBytes(Ptr::from_owned_ptr_or_panic(
                 py, ffi::PyBytes_FromStringAndSize(ptr, len)))
         }
     }

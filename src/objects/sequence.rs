@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use ppptr::pyptr;
+use pointers::Ptr;
 use python::{ToPythonPointer, PyDowncastFrom, PyDowncastInto};
 use conversion::{FromPyObject, ToPyObject};
 use objects::{PyObject, PyList, PyTuple};
@@ -16,7 +16,7 @@ use objectprotocol::ObjectProtocol;
 
 
 /// Represents a reference to a python object supporting the sequence protocol.
-pub struct PySequence<'p>(pyptr<'p>);
+pub struct PySequence<'p>(Ptr<'p>);
 
  pyobject_nativetype!(PySequence, PySequence_Check);
 
@@ -37,7 +37,7 @@ impl<'p> PySequence<'p> {
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<PySequence<'p>> {
         unsafe {
-            Ok(PySequence(pyptr::from_owned_ptr_or_err(
+            Ok(PySequence(Ptr::from_owned_ptr_or_err(
                 self.gil(),
                 ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))?))
         }
@@ -49,7 +49,7 @@ impl<'p> PySequence<'p> {
     #[inline]
     pub fn repeat(&self, count: isize) -> PyResult<PySequence<'p>> {
         unsafe {
-            Ok(PySequence(pyptr::from_owned_ptr_or_err(
+            Ok(PySequence(Ptr::from_owned_ptr_or_err(
                 self.gil(),
                 ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))?))
         }
@@ -59,7 +59,7 @@ impl<'p> PySequence<'p> {
     #[inline]
     pub fn in_place_concat(&self, other: &PySequence) -> PyResult<PySequence<'p>> {
         unsafe {
-            Ok(PySequence(pyptr::from_owned_ptr_or_err(
+            Ok(PySequence(Ptr::from_owned_ptr_or_err(
                 self.0.token(),
                 ffi::PySequence_InPlaceConcat(self.0.as_ptr(), other.as_ptr()))?))
         }
@@ -71,7 +71,7 @@ impl<'p> PySequence<'p> {
     #[inline]
     pub fn in_place_repeat(&self, count: isize) -> PyResult<PySequence<'p>> {
         unsafe {
-            Ok(PySequence(pyptr::from_owned_ptr_or_err(
+            Ok(PySequence(Ptr::from_owned_ptr_or_err(
                 self.0.token(),
                 ffi::PySequence_InPlaceRepeat(self.as_ptr(), count as Py_ssize_t))?))
         }

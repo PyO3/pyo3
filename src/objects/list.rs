@@ -2,17 +2,16 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use ::pyptr;
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use pointers::PyPtr;
+use pointers::{Ptr, PyPtr};
 use python::{Python, ToPythonPointer, IntoPythonPointer, Park};
 use objects::PyObject;
 use token::PythonObjectWithGilToken;
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList<'p>(pyptr<'p>);
+pub struct PyList<'p>(Ptr<'p>);
 pub struct PyListPtr(PyPtr);
 
 pyobject_nativetype!(PyList, PyList_Check, PyList_Type, PyListPtr);
@@ -25,7 +24,7 @@ impl<'p> PyList<'p> {
             for (i, e) in elements.iter().enumerate() {
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
-            PyList(pyptr::from_owned_ptr_or_panic(py, ptr))
+            PyList(Ptr::from_owned_ptr_or_panic(py, ptr))
         }
     }
 
