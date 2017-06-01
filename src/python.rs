@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PythonToken};
+use token::{PyToken};
 use objects::{PyObject, PyObjectPtr, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
 use pointers::{Py};
@@ -44,7 +44,7 @@ pub trait PyDowncastInto<'p> : Sized {
 
     /// Cast Self to a concrete Python object type.
     fn downcast_into<I>(Python<'p>, I) -> Result<Self, PyDowncastError<'p>>
-        where I: ToPythonPointer + IntoPythonPointer;
+        where I: ToPyPointer + IntoPyPointer;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn downcast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
@@ -70,14 +70,14 @@ pub trait Unpark<'p> : Sized {
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
-pub trait ToPythonPointer {
+pub trait ToPyPointer {
     /// Retrieves the underlying FFI pointer (as a borrowed pointer).
     fn as_ptr(&self) -> *mut ffi::PyObject;
 
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
-pub trait IntoPythonPointer {
+pub trait IntoPyPointer {
     /// Retrieves the underlying FFI pointer. Whether pointer owned or borrowed
     /// depends on implementation.
     fn into_ptr(self) -> *mut ffi::PyObject;
@@ -85,7 +85,7 @@ pub trait IntoPythonPointer {
 
 
 /// Convert None into a null pointer.
-impl<'p, T> ToPythonPointer for Option<&'p T> where T: ToPythonPointer {
+impl<'p, T> ToPyPointer for Option<&'p T> where T: ToPyPointer {
     #[inline]
     default fn as_ptr(&self) -> *mut ffi::PyObject {
         match *self {
@@ -96,7 +96,7 @@ impl<'p, T> ToPythonPointer for Option<&'p T> where T: ToPythonPointer {
 }
 
 /// Convert None into a null pointer.
-impl <T> IntoPythonPointer for Option<T> where T: IntoPythonPointer {
+impl <T> IntoPyPointer for Option<T> where T: IntoPyPointer {
     #[inline]
     fn into_ptr(self) -> *mut ffi::PyObject {
         match self {
@@ -202,7 +202,7 @@ impl<'p> Python<'p> {
     }
 
     pub fn with_token<T, F>(self, f: F) -> Py<'p, T>
-        where F: FnOnce(PythonToken) -> T,
+        where F: FnOnce(PyToken) -> T,
               T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
         ::token::with_token(self, f)

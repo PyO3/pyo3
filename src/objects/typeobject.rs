@@ -6,9 +6,9 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use pointers::{Ptr, PyPtr};
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPyPointer};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
 use err::{PyErr, PyResult};
@@ -51,7 +51,7 @@ impl<'p> PyType<'p> {
 
     /// Return true if `obj` is an instance of `self`.
     #[inline]
-    pub fn is_instance<T: ToPythonPointer>(&self, obj: &T) -> bool {
+    pub fn is_instance<T: ToPyPointer>(&self, obj: &T) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
     }
 

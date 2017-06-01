@@ -7,10 +7,10 @@ use std::slice;
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use pointers::{Ptr, PyPtr};
-use python::{Python, ToPythonPointer, IntoPythonPointer};
+use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
 use objects::PyObject;
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use super::exc;
 
 /// Represents a Python tuple object.

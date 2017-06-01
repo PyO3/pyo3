@@ -10,9 +10,9 @@ use std::os::raw::{c_long, c_double};
 use ffi;
 use objects::exc;
 use objects::PyObject;
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use pointers::{Ptr, PyPtr};
-use python::{ToPythonPointer, Python};
+use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
 use conversion::{ToPyObject, FromPyObject};
 

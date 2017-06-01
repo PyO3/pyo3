@@ -4,11 +4,11 @@ use std;
 use std::ptr;
 use std::os::raw::c_char;
 use ffi;
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPyPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
 use pointers::{Ptr, PyPtr};
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 
 
 /// Represents a Python bytearray.

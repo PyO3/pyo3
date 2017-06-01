@@ -5,7 +5,7 @@ use std;
 use ffi;
 use pointers::{Ptr, PyPtr};
 use err::{PyErr, PyResult, PyDowncastError};
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPyPointer};
 
 pub struct PyObject<'p>(Ptr<'p>);
 pub struct PyObjectPtr(PyPtr);

@@ -3,12 +3,12 @@
 use std::os::raw::c_long;
 
 use pointers::{Ptr, PyPtr};
-use python::{ToPythonPointer, Python};
+use python::{ToPyPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use objects::PyObject;
 use conversion::ToPyObject;
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted
 /// at the moment by PySlice object.

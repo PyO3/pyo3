@@ -9,8 +9,8 @@ use std::ffi::{CStr, CString};
 
 use conversion::{ToPyObject, ToPyTuple};
 use pointers::{Ptr, PyPtr};
-use python::{ToPythonPointer, Python};
-use token::PythonObjectWithGilToken;
+use python::{ToPyPointer, Python};
+use token::PyObjectWithGilToken;
 use objects::{PyObject, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use err::{PyResult, PyErr};

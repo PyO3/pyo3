@@ -28,6 +28,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
+            use std;
             extern crate pyo3 as _pyo3;
 
             #tokens
@@ -40,7 +41,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
 
     let extra = if let Some(token) = token {
         Some(quote! {
-            impl _pyo3::PythonObjectWithToken for #cls {
+            impl _pyo3::PyObjectWithToken for #cls {
                 fn token<'p>(&'p self) -> _pyo3::python::Python<'p> {
                     self.#token.token()
                 }
@@ -48,7 +49,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
 
             impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let repr = unsafe {
                         PyString::downcast_from_owned_ptr(
                             self.token(), _pyo3::ffi::PyObject_Repr(ptr))
@@ -60,7 +61,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
 
             impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    let ptr = <#cls as _pyo3::python::ToPythonPointer>::as_ptr(self);
+                    let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let str_obj = unsafe {
                         PyString::downcast_from_owned_ptr(
                             self.token(), _pyo3::ffi::PyObject_Str(ptr))
@@ -122,7 +123,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             }
         }
 
-        impl _pyo3::python::ToPythonPointer for #cls {
+        impl _pyo3::python::ToPyPointer for #cls {
             #[inline]
             fn as_ptr(&self) -> *mut ffi::PyObject {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
@@ -140,7 +141,7 @@ fn is_python_token(field: &syn::Field) -> bool {
     match field.ty {
         syn::Ty::Path(_, ref path) => {
             if let Some(segment) = path.segments.last() {
-                return segment.ident.as_ref() == "PythonToken"
+                return segment.ident.as_ref() == "PyToken"
             }
         }
         _ => (),

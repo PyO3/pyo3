@@ -4,7 +4,7 @@
 
 use ffi;
 use pointers::Ptr;
-use python::{Python, ToPythonPointer, IntoPythonPointer};
+use python::{Python, ToPyPointer, IntoPyPointer};
 use objects::PyObject;
 use err::{PyErr, PyResult, PyDowncastError};
 
@@ -19,7 +19,7 @@ impl <'p> PyIterator<'p> {
     /// Constructs a PyIterator from a Python iterator object.
     pub fn from_object<T>(py: Python<'p>, obj: T)
                           -> Result<PyIterator<'p>, PyDowncastError<'p>>
-        where T: IntoPythonPointer
+        where T: IntoPyPointer
     {
         unsafe {
             let ptr = obj.into_ptr();

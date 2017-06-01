@@ -5,7 +5,7 @@ use std::{any, mem, ptr, isize, io, panic};
 use libc;
 
 use pointers::Py;
-use python::{Python, IntoPythonPointer};
+use python::{Python, IntoPyPointer};
 use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};

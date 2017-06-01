@@ -6,7 +6,7 @@ use std::fmt;
 use ffi;
 use typeob::PyTypeInfo;
 use pointers::{Py, Ptr, PyPtr};
-use python::{Python, PyDowncastInto, ToPythonPointer};
+use python::{Python, PyDowncastInto, ToPyPointer};
 use objectprotocol::ObjectProtocol;
 
 

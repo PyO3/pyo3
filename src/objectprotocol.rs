@@ -8,9 +8,9 @@ use std::cmp::Ordering;
 use ffi;
 use err::{PyErr, PyResult, self};
 use pointers::Ptr;
-use python::{Python, PyDowncastInto, ToPythonPointer};
+use python::{Python, PyDowncastInto, ToPyPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator};
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use conversion::{ToPyObject, ToPyTuple};
 
 
@@ -123,7 +123,7 @@ pub trait ObjectProtocol<'p> {
 }
 
 
-impl<'p, T> ObjectProtocol<'p> for T where T: PythonObjectWithGilToken<'p> + ToPythonPointer {
+impl<'p, T> ObjectProtocol<'p> for T where T: PyObjectWithGilToken<'p> + ToPyPointer {
 
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.

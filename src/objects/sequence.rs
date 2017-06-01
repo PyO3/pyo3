@@ -4,14 +4,14 @@
 
 use ffi;
 use pointers::Ptr;
-use python::{ToPythonPointer, PyDowncastFrom, PyDowncastInto};
+use python::{ToPyPointer, PyDowncastFrom, PyDowncastInto};
 use conversion::{FromPyObject, ToPyObject};
 use objects::{PyObject, PyList, PyTuple};
 use ffi::Py_ssize_t;
 use err;
 use err::{PyErr, PyResult};
 // use buffer;
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use objectprotocol::ObjectProtocol;
 
 

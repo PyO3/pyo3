@@ -9,8 +9,8 @@ use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
 use objects::{PyObject, PyObjectPtr};
-use python::{Python, ToPythonPointer, IntoPythonPointer};
-use token::PythonObjectWithGilToken;
+use python::{Python, ToPyPointer, IntoPyPointer};
+use token::PyObjectWithGilToken;
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
@@ -84,7 +84,7 @@ impl PyPtr {
     }
 }
 
-impl ToPythonPointer for PyPtr {
+impl ToPyPointer for PyPtr {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -92,7 +92,7 @@ impl ToPythonPointer for PyPtr {
     }
 }
 
-impl IntoPythonPointer for PyPtr {
+impl IntoPyPointer for PyPtr {
     /// Gets the underlying FFI pointer, returns a owned pointer.
     #[inline]
     #[must_use]
@@ -222,7 +222,7 @@ impl<'p> Ptr<'p> {
     }
 }
 
-impl<'p> ToPythonPointer for Ptr<'p> {
+impl<'p> ToPyPointer for Ptr<'p> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -230,7 +230,7 @@ impl<'p> ToPythonPointer for Ptr<'p> {
     }
 }
 
-impl<'p> IntoPythonPointer for Ptr<'p> {
+impl<'p> IntoPyPointer for Ptr<'p> {
     /// Gets the underlying FFI pointer, returns a owned pointer.
     #[inline]
     #[must_use]
@@ -332,13 +332,13 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
     }
 }
 
-impl<'p, T> PythonObjectWithGilToken<'p> for Py<'p, T> {
+impl<'p, T> PyObjectWithGilToken<'p> for Py<'p, T> {
     fn gil(&self) -> Python<'p> {
         self.py
     }
 }
 
-impl<'p, T> ToPythonPointer for Py<'p, T> {
+impl<'p, T> ToPyPointer for Py<'p, T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -346,7 +346,7 @@ impl<'p, T> ToPythonPointer for Py<'p, T> {
     }
 }
 
-impl<'p, T> IntoPythonPointer for Py<'p, T> {
+impl<'p, T> IntoPyPointer for Py<'p, T> {
 
     /// Gets the underlying FFI pointer.
     /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.

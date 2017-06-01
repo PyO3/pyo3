@@ -6,10 +6,10 @@ use std::{mem, collections, hash, cmp};
 
 use ffi;
 use pointers::{Ptr, PyPtr};
-use python::{Python, ToPythonPointer, PyDowncastInto};
+use python::{Python, ToPyPointer, PyDowncastInto};
 use conversion::{ToPyObject};
 use objects::{PyObject, PyList};
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use err::{self, PyResult, PyErr};
 
 /// Represents a Python `dict`.

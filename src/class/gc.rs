@@ -8,7 +8,7 @@ use std::os::raw::{c_int, c_void};
 
 use ffi;
 use pointers::Py;
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPyPointer};
 use callback::AbortOnDrop;
 use typeob::PyTypeInfo;
 
@@ -69,7 +69,7 @@ pub struct PyVisit<'p> {
 
 impl <'p> PyVisit<'p> {
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
-        where T: ToPythonPointer
+        where T: ToPyPointer
     {
         let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
         if r == 0 {

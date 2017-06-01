@@ -44,7 +44,7 @@ pub enum CompareOp {
 pub trait PyCustomObject : PyTypeInfo + Sized {}
 
 
-impl<T> ::python::PyClone for T where T: ::PythonObjectWithToken + PyTypeInfo {
+impl<T> ::python::PyClone for T where T: ::PyObjectWithToken + PyTypeInfo {
     #[inline]
     fn clone_ref<'p>(&self, py: ::Python<'p>) -> ::PyObject<'p> {
         unsafe {

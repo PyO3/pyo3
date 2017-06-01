@@ -5,9 +5,9 @@
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use pointers::{Ptr, PyPtr};
-use python::{Python, ToPythonPointer, IntoPythonPointer, Park};
+use python::{Python, ToPyPointer, IntoPyPointer, Park};
 use objects::PyObject;
-use token::PythonObjectWithGilToken;
+use token::PyObjectWithGilToken;
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.

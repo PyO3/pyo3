@@ -1,6 +1,6 @@
 use ffi;
 use pointers::{Ptr, PyPtr};
-use python::{ToPythonPointer, Python};
+use python::{ToPyPointer, Python};
 use objects::PyObject;
 use conversion::ToPyObject;
 

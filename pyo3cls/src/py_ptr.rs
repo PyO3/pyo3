@@ -23,7 +23,7 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                 type Target = #ptr;
 
                 fn park(&self) -> #ptr {
-                    let token = _pyo3::PythonObjectWithToken::token(self);
+                    let token = _pyo3::PyObjectWithToken::token(self);
                     let ptr = self.clone_ref(token).into_ptr();
 
                     #ptr(unsafe{_pyo3::PyPtr::from_owned_ptr(ptr)})

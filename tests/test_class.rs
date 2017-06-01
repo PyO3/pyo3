@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use pyo3::ffi;
-use pyo3::python::ToPythonPointer;
+use pyo3::python::ToPyPointer;
 
 
 macro_rules! py_run {
@@ -69,7 +69,7 @@ fn empty_class_in_module() {
 
 #[py::class]
 struct EmptyClassWithNew {
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::ptr(EmptyClassWithNew)]
@@ -94,7 +94,7 @@ fn empty_class_with_new() {
 #[py::class]
 struct NewWithOneArg {
     _data: i32,
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::ptr(NewWithOneArg)]
@@ -123,7 +123,7 @@ struct NewWithTwoArgs {
     _data1: i32,
     _data2: i32,
 
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::ptr(NewWithTwoArgs)]
@@ -161,7 +161,7 @@ impl Drop for TestDropCall {
 struct DataIsDropped {
     member1: TestDropCall,
     member2: TestDropCall,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[test]
@@ -187,7 +187,7 @@ fn data_is_dropped() {
 #[py::class]
 struct InstanceMethod {
     member: i32,
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::methods]
@@ -212,7 +212,7 @@ fn instance_method() {
 #[py::class]
 struct InstanceMethodWithArgs {
     member: i32,
-    token: PythonToken
+    token: PyToken
 }
 #[py::methods]
 impl InstanceMethodWithArgs {
@@ -280,7 +280,7 @@ fn class_method() {
 
 #[py::class]
 struct StaticMethod {
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::ptr(StaticMethod)]
@@ -334,7 +334,7 @@ impl StaticMethod {
 struct GCIntegration {
     self_ref: RefCell<PyObjectPtr>,
     dropped: TestDropCall,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::ptr(GCIntegration)]
@@ -372,7 +372,7 @@ fn gc_integration() {
 #[py::class]
 pub struct Len {
     l: usize,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::proto]
@@ -421,7 +421,7 @@ fn iterator() {
 }*/
 
 #[py::class]
-struct StringMethods {token: PythonToken}
+struct StringMethods {token: PyToken}
 
 #[py::proto]
 impl<'p> PyObjectProtocol<'p> for StringMethods {
@@ -462,7 +462,7 @@ fn string_methods() {
 #[py::class]
 struct Comparisons {
     val: i32,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::proto]
@@ -496,7 +496,7 @@ fn comparisons() {
 
 #[py::class]
 struct Sequence {
-    token: PythonToken}
+    token: PyToken}
 
 #[py::proto]
 impl PySequenceProtocol for Sequence {
@@ -524,7 +524,7 @@ fn sequence() {
 
 
 #[py::class]
-struct Callable {token: PythonToken}
+struct Callable {token: PyToken}
 
 #[py::methods]
 impl Callable {
@@ -552,7 +552,7 @@ fn callable() {
 struct SetItem {
     key: i32,
     val: i32,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::proto]
@@ -579,7 +579,7 @@ fn setitem() {
 #[py::class]
 struct DelItem {
     key: i32,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::proto]
@@ -604,7 +604,7 @@ fn delitem() {
 #[py::class]
 struct SetDelItem {
     val: Option<i32>,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::proto]
@@ -633,7 +633,7 @@ fn setdelitem() {
 }
 
 #[py::class]
-struct Reversed {token: PythonToken}
+struct Reversed {token: PyToken}
 
 #[py::proto]
 impl PyMappingProtocol for Reversed{
@@ -652,7 +652,7 @@ fn reversed() {
 }
 
 #[py::class]
-struct Contains {token: PythonToken}
+struct Contains {token: PyToken}
 
 #[py::proto]
 impl PySequenceProtocol for Contains {
@@ -675,7 +675,7 @@ fn contains() {
 
 
 #[py::class]
-struct UnaryArithmetic {token: PythonToken}
+struct UnaryArithmetic {token: PyToken}
 
 #[py::proto]
 impl PyNumberProtocol for UnaryArithmetic {
@@ -712,7 +712,7 @@ fn unary_arithmetic() {
 
 #[py::class]
 struct BinaryArithmetic {
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::proto]
@@ -786,7 +786,7 @@ fn binary_arithmetic() {
 
 #[py::class]
 struct RichComparisons {
-    token: PythonToken
+    token: PyToken
 }
 
 #[py::proto]
@@ -809,7 +809,7 @@ impl PyObjectProtocol for RichComparisons {
 
 #[py::class]
 struct RichComparisons2 {
-    py: PythonToken
+    py: PyToken
 }
 
 #[py::proto]
@@ -883,7 +883,7 @@ fn rich_comparisons_python_3_type_error() {
 #[py::class]
 struct InPlaceOperations {
     value: u32,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::proto]
@@ -969,7 +969,7 @@ fn inplace_operations() {
 #[py::class]
 struct ContextManager {
     exit_called: bool,
-    token: PythonToken,
+    token: PyToken,
 }
 
 
@@ -1016,7 +1016,7 @@ fn context_manager() {
 #[py::class]
 struct ClassWithProperties {
     num: i32,
-    token: PythonToken,
+    token: PyToken,
 }
 
 #[py::methods]

@@ -24,8 +24,8 @@ use libc;
 use ffi;
 use exc;
 use err::{self, PyResult};
-use python::{Python, ToPythonPointer};
-use token::PythonObjectWithGilToken;
+use python::{Python, ToPyPointer};
+use token::PyObjectWithGilToken;
 use objects::PyObject;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.

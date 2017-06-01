@@ -11,7 +11,7 @@ use std::os::raw::c_int;
 use ::{Py, CompareOp};
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, IntoPythonPointer};
+use python::{Python, IntoPyPointer};
 use objects::PyObject;
 use objects::exc;
 use typeob::PyTypeInfo;

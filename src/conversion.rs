@@ -1,6 +1,6 @@
 use ffi;
 use err::PyResult;
-use python::{Python, ToPythonPointer, PyDowncastFrom, Park};
+use python::{Python, ToPyPointer, PyDowncastFrom, Park};
 use objects::{PyObject, PyTuple};
 use typeob::PyTypeInfo;
 

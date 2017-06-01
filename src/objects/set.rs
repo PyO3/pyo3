@@ -3,12 +3,12 @@
 
 use std::{hash, collections};
 use ffi;
-use python::{Python, ToPythonPointer};
+use python::{Python, ToPyPointer};
 use pointers::{Ptr, PyPtr};
 use conversion::ToPyObject;
 use objects::PyObject;
 use err::{self, PyResult, PyErr};
-use token::{PythonObjectWithGilToken};
+use token::{PyObjectWithGilToken};
 
 
 /// Represents a Python `set`

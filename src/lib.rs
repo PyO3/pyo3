@@ -68,12 +68,12 @@ pub mod pointers;
 pub use pointers::{Py, PyPtr};
 
 mod token;
-pub use token::{PythonToken, PythonObjectWithToken, PythonObjectWithGilToken};
+pub use token::{PyToken, PyObjectWithToken, PyObjectWithGilToken};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use python::{Python, ToPythonPointer, IntoPythonPointer,
+pub use python::{Python, ToPyPointer, IntoPyPointer,
                  Park, ParkRef,
                  PyClone, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
