@@ -209,50 +209,35 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
 
     // number methods
     if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
-        static mut NB_METHODS: ffi::PyNumberMethods = ffi::PyNumberMethods_INIT;
-        *(unsafe { &mut NB_METHODS }) = meth;
-        type_object.tp_as_number = unsafe { &mut NB_METHODS };
-        mem::forget(meth);
+        type_object.tp_as_number = Box::into_raw(Box::new(meth));
     } else {
         type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
     }
 
     // mapping methods
     if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
-        static mut MP_METHODS: ffi::PyMappingMethods = ffi::PyMappingMethods_INIT;
-        *(unsafe { &mut MP_METHODS }) = meth;
-        type_object.tp_as_mapping = unsafe { &mut MP_METHODS };
-        mem::forget(meth);
+        type_object.tp_as_mapping = Box::into_raw(Box::new(meth));
     } else {
         type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
     }
 
     // sequence methods
     if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
-        static mut SQ_METHODS: ffi::PySequenceMethods = ffi::PySequenceMethods_INIT;
-        *(unsafe { &mut SQ_METHODS }) = meth;
-        type_object.tp_as_sequence = unsafe { &mut SQ_METHODS };
-        mem::forget(meth);
+        type_object.tp_as_sequence = Box::into_raw(Box::new(meth));
     } else {
         type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
     }
 
     // async methods
     if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
-        static mut ASYNC_METHODS: ffi::PyAsyncMethods = ffi::PyAsyncMethods_INIT;
-        *(unsafe { &mut ASYNC_METHODS }) = meth;
-        type_object.tp_as_async = unsafe { &mut ASYNC_METHODS };
-        mem::forget(meth);
+        type_object.tp_as_async = Box::into_raw(Box::new(meth));
     } else {
         type_object.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
     }
 
     // buffer protocol
     if let Some(meth) = <T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer() {
-        static mut BUFFER_PROCS: ffi::PyBufferProcs = ffi::PyBufferProcs_INIT;
-        *(unsafe { &mut BUFFER_PROCS }) = meth;
-        type_object.tp_as_buffer = unsafe { &mut BUFFER_PROCS };
-        mem::forget(meth);
+        type_object.tp_as_buffer = Box::into_raw(Box::new(meth));
     } else {
         type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
     }
@@ -261,11 +246,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     let (new, call, mut methods) = py_class_method_defs::<T>();
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
-        type_object.tp_methods = methods.as_ptr() as *mut _;
-
-        static mut METHODS: *const ffi::PyMethodDef = 0 as *const _;
-        *(unsafe { &mut METHODS }) = methods.as_ptr();
-
+        type_object.tp_methods = methods.as_mut_ptr();
         mem::forget(methods);
     }
     // __new__ method
@@ -277,13 +258,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>, type_na
     let mut props = py_class_properties::<T>();
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
-        let props = props.into_boxed_slice();
-        type_object.tp_getset = props.as_ptr() as *mut _;
-
-        static mut PROPS: *const ffi::PyGetSetDef = 0 as *const _;
-        *(unsafe { &mut PROPS }) = props.as_ptr();
-
-        // strange
+        type_object.tp_getset = props.as_mut_ptr();
         mem::forget(props);
     }
 

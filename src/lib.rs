@@ -81,7 +81,6 @@ pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, To
 pub use class::{CompareOp};
 pub mod class;
 pub use class::*;
-pub use native::PyNativeObject;
 pub use self::typeob::PyTypeObject;
 
 #[allow(non_camel_case_types)]
@@ -112,7 +111,6 @@ macro_rules! py_replace_expr {
 }
 
 pub mod python;
-mod native;
 mod fmt;
 mod err;
 mod conversion;

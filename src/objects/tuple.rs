@@ -10,13 +10,14 @@ use pointers::{Ptr, PyPtr};
 use python::{Python, ToPythonPointer, IntoPythonPointer};
 use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
 use objects::PyObject;
-use native::PyNativeObject;
 use token::PythonObjectWithGilToken;
 use super::exc;
 
 /// Represents a Python tuple object.
 pub struct PyTuple<'p>(Ptr<'p>);
 pub struct PyTuplePtr(PyPtr);
+
+pyobject_convert!(PyTuple);
 pyobject_nativetype!(PyTuple, PyTuple_Check, PyTuple_Type, PyTuplePtr);
 
 
@@ -112,7 +113,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
             PyTuple::new(py, &[
                 $(py_coerce_expr!(self.$n.to_object(py)),)+
-            ]).as_object()
+            ]).into()
         }
     }
 
@@ -175,7 +176,7 @@ pub struct NoArgs;
 impl ToPyObject for NoArgs {
 
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyTuple::empty(py).as_object()
+        PyTuple::empty(py).into()
     }
 }
 

@@ -4,9 +4,8 @@ use std::os::raw::c_char;
 use libc;
 
 use ffi;
-use python::{ToPythonPointer, IntoPythonPointer, Python, Park, PyDowncastInto};
+use python::{ToPythonPointer, IntoPythonPointer, Python, Park, PyDowncastInto, PyClone};
 use objects::{PyObject, PyObjectPtr, PyType, PyTypePtr, exc};
-use native::PyNativeObject;
 use typeob::{PyTypeObject};
 use conversion::{ToPyObject, ToPyTuple, IntoPyObject};
 
@@ -307,8 +306,8 @@ impl PyErr {
     pub fn instance<'p>(&mut self, py: Python<'p>) -> PyObject<'p> {
         self.normalize(py);
         match self.pvalue {
-            Some(ref instance) => instance.as_object(py).clone_object(),
-            None => py.None().as_object().clone_object(),
+            Some(ref instance) => instance.as_object(py).clone_ref(py),
+            None => py.None(),
         }
     }
 

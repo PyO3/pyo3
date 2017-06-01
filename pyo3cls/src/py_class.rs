@@ -132,10 +132,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             }
         }
 
-        impl _pyo3::class::PyCustomObject for #cls {
-
-        }
-
         #extra
     }
 }

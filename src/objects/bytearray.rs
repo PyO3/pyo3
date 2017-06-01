@@ -15,8 +15,8 @@ use token::PythonObjectWithGilToken;
 pub struct PyByteArray<'p>(Ptr<'p>);
 pub struct PyByteArrayPtr(PyPtr);
 
+pyobject_convert!(PyByteArray);
 pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type, PyByteArrayPtr);
-
 
 impl<'p> PyByteArray<'p> {
     /// Creates a new Python bytearray object.

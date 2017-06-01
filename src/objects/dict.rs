@@ -11,12 +11,12 @@ use conversion::{ToPyObject};
 use objects::{PyObject, PyList};
 use token::PythonObjectWithGilToken;
 use err::{self, PyResult, PyErr};
-use native::PyNativeObject;
 
 /// Represents a Python `dict`.
 pub struct PyDict<'p>(Ptr<'p>);
 pub struct PyDictPtr(PyPtr);
 
+pyobject_convert!(PyDict);
 pyobject_nativetype!(PyDict, PyDict_Check, PyDict_Type, PyDictPtr);
 
 
@@ -137,7 +137,7 @@ impl <K, V> ToPyObject for collections::HashMap<K, V>
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.as_object()
+        dict.into()
     }
 }
 
@@ -150,7 +150,7 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
         for (key, value) in self {
             dict.set_item(key, value).unwrap();
         };
-        dict.as_object()
+        dict.into()
     }
 }
 

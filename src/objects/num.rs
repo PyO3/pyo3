@@ -14,7 +14,6 @@ use token::PythonObjectWithGilToken;
 use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use err::{PyResult, PyErr};
-use native::PyNativeObject;
 use conversion::{ToPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
@@ -25,6 +24,8 @@ use conversion::{ToPyObject, FromPyObject};
 /// with the primitive Rust integer types.
 pub struct PyLong<'p>(Ptr<'p>);
 pub struct PyLongPtr(PyPtr);
+
+pyobject_convert!(PyLong);
 pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type, PyLongPtr);
 
 /// Represents a Python `float` object.
@@ -35,6 +36,8 @@ pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type, PyLongPtr);
 /// with `f32`/`f64`.
 pub struct PyFloat<'p>(Ptr<'p>);
 pub struct PyFloatPtr(PyPtr);
+
+pyobject_convert!(PyFloat);
 pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type, PyFloatPtr);
 
 
@@ -173,7 +176,7 @@ int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUns
 
 impl ToPyObject for f64 {
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyFloat::new(py, *self).as_object()
+        PyFloat::new(py, *self).into()
     }
 }
 
@@ -192,7 +195,7 @@ fn overflow_error(py: Python) -> PyErr {
 
 impl ToPyObject for f32 {
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyFloat::new(py, *self as f64).as_object()
+        PyFloat::new(py, *self as f64).into()
     }
 }
 

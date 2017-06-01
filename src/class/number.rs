@@ -374,8 +374,11 @@ pub trait PyNumberProtocolImpl {
 impl<'p, T> PyNumberProtocolImpl for T {
     default fn tp_as_number() -> Option<ffi::PyNumberMethods> {
         if let Some(nb_bool) = <Self as PyObjectProtocolImpl>::nb_bool_fn() {
-            let mut meth = ffi::PyNumberMethods_INIT;
-            meth.nb_bool = Some(nb_bool);
+            let meth = ffi::PyNumberMethods {
+                nb_bool: Some(nb_bool),
+                ..
+                ffi::PyNumberMethods_INIT
+            };
             Some(meth)
         } else {
             None

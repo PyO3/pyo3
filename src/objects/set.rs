@@ -8,7 +8,6 @@ use pointers::{Ptr, PyPtr};
 use conversion::ToPyObject;
 use objects::PyObject;
 use err::{self, PyResult, PyErr};
-use native::PyNativeObject;
 use token::{PythonObjectWithGilToken};
 
 
@@ -20,7 +19,9 @@ pub struct PySetPtr(PyPtr);
 pub struct PyFrozenSet<'p>(Ptr<'p>);
 pub struct PyFrozenSetPtr(PyPtr);
 
+pyobject_convert!(PySet);
 pyobject_nativetype!(PySet, PySet_Check, PySet_Type, PySetPtr);
+pyobject_convert!(PyFrozenSet);
 pyobject_nativetype!(PyFrozenSet, PyFrozenSet_Check, PyFrozenSet_Type, PyFrozenSetPtr);
 
 impl<'p> PySet<'p> {
@@ -92,7 +93,7 @@ impl<T> ToPyObject for collections::HashSet<T>
         for val in self {
             set.add(val).unwrap();
         }
-        set.as_object()
+        set.into()
     }
 }
 
@@ -104,7 +105,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
         for val in self {
             set.add(val).unwrap();
         }
-        set.as_object()
+        set.into()
     }
 }
 
@@ -144,7 +145,6 @@ impl<'p> PyFrozenSet<'p> {
 mod test {
     use std::collections::{HashSet};
     use python::{Python, PyDowncastInto};
-    use native::PyNativeObject;
     use conversion::ToPyObject;
     use objectprotocol::ObjectProtocol;
     use super::{PySet, PyFrozenSet};
@@ -165,11 +165,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = PySet::downcast_into(py, ob.as_object()).unwrap();
+        let set = PySet::downcast_into(py, ob).unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = PySet::downcast_into(py, ob.as_object()).unwrap();
+        let set2 = PySet::downcast_into(py, ob).unwrap();
         assert_eq!(1, set2.len());
     }
 

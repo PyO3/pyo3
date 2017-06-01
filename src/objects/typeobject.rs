@@ -16,6 +16,8 @@ use err::{PyErr, PyResult};
 /// Represents a reference to a Python type object.
 pub struct PyType<'p>(Ptr<'p>);
 pub struct PyTypePtr(PyPtr);
+
+pyobject_convert!(PyType);
 pyobject_nativetype!(PyType, PyType_Check, PyType_Type, PyTypePtr);
 
 

@@ -69,12 +69,6 @@ pub trait Unpark<'p> : Sized {
     fn unpark(self, py: Python<'p>) -> Self::Target;
 }
 
-
-pub trait PyClone {
-
-    fn clone_ref<'p>(&self, py: Python<'p>) -> PyObject<'p>;
-}
-
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
 pub trait ToPythonPointer {
     /// Retrieves the underlying FFI pointer (as a borrowed pointer).
@@ -89,17 +83,6 @@ pub trait IntoPythonPointer {
     fn into_ptr(self) -> *mut ffi::PyObject;
 }
 
-
-/// Convert None into a null pointer.
-/*impl <T> ToPythonPointer for Option<T> where T: ToPythonPointer {
-    #[inline]
-    default fn as_ptr(&self) -> *mut ffi::PyObject {
-        match *self {
-            Some(ref t) => t.as_ptr(),
-            None => std::ptr::null_mut()
-        }
-    }
-}*/
 
 /// Convert None into a null pointer.
 impl<'p, T> ToPythonPointer for Option<&'p T> where T: ToPythonPointer {
@@ -121,6 +104,11 @@ impl <T> IntoPythonPointer for Option<T> where T: IntoPythonPointer {
             None => std::ptr::null_mut()
         }
     }
+}
+
+pub trait PyClone {
+
+    fn clone_ref<'p>(&self, py: Python<'p>) -> PyObject<'p>;
 }
 
 

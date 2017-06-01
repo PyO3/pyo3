@@ -2,13 +2,13 @@ use ffi;
 use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use objects::PyObject;
-use native::PyNativeObject;
 use conversion::ToPyObject;
 
 /// Represents a Python `bool`.
 pub struct PyBool<'p>(Ptr<'p>);
 pub struct PyBoolPtr(PyPtr);
 
+pyobject_convert!(PyBool);
 pyobject_nativetype!(PyBool, PyBool_Check, PyBool_Type, PyBoolPtr);
 
 
@@ -32,7 +32,7 @@ impl<'p> PyBool<'p> {
 impl ToPyObject for bool {
     #[inline]
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyBool::new(py, *self).as_object()
+        PyBool::new(py, *self).into()
     }
 
     #[inline]
@@ -55,16 +55,17 @@ pyobject_extract!(obj to bool => {
 #[cfg(test)]
 mod test {
     use python::{Python};
+    use objects::PyObject;
     use conversion::ToPyObject;
-    use ::PyNativeObject;
 
     #[test]
     fn test_true() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(py.True().is_true());
-        assert_eq!(true, py.True().as_object().extract().unwrap());
-        assert!(true.to_object(py) == py.True().as_object());
+        let t: PyObject = py.True().into();
+        assert_eq!(true, t.extract().unwrap());
+        assert!(true.to_object(py) == py.True().into());
     }
 
     #[test]
@@ -72,7 +73,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(!py.False().is_true());
-        assert_eq!(false, py.False().as_object().extract().unwrap());
-        assert!(false.to_object(py) == py.False().as_object());
+        let t: PyObject = py.False().into();
+        assert_eq!(false, t.extract().unwrap());
+        assert!(false.to_object(py) == py.False().into());
     }
 }

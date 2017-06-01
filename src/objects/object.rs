@@ -7,9 +7,7 @@ use pointers::{Ptr, PyPtr};
 use err::{PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPythonPointer};
 
-
 pub struct PyObject<'p>(Ptr<'p>);
-
 pub struct PyObjectPtr(PyPtr);
 
 pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type, PyObjectPtr);

@@ -20,6 +20,7 @@ use err::{PyResult, PyErr};
 pub struct PyModule<'p>(Ptr<'p>);
 pub struct PyModulePtr(PyPtr);
 
+pyobject_convert!(PyModule);
 pyobject_nativetype!(PyModule, PyModule_Check, PyModule_Type, PyModulePtr);
 
 

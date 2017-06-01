@@ -167,19 +167,18 @@ macro_rules! pyobject_nativetype(
 
     ($name: ident, $checkfunction: ident) => (
 
-        impl<'p> $crate::native::PyBaseObject for $name<'p> {}
-
-        impl<'p> $crate::native::PyNativeObject<'p> for $name<'p> {
-            fn as_object(self) -> $crate::PyObject<'p> {
-                unsafe {
-                    $crate::ffi::Py_INCREF(self.as_ptr());
-                    $crate::std::mem::transmute(self)
-                }
+        impl<'p> $crate::std::convert::AsRef<PyObject<'p>> for $name<'p> {
+            fn as_ref(&self) -> &$crate::PyObject<'p> {
+                unsafe{$crate::std::mem::transmute(self)}
             }
-            fn clone_object(&self) -> $name<'p> {
-                use $crate::{ToPythonPointer, PythonObjectWithGilToken};
+        }
+
+        impl<'p> $crate::std::clone::Clone for $name<'p> {
+            fn clone(&self) -> Self {
+                use $crate::token::PythonObjectWithGilToken;
                 unsafe {
-                    $name(Ptr::from_borrowed_ptr(self.gil(), self.as_ptr()))
+                    $name($crate::pointers::Ptr::from_borrowed_ptr(
+                        self.gil(), self.as_ptr()))
                 }
             }
         }
@@ -352,6 +351,16 @@ macro_rules! pyobject_nativetype(
     );
 );
 
+
+macro_rules! pyobject_convert(
+    ($name: ident) => (
+        impl<'p> $crate::std::convert::From<$name<'p>> for $crate::PyObject<'p> {
+            fn from(ob: $name<'p>) -> Self {
+                unsafe{$crate::std::mem::transmute(ob)}
+            }
+        }
+    )
+);
 
 macro_rules! pyobject_extract(
     ($obj:ident to $t:ty => $body: block) => {

@@ -6,7 +6,6 @@ use pointers::{Ptr, PyPtr};
 use python::{ToPythonPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
-use native::PyNativeObject;
 use objects::PyObject;
 use conversion::ToPyObject;
 use token::PythonObjectWithGilToken;
@@ -16,6 +15,7 @@ use token::PythonObjectWithGilToken;
 pub struct PySlice<'p>(Ptr<'p>);
 pub struct PySlicePtr(PyPtr);
 
+pyobject_convert!(PySlice);
 pyobject_nativetype!(PySlice, PySlice_Check, PySlice_Type, PySlicePtr);
 
 
@@ -82,6 +82,6 @@ impl<'p> PySlice<'p> {
 
 impl ToPyObject for PySliceIndices {
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PySlice::new(py, self.start, self.stop, self.step).as_object()
+        PySlice::new(py, self.start, self.stop, self.step).into()
     }
 }

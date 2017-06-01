@@ -14,17 +14,20 @@ use python::{ToPythonPointer, Python};
 use super::{exc, PyObject};
 use token::PythonObjectWithGilToken;
 use err::{PyResult, PyErr};
-use native::PyNativeObject;
 use conversion::{ToPyObject, RefFromPyObject};
 
 /// Represents a Python string.
 pub struct PyString<'p>(Ptr<'p>);
 pub struct PyStringPtr(PyPtr);
+
+pyobject_convert!(PyString);
 pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type, PyStringPtr);
 
 /// Represents a Python byte string.
 pub struct PyBytes<'p>(Ptr<'p>);
 pub struct PyBytesPtr(PyPtr);
+
+pyobject_convert!(PyBytes);
 pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type, PyBytesPtr);
 
 
@@ -222,7 +225,7 @@ impl<'p> PyBytes<'p> {
 impl ToPyObject for str {
     #[inline]
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyString::new(py, self).as_object()
+        PyString::new(py, self).into()
     }
 }
 
@@ -231,7 +234,7 @@ impl ToPyObject for str {
 impl <'a> ToPyObject for Cow<'a, str> {
     #[inline]
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyString::new(py, self).as_object()
+        PyString::new(py, self).into()
     }
 }
 
@@ -240,7 +243,7 @@ impl <'a> ToPyObject for Cow<'a, str> {
 impl ToPyObject for String {
     #[inline]
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyString::new(py, self).as_object()
+        PyString::new(py, self).into()
     }
 }
 
@@ -272,7 +275,6 @@ impl<'p> RefFromPyObject<'p> for str {
 #[cfg(test)]
 mod test {
     use python::Python;
-    use native::PyNativeObject;
     use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
@@ -281,7 +283,7 @@ mod test {
         let py = gil.python();
         let s = "\u{1F30F}";
         let py_string = s.to_object(py);
-        assert_eq!(s, py_string.as_object().extract::<String>().unwrap());
+        assert_eq!(s, py_string.extract::<String>().unwrap());
     }
 
     #[test]
@@ -291,7 +293,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
         let mut called = false;
-        RefFromPyObject::with_extracted(&py_string.as_object(),
+        RefFromPyObject::with_extracted(&py_string.into(),
             |s2: &str| {
                 assert_eq!(s, s2);
                 called = true;

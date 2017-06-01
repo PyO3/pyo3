@@ -18,7 +18,7 @@ use objectprotocol::ObjectProtocol;
 /// Represents a reference to a python object supporting the sequence protocol.
 pub struct PySequence<'p>(Ptr<'p>);
 
- pyobject_nativetype!(PySequence, PySequence_Check);
+pyobject_nativetype!(PySequence, PySequence_Check);
 
 
 impl<'p> PySequence<'p> {
