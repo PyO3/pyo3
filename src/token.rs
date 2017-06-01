@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std::rc::Rc;
 use std::marker::PhantomData;
 
 use pointers::Py;
@@ -7,9 +8,9 @@ use python::Python;
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
-pub struct PythonToken<T>(PhantomData<T>);
+pub struct PythonToken(PhantomData<Rc<()>>);
 
-impl<T> PythonToken<T> {
+impl PythonToken {
     pub fn token<'p>(&'p self) -> Python<'p> {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -17,7 +18,7 @@ impl<T> PythonToken<T> {
 
 #[inline]
 pub fn with_token<'p, T, F>(py: Python<'p>, f: F) -> Py<'p, T>
-    where F: FnOnce(PythonToken<T>) -> T,
+    where F: FnOnce(PythonToken) -> T,
           T: PyTypeInfo + PyObjectAlloc<Type=T>
 {
     let value = f(PythonToken(PhantomData));

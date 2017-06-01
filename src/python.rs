@@ -214,7 +214,7 @@ impl<'p> Python<'p> {
     }
 
     pub fn with_token<T, F>(self, f: F) -> Py<'p, T>
-        where F: FnOnce(PythonToken<T>) -> T,
+        where F: FnOnce(PythonToken) -> T,
               T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
         ::token::with_token(self, f)

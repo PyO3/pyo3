@@ -10,21 +10,11 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
 
     match ast.body {
         syn::Body::Struct(syn::VariantData::Struct(ref mut fields)) => {
-            for field in fields.iter_mut() {
-                let mut attrs = vec![];
-                for attr in field.attrs.iter() {
-                    match attr.value {
-                        syn::MetaItem::Word(ref a) => {
-                            if a.as_ref() == "token" {
-                                token = field.ident.clone();
-                                continue
-                            }
-                        },
-                        _ => (),
-                    }
-                    attrs.push(attr.clone());
+            for field in fields.iter() {
+                if is_python_token(field) {
+                    token = field.ident.clone();
+                    break
                 }
-                field.attrs = attrs;
             }
         },
         _ => panic!("#[class] can only be used with notmal structs"),
@@ -148,4 +138,16 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
 
         #extra
     }
+}
+
+fn is_python_token(field: &syn::Field) -> bool {
+    match field.ty {
+        syn::Ty::Path(_, ref path) => {
+            if let Some(segment) = path.segments.last() {
+                return segment.ident.as_ref() == "PythonToken"
+            }
+        }
+        _ => (),
+    }
+    return false
 }
