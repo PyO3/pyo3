@@ -17,6 +17,7 @@ mod py_class;
 mod py_impl;
 mod py_proto;
 mod py_method;
+mod py_ptr;
 mod defs;
 mod func;
 mod method;
@@ -41,7 +42,6 @@ pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
 
     TokenStream::from_str(s.as_str()).unwrap()
 }
-
 
 #[proc_macro_attribute]
 pub fn class(_: TokenStream, input: TokenStream) -> TokenStream {
@@ -103,4 +103,25 @@ pub fn args(_: TokenStream, input: TokenStream) -> TokenStream {
 // do nothing, if impl block is not wrapped into #[methods] macro
 pub fn defaults(_: TokenStream, input: TokenStream) -> TokenStream {
     input
+}
+
+#[proc_macro_attribute]
+pub fn ptr(attr: TokenStream, input: TokenStream) -> TokenStream {
+    // Construct a string representation of the type definition
+    let source = input.to_string();
+
+    let cls = syn::Ident::from(&attr.to_string()[1..attr.to_string().len()-1]);
+
+    // Parse the string representation into a syntax tree
+    let mut ast = syn::parse_derive_input(&source).unwrap();
+
+    // Build the output
+    let expanded = py_ptr::build_ptr(cls, &mut ast);
+
+    // Return the generated impl as a TokenStream
+    let mut tokens = Tokens::new();
+    ast.to_tokens(&mut tokens);
+    let s = String::from(tokens.as_str()) + expanded.as_str();
+
+    TokenStream::from_str(s.as_str()).unwrap()
 }

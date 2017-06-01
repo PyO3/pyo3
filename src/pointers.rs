@@ -15,31 +15,31 @@ use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
 #[allow(non_camel_case_types)]
-pub struct PPyPtr(*mut ffi::PyObject);
+pub struct PyPtr(*mut ffi::PyObject);
 
-// `PPyPtr` is thread-safe, because any python related operations require a Python<'p> token.
-unsafe impl Send for PPyPtr {}
-unsafe impl Sync for PPyPtr {}
+// `PyPtr` is thread-safe, because any python related operations require a Python<'p> token.
+unsafe impl Send for PyPtr {}
+unsafe impl Sync for PyPtr {}
 
 
-impl PPyPtr {
+impl PyPtr {
     /// Creates a `PyObjectPtr` instance for the given FFI pointer.
     /// This moves ownership over the pointer into the `PyObjectPtr`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PPyPtr {
+    pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyPtr {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
-        PPyPtr(ptr)
+        PyPtr(ptr)
     }
 
     /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PPyPtr {
+    pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyPtr {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
-        PPyPtr::from_owned_ptr(ptr)
+        PyPtr::from_owned_ptr(ptr)
     }
 
     /// Gets the reference count of the PyObject pointer.
@@ -54,17 +54,24 @@ impl PPyPtr {
         unsafe { std::mem::transmute(self) }
     }
 
-    /// Converts `PyObjectPtr` instance -> PyObject<'p>
+    /// Converts `PyPtr` instance -> PyObject<'p>
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
     pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject<'p> {
         unsafe { std::mem::transmute(self) }
     }
 
+    /// Converts `PyPtr` instance -> PyObjectPtr
+    /// Consumes `self` without calling `Py_DECREF()`
+    #[inline]
+    pub fn into_object_ptr(self) -> PyObjectPtr {
+        unsafe { std::mem::transmute(self) }
+    }
+
     /// Clone self, Calls Py_INCREF() on the ptr.
     #[inline]
-    pub fn clone_ref(&self, _py: Python) -> PPyPtr {
-        unsafe { PPyPtr::from_borrowed_ptr(self.0) }
+    pub fn clone_ref(&self, _py: Python) -> PyPtr {
+        unsafe { PyPtr::from_borrowed_ptr(self.0) }
     }
 
     /// Casts the `PyObjectPtr` imstance to a concrete Python object type.
@@ -77,7 +84,7 @@ impl PPyPtr {
     }
 }
 
-impl ToPythonPointer for PPyPtr {
+impl ToPythonPointer for PyPtr {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -85,7 +92,7 @@ impl ToPythonPointer for PPyPtr {
     }
 }
 
-impl IntoPythonPointer for PPyPtr {
+impl IntoPythonPointer for PyPtr {
     /// Gets the underlying FFI pointer, returns a owned pointer.
     #[inline]
     #[must_use]
@@ -96,16 +103,16 @@ impl IntoPythonPointer for PPyPtr {
     }
 }
 
-impl PartialEq for PPyPtr {
+impl PartialEq for PyPtr {
     #[inline]
-    fn eq(&self, o: &PPyPtr) -> bool {
+    fn eq(&self, o: &PyPtr) -> bool {
         self.0 == o.0
     }
 }
 
 
-/// Dropping a `PPyPtr` instance decrements the reference count on the object by 1.
-impl Drop for PPyPtr {
+/// Dropping a `PyPtr` instance decrements the reference count on the object by 1.
+impl Drop for PyPtr {
 
     fn drop(&mut self) {
         unsafe {
@@ -114,130 +121,6 @@ impl Drop for PPyPtr {
         }
         let _gil_guard = Python::acquire_gil();
         unsafe { ffi::Py_DECREF(self.0); }
-    }
-}
-
-
-pub struct PyPtr<T> {
-    inner: *mut ffi::PyObject,
-    _t: PhantomData<T>,
-}
-
-impl<T> PyPtr<T> {
-
-    /// Converts PyPtr<T> -> PyObjectPtr
-    /// Consumes `self` without calling `Py_INCREF()`
-    #[inline]
-    pub fn park(self) -> PyObjectPtr {
-        unsafe { std::mem::transmute(self) }
-    }
-
-    /// Converts PyPtr<T> -> Py<'p, T>
-    /// Consumes `self` without calling `Py_INCREF()`
-    #[inline]
-    pub fn unpark<'p>(self, _py: Python<'p>) -> Py<'p, T> {
-        unsafe { std::mem::transmute(self) }
-    }
-
-    /// Returns PyObject reference.
-    #[inline]
-    pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject<'p> {
-        unsafe { std::mem::transmute(self) }
-    }
-
-    /// Converts PyPtr<T> -> PyObject<'p>
-    /// Consumes `self` without calling `Py_DECREF()`
-    #[inline]
-    pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject<'p> {
-        unsafe { std::mem::transmute(self) }
-    }
-
-    #[inline]
-    pub fn clone_ref(&self, _py: Python) -> PyPtr<T> {
-        unsafe {
-            ffi::Py_INCREF(self.inner);
-            PyPtr {inner: self.inner, _t: PhantomData}
-        }
-    }
-}
-
-impl<T> PyPtr<T> where T: PyTypeInfo
-{
-    #[inline]
-    pub fn as_ref(&self, _py: Python) -> &T {
-        let offset = <T as PyTypeInfo>::offset();
-        unsafe {
-            let ptr = (self.inner as *mut u8).offset(offset) as *mut T;
-            ptr.as_ref().unwrap()
-        }
-    }
-
-    #[inline]
-    pub fn as_mut(&self, _py: Python) -> &mut T {
-        let offset = <T as PyTypeInfo>::offset();
-        unsafe {
-            let ptr = (self.inner as *mut u8).offset(offset) as *mut T;
-            ptr.as_mut().unwrap()
-        }
-    }
-}
-
-impl<T> ToPythonPointer for PyPtr<T> {
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner
-    }
-}
-
-impl<T> IntoPythonPointer for PyPtr<T> {
-    /// Gets the underlying FFI pointer.
-    /// Consumes `self` without calling `Py_DECREF()`, thus returning an owned pointer.
-    #[inline]
-    #[must_use]
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.inner;
-        std::mem::forget(self);
-        ptr
-    }
-}
-
-impl<T> ToPyObject for PyPtr<T> {
-
-    #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
-        PyObject::from_borrowed_ptr(py, self.inner)
-    }
-
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
-    {
-        f(self.inner)
-    }
-}
-
-impl<T> IntoPyObject for PyPtr<T> {
-
-    #[inline]
-    fn into_object<'a>(self, _py: Python) -> ::PyObjectPtr {
-        self.park()
-    }
-}
-
-// PyPtr is thread-safe, because all operations on it require a Python<'p> token.
-unsafe impl<T> Send for PyPtr<T> {}
-unsafe impl<T> Sync for PyPtr<T> {}
-
-/// Dropping a `PyPtr` decrements the reference count on the object by 1.
-impl<T> Drop for PyPtr<T> {
-    fn drop(&mut self) {
-        unsafe {
-            println!("drop PyPtr: {:?} {}", self.inner, ffi::Py_REFCNT(self.inner));
-        }
-
-        let _gil_guard = Python::acquire_gil();
-        unsafe { ffi::Py_DECREF(self.inner); }
     }
 }
 
@@ -267,12 +150,6 @@ impl<'p, T> Py<'p, T>
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
         ffi::Py_INCREF(ptr);
         Py {inner: ptr, _t: PhantomData, py: py}
-    }
-
-    /// Convert tp `PyPtr<T>` pointer
-    #[inline]
-    pub fn park(self) -> PyPtr<T> {
-        unsafe { std::mem::transmute(self) }
     }
 
     /// Returns owned PyObject<'p> reference
@@ -430,13 +307,6 @@ impl<'p, T> IntoPyObject for Py<'p, T> {
 impl<'p, T> PartialEq for Py<'p, T> {
     #[inline]
     fn eq(&self, o: &Py<T>) -> bool {
-        self.as_ptr() == o.as_ptr()
-    }
-}
-
-impl<'p, T> PartialEq for PyPtr<T> {
-    #[inline]
-    fn eq(&self, o: &PyPtr<T>) -> bool {
         self.as_ptr() == o.as_ptr()
     }
 }

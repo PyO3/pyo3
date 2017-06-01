@@ -5,7 +5,7 @@
 use ::pyptr;
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer, IntoPythonPointer, Park};
 use objects::PyObject;
 use token::PythonObjectWithGilToken;
@@ -13,7 +13,7 @@ use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
 pub struct PyList<'p>(pyptr<'p>);
-pub struct PyListPtr(PPyPtr);
+pub struct PyListPtr(PyPtr);
 
 pyobject_nativetype!(PyList, PyList_Check, PyList_Type, PyListPtr);
 
@@ -142,7 +142,7 @@ impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 mod test {
     use python::{Python, PyDowncastInto};
     use native::PyNativeObject;
-    use conversion::{ToPyObject, IntoPyObject};
+    use conversion::ToPyObject;
     use objects::PyList;
 
     #[test]

@@ -4,14 +4,14 @@ use std;
 
 use ::pyptr;
 use ffi;
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use err::{PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPythonPointer};
 
 
 pub struct PyObject<'p>(pyptr<'p>);
 
-pub struct PyObjectPtr(PPyPtr);
+pub struct PyObjectPtr(PyPtr);
 
 pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type, PyObjectPtr);
 
@@ -117,7 +117,7 @@ impl PyObjectPtr {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyObjectPtr {
-        PyObjectPtr(PPyPtr::from_owned_ptr(ptr))
+        PyObjectPtr(PyPtr::from_owned_ptr(ptr))
     }
 
     /// Creates a `PyObjectPtr` instance for the given FFI pointer.
@@ -128,7 +128,7 @@ impl PyObjectPtr {
         if ptr.is_null() {
             None
         } else {
-            Some(PyObjectPtr(unsafe{PPyPtr::from_owned_ptr(ptr)}))
+            Some(PyObjectPtr(unsafe{PyPtr::from_owned_ptr(ptr)}))
         }
     }
 
@@ -141,7 +141,7 @@ impl PyObjectPtr {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(PyObjectPtr(unsafe{PPyPtr::from_owned_ptr(ptr)}))
+            Ok(PyObjectPtr(unsafe{PyPtr::from_owned_ptr(ptr)}))
         }
     }
 
@@ -153,7 +153,7 @@ impl PyObjectPtr {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
-            PyObjectPtr(PPyPtr::from_owned_ptr(ptr))
+            PyObjectPtr(PyPtr::from_owned_ptr(ptr))
         }
     }
 
@@ -162,7 +162,7 @@ impl PyObjectPtr {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyObjectPtr {
-        PyObjectPtr(PPyPtr::from_borrowed_ptr(ptr))
+        PyObjectPtr(PyPtr::from_borrowed_ptr(ptr))
     }
 
     /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
@@ -173,7 +173,7 @@ impl PyObjectPtr {
         if ptr.is_null() {
             None
         } else {
-            Some(PyObjectPtr(unsafe{PPyPtr::from_borrowed_ptr(ptr)}))
+            Some(PyObjectPtr(unsafe{PyPtr::from_borrowed_ptr(ptr)}))
         }
     }
 
@@ -186,7 +186,7 @@ impl PyObjectPtr {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
-            PyObjectPtr(PPyPtr::from_borrowed_ptr(ptr))
+            PyObjectPtr(PyPtr::from_borrowed_ptr(ptr))
         }
     }
 }

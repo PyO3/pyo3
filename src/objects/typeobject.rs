@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use ::pyptr;
 use ffi;
 use token::PythonObjectWithGilToken;
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer};
 use conversion::ToPyTuple;
 use objects::{PyObject, PyDict};
@@ -16,7 +16,7 @@ use err::{PyErr, PyResult};
 
 /// Represents a reference to a Python type object.
 pub struct PyType<'p>(pyptr<'p>);
-pub struct PyTypePtr(PPyPtr);
+pub struct PyTypePtr(PyPtr);
 pyobject_nativetype!(PyType, PyType_Check, PyType_Type, PyTypePtr);
 
 
@@ -83,7 +83,7 @@ impl PyTypePtr {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyTypePtr {
-        PyTypePtr(PPyPtr::from_owned_ptr(ptr))
+        PyTypePtr(PyPtr::from_owned_ptr(ptr))
     }
 
     /// Retrieves the owned PyTypePtr instance for the given FFI pointer.
@@ -95,7 +95,7 @@ impl PyTypePtr {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(PyTypePtr(PPyPtr::from_owned_ptr(ptr)))
+            Ok(PyTypePtr(PyPtr::from_owned_ptr(ptr)))
         }
     }
 
@@ -104,6 +104,6 @@ impl PyTypePtr {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyTypePtr {
-        PyTypePtr(PPyPtr::from_owned_ptr(ptr))
+        PyTypePtr(PyPtr::from_owned_ptr(ptr))
     }
 }

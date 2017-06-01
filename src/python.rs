@@ -53,13 +53,26 @@ pub trait PyDowncastInto<'p> : Sized {
 
 pub trait Park : Sized {
     type Target;
+
     fn park(self) -> Self::Target;
+}
+
+pub trait ParkRef : Sized {
+    type Target;
+
+    fn park(&self) -> Self::Target;
 }
 
 pub trait Unpark<'p> : Sized {
     type Target;
 
     fn unpark(self, py: Python<'p>) -> Self::Target;
+}
+
+
+pub trait PyClone {
+
+    fn clone_ref<'p>(&self, py: Python<'p>) -> PyObject<'p>;
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.

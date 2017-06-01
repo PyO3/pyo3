@@ -42,3 +42,15 @@ pub enum CompareOp {
 }
 
 pub trait PyCustomObject : PyTypeInfo + Sized {}
+
+
+impl<T> ::python::PyClone for T where T: ::PythonObjectWithToken + PyTypeInfo {
+    #[inline]
+    fn clone_ref<'p>(&self, py: ::Python<'p>) -> ::PyObject<'p> {
+        unsafe {
+            let offset = <T as PyTypeInfo>::offset();
+            let ptr = (self as *const _ as *mut u8).offset(-offset) as *mut ffi::PyObject;
+            ::PyObject::from_borrowed_ptr(py, ptr)
+        }
+    }
+}

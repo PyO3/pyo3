@@ -8,13 +8,13 @@ use python::{Python, ToPythonPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
 use ppptr::pyptr;
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use token::PythonObjectWithGilToken;
 
 
 /// Represents a Python bytearray.
 pub struct PyByteArray<'p>(pyptr<'p>);
-pub struct PyByteArrayPtr(PPyPtr);
+pub struct PyByteArrayPtr(PyPtr);
 
 pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type, PyByteArrayPtr);
 

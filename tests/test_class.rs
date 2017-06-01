@@ -68,12 +68,18 @@ fn empty_class_in_module() {
 }
 
 #[py::class]
-struct EmptyClassWithNew {token: PythonToken<EmptyClassWithNew> }
+struct EmptyClassWithNew {
+    #[token]
+    token: PythonToken<EmptyClassWithNew>
+}
+
+#[py::ptr(EmptyClassWithNew)]
+struct EmptyClassWithNewPtr(PyPtr);
 
 #[py::methods]
 impl EmptyClassWithNew {
     #[__new__]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<PyPtr<EmptyClassWithNew>> {
+    fn __new__(cls: &PyType, py: Python) -> PyResult<EmptyClassWithNewPtr> {
         Ok(py.with_token(|t| EmptyClassWithNew{token: t}).park())
     }
 }
@@ -92,10 +98,14 @@ struct NewWithOneArg {
     #[token]
     token: PythonToken<NewWithOneArg>
 }
+
+#[py::ptr(NewWithOneArg)]
+struct NewWithOneArgPtr(PyPtr);
+
 #[py::methods]
 impl NewWithOneArg {
     #[new]
-    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<PyPtr<NewWithOneArg>> {
+    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<NewWithOneArgPtr> {
         Ok(py.with_token(|t| NewWithOneArg{_data: arg, token: t}).park())
     }
 }
@@ -114,14 +124,18 @@ fn new_with_one_arg() {
 struct NewWithTwoArgs {
     _data1: i32,
     _data2: i32,
+
+    #[token]
     token: PythonToken<NewWithTwoArgs>
 }
+
+#[py::ptr(NewWithTwoArgs)]
+struct NewWithTwoArgsPtr(PyPtr);
 
 #[py::methods]
 impl NewWithTwoArgs {
     #[new]
-    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32)
-               -> PyResult<PyPtr<NewWithTwoArgs>> {
+    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<NewWithTwoArgsPtr> {
         Ok(py.with_token(|t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t}).park())
     }
 }
@@ -268,12 +282,18 @@ fn class_method() {
 }*/
 
 #[py::class]
-struct StaticMethod {token: PythonToken<StaticMethod>}
+struct StaticMethod {
+    #[token]
+    token: PythonToken<StaticMethod>
+}
+
+#[py::ptr(StaticMethod)]
+struct StaticMethodPtr(PyPtr);
 
 #[py::methods]
 impl StaticMethod {
     #[new]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<PyPtr<StaticMethod>> {
+    fn __new__(cls: &PyType, py: Python) -> PyResult<StaticMethodPtr> {
         Ok(py.with_token(|t| StaticMethod{token: t}).park())
     }
 
@@ -318,8 +338,12 @@ impl StaticMethod {
 struct GCIntegration {
     self_ref: RefCell<PyObjectPtr>,
     dropped: TestDropCall,
+    #[token]
     token: PythonToken<GCIntegration>,
 }
+
+#[py::ptr(GCIntegration)]
+struct GCIntegrationPtr(PyPtr);
 
 #[py::proto]
 impl PyGCProtocol for GCIntegration {
@@ -343,7 +367,7 @@ fn gc_integration() {
         dropped: TestDropCall { drop_called: drop_called.clone() },
         token: t});
 
-    *inst.self_ref.borrow_mut() = inst.clone().park().park();
+    *inst.self_ref.borrow_mut() = inst.clone_ref(py).park();
     drop(inst);
 
     py.run("import gc; gc.collect()", None, None).unwrap();

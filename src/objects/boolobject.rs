@@ -1,6 +1,6 @@
 use pyptr;
 use ffi;
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use python::{ToPythonPointer, Python};
 use objects::PyObject;
 use native::PyNativeObject;
@@ -8,7 +8,7 @@ use conversion::ToPyObject;
 
 /// Represents a Python `bool`.
 pub struct PyBool<'p>(pyptr<'p>);
-pub struct PyBoolPtr(PPyPtr);
+pub struct PyBoolPtr(PyPtr);
 
 pyobject_nativetype!(PyBool, PyBool_Check, PyBool_Type, PyBoolPtr);
 

@@ -6,7 +6,7 @@ use std::{mem, collections, hash, cmp};
 
 use ffi;
 use pyptr;
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use python::{Python, ToPythonPointer, PyDowncastInto};
 use conversion::{ToPyObject};
 use objects::{PyObject, PyList};
@@ -16,7 +16,7 @@ use native::PyNativeObject;
 
 /// Represents a Python `dict`.
 pub struct PyDict<'p>(pyptr<'p>);
-pub struct PyDictPtr(PPyPtr);
+pub struct PyDictPtr(PyPtr);
 
 pyobject_nativetype!(PyDict, PyDict_Check, PyDict_Type, PyDictPtr);
 

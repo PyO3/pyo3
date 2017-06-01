@@ -5,7 +5,7 @@ use std::{hash, collections};
 use ffi;
 use pyptr;
 use python::{Python, ToPythonPointer};
-use pointers::PPyPtr;
+use pointers::PyPtr;
 use conversion::ToPyObject;
 use objects::PyObject;
 use err::{self, PyResult, PyErr};
@@ -15,11 +15,11 @@ use token::{PythonObjectWithGilToken};
 
 /// Represents a Python `set`
 pub struct PySet<'p>(pyptr<'p>);
-pub struct PySetPtr(PPyPtr);
+pub struct PySetPtr(PyPtr);
 
 /// Represents a  Python `frozenset`
 pub struct PyFrozenSet<'p>(pyptr<'p>);
-pub struct PyFrozenSetPtr(PPyPtr);
+pub struct PyFrozenSetPtr(PyPtr);
 
 pyobject_nativetype!(PySet, PySet_Check, PySet_Type, PySetPtr);
 pyobject_nativetype!(PyFrozenSet, PyFrozenSet_Check, PyFrozenSet_Type, PyFrozenSetPtr);

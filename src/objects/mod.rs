@@ -55,6 +55,10 @@ macro_rules! pyobject_nativetype(
             }
         }
 
+        // thread-safe, because any python related operations require a Python<'p> token.
+        unsafe impl Send for $ptr {}
+        unsafe impl Sync for $ptr {}
+
         impl<'p> $crate::python::Unpark<'p> for $ptr {
             type Target = $name<'p>;
 
@@ -64,7 +68,7 @@ macro_rules! pyobject_nativetype(
         }
 
         impl $crate::std::ops::Deref for $ptr {
-            type Target = PPyPtr;
+            type Target = PyPtr;
 
             fn deref(&self) -> &Self::Target {
                 &self.0
@@ -105,7 +109,7 @@ macro_rules! pyobject_nativetype(
                 unsafe{
                     let ptr = ob.into_ptr();
                     if ffi::$checkfunction(ptr) != 0 {
-                        Ok($ptr($crate::PPyPtr::from_owned_ptr(ptr)))
+                        Ok($ptr($crate::PyPtr::from_owned_ptr(ptr)))
                     } else {
                         $crate::ffi::Py_DECREF(ptr);
                         Err($crate::PyDowncastError(py, None))
@@ -118,7 +122,7 @@ macro_rules! pyobject_nativetype(
             {
                 unsafe{
                     if ffi::$checkfunction(ptr) != 0 {
-                        Ok($ptr($crate::PPyPtr::from_owned_ptr(ptr)))
+                        Ok($ptr($crate::PyPtr::from_owned_ptr(ptr)))
                     } else {
                         $crate::ffi::Py_DECREF(ptr);
                         Err($crate::PyDowncastError(py, None))
@@ -166,9 +170,6 @@ macro_rules! pyobject_nativetype(
         impl<'p> $crate::native::PyBaseObject for $name<'p> {}
 
         impl<'p> $crate::native::PyNativeObject<'p> for $name<'p> {
-            //fn park(self) -> $crate::PyObjectPtr {
-            //    unsafe { $crate::std::mem::transmute(self) }
-            //}
             fn as_object(self) -> $crate::PyObject<'p> {
                 unsafe {
                     $crate::ffi::Py_INCREF(self.as_ptr());
@@ -186,6 +187,12 @@ macro_rules! pyobject_nativetype(
         impl<'p> $crate::token::PythonObjectWithGilToken<'p> for $name<'p> {
             fn gil(&self) -> $crate::python::Python<'p> {
                 self.0.token()
+            }
+        }
+
+        impl<'a> $crate::PyClone for $name<'a> {
+            fn clone_ref<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObject<'p> {
+                $crate::PyObject::from_borrowed_ptr(py, self.as_ptr())
             }
         }
 

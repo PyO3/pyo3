@@ -23,7 +23,6 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
                         _ => (),
                     }
                     attrs.push(attr.clone());
-                    println!("FIELD: {:?}", attr);
                 }
                 field.attrs = attrs;
             }
