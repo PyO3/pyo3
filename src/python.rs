@@ -65,8 +65,22 @@ pub trait ParkRef : Sized {
 
 pub trait Unpark<'p> : Sized {
     type Target;
+    type RefTarget;
 
     fn unpark(self, py: Python<'p>) -> Self::Target;
+
+    fn unpark_ref(&self, py: Python<'p>) -> &Self::RefTarget;
+}
+
+impl<T> Park for PyResult<T> where T: Park {
+    type Target = PyResult<T::Target>;
+
+    fn park(self) -> Self::Target {
+        match self {
+            Ok(val) => Ok(val.park()),
+            Err(e) => Err(e),
+        }
+    }
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
@@ -109,6 +123,22 @@ impl <T> IntoPyPointer for Option<T> where T: IntoPyPointer {
 pub trait PyClone {
 
     fn clone_ref<'p>(&self, py: Python<'p>) -> PyObject<'p>;
+
+}
+
+pub trait PyClonePtr {
+
+    fn clone_ptr(&self, py: Python) -> Self;
+
+}
+
+impl<T> PyClonePtr for Option<T> where T: PyClonePtr {
+    fn clone_ptr(&self, py: Python) -> Option<T> {
+        match *self {
+            Some(ref p) => Some(p.clone_ptr(py)),
+            None => None,
+        }
+    }
 }
 
 
@@ -201,13 +231,6 @@ impl<'p> Python<'p> {
         PyModule::import(self, name)
     }
 
-    pub fn with_token<T, F>(self, f: F) -> Py<'p, T>
-        where F: FnOnce(PyToken) -> T,
-              T: PyTypeInfo + PyObjectAlloc<Type=T>
-    {
-        ::token::with_token(self, f)
-    }
-
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -236,12 +259,12 @@ impl<'p> Python<'p> {
         unsafe { PyObjectPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
-    /// Execute closure `F` with Python instance.
-    /// Retrieve Python instance under the assumption that the GIL is already acquired
-    /// at this point, and stays acquired during closure call.
-    pub fn with<F, R>(self, f: F) -> R where F: FnOnce(Python<'p>) -> R
+    /// Execute closure `F` with Python Token instance.
+    pub fn with<T, F>(self, f: F) -> PyResult<Py<'p, T>>
+        where F: FnOnce(PyToken) -> T,
+              T: PyTypeInfo + PyObjectAlloc<Type=T>
     {
-        f(Python(PhantomData))
+        ::token::with(self, f)
     }
 }
 

@@ -51,7 +51,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let repr = unsafe {
-                        PyString::downcast_from_owned_ptr(
+                        _pyo3::PyString::downcast_from_owned_ptr(
                             self.token(), _pyo3::ffi::PyObject_Repr(ptr))
                             .map_err(|_| std::fmt::Error)?
                     };
@@ -63,7 +63,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let str_obj = unsafe {
-                        PyString::downcast_from_owned_ptr(
+                        _pyo3::PyString::downcast_from_owned_ptr(
                             self.token(), _pyo3::ffi::PyObject_Str(ptr))
                             .map_err(|_| std::fmt::Error)?
                     };

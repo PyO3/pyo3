@@ -1,4 +1,4 @@
-#![feature(specialization, const_fn)]
+#![feature(specialization, const_fn, proc_macro)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -59,8 +59,6 @@ extern crate libc;
 #[macro_use]
 pub extern crate pyo3cls;
 
-pub use pyo3cls::*;
-
 pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
@@ -74,8 +72,8 @@ pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use python::{Python, ToPyPointer, IntoPyPointer,
-                 Park, ParkRef,
-                 PyClone, PyDowncastFrom, PyDowncastInto};
+                 Park, ParkRef, Unpark,
+                 PyClone, PyClonePtr, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
 pub use class::{CompareOp};

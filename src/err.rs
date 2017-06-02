@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use libc;
 
 use ffi;
-use python::{ToPyPointer, IntoPyPointer, Python, Park, PyDowncastInto, PyClone};
+use python::{ToPyPointer, IntoPyPointer, Python, Park, PyDowncastInto, PyClone, PyClonePtr};
 use objects::{PyObject, PyObjectPtr, PyType, PyTypePtr, exc};
 use typeob::{PyTypeObject};
 use conversion::{ToPyObject, ToPyTuple, IntoPyObject};
@@ -328,6 +328,14 @@ impl PyErr {
         unsafe {
             error_on_minusone(py, ffi::PyErr_WarnEx(
                 category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
+        }
+    }
+
+    pub fn clone_ref(&self, py: Python) -> PyErr {
+        PyErr {
+            ptype: self.ptype.clone_ptr(py),
+            pvalue: self.pvalue.clone_ptr(py),
+            ptraceback: self.ptraceback.clone_ptr(py),
         }
     }
 }

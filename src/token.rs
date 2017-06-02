@@ -3,6 +3,7 @@
 use std::rc::Rc;
 use std::marker::PhantomData;
 
+use err::PyResult;
 use pointers::Py;
 use python::Python;
 use typeob::{PyTypeInfo, PyObjectAlloc};
@@ -16,17 +17,13 @@ impl PyToken {
     }
 }
 
+
 #[inline]
-pub fn with_token<'p, T, F>(py: Python<'p>, f: F) -> Py<'p, T>
+pub fn with<'p, T, F>(py: Python<'p>, f: F) -> PyResult<Py<'p, T>>
     where F: FnOnce(PyToken) -> T,
           T: PyTypeInfo + PyObjectAlloc<Type=T>
 {
-    let value = f(PyToken(PhantomData));
-    if let Ok(ob) = Py::new(py, value) {
-        ob
-    } else {
-        ::err::panic_after_error()
-    }
+    Py::new(py, f(PyToken(PhantomData)))
 }
 
 

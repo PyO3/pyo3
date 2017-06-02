@@ -9,7 +9,7 @@ use std::ffi::{CStr, CString};
 
 use conversion::{ToPyObject, ToPyTuple};
 use pointers::{Ptr, PyPtr};
-use python::{ToPyPointer, Python};
+use python::{Python, ToPyPointer};
 use token::PyObjectWithGilToken;
 use objects::{PyObject, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
@@ -77,8 +77,7 @@ impl<'p> PyModule<'p> {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>)
-                   -> PyResult<PyObject<'p>>
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
         where A: ToPyTuple
     {
         self.getattr(name)?.call(args, kwargs)
@@ -86,7 +85,8 @@ impl<'p> PyModule<'p> {
 
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
-    pub fn get(&self, name: &str) -> PyResult<PyObject> {
+    pub fn get(&self, name: &str) -> PyResult<PyObject<'p>>
+    {
         self.getattr(name)
     }
 

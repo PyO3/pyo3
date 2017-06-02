@@ -48,7 +48,7 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
+                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
                 let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
@@ -75,7 +75,7 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let mut slf: Py<#cls> = Py::from_borrowed_ptr(py, slf);
+                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
                 let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 

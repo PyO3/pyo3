@@ -30,11 +30,25 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                 }
             }
 
+            impl #ptr {
+                pub fn clone_ref(&self, _py: Python) -> #ptr {
+                    #ptr(unsafe{_pyo3::PyPtr::from_borrowed_ptr(self.as_ptr())})
+                }
+            }
+
             impl<'p> _pyo3::python::Unpark<'p> for #ptr {
                 type Target = Py<'p, #cls>;
+                type RefTarget = #cls;
 
                 fn unpark(self, _py: Python<'p>) -> Py<'p, #cls> {
                     unsafe {std::mem::transmute(self)}
+                }
+                fn unpark_ref(&self, _py: Python<'p>) -> &#cls {
+                    let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                    unsafe {
+                        let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut #cls;
+                        ptr.as_ref().unwrap()
+                    }
                 }
             }
 
@@ -43,6 +57,17 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
 
                 fn deref(&self) -> &Self::Target {
                     &self.0
+                }
+            }
+
+            impl _pyo3::PyClone for #ptr {
+                fn clone_ref<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject<'p> {
+                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
+                }
+            }
+            impl _pyo3::PyClonePtr for #ptr {
+                fn clone_ptr(&self, _py: _pyo3::Python) -> #ptr {
+                    #ptr(unsafe{ _pyo3::PyPtr::from_borrowed_ptr(self.as_ptr()) })
                 }
             }
 

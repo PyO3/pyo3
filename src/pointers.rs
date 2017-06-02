@@ -64,7 +64,7 @@ impl PyPtr {
     /// Converts `PyPtr` instance -> PyObjectPtr
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    pub fn into_object_ptr(self) -> PyObjectPtr {
+    pub fn park(self) -> PyObjectPtr {
         unsafe { std::mem::transmute(self) }
     }
 

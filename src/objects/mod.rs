@@ -61,8 +61,12 @@ macro_rules! pyobject_nativetype(
 
         impl<'p> $crate::python::Unpark<'p> for $ptr {
             type Target = $name<'p>;
+            type RefTarget = $name<'p>;
 
             fn unpark(self, _py: $crate::Python<'p>) -> $name<'p> {
+                unsafe {$crate::std::mem::transmute(self)}
+            }
+            fn unpark_ref(&self, _py: $crate::Python<'p>) -> &$name<'p> {
                 unsafe {$crate::std::mem::transmute(self)}
             }
         }
@@ -80,6 +84,17 @@ macro_rules! pyobject_nativetype(
             fn into_object(self, _py: $crate::Python) -> $crate::PyObjectPtr
             {
                 unsafe { $crate::std::mem::transmute(self) }
+            }
+        }
+
+        impl $crate::PyClone for $ptr {
+            fn clone_ref<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObject<'p> {
+                $crate::PyObject::from_borrowed_ptr(py, self.as_ptr())
+            }
+        }
+        impl $crate::PyClonePtr for $ptr {
+            fn clone_ptr(&self, _py: $crate::Python) -> $ptr {
+                $ptr(unsafe{ $crate::PyPtr::from_borrowed_ptr(self.as_ptr()) })
             }
         }
 
