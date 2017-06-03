@@ -42,11 +42,11 @@
 //!
 //! fn hello(py: Python) -> PyResult<()> {
 //!     let sys = py.import("sys")?;
-//!     let version: String = sys.get("version")?.extract()?;
+//!     let version: String = sys.get(py, "version")?.extract(py)?;
 //!
 //!     let locals = PyDict::new(py);
-//!     locals.set_item("os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
+//!     locals.set_item(py, "os", py.import("os")?)?;
+//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
@@ -66,7 +66,7 @@ pub mod pointers;
 pub use pointers::{Py, PyPtr};
 
 mod token;
-pub use token::{PyToken, PyObjectWithToken, PyObjectWithGilToken};
+pub use token::{PyToken, PyObjectWithToken};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
@@ -141,8 +141,8 @@ pub use std::os::raw::*;
 /// use pyo3::{Python, PyResult, PyObject};
 ///
 /// py_module_init!(hello, PyInit_hello, |py, m| {
-///     m.add("__doc__", "Module documentation string")?;
-///     m.add("run", py_fn!(py, run()))?;
+///     m.add(py, "__doc__", "Module documentation string")?;
+///     m.add(py, "run", py_fn!(py, run()))?;
 ///     Ok(())
 /// });
 ///

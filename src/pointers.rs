@@ -8,9 +8,8 @@ use std::convert::{AsRef, AsMut};
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
 use conversion::{ToPyObject, IntoPyObject};
-use objects::{PyObject, PyObjectPtr};
+use objects::PyObject;
 use python::{Python, ToPyPointer, IntoPyPointer};
-use token::PyObjectWithGilToken;
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
@@ -23,8 +22,8 @@ unsafe impl Sync for PyPtr {}
 
 
 impl PyPtr {
-    /// Creates a `PyObjectPtr` instance for the given FFI pointer.
-    /// This moves ownership over the pointer into the `PyObjectPtr`.
+    /// Creates a `PyPtr` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `PyPtr`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyPtr {
@@ -32,7 +31,35 @@ impl PyPtr {
         PyPtr(ptr)
     }
 
-    /// Creates a `PyObjectPtr` instance for the given Python FFI pointer.
+    /// Cast from ffi::PyObject ptr to a concrete object.
+    #[inline]
+    pub fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> PyPtr
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            unsafe{
+                PyPtr::from_owned_ptr(ptr)
+            }
+        }
+    }
+
+    /// Construct `PyPtr` from the result of a Python FFI call that
+    /// returns a new reference (owned pointer).
+    /// Returns `Err(PyErr)` if the pointer is `null`.
+    /// Unsafe because the pointer might be invalid.
+    pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyPtr>
+    {
+        if ptr.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(unsafe{
+                PyPtr::from_owned_ptr(ptr)
+            })
+        }
+    }
+
+    /// Creates a `PyPtr` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
@@ -42,7 +69,7 @@ impl PyPtr {
         PyPtr::from_owned_ptr(ptr)
     }
 
-    /// Gets the reference count of the PyObject pointer.
+    /// Gets the reference count of the ffi::PyObject pointer.
     #[inline]
     pub fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.0) }
@@ -50,21 +77,21 @@ impl PyPtr {
 
     /// Get reference to &PyObject<'p>
     #[inline]
-    pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject<'p> {
+    pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
     /// Converts `PyPtr` instance -> PyObject<'p>
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject<'p> {
+    pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
-    /// Converts `PyPtr` instance -> PyObjectPtr
+    /// Converts `PyPtr` instance -> PyObject
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    pub fn park(self) -> PyObjectPtr {
+    pub fn park(self) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -74,11 +101,11 @@ impl PyPtr {
         unsafe { PyPtr::from_borrowed_ptr(self.0) }
     }
 
-    /// Casts the `PyObjectPtr` imstance to a concrete Python object type.
+    /// Casts the `PyPtr` imstance to a concrete Python object type.
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
     pub fn cast_into<'p, D>(self, py: Python<'p>) -> Result<D, PyDowncastError<'p>>
-        where D: ::PyDowncastInto<'p>
+        where D: ::PyDowncastInto
     {
         <D as ::PyDowncastInto>::downcast_into(py, self)
     }
@@ -116,7 +143,7 @@ impl Drop for PyPtr {
 
     fn drop(&mut self) {
         unsafe {
-            println!("drop PyObjectPtr: {:?} {} {:?}",
+            println!("drop PyPtr: {:?} {} {:?}",
                      self.0, ffi::Py_REFCNT(self.0), &self as *const _);
         }
         let _gil_guard = Python::acquire_gil();
@@ -285,14 +312,14 @@ impl<'p, T> Py<'p, T>
 
     /// Returns owned PyObject<'p> reference
     #[inline]
-    pub fn as_object(&self) -> &'p PyObject<'p> {
+    pub fn as_object(&self) -> &'p PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
     /// Converts Py<'p, T> -> PyObject<'p>
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    pub fn into_object(self) -> PyObject<'p> {
+    pub fn into_object(self) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -329,12 +356,6 @@ impl<'p, T> Py<'p, T> where T: PyTypeInfo
             let ptr = (self.inner as *mut u8).offset(offset) as *mut T;
             ptr.as_mut().unwrap()
         }
-    }
-}
-
-impl<'p, T> PyObjectWithGilToken<'p> for Py<'p, T> {
-    fn gil(&self) -> Python<'p> {
-        self.py
     }
 }
 
@@ -413,7 +434,7 @@ impl<'p, T> AsMut<T> for Py<'p, T> where T: PyTypeInfo {
 impl <'a, T> ToPyObject for Py<'a, T> {
 
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject<'p> {
+    fn to_object(&self, py: Python) -> PyObject {
         PyObject::from_borrowed_ptr(py, self.inner)
     }
 
@@ -428,7 +449,7 @@ impl <'a, T> ToPyObject for Py<'a, T> {
 impl<'p, T> IntoPyObject for Py<'p, T> {
 
     #[inline]
-    default fn into_object(self, _py: Python) -> ::PyObjectPtr {
+    default fn into_object(self, _py: Python) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 }

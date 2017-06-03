@@ -155,7 +155,7 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
                 let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
                 let value = _pyo3::PyObject::from_borrowed_ptr(py, value);
 
-                let result = match <#val_ty as _pyo3::FromPyObject>::extract(&value) {
+                let result = match <#val_ty as _pyo3::FromPyObject>::extract(py, &value) {
                     Ok(val) => slf.#name(py, val),
                     Err(e) => Err(e)
                 };
@@ -258,7 +258,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
 
     if spec.is_args(&name) {
         quote! {
-            match <#ty as _pyo3::FromPyObject>::extract(&args)
+            match <#ty as _pyo3::FromPyObject>::extract(py, &args)
             {
                 Ok(#name) => {
                     #body
@@ -288,10 +288,10 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
                 match
                     match _iter.next().unwrap().as_ref() {
                         Some(obj) => {
-                            if obj.is_none() {
+                            if obj.is_none(py) {
                                 Ok(#default)
                             } else {
-                                match obj.extract() {
+                                match obj.extract(py) {
                                     Ok(obj) => Ok(Some(obj)),
                                     Err(e) => Err(e)
                                 }
@@ -311,7 +311,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
                         if obj.is_none() {
                             Ok(#default)
                         } else {
-                            match obj.extract() {
+                            match obj.extract(py) {
                                 Ok(obj) => Ok(obj),
                                 Err(e) => Err(e),
                             }
@@ -326,7 +326,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
         }
         else {
             quote! {
-                match _iter.next().unwrap().as_ref().unwrap().extract()
+                match _iter.next().unwrap().as_ref().unwrap().extract(py)
                 {
                     Ok(#name) => {
                         #body

@@ -43,14 +43,14 @@ pub struct ParamDescription<'a> {
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
-                      args: &'p PyTuple<'p>, kwargs: Option<&'p PyDict<'p>>,
+                      args: &'p PyTuple, kwargs: Option<&'p PyDict>,
                       accept_args: bool, accept_kwargs: bool,
-                      output: &mut[Option<PyObject<'p>>]) -> PyResult<()>
+                      output: &mut[Option<PyObject>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
 
-    let nargs = args.len();
-    let nkeywords = kwargs.map_or(0, |d| d.len());
+    let nargs = args.len(py);
+    let nkeywords = kwargs.map_or(0, |d| d.len(py));
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
             py,
@@ -65,7 +65,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     let mut used_keywords = 0;
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(p.name)) {
+        match kwargs.and_then(|d| d.get_item(py, p.name)) {
             Some(kwarg) => {
                 *out = Some(kwarg);
                 used_keywords += 1;
@@ -78,7 +78,7 @@ pub fn parse_args<'p>(py: Python<'p>,
             },
             None => {
                 if i < nargs {
-                    *out = Some(args.get_item(i));
+                    *out = Some(args.get_item(py, i));
                 } else {
                     *out = None;
                     if !p.is_optional {
@@ -93,8 +93,8 @@ pub fn parse_args<'p>(py: Python<'p>,
     }
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
-        for (key, _value) in kwargs.unwrap().items() {
-            let key = try!(try!(key.cast_as::<PyString>()).to_string());
+        for (key, _value) in kwargs.unwrap().items(py) {
+            let key = try!(try!(key.cast_as::<PyString>(py)).to_string(py));
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
                     py,
@@ -353,7 +353,7 @@ macro_rules! py_argparse_raw {
 
 #[inline]
 #[doc(hidden)]
-pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<PyDict<'p>> {
+pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
     if ptr.is_null() {
         None
     } else {
@@ -393,7 +393,7 @@ macro_rules! py_argparse_extract {
         // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
         // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
         match <$ptype as $crate::FromPyObject>::extract(
-            $iter.next().unwrap().as_ref().unwrap()) {
+            $py, $iter.next().unwrap().as_ref().unwrap()) {
             Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
             Err(e) => Err(e)
         }
@@ -405,7 +405,7 @@ macro_rules! py_argparse_extract {
         // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
         // second unwrap() asserts the parameter was not missing (which fn parse_args already checked for).
         match <$rtype as $crate::RefFromPyObject>::with_extracted(
-            $iter.next().unwrap().as_ref().unwrap(),
+            $py, $iter.next().unwrap().as_ref().unwrap(),
             |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*])
         ) {
             Ok(v) => v,
@@ -416,7 +416,7 @@ macro_rules! py_argparse_extract {
     ( $py:expr, $iter:expr, $body:block,
         [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {} ] } $($tail:tt)* ]
     ) => {
-        match $iter.next().unwrap().as_ref().map(|obj| obj.extract::<_>()).unwrap_or(Ok($default)) {
+        match $iter.next().unwrap().as_ref().map(|obj| obj.extract::<_>($py)).unwrap_or(Ok($default)) {
             Ok($pname) => py_argparse_extract!($py, $iter, $body, [$($tail)*]),
             Err(e) => Err(e)
         }
@@ -426,7 +426,7 @@ macro_rules! py_argparse_extract {
         [ { $pname:ident : $ptype:ty = [ {} {$default:expr} {$rtype:ty} ] } $($tail:tt)* ]
     ) => {
         //unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
-        $crate::argparse::with_extracted_or_default($iter.next().unwrap().as_ref(),
+        $crate::argparse::with_extracted_or_default($py, $iter.next().unwrap().as_ref(),
             |$pname: $ptype| py_argparse_extract!($py, $iter, $body, [$($tail)*]),
             $default)
     };
@@ -434,12 +434,12 @@ macro_rules! py_argparse_extract {
 
 #[doc(hidden)] // used in py_argparse_extract!() macro
 pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
-    obj: Option<&'p PyObject>, f: F, default: &'static P) -> PyResult<R>
+    py: Python, obj: Option<&'p PyObject>, f: F, default: &'static P) -> PyResult<R>
     where F: FnOnce(&P) -> PyResult<R>,
           P: RefFromPyObject<'p>
 {
     match obj {
-        Some(obj) => match P::with_extracted(obj, f) {
+        Some(obj) => match P::with_extracted(py, obj, f) {
             Ok(result) => result,
             Err(e) => Err(e)
         },
@@ -476,7 +476,7 @@ mod test {
         let mut called = false;
         let tuple = ("abc",).to_py_tuple(py);
         py_argparse!(py, None, &tuple, None, (x) {
-            assert_eq!(*x, tuple.get_item(0));
+            assert_eq!(*x, tuple.get_item(py, 0));
             called = true;
             Ok(())
         }).unwrap();

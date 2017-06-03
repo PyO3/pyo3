@@ -51,11 +51,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let repr = unsafe {
-                        _pyo3::PyString::downcast_from_owned_ptr(
+                        _pyo3::PyString::downcast_from_ptr(
                             self.token(), _pyo3::ffi::PyObject_Repr(ptr))
                             .map_err(|_| std::fmt::Error)?
                     };
-                    f.write_str(&repr.to_string_lossy())
+                    f.write_str(&repr.to_string_lossy(self.token()))
                 }
             }
 
@@ -63,11 +63,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let str_obj = unsafe {
-                        _pyo3::PyString::downcast_from_owned_ptr(
+                        _pyo3::PyString::downcast_from_ptr(
                             self.token(), _pyo3::ffi::PyObject_Str(ptr))
                             .map_err(|_| std::fmt::Error)?
                     };
-                    f.write_str(&str_obj.to_string_lossy())
+                    f.write_str(&str_obj.to_string_lossy(self.token()))
                 }
             }
         })
@@ -103,21 +103,21 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             }
         }
 
-        impl<'p> _pyo3::python::PyDowncastFrom<'p> for #cls
+        impl _pyo3::python::PyDowncastFrom for #cls
         {
-            fn downcast_from(py: &'p _pyo3::PyObject<'p>)
-                             -> Result<&'p #cls, _pyo3::PyDowncastError<'p>>
+            fn downcast_from<'a, 'p>(py: Python<'p>, ob: &'a _pyo3::PyObject)
+                                     -> Result<&'a #cls, _pyo3::PyDowncastError<'p>>
             {
                 unsafe {
                     let checked = ffi::PyObject_TypeCheck(
-                        py.as_ptr(), <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
+                        ob.as_ptr(), <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
 
                     if checked {
                         let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                        let ptr = (py.as_ptr() as *mut u8).offset(offset) as *mut #cls;
+                        let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                         Ok(ptr.as_ref().unwrap())
                     } else {
-                        Err(_pyo3::PyDowncastError(py.gil(), None))
+                        Err(_pyo3::PyDowncastError(py, None))
                     }
                 }
             }

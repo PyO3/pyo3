@@ -351,7 +351,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T where T: for<'p> PyObjectRichcmpProtoc
 
                 let res = match extract_op(py, op) {
                     Ok(op) => {
-                        match arg.extract() {
+                        match arg.extract(py) {
                             Ok(arg) => {
                                 slf.__richcmp__(py, arg, op).into()
                             }

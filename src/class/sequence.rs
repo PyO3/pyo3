@@ -200,7 +200,7 @@ impl<T> PySequenceSetItemProtocolImpl for T where T: for<'p> PySequenceSetItemPr
                     return -1
                 } else {
                     let value = PyObject::from_borrowed_ptr(py, value);
-                    let result = match value.extract() {
+                    let result = match value.extract(py) {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
                         },
@@ -287,7 +287,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                     }
                 } else {
                     let value = ::PyObject::from_borrowed_ptr(py, value);
-                    let result = match value.extract() {
+                    let result = match value.extract(py) {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
                         },

@@ -9,9 +9,9 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use python::{Python, ToPyPointer, Park};
+use python::{Python, IntoPyPointer};
 use err::PyResult;
-use super::{PyTuple, PyType, PyTypePtr};
+use super::{PyObject, PyTuple, PyType};
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
@@ -21,7 +21,7 @@ macro_rules! exc_type(
 
         impl $crate::PyTypeObject for $name {
             #[inline]
-            fn type_object<'p>(py: $crate::python::Python<'p>) -> $crate::PyType<'p> {
+            fn type_object(py: $crate::python::Python) -> $crate::PyType {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }
@@ -82,11 +82,11 @@ exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 
 impl UnicodeDecodeError {
 
-    pub fn new(py: Python, encoding: &CStr, input: &[u8], range: ops::Range<usize>, reason: &CStr)
-               -> PyResult<PyTypePtr> {
+    pub fn new(py: Python, encoding: &CStr, input: &[u8],
+               range: ops::Range<usize>, reason: &CStr) -> PyResult<PyObject> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            PyTypePtr::from_owned_ptr_or_err(
+            PyObject::from_owned_ptr_or_err(
                 py, ffi::PyUnicodeDecodeError_Create(
                     encoding.as_ptr(),
                     input.as_ptr(),
@@ -98,7 +98,7 @@ impl UnicodeDecodeError {
     }
 
     pub fn new_utf8<'p>(py: Python, input: &[u8], err: std::str::Utf8Error)
-                        -> PyResult<PyTypePtr>
+                        -> PyResult<PyObject>
     {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))
@@ -108,10 +108,10 @@ impl UnicodeDecodeError {
 
 impl StopIteration {
 
-    pub fn stop_iteration<'p>(args: PyTuple<'p>) {
+    pub fn stop_iteration(_py: Python, args: PyTuple) {
         unsafe {
             ffi::PyErr_SetObject(
-                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.park().as_ptr());
+                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.into_ptr());
         }
     }
 }

@@ -70,9 +70,9 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py.with_token(|e| TestClass{vec: vec![b' ', b'2', b'3']});
+    let t = py.with(|e| TestClass{vec: vec![b' ', b'2', b'3']}).unwrap();
 
     let d = PyDict::new(py);
-    let _ = d.set_item("ob", t);
+    let _ = d.set_item(py, "ob", t);
     py.run("assert bytes(ob) == b' 23'", None, Some(&d)).unwrap();
 }

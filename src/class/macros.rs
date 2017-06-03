@@ -129,7 +129,7 @@ macro_rules! py_binary_func{
                 let mut slf = $crate::Py::<T>::from_borrowed_ptr(py, slf);
                 let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
-                let result = match arg.extract() {
+                let result = match arg.extract(py) {
                     Ok(arg) => {
                         slf.as_mut().$f(py, arg).into()
                     }
@@ -181,7 +181,7 @@ macro_rules! py_binary_self_func{
                 let mut slf1 = $crate::Py::<T>::from_borrowed_ptr(py, slf);
                 let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
-                let result = match arg.extract() {
+                let result = match arg.extract(py) {
                     Ok(arg) => {
                         slf1.as_mut().$f(py, arg).into()
                     }
@@ -281,8 +281,8 @@ macro_rules! py_ternary_func{
                 let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                 let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
 
-                let result = match arg1.extract() {
-                    Ok(arg1) => match arg2.extract() {
+                let result = match arg1.extract(py) {
+                    Ok(arg1) => match arg2.extract(py) {
                         Ok(arg2) => slf.as_mut().$f(py, arg1, arg2).into(),
                         Err(e) => Err(e.into())
                     },
@@ -338,8 +338,8 @@ macro_rules! py_ternary_self_func{
                 let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                 let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
 
-                let result = match arg1.extract() {
-                    Ok(arg1) => match arg2.extract() {
+                let result = match arg1.extract(py) {
+                    Ok(arg1) => match arg2.extract(py) {
                         Ok(arg2) => slf1.as_mut().$f(py, arg1, arg2).into(),
                         Err(e) => Err(e.into())
                     },
@@ -393,8 +393,8 @@ macro_rules! py_func_set{
                 } else {
                     let name = ::PyObject::from_borrowed_ptr(py, name);
                     let value = ::PyObject::from_borrowed_ptr(py, value);
-                    let result = match name.extract() {
-                        Ok(name) => match value.extract() {
+                    let result = match name.extract(py) {
+                        Ok(name) => match value.extract(py) {
                             Ok(value) => {
                                 slf.$f(py, name, value).into()
                             },
@@ -437,7 +437,7 @@ macro_rules! py_func_del{
 
                 if value.is_null() {
                     let name = PyObject::from_borrowed_ptr(py, name);
-                    let result = match name.extract() {
+                    let result = match name.extract(py) {
                         Ok(name) =>
                             slf.as_mut().$f(py, name).into(),
                         Err(e) => Err(e.into()),
@@ -495,7 +495,7 @@ macro_rules! py_func_set_del{
                 let name = PyObject::from_borrowed_ptr(py, name);
 
                 if value.is_null() {
-                    let result = match name.extract() {
+                    let result = match name.extract(py) {
                         Ok(name) =>
                             slf.as_mut().$f2(py, name).into(),
                         Err(e) => Err(e.into()),
@@ -510,8 +510,8 @@ macro_rules! py_func_set_del{
                     }
                 } else {
                     let value = ::PyObject::from_borrowed_ptr(py, value);
-                    let result = match name.extract() {
-                        Ok(name) => match value.extract() {
+                    let result = match name.extract(py) {
+                        Ok(name) => match value.extract(py) {
                             Ok(value) => {
                                 slf.as_mut().$f(py, name, value).into()
                             },

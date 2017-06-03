@@ -25,7 +25,6 @@ use ffi;
 use exc;
 use err::{self, PyResult};
 use python::{Python, ToPyPointer};
-use token::PyObjectWithGilToken;
 use objects::PyObject;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
@@ -139,12 +138,11 @@ fn validate(b: &ffi::Py_buffer) {
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
-    pub fn get<'p>(obj: &PyObject<'p>) -> PyResult<PyBuffer> {
+    pub fn get(py: Python, obj: &PyObject) -> PyResult<PyBuffer> {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(
-                obj.gil(),
-                ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
+                py, ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO))?;
             validate(&buf);
             Ok(PyBuffer(buf))
         }
@@ -586,7 +584,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let bytes = py.eval("b'abcde'", None, None).unwrap();
-        let buffer = PyBuffer::get(&bytes).unwrap();
+        let buffer = PyBuffer::get(py, &bytes).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 5);
         assert_eq!(buffer.format().to_str().unwrap(), "B");
@@ -622,8 +620,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let array = py.import("array").unwrap().call_method(
-            "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
-        let buffer = PyBuffer::get(&array).unwrap();
+            py, "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
+        let buffer = PyBuffer::get(py, &array).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 4);
         assert_eq!(buffer.format().to_str().unwrap(), "f");

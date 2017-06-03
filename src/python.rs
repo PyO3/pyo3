@@ -10,7 +10,7 @@ use std::os::raw::c_int;
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use token::{PyToken};
-use objects::{PyObject, PyObjectPtr, PyType, PyBool, PyDict, PyModule};
+use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
 use pointers::{Py};
 use pythonrun::GILGuard;
@@ -31,24 +31,27 @@ pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
 
 /// Trait implemented by Python object types that allow a checked downcast.
-pub trait PyDowncastFrom<'p> : Sized {
+pub trait PyDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from(&'p PyObject<'p>) -> Result<&'p Self, PyDowncastError<'p>>;
+    fn downcast_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PyDowncastError<'p>>;
 
 }
 
 
 /// Trait implemented by Python object types that allow a checked downcast.
-pub trait PyDowncastInto<'p> : Sized {
+pub trait PyDowncastInto : Sized {
 
     /// Cast Self to a concrete Python object type.
-    fn downcast_into<I>(Python<'p>, I) -> Result<Self, PyDowncastError<'p>>
+    fn downcast_into<'p, I>(Python<'p>, I) -> Result<Self, PyDowncastError<'p>>
         where I: ToPyPointer + IntoPyPointer;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
-    fn downcast_from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject)
-                               -> Result<Self, PyDowncastError<'p>>;
+    fn downcast_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
+                             -> Result<Self, PyDowncastError<'p>>;
+
+    /// Cast from ffi::PyObject to a concrete Python object type.
+    fn unchecked_downcast_into<'p, I>(I) -> Self where I: IntoPyPointer;
 }
 
 pub trait Park : Sized {
@@ -122,7 +125,7 @@ impl <T> IntoPyPointer for Option<T> where T: IntoPyPointer {
 
 pub trait PyClone {
 
-    fn clone_ref<'p>(&self, py: Python<'p>) -> PyObject<'p>;
+    fn clone_ref(&self, py: Python) -> PyObject;
 
 }
 
@@ -180,7 +183,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn eval(self, code: &str, globals: Option<&PyDict>,
-                locals: Option<&PyDict>) -> PyResult<PyObject<'p>> {
+                locals: Option<&PyDict>) -> PyResult<PyObject> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -201,7 +204,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
-                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyObject<'p>> {
+                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyObject> {
         let code = CString::new(code).unwrap();
 
         unsafe {
@@ -222,41 +225,41 @@ impl<'p> Python<'p> {
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> PyType<'p> where T: PyTypeObject {
+    pub fn get_type<T>(self) -> PyType where T: PyTypeObject {
         T::type_object(self)
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<PyModule<'p>> {
+    pub fn import(self, name : &str) -> PyResult<PyModule> {
         PyModule::import(self, name)
     }
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObject<'p> {
+    pub fn None(self) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> PyBool<'p> {
+    pub fn True(self) -> PyBool {
         PyBool::new(self, true)
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> PyBool<'p> {
+    pub fn False(self) -> PyBool {
         PyBool::new(self, false)
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyObjectPtr {
-        unsafe { PyObjectPtr::from_borrowed_ptr(ffi::Py_NotImplemented()) }
+    pub fn NotImplemented(self) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
     }
 
     /// Execute closure `F` with Python Token instance.
@@ -278,22 +281,22 @@ mod test {
         let py = gil.python();
 
         // Make sure builtin names are accessible
-        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract().unwrap();
+        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract(py).unwrap();
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
-        d.set_item("foo", 13).unwrap();
+        d.set_item(py, "foo", 13).unwrap();
 
         // Inject our own global namespace
-        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract().unwrap();
+        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract(py).unwrap();
         assert_eq!(v, 42);
 
         // Inject our own local namespace
-        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract().unwrap();
+        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract(py).unwrap();
         assert_eq!(v, 42);
 
         // Make sure builtin names are still accessible when using a local namespace
-        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract().unwrap();
+        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract(py).unwrap();
         assert_eq!(v, 2);
     }
 }

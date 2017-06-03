@@ -61,7 +61,7 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
             }
 
             impl _pyo3::PyClone for #ptr {
-                fn clone_ref<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject<'p> {
+                fn clone_ref(&self, py: _pyo3::Python) -> _pyo3::PyObject {
                     _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
                 }
             }
@@ -73,7 +73,7 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
 
             impl _pyo3::IntoPyObject for #ptr {
 
-                fn into_object(self, _py: Python) -> _pyo3::PyObjectPtr {
+                fn into_object(self, _py: Python) -> _pyo3::PyObject {
                     unsafe {std::mem::transmute(self)}
                 }
             }
