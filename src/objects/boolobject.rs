@@ -2,7 +2,7 @@ use ffi;
 use pointers::PyPtr;
 use python::{ToPyPointer, Python};
 use objects::PyObject;
-use conversion::ToPyObject;
+use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `bool`.
 pub struct PyBool(PyPtr);
@@ -40,6 +40,13 @@ impl ToPyObject for bool {
     {
         // Avoid unnecessary Py_INCREF/Py_DECREF pair
         f(unsafe { if *self { ffi::Py_True() } else { ffi::Py_False() } })
+    }
+}
+
+impl IntoPyObject for bool {
+    #[inline]
+    fn into_object(self, py: Python) -> PyObject {
+        PyBool::new(py, self).into()
     }
 }
 

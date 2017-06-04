@@ -10,6 +10,7 @@ use std::os::raw::c_int;
 use ffi;
 use err::PyResult;
 use python::Python;
+use token::Park;
 use typeob::PyTypeInfo;
 use callback::UnitCallbackConverter;
 
@@ -44,7 +45,8 @@ impl<T> PyBufferProtocolImpl for T {
     default fn tp_as_buffer() -> Option<ffi::PyBufferProcs> { None }
 }
 
-impl<'p, T> PyBufferProtocolImpl for T where T: PyBufferProtocol<'p> {
+impl<'p, T> PyBufferProtocolImpl for T where T: PyBufferProtocol<'p> + Park<T>
+{
     #[inline]
     fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
         Some(ffi::PyBufferProcs{
@@ -66,14 +68,15 @@ impl<'p, T> PyBufferGetBufferProtocolImpl for T where T: PyBufferProtocol<'p>
     }
 }
 
-impl<T> PyBufferGetBufferProtocolImpl for T where T: for<'p> PyBufferGetBufferProtocol<'p>
+impl<T> PyBufferGetBufferProtocolImpl for T
+    where T: for<'p> PyBufferGetBufferProtocol<'p> + Park<T>
 {
     #[inline]
     fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg1: *mut ffi::Py_buffer,
                                      arg2: c_int) -> c_int
-            where T: for<'p> PyBufferGetBufferProtocol<'p>
+            where T: for<'p> PyBufferGetBufferProtocol<'p> + Park<T>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
             ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {

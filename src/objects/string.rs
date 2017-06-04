@@ -13,7 +13,7 @@ use pointers::PyPtr;
 use python::{ToPyPointer, Python};
 use super::{exc, PyObject};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject, RefFromPyObject};
+use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 
 /// Represents a Python string.
 pub struct PyString(PyPtr);
@@ -225,6 +225,12 @@ impl ToPyObject for str {
         PyString::new(py, self).into()
     }
 }
+impl<'a> IntoPyObject for &'a str {
+    #[inline]
+    fn into_object(self, py: Python) -> PyObject {
+        PyString::new(py, self).into()
+    }
+}
 
 /// Converts Rust `Cow<str>` to Python object.
 /// See `PyString::new` for details on the conversion.
@@ -241,6 +247,12 @@ impl ToPyObject for String {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
         PyString::new(py, self).into()
+    }
+}
+impl IntoPyObject for String {
+    #[inline]
+    fn into_object(self, py: Python) -> PyObject {
+        PyString::new(py, &self).into()
     }
 }
 

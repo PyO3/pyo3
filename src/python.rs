@@ -9,10 +9,9 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PyToken};
+use token::{PyToken, Park};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
-use pointers::{Py};
 use pythonrun::GILGuard;
 
 
@@ -52,38 +51,6 @@ pub trait PyDowncastInto : Sized {
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn unchecked_downcast_into<'p, I>(I) -> Self where I: IntoPyPointer;
-}
-
-pub trait Park : Sized {
-    type Target;
-
-    fn park(self) -> Self::Target;
-}
-
-pub trait ParkRef : Sized {
-    type Target;
-
-    fn park(&self) -> Self::Target;
-}
-
-pub trait Unpark<'p> : Sized {
-    type Target;
-    type RefTarget;
-
-    fn unpark(self, py: Python<'p>) -> Self::Target;
-
-    fn unpark_ref(&self, py: Python<'p>) -> &Self::RefTarget;
-}
-
-impl<T> Park for PyResult<T> where T: Park {
-    type Target = PyResult<T::Target>;
-
-    fn park(self) -> Self::Target {
-        match self {
-            Ok(val) => Ok(val.park()),
-            Err(e) => Err(e),
-        }
-    }
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
@@ -263,11 +230,18 @@ impl<'p> Python<'p> {
     }
 
     /// Execute closure `F` with Python Token instance.
-    pub fn with<T, F>(self, f: F) -> PyResult<Py<'p, T>>
+    pub fn with<T, F>(self, f: F) -> PyResult<T::ParkTarget>
         where F: FnOnce(PyToken) -> T,
-              T: PyTypeInfo + PyObjectAlloc<Type=T>
+              T: Park<T> + PyTypeInfo + PyObjectAlloc<Type=T>
     {
         ::token::with(self, f)
+    }
+
+    /// Release PyObject reference
+    pub fn release<T>(self, ob: T) where T: IntoPyPointer {
+        unsafe {
+            ffi::Py_INCREF(ob.into_ptr());
+        }
     }
 }
 

@@ -21,7 +21,11 @@ fn test_basics() {
 
 
 #[py::class]
-struct Test {}
+struct Test {
+    token: PyToken
+}
+#[py::ptr(Test)]
+struct TestPtr(PyPtr);
 
 #[py::proto]
 impl<'p> PyMappingProtocol<'p> for Test
@@ -47,7 +51,7 @@ fn test_cls_impl() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = py.with(|e| Test{}).unwrap();
+    let ob = py.with(|t| Test{token: t}).unwrap();
     let d = PyDict::new(py);
     d.set_item(py, "ob", ob).unwrap();
 

@@ -7,9 +7,9 @@ use std::mem;
 use std::os::raw::{c_int, c_void};
 
 use ffi;
-use pointers::Py;
 use python::{Python, ToPyPointer};
 use callback::AbortOnDrop;
+use token::{Park, PythonPtr};
 use typeob::PyTypeInfo;
 
 pub struct PyTraverseError(c_int);
@@ -93,23 +93,23 @@ impl<'p, T> PyGCTraverseProtocolImpl for T where T: PyGCProtocol<'p>
 }
 
 #[doc(hidden)]
-impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
+impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p> + Park<T>
 {
     #[inline]
     fn tp_traverse() -> Option<ffi::traverseproc> {
         unsafe extern "C" fn tp_traverse<T>(slf: *mut ffi::PyObject,
                                             visit: ffi::visitproc,
                                             arg: *mut c_void) -> c_int
-            where T: for<'p> PyGCTraverseProtocol<'p>
+            where T: for<'p> PyGCTraverseProtocol<'p> + Park<T>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__traverse__()");
 
             let guard = AbortOnDrop(LOCATION);
             let py = Python::assume_gil_acquired();
             let visit = PyVisit { visit: visit, arg: arg, _py: py };
-            let slf: Py<T> = Py::from_borrowed_ptr(py, slf);
+            let slf = T::from_borrowed_ptr(slf);
 
-            let ret = match slf.as_ref().__traverse__(py, visit) {
+            let ret = match slf.as_ref(py).__traverse__(py, visit) {
                 Ok(()) => 0,
                 Err(PyTraverseError(code)) => code
             };
@@ -134,19 +134,19 @@ impl<'p, T> PyGCClearProtocolImpl for T where T: PyGCProtocol<'p>
     }
 }
 
-impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p>
+impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p> + Park<T>
 {
     #[inline]
     fn tp_clear() -> Option<ffi::inquiry> {
         unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PyGCClearProtocol<'p>
+            where T: for<'p> PyGCClearProtocol<'p> + Park<T>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__clear__()");
 
             let guard = AbortOnDrop(LOCATION);
             let py = Python::assume_gil_acquired();
-            let mut slf: Py<T> = Py::from_borrowed_ptr(py, slf);
-            T::__clear__(&mut slf, py);
+            let slf = T::from_borrowed_ptr(slf);
+            T::__clear__(&mut slf.as_mut(py), py);
             mem::forget(guard);
             0
         }

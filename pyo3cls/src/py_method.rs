@@ -41,20 +41,20 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens
     let output = &spec.output;
 
     quote! {
-        #[allow(unused_mut)]
         unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject,
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
+                let slf = #cls::from_borrowed_ptr(slf);
                 let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result: #output = {
                     #body
                 };
+                py.release(slf);
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, py, result)
             })
@@ -75,13 +75,14 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
+                let slf = #cls::from_borrowed_ptr(slf);
                 let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result = {
                     #body
                 };
+                py.release(slf);
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, py, result)
             })
@@ -152,13 +153,14 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".setter", stringify!(#name), "()");
             _pyo3::callback::cb_setter(LOCATION, |py| {
-                let mut slf = _pyo3::Py::<#cls>::from_borrowed_ptr(py, slf);
+                let slf = #cls::from_borrowed_ptr(slf);
                 let value = _pyo3::PyObject::from_borrowed_ptr(py, value);
 
                 let result = match <#val_ty as _pyo3::FromPyObject>::extract(py, &value) {
-                    Ok(val) => slf.#name(py, val),
+                    Ok(val) => slf.as_mut(py).#name(py, val),
                     Err(e) => Err(e)
                 };
+                py.release(slf);
                 match result {
                     Ok(_) => 0,
                     Err(e) => {
@@ -175,7 +177,7 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
 fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
     quote! {{
-        slf.#fname(py, #(#names),*)
+        slf.as_mut(py).#fname(py, #(#names),*)
     }}
 }
 

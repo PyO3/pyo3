@@ -63,16 +63,15 @@ pub mod ffi;
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
 pub mod pointers;
-pub use pointers::{Py, PyPtr};
+pub use pointers::PyPtr;
 
 mod token;
-pub use token::{PyToken, PyObjectWithToken};
+pub use token::{PyToken, PyObjectWithToken, Park, PythonPtr};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use python::{Python, ToPyPointer, IntoPyPointer,
-                 Park, ParkRef, Unpark,
                  PyClone, PyClonePtr, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};

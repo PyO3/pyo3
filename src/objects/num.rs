@@ -13,7 +13,7 @@ use objects::PyObject;
 use pointers::PyPtr;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
-use conversion::{ToPyObject, FromPyObject};
+use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
 ///
@@ -62,7 +62,13 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-
+        impl IntoPyObject for $rust_type {
+            fn into_object(self, py: Python) -> PyObject {
+                unsafe {
+                    PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(self as c_long))
+                }
+            }
+        }
         pyobject_extract!(py, obj to $rust_type => {
             let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
             if val == -1 && PyErr::occurred(py) {
@@ -85,7 +91,11 @@ macro_rules! int_fits_larger_int(
                 (*self as $larger_type).to_object(py)
             }
         }
-
+        impl IntoPyObject for $rust_type {
+            fn into_object(self, py: Python) -> PyObject {
+                (self as $larger_type).into_object(py)
+            }
+        }
         pyobject_extract!(py, obj to $rust_type => {
             let val = try!(obj.extract::<$larger_type>(py));
             match cast::<$larger_type, $rust_type>(val) {
@@ -117,7 +127,14 @@ macro_rules! int_convert_u64_or_i64 (
                 }
             }
         }
-
+        impl IntoPyObject for $rust_type {
+            #[inline]
+            fn into_object(self, py: Python) -> PyObject {
+                unsafe {
+                    PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(self))
+                }
+            }
+        }
         impl<'source> FromPyObject<'source> for $rust_type {
             fn extract(py: Python, ob: &'source PyObject) -> PyResult<$rust_type>
                 //where S: PyTypeInfo
@@ -175,6 +192,11 @@ impl ToPyObject for f64 {
         PyFloat::new(py, *self).into()
     }
 }
+impl IntoPyObject for f64 {
+    fn into_object(self, py: Python) -> PyObject {
+        PyFloat::new(py, self).into()
+    }
+}
 
 pyobject_extract!(py, obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
@@ -192,6 +214,11 @@ fn overflow_error(py: Python) -> PyErr {
 impl ToPyObject for f32 {
     fn to_object(&self, py: Python) -> PyObject {
         PyFloat::new(py, *self as f64).into()
+    }
+}
+impl IntoPyObject for f32 {
+    fn into_object(self, py: Python) -> PyObject {
+        PyFloat::new(py, self as f64).into()
     }
 }
 

@@ -178,6 +178,13 @@ impl ToPyObject for NoArgs {
     }
 }
 
+impl IntoPyObject for NoArgs
+{
+    fn into_object(self, py: Python) -> PyObject {
+        PyTuple::empty(py).into()
+    }
+}
+
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyTuple for NoArgs {
 

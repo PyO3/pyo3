@@ -7,7 +7,6 @@ use std::cmp::Ordering;
 
 use ffi;
 use err::{PyErr, PyResult, self};
-use pointers::Ptr;
 use python::{Python, PyDowncastInto, ToPyPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator};
 use conversion::{ToPyObject, ToPyTuple};
@@ -369,7 +368,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     #[inline]
     fn iter<'p>(&self, py: Python<'p>) -> PyResult<PyIterator<'p>> {
         unsafe {
-            let ptr = Ptr::from_owned_ptr_or_err(
+            let ptr = PyObject::from_owned_ptr_or_err(
                 py, ffi::PyObject_GetIter(self.as_ptr()))?;
             PyIterator::from_object(py, ptr).map_err(|e| e.into())
         }

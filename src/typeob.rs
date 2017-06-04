@@ -7,8 +7,7 @@ use std::collections::HashMap;
 
 use {ffi, class};
 use err::{PyErr, PyResult};
-use pointers::{Py};
-use python::{Python};
+use python::Python;
 use objects::PyType;
 use callback::AbortOnDrop;
 use class::methods::PyMethodDefType;
@@ -43,31 +42,6 @@ pub trait PyObjectCtor : PyTypeInfo {
 
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
-    type Type = T::Type;
-
-    #[inline]
-    default fn size() -> usize {
-        <T as PyTypeInfo>::size()
-    }
-
-    #[inline]
-    default fn offset() -> isize {
-        <T as PyTypeInfo>::offset()
-    }
-
-    #[inline]
-    default fn type_name() -> &'static str {
-        <T as PyTypeInfo>::type_name()
-    }
-
-    #[inline]
-    default fn type_object() -> &'static mut ffi::PyTypeObject {
-        <T as PyTypeInfo>::type_object()
-    }
-}
-
-
-impl<'a, T> PyTypeInfo for Py<'a, T> where T: PyTypeInfo {
     type Type = T::Type;
 
     #[inline]

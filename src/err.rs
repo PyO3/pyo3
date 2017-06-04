@@ -47,7 +47,7 @@ macro_rules! py_exception {
         // pyobject_nativetype!($name);
 
         impl $name {
-            pub fn new<T: $crate::ToPyObject>(py: $crate::Python, args: T) -> $crate::PyErr {
+            pub fn new<T: $crate::IntoPyObject>(py: $crate::Python, args: T) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, T>(py, args)
             }
         }

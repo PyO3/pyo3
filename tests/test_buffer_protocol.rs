@@ -12,8 +12,10 @@ use pyo3::*;
 #[py::class]
 struct TestClass {
     vec: Vec<u8>,
+    token: PyToken,
 }
-
+#[py::ptr(TestClass)]
+struct TestClassPtr(PyPtr);
 
 #[py::proto]
 impl class::PyBufferProtocol for TestClass {
@@ -70,7 +72,7 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py.with(|e| TestClass{vec: vec![b' ', b'2', b'3']}).unwrap();
+    let t = py.with(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
 
     let d = PyDict::new(py);
     let _ = d.set_item(py, "ob", t);

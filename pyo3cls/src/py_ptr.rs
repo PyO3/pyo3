@@ -19,8 +19,8 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
             unsafe impl Send for #ptr {}
             unsafe impl Sync for #ptr {}
 
-            impl _pyo3::python::ParkRef for #cls {
-                type Target = #ptr;
+            impl _pyo3::Park<#cls> for #cls {
+                type ParkTarget = #ptr;
 
                 fn park(&self) -> #ptr {
                     let token = _pyo3::PyObjectWithToken::token(self);
@@ -28,26 +28,31 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
 
                     #ptr(unsafe{_pyo3::PyPtr::from_owned_ptr(ptr)})
                 }
-            }
-
-            impl #ptr {
-                pub fn clone_ref(&self, _py: Python) -> #ptr {
-                    #ptr(unsafe{_pyo3::PyPtr::from_borrowed_ptr(self.as_ptr())})
+                unsafe fn from_owned_ptr(ptr: *mut _pyo3::ffi::PyObject) -> #ptr {
+                    std::mem::transmute(ptr)
+                }
+                unsafe fn from_borrowed_ptr(ptr: *mut _pyo3::ffi::PyObject) -> #ptr {
+                    _pyo3::ffi::Py_INCREF(ptr);
+                    std::mem::transmute(ptr)
                 }
             }
 
-            impl<'p> _pyo3::python::Unpark<'p> for #ptr {
-                type Target = Py<'p, #cls>;
-                type RefTarget = #cls;
+            impl _pyo3::PythonPtr<#cls> for #ptr {
 
-                fn unpark(self, _py: Python<'p>) -> Py<'p, #cls> {
-                    unsafe {std::mem::transmute(self)}
-                }
-                fn unpark_ref(&self, _py: Python<'p>) -> &#cls {
+                #[inline]
+                fn as_ref(&self, _py: Python) -> &#cls {
                     let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                     unsafe {
                         let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                         ptr.as_ref().unwrap()
+                    }
+                }
+                #[inline]
+                fn as_mut(&self, _py: Python) -> &mut #cls {
+                    let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                    unsafe {
+                        let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut #cls;
+                        ptr.as_mut().unwrap()
                     }
                 }
             }
@@ -70,11 +75,22 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                     #ptr(unsafe{ _pyo3::PyPtr::from_borrowed_ptr(self.as_ptr()) })
                 }
             }
-
+            impl _pyo3::ToPyObject for #ptr {
+                fn to_object(&self, py: Python) -> _pyo3::PyObject {
+                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
+                }
+            }
             impl _pyo3::IntoPyObject for #ptr {
-
                 fn into_object(self, _py: Python) -> _pyo3::PyObject {
                     unsafe {std::mem::transmute(self)}
+                }
+            }
+            impl _pyo3::IntoPyPointer for #ptr {
+                /// Gets the underlying FFI pointer, returns a owned pointer.
+                #[inline]
+                #[must_use]
+                fn into_ptr(self) -> *mut ffi::PyObject {
+                    self.0.into_ptr()
                 }
             }
         };

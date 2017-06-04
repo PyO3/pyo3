@@ -9,6 +9,7 @@
 use ffi;
 use err::PyResult;
 use python::Python;
+use token::Park;
 use typeob::PyTypeInfo;
 use callback::PyObjectCallbackConverter;
 
@@ -65,7 +66,7 @@ impl<'p, T> PyIterIterProtocolImpl for T where T: PyIterProtocol<'p>
     }
 }
 
-impl<T> PyIterIterProtocolImpl for T where T: for<'p> PyIterIterProtocol<'p>
+impl<T> PyIterIterProtocolImpl for T where T: for<'p> PyIterIterProtocol<'p> + Park<T>
 {
     #[inline]
     fn tp_iter() -> Option<ffi::getiterfunc> {
@@ -86,7 +87,7 @@ impl<'p, T> PyIterNextProtocolImpl for T
     }
 }
 
-impl<T> PyIterNextProtocolImpl for T where T: for<'p> PyIterNextProtocol<'p>
+impl<T> PyIterNextProtocolImpl for T where T: for<'p> PyIterNextProtocol<'p> + Park<T>
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {

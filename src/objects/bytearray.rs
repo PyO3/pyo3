@@ -14,7 +14,7 @@ use pointers::PyPtr;
 pub struct PyByteArray(PyPtr);
 
 pyobject_convert!(PyByteArray);
-pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type, PyByteArrayPtr);
+pyobject_nativetype!(PyByteArray, PyByteArray_Check, PyByteArray_Type);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.
