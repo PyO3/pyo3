@@ -92,20 +92,14 @@ impl <T> IntoPyPointer for Option<T> where T: IntoPyPointer {
 
 pub trait PyClone {
 
-    fn clone_ref(&self, py: Python) -> PyObject;
+    fn clone_ref(&self, py: Python) -> Self;
 
 }
 
-pub trait PyClonePtr {
-
-    fn clone_ptr(&self, py: Python) -> Self;
-
-}
-
-impl<T> PyClonePtr for Option<T> where T: PyClonePtr {
-    fn clone_ptr(&self, py: Python) -> Option<T> {
+impl<T> PyClone for Option<T> where T: PyClone {
+    fn clone_ref(&self, py: Python) -> Option<T> {
         match *self {
-            Some(ref p) => Some(p.clone_ptr(py)),
+            Some(ref p) => Some(p.clone_ref(py)),
             None => None,
         }
     }

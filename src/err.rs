@@ -299,7 +299,7 @@ impl PyErr {
 
     /// Retrieves the exception type.
     pub fn get_type(&self, py: Python) -> PyType {
-        self.ptype.clone_ref(py).cast_into(py).unwrap()
+        self.ptype.clone_ref(py)
     }
 
     /// Retrieves the exception instance for this error.

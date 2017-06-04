@@ -24,9 +24,9 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
 
                 fn park(&self) -> #ptr {
                     let token = _pyo3::PyObjectWithToken::token(self);
-                    let ptr = self.clone_ref(token).into_ptr();
+                    let ptr = self.as_ptr();
 
-                    #ptr(unsafe{_pyo3::PyPtr::from_owned_ptr(ptr)})
+                    #ptr(unsafe{_pyo3::PyPtr::from_borrowed_ptr(ptr)})
                 }
                 unsafe fn from_owned_ptr(ptr: *mut _pyo3::ffi::PyObject) -> #ptr {
                     std::mem::transmute(ptr)
@@ -66,12 +66,7 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
             }
 
             impl _pyo3::PyClone for #ptr {
-                fn clone_ref(&self, py: _pyo3::Python) -> _pyo3::PyObject {
-                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
-                }
-            }
-            impl _pyo3::PyClonePtr for #ptr {
-                fn clone_ptr(&self, _py: _pyo3::Python) -> #ptr {
+                fn clone_ref(&self, _py: _pyo3::Python) -> #ptr {
                     #ptr(unsafe{ _pyo3::PyPtr::from_borrowed_ptr(self.as_ptr()) })
                 }
             }
@@ -91,6 +86,11 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                 #[must_use]
                 fn into_ptr(self) -> *mut ffi::PyObject {
                     self.0.into_ptr()
+                }
+            }
+            impl std::convert::From<#ptr> for _pyo3::PyObject {
+                fn from(ob: #ptr) -> Self {
+                    unsafe{std::mem::transmute(ob)}
                 }
             }
         };

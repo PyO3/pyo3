@@ -369,7 +369,7 @@ fn gc_integration() {
         dropped: TestDropCall { drop_called: drop_called.clone() },
         token: t}).unwrap();
 
-    *inst.as_mut(py).self_ref.borrow_mut() = inst.clone_ref(py);
+    *inst.as_mut(py).self_ref.borrow_mut() = inst.clone_ref(py).into();
     drop(inst);
 
     py.run("import gc; gc.collect()", None, None).unwrap();

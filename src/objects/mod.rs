@@ -26,8 +26,8 @@ macro_rules! pyobject_nativetype(
         }
 
         impl $crate::PyClone for $name {
-            fn clone_ref<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObject {
-                $crate::PyObject::from_borrowed_ptr(py, self.as_ptr())
+            fn clone_ref(&self, _py: $crate::Python) -> Self {
+                $name(unsafe{$crate::PyPtr::from_borrowed_ptr(self.as_ptr())})
             }
         }
     );
