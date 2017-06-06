@@ -8,9 +8,7 @@ use std::borrow::Cow;
 use ffi;
 use pointers::PyPtr;
 use python::{Python, ToPyPointer};
-use conversion::ToPyTuple;
-use objects::{PyObject, PyDict};
-use err::PyResult;
+use objects::PyObject;
 
 /// Represents a reference to a Python type object.
 pub struct PyType(PyPtr);
@@ -51,19 +49,6 @@ impl PyType {
     #[inline]
     pub fn is_instance<T: ToPyPointer>(&self, _py: Python, obj: &T) -> bool {
         unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
-    }
-
-    // /// Calls the type object, thus creating a new instance.
-    // /// This is equivalent to the Python expression: `self(*args, **kwargs)`
-    #[inline]
-    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyTuple
-    {
-        let args = args.to_py_tuple(py);
-        unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py, ffi::PyObject_Call(self.as_ptr(), args.as_ptr(), kwargs.as_ptr()))
-        }
     }
 }
 

@@ -54,6 +54,7 @@
 //! ```
 
 extern crate libc;
+#[macro_use] extern crate log;
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -66,14 +67,15 @@ pub mod pointers;
 pub use pointers::PyPtr;
 
 mod token;
-pub use token::{PyToken, PyObjectWithToken, Park, PythonPtr};
+pub use token::{PyToken, PyObjectWithToken, ToInstancePtr, InstancePtr};
 
 pub use err::{PyErr, PyResult, PyDowncastError};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone, PyDowncastFrom, PyDowncastInto};
+pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
+                 PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILProtected, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, ToPyTuple};
+pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
 pub use class::{CompareOp};
 pub mod class;
 pub use class::*;

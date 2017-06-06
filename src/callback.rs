@@ -9,7 +9,7 @@ use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
-use token::{Park, PythonPtr};
+use token::{InstancePtr, ToInstancePtr};
 use typeob::PyTypeInfo;
 
 
@@ -199,7 +199,7 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
                                      slf: *mut ffi::PyObject, _c: C, f: F) -> C::R
     where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> PyResult<T>,
           F: panic::UnwindSafe,
-          Slf: PyTypeInfo + Park<Slf>,
+          Slf: PyTypeInfo + ToInstancePtr<Slf>,
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
@@ -234,7 +234,7 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
 pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: F) -> c_int
     where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> c_int,
           F: panic::UnwindSafe,
-          Slf: PyTypeInfo + Park<Slf>,
+          Slf: PyTypeInfo + ToInstancePtr<Slf>,
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {

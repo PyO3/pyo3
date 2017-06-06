@@ -27,6 +27,13 @@ impl PyList {
         }
     }
 
+    /// Construct a new empty list.
+    pub fn empty(_py: Python) -> PyList {
+        unsafe {
+            PyList(PyPtr::from_owned_ptr_or_panic(ffi::PyList_New(0)))
+        }
+    }
+
     /// Gets the length of the list.
     #[inline]
     pub fn len(&self, _py: Python) -> usize {

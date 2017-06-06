@@ -19,9 +19,9 @@ impl PyToken {
 
 /// Create new python object and move T instance under python management
 #[inline]
-pub fn with<'p, T, F>(py: Python<'p>, f: F) -> PyResult<T::ParkTarget>
+pub fn init<'p, T, F>(py: Python<'p>, f: F) -> PyResult<T::Target>
     where F: FnOnce(PyToken) -> T,
-          T: Park<T> + PyTypeInfo + PyObjectAlloc<Type=T>
+          T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<Type=T>
 {
     let ob = f(PyToken(PhantomData));
 
@@ -36,22 +36,36 @@ pub trait PyObjectWithToken : Sized {
     fn token<'p>(&'p self) -> Python<'p>;
 }
 
+pub trait ToInstancePtr<T> : Sized {
+    type Target: InstancePtr<T> + IntoPyPointer;
 
-pub trait Park<T> : Sized {
-    type ParkTarget: PythonPtr<T> + IntoPyPointer;
+    fn to_inst_ptr(&self) -> Self::Target;
 
-    fn park(&self) -> Self::ParkTarget;
+    unsafe fn from_owned_ptr(*mut ffi::PyObject) -> Self::Target;
 
-    unsafe fn from_owned_ptr(*mut ffi::PyObject) -> Self::ParkTarget;
-
-    unsafe fn from_borrowed_ptr(*mut ffi::PyObject) -> Self::ParkTarget;
+    unsafe fn from_borrowed_ptr(*mut ffi::PyObject) -> Self::Target;
 
 }
 
-pub trait PythonPtr<T> : Sized {
+pub trait InstancePtr<T> : Sized {
 
     fn as_ref(&self, py: Python) -> &T;
 
     fn as_mut(&self, py: Python) -> &mut T;
 
+    fn with<F, R>(&self, f: F) -> R where F: FnOnce(Python, &T) -> R
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        f(py, self.as_ref(py))
+    }
+
+    fn with_mut<F, R>(&self, f: F) -> R where F: FnOnce(Python, &mut T) -> R
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        f(py, self.as_mut(py))
+    }
 }

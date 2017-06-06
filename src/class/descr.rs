@@ -13,7 +13,7 @@ use python::Python;
 use objects::{PyType, PyObject};
 use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use typeob::PyTypeInfo;
-use token::Park;
+use token::ToInstancePtr;
 use class::methods::PyMethodDef;
 use conversion::{IntoPyObject, FromPyObject};
 
@@ -67,7 +67,7 @@ impl<'p, T> PyDescrGetProtocolImpl for T where T: PyDescrProtocol<'p> {
         None
     }
 }
-impl<T> PyDescrGetProtocolImpl for T where T: for<'p> PyDescrGetProtocol<'p> + Park<T>
+impl<T> PyDescrGetProtocolImpl for T where T: for<'p> PyDescrGetProtocol<'p> + ToInstancePtr<T>
 {
     fn tp_descr_get() -> Option<ffi::descrgetfunc> {
         py_ternary_func!(PyDescrGetProtocol, T::__get__, T::Success, PyObjectCallbackConverter)
@@ -81,7 +81,7 @@ impl<'p, T> PyDescrSetProtocolImpl for T where T: PyDescrProtocol<'p> {
         None
     }
 }
-impl<T> PyDescrSetProtocolImpl for T where T: for<'p> PyDescrSetProtocol<'p> + Park<T>
+impl<T> PyDescrSetProtocolImpl for T where T: for<'p> PyDescrSetProtocol<'p> + ToInstancePtr<T>
 {
     fn tp_descr_set() -> Option<ffi::descrsetfunc> {
         py_ternary_func!(PyDescrSetProtocol, T::__set__, (), UnitCallbackConverter, c_int)

@@ -260,7 +260,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
 
     if spec.is_args(&name) {
         quote! {
-            match <#ty as _pyo3::FromPyObject>::extract(py, &args)
+            match <#ty as _pyo3::FromPyObject>::extract(py, &args.into())
             {
                 Ok(#name) => {
                     #body
@@ -310,7 +310,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
             quote! {
                 match match _iter.next().unwrap().as_ref() {
                     Some(obj) => {
-                        if obj.is_none() {
+                        if obj.is_none(py) {
                             Ok(#default)
                         } else {
                             match obj.extract(py) {

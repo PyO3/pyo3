@@ -19,10 +19,10 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
             unsafe impl Send for #ptr {}
             unsafe impl Sync for #ptr {}
 
-            impl _pyo3::Park<#cls> for #cls {
-                type ParkTarget = #ptr;
+            impl _pyo3::ToInstancePtr<#cls> for #cls {
+                type Target = #ptr;
 
-                fn park(&self) -> #ptr {
+                fn to_inst_ptr(&self) -> #ptr {
                     let token = _pyo3::PyObjectWithToken::token(self);
                     let ptr = self.as_ptr();
 
@@ -37,7 +37,7 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                 }
             }
 
-            impl _pyo3::PythonPtr<#cls> for #ptr {
+            impl _pyo3::InstancePtr<#cls> for #ptr {
 
                 #[inline]
                 fn as_ref(&self, _py: Python) -> &#cls {
@@ -64,7 +64,6 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                     &self.0
                 }
             }
-
             impl _pyo3::PyClone for #ptr {
                 fn clone_ref(&self, _py: _pyo3::Python) -> #ptr {
                     #ptr(unsafe{ _pyo3::PyPtr::from_borrowed_ptr(self.as_ptr()) })
@@ -88,6 +87,39 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
                     self.0.into_ptr()
                 }
             }
+            impl _pyo3::PyDowncastInto for #ptr
+            {
+                fn downcast_into<'p, I>(py: _pyo3::Python<'p>, ob: I)
+                                        -> Result<Self, _pyo3::PyDowncastError<'p>>
+                    where I: _pyo3::IntoPyPointer
+                {
+                    <#ptr as _pyo3::PyDowncastInto>::downcast_from_ptr(py, ob.into_ptr())
+                }
+
+                fn downcast_from_ptr<'p>(py: _pyo3::Python<'p>, ptr: *mut _pyo3::ffi::PyObject)
+                                         -> Result<#ptr, _pyo3::PyDowncastError<'p>>
+                {
+                    unsafe{
+                        let checked = ffi::PyObject_TypeCheck(
+                            ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
+
+                        if checked {
+                            Ok(#ptr(PyPtr::from_owned_ptr(ptr)))
+                        } else {
+                            _pyo3::ffi::Py_DECREF(ptr);
+                            Err(_pyo3::PyDowncastError(py, None))
+                        }
+                    }
+                }
+
+                fn unchecked_downcast_into<'p, I>(ob: I) -> Self where I: _pyo3::IntoPyPointer
+                {
+                    unsafe{
+                        #ptr(_pyo3::PyPtr::from_owned_ptr(ob.into_ptr()))
+                    }
+                }
+            }
+
             impl std::convert::From<#ptr> for _pyo3::PyObject {
                 fn from(ob: #ptr) -> Self {
                     unsafe{std::mem::transmute(ob)}

@@ -14,7 +14,7 @@ use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer};
 use objects::PyObject;
 use objects::exc;
-use token::{Park, PythonPtr};
+use token::{InstancePtr, ToInstancePtr};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
@@ -165,7 +165,7 @@ impl<'p, T> PyObjectGetAttrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectGetAttrProtocolImpl for T where T: for<'p> PyObjectGetAttrProtocol<'p> + Park<T>
+impl<T> PyObjectGetAttrProtocolImpl for T where T: for<'p> PyObjectGetAttrProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
@@ -186,7 +186,7 @@ impl<'p, T> PyObjectSetAttrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectSetAttrProtocolImpl for T where T: for<'p> PyObjectSetAttrProtocol<'p> + Park<T>
+impl<T> PyObjectSetAttrProtocolImpl for T where T: for<'p> PyObjectSetAttrProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_setattro() -> Option<ffi::setattrofunc> {
@@ -205,7 +205,7 @@ impl<'p, T> PyObjectDelAttrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtocol<'p> + Park<T>
+impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     default fn tp_delattro() -> Option<ffi::setattrofunc> {
@@ -213,7 +213,7 @@ impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtoc
     }
 }
 impl<T> PyObjectDelAttrProtocolImpl for T
-    where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p> + Park<T>
+    where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_delattro() -> Option<ffi::setattrofunc> {
@@ -233,7 +233,7 @@ impl<'p, T> PyObjectStrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectStrProtocolImpl for T where T: for<'p> PyObjectStrProtocol<'p> + Park<T>
+impl<T> PyObjectStrProtocolImpl for T where T: for<'p> PyObjectStrProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_str() -> Option<ffi::unaryfunc> {
@@ -252,7 +252,7 @@ impl<'p, T> PyObjectReprProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectReprProtocolImpl for T where T: for<'p> PyObjectReprProtocol<'p> + Park<T>
+impl<T> PyObjectReprProtocolImpl for T where T: for<'p> PyObjectReprProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_repr() -> Option<ffi::unaryfunc> {
@@ -296,7 +296,7 @@ impl<'p, T> PyObjectHashProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectHashProtocolImpl for T where T: for<'p> PyObjectHashProtocol<'p> + Park<T>
+impl<T> PyObjectHashProtocolImpl for T where T: for<'p> PyObjectHashProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
@@ -315,7 +315,7 @@ impl<'p, T> PyObjectBoolProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectBoolProtocolImpl for T where T: for<'p> PyObjectBoolProtocol<'p> + Park<T>
+impl<T> PyObjectBoolProtocolImpl for T where T: for<'p> PyObjectBoolProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn nb_bool() -> Option<ffi::inquiry> {
@@ -334,14 +334,14 @@ impl<'p, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol<'p>
     }
 }
 impl<T> PyObjectRichcmpProtocolImpl for T
-    where T: for<'p> PyObjectRichcmpProtocol<'p> + Park<T>
+    where T: for<'p> PyObjectRichcmpProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject,
                                      op: c_int) -> *mut ffi::PyObject
-            where T: for<'p> PyObjectRichcmpProtocol<'p> + Park<T>
+            where T: for<'p> PyObjectRichcmpProtocol<'p> + ToInstancePtr<T>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
 

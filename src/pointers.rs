@@ -22,7 +22,8 @@ impl PyPtr {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> PyPtr {
-        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
+        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
+                      format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr)));
         PyPtr(ptr)
     }
 
@@ -59,7 +60,8 @@ impl PyPtr {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> PyPtr {
-        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0);
+        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
+                      format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr)));
         ffi::Py_INCREF(ptr);
         PyPtr::from_owned_ptr(ptr)
     }
@@ -132,14 +134,13 @@ impl PartialEq for PyPtr {
     }
 }
 
-
 /// Dropping a `PyPtr` instance decrements the reference count on the object by 1.
 impl Drop for PyPtr {
 
     fn drop(&mut self) {
         unsafe {
-            println!("drop PyPtr: {:?} {} {:?}",
-                     self.0, ffi::Py_REFCNT(self.0), &self as *const _);
+            debug!("drop PyPtr: {:?} {} {:?}",
+                   self.0, ffi::Py_REFCNT(self.0), &self as *const _);
         }
         let _gil_guard = Python::acquire_gil();
         unsafe { ffi::Py_DECREF(self.0); }

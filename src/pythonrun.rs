@@ -96,7 +96,7 @@ pub struct GILGuard {
 /// The Drop implementation for GILGuard will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
-        println!("RELEASE");
+        debug!("RELEASE");
         unsafe { ffi::PyGILState_Release(self.gstate) }
     }
 }
@@ -108,7 +108,7 @@ impl GILGuard {
     /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
     pub fn acquire() -> GILGuard {
         ::pythonrun::prepare_freethreaded_python();
-        println!("ACQUIRE");
+        debug!("ACQUIRE");
         let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
         GILGuard { gstate: gstate, no_send: marker::PhantomData }
     }

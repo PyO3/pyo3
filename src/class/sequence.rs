@@ -11,7 +11,7 @@ use err::{PyErr, PyResult};
 use objects::exc;
 use objects::PyObject;
 use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
-use token::Park;
+use token::ToInstancePtr;
 use typeob::PyTypeInfo;
 use conversion::{IntoPyObject, FromPyObject};
 
@@ -141,7 +141,7 @@ impl<'p, T> PySequenceLenProtocolImpl for T where T: PySequenceProtocol<'p>
     }
 }
 
-impl<T> PySequenceLenProtocolImpl for T where T: for<'p> PySequenceLenProtocol<'p> + Park<T>
+impl<T> PySequenceLenProtocolImpl for T where T: for<'p> PySequenceLenProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_length() -> Option<ffi::lenfunc> {
@@ -162,7 +162,7 @@ impl<'p, T> PySequenceGetItemProtocolImpl for T where T: PySequenceProtocol<'p>
 }
 
 impl<T> PySequenceGetItemProtocolImpl for T
-    where T: for<'p> PySequenceGetItemProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceGetItemProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_item() -> Option<ffi::ssizeargfunc> {
@@ -184,14 +184,14 @@ impl<'p, T> PySequenceSetItemProtocolImpl for T where T: PySequenceProtocol<'p>
 }
 
 impl<T> PySequenceSetItemProtocolImpl for T
-    where T: for<'p> PySequenceSetItemProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceSetItemProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_ass_item() -> Option<ffi::ssizeobjargproc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      key: ffi::Py_ssize_t,
                                      value: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PySequenceSetItemProtocol<'p> + Park<T>
+            where T: for<'p> PySequenceSetItemProtocol<'p> + ToInstancePtr<T>
         {
             const LOCATION: &'static str = "foo.__setitem__()";
             ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
@@ -235,14 +235,14 @@ impl<'p, T> PySequenceDelItemProtocolImpl for T where T: PySequenceProtocol<'p>
 }
 
 impl<T> PySequenceDelItemProtocolImpl for T
-    where T: for<'p> PySequenceDelItemProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceDelItemProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     default fn sq_del_item() -> Option<ffi::ssizeobjargproc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      key: ffi::Py_ssize_t,
                                      value: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PySequenceDelItemProtocol<'p> + Park<T>
+            where T: for<'p> PySequenceDelItemProtocol<'p> + ToInstancePtr<T>
         {
             const LOCATION: &'static str = "T.__detitem__()";
             ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
@@ -269,7 +269,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
 }
 
 impl<T> PySequenceDelItemProtocolImpl for T
-    where T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_del_item() -> Option<ffi::ssizeobjargproc> {
@@ -277,7 +277,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                                      key: ffi::Py_ssize_t,
                                      value: *mut ffi::PyObject) -> c_int
             where T: for<'p> PySequenceSetItemProtocol<'p> +
-               for<'p> PySequenceDelItemProtocol<'p> + Park<T>
+               for<'p> PySequenceDelItemProtocol<'p> + ToInstancePtr<T>
         {
             const LOCATION: &'static str = "T.__set/del_item__()";
             ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
@@ -326,7 +326,7 @@ impl<'p, T> PySequenceContainsProtocolImpl for T where T: PySequenceProtocol<'p>
 }
 
 impl<T> PySequenceContainsProtocolImpl for T
-    where T: for<'p> PySequenceContainsProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceContainsProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_contains() -> Option<ffi::objobjproc> {
@@ -348,7 +348,7 @@ impl<'p, T> PySequenceConcatProtocolImpl for T where T: PySequenceProtocol<'p>
 }
 
 impl<T> PySequenceConcatProtocolImpl for T
-    where T: for<'p> PySequenceConcatProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceConcatProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_concat() -> Option<ffi::binaryfunc> {
@@ -370,7 +370,7 @@ impl<'p, T> PySequenceRepeatProtocolImpl for T
     }
 }
 
-impl<T> PySequenceRepeatProtocolImpl for T where T: for<'p> PySequenceRepeatProtocol<'p> + Park<T>
+impl<T> PySequenceRepeatProtocolImpl for T where T: for<'p> PySequenceRepeatProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_repeat() -> Option<ffi::ssizeargfunc> {
@@ -392,7 +392,7 @@ impl<'p, T> PySequenceInplaceConcatProtocolImpl for T where T: PySequenceProtoco
 }
 
 impl<T> PySequenceInplaceConcatProtocolImpl for T
-    where T: for<'p> PySequenceInplaceConcatProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceInplaceConcatProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_inplace_concat() -> Option<ffi::binaryfunc> {
@@ -414,7 +414,7 @@ impl<'p, T> PySequenceInplaceRepeatProtocolImpl for T where T: PySequenceProtoco
 }
 
 impl<T> PySequenceInplaceRepeatProtocolImpl for T
-    where T: for<'p> PySequenceInplaceRepeatProtocol<'p> + Park<T>
+    where T: for<'p> PySequenceInplaceRepeatProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn sq_inplace_repeat() -> Option<ffi::ssizeargfunc> {

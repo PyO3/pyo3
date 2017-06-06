@@ -450,16 +450,16 @@ pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
 
 #[cfg(test)]
 mod test {
-    use python::{Python};
+    use python::Python;
     use objects::PyTuple;
-    use conversion::{ToPyTuple};
+    use conversion::IntoPyTuple;
 
     #[test]
     pub fn test_parse() {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let mut called = false;
-        let tuple = ("abc", 42).to_py_tuple(py);
+        let tuple = ("abc", 42).into_tuple(py);
         py_argparse!(py, None, &tuple, None, (x: &str, y: i32) {
             assert_eq!(x, "abc");
             assert_eq!(y, 42);
@@ -474,7 +474,7 @@ mod test {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let mut called = false;
-        let tuple = ("abc",).to_py_tuple(py);
+        let tuple = ("abc",).into_tuple(py);
         py_argparse!(py, None, &tuple, None, (x) {
             assert_eq!(*x, tuple.get_item(py, 0));
             called = true;
@@ -488,7 +488,7 @@ mod test {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let mut called = false;
-        let tuple = (0, "foo").to_py_tuple(py);
+        let tuple = (0, "foo").into_tuple(py);
         py_argparse!(py, None, &tuple, None, (x: usize = 42, y: &str = "abc") {
             assert_eq!(x, 0);
             assert_eq!(y, "foo");

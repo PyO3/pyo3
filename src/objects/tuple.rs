@@ -8,7 +8,7 @@ use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use pointers::PyPtr;
 use python::{Python, ToPyPointer, IntoPyPointer};
-use conversion::{FromPyObject, ToPyObject, ToPyTuple, IntoPyObject};
+use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject};
 use objects::PyObject;
 use super::exc;
 
@@ -87,14 +87,14 @@ impl PyTuple {
     //}
 }
 
-impl ToPyTuple for PyTuple {
-    fn to_py_tuple(&self, _py: Python) -> PyTuple {
-        unsafe { PyTuple(PyPtr::from_borrowed_ptr(self.0.as_ptr())) }
+impl IntoPyTuple for PyTuple {
+    fn into_tuple(self, _py: Python) -> PyTuple {
+        self
     }
 }
 
-impl<'a> ToPyTuple for &'a str {
-    fn to_py_tuple(&self, py: Python) -> PyTuple {
+impl<'a> IntoPyTuple for &'a str {
+    fn into_tuple(self, py: Python) -> PyTuple {
         PyTuple::new(py, &[py_coerce_expr!(self.to_object(py))])
     }
 }
@@ -114,11 +114,18 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             ]).into()
         }
     }
-
-    impl <$($T: ToPyObject),+> ToPyTuple for ($($T,)+) {
-        fn to_py_tuple(&self, py: Python) -> PyTuple {
+    impl <$($T: IntoPyObject),+> IntoPyObject for ($($T,)+) {
+        fn into_object(self, py: Python) -> PyObject {
             PyTuple::new(py, &[
-                $(py_coerce_expr!(self.$n.to_object(py)),)+
+                $(py_coerce_expr!(self.$n.into_object(py)),)+
+            ]).into()
+        }
+    }
+
+    impl <$($T: IntoPyObject),+> IntoPyTuple for ($($T,)+) {
+        fn into_tuple(self, py: Python) -> PyTuple {
+            PyTuple::new(py, &[
+                $(py_coerce_expr!(self.$n.into_object(py)),)+
             ])
         }
     }
@@ -186,17 +193,17 @@ impl IntoPyObject for NoArgs
 }
 
 /// Converts `NoArgs` to an empty Python tuple.
-impl ToPyTuple for NoArgs {
+impl IntoPyTuple for NoArgs {
 
-    fn to_py_tuple(&self, py: Python) -> PyTuple {
+    fn into_tuple(self, py: Python) -> PyTuple {
         PyTuple::empty(py)
     }
 }
 
 /// Converts `()` to an empty Python tuple.
-impl ToPyTuple for () {
+impl IntoPyTuple for () {
 
-    fn to_py_tuple(&self, py: Python) -> PyTuple {
+    fn into_tuple(self, py: Python) -> PyTuple {
         PyTuple::empty(py)
     }
 }

@@ -250,7 +250,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where T: PyTypeInfo
 {
-    println!("DEALLOC: {:?}", obj);
+    debug!("DEALLOC: {:?}", obj);
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
     let py = Python::assume_gil_acquired();
     let r = <T as PyObjectAlloc>::dealloc(py, obj);

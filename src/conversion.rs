@@ -21,7 +21,9 @@ pub trait ToPyObject {
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         let obj = self.to_object(py);
-        f(obj.as_ptr())
+        let result = f(obj.as_ptr());
+        py.release(obj);
+        result
     }
 }
 
@@ -35,20 +37,11 @@ pub trait IntoPyObject {
 
 
 /// Conversion trait that allows various objects to be converted into PyTuple object.
-pub trait ToPyTuple {
+pub trait IntoPyTuple {
 
     /// Converts self into a PyTuple object.
-    fn to_py_tuple(&self, py: Python) -> PyTuple;
+    fn into_tuple(self, py: Python) -> PyTuple;
 
-    /// Converts self into a PyTuple object and calls the specified closure
-    /// on the native FFI pointer underlying the Python object.
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
-    {
-        let obj = self.to_py_tuple(py);
-        f(obj.as_ptr())
-    }
 }
 
 
@@ -135,7 +128,6 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
         }
     }
 }
-
 impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
     fn into_object(self, py: Python) -> ::PyObject {
@@ -152,9 +144,14 @@ impl ToPyObject for () {
         py.None()
     }
 }
+impl IntoPyObject for () {
+    fn into_object(self, py: Python) -> PyObject {
+        py.None()
+    }
+}
 
 /// Extract reference to instance from PyObject
-impl<'source, T> ::FromPyObject<'source> for &'source T
+impl<'source, T> FromPyObject<'source> for &'source T
     where T: PyTypeInfo + PyDowncastFrom
 {
     #[inline]

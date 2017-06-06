@@ -9,7 +9,7 @@ use std::os::raw::{c_int, c_void};
 use ffi;
 use python::{Python, ToPyPointer};
 use callback::AbortOnDrop;
-use token::{Park, PythonPtr};
+use token::{InstancePtr, ToInstancePtr};
 use typeob::PyTypeInfo;
 
 pub struct PyTraverseError(c_int);
@@ -93,14 +93,14 @@ impl<'p, T> PyGCTraverseProtocolImpl for T where T: PyGCProtocol<'p>
 }
 
 #[doc(hidden)]
-impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p> + Park<T>
+impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_traverse() -> Option<ffi::traverseproc> {
         unsafe extern "C" fn tp_traverse<T>(slf: *mut ffi::PyObject,
                                             visit: ffi::visitproc,
                                             arg: *mut c_void) -> c_int
-            where T: for<'p> PyGCTraverseProtocol<'p> + Park<T>
+            where T: for<'p> PyGCTraverseProtocol<'p> + ToInstancePtr<T>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__traverse__()");
 
@@ -134,12 +134,12 @@ impl<'p, T> PyGCClearProtocolImpl for T where T: PyGCProtocol<'p>
     }
 }
 
-impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p> + Park<T>
+impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_clear() -> Option<ffi::inquiry> {
         unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PyGCClearProtocol<'p> + Park<T>
+            where T: for<'p> PyGCClearProtocol<'p> + ToInstancePtr<T>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__clear__()");
 

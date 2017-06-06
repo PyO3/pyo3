@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PyToken, Park};
+use token::{PyToken, ToInstancePtr};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError};
 use pythonrun::GILGuard;
@@ -34,9 +34,15 @@ pub trait PyDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
     fn downcast_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PyDowncastError<'p>>;
-
 }
 
+/// Trait implemented by Python object types that allow a checked downcast.
+pub trait PyMutDowncastFrom : Sized {
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn downcast_mut_from<'a, 'p>(Python<'p>, &'a mut PyObject) ->
+        Result<&'a mut Self, PyDowncastError<'p>>;
+}
 
 /// Trait implemented by Python object types that allow a checked downcast.
 pub trait PyDowncastInto : Sized {
@@ -66,7 +72,6 @@ pub trait IntoPyPointer {
     /// depends on implementation.
     fn into_ptr(self) -> *mut ffi::PyObject;
 }
-
 
 /// Convert None into a null pointer.
 impl<'p, T> ToPyPointer for Option<&'p T> where T: ToPyPointer {
@@ -223,18 +228,18 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
     }
 
-    /// Execute closure `F` with Python Token instance.
-    pub fn with<T, F>(self, f: F) -> PyResult<T::ParkTarget>
+    /// Create new python object and move T instance under python management
+    pub fn init<T, F>(self, f: F) -> PyResult<T::Target>
         where F: FnOnce(PyToken) -> T,
-              T: Park<T> + PyTypeInfo + PyObjectAlloc<Type=T>
+              T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<Type=T>
     {
-        ::token::with(self, f)
+        ::token::init(self, f)
     }
 
     /// Release PyObject reference
     pub fn release<T>(self, ob: T) where T: IntoPyPointer {
         unsafe {
-            ffi::Py_INCREF(ob.into_ptr());
+            ffi::Py_DECREF(ob.into_ptr());
         }
     }
 }

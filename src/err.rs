@@ -7,7 +7,7 @@ use ffi;
 use python::{ToPyPointer, IntoPyPointer, Python, PyDowncastInto, PyClone};
 use objects::{PyObject, PyType, exc};
 use typeob::{PyTypeObject};
-use conversion::{ToPyObject, ToPyTuple, IntoPyObject};
+use conversion::{ToPyObject, IntoPyTuple, IntoPyObject};
 
 /**
 Defines a new exception type.
@@ -240,13 +240,12 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
     #[inline]
-    pub fn new_err<A>(py: Python, exc: PyType, args: A) -> PyErr
-        where A: ToPyTuple
+    pub fn new_err<A>(py: Python, exc: &PyType, args: A) -> PyErr
+        where A: IntoPyTuple
     {
-        let pval = args.to_py_tuple(py);
         PyErr {
-            ptype: exc,
-            pvalue: Some(pval.into_object(py)),
+            ptype: exc.clone_ref(py),
+            pvalue: Some(args.into_tuple(py).into()),
             ptraceback: None
         }
     }
@@ -333,13 +332,13 @@ impl PyErr {
         }
     }
 
-    //pub fn clone_ref(&self, py: Python) -> PyErr {
-    //    PyErr {
-    //        ptype: self.ptype.clone_ref(py),
-    //        pvalue: self.pvalue.clone_ref(py),
-    //        ptraceback: self.ptraceback.clone_ref(py),
-    //    }
-    //}
+    pub fn clone_ref(&self, py: Python) -> PyErr {
+        PyErr {
+            ptype: self.ptype.clone_ref(py),
+            pvalue: self.pvalue.clone_ref(py),
+            ptraceback: self.ptraceback.clone_ref(py),
+        }
+    }
 }
 
 /// Converts `PyDowncastError` to Python `TypeError`.

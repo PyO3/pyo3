@@ -7,7 +7,7 @@ use ffi;
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
-use conversion::{ToPyObject, ToPyTuple};
+use conversion::{ToPyObject, IntoPyTuple};
 use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyType, exc};
@@ -77,7 +77,7 @@ impl<'p> PyModule {
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
     pub fn call<A>(&self, py: Python, name: &str,
                    args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyTuple
+        where A: IntoPyTuple
     {
         self.getattr(py, name)?.call(py, args, kwargs)
     }

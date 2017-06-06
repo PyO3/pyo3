@@ -4,8 +4,9 @@ use std;
 
 use ffi;
 use pointers::PyPtr;
-use err::{PyResult, PyDowncastError};
+use err::{PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPyPointer};
+use conversion::FromPyObject;
 
 pub struct PyObject(PyPtr);
 
@@ -56,6 +57,16 @@ impl PyObject {
         }
     }
 
+    #[inline]
+    pub fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
+    {
+        if ptr.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(PyObject(unsafe{PyPtr::from_borrowed_ptr(ptr)}))
+        }
+    }
+
     /// Transmutes a slice of owned FFI pointers to `&[Py<'p, PyObject>]`.
     /// Undefined behavior if any pointer in the slice is NULL or invalid.
     #[inline]
@@ -93,9 +104,9 @@ impl PyObject {
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
     #[inline]
-        pub fn extract<'a, D>(&'a self, py: Python) -> PyResult<D> where D: ::conversion::FromPyObject<'a>
+    pub fn extract<'a, D>(&'a self, py: Python) -> PyResult<D> where D: FromPyObject<'a>
     {
-        ::conversion::FromPyObject::extract(py, &self)
+        FromPyObject::extract(py, &self)
     }
 
     pub fn get_refcnt(&self) -> isize {

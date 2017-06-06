@@ -79,7 +79,7 @@ struct EmptyClassWithNewPtr(PyPtr);
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(cls: &PyType, py: Python) -> PyResult<EmptyClassWithNewPtr> {
-        py.with(|t| EmptyClassWithNew{token: t})
+        py.init(|t| EmptyClassWithNew{token: t})
     }
 }
 
@@ -104,7 +104,7 @@ struct NewWithOneArgPtr(PyPtr);
 impl NewWithOneArg {
     #[new]
     fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<NewWithOneArgPtr> {
-        py.with(|t| NewWithOneArg{_data: arg, token: t})
+        py.init(|t| NewWithOneArg{_data: arg, token: t})
     }
 }
 
@@ -133,7 +133,7 @@ struct NewWithTwoArgsPtr(PyPtr);
 impl NewWithTwoArgs {
     #[new]
     fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<NewWithTwoArgsPtr> {
-        py.with(|t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
+        py.init(|t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
 }
 
@@ -173,7 +173,7 @@ fn data_is_dropped() {
 
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
-    let inst = py.with(|t| DataIsDropped{
+    let inst = py.init(|t| DataIsDropped{
         member1: TestDropCall { drop_called: drop_called1.clone() },
         member2: TestDropCall { drop_called: drop_called2.clone() },
         token: t
@@ -206,7 +206,7 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.with(|t| InstanceMethod{member: 42, token: t}).unwrap();
+    let obj = py.init(|t| InstanceMethod{member: 42, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
@@ -233,7 +233,7 @@ fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.with(|t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
+    let obj = py.init(|t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py, 6).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
@@ -297,7 +297,7 @@ struct StaticMethodPtr(PyPtr);
 impl StaticMethod {
     #[new]
     fn __new__(cls: &PyType, py: Python) -> PyResult<StaticMethodPtr> {
-        py.with(|t| StaticMethod{token: t})
+        py.init(|t| StaticMethod{token: t})
     }
 
     //#[staticmethod]
@@ -364,7 +364,7 @@ fn gc_integration() {
     let py = gil.python();
 
     let drop_called = Arc::new(AtomicBool::new(false));
-    let inst = py.with(|t| GCIntegration{
+    let inst = py.init(|t| GCIntegration{
         self_ref: RefCell::new(py.None()),
         dropped: TestDropCall { drop_called: drop_called.clone() },
         token: t}).unwrap();
@@ -397,14 +397,14 @@ fn len() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.with(|t| Len{l: 10, token: t}).unwrap();
+    let inst = py.init(|t| Len{l: 10, token: t}).unwrap();
     py_assert!(py, inst, "len(inst) == 10");
     unsafe {
         assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
         assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
     }
 
-    let inst = py.with(|t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
+    let inst = py.init(|t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
@@ -464,7 +464,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.with(|t| StringMethods{token: t}).unwrap();
+    let obj = py.init(|t| StringMethods{token: t}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
@@ -497,10 +497,10 @@ fn comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let zero = py.with(|t| Comparisons{val: 0, token: t}).unwrap();
-    let one = py.with(|t| Comparisons{val: 1, token: t}).unwrap();
-    let ten = py.with(|t| Comparisons{val: 10, token: t}).unwrap();
-    let minus_one = py.with(|t| Comparisons{val: -1, token: t}).unwrap();
+    let zero = py.init(|t| Comparisons{val: 0, token: t}).unwrap();
+    let one = py.init(|t| Comparisons{val: 1, token: t}).unwrap();
+    let ten = py.init(|t| Comparisons{val: 10, token: t}).unwrap();
+    let minus_one = py.init(|t| Comparisons{val: -1, token: t}).unwrap();
     py_assert!(py, one, "hash(one) == 1");
     py_assert!(py, ten, "hash(ten) == 10");
     py_assert!(py, minus_one, "hash(minus_one) == -2");
@@ -537,7 +537,7 @@ fn sequence() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| Sequence{token: t}).unwrap();
+    let c = py.init(|t| Sequence{token: t}).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
@@ -563,11 +563,11 @@ fn callable() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| Callable{token: t}).unwrap();
+    let c = py.init(|t| Callable{token: t}).unwrap();
     py_assert!(py, c, "callable(c)");
     py_assert!(py, c, "c(7) == 42");
 
-    let nc = py.with(|t| Comparisons{val: 0, token: t}).unwrap();
+    let nc = py.init(|t| Comparisons{val: 0, token: t}).unwrap();
     py_assert!(py, nc, "not callable(nc)");
 }
 
@@ -595,7 +595,7 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| SetItem{key: 0, val: 0, token: t}).unwrap();
+    let c = py.init(|t| SetItem{key: 0, val: 0, token: t}).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.as_ref(py).key, 1);
     assert_eq!(c.as_ref(py).val, 2);
@@ -624,7 +624,7 @@ fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| DelItem{key:0, token:t}).unwrap();
+    let c = py.init(|t| DelItem{key:0, token:t}).unwrap();
     py_run!(py, c, "del c[1]");
     assert_eq!(c.as_ref(py).key, 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
@@ -657,7 +657,7 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| SetDelItem{val: None, token: t}).unwrap();
+    let c = py.init(|t| SetDelItem{val: None, token: t}).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.as_ref(py).val, Some(2));
     py_run!(py, c, "del c[1]");
@@ -682,7 +682,7 @@ fn reversed() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| Reversed{token: t}).unwrap();
+    let c = py.init(|t| Reversed{token: t}).unwrap();
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
@@ -704,7 +704,7 @@ fn contains() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| Contains{token: t}).unwrap();
+    let c = py.init(|t| Contains{token: t}).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
     py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
@@ -743,7 +743,7 @@ fn unary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| UnaryArithmetic{token: t}).unwrap();
+    let c = py.init(|t| UnaryArithmetic{token: t}).unwrap();
     py_run!(py, c, "assert -c == 'neg'");
     py_run!(py, c, "assert +c == 'pos'");
     py_run!(py, c, "assert abs(c) == 'abs'");
@@ -806,7 +806,7 @@ fn binary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| BinaryArithmetic{token: t}).unwrap();
+    let c = py.init(|t| BinaryArithmetic{token: t}).unwrap();
     py_run!(py, c, "assert c + c == 'BA + BA'");
     py_run!(py, c, "assert c + 1 == 'BA + 1'");
     py_run!(py, c, "assert 1 + c == '1 + BA'");
@@ -883,7 +883,7 @@ fn rich_comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| RichComparisons{token: t}).unwrap();
+    let c = py.init(|t| RichComparisons{token: t}).unwrap();
     py_run!(py, c, "assert (c < c) == 'RC < RC'");
     py_run!(py, c, "assert (c < 1) == 'RC < 1'");
     py_run!(py, c, "assert (1 < c) == 'RC > 1'");
@@ -909,7 +909,7 @@ fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c2 = py.with(|t| RichComparisons2{py: t}).unwrap();
+    let c2 = py.init(|t| RichComparisons2{py: t}).unwrap();
     py_expect_exception!(py, c2, "c2 < c2", TypeError);
     py_expect_exception!(py, c2, "c2 < 1", TypeError);
     py_expect_exception!(py, c2, "1 < c2", TypeError);
@@ -994,28 +994,28 @@ fn inplace_operations() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| InPlaceOperations{value: 0, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 0, token: t}).unwrap();
     py_run!(py, c, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
 
-    let c = py.with(|t| InPlaceOperations{value:10, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value:10, token: t}).unwrap();
     py_run!(py, c, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
 
-    let c = py.with(|t| InPlaceOperations{value: 3, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 3, token: t}).unwrap();
     py_run!(py, c, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
 
-    let c = py.with(|t| InPlaceOperations{value: 3, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 3, token: t}).unwrap();
     py_run!(py, c, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
 
-    let c = py.with(|t| InPlaceOperations{value: 12, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
     py_run!(py, c, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
 
-    let c = py.with(|t| InPlaceOperations{value: 12, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
     py_run!(py, c, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
 
-    let c = py.with(|t| InPlaceOperations{value: 12, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
     py_run!(py, c, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
 
-    let c = py.with(|t| InPlaceOperations{value: 12, token: t}).unwrap();
+    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
     py_run!(py, c, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
 
@@ -1053,7 +1053,7 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.with(|t| ContextManager{exit_called: false, token: t}).unwrap();
+    let c = py.init(|t| ContextManager{exit_called: false, token: t}).unwrap();
     py_run!(py, c, "with c as x:\n  assert x == 42");
     assert!(c.as_ref(py).exit_called);
 
@@ -1101,7 +1101,7 @@ fn class_with_properties() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.with(|t| ClassWithProperties{num: 10, token: t}).unwrap();
+    let inst = py.init(|t| ClassWithProperties{num: 10, token: t}).unwrap();
 
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");

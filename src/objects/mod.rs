@@ -24,7 +24,6 @@ macro_rules! pyobject_nativetype(
                 unsafe{$crate::std::mem::transmute(self)}
             }
         }
-
         impl $crate::PyClone for $name {
             fn clone_ref(&self, _py: $crate::Python) -> Self {
                 $name(unsafe{$crate::PyPtr::from_borrowed_ptr(self.as_ptr())})
@@ -79,12 +78,11 @@ macro_rules! pyobject_nativetype(
                 }
             }
         }
-
         impl $crate::python::PyDowncastInto for $name
         {
             fn downcast_into<'p, I>(py: $crate::Python<'p>, ob: I)
                                 -> Result<Self, $crate::PyDowncastError<'p>>
-                where I: $crate::ToPyPointer + $crate::IntoPyPointer
+                where I: $crate::IntoPyPointer
             {
                 unsafe{
                     let ptr = ob.into_ptr();

@@ -8,8 +8,8 @@ use std::cmp::Ordering;
 use ffi;
 use err::{PyErr, PyResult, self};
 use python::{Python, PyDowncastInto, ToPyPointer};
-use objects::{PyObject, PyDict, PyString, PyIterator};
-use conversion::{ToPyObject, ToPyTuple};
+use objects::{PyObject, PyDict, PyString, PyIterator, PyType};
+use conversion::{ToPyObject, IntoPyTuple};
 
 
 pub trait ObjectProtocol {
@@ -74,14 +74,14 @@ pub trait ObjectProtocol {
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
     fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyTuple;
+        where A: IntoPyTuple;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     fn call_method<A>(&self, py: Python,
                       name: &str, args: A,
                       kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyTuple;
+        where A: IntoPyTuple;
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: 'hash(self)'
@@ -117,6 +117,10 @@ pub trait ObjectProtocol {
     /// is an iterator, this returns itself.
     fn iter<'p>(&self, py: Python<'p>) -> PyResult<PyIterator<'p>>;
 
+    /// Gets the Python type object for this object's type.
+    #[inline]
+    fn get_type(&self, py: Python) -> PyType;
+
     fn get_refcnt(&self) -> isize;
 }
 
@@ -135,7 +139,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
     #[inline]
-        fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject> where N: ToPyObject
+    fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject> where N: ToPyObject
     {
         attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
             PyObject::from_owned_ptr_or_err(
@@ -260,14 +264,15 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
     #[inline]
     fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyTuple
+        where A: IntoPyTuple
     {
-        let t = args.to_py_tuple(py);
-        unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
-        }
+        let t = args.into_tuple(py);
+        let result = unsafe {
+            PyObject::from_borrowed_ptr_or_err(
+                py, ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
+        };
+        py.release(t);
+        result
     }
 
     /// Calls a method on the object.
@@ -276,14 +281,15 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     fn call_method<A>(&self, py: Python,
                       name: &str, args: A,
                       kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: ToPyTuple
+        where A: IntoPyTuple
     {
         name.with_borrowed_ptr(py, |name| unsafe {
-            let t = args.to_py_tuple(py);
+            let t = args.into_tuple(py);
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()))
+            let result = PyObject::from_borrowed_ptr_or_err(
+                py, ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
+            py.release(t);
+            result
         })
     }
 
@@ -371,6 +377,14 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
             let ptr = PyObject::from_owned_ptr_or_err(
                 py, ffi::PyObject_GetIter(self.as_ptr()))?;
             PyIterator::from_object(py, ptr).map_err(|e| e.into())
+        }
+    }
+
+    /// Gets the Python type object for this object's type.
+    #[inline]
+    fn get_type(&self, py: Python) -> PyType {
+        unsafe {
+            PyType::from_type_ptr(py, (*self.as_ptr()).ob_type)
         }
     }
 
