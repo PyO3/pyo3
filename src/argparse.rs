@@ -72,8 +72,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                 if i < nargs {
                     return Err(err::PyErr::new::<exc::TypeError, _>(
                         py,
-                        format!("Argument given by name ('{}') and position ({})",
-                                p.name, i+1)));
+                        format!("Argument given by name ('{}') and position ({})", p.name, i+1)));
                 }
             },
             None => {
@@ -347,6 +346,8 @@ macro_rules! py_argparse_raw {
         let args: $crate::PyTuple = $crate::PyTuple::from_borrowed_ptr($py, $args);
         let kwargs: Option<$crate::PyDict> = $crate::argparse::get_kwargs($py, $kwargs);
         let ret = py_argparse_impl!($py, $fname, &args, kwargs.as_ref(), $body, $plist);
+        $py.release(kwargs);
+        $py.release(args);
         ret
     }};
 }

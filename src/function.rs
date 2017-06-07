@@ -115,13 +115,11 @@ macro_rules! py_fn_impl {
         -> *mut $crate::ffi::PyObject
         {
             $crate::callback::handle(
-                stringify!($f), $crate::callback::PyObjectCallbackConverter,
-                |py| {
+                stringify!($f), $crate::callback::PyObjectCallbackConverter, |py|
+                {
                     py_argparse_raw!(py, Some(stringify!($f)), args, kwargs,
-                        [ $( { $pname : $ptype = $detail } )* ]
-                        {
-                            $f(py $(, $pname )* )
-                        })
+                                     [ $( { $pname : $ptype = $detail } )* ]
+                                     { $f(py $(, $pname )* ) })
                 })
         }
         unsafe {

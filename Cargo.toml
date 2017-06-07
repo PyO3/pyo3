@@ -26,6 +26,7 @@ log = "0.3"
 libc = "0.2"
 num-traits = "0.1"
 pyo3cls = { path = "pyo3cls" }
+backtrace = "0.3"
 
 [build-dependencies]
 regex = "0.2"

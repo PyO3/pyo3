@@ -53,10 +53,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                     let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let repr = unsafe {
                         _pyo3::PyString::downcast_from_ptr(
-                            py, _pyo3::ffi::PyObject_Repr(ptr))
-                            .map_err(|_| std::fmt::Error)?
+                            py, _pyo3::ffi::PyObject_Repr(ptr)).map_err(|_| std::fmt::Error)?
                     };
-                    f.write_str(&repr.to_string_lossy(py))
+                    let result = f.write_str(&repr.to_string_lossy(py));
+                    py.release(repr);
+                    result
                 }
             }
 
@@ -66,10 +67,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
                     let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
                     let str_obj = unsafe {
                         _pyo3::PyString::downcast_from_ptr(
-                            py, _pyo3::ffi::PyObject_Str(ptr))
-                            .map_err(|_| std::fmt::Error)?
+                            py, _pyo3::ffi::PyObject_Str(ptr)).map_err(|_| std::fmt::Error)?
                     };
-                    f.write_str(&str_obj.to_string_lossy(py))
+                    let result = f.write_str(&str_obj.to_string_lossy(py));
+                    py.release(str_obj);
+                    result
                 }
             }
         })

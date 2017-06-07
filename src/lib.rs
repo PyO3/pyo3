@@ -54,6 +54,7 @@
 //! ```
 
 extern crate libc;
+extern crate backtrace;
 #[macro_use] extern crate log;
 
 #[allow(unused_imports)]

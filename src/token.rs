@@ -68,4 +68,26 @@ pub trait InstancePtr<T> : Sized {
 
         f(py, self.as_mut(py))
     }
+
+    fn into_py<F, R>(self, f: F) -> R
+        where Self: IntoPyPointer, F: FnOnce(Python, &T) -> R
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let result = f(py, self.as_ref(py));
+        py.release(self);
+        result
+    }
+
+    fn into_mut_py<F, R>(self, f: F) -> R
+        where Self: IntoPyPointer, F: FnOnce(Python, &mut T) -> R
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let result = f(py, self.as_mut(py));
+        py.release(self);
+        result
+    }
 }

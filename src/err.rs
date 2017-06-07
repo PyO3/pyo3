@@ -339,6 +339,13 @@ impl PyErr {
             ptraceback: self.ptraceback.clone_ref(py),
         }
     }
+
+    pub fn release(self, py: Python) {
+        let PyErr { ptype, pvalue, ptraceback } = self;
+        py.release(ptype);
+        py.release(pvalue);
+        py.release(ptraceback);
+    }
 }
 
 /// Converts `PyDowncastError` to Python `TypeError`.

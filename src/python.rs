@@ -159,7 +159,8 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn run(self, code: &str, globals: Option<&PyDict>,
                 locals: Option<&PyDict>) -> PyResult<()> {
-        self.run_code(code, ffi::Py_file_input, globals, locals)?;
+        let result = self.run_code(code, ffi::Py_file_input, globals, locals)?;
+        self.release(result);
         Ok(())
     }
 
@@ -229,6 +230,7 @@ impl<'p> Python<'p> {
     }
 
     /// Create new python object and move T instance under python management
+    #[inline]
     pub fn init<T, F>(self, f: F) -> PyResult<T::Target>
         where F: FnOnce(PyToken) -> T,
               T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<Type=T>
@@ -237,9 +239,20 @@ impl<'p> Python<'p> {
     }
 
     /// Release PyObject reference
+    #[inline]
     pub fn release<T>(self, ob: T) where T: IntoPyPointer {
         unsafe {
-            ffi::Py_DECREF(ob.into_ptr());
+            let ptr = ob.into_ptr();
+            if !ptr.is_null() {
+                ffi::Py_DECREF(ptr);
+            }
+        }
+    }
+    #[inline]
+    pub fn release_res<T>(self, res: PyResult<T>) where T: IntoPyPointer {
+        match res {
+            Ok(ob) => unsafe {ffi::Py_DECREF(ob.into_ptr())},
+            Err(e) => e.release(self)
         }
     }
 }

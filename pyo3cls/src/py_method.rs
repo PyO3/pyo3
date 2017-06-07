@@ -47,16 +47,23 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
+                //println!("METH {:?} =====: {:?} {:?} {:?}", LOCATION, slf, args, kwargs);
                 let slf = #cls::from_borrowed_ptr(slf);
                 let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-                let result: #output = {
-                    #body
+                let result = {
+                    let result: #output = {
+                        #body
+                    };
+                    _pyo3::callback::cb_convert(
+                        _pyo3::callback::PyObjectCallbackConverter, py, result)
                 };
+                py.release(kwargs);
+                py.release(args);
                 py.release(slf);
-                _pyo3::callback::cb_convert(
-                    _pyo3::callback::PyObjectCallbackConverter, py, result)
+                //println!("METH {:?} =====", LOCATION);
+                result
             })
         }
     }
@@ -237,16 +244,24 @@ fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
         ];
 
         let mut output = [#(#placeholders),*];
-        match _pyo3::argparse::parse_args(py, Some(LOCATION), PARAMS, &args,
-                                          kwargs.as_ref(), #accept_args, #accept_kwargs,
-                                          &mut output) {
+        let result = match _pyo3::argparse::parse_args(
+            py, Some(LOCATION), PARAMS, &args,
+            kwargs.as_ref(), #accept_args, #accept_kwargs, &mut output)
+        {
             Ok(_) => {
                 let mut _iter = output.iter();
 
                 #body
             },
             Err(err) => Err(err)
+        };
+        for p in output.iter_mut() {
+            if let Some(ob) = p.take() {
+                py.release(ob);
+            }
         }
+
+        result
     }
 }
 
@@ -260,7 +275,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
 
     if spec.is_args(&name) {
         quote! {
-            match <#ty as _pyo3::FromPyObject>::extract(py, &args.into())
+            match <#ty as _pyo3::FromPyObject>::extract(py, args.as_ref())
             {
                 Ok(#name) => {
                     #body

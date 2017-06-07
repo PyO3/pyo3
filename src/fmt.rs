@@ -14,7 +14,9 @@ impl fmt::Debug for PyPtr {
         // TODO: we shouldn't use fmt::Error when repr() fails
         let r = self.as_object(py);
         let repr_obj = try!(r.repr(py).map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy(py))
+        let result = f.write_str(&repr_obj.to_string_lossy(py));
+        py.release(repr_obj);
+        result
     }
 }
 
@@ -25,7 +27,9 @@ impl fmt::Display for PyPtr {
 
         // TODO: we shouldn't use fmt::Error when repr() fails
         let r = self.as_object(py);
-        let repr_obj = try!(r.str(py).map_err(|_| fmt::Error));
-        f.write_str(&repr_obj.to_string_lossy(py))
+        let str_obj = try!(r.str(py).map_err(|_| fmt::Error));
+        let result = f.write_str(&str_obj.to_string_lossy(py));
+        py.release(str_obj);
+        result
     }
 }

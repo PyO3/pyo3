@@ -201,14 +201,16 @@ macro_rules! pyobject_nativetype(
             {
                 use $crate::python::PyDowncastInto;
 
-		let gil = $crate::Python::acquire_gil();
-	        let py = gil.python();
+		        let gil = $crate::Python::acquire_gil();
+	            let py = gil.python();
 
                 let s = unsafe { $crate::PyString::downcast_from_ptr(
                     py, $crate::ffi::PyObject_Repr(
                         $crate::python::ToPyPointer::as_ptr(self))) };
                 let repr_obj = try!(s.map_err(|_| $crate::std::fmt::Error));
-                f.write_str(&repr_obj.to_string_lossy(py))
+                let result = f.write_str(&repr_obj.to_string_lossy(py));
+                py.release(repr_obj);
+                result
             }
         }
 
@@ -216,15 +218,17 @@ macro_rules! pyobject_nativetype(
             fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                    -> Result<(), $crate::std::fmt::Error>
             {
-		let gil = $crate::Python::acquire_gil();
-	        let py = gil.python();
+		        let gil = $crate::Python::acquire_gil();
+	            let py = gil.python();
                 use $crate::python::PyDowncastInto;
 
                 let s = unsafe { $crate::PyString::downcast_from_ptr(
                     py, $crate::ffi::PyObject_Str(
                         $crate::python::ToPyPointer::as_ptr(self))) };
                 let str_obj = try!(s.map_err(|_| $crate::std::fmt::Error));
-                f.write_str(&str_obj.to_string_lossy(py))
+                let result = f.write_str(&str_obj.to_string_lossy(py));
+                py.release(str_obj);
+                result
             }
         }
     );

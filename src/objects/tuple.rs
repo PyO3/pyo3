@@ -67,6 +67,18 @@ impl PyTuple {
         }
     }
 
+    /// Gets the item at the specified index.
+    /// Panics if the index is out of range.
+    pub fn into_item(self, py: Python, index: usize) -> PyObject {
+        assert!(index < self.len(py));
+        let result = unsafe {
+            PyObject::from_borrowed_ptr(
+                py, ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
+        };
+        py.release(self);
+        result
+    }
+
     #[inline]
     pub fn as_slice<'a>(&'a self, py: Python) -> &'a [PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
@@ -95,7 +107,11 @@ impl IntoPyTuple for PyTuple {
 
 impl<'a> IntoPyTuple for &'a str {
     fn into_tuple(self, py: Python) -> PyTuple {
-        PyTuple::new(py, &[py_coerce_expr!(self.to_object(py))])
+        unsafe {
+            let ptr = ffi::PyTuple_New(1);
+            ffi::PyTuple_SetItem(ptr, 0, self.into_object(py).into_ptr());
+            PyTuple(PyPtr::from_owned_ptr_or_panic(ptr))
+        }
     }
 }
 
@@ -109,24 +125,31 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
         fn to_object(&self, py: Python) -> PyObject {
-            PyTuple::new(py, &[
-                $(py_coerce_expr!(self.$n.to_object(py)),)+
-            ]).into()
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+;
+                PyTuple(PyPtr::from_owned_ptr_or_panic(ptr)).into()
+            }
         }
     }
     impl <$($T: IntoPyObject),+> IntoPyObject for ($($T,)+) {
         fn into_object(self, py: Python) -> PyObject {
-            PyTuple::new(py, &[
-                $(py_coerce_expr!(self.$n.into_object(py)),)+
-            ]).into()
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;
+                PyTuple(PyPtr::from_owned_ptr_or_panic(ptr)).into()
+            }
         }
     }
 
     impl <$($T: IntoPyObject),+> IntoPyTuple for ($($T,)+) {
         fn into_tuple(self, py: Python) -> PyTuple {
-            PyTuple::new(py, &[
-                $(py_coerce_expr!(self.$n.into_object(py)),)+
-            ])
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(py_coerce_expr!(
+                    ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr()));)+;
+                PyTuple(PyPtr::from_owned_ptr_or_panic(ptr))
+            }
         }
     }
 
@@ -232,7 +255,7 @@ mod test {
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let tuple = PyTuple::downcast_into(py, (1, 2, 3).to_object(py).into_object(py)).unwrap();
+        let tuple = PyTuple::downcast_into(py, (1, 2, 3).to_object(py)).unwrap();
         assert_eq!(3, tuple.len(py));
         assert_eq!((1, 2, 3), tuple.into_object(py).extract(py).unwrap());
     }

@@ -112,13 +112,16 @@ impl<'p> PyModule {
         } else {
             // automatically initialize the class
             let name = self.name(py)?;
-            ::typeob::initialize_type::<T>(py, Some(name), type_name, ty)
-                .expect(
-                    format!("An error occurred while initializing class {}",
-                            <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
+            let to = ::typeob::initialize_type::<T>(py, Some(name), type_name, ty)
+                .expect(format!("An error occurred while initializing class {}",
+                                <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
+            py.release(to);
             unsafe { PyType::from_type_ptr(py, ty) }
         };
 
-        self.setattr(py, type_name, ty)
+        self.setattr(py, type_name, &ty)?;
+
+        py.release(ty);
+        Ok(())
     }
 }

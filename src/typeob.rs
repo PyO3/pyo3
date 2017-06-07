@@ -2,7 +2,7 @@
 
 use std;
 use std::mem;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::collections::HashMap;
 
 use {ffi, class};
@@ -89,7 +89,9 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// `ty` must be derived from the Self type, and the resulting object
     /// must be of type `ty`.
     unsafe fn alloc(py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
-        let _ = <T as PyTypeObject>::type_object(py);
+        // TODO: remove this
+        let t = <T as PyTypeObject>::type_object(py);
+        py.release(t);
 
         let obj = ffi::PyType_GenericAlloc(
             <Self as PyTypeInfo>::type_object(), 0);
@@ -141,9 +143,11 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
             unsafe { PyType::from_type_ptr(py, ty) }
         } else {
             // automatically initialize the class on-demand
-            initialize_type::<T>(py, None, <T as PyTypeInfo>::type_name(), ty).expect(
+            let to = initialize_type::<T>(
+                py, None, <T as PyTypeInfo>::type_name(), ty).expect(
                 format!("An error occurred while initializing class {}",
                         <T as PyTypeInfo>::type_name()).as_ref());
+            py.release(to);
             unsafe { PyType::from_type_ptr(py, ty) }
         }
     }
@@ -250,7 +254,8 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where T: PyTypeInfo
 {
-    debug!("DEALLOC: {:?}", obj);
+    debug!("DEALLOC: {:?} - {:?}", obj,
+           CStr::from_ptr((*(*obj).ob_type).tp_name).to_string_lossy());
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
     let py = Python::assume_gil_acquired();
     let r = <T as PyObjectAlloc>::dealloc(py, obj);

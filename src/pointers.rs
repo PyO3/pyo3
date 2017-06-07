@@ -106,6 +106,12 @@ impl PyPtr {
     {
         <D as ::PyDowncastInto>::downcast_into(py, self)
     }
+
+    #[inline]
+    pub unsafe fn drop_ref(&mut self) {
+        ffi::Py_DECREF(self.0);
+        self.0 = std::ptr::null_mut();
+    }
 }
 
 impl ToPyPointer for PyPtr {
@@ -134,15 +140,24 @@ impl PartialEq for PyPtr {
     }
 }
 
+//use backtrace::Backtrace;
+
 /// Dropping a `PyPtr` instance decrements the reference count on the object by 1.
 impl Drop for PyPtr {
 
     fn drop(&mut self) {
-        unsafe {
-            debug!("drop PyPtr: {:?} {} {:?}",
-                   self.0, ffi::Py_REFCNT(self.0), &self as *const _);
+        if !self.0.is_null() {
+            unsafe {
+                debug!("drop PyPtr: {:?} {} {:?} {:?} {:?}",
+                       self.0, ffi::Py_REFCNT(self.0), &self as *const _,
+                       std::ffi::CStr::from_ptr((*(*self.0).ob_type).tp_name).to_string_lossy(),
+                       &self);
+                //let bt = Backtrace::new();
+                //let bt = Backtrace::from(Vec::from(&bt.frames()[0..15]));
+                //println!("{:?}", bt);
+            }
+            let _gil_guard = Python::acquire_gil();
+            unsafe { ffi::Py_DECREF(self.0); }
         }
-        let _gil_guard = Python::acquire_gil();
-        unsafe { ffi::Py_DECREF(self.0); }
     }
 }

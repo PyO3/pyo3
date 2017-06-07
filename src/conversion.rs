@@ -161,7 +161,8 @@ impl<'source, T> FromPyObject<'source> for &'source T
     }
 }
 
-impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source> {
+impl <'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source>
+{
     fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self>
     {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
