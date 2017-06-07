@@ -1,4 +1,5 @@
 use std;
+use std::io;
 use std::ffi::CString;
 use std::os::raw::c_char;
 use std::error::Error;
@@ -370,89 +371,60 @@ impl std::convert::From<PyErr> for std::io::Error {
     }
 }
 
-impl std::convert::From<std::io::Error> for PyErr {
-    fn from(err: std::io::Error) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::IOError, _>(py, err.description())
+/// Converts into PyErr
+pub trait ToPyErr {
+    fn to_pyerr(&self, Python) -> PyErr;
+}
+
+macro_rules! impl_to_pyerr {
+    ($err: ty, $pyexc: ty) => {
+        impl $crate::ToPyErr for $err {
+            fn to_pyerr(&self, py: $crate::Python) -> PyErr {
+                PyErr::new::<$pyexc, _>(py, self.description())
+            }
+        }
     }
 }
 
-impl<W: Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>> for PyErr {
-    fn from(err: std::io::IntoInnerError<W>) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::IOError, _>(py, err.description())
+/// Create OSError from io::Error
+impl ToPyErr for io::Error {
+
+    fn to_pyerr(&self, py: Python) -> PyErr {
+        let tp = match self.kind() {
+            io::ErrorKind::BrokenPipe => py.get_type::<exc::BrokenPipeError>(),
+            io::ErrorKind::ConnectionRefused => py.get_type::<exc::ConnectionRefusedError>(),
+            io::ErrorKind::ConnectionAborted => py.get_type::<exc::ConnectionAbortedError>(),
+            io::ErrorKind::ConnectionReset => py.get_type::<exc::ConnectionResetError>(),
+            io::ErrorKind::Interrupted => py.get_type::<exc::InterruptedError>(),
+            io::ErrorKind::NotFound => py.get_type::<exc::FileNotFoundError>(),
+            io::ErrorKind::WouldBlock => py.get_type::<exc::BlockingIOError>(),
+            io::ErrorKind::TimedOut => py.get_type::<exc::TimeoutError>(),
+            _ => py.get_type::<exc::OSError>(),
+        };
+
+        let errno = self.raw_os_error().unwrap_or(0);
+        let errdesc = self.description();
+
+        PyErr::new_err(py, &tp, (errno, errdesc))
     }
 }
 
-impl std::convert::From<std::num::ParseIntError> for PyErr {
-    fn from(err: std::num::ParseIntError) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::ValueError, _>(py, err.description())
+impl<W: Send + std::fmt::Debug> ToPyErr for std::io::IntoInnerError<W> {
+    fn to_pyerr(&self, py: Python) -> PyErr {
+        PyErr::new::<exc::OSError, _>(py, self.description())
     }
 }
 
-impl std::convert::From<std::num::ParseFloatError> for PyErr {
-    fn from(err: std::num::ParseFloatError) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::ValueError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::string::ParseError> for PyErr {
-    fn from(err: std::string::ParseError) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::ValueError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::str::ParseBoolError> for PyErr {
-    fn from(err: std::str::ParseBoolError) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::ValueError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::ffi::IntoStringError> for PyErr {
-    fn from(err: std::ffi::IntoStringError) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::UnicodeDecodeError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::str::Utf8Error> for PyErr {
-    fn from(err: std::str::Utf8Error) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::UnicodeDecodeError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::string::FromUtf8Error> for PyErr {
-    fn from(err: std::string::FromUtf8Error) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::UnicodeDecodeError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::string::FromUtf16Error> for PyErr {
-    fn from(err: std::string::FromUtf16Error) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::UnicodeDecodeError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::char::DecodeUtf16Error> for PyErr {
-    fn from(err: std::char::DecodeUtf16Error) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::UnicodeDecodeError, _>(py, err.description())
-    }
-}
-
-impl std::convert::From<std::net::AddrParseError> for PyErr {
-    fn from(err: std::net::AddrParseError) -> Self {
-        let py = unsafe { Python::assume_gil_acquired() };
-        PyErr::new::<exc::ValueError, _>(py, err.description())
-    }
-}
+impl_to_pyerr!(std::num::ParseIntError, exc::ValueError);
+impl_to_pyerr!(std::num::ParseFloatError, exc::ValueError);
+impl_to_pyerr!(std::string::ParseError, exc::ValueError);
+impl_to_pyerr!(std::str::ParseBoolError, exc::ValueError);
+impl_to_pyerr!(std::ffi::IntoStringError, exc::UnicodeDecodeError);
+impl_to_pyerr!(std::str::Utf8Error, exc::UnicodeDecodeError);
+impl_to_pyerr!(std::string::FromUtf8Error, exc::UnicodeDecodeError);
+impl_to_pyerr!(std::string::FromUtf16Error, exc::UnicodeDecodeError);
+impl_to_pyerr!(std::char::DecodeUtf16Error, exc::UnicodeDecodeError);
+impl_to_pyerr!(std::net::AddrParseError, exc::ValueError);
 
 pub fn panic_after_error() -> ! {
     unsafe { ffi::PyErr_Print(); }
