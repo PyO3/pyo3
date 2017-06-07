@@ -14,11 +14,11 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
 
     match spec.tp {
         FnType::Fn =>
-            impl_py_method_def(name, &impl_wrap(cls, name, &spec)),
+            impl_py_method_def(name, &spec, &impl_wrap(cls, name, &spec, true)),
         FnType::FnNew =>
             impl_py_method_def_new(name, &impl_wrap_new(cls, name, &spec)),
         FnType::FnCall =>
-            impl_py_method_def_call(name, &impl_wrap(cls, name, &spec)),
+            impl_py_method_def_call(name, &impl_wrap(cls, name, &spec, false)),
         FnType::Getter(ref getter) =>
             impl_py_getter_def(name, getter, &impl_wrap_getter(cls, name, &spec)),
         FnType::Setter(ref setter) =>
@@ -35,36 +35,64 @@ fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
 
 
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: bool) -> Tokens {
     let cb = impl_call(cls, name, &spec);
-    let body = impl_arg_params(&spec, cb);
     let output = &spec.output;
 
-    quote! {
-        unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject,
-                                  args: *mut _pyo3::ffi::PyObject,
-                                  kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
-        {
-            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            _pyo3::callback::cb_meth(LOCATION, |py| {
-                //println!("METH {:?} =====: {:?} {:?} {:?}", LOCATION, slf, args, kwargs);
-                let slf = #cls::from_borrowed_ptr(slf);
-                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
-                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+    if spec.args.is_empty() && noargs {
+        quote! {
+            unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+            {
+                const LOCATION: &'static str = concat!(
+                    stringify!(#cls), ".", stringify!(#name), "()");
+                _pyo3::callback::cb_meth(LOCATION, |py| {
+                    //println!("METH {:?} =====: {:?} {:?} {:?}", LOCATION, slf, args, kwargs);
+                    let slf = #cls::from_borrowed_ptr(slf);
 
-                let result = {
-                    let result: #output = {
-                        #body
+                    let result = {
+                        let result: #output = {
+                            #cb
+                        };
+                        _pyo3::callback::cb_convert(
+                            _pyo3::callback::PyObjectCallbackConverter, py, result)
                     };
-                    _pyo3::callback::cb_convert(
-                        _pyo3::callback::PyObjectCallbackConverter, py, result)
-                };
-                py.release(kwargs);
-                py.release(args);
-                py.release(slf);
-                //println!("METH {:?} =====", LOCATION);
-                result
-            })
+                    py.release(slf);
+                    //println!("METH {:?} =====", LOCATION);
+                    result
+                })
+            }
+        }
+    } else {
+        let body = impl_arg_params(&spec, cb);
+
+        quote! {
+            unsafe extern "C" fn wrap(
+                slf: *mut _pyo3::ffi::PyObject,
+                args: *mut _pyo3::ffi::PyObject,
+                kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+            {
+                const LOCATION: &'static str = concat!(
+                    stringify!(#cls), ".", stringify!(#name), "()");
+                _pyo3::callback::cb_meth(LOCATION, |py| {
+                    //println!("METH {:?} =====: {:?} {:?} {:?}", LOCATION, slf, args, kwargs);
+                    let slf = #cls::from_borrowed_ptr(slf);
+                    let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                    let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+
+                    let result = {
+                        let result: #output = {
+                            #body
+                        };
+                        _pyo3::callback::cb_convert(
+                            _pyo3::callback::PyObjectCallbackConverter, py, result)
+                    };
+                    py.release(kwargs);
+                    py.release(args);
+                    py.release(slf);
+                    //println!("METH {:?} =====", LOCATION);
+                    result
+                })
+            }
         }
     }
 }
@@ -355,18 +383,33 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
     }
 }
 
-pub fn impl_py_method_def(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
-    quote! {
-        _pyo3::class::PyMethodDefType::Method({
-            #wrapper
+pub fn impl_py_method_def(name: &syn::Ident, spec: &FnSpec, wrapper: &Tokens) -> Tokens {
+    if spec.args.is_empty() {
+        quote! {
+            _pyo3::class::PyMethodDefType::Method({
+                #wrapper
 
-            _pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
-                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
-                ml_doc: "",
-            }
-        })
+                _pyo3::class::PyMethodDef {
+                    ml_name: stringify!(#name),
+                    ml_meth: _pyo3::class::PyMethodType::PyNoArgsFunction(wrap),
+                    ml_flags: _pyo3::ffi::METH_NOARGS,
+                    ml_doc: "",
+                }
+            })
+        }
+    } else {
+        quote! {
+            _pyo3::class::PyMethodDefType::Method({
+                #wrapper
+
+                _pyo3::class::PyMethodDef {
+                    ml_name: stringify!(#name),
+                    ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                    ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
+                    ml_doc: "",
+                }
+            })
+        }
     }
 }
 

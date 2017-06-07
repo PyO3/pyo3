@@ -1,8 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std;
 use std::ffi::CString;
 
 use ffi;
+use err::PyResult;
+use objects::PyObject;
+use python::Python;
 
 static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
@@ -59,18 +63,15 @@ impl PyMethodDef {
             PyMethodType::PyCFunction(meth) => meth,
             PyMethodType::PyCFunctionWithKeywords(meth) =>
                 unsafe {
-                    ::std::mem::transmute::<
-                            ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
+                    std::mem::transmute::<ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
                 },
             PyMethodType::PyNoArgsFunction(meth) =>
                 unsafe {
-                    ::std::mem::transmute::<
-                            ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
+                    std::mem::transmute::<ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
                 },
             PyMethodType::PyNewFunc(meth) =>
                 unsafe {
-                    ::std::mem::transmute::<
-                            ffi::newfunc, ffi::PyCFunction>(meth)
+                    std::mem::transmute::<ffi::newfunc, ffi::PyCFunction>(meth)
                 },
         };
 
@@ -80,6 +81,13 @@ impl PyMethodDef {
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
             ml_doc: 0 as *const ::c_char,
+        }
+    }
+
+    pub fn as_method_descr(&self, py: Python, ty: *mut ffi::PyTypeObject) -> PyResult<PyObject> {
+        unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py, ffi::PyDescr_NewMethod(ty, Box::into_raw(Box::new(self.as_method_def()))))
         }
     }
 }

@@ -5,12 +5,10 @@ use ffi::structmember::PyMemberDef;
 use ffi::methodobject::PyMethodDef;
 
 pub type getter =
-    unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
 
 pub type setter =
-    unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject,
-                         closure: *mut c_void) -> c_int;
+    unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
 
 #[repr(C)]
 #[derive(Copy, Debug)]
@@ -42,17 +40,13 @@ impl Clone for PyGetSetDef {
     pub static mut PyWrapperDescr_Type: PyTypeObject;
     pub static mut PyDictProxy_Type: PyTypeObject;
 
-    pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
-     -> *mut PyObject;
+    pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
     pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject,
                                   arg2: *mut PyMethodDef) -> *mut PyObject;
-    pub fn PyDescr_NewMember(arg1: *mut PyTypeObject,
-                             arg2: *mut PyMemberDef) -> *mut PyObject;
-    pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject,
-                             arg2: *mut PyGetSetDef) -> *mut PyObject;
+    pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
+    pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
-    pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject)
-     -> *mut PyObject;
+    pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 
     pub static mut PyProperty_Type: PyTypeObject;
 }

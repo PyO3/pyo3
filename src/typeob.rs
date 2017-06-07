@@ -7,8 +7,8 @@ use std::collections::HashMap;
 
 use {ffi, class};
 use err::{PyErr, PyResult};
-use python::Python;
-use objects::PyType;
+use python::{Python, IntoPyPointer};
+use objects::{PyType, PyDict};
 use callback::AbortOnDrop;
 use class::methods::PyMethodDefType;
 
@@ -31,12 +31,6 @@ pub trait PyTypeInfo {
 
     /// PyTypeObject instance for this type
     fn type_object() -> &'static mut ffi::PyTypeObject;
-
-}
-
-pub trait PyObjectCtor : PyTypeInfo {
-
-    unsafe fn from_ptr(ptr: *mut ffi::PyObject) -> Self;
 
 }
 
@@ -107,8 +101,7 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
     unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(
-            <Self as PyTypeInfo>::offset() as isize) as *mut Self::Type;
+        let ptr = (obj as *mut u8).offset(<Self as PyTypeInfo>::offset()) as *mut Self::Type;
         std::ptr::drop_in_place(ptr);
 
         let ty = ffi::Py_TYPE(obj);
@@ -221,11 +214,10 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 
     // normal methods
-    let (new, call, mut methods) = py_class_method_defs::<T>();
-    if !methods.is_empty() {
-        methods.push(ffi::PyMethodDef_INIT);
-        type_object.tp_methods = methods.as_mut_ptr();
-        mem::forget(methods);
+    let (new, call, methods) = py_class_method_defs::<T>(py, type_object)?;
+    if methods.len(py) != 0 {
+        assert!(type_object.tp_dict.is_null());
+        type_object.tp_dict = methods.into_ptr();
     }
     // __new__ method
     type_object.tp_new = new;
@@ -263,10 +255,12 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     r
 }
 
-fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
-                                 Option<ffi::PyCFunctionWithKeywords>,
-                                 Vec<ffi::PyMethodDef>)  {
-    let mut defs = Vec::new();
+fn py_class_method_defs<T>(py: Python, type_object: *mut ffi::PyTypeObject)
+                           -> PyResult<(Option<ffi::newfunc>,
+                                        Option<ffi::PyCFunctionWithKeywords>,
+                                        PyDict)>
+{
+    let defs = PyDict::new(py);
     let mut call = None;
     let mut new = None;
 
@@ -285,32 +279,38 @@ fn py_class_method_defs<T>() -> (Option<ffi::newfunc>,
                 }
             }
             &PyMethodDefType::Method(ref def) => {
-                defs.push(def.as_method_def())
+                defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
             }
             _ => (),
         }
     }
 
     for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
+        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        //defs.push(def.as_method_def())
     }
     for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
+        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        //defs.push(def.as_method_def())
     }
     for def in <T as class::context::PyContextProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
+        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        //defs.push(def.as_method_def())
     }
     for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
-    defs.push(def.as_method_def())
+        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        //defs.push(def.as_method_def())
     }
     for def in <T as class::number::PyNumberProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
+        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        //defs.push(def.as_method_def())
     }
     for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
-        defs.push(def.as_method_def())
+        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        //defs.push(def.as_method_def())
     }
 
-    (new, call, defs)
+    Ok((new, call, defs))
 }
 
 
