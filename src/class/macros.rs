@@ -3,49 +3,25 @@
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_unary_func {
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {
         py_unary_func!($trait, $class::$f, $res_type, $conv, *mut $crate::ffi::PyObject);
     };
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty, $ret_type:ty) => {{
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $ret_type:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
             where T: for<'p> $trait<'p> + $crate::ToInstancePtr<T>
         {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+            $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = T::from_borrowed_ptr(slf);
                 let result = {
                     let res = slf.as_mut(py).$f(py).into();
-
-                    match res {
-                        Ok(val) => {
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::convert(val, py)
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::error_value()
-                        }
-                    }
+                    $crate::callback::cb_convert($conv, py, res)
                 };
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic($crate::Python::assume_gil_acquired(), err);
-                    <$conv as $crate::callback::CallbackConverter<$res_type>>
-                        ::error_value()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<$class>)
     }}
@@ -62,39 +38,15 @@ macro_rules! py_unary_func {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+            $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = T::from_borrowed_ptr(slf);
                 let result = {
                     let res = slf.as_mut(py).$f(py).into();
-
-                    match res {
-                        Ok(val) => {
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::convert(val, py)
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::error_value()
-                        }
-                    }
+                    $crate::callback::cb_convert($conv, py, res)
                 };
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic($crate::Python::assume_gil_acquired(), err);
-                    <$conv as $crate::callback::CallbackConverter<$res_type>>
-                        ::error_value()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<$class>)
     }}
@@ -121,10 +73,10 @@ macro_rules! py_len_func {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_binary_func{
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {
         py_binary_func!($trait, $class::$f, $res_type, $conv, *mut $crate::ffi::PyObject)
     };
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty, $return:ty) => {{
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $return:ty) => {{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject) -> $return
@@ -133,9 +85,7 @@ macro_rules! py_binary_func{
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+            $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = T::from_borrowed_ptr(slf);
                 let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
@@ -146,34 +96,12 @@ macro_rules! py_binary_func{
                         }
                         Err(e) => Err(e.into()),
                     };
-
-                    match result {
-                        Ok(val) => {
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::convert(val, py)
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::error_value()
-                        }
-                    }
+                    $crate::callback::cb_convert($conv, py, result)
                 };
                 py.release(arg);
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic($crate::Python::assume_gil_acquired(), err);
-                    <$conv as $crate::callback::CallbackConverter<$res_type>>
-                        ::error_value()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<$class>)
     }}
@@ -191,9 +119,7 @@ macro_rules! py_binary_self_func{
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+            $crate::callback::cb_meth(LOCATION, |py| {
                 let slf1 = T::from_borrowed_ptr(slf);
                 let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
@@ -219,17 +145,7 @@ macro_rules! py_binary_self_func{
                 py.release(arg);
                 py.release(slf1);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic($crate::Python::assume_gil_acquired(), err);
-                    $crate::std::ptr::null_mut()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<$class>)
     }}
@@ -239,7 +155,7 @@ macro_rules! py_binary_self_func{
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_ssizearg_func {
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {{
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: $crate::Py_ssize_t) -> *mut $crate::ffi::PyObject
@@ -248,39 +164,15 @@ macro_rules! py_ssizearg_func {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+            $crate::callback::cb_meth(LOCATION, |py| {
                 let slf = T::from_borrowed_ptr(slf);
-
                 let result = {
                     let result = slf.as_mut(py).$f(py, arg as isize).into();
-                    match result {
-                        Ok(val) => {
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::convert(val, py)
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::error_value()
-                        }
-                    }
+                    $crate::callback::cb_convert($conv, py, result)
                 };
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic($crate::Python::assume_gil_acquired(), err);
-                    <$conv as $crate::callback::CallbackConverter<$res_type>>
-                        ::error_value()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<$class>)
     }}
@@ -289,10 +181,10 @@ macro_rules! py_ssizearg_func {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_ternary_func{
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {
         py_ternary_func!($trait, $class::$f, $res_type, $conv, *mut $crate::ffi::PyObject);
     };
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty, $return_type:ty) => {{
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $return_type:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
                                      arg1: *mut $crate::ffi::PyObject,
                                      arg2: *mut $crate::ffi::PyObject) -> $return_type
@@ -300,9 +192,8 @@ macro_rules! py_ternary_func{
         {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+
+            $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = T::from_borrowed_ptr(slf);
                 let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                 let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
@@ -315,36 +206,13 @@ macro_rules! py_ternary_func{
                         },
                         Err(e) => Err(e.into()),
                     };
-
-                    match result {
-                        Ok(val) => {
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::convert(val, py)
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            <$conv as $crate::callback::CallbackConverter<$res_type>>
-                                ::error_value()
-                        }
-                    }
+                    $crate::callback::cb_convert($conv, py, result)
                 };
                 py.release(arg2);
                 py.release(arg1);
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic(
-                        $crate::Python::assume_gil_acquired(), err);
-                    <$conv as $crate::callback::CallbackConverter<$res_type>>
-                        ::error_value()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
 
          Some(wrap::<T>)
@@ -363,9 +231,8 @@ macro_rules! py_ternary_self_func{
         {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+
+            $crate::callback::cb_meth(LOCATION, |py| {
                 let slf1 = T::from_borrowed_ptr(slf);
                 let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                 let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
@@ -391,20 +258,8 @@ macro_rules! py_ternary_self_func{
                 py.release(arg1);
                 py.release(slf1);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic(
-                        $crate::Python::assume_gil_acquired(), err);
-                    $crate::std::ptr::null_mut()
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
-
          Some(wrap::<T>)
     }}
 }
@@ -471,10 +326,10 @@ macro_rules! py_func_del{
         {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
 
+            $crate::callback::cb_pyfunc::<_, _, ()>(
+                LOCATION, $crate::callback::UnitCallbackConverter, |py|
+            {
                 if value.is_null() {
                     let slf = T::from_borrowed_ptr(slf);
                     let name = PyObject::from_borrowed_ptr(py, name);
@@ -504,18 +359,7 @@ macro_rules! py_func_del{
                     return -1
 
                 }
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic(
-                        $crate::Python::assume_gil_acquired(), err);
-                    -1
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
 
          Some(wrap::<T>)
@@ -534,9 +378,10 @@ macro_rules! py_func_set_del{
         {
             use token::InstancePtr;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
-            let guard = $crate::callback::AbortOnDrop(LOCATION);
-            let ret = $crate::std::panic::catch_unwind(|| {
-                let py = $crate::Python::assume_gil_acquired();
+
+            $crate::callback::cb_pyfunc::<_, _, ()>(
+                LOCATION, $crate::callback::UnitCallbackConverter, |py|
+            {
                 let slf = T::from_borrowed_ptr(slf);
                 let name = PyObject::from_borrowed_ptr(py, name);
 
@@ -582,20 +427,8 @@ macro_rules! py_func_set_del{
                 py.release(name);
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    $crate::callback::handle_panic(
-                        $crate::Python::assume_gil_acquired(), err);
-                    -1
-                }
-            };
-            $crate::mem::forget(guard);
-            ret
+            })
         }
-
         Some(wrap::<T>)
     }}
 }

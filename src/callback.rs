@@ -92,10 +92,9 @@ impl CallbackConverter<()> for UnitCallbackConverter {
     }
 }
 
-/*pub struct IterNextResultConverter;
+pub struct IterNextResultConverter;
 
-impl <T> CallbackConverter<Option<T>>
-    for IterNextResultConverter
+impl <T> CallbackConverter<Option<T>> for IterNextResultConverter
     where T: IntoPyObject
 {
     type R = *mut ffi::PyObject;
@@ -114,7 +113,7 @@ impl <T> CallbackConverter<Option<T>>
     fn error_value() -> *mut ffi::PyObject {
         ptr::null_mut()
     }
-}*/
+}
 
 pub trait WrappingCastTo<T> {
     fn wrapping_cast(self) -> T;
@@ -270,6 +269,27 @@ pub unsafe fn cb_meth<F>(location: &str, f: F) -> *mut ffi::PyObject
         Err(ref err) => {
             handle_panic(Python::assume_gil_acquired(), err);
             ptr::null_mut()
+        }
+    };
+    mem::forget(guard);
+    ret
+}
+
+pub unsafe fn cb_pyfunc<F, C, T>(location: &str, _c: C, f: F) -> C::R
+    where F: for<'p> FnOnce(Python<'p>) -> C::R,
+          F: panic::UnwindSafe,
+          C: CallbackConverter<T>
+{
+    let guard = AbortOnDrop(location);
+    let ret = panic::catch_unwind(|| {
+        let py = Python::assume_gil_acquired();
+        f(py)
+    });
+    let ret = match ret {
+        Ok(r) => r,
+        Err(ref err) => {
+            handle_panic(Python::assume_gil_acquired(), err);
+            C::error_value()
         }
     };
     mem::forget(guard);
