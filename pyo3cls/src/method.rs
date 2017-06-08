@@ -20,6 +20,8 @@ pub enum FnType {
     Fn,
     FnNew,
     FnCall,
+    FnClass,
+    FnStatic,
 }
 
 #[derive(Clone, Debug)]
@@ -43,32 +45,47 @@ impl<'a> FnSpec<'a> {
                  meth_attrs: &'a mut Vec<syn::Attribute>) -> FnSpec<'a> {
         let (fn_type, fn_attrs) = parse_attributes(meth_attrs);
 
-        //let mut has_self = false;
+        let mut has_self = false;
         let mut py = false;
         let mut arguments = Vec::new();
 
-        for input in sig.decl.inputs[1..].iter() {
+        for input in sig.decl.inputs.iter() {
             match input {
                 &syn::FnArg::SelfRef(_, _) => {
-                    //has_self = true;
+                    has_self = true;
                 },
                 &syn::FnArg::SelfValue(_) => {
-                    //has_self = true;
+                    has_self = true;
                 }
                 &syn::FnArg::Captured(ref pat, ref ty) => {
+                    // skip first argument (cls)
+                    if (fn_type == FnType::FnClass || fn_type == FnType::FnNew) && !has_self {
+                        has_self = true;
+                        continue
+                    }
+
                     let (mode, ident) = match pat {
                         &syn::Pat::Ident(ref mode, ref ident, _) =>
                             (mode, ident),
                         _ =>
                             panic!("unsupported argument: {:?}", pat),
                     };
-                    // TODO add check for first py: Python arg
-                    if py {
-                        let opt = check_arg_ty_and_optional(name, ty);
-                        arguments.push(FnArg{name: ident, mode: mode, ty: ty, optional: opt});
-                    } else {
-                        py = true;
+
+                    if !py {
+                        match ty {
+                            &syn::Ty::Path(_, ref path) =>
+                                if let Some(segment) = path.segments.last() {
+                                    if segment.ident.as_ref() == "Python" {
+                                        py = true;
+                                        continue;
+                                    }
+                                },
+                            _ => (),
+                        }
                     }
+
+                    let opt = check_arg_ty_and_optional(name, ty);
+                    arguments.push(FnArg{name: ident, mode: mode, ty: ty, optional: opt});
                 }
                 &syn::FnArg::Ignored(_) =>
                     panic!("ignored argument: {:?}", name),
@@ -203,6 +220,12 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<FnAttr>) {
                     },
                     "call" | "__call__" => {
                         res = Some(FnType::FnCall)
+                    },
+                    "classmethod" => {
+                        res = Some(FnType::FnClass)
+                    },
+                    "staticmethod" => {
+                        res = Some(FnType::FnStatic)
                     },
                     "setter" | "getter" => {
                         if attr.style == syn::AttrStyle::Inner {

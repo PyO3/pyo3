@@ -16,12 +16,14 @@ pub type PyCFunction =
 
 #[cfg(all(Py_3_6, not(Py_LIMITED_API)))]
 pub type _PyCFunctionFast =
-    unsafe extern "C" fn (slf: *mut PyObject, args: *mut *mut PyObject,
-                          nargs: ::ffi::pyport::Py_ssize_t, kwnames: *mut PyObject)
-                          -> *mut PyObject;
+    unsafe extern "C" fn (slf: *mut PyObject,
+                          args: *mut *mut PyObject,
+                          nargs: ::ffi::pyport::Py_ssize_t,
+                          kwnames: *mut PyObject) -> *mut PyObject;
 
 pub type PyCFunctionWithKeywords =
-    unsafe extern "C" fn (slf: *mut PyObject, args: *mut PyObject,
+    unsafe extern "C" fn (slf: *mut PyObject,
+                          args: *mut PyObject,
                           kwds: *mut PyObject) -> *mut PyObject;
 
 pub type PyNoArgsFunction =
@@ -31,7 +33,8 @@ pub type PyNoArgsFunction =
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
-    pub fn PyCFunction_Call(f: *mut PyObject, args: *mut PyObject,
+    pub fn PyCFunction_Call(f: *mut PyObject,
+                            args: *mut PyObject,
                             kwds: *mut PyObject) -> *mut PyObject;
 }
 

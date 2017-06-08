@@ -241,23 +241,27 @@ fn instance_method_with_args() {
     py.run("assert obj.method(multiplier=6) == 42", None, Some(&d)).unwrap();
 }
 
-/*
+
 #[py::class]
-struct ClassMethod {}
+struct ClassMethod {token: PyToken}
+
+#[py::ptr(ClassMethod)]
+struct ClassMethodPtr(PyPtr);
+
 #[py::methods]
 impl ClassMethod {
     #[new]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<ClassMethod> {
-        ClassMethod::create_instance(py)
+    fn __new__(cls: &PyType, py: Python) -> PyResult<ClassMethodPtr> {
+        py.init(|t| ClassMethod{token: t})
     }
 
-    //#[classmethod]
-    //def method(cls) -> PyResult<String> {
-    //    Ok(format!("{}.method()!", cls.name(py)))
-    //}
+    #[classmethod]
+    fn method(cls: &PyType, py: Python) -> PyResult<String> {
+        Ok(format!("{}.method()!", cls.name(py)))
+    }
 }
 
-//#[test]
+#[test]
 fn class_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -266,24 +270,32 @@ fn class_method() {
     d.set_item(py, "C", py.get_type::<ClassMethod>()).unwrap();
     py.run("assert C.method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
     py.run("assert C().method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
-}*/
+}
 
-//py_class!(class ClassMethodWithArgs |py| {
-//    @classmethod
-//    def method(cls, input: &str) -> PyResult<String> {
-//        Ok(format!("{}.method({})", cls.name(py), input))
-//    }
-//});
 
-//#[test]
-/*fn class_method_with_args() {
+#[py::class]
+struct ClassMethodWithArgs{token: PyToken}
+
+#[py::ptr(ClassMethodWithArgs)]
+struct ClassMethodWithArgsPtr(PyPtr);
+
+#[py::methods]
+impl ClassMethodWithArgs {
+    #[classmethod]
+    fn method(cls: &PyType, py: Python, input: PyString) -> PyResult<String> {
+        Ok(format!("{}.method({})", cls.name(py), input))
+    }
+}
+
+#[test]
+fn class_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
     let d = PyDict::new(py);
     d.set_item(py, "C", py.get_type::<ClassMethodWithArgs>()).unwrap();
     py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(&d)).unwrap();
-}*/
+}
 
 #[py::class]
 struct StaticMethod {
@@ -300,14 +312,14 @@ impl StaticMethod {
         py.init(|t| StaticMethod{token: t})
     }
 
-    //#[staticmethod]
-    //fn method(py: Python) -> PyResult<&'static str> {
-    //    Ok("StaticMethod.method()!")
-    //}
+    #[staticmethod]
+    fn method(py: Python) -> PyResult<&'static str> {
+        Ok("StaticMethod.method()!")
+    }
 }
 
-//#[test]
-/*fn static_method() {
+#[test]
+fn static_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -316,26 +328,34 @@ impl StaticMethod {
     d.set_item(py, "C", py.get_type::<StaticMethod>()).unwrap();
     py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
     py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
-}*/
+}
 
-//py_class!(class StaticMethodWithArgs |py| {
-//    @staticmethod
-//    def method(input: i32) -> PyResult<String> {
-//        Ok(format!("0x{:x}", input))
-//    }
-//});
+#[py::class]
+struct StaticMethodWithArgs{token: PyToken}
 
-//#[test]
-//fn static_method_with_args() {
-//    let gil = Python::acquire_gil();
-//    let py = gil.python();
+#[py::ptr(StaticMethodWithArgs)]
+struct StaticMethodWithArgsPtr(PyPtr);
 
-//    assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
-//    let d = PyDict::new(py);
-//    d.set_item(py, "C", py.get_type::<StaticMethodWithArgs>()).unwrap();
-//    py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
-//}
+#[py::methods]
+impl StaticMethodWithArgs {
 
+    #[staticmethod]
+    fn method(py: Python, input: i32) -> PyResult<String> {
+        Ok(format!("0x{:x}", input))
+    }
+}
+
+#[test]
+fn static_method_with_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
+
+    let d = PyDict::new(py);
+    d.set_item(py, "C", py.get_type::<StaticMethodWithArgs>()).unwrap();
+    py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
+}
 
 #[py::class]
 struct GCIntegration {

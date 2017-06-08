@@ -16,9 +16,13 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
         FnType::Fn =>
             impl_py_method_def(name, &spec, &impl_wrap(cls, name, &spec, true)),
         FnType::FnNew =>
-            impl_py_method_def_new(name, &impl_wrap_new(cls, name, &spec)),
+            impl_py_method_def_new(name, &impl_wrap_type(cls, name, &spec)),
         FnType::FnCall =>
             impl_py_method_def_call(name, &impl_wrap(cls, name, &spec, false)),
+        FnType::FnClass =>
+            impl_py_method_def_class(name, &impl_wrap_class(cls, name, &spec)),
+        FnType::FnStatic =>
+            impl_py_method_def_static(name, &impl_wrap_static(cls, name, &spec)),
         FnType::Getter(ref getter) =>
             impl_py_getter_def(name, getter, &impl_wrap_getter(cls, name, &spec)),
         FnType::Setter(ref setter) =>
@@ -125,9 +129,13 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
     }
 }
 
-/// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
-    let cb = impl_class_new(cls, name, spec);
+/// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
+pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let cb = quote! {{
+        #cls::#name(&cls, py, #(#names),*)
+    }};
+
     let body = impl_arg_params(spec, cb);
     let output = &spec.output;
 
@@ -154,6 +162,69 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
     }
 }
 
+/// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
+pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let cb = quote! {{
+        #cls::#name(&cls, py, #(#names),*)
+    }};
+    let body = impl_arg_params(spec, cb);
+    let output = &spec.output;
+
+    quote! {
+        #[allow(unused_mut)]
+        unsafe extern "C" fn wrap(cls: *mut _pyo3::ffi::PyObject,
+                                  args: *mut _pyo3::ffi::PyObject,
+                                  kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+        {
+            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name), "()");
+
+            _pyo3::callback::cb_meth(LOCATION, |py| {
+                let cls = _pyo3::PyType::from_type_ptr(py, cls as *mut _pyo3::ffi::PyTypeObject);
+                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+
+                let result: #output = {
+                    #body
+                };
+                _pyo3::callback::cb_convert(
+                    _pyo3::callback::PyObjectCallbackConverter, py, result)
+            })
+        }
+    }
+}
+
+/// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
+pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let cb = quote! {{
+        #cls::#name(py, #(#names),*)
+    }};
+
+    let body = impl_arg_params(spec, cb);
+    let output = &spec.output;
+
+    quote! {
+        #[allow(unused_mut)]
+        unsafe extern "C" fn wrap(_slf: *mut _pyo3::ffi::PyObject,
+                                  args: *mut _pyo3::ffi::PyObject,
+                                  kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+        {
+            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name), "()");
+
+            _pyo3::callback::cb_meth(LOCATION, |py| {
+                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+
+                let result: #output = {
+                    #body
+                };
+                _pyo3::callback::cb_convert(
+                    _pyo3::callback::PyObjectCallbackConverter, py, result)
+            })
+        }
+    }
+}
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
 fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _spec: &FnSpec) -> Tokens {
@@ -213,13 +284,6 @@ fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
     quote! {{
         slf.as_mut(py).#fname(py, #(#names),*)
-    }}
-}
-
-fn impl_class_new(cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
-    quote! {{
-        #cls::#fname(&cls, py, #(#names),*)
     }}
 }
 
@@ -422,6 +486,37 @@ pub fn impl_py_method_def_new(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
                 ml_name: stringify!(#name),
                 ml_meth: _pyo3::class::PyMethodType::PyNewFunc(wrap),
                 ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
+                ml_doc: "",
+            }
+        })
+    }
+}
+
+pub fn impl_py_method_def_class(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
+    quote! {
+        _pyo3::class::PyMethodDefType::Class({
+            #wrapper
+
+            _pyo3::class::PyMethodDef {
+                ml_name: stringify!(#name),
+                ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS |
+                _pyo3::ffi::METH_CLASS,
+                ml_doc: "",
+            }
+        })
+    }
+}
+
+pub fn impl_py_method_def_static(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
+    quote! {
+        _pyo3::class::PyMethodDefType::Static({
+            #wrapper
+
+            _pyo3::class::PyMethodDef {
+                ml_name: stringify!(#name),
+                ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS | _pyo3::ffi::METH_STATIC,
                 ml_doc: "",
             }
         })

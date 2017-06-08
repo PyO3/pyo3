@@ -136,8 +136,11 @@ macro_rules! pyobject_nativetype(
         impl $crate::python::IntoPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a owned pointer.
             #[inline]
+            #[must_use]
             fn into_ptr(self) -> *mut $crate::ffi::PyObject {
-                unsafe{$crate::std::mem::transmute(self)}
+                let ptr = self.0.as_ptr();
+                $crate::std::mem::forget(self);
+                ptr
             }
         }
 

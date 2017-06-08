@@ -131,6 +131,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
     #[inline]
     fn type_object(py: Python) -> PyType {
         let mut ty = <T as PyTypeInfo>::type_object();
+        //return unsafe { PyType::from_type_ptr(py, ty) };
 
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
             unsafe { PyType::from_type_ptr(py, ty) }
@@ -279,6 +280,12 @@ fn py_class_method_defs<T>(py: Python, type_object: *mut ffi::PyTypeObject)
                 }
             }
             &PyMethodDefType::Method(ref def) => {
+                defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+            }
+            &PyMethodDefType::Class(ref def) => {
+                defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+            }
+            &PyMethodDefType::Static(ref def) => {
                 defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
             }
             _ => (),

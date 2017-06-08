@@ -13,6 +13,8 @@ static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 pub enum PyMethodDefType {
     New(PyMethodDef),
     Call(PyMethodDef),
+    Class(PyMethodDef),
+    Static(PyMethodDef),
     Method(PyMethodDef),
     Getter(PyGetterDef),
     Setter(PySetterDef),
@@ -86,8 +88,21 @@ impl PyMethodDef {
 
     pub fn as_method_descr(&self, py: Python, ty: *mut ffi::PyTypeObject) -> PyResult<PyObject> {
         unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py, ffi::PyDescr_NewMethod(ty, Box::into_raw(Box::new(self.as_method_def()))))
+            if self.ml_flags & ffi::METH_CLASS != 0 {
+                PyObject::from_owned_ptr_or_err(
+                    py, ffi::PyDescr_NewClassMethod(
+                        ty, Box::into_raw(Box::new(self.as_method_def()))))
+            }
+            else if self.ml_flags & ffi::METH_STATIC != 0 {
+                PyObject::from_owned_ptr_or_err(
+                    py, ffi::PyCFunction_New(
+                        Box::into_raw(Box::new(self.as_method_def())), std::ptr::null_mut()))
+            }
+            else {
+                PyObject::from_owned_ptr_or_err(
+                    py, ffi::PyDescr_NewMethod(
+                        ty, Box::into_raw(Box::new(self.as_method_def()))))
+            }
         }
     }
 }
