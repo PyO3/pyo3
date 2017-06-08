@@ -4,7 +4,7 @@
 extern crate pyo3;
 
 use pyo3::*;
-use std::{mem, isize, iter};
+use std::{isize, iter};
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -428,27 +428,35 @@ fn len() {
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
-/*py_class!(class Iterator |py| {
-    data iter: RefCell<Box<iter::Iterator<Item=i32> + Send>>;
+#[py::class]
+struct Iterator{
+    iter: Box<iter::Iterator<Item=i32> + Send>,
+    token: PyToken,
+}
 
-    def __iter__(&self) -> PyResult<Iterator> {
-        Ok(self.clone_ref(py))
+#[py::ptr(Iterator)]
+struct IteratorPtr(PyPtr);
+
+#[py::proto]
+impl PyIterProtocol for Iterator {
+    fn __iter__(&mut self, py: Python) -> PyResult<IteratorPtr> {
+        Ok(self.to_inst_ptr())
     }
 
-    def __next__(&self) -> PyResult<Option<i32>> {
-        Ok(self.iter(py).borrow_mut().next())
+    fn __next__(&mut self, py: Python) -> PyResult<Option<i32>> {
+        Ok(self.iter.next())
     }
-});
+}
 
 #[test]
 fn iterator() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Iterator::create_instance(py, RefCell::new(Box::new(5..8))).unwrap();
+    let inst = py.init(|t| Iterator{iter: Box::new(5..8), token: t}).unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
-}*/
+}
 
 #[py::class]
 struct StringMethods {token: PyToken}

@@ -11,7 +11,7 @@ use err::PyResult;
 use python::Python;
 use token::ToInstancePtr;
 use typeob::PyTypeInfo;
-use callback::PyObjectCallbackConverter;
+use callback::{PyObjectCallbackConverter, IterNextResultConverter};
 
 
 /// Iterator protocol
@@ -32,7 +32,7 @@ pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Success: ::IntoPyObject;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 
@@ -91,6 +91,7 @@ impl<T> PyIterNextProtocolImpl for T where T: for<'p> PyIterNextProtocol<'p> + T
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unary_func!(PyIterNextProtocol, T::__next__, T::Success, PyObjectCallbackConverter)
+        py_unary_func!(PyIterNextProtocol, T::__next__,
+                       Option<T::Success>, IterNextResultConverter)
     }
 }

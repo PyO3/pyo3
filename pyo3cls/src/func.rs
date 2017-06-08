@@ -264,16 +264,38 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Ty {
 
 // Success
 fn get_res_success(ty: &syn::Ty) -> (Tokens, syn::Ty) {
-    let result;
-    let mut succ = match ty {
+    let mut result;
+    let mut succ;
+
+    match ty {
         &syn::Ty::Path(_, ref path) => {
             if let Some(segment) = path.segments.last() {
                 match segment.ident.as_ref() {
-                    // check result type
+                    // check for PyResult<T>
                     "PyResult" => match segment.parameters {
                         syn::PathParameters::AngleBracketed(ref data) => {
                             result = true;
-                            data.types[0].clone()
+                            succ = data.types[0].clone();
+
+                            // check for PyResult<Option<T>>
+                            match data.types[0] {
+                                syn::Ty::Path(_, ref path) =>
+                                    if let Some(segment) = path.segments.last() {
+                                        match segment.ident.as_ref() {
+                                            // get T from Option<T>
+                                            "Option" => match segment.parameters {
+                                                syn::PathParameters::AngleBracketed(ref data) =>
+                                                {
+                                                    result = false;
+                                                    succ = data.types[0].clone();
+                                                },
+                                                _ => (),
+                                            },
+                                            _ => (),
+                                        }
+                                    },
+                                _ => ()
+                            }
                         },
                         _ => panic!("fn result type is not supported"),
                     },
