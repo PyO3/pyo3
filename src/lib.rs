@@ -70,7 +70,7 @@ pub use pointers::PyPtr;
 mod token;
 pub use token::{PyToken, PyObjectWithToken, ToInstancePtr, InstancePtr};
 
-pub use err::{PyErr, PyResult, PyDowncastError};
+pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
