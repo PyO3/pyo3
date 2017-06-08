@@ -52,24 +52,32 @@ macro_rules! py_exception {
             pub fn new<T: $crate::IntoPyObject>(py: $crate::Python, args: T) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, T>(py, args)
             }
+            #[inline(always)]
+            fn type_object(py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
+                #[allow(non_upper_case_globals)]
+                static mut type_object: *mut $crate::ffi::PyTypeObject =
+                    0 as *mut $crate::ffi::PyTypeObject;
+
+                unsafe {
+                    if type_object.is_null() {
+                        type_object = $crate::PyErr::new_type(
+                            py, concat!(stringify!($module), ".", stringify!($name)),
+                            Some(py.get_type::<$base>()), None).as_type_ptr();
+                    }
+                    type_object
+                }
+            }
         }
 
         impl $crate::PyTypeObject for $name {
+            #[inline(always)]
+            fn init_type(py: $crate::Python) {
+                let _ = $name::type_object(py);
+            }
+
             #[inline]
             fn type_object(py: $crate::Python) -> $crate::PyType {
-                unsafe {
-                    #[allow(non_upper_case_globals)]
-                    static mut type_object: *mut $crate::ffi::PyTypeObject = 0 as *mut $crate::ffi::PyTypeObject;
-
-                    if type_object.is_null() {
-                        type_object = $crate::PyErr::new_type(
-                            py,
-                            concat!(stringify!($module), ".", stringify!($name)),
-                            Some(py.get_type::<$base>()), None).as_type_ptr();
-                    }
-
-                    $crate::PyType::from_type_ptr(py, type_object)
-                }
+                unsafe { $crate::PyType::from_type_ptr(py, $name::type_object(py)) }
             }
         }
     };

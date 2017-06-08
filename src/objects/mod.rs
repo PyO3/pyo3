@@ -39,12 +39,10 @@ macro_rules! pyobject_nativetype(
             fn size() -> usize {
                 $crate::std::mem::size_of::<ffi::PyObject>()
             }
-
             #[inline]
             fn offset() -> isize {
                 0
             }
-
             #[inline]
             fn type_name() -> &'static str {
                 stringify!($name)
@@ -52,6 +50,16 @@ macro_rules! pyobject_nativetype(
             #[inline]
             fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
                 unsafe { &mut $crate::ffi::$typeobject }
+            }
+        }
+
+        impl $crate::typeob::PyTypeObject for $name {
+            #[inline(always)]
+            fn init_type(_py: Python) {}
+
+            #[inline]
+            fn type_object(py: $crate::Python) -> $crate::PyType {
+                unsafe { $crate::PyType::from_type_ptr(py, &mut $crate::ffi::$typeobject) }
             }
         }
 

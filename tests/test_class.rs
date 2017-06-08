@@ -16,7 +16,6 @@ macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
         let d = PyDict::new($py);
         d.set_item($py, stringify!($val), &$val).unwrap();
-        //$py.run($code, None, Some(&d)).map_err(|e| e.print($py)).expect($code);
         $py.run($code, None, Some(&d)).expect($code);
     }}
 }
@@ -1136,5 +1135,4 @@ fn class_with_properties() {
     py_run!(py, inst, "inst.DATA = 20");
     py_run!(py, inst, "assert inst.get_num() == 20");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
-
 }

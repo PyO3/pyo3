@@ -84,8 +84,7 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
     /// must be of type `ty`.
     unsafe fn alloc(py: Python, value: T::Type) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
-        let t = <T as PyTypeObject>::type_object(py);
-        py.release(t);
+        <T as PyTypeObject>::init_type(py);
 
         let obj = ffi::PyType_GenericAlloc(
             <Self as PyTypeInfo>::type_object(), 0);
@@ -121,6 +120,9 @@ impl<T> PyObjectAlloc for T where T : PyTypeInfo {
 /// Trait implemented by Python object types that have a corresponding type object.
 pub trait PyTypeObject {
 
+    /// Initialize type object
+    fn init_type(py: Python);
+
     /// Retrieves the type object for this Python object type.
     fn type_object(py: Python) -> PyType;
 
@@ -129,23 +131,27 @@ pub trait PyTypeObject {
 impl<T> PyTypeObject for T where T: PyObjectAlloc + PyTypeInfo {
 
     #[inline]
-    fn type_object(py: Python) -> PyType {
+    default fn init_type(py: Python) {
         let mut ty = <T as PyTypeInfo>::type_object();
-        //return unsafe { PyType::from_type_ptr(py, ty) };
 
-        if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-            unsafe { PyType::from_type_ptr(py, ty) }
-        } else {
+        if (ty.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
             let to = initialize_type::<T>(
                 py, None, <T as PyTypeInfo>::type_name(), ty).expect(
                 format!("An error occurred while initializing class {}",
                         <T as PyTypeInfo>::type_name()).as_ref());
             py.release(to);
-            unsafe { PyType::from_type_ptr(py, ty) }
         }
     }
+
+    #[inline]
+    default fn type_object(py: Python) -> PyType {
+        <T as PyTypeObject>::init_type(py);
+
+        unsafe { PyType::from_type_ptr(py, <T as PyTypeInfo>::type_object()) }
+    }
 }
+
 
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str,
                           type_object: &mut ffi::PyTypeObject) -> PyResult<PyType>
@@ -294,27 +300,21 @@ fn py_class_method_defs<T>(py: Python, type_object: *mut ffi::PyTypeObject)
 
     for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
         defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
-        //defs.push(def.as_method_def())
     }
     for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
         defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
-        //defs.push(def.as_method_def())
     }
     for def in <T as class::context::PyContextProtocolImpl>::methods() {
         defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
-        //defs.push(def.as_method_def())
     }
     for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
         defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
-        //defs.push(def.as_method_def())
     }
     for def in <T as class::number::PyNumberProtocolImpl>::methods() {
         defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
-        //defs.push(def.as_method_def())
     }
     for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
         defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
-        //defs.push(def.as_method_def())
     }
 
     Ok((new, call, defs))

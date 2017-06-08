@@ -107,6 +107,27 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) ->
             }
         }
 
+        impl _pyo3::typeob::PyTypeObject for #cls {
+            #[inline(always)]
+            fn init_type(py: Python) {
+                static START: std::sync::Once = std::sync::ONCE_INIT;
+                START.call_once(|| {
+                    let mut ty = <#cls as _pyo3::typeob::PyTypeInfo>::type_object();
+
+                    if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) == 0 {
+                        // automatically initialize the class on-demand
+                        let to = _pyo3::typeob::initialize_type::<#cls>(
+                            py, None, <#cls as _pyo3::typeob::PyTypeInfo>::type_name(), ty)
+                            .expect(
+                                format!("An error occurred while initializing class {}",
+                                        <#cls as _pyo3::typeob::PyTypeInfo>::type_name())
+                                    .as_ref());
+                        py.release(to);
+                    }
+                });
+            }
+        }
+
         impl _pyo3::python::PyDowncastFrom for #cls
         {
             fn downcast_from<'a, 'p>(py: Python<'p>, ob: &'a _pyo3::PyObject)
