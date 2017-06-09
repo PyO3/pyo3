@@ -51,6 +51,18 @@ fn empty_class() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
 
+
+#[py::class(name=CustomName)]
+struct EmptyClass2 { }
+
+#[test]
+fn custom_class_name() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<EmptyClass2>();
+    py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
+}
+
 #[py::class]
 struct EmptyClassInModule { }
 

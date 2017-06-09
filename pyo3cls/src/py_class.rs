@@ -224,6 +224,7 @@ fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
     let mut params = HashMap::new();
 
     if let Ok(tts) = syn::parse_token_trees(&attr) {
+        let mut elem = Vec::new();
         let mut elems = Vec::new();
 
         for tt in tts.iter() {
@@ -232,7 +233,6 @@ fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
                     println!("Wrong format: {:?}", attr.to_string());
                 }
                 &syn::TokenTree::Delimited(ref delimited) => {
-                    let mut elem = Vec::new();
                     for tt in delimited.tts.iter() {
                         match tt {
                             &syn::TokenTree::Token(syn::Token::Comma) => {
@@ -244,6 +244,9 @@ fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
                     }
                 }
             }
+        }
+        if !elem.is_empty() {
+            elems.push(elem);
         }
 
         for elem in elems {
