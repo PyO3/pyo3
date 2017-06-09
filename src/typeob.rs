@@ -7,8 +7,8 @@ use std::collections::HashMap;
 
 use {ffi, class};
 use err::{PyErr, PyResult};
-use python::{Python, IntoPyPointer};
-use objects::{PyType, PyDict};
+use python::Python;
+use objects::PyType;
 use callback::AbortOnDrop;
 use class::methods::PyMethodDefType;
 
@@ -215,10 +215,11 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 
     // normal methods
-    let (new, call, methods) = py_class_method_defs::<T>(py, type_object)?;
-    if methods.len(py) != 0 {
-        assert!(type_object.tp_dict.is_null());
-        type_object.tp_dict = methods.into_ptr();
+    let (new, call, mut methods) = py_class_method_defs::<T>()?;
+    if !methods.is_empty() {
+        methods.push(ffi::PyMethodDef_INIT);
+        type_object.tp_methods = methods.as_mut_ptr();
+        mem::forget(methods);
     }
     // __new__ method
     type_object.tp_new = new;
@@ -256,12 +257,11 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     r
 }
 
-fn py_class_method_defs<T>(py: Python, type_object: *mut ffi::PyTypeObject)
-                           -> PyResult<(Option<ffi::newfunc>,
-                                        Option<ffi::PyCFunctionWithKeywords>,
-                                        PyDict)>
+fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
+                                          Option<ffi::PyCFunctionWithKeywords>,
+                                          Vec<ffi::PyMethodDef>)>
 {
-    let defs = PyDict::new(py);
+    let mut defs = Vec::new();
     let mut call = None;
     let mut new = None;
 
@@ -280,35 +280,35 @@ fn py_class_method_defs<T>(py: Python, type_object: *mut ffi::PyTypeObject)
                 }
             }
             &PyMethodDefType::Method(ref def) => {
-                defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+                defs.push(def.as_method_def());
             }
             &PyMethodDefType::Class(ref def) => {
-                defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+                defs.push(def.as_method_def());
             }
             &PyMethodDefType::Static(ref def) => {
-                defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+                defs.push(def.as_method_def());
             }
             _ => (),
         }
     }
 
     for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
-        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        defs.push(def.as_method_def());
     }
     for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
-        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        defs.push(def.as_method_def());
     }
     for def in <T as class::context::PyContextProtocolImpl>::methods() {
-        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        defs.push(def.as_method_def());
     }
     for def in <T as class::mapping::PyMappingProtocolImpl>::methods() {
-        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        defs.push(def.as_method_def());
     }
     for def in <T as class::number::PyNumberProtocolImpl>::methods() {
-        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        defs.push(def.as_method_def());
     }
     for def in <T as class::descr::PyDescrProtocolImpl>::methods() {
-        defs.set_item(py, def.ml_name, def.as_method_descr(py, type_object)?)?;
+        defs.push(def.as_method_def());
     }
 
     Ok((new, call, defs))
