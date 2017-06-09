@@ -121,6 +121,7 @@ pub mod typeob;
 pub mod argparse;
 pub mod function;
 pub mod buffer;
+pub mod freelist;
 
 // re-export for simplicity
 pub use std::os::raw::*;

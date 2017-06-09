@@ -88,6 +88,33 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         None
     };
 
+    let extra = {
+        if let Some(freelist) = params.get("freelist") {
+            Some(quote! {
+                impl _pyo3::freelist::PyObjectWithFreeList for #cls {
+                    #[inline]
+                    fn get_free_list() -> &'static mut _pyo3::freelist::FreeList<*mut ffi::PyObject> {
+                        static mut FREELIST: *mut _pyo3::freelist::FreeList<*mut ffi::PyObject> = 0 as *mut _;
+                        unsafe {
+                            if FREELIST.is_null() {
+                                FREELIST = Box::into_raw(Box::new(
+                                    _pyo3::freelist::FreeList::with_capacity(#freelist)));
+
+                                <#cls as _pyo3::typeob::PyTypeObject>::init_type(
+                                    _pyo3::Python::assume_gil_acquired());
+                            }
+                            std::mem::transmute(FREELIST)
+                        }
+                    }
+                }
+
+                #extra
+            })
+        } else {
+            extra
+        }
+    };
+
     quote! {
         impl _pyo3::typeob::PyTypeInfo for #cls {
             type Type = #cls;

@@ -196,7 +196,6 @@ tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
 ///
 /// # Example
 /// ```
-/// use pyo3::ObjectProtocol;
 /// let gil = pyo3::Python::acquire_gil();
 /// let py = gil.python();
 /// let os = py.import("os").unwrap();

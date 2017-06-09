@@ -233,7 +233,7 @@ impl<'p> Python<'p> {
     #[inline]
     pub fn init<T, F>(self, f: F) -> PyResult<T::Target>
         where F: FnOnce(PyToken) -> T,
-              T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<Type=T>
+              T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<T>
     {
         ::token::init(self, f)
     }

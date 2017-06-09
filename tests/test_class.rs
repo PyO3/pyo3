@@ -159,6 +159,26 @@ fn new_with_two_args() {
     assert_eq!(obj._data2, 20);
 }
 
+#[py::class(freelist=10)]
+struct ClassWithFreelist{token: PyToken}
+
+#[py::ptr(ClassWithFreelist)]
+struct ClassWithFreelistPtr(PyPtr);
+
+#[test]
+fn class_with_freelist() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let inst = py.init(|t| ClassWithFreelist{token: t}).unwrap();
+    let inst2 = py.init(|t| ClassWithFreelist{token: t}).unwrap();
+    let ptr = inst.as_ptr();
+    drop(inst);
+
+    let inst3 = py.init(|t| ClassWithFreelist{token: t}).unwrap();
+    assert_eq!(ptr, inst3.as_ptr());
+}
+
 struct TestDropCall {
     drop_called: Arc<AtomicBool>
 }

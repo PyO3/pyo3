@@ -21,12 +21,12 @@ impl PyToken {
 #[inline]
 pub fn init<'p, T, F>(py: Python<'p>, f: F) -> PyResult<T::Target>
     where F: FnOnce(PyToken) -> T,
-          T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<Type=T>
+          T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<T>
 {
     let ob = f(PyToken(PhantomData));
 
     let ob = unsafe {
-        let ob = try!(<T as PyObjectAlloc>::alloc(py, ob));
+        let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
         T::from_owned_ptr(ob)
     };
     Ok(ob)
