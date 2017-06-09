@@ -93,10 +93,15 @@ impl PyTuple {
         }
     }
 
-    //#[inline]
-    //pub fn iter(&self) -> slice::Iter<PyObject> {
-    //self.as_slice(py).iter()
-    //}
+    #[inline]
+    pub fn iter(&self, py: Python) -> slice::Iter<PyObject> {
+        self.as_slice(py).iter()
+    }
+
+    #[inline]
+    pub unsafe fn drop_ref(&mut self) {
+        self.0.drop_ref();
+    }
 }
 
 impl IntoPyTuple for PyTuple {

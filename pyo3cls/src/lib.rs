@@ -44,7 +44,7 @@ pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn class(_: TokenStream, input: TokenStream) -> TokenStream {
+pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
     let source = input.to_string();
 
@@ -52,7 +52,7 @@ pub fn class(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_derive_input(&source).unwrap();
 
     // Build the output
-    let expanded = py_class::build_py_class(&mut ast);
+    let expanded = py_class::build_py_class(&mut ast, attr.to_string());
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();

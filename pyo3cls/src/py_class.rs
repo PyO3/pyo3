@@ -1,10 +1,15 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std;
+use std::collections::HashMap;
+
 use syn;
 use quote::Tokens;
 
 
-pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
+pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
+    let params = parse_attribute(attr);
+
     let base = syn::Ident::from("_pyo3::PyObject");
     let mut token: Option<syn::Ident> = None;
 
@@ -21,7 +26,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
     }
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
-    let tokens = impl_class(&ast.ident, &base, token);
+    let tokens = impl_class(&ast.ident, &base, token, params);
 
     quote! {
         #[feature(specialization)]
@@ -36,8 +41,12 @@ pub fn build_py_class(ast: &mut syn::DeriveInput) -> Tokens {
     }
 }
 
-fn impl_class(cls: &syn::Ident, base: &syn::Ident, token: Option<syn::Ident>) -> Tokens {
-    let cls_name = quote! { #cls }.as_str().to_string();
+fn impl_class(cls: &syn::Ident, base: &syn::Ident,
+              token: Option<syn::Ident>, params: HashMap<&'static str, syn::Ident>) -> Tokens {
+    let cls_name = match params.get("name") {
+        Some(name) => quote! { #name }.as_str().to_string(),
+        None => quote! { #cls }.as_str().to_string()
+    };
 
     let extra = if let Some(token) = token {
         Some(quote! {
@@ -209,4 +218,93 @@ fn is_python_token(field: &syn::Field) -> bool {
         _ => (),
     }
     return false
+}
+
+fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
+    let mut params = HashMap::new();
+
+    if let Ok(tts) = syn::parse_token_trees(&attr) {
+        let mut elems = Vec::new();
+
+        for tt in tts.iter() {
+            match tt {
+                &syn::TokenTree::Token(_) => {
+                    println!("Wrong format: {:?}", attr.to_string());
+                }
+                &syn::TokenTree::Delimited(ref delimited) => {
+                    let mut elem = Vec::new();
+                    for tt in delimited.tts.iter() {
+                        match tt {
+                            &syn::TokenTree::Token(syn::Token::Comma) => {
+                                let el = std::mem::replace(&mut elem, Vec::new());
+                                elems.push(el);
+                            },
+                            _ => elem.push(tt.clone())
+                        }
+                    }
+                }
+            }
+        }
+
+        for elem in elems {
+            if elem.len() < 3 {
+                println!("Wrong format: {:?}", elem);
+                continue
+            }
+
+            let key = match elem[0] {
+                syn::TokenTree::Token(syn::Token::Ident(ref ident)) => {
+                    ident.as_ref().to_owned().to_lowercase()
+                },
+                _ => {
+                    println!("Wrong format: {:?}", attr.to_string());
+                    continue
+                }
+            };
+
+            match elem[1] {
+                syn::TokenTree::Token(syn::Token::Eq) => (),
+                _ => {
+                    println!("Wrong format: {:?}", attr.to_string());
+                    continue
+                }
+            }
+
+            match key.as_ref() {
+                "freelist" => {
+                    if elem.len() != 3 {
+                        println!("Wrong 'freelist' format: {:?}", elem);
+                    } else {
+                        match elem[2] {
+                            syn::TokenTree::Token(
+                                syn::Token::Literal(
+                                    syn::Lit::Int(val, _))) => {
+                                params.insert("freelist", syn::Ident::from(val.to_string()));
+                            }
+                            _ => println!("Wrong 'freelist' format: {:?}", elem)
+                        }
+                    }
+                },
+                "name" => {
+                    if elem.len() != 3 {
+                        println!("Wrong 'name' format: {:?}", elem);
+                    } else {
+                        match elem[2] {
+                            syn::TokenTree::Token(syn::Token::Ident(ref ident)) => {
+                                params.insert("name", ident.clone());
+                            },
+                            _ => println!("Wrong 'name' format: {:?}", elem)
+                        }
+                    }
+                },
+                "base" => {
+
+                }
+                _ => {
+                    println!("Unsupported parameter: {:?}", key);
+                }
+            }
+        }
+    }
+    params
 }
