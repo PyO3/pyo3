@@ -255,11 +255,25 @@ impl<'p> Python<'p> {
             Err(e) => e.release(self)
         }
     }
+
+    /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
+    pub fn is_instance<T: PyTypeObject>(self, obj: &PyObject) -> PyResult<bool> {
+        T::type_object(self).is_instance(self, obj)
+    }
+
+    /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
+    pub fn is_subclass<T, U>(self) -> PyResult<bool>
+        where T: PyTypeObject,
+            U: PyTypeObject
+    {
+        T::type_object(self).is_subclass::<U>(self)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use {Python, PyDict};
+    use objects::{PyBool, PyList, PyLong};
 
     #[test]
     fn test_eval() {
@@ -284,5 +298,23 @@ mod test {
         // Make sure builtin names are still accessible when using a local namespace
         let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract(py).unwrap();
         assert_eq!(v, 2);
+    }
+
+    #[test]
+    fn test_is_instance() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        assert!(py.is_instance::<PyBool>(py.True().as_ref()).unwrap());
+        let list = PyList::new(py, &[1, 2, 3, 4]);
+        assert!(!py.is_instance::<PyBool>(list.as_ref()).unwrap());
+        assert!(py.is_instance::<PyList>(list.as_ref()).unwrap());
+    }
+
+    #[test]
+    fn test_is_subclass() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        assert!(py.is_subclass::<PyBool, PyLong>().unwrap());
+        assert!(!py.is_subclass::<PyBool, PyList>().unwrap());
     }
 }

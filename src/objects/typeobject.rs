@@ -9,6 +9,8 @@ use ffi;
 use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use objects::PyObject;
+use err::{PyErr, PyResult};
+use typeob::PyTypeObject;
 
 /// Represents a reference to a Python type object.
 pub struct PyType(PyPtr);
@@ -39,16 +41,34 @@ impl PyType {
         }
     }
 
-    /// Return true if `self` is a subtype of `b`.
-    #[inline]
-    pub fn is_subtype_of(&self, _py: Python, b: &PyType) -> bool {
-        unsafe { ffi::PyType_IsSubtype(self.as_type_ptr(), b.as_type_ptr()) != 0 }
+    /// Check whether `self` is subclass of type `T` like Python `issubclass` function
+    pub fn is_subclass<T>(self, py: Python) -> PyResult<bool>
+        where T: PyTypeObject
+    {
+        let result = unsafe {
+            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(py).as_ptr())
+        };
+        if result == -1 {
+            Err(PyErr::fetch(py))
+        } else if result == 1 {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
-    /// Return true if `obj` is an instance of `self`.
-    #[inline]
-    pub fn is_instance<T: ToPyPointer>(&self, _py: Python, obj: &T) -> bool {
-        unsafe { ffi::PyObject_TypeCheck(obj.as_ptr(), self.as_type_ptr()) != 0 }
+    // Check whether `obj` is an instance of `self`
+    pub fn is_instance<T: ToPyPointer>(self, py: Python, obj: &T) -> PyResult<bool> {
+        let result = unsafe {
+            ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr())
+        };
+        if result == -1 {
+            Err(PyErr::fetch(py))
+        } else if result == 1 {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
