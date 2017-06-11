@@ -39,7 +39,7 @@ pub type PyNoArgsFunction =
 }
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyMethodDef {
     pub ml_name: *const c_char,
     pub ml_meth: Option<PyCFunction>,
@@ -54,9 +54,6 @@ pub const PyMethodDef_INIT : PyMethodDef = PyMethodDef {
     ml_doc: 0 as *const _,
 };
 
-impl Clone for PyMethodDef {
-    #[inline] fn clone(&self) -> PyMethodDef { *self }
-}
 impl Default for PyMethodDef {
     fn default() -> PyMethodDef { unsafe { mem::zeroed() } }
 }
@@ -86,7 +83,7 @@ pub const METH_STATIC   : c_int = 0x0020;
 
 /* METH_COEXIST allows a method to be entered eventhough a slot has
    already filled the entry.  When defined, the flag allows a separate
-   method, "__contains__" for example, to coexist with a defined 
+   method, "__contains__" for example, to coexist with a defined
    slot like sq_contains. */
 
 pub const METH_COEXIST   : c_int = 0x0040;

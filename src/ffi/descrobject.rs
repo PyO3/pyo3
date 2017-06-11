@@ -11,7 +11,7 @@ pub type setter =
     unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
 
 #[repr(C)]
-#[derive(Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyGetSetDef {
     pub name: *mut c_char,
     pub get: Option<getter>,
@@ -27,10 +27,6 @@ pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
     doc: ptr::null_mut(),
     closure: ptr::null_mut(),
 };
-
-impl Clone for PyGetSetDef {
-    #[inline] fn clone(&self) -> PyGetSetDef { *self }
-}
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyClassMethodDescr_Type: PyTypeObject;

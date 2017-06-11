@@ -11,12 +11,12 @@ use err::{PyErr, PyResult, PyDowncastError};
 /// A python iterator object.
 ///
 /// Unlike other python objects, this class includes a `Python<'p>` token
-/// so that PyIterator can implement the rust `Iterator` trait.
+/// so that `PyIterator` can implement the rust `Iterator` trait.
 pub struct PyIterator<'p>(PyPtr, Python<'p>);
 
 
 impl <'p> PyIterator<'p> {
-    /// Constructs a PyIterator from a Python iterator object.
+    /// Constructs a `PyIterator` from a Python iterator object.
     pub fn from_object<T>(py: Python<'p>, obj: T)
                           -> Result<PyIterator<'p>, PyDowncastError<'p>>
         where T: IntoPyPointer
@@ -39,7 +39,7 @@ impl <'p> Iterator for PyIterator<'p> {
     /// Retrieves the next item from an iterator.
     /// Returns `None` when the iterator is exhausted.
     /// If an exception occurs, returns `Some(Err(..))`.
-    /// Further next() calls after an exception occurs are likely
+    /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
     fn next(&mut self) -> Option<PyResult<PyObject>> {
         match unsafe { PyObject::from_owned_ptr_or_opt(

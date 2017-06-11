@@ -371,7 +371,7 @@ impl <'p> std::fmt::Debug for PyDowncastError<'p> {
     }
 }
 
-/// Convert PyErr to io::Error
+/// Convert `PyErr` to `io::Error`
 impl std::convert::From<PyErr> for std::io::Error {
     fn from(err: PyErr) -> Self {
         std::io::Error::new(
@@ -379,7 +379,7 @@ impl std::convert::From<PyErr> for std::io::Error {
     }
 }
 
-/// Converts into PyErr
+/// Converts into `PyErr`
 pub trait ToPyErr {
     fn to_pyerr(&self, Python) -> PyErr;
 }
@@ -394,7 +394,7 @@ macro_rules! impl_to_pyerr {
     }
 }
 
-/// Create OSError from io::Error
+/// Create `OSError` from `io::Error`
 impl ToPyErr for io::Error {
 
     fn to_pyerr(&self, py: Python) -> PyErr {

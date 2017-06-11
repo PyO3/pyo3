@@ -200,7 +200,7 @@ impl<T> PySequenceSetItemProtocolImpl for T
                         py,
                         format!("Item deletion not supported by {:?}", stringify!(T)));
                     e.restore(py);
-                    return -1
+                    -1
                 } else {
                     let value = PyObject::from_borrowed_ptr(py, value);
                     let result = match value.extract(py) {
@@ -260,7 +260,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                         py, format!("Item assignment not supported by {:?}",
                                             stringify!(T)));
                     e.restore(py);
-                    return -1
+                    -1
                 }
             })
         }

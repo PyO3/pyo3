@@ -3,25 +3,19 @@ use ffi::pyport::Py_ssize_t;
 use ffi::object::{PyObject, PyTypeObject};
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyStructSequence_Field {
     pub name: *mut c_char,
     pub doc: *mut c_char,
 }
-impl Clone for PyStructSequence_Field {
-    #[inline] fn clone(&self) -> PyStructSequence_Field { *self }
-}
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyStructSequence_Desc {
     pub name: *mut c_char,
     pub doc: *mut c_char,
     pub fields: *mut PyStructSequence_Field,
     pub n_in_sequence: c_int,
-}
-impl Clone for PyStructSequence_Desc {
-    #[inline] fn clone(&self) -> PyStructSequence_Desc { *self }
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {

@@ -32,15 +32,12 @@ pub unsafe fn PyModule_CheckExact(op : *mut PyObject) -> c_int {
 }
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyModuleDef_Base {
     pub ob_base: PyObject,
     pub m_init: Option<extern "C" fn() -> *mut PyObject>,
     pub m_index: Py_ssize_t,
     pub m_copy: *mut PyObject,
-}
-impl Clone for PyModuleDef_Base {
-    fn clone(&self) -> PyModuleDef_Base { *self }
 }
 
 pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
@@ -51,20 +48,17 @@ pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
 };
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyModuleDef_Slot {
     pub slot: c_int,
     pub value: *mut c_void,
-}
-impl Clone for PyModuleDef_Slot {
-    fn clone(&self) -> PyModuleDef_Slot { *self }
 }
 
 pub const Py_mod_create : c_int = 1;
 pub const Py_mod_exec : c_int = 2;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyModuleDef {
     pub m_base: PyModuleDef_Base,
     pub m_name: *const c_char,
@@ -75,9 +69,6 @@ pub struct PyModuleDef {
     pub m_traverse: Option<traverseproc>,
     pub m_clear: Option<inquiry>,
     pub m_free: Option<freefunc>,
-}
-impl Clone for PyModuleDef {
-    fn clone(&self) -> PyModuleDef { *self }
 }
 
 pub const PyModuleDef_INIT: PyModuleDef = PyModuleDef {

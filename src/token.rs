@@ -12,14 +12,14 @@ use typeob::{PyTypeInfo, PyObjectAlloc};
 pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {
-    pub fn token<'p>(&'p self) -> Python<'p> {
+    pub fn token(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
 }
 
 /// Create new python object and move T instance under python management
 #[inline]
-pub fn init<'p, T, F>(py: Python<'p>, f: F) -> PyResult<T::Target>
+pub fn init<T, F>(py: Python, f: F) -> PyResult<T::Target>
     where F: FnOnce(PyToken) -> T,
           T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<T>
 {
@@ -33,7 +33,7 @@ pub fn init<'p, T, F>(py: Python<'p>, f: F) -> PyResult<T::Target>
 }
 
 pub trait PyObjectWithToken : Sized {
-    fn token<'p>(&'p self) -> Python<'p>;
+    fn token(&self) -> Python;
 }
 
 pub trait ToInstancePtr<T> : Sized {

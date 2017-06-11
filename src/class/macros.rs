@@ -281,7 +281,7 @@ macro_rules! py_func_set{
                         py, format!("Subscript deletion not supported by {:?}",
                                             stringify!(T)));
                     e.restore(py);
-                    return -1
+                    -1
                 } else {
                     let name = ::PyObject::from_borrowed_ptr(py, name);
                     let value = ::PyObject::from_borrowed_ptr(py, value);
@@ -356,7 +356,7 @@ macro_rules! py_func_del{
                         py, format!("Subscript assignment not supported by {:?}",
                                             stringify!(T)));
                     e.restore(py);
-                    return -1
+                    -1
 
                 }
             })

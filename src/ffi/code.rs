@@ -3,7 +3,7 @@ use ffi::pyport::Py_ssize_t;
 use ffi::object::*;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyCodeObject {
     pub ob_base: PyObject,
     pub co_argcount: c_int,
@@ -30,9 +30,7 @@ pub struct PyCodeObject {
     #[cfg(Py_3_6)]
     pub co_extra: *mut c_void,
 }
-impl Clone for PyCodeObject {
-    #[inline] fn clone(&self) -> Self { *self }
-}
+
 impl Default for PyCodeObject {
     #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
 }
