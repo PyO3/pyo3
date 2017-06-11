@@ -94,4 +94,3 @@ pub unsafe fn PyCode_Check(op : *mut PyObject) -> c_int {
 pub unsafe fn PyCode_GetNumFree(op : *mut PyCodeObject) -> Py_ssize_t {
     ::ffi::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }
-

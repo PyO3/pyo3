@@ -32,10 +32,16 @@ backtrace = "0.3"
 regex = "0.2"
 
 [features]
-default = ["nightly"]
+default = []
+
+# Use this feature when building python2 binding.
+python2 = []
+
+# Use this feature when building python3 binding.
+python3 = []
 
 # Enable additional features that require nightly rust
-nightly = []
+#nightly = []
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,

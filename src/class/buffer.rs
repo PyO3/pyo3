@@ -52,6 +52,7 @@ impl<'p, T> PyBufferProtocolImpl for T where T: PyBufferProtocol<'p> + ToInstanc
         Some(ffi::PyBufferProcs{
             bf_getbuffer: Self::cb_bf_getbuffer(),
             bf_releasebuffer: None,
+            .. ffi::PyBufferProcs_INIT
         })
     }
 }

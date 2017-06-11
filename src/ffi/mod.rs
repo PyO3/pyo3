@@ -1,13 +1,6 @@
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
 #![cfg_attr(Py_LIMITED_API, allow(unused_imports))]
 
-// old: marked with TODO
-// Based on the headers of Python 3.4.3
-// Supports the stable ABI (PEP 384) only.
-
-// new:
-// Based on the headers of Python 3.3.0, 3.4.0 and 3.5.0.
-
 pub use self::pyport::*;
 pub use self::pymem::*;
 
@@ -71,9 +64,7 @@ pub use self::frameobject::PyFrameObject;
 
 mod pyport;
 // mod pymacro; contains nothing of interest for Rust
-
 // mod pyatomic; contains nothing of interest for Rust
-
 // mod pymath; contains nothing of interest for Rust
 
 // [cfg(not(Py_LIMITED_API))]
@@ -85,7 +76,6 @@ mod object;
 mod objimpl;
 mod typeslots;
 mod pyhash;
-
 mod pydebug;
 
 mod bytearrayobject;

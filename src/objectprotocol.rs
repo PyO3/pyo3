@@ -296,7 +296,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: 'hash(self)'
     #[inline]
-    fn hash(&self, py: Python) -> PyResult<::Py_hash_t> {
+    fn hash(&self, py: Python) -> PyResult<ffi::Py_hash_t> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
             Err(PyErr::fetch(py))

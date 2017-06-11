@@ -29,7 +29,6 @@ pub use self::methods::{PyMethodDef, PyMethodDefType, PyMethodType,
                         PyGetterDef, PySetterDef};
 
 use ffi;
-use typeob::PyTypeInfo;
 
 #[derive(Debug)]
 pub enum CompareOp {
@@ -40,5 +39,3 @@ pub enum CompareOp {
     Gt = ffi::Py_GT as isize,
     Ge = ffi::Py_GE as isize
 }
-
-pub trait PyCustomObject : PyTypeInfo + Sized {}

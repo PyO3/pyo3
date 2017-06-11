@@ -52,16 +52,79 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! Expands to an `extern "C"` function that allows Python to load
+//! the rust code as a Python extension module.
+//!
+//! Macro syntax: `#[py::modinit(name)]`
+//!
+//! 1. `name`: The module name as a Rust identifier
+//! 2. Decorate init function `Fn(Python, &PyModule) -> PyResult<()>`.
+//!    This function will be called when the module is imported, and is responsible
+//!    for adding the module's members.
+//!
+//! # Example
+//! ```
+//! #![feature(proc_macro)]
+//! #![macro_use] extern crate pyo3;
+//! use pyo3::{py, Python, PyResult, PyObject, PyModule};
+//!
+//! #[py::modinit(hello)]
+//! fn init_module(py: Python, m: &PyModule) {
+//!     m.add(py, "__doc__", "Module documentation string")?;
+//!     m.add(py, "run", py_fn!(py, run()))?;
+//!     Ok(())
+//! }
+//!
+//! fn run(py: Python) -> PyResult<PyObject> {
+//!     println!("Rust says: Hello Python!");
+//!     Ok(py.None())
+//! }
+//! # fn main() {}
+//! ```
+//!
+//! In your `Cargo.toml`, use the `extension-module` feature for the `pyo3` dependency:
+//! ```cargo
+//! [dependencies.pyo3]
+//! version = "*"
+//! features = ["extension-module"]
+//! ```
+//!
+//! The full example project can be found at:
+//!   https://github.com/PyO3/setuptools-rust/tree/master/example/extensions
+//!
+//! Rust will compile the code into a file named `libhello.so`, but we have to
+//! rename the file in order to use it with Python:
+//!
+//! ```bash
+//! cp ./target/debug/libhello.so ./hello.so
+//! ```
+//! (Note: on Mac OS you will have to rename `libhello.dynlib` to `libhello.so`)
+//!
+//! The extension module can then be imported into Python:
+//!
+//! ```python1
+//! >>> import hello
+//! >>> hello.run()
+//! Rust says: Hello Python!
+//! ```
 
 extern crate libc;
 extern crate backtrace;
+extern crate pyo3cls;
 #[macro_use] extern crate log;
 
-#[allow(unused_imports)]
-#[macro_use]
-pub extern crate pyo3cls;
-
+#[cfg(Py_3)]
 pub mod ffi;
+
+#[cfg(not(Py_3))]
+mod ffi2;
+
+#[cfg(not(Py_3))]
+pub mod ffi {
+    pub use ffi2::*;
+}
+
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
 pub mod pointers;
@@ -82,12 +145,14 @@ pub mod class;
 pub use class::*;
 pub use self::typeob::PyTypeObject;
 
-#[allow(non_camel_case_types)]
-
-use std::{ptr, mem};
-
 pub mod py {
     pub use pyo3cls::*;
+
+    #[cfg(Py_3)]
+    pub use pyo3cls::mod3init as modinit;
+
+    #[cfg(not(Py_3))]
+    pub use pyo3cls::mod2init as modinit;
 }
 
 /// Constructs a `&'static CStr` literal.
@@ -125,110 +190,3 @@ pub mod freelist;
 
 // re-export for simplicity
 pub use std::os::raw::*;
-
-/// Expands to an `extern "C"` function that allows Python to load
-/// the rust code as a Python extension module.
-///
-/// Macro syntax: `py_module_initializer!($name, $py2_init, $py3_init, |$py, $m| $body)`
-///
-/// 1. `name`: The module name as a Rust identifier.
-/// 2. `py3_init`: "PyInit_" + $name. Necessary because macros can't use `concat_idents!()`.
-/// 4. A lambda of type `Fn(Python, &PyModule) -> PyResult<()>`.
-///    This function will be called when the module is imported, and is responsible
-///    for adding the module's members.
-///
-/// # Example
-/// ```
-/// #[macro_use] extern crate pyo3;
-/// use pyo3::{Python, PyResult, PyObject};
-///
-/// py_module_init!(hello, PyInit_hello, |py, m| {
-///     m.add(py, "__doc__", "Module documentation string")?;
-///     m.add(py, "run", py_fn!(py, run()))?;
-///     Ok(())
-/// });
-///
-/// fn run(py: Python) -> PyResult<PyObject> {
-///     println!("Rust says: Hello Python!");
-///     Ok(py.None())
-/// }
-/// # fn main() {}
-/// ```
-///
-/// In your `Cargo.toml`, use the `extension-module` feature for the `pyo3` dependency:
-/// ```cargo
-/// [dependencies.pyo3]
-/// version = "*"
-/// features = ["extension-module"]
-/// ```
-/// The full example project can be found at:
-///   https://github.com/PyO3/setuptools-rust/tree/master/example/extensions
-///
-/// Rust will compile the code into a file named `libhello.so`, but we have to
-/// rename the file in order to use it with Python:
-///
-/// ```bash
-/// cp ./target/debug/libhello.so ./hello.so
-/// ```
-/// (Note: on Mac OS you will have to rename `libhello.dynlib` to `libhello.so`)
-///
-/// The extension module can then be imported into Python:
-///
-/// ```python
-/// >>> import hello
-/// >>> hello.run()
-/// Rust says: Hello Python!
-/// ```
-///
-#[macro_export]
-macro_rules! py_module_init {
-    ($name: ident, $py3: ident, |$py_id: ident, $m_id: ident| $body: expr) => {
-        #[no_mangle]
-        #[allow(non_snake_case)]
-        pub unsafe extern "C" fn $py3() -> *mut $crate::ffi::PyObject {
-            // Nest init function so that $body isn't in unsafe context
-            fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
-                $body
-            }
-            static mut MODULE_DEF: $crate::ffi::PyModuleDef = $crate::ffi::PyModuleDef_INIT;
-            // We can't convert &'static str to *const c_char within a static initializer,
-            // so we'll do it here in the module initialization:
-            MODULE_DEF.m_name = concat!(stringify!($name), "\0").as_ptr() as *const _;
-            $crate::py_module_init_impl(&mut MODULE_DEF, init)
-        }
-    }
-}
-
-
-#[doc(hidden)]
-pub unsafe fn py_module_init_impl(
-    def: *mut ffi::PyModuleDef,
-    init: fn(Python, &PyModule) -> PyResult<()>) -> *mut ffi::PyObject
-{
-    let guard = callback::AbortOnDrop("py_module_init");
-    let py = Python::assume_gil_acquired();
-    ffi::PyEval_InitThreads();
-    let module = ffi::PyModule_Create(def);
-    if module.is_null() {
-        mem::forget(guard);
-        return module;
-    }
-
-    let module = match PyObject::from_owned_ptr(py, module).cast_into::<PyModule>(py) {
-        Ok(m) => m,
-        Err(e) => {
-            PyErr::from(e).restore(py);
-            mem::forget(guard);
-            return ptr::null_mut();
-        }
-    };
-    let ret = match init(py, &module) {
-        Ok(()) => module.into_ptr(),
-        Err(e) => {
-            e.restore(py);
-            ptr::null_mut()
-        }
-    };
-    mem::forget(guard);
-    ret
-}

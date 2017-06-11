@@ -394,6 +394,7 @@ macro_rules! impl_to_pyerr {
     }
 }
 
+#[cfg(Py_3)]
 /// Create `OSError` from `io::Error`
 impl ToPyErr for io::Error {
 
@@ -414,6 +415,18 @@ impl ToPyErr for io::Error {
         let errdesc = self.description();
 
         PyErr::new_err(py, &tp, (errno, errdesc))
+    }
+}
+
+#[cfg(not(Py_3))]
+/// Create `OSError` from `io::Error`
+impl ToPyErr for io::Error {
+
+    fn to_pyerr(&self, py: Python) -> PyErr {
+        let errno = self.raw_os_error().unwrap_or(0);
+        let errdesc = self.description();
+
+        PyErr::new_err(py, &py.get_type::<exc::OSError>(), (errno, errdesc))
     }
 }
 

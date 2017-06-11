@@ -13,6 +13,13 @@ struct PythonVersion {
     minor: Option<u8>
 }
 
+impl PartialEq for PythonVersion {
+
+    fn eq(&self, o: &PythonVersion) -> bool {
+        self.major == o.major && (self.minor.is_none() || self.minor == o.minor)
+    }
+}
+
 impl fmt::Display for PythonVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         try!(self.major.fmt(f));
@@ -25,7 +32,7 @@ impl fmt::Display for PythonVersion {
     }
 }
 
-const MIN_MINOR: u8 = 5;
+const PY3_MIN_MINOR: u8 = 5;
 
 const CFG_KEY: &'static str = "py_sys_config";
 
@@ -191,7 +198,9 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
 
 #[cfg(not(target_os="macos"))]
 #[cfg(not(target_os="windows"))]
-fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) -> Result<String, String> {
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool)
+                      -> Result<String, String>
+{
     if enable_shared {
         Ok(format!("cargo:rustc-link-lib=python{}", ld_version))
     } else {
@@ -200,14 +209,16 @@ fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool) 
 }
 
 #[cfg(target_os="macos")]
-fn get_macos_linkmodel() -> Result<String, String> {
+fn get_macos_linkmodel() -> Result<String, String>
+{
     let script = "import sysconfig; print('framework' if sysconfig.get_config_var('PYTHONFRAMEWORK') else ('shared' if sysconfig.get_config_var('Py_ENABLE_SHARED') else 'static'));";
     let out = run_python_script("python", script).unwrap();
     Ok(out.trim_right().to_owned())
 }
 
 #[cfg(target_os="macos")]
-fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String>
+{
     // os x can be linked to a framework or static or dynamic, and 
     // Py_ENABLE_SHARED is wrong; framework means shared library
     match get_macos_linkmodel().unwrap().as_ref() {
@@ -222,7 +233,8 @@ fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<St
 }
 
 /// Parse string as interpreter version.
-fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
+fn get_interpreter_version(line: &str) -> Result<PythonVersion, String>
+{
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
     match version_re.captures(&line) {
         Some(cap) => Ok(PythonVersion {
@@ -235,7 +247,8 @@ fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
 }
 
 #[cfg(target_os="windows")]
-fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String>
+{
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
     Ok(format!("cargo:rustc-link-lib=pythonXY:python{}{}", version.major, 
         match version.minor {
@@ -250,29 +263,41 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 /// Else tries to execute the interpreter as "python", "python{major version}",
 /// "python{major version}.{minor version}" in order until one
 /// is of the version we are expecting.
-fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<String>), String>
+fn find_interpreter_and_get_config(expected_version: &PythonVersion)
+                                   -> Result<(PythonVersion, String, Vec<String>), String>
 {
     if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
         let interpreter_path = sys_executable.to_str()
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
         let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
 
-        if interpreter_version.major < 3 || MIN_MINOR > interpreter_version.minor.unwrap_or(0) {
-            return Err(format!("Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
-                                \tmin version 3.4 != found {}",
-                               interpreter_path,
-                               interpreter_version));
-        } else {
+        if expected_version == &interpreter_version {
             return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+        } else {
+            return Err(format!("Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
+                                \tmin version {} != found {}",
+                               interpreter_path, expected_version, interpreter_version));
         }
     }
+    // check default python
+    let interpreter_path = "python";
+    let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
+    if expected_version == &interpreter_version {
+        return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+    }
 
-    {
-        let interpreter_path = "python3";
-        let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
-        if MIN_MINOR <= interpreter_version.minor.unwrap_or(0) &&
-            interpreter_version.major == 3 {
-                return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+    let major_interpreter_path = &format!("python{}", expected_version.major);
+    let (interpreter_version, lines) = try!(get_config_from_interpreter(major_interpreter_path));
+    if expected_version == &interpreter_version {
+        return Ok((interpreter_version, major_interpreter_path.to_owned(), lines));
+    }
+
+    if let Some(minor) = expected_version.minor {
+        let minor_interpreter_path = &format!("python{}.{}", expected_version.major, minor);
+        let (interpreter_version, lines) = try!(get_config_from_interpreter(
+            minor_interpreter_path));
+        if expected_version == &interpreter_version {
+            return Ok((interpreter_version, minor_interpreter_path.to_owned(), lines));
         }
     }
 
@@ -296,10 +321,10 @@ print(sys.exec_prefix);";
 /// cargo vars to stdout.
 ///
 /// Note that if the python doesn't satisfy expected_version, this will error.
-fn configure_from_path() -> Result<(String, String), String> {
+fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, String), String> {
 
     let (interpreter_version, interpreter_path, lines) = try!(
-        find_interpreter_and_get_config());
+        find_interpreter_and_get_config(expected_version));
 
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
@@ -324,15 +349,50 @@ fn configure_from_path() -> Result<(String, String), String> {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
         if let Some(minor) = some_minor {
-            for i in 4..(minor+1) {
+            if minor < PY3_MIN_MINOR {
+                return Err(format!("Python 3 min version is 3.{}", minor))
+            }
+            for i in 5..(minor+1) {
                 println!("cargo:rustc-cfg=Py_3_{}", i);
                 flags += format!("CFG_Py_3_{},", i).as_ref();
             }
+            println!("cargo:rustc-cfg=Py_3");
         }
+    } else {
+        println!("cargo:rustc-cfg=Py_2");
+        flags += format!("CFG_Py_2,").as_ref();
     }
     return Ok((interpreter_path, flags));
 }
 
+/// Determine the python version we're supposed to be building
+/// from the features passed via the environment.
+///
+/// The environment variable can choose to omit a minor
+/// version if the user doesn't care.
+fn version_from_env() -> Result<PythonVersion, String> {
+    let re = Regex::new(r"CARGO_FEATURE_PYTHON(\d+)(_(\d+))?").unwrap();
+    // sort env::vars so we get more explicit version specifiers first
+    // so if the user passes e.g. the python-3 feature and the python-3-5
+    // feature, python-3-5 takes priority.
+    let mut vars = env::vars().collect::<Vec<_>>();
+    vars.sort_by(|a, b| b.cmp(a));
+    for (key, _) in vars {
+        match re.captures(&key) {
+            Some(cap) => return Ok(PythonVersion {
+                major: cap.get(1).unwrap().as_str().parse().unwrap(),
+                minor: match cap.get(3) {
+                    Some(s) => Some(s.as_str().parse().unwrap()),
+                    None => None
+                }
+            }),
+            None => ()
+        }
+    }
+
+    Err("Python version feature was not found. At least one python version \
+         feature must be enabled.".to_owned())
+}
 
 fn main() {
     // 1. Setup cfg variables so we can do conditional compilation in this 
@@ -345,7 +405,11 @@ fn main() {
     // If you have troubles with your shell accepting '.' in a var name, 
     // try using 'env' (sorry but this isn't our fault - it just has to 
     // match the pkg-config package name, which is going to have a . in it).
-    let (python_interpreter_path, flags) = configure_from_path().unwrap();
+    let version = match version_from_env() {
+        Ok(v) => v,
+        Err(_) => PythonVersion{major: 3, minor: None}
+    };
+    let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
     let config_map = get_config_vars(&python_interpreter_path).unwrap();
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {

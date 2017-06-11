@@ -53,8 +53,7 @@ pub type unaryfunc =
     unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 
 pub type binaryfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 
 pub type ternaryfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
@@ -67,8 +66,7 @@ pub type lenfunc =
     unsafe extern "C" fn(arg1: *mut PyObject) -> Py_ssize_t;
 
 pub type ssizeargfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
 
 pub type ssizessizeargfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
@@ -80,8 +78,7 @@ pub type ssizeobjargproc =
 
 pub type ssizessizeobjargproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
-                         arg3: Py_ssize_t, arg4: *mut PyObject)
-                         -> c_int;
+                         arg3: Py_ssize_t, arg4: *mut PyObject) -> c_int;
 
 pub type objobjargproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
@@ -174,11 +171,9 @@ pub type destructor =
 pub type printfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut ::libc::FILE, arg3: c_int) -> c_int;
 pub type getattrfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char) -> *mut PyObject;
 pub type getattrofunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 pub type setattrfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char,
                          arg3: *mut PyObject) -> c_int;
@@ -186,20 +181,15 @@ pub type setattrofunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
                          arg3: *mut PyObject) -> c_int;
 pub type reprfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type hashfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject)
-                         -> Py_hash_t;
+    unsafe extern "C" fn(arg1: *mut PyObject) -> Py_hash_t;
 pub type richcmpfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
-                         arg3: c_int) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
 pub type getiterfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type iternextfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject)
-                         -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type descrgetfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
                          arg3: *mut PyObject) -> *mut PyObject;
@@ -211,8 +201,7 @@ pub type initproc =
                          arg3: *mut PyObject) -> c_int;
 pub type newfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject,
-                         arg2: *mut PyObject, arg3: *mut PyObject)
-                         -> *mut PyObject;
+                         arg2: *mut PyObject, arg3: *mut PyObject) -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject,
                          arg2: Py_ssize_t) -> *mut PyObject;
@@ -644,8 +633,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
-    pub fn PyType_GenericAlloc(t: *mut PyTypeObject, nitems: Py_ssize_t)
-     -> *mut PyObject;
+    pub fn PyType_GenericAlloc(t: *mut PyTypeObject, nitems: Py_ssize_t) -> *mut PyObject;
     pub fn PyType_GenericNew(t: *mut PyTypeObject, args: *mut PyObject,
                              kwds: *mut PyObject) -> *mut PyObject;
     pub fn PyType_ClearCache() -> c_uint;
@@ -662,32 +650,26 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     pub fn PyObject_RichCompareBool(arg1: *mut PyObject, arg2: *mut PyObject,
                                     arg3: c_int) -> c_int;
     pub fn PyObject_GetAttrString(arg1: *mut PyObject,
-                                  arg2: *const c_char)
-     -> *mut PyObject;
+                                  arg2: *const c_char) -> *mut PyObject;
     pub fn PyObject_SetAttrString(arg1: *mut PyObject,
                                   arg2: *const c_char,
                                   arg3: *mut PyObject) -> c_int;
-    pub fn PyObject_HasAttrString(arg1: *mut PyObject,
-                                  arg2: *const c_char)
-     -> c_int;
-    pub fn PyObject_GetAttr(arg1: *mut PyObject, arg2: *mut PyObject)
-     -> *mut PyObject;
+    pub fn PyObject_HasAttrString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
+    pub fn PyObject_GetAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject,
                             arg3: *mut PyObject) -> c_int;
-    pub fn PyObject_HasAttr(arg1: *mut PyObject, arg2: *mut PyObject)
-     -> c_int;
+    pub fn PyObject_HasAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     pub fn PyObject_SelfIter(arg1: *mut PyObject) -> *mut PyObject;
 
     #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject;
 
     pub fn PyObject_GenericGetAttr(arg1: *mut PyObject, arg2: *mut PyObject)
-     -> *mut PyObject;
+                                   -> *mut PyObject;
     pub fn PyObject_GenericSetAttr(arg1: *mut PyObject, arg2: *mut PyObject,
                                    arg3: *mut PyObject) -> c_int;
     pub fn PyObject_GenericSetDict(arg1: *mut PyObject, arg2: *mut PyObject,
-                                   arg3: *mut c_void)
-     -> c_int;
+                                   arg3: *mut c_void) -> c_int;
     pub fn PyObject_Hash(arg1: *mut PyObject) -> Py_hash_t;
     pub fn PyObject_HashNotImplemented(arg1: *mut PyObject) -> Py_hash_t;
     pub fn PyObject_IsTrue(arg1: *mut PyObject) -> c_int;
@@ -840,7 +822,7 @@ pub const Py_NE : c_int = 3;
 pub const Py_GT : c_int = 4;
 pub const Py_GE : c_int = 5;
 
-
+#[inline]
 pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
     1
 }

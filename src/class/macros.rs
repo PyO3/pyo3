@@ -277,14 +277,13 @@ macro_rules! py_func_set{
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
-                    let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py, format!("Subscript deletion not supported by {:?}",
-                                            stringify!(T)));
+                    let e = $crate::PyErr::new::<exc::NotImplementedError, _>(
+                        py, format!("Subscript deletion not supported by {:?}", stringify!(T)));
                     e.restore(py);
                     -1
                 } else {
-                    let name = ::PyObject::from_borrowed_ptr(py, name);
-                    let value = ::PyObject::from_borrowed_ptr(py, value);
+                    let name = $crate::PyObject::from_borrowed_ptr(py, name);
+                    let value = $crate::PyObject::from_borrowed_ptr(py, value);
                     let result = match name.extract(py) {
                         Ok(name) => match value.extract(py) {
                             Ok(value) => {

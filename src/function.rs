@@ -75,8 +75,7 @@ macro_rules! py_method_def {
 /// # Example
 /// ```
 /// #[macro_use] extern crate pyo3;
-/// use pyo3::{Python, PyResult, PyErr, PyDict};
-/// use pyo3::{exc};
+/// use pyo3::{exc, Python, PyResult, PyErr, PyDict};
 ///
 /// fn multiply(py: Python, lhs: i32, rhs: i32) -> PyResult<i32> {
 ///     match lhs.checked_mul(rhs) {

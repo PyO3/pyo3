@@ -3,7 +3,6 @@
 pub use self::object::PyObject;
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
-pub use self::string::{PyBytes, PyString, PyStringData};
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::{PyByteArray};
@@ -14,6 +13,13 @@ pub use self::num::{PyLong, PyFloat};
 pub use self::sequence::PySequence;
 pub use self::slice::PySlice;
 pub use self::set::{PySet, PyFrozenSet};
+pub use self::stringdata::PyStringData;
+
+#[cfg(Py_3)]
+pub use self::string::{PyBytes, PyString};
+
+#[cfg(not(Py_3))]
+pub use self::string2::{PyBytes, PyString};
 
 
 #[macro_export]
@@ -272,7 +278,6 @@ macro_rules! pyobject_extract(
 
 mod typeobject;
 mod module;
-mod string;
 mod dict;
 mod iterator;
 mod boolobject;
@@ -282,6 +287,14 @@ mod list;
 mod num;
 mod sequence;
 mod slice;
+mod stringdata;
+mod stringutils;
 mod set;
 mod object;
 pub mod exc;
+
+#[cfg(Py_3)]
+mod string;
+
+#[cfg(not(Py_3))]
+mod string2;

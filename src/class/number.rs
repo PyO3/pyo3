@@ -10,7 +10,7 @@ use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 use class::basic::PyObjectProtocolImpl;
-use ::{c_void, IntoPyObject, FromPyObject, ToInstancePtr};
+use ::{IntoPyObject, FromPyObject, ToInstancePtr};
 
 /// Number interface
 #[allow(unused_variables)]
@@ -372,10 +372,24 @@ pub trait PyNumberProtocolImpl {
 }
 
 impl<'p, T> PyNumberProtocolImpl for T {
+    #[cfg(Py_3)]
     default fn tp_as_number() -> Option<ffi::PyNumberMethods> {
         if let Some(nb_bool) = <Self as PyObjectProtocolImpl>::nb_bool_fn() {
             let meth = ffi::PyNumberMethods {
                 nb_bool: Some(nb_bool),
+                ..
+                ffi::PyNumberMethods_INIT
+            };
+            Some(meth)
+        } else {
+            None
+        }
+    }
+    #[cfg(not(Py_3))]
+    default fn tp_as_number() -> Option<ffi::PyNumberMethods> {
+        if let Some(nb_bool) = <Self as PyObjectProtocolImpl>::nb_bool_fn() {
+            let meth = ffi::PyNumberMethods {
+                nb_nonzero: Some(nb_bool),
                 ..
                 ffi::PyNumberMethods_INIT
             };
@@ -390,8 +404,11 @@ impl<'p, T> PyNumberProtocolImpl for T {
 }
 
 impl<'p, T> PyNumberProtocolImpl for T where T: PyNumberProtocol<'p> {
+    #[cfg(Py_3)]
     #[inline]
     fn tp_as_number() -> Option<ffi::PyNumberMethods> {
+        use std::os::raw::c_void;
+
         Some(ffi::PyNumberMethods {
             nb_add: Self::nb_add(),
             nb_subtract: Self::nb_subtract(),
@@ -429,6 +446,51 @@ impl<'p, T> PyNumberProtocolImpl for T where T: PyNumberProtocol<'p> {
             nb_index: Self::nb_index(),
             nb_matrix_multiply: Self::nb_matrix_multiply(),
             nb_inplace_matrix_multiply: Self::nb_inplace_matrix_multiply(),
+        })
+    }
+    #[cfg(not(Py_3))]
+    #[inline]
+    fn tp_as_number() -> Option<ffi::PyNumberMethods> {
+        Some(ffi::PyNumberMethods {
+            nb_add: Self::nb_add(),
+            nb_subtract: Self::nb_subtract(),
+            nb_multiply: Self::nb_multiply(),
+            nb_remainder: Self::nb_remainder(),
+            nb_divmod: Self::nb_divmod(),
+            nb_power: Self::nb_power(),
+            nb_negative: Self::nb_negative(),
+            nb_positive: Self::nb_positive(),
+            nb_absolute: Self::nb_absolute(),
+            nb_nonzero: <Self as PyObjectProtocolImpl>::nb_bool_fn(),
+            nb_invert: Self::nb_invert(),
+            nb_lshift: Self::nb_lshift(),
+            nb_rshift: Self::nb_rshift(),
+            nb_and: Self::nb_and(),
+            nb_xor: Self::nb_xor(),
+            nb_or: Self::nb_or(),
+            nb_c_int: Self::nb_int(),
+            nb_float: Self::nb_float(),
+            nb_inplace_add: Self::nb_inplace_add(),
+            nb_inplace_subtract: Self::nb_inplace_subtract(),
+            nb_inplace_multiply: Self::nb_inplace_multiply(),
+            nb_inplace_remainder: Self::nb_inplace_remainder(),
+            nb_inplace_power: Self::nb_inplace_power(),
+            nb_inplace_lshift: Self::nb_inplace_lshift(),
+            nb_inplace_rshift: Self::nb_inplace_rshift(),
+            nb_inplace_and: Self::nb_inplace_and(),
+            nb_inplace_xor: Self::nb_inplace_xor(),
+            nb_inplace_or: Self::nb_inplace_or(),
+            nb_floor_divide: Self::nb_floor_divide(),
+            nb_true_divide: Self::nb_true_divide(),
+            nb_inplace_floor_divide: Self::nb_inplace_floor_divide(),
+            nb_inplace_true_divide: Self::nb_inplace_true_divide(),
+            nb_index: Self::nb_index(),
+            nb_coerce: None,
+            nb_divide: None,
+            nb_hex: None,
+            nb_inplace_divide: None,
+            nb_long: None,
+            nb_oct: None,
         })
     }
 

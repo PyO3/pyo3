@@ -106,6 +106,7 @@ impl<T> PySequenceProtocolImpl for T {
 }
 
 impl<'p, T> PySequenceProtocolImpl for T where T: PySequenceProtocol<'p> {
+    #[cfg(Py_3)]
     #[inline]
     fn tp_as_sequence() -> Option<ffi::PySequenceMethods> {
         let f = if let Some(df) = Self::sq_del_item() {
@@ -122,6 +123,28 @@ impl<'p, T> PySequenceProtocolImpl for T where T: PySequenceProtocol<'p> {
             was_sq_slice: 0 as *mut _,
             sq_ass_item: f,
             was_sq_ass_slice: 0 as *mut _,
+            sq_contains: Self::sq_contains(),
+            sq_inplace_concat: Self::sq_inplace_concat(),
+            sq_inplace_repeat: Self::sq_inplace_repeat(),
+        })
+    }
+    #[cfg(not(Py_3))]
+    #[inline]
+    fn tp_as_sequence() -> Option<ffi::PySequenceMethods> {
+        let f = if let Some(df) = Self::sq_del_item() {
+            Some(df)
+        } else {
+            Self::sq_ass_item()
+        };
+
+        Some(ffi::PySequenceMethods {
+            sq_length: Self::sq_length(),
+            sq_concat: Self::sq_concat(),
+            sq_repeat: Self::sq_repeat(),
+            sq_item: Self::sq_item(),
+            sq_slice: None,
+            sq_ass_item: f,
+            sq_ass_slice: None,
             sq_contains: Self::sq_contains(),
             sq_inplace_concat: Self::sq_inplace_concat(),
             sq_inplace_repeat: Self::sq_inplace_repeat(),

@@ -201,11 +201,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 
     // async methods
-    if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
-        type_object.tp_as_async = Box::into_raw(Box::new(meth));
-    } else {
-        type_object.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
-    }
+    async_methods::<T>(type_object);
 
     // buffer protocol
     if let Some(meth) = <T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer() {
@@ -244,6 +240,17 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
     }
 }
 
+#[cfg(Py_3)]
+fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
+    if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
+        type_info.tp_as_async = Box::into_raw(Box::new(meth));
+    } else {
+        type_info.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
+    }
+}
+
+#[cfg(not(Py_3))]
+fn async_methods<T>(_type_info: &mut ffi::PyTypeObject) {}
 
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where T: PyObjectAlloc<T>
@@ -295,9 +302,6 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
     for def in <T as class::basic::PyObjectProtocolImpl>::methods() {
         defs.push(def.as_method_def());
     }
-    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
-        defs.push(def.as_method_def());
-    }
     for def in <T as class::context::PyContextProtocolImpl>::methods() {
         defs.push(def.as_method_def());
     }
@@ -311,9 +315,20 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
         defs.push(def.as_method_def());
     }
 
+    py_class_async_methods::<T>(&mut defs);
+
     Ok((new, call, defs))
 }
 
+#[cfg(Py_3)]
+fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
+    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
+        defs.push(def.as_method_def());
+    }
+}
+
+#[cfg(not(Py_3))]
+fn py_class_async_methods<T>(_defs: &mut Vec<ffi::PyMethodDef>) {}
 
 fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();

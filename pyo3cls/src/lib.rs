@@ -21,8 +21,37 @@ mod py_ptr;
 mod defs;
 mod func;
 mod method;
+mod module;
 mod utils;
 
+
+#[proc_macro_attribute]
+pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
+    // Construct a string representation of the type definition
+    let source = input.to_string();
+
+    // Parse the string representation into a syntax tree
+    let mut ast = syn::parse_item(&source).unwrap();
+
+    // Build the output
+    let init = module::build_py2_module_init(&mut ast, attr.to_string());
+
+    TokenStream::from_str(init.as_str()).unwrap()
+}
+
+#[proc_macro_attribute]
+pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
+    // Construct a string representation of the type definition
+    let source = input.to_string();
+
+    // Parse the string representation into a syntax tree
+    let mut ast = syn::parse_item(&source).unwrap();
+
+    // Build the output
+    let init = module::build_py3_module_init(&mut ast, attr.to_string());
+
+    TokenStream::from_str(init.as_str()).unwrap()
+}
 
 #[proc_macro_attribute]
 pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {

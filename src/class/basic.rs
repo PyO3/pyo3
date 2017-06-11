@@ -296,12 +296,12 @@ impl<'p, T> PyObjectHashProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectHashProtocolImpl for T where T: for<'p> PyObjectHashProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectHashProtocolImpl for T
+    where T: for<'p> PyObjectHashProtocol<'p> + ToInstancePtr<T>
 {
     #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
-        py_unary_func!(PyObjectHashProtocol,
-                       T::__hash__, usize, HashConverter, ffi::Py_hash_t)
+        py_unary_func!(PyObjectHashProtocol, T::__hash__, usize, HashConverter, ffi::Py_hash_t)
     }
 }
 
