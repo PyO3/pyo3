@@ -93,7 +93,7 @@ pub struct GILGuard {
     no_send: marker::PhantomData<rc::Rc<()>>
 }
 
-/// The Drop implementation for GILGuard will release the GIL.
+/// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
         debug!("RELEASE");

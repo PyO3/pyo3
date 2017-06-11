@@ -26,7 +26,7 @@
 //! The vast majority of operations in this library will return `PyResult<...>`.
 //! This is an alias for the type `Result<..., PyErr>`.
 //!
-//! A `PyErr` represents a Python exception. Errors within the PyO3 library are
+//! A `PyErr` represents a Python exception. Errors within the `PyO3` library are
 //! also exposed as Python exceptions.
 //!
 //! # Example
@@ -132,7 +132,7 @@ pub use std::os::raw::*;
 /// Macro syntax: `py_module_initializer!($name, $py2_init, $py3_init, |$py, $m| $body)`
 ///
 /// 1. `name`: The module name as a Rust identifier.
-/// 2. `py3_init`: "PyInit_" + $name. Necessary because macros can't use concat_idents!().
+/// 2. `py3_init`: "PyInit_" + $name. Necessary because macros can't use `concat_idents!()`.
 /// 4. A lambda of type `Fn(Python, &PyModule) -> PyResult<()>`.
 ///    This function will be called when the module is imported, and is responsible
 ///    for adding the module's members.

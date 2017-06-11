@@ -10,7 +10,7 @@ use objects::PyObject;
 use conversion::ToPyObject;
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted
-/// at the moment by PySlice object.
+/// at the moment by `PySlice` object.
 pub struct PySlice(PyPtr);
 
 pyobject_convert!(PySlice);

@@ -93,7 +93,7 @@ mod bufferinfo {
     use ffi::pyport::Py_ssize_t;
 
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct Py_buffer {
         pub buf: *mut c_void,
         pub obj: *mut ::ffi::PyObject,
@@ -107,9 +107,7 @@ mod bufferinfo {
         pub suboffsets: *mut Py_ssize_t,
         pub internal: *mut c_void,
     }
-    impl Clone for Py_buffer {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for Py_buffer {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -229,7 +227,7 @@ mod typeobject {
     use ffi::pyport::Py_ssize_t;
 
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct PyNumberMethods {
         pub nb_add: Option<object::binaryfunc>,
         pub nb_subtract: Option<object::binaryfunc>,
@@ -268,9 +266,7 @@ mod typeobject {
         pub nb_matrix_multiply: Option<object::binaryfunc>,
         pub nb_inplace_matrix_multiply: Option<object::binaryfunc>,
     }
-    impl Clone for PyNumberMethods {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for PyNumberMethods {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -327,7 +323,7 @@ mod typeobject {
     };
 
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct PySequenceMethods {
         pub sq_length: Option<object::lenfunc>,
         pub sq_concat: Option<object::binaryfunc>,
@@ -340,9 +336,7 @@ mod typeobject {
         pub sq_inplace_concat: Option<object::binaryfunc>,
         pub sq_inplace_repeat: Option<object::ssizeargfunc>,
     }
-    impl Clone for PySequenceMethods {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for PySequenceMethods {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -359,15 +353,13 @@ mod typeobject {
         sq_inplace_repeat: None,
     };
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct PyMappingMethods {
         pub mp_length: Option<object::lenfunc>,
         pub mp_subscript: Option<object::binaryfunc>,
         pub mp_ass_subscript: Option<object::objobjargproc>,
     }
-    impl Clone for PyMappingMethods {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for PyMappingMethods {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -377,15 +369,13 @@ mod typeobject {
         mp_ass_subscript: None,
     };
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct PyAsyncMethods {
         pub am_await: Option<object::unaryfunc>,
         pub am_aiter: Option<object::unaryfunc>,
         pub am_anext: Option<object::unaryfunc>,
     }
-    impl Clone for PyAsyncMethods {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for PyAsyncMethods {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -395,14 +385,12 @@ mod typeobject {
         am_anext: None,
     };
     #[repr(C)]
-    #[derive(Copy, Debug)]
+    #[derive(Copy, Clone, Debug)]
     pub struct PyBufferProcs {
         pub bf_getbuffer: Option<object::getbufferproc>,
         pub bf_releasebuffer: Option<object::releasebufferproc>,
     }
-    impl Clone for PyBufferProcs {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for PyBufferProcs {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -412,7 +400,7 @@ mod typeobject {
     };
 
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct PyTypeObject {
         pub ob_base: object::PyVarObject,
         pub tp_name: *const c_char,
@@ -472,9 +460,6 @@ mod typeobject {
         pub tp_prev: *mut PyTypeObject,
         #[cfg(py_sys_config="COUNT_ALLOCS")]
         pub tp_next: *mut PyTypeObject,
-    }
-    impl Clone for PyTypeObject {
-        #[inline] fn clone(&self) -> Self { *self }
     }
 
     macro_rules! py_type_object_init {
@@ -564,7 +549,7 @@ mod typeobject {
     );
 
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub struct PyHeapTypeObject {
         pub ht_type: PyTypeObject,
         pub as_async: PyAsyncMethods,
@@ -577,9 +562,7 @@ mod typeobject {
         pub ht_qualname: *mut ffi::object::PyObject,
         pub ht_cached_keys: *mut c_void,
     }
-    impl Clone for PyHeapTypeObject {
-        #[inline] fn clone(&self) -> Self { *self }
-    }
+
     impl Default for PyHeapTypeObject {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
@@ -595,20 +578,18 @@ mod typeobject {
 pub use self::typeobject::*;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyType_Slot {
     pub slot: c_int,
     pub pfunc: *mut c_void,
 }
-impl Clone for PyType_Slot {
-    fn clone(&self) -> PyType_Slot { *self }
-}
+
 impl Default for PyType_Slot {
     fn default() -> PyType_Slot { unsafe { ::std::mem::zeroed() } }
 }
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyType_Spec {
     pub name: *const c_char,
     pub basicsize: c_int,
@@ -616,9 +597,7 @@ pub struct PyType_Spec {
     pub flags: c_uint,
     pub slots: *mut PyType_Slot,
 }
-impl Clone for PyType_Spec {
-    fn clone(&self) -> PyType_Spec { *self }
-}
+
 impl Default for PyType_Spec {
     fn default() -> PyType_Spec { unsafe { ::std::mem::zeroed() } }
 }
@@ -649,7 +628,7 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
     pub static mut PyBaseObject_Type: PyTypeObject;
     /// built-in 'super'
     pub static mut PySuper_Type: PyTypeObject;
-    
+
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
 }
 
@@ -671,7 +650,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
                              kwds: *mut PyObject) -> *mut PyObject;
     pub fn PyType_ClearCache() -> c_uint;
     pub fn PyType_Modified(t: *mut PyTypeObject);
-    
+
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut ::libc::FILE, flags: c_int) -> c_int;
     pub fn PyObject_Repr(o: *mut PyObject) -> *mut PyObject;

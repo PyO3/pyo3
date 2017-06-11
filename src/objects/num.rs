@@ -18,7 +18,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 /// Represents a Python `int` object.
 ///
 /// You can usually avoid directly working with this type
-/// by using [ToPyObject](trait.ToPyObject.html)
+/// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 pub struct PyLong(PyPtr);
@@ -29,7 +29,7 @@ pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
 /// Represents a Python `float` object.
 ///
 /// You can usually avoid directly working with this type
-/// by using [ToPyObject](trait.ToPyObject.html)
+/// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
 pub struct PyFloat(PyPtr);
@@ -273,7 +273,7 @@ mod test {
         assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<i32>(py).is_err());
     }
-    
+
     #[test]
     fn test_i64_max() {
         let gil = Python::acquire_gil();
@@ -284,7 +284,7 @@ mod test {
         assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<u32>(py).is_err());
     }
-    
+
     #[test]
     fn test_i64_min() {
         let gil = Python::acquire_gil();
@@ -295,7 +295,7 @@ mod test {
         assert!(obj.extract::<i32>(py).is_err());
         assert!(obj.extract::<u64>(py).is_err());
     }
-    
+
     #[test]
     fn test_u64_max() {
         let gil = Python::acquire_gil();

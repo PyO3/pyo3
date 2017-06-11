@@ -81,7 +81,7 @@ impl PyPtr {
     /// Converts `PyPtr` instance -> PyObject<'p>
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    pub fn into_object<'p>(self, _py: Python<'p>) -> PyObject {
+    pub fn into_object(self, _py: Python) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -101,7 +101,7 @@ impl PyPtr {
     /// Casts the `PyPtr` imstance to a concrete Python object type.
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast_into<'p, D>(self, py: Python<'p>) -> Result<D, PyDowncastError<'p>>
+    pub fn cast_into<D>(self, py: Python) -> Result<D, PyDowncastError>
         where D: ::PyDowncastInto
     {
         <D as ::PyDowncastInto>::downcast_into(py, self)

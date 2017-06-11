@@ -208,7 +208,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
             } else if result < 0 {
                 return Err(PyErr::fetch(py));
             }
-            return Err(PyErr::new::<::exc::TypeError, _>(py, "ObjectProtocol::compare(): All comparisons returned false"));
+            Err(PyErr::new::<::exc::TypeError, _>(py, "ObjectProtocol::compare(): All comparisons returned false"))
         }
 
         other.with_borrowed_ptr(py, |other| unsafe {

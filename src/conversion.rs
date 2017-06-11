@@ -5,7 +5,7 @@ use objects::{PyObject, PyTuple};
 use typeob::PyTypeInfo;
 
 
-/// Conversion trait that allows various objects to be converted into PyObject
+/// Conversion trait that allows various objects to be converted into `PyObject`
 pub trait ToPyObject {
 
     /// Converts self into a Python object.
@@ -36,7 +36,7 @@ pub trait IntoPyObject {
 }
 
 
-/// Conversion trait that allows various objects to be converted into PyTuple object.
+/// Conversion trait that allows various objects to be converted into `PyTuple` object.
 pub trait IntoPyTuple {
 
     /// Converts self into a PyTuple object.
@@ -45,7 +45,7 @@ pub trait IntoPyTuple {
 }
 
 
-/// FromPyObject is implemented by various types that can be extracted from a Python object.
+/// `FromPyObject` is implemented by various types that can be extracted from a Python object.
 ///
 /// Normal usage is through the `PyObject::extract` helper method:
 /// ```let obj: PyObject = ...;
@@ -101,7 +101,7 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
-// ToPyObject for references
+// `ToPyObject` for references
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 
     #[inline]
@@ -150,7 +150,7 @@ impl IntoPyObject for () {
     }
 }
 
-/// Extract reference to instance from PyObject
+/// Extract reference to instance from `PyObject`
 impl<'source, T> FromPyObject<'source> for &'source T
     where T: PyTypeInfo + PyDowncastFrom
 {
