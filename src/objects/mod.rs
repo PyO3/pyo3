@@ -304,19 +304,44 @@ pub fn is_instance<T: PyTypeObject>(py: Python, obj: &PyObject) -> PyResult<bool
     }
 }
 
+/// Check whether type `T` is subclass of type `U` like Python `issubclass` function
+pub fn is_subclass<T, U>(py: Python) -> PyResult<bool>
+    where T: PyTypeObject,
+          U: PyTypeObject
+{
+    let result = unsafe {
+        ffi::PyObject_IsSubclass(T::type_object(py).as_ptr(), U::type_object(py).as_ptr())
+    };
+    if result == -1 {
+        Err(err::PyErr::fetch(py))
+    } else if result == 1 {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use python::Python;
-    use objects::{PyBool, PyList};
-    use super::is_instance;
+    use objects::{PyBool, PyList, PyLong};
+    use super::{is_instance, is_subclass};
 
     #[test]
-    fn test_isinstance() {
+    fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(is_instance::<PyBool>(py, py.True().as_ref()).unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!is_instance::<PyBool>(py, list.as_ref()).unwrap());
         assert!(is_instance::<PyList>(py, list.as_ref()).unwrap());
+    }
+
+    #[test]
+    fn test_is_subclass() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        assert!(is_subclass::<PyBool, PyLong>(py).unwrap());
+        assert!(!is_subclass::<PyBool, PyList>(py).unwrap());
     }
 }
