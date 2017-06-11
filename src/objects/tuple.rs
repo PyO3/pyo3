@@ -151,8 +151,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_tuple(self, py: Python) -> PyTuple {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
-                $(py_coerce_expr!(
-                    ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr()));)+;
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;
                 PyTuple(PyPtr::from_owned_ptr_or_panic(ptr))
             }
         }

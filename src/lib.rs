@@ -170,9 +170,6 @@ macro_rules! cstr(
 
 // AST coercion macros (https://danielkeep.github.io/tlborm/book/blk-ast-coercion.html)
 #[macro_export] #[doc(hidden)]
-macro_rules! py_coerce_expr { ($s:expr) => {$s} }
-
-#[macro_export] #[doc(hidden)]
 macro_rules! py_replace_expr {
     ($_t:tt $sub:expr) => {$sub};
 }
