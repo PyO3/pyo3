@@ -114,15 +114,18 @@ extern crate backtrace;
 extern crate pyo3cls;
 #[macro_use] extern crate log;
 
-#[cfg(Py_3)]
-pub mod ffi;
-
 #[cfg(not(Py_3))]
 mod ffi2;
 
-#[cfg(not(Py_3))]
+#[cfg(Py_3)]
+mod ffi3;
+
 pub mod ffi {
+    #[cfg(not(Py_3))]
     pub use ffi2::*;
+
+    #[cfg(Py_3)]
+    pub use ffi3::*;
 }
 
 pub use ffi::{Py_ssize_t, Py_hash_t};
