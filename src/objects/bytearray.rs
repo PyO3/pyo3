@@ -77,7 +77,6 @@ impl PyByteArray {
 mod test {
     use exc;
     use python::Python;
-    use typeob::PyTypeObject;
     use objects::{PyObject, PyByteArray};
 
     #[test]
@@ -100,7 +99,7 @@ mod test {
 
         let none = py.None();
         if let Err(mut err) = PyByteArray::from(py, &none) {
-            assert!(exc::TypeError::type_object(py).is_instance(py, &err.instance(py)))
+            assert!(py.is_instance::<exc::TypeError>(&err.instance(py)).unwrap())
         } else {
             panic!("error");
         }

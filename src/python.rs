@@ -258,16 +258,7 @@ impl<'p> Python<'p> {
 
     /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
     pub fn is_instance<T: PyTypeObject>(self, obj: &PyObject) -> PyResult<bool> {
-        let result = unsafe {
-            ffi::PyObject_IsInstance(obj.as_ptr(), T::type_object(self).as_ptr())
-        };
-        if result == -1 {
-            Err(PyErr::fetch(self))
-        } else if result == 1 {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        T::type_object(self).is_instance(self, obj)
     }
 
     /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
@@ -275,16 +266,7 @@ impl<'p> Python<'p> {
         where T: PyTypeObject,
             U: PyTypeObject
     {
-        let result = unsafe {
-            ffi::PyObject_IsSubclass(T::type_object(self).as_ptr(), U::type_object(self).as_ptr())
-        };
-        if result == -1 {
-            Err(PyErr::fetch(self))
-        } else if result == 1 {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        T::type_object(self).is_subclass::<U>(self)
     }
 }
 
