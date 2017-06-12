@@ -45,7 +45,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String) -> Tokens {
                 Err(e) => {
                     _pyo3::PyErr::from(e).restore(py);
                     std::mem::forget(guard);
-                    return ptr::null_mut();
+                    return std::ptr::null_mut();
                 }
             };
             let ret = match #fnname(py, &module) {
