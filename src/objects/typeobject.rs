@@ -42,7 +42,7 @@ impl PyType {
     }
 
     /// Check whether `self` is subclass of type `T` like Python `issubclass` function
-    pub fn is_subclass<T>(self, py: Python) -> PyResult<bool>
+    pub fn is_subclass<T>(&self, py: Python) -> PyResult<bool>
         where T: PyTypeObject
     {
         let result = unsafe {
@@ -58,7 +58,7 @@ impl PyType {
     }
 
     // Check whether `obj` is an instance of `self`
-    pub fn is_instance<T: ToPyPointer>(self, py: Python, obj: &T) -> PyResult<bool> {
+    pub fn is_instance<T: ToPyPointer>(&self, py: Python, obj: &T) -> PyResult<bool> {
         let result = unsafe {
             ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr())
         };
