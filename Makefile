@@ -3,20 +3,10 @@
 ifndef PY
 PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
 endif
-ifndef NIGHTLY
-ifeq ($(word 3, $(subst -, ,$(shell rustc --version 2>&1))),nightly)
-NIGHTLY := 1
-else
-NIGHTLY := 0
-endif
-endif
 
 ifdef PEP384
 export PEP384=1
 FEATURES := pep-384
-endif
-ifeq ($(NIGHTLY),1)
-FEATURES := $(FEATURES) nightly
 endif
 
 CARGO_FLAGS := --features "$(FEATURES)" --no-default-features
