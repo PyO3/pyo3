@@ -33,12 +33,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyVarObject {
-    #[cfg(py_sys_config="Py_TRACE_REFS")]
-    pub _ob_next: *mut PyObject,
-    #[cfg(py_sys_config="Py_TRACE_REFS")]
-    pub _ob_prev: *mut PyObject,
-    pub ob_refcnt: Py_ssize_t,
-    pub ob_type: *mut PyTypeObject,
+    pub ob_base: PyObject,
     pub ob_size: Py_ssize_t,
 }
 
