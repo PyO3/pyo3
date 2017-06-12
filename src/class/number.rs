@@ -405,7 +405,6 @@ impl<'p, T> PyNumberProtocolImpl for T {
 
 impl<'p, T> PyNumberProtocolImpl for T where T: PyNumberProtocol<'p> {
     #[cfg(Py_3)]
-    #[inline]
     fn tp_as_number() -> Option<ffi::PyNumberMethods> {
         use std::os::raw::c_void;
 
@@ -449,7 +448,6 @@ impl<'p, T> PyNumberProtocolImpl for T where T: PyNumberProtocol<'p> {
         })
     }
     #[cfg(not(Py_3))]
-    #[inline]
     fn tp_as_number() -> Option<ffi::PyNumberMethods> {
         Some(ffi::PyNumberMethods {
             nb_add: Self::nb_add(),
