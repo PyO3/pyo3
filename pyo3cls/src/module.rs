@@ -24,7 +24,6 @@ pub fn build_py3_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
-            use std;
             extern crate pyo3 as _pyo3;
 
             #tokens
@@ -92,7 +91,6 @@ pub fn build_py2_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
-            use std;
             extern crate pyo3 as _pyo3;
 
             #tokens

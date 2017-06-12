@@ -1,10 +1,17 @@
 language: python
 python:
+  #- "2.7"
   - "3.5"
   - "3.6"
+
+matrix:
+  allow_failures:
+    - python: "2.7"
+
 env:
   # - RUST_VERSION=1.17.0
   - RUST_VERSION=nightly
+
 sudo: required
 dist: trusty
 install:

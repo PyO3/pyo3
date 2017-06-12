@@ -117,8 +117,8 @@ impl PyDict {
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
-                vec.push((PyObject::from_owned_ptr(py, key),
-                          PyObject::from_owned_ptr(py, value)));
+                vec.push((PyObject::from_borrowed_ptr(py, key),
+                          PyObject::from_borrowed_ptr(py, value)));
             }
         }
         vec
@@ -254,7 +254,7 @@ mod test {
 
     #[test]
     fn test_items_list() {
-    let gil = Python::acquire_gil();
+        let gil = Python::acquire_gil();
         let py = gil.python();
         let mut v = HashMap::new();
         v.insert(7, 32);

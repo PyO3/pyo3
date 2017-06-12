@@ -568,10 +568,10 @@ impl_element!(f64, Float);
 mod test {
     use std;
     use python::{Python};
-    //use conversion::ToPyObject;
-    //use objects::{PyList, PyTuple};//, PySequence, PyIterator};
-    use objectprotocol::ObjectProtocol;
     use super::PyBuffer;
+
+    #[allow(unused_imports)]
+    use objectprotocol::ObjectProtocol;
 
     #[test]
     fn test_compatible_size() {
@@ -616,6 +616,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(Py_3)] // array.array doesn't implement the buffer protocol in python 2.7
     fn test_array_buffer() {
         let gil = Python::acquire_gil();
         let py = gil.python();

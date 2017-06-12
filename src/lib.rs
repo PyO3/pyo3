@@ -103,7 +103,7 @@
 //!
 //! The extension module can then be imported into Python:
 //!
-//! ```python1
+//! ```python
 //! >>> import hello
 //! >>> hello.run()
 //! Rust says: Hello Python!
