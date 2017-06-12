@@ -86,7 +86,7 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     m.add(py, "__doc__", "This module is implemented in Rust.")?;
     m.add(py, "sum_as_string", py_fn!(py, sum_as_string_py(a: i64, b:i64)))?;
     Ok(())
-});
+}
 
 // logic implemented as a normal rust function
 fn sum_as_string(a:i64, b:i64) -> String {
