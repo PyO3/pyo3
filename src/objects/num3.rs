@@ -24,7 +24,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 pub struct PyLong(PyPtr);
 
 pyobject_convert!(PyLong);
-pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
+pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
 
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (

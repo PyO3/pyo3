@@ -13,7 +13,7 @@ use conversion::{ToPyObject, IntoPyObject};
 pub struct PyList(PyPtr);
 
 pyobject_convert!(PyList);
-pyobject_nativetype!(PyList, PyList_Check, PyList_Type);
+pyobject_nativetype!(PyList, PyList_Type, PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.

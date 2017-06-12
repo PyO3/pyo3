@@ -17,7 +17,8 @@ use objectprotocol::ObjectProtocol;
 /// Represents a reference to a python object supporting the sequence protocol.
 pub struct PySequence(PyPtr);
 
-pyobject_nativetype!(PySequence, PySequence_Check);
+pyobject_nativetype!(PySequence);
+pyobject_downcast!(PySequence, PySequence_Check);
 
 impl PySequence {
     /// Returns the number of objects in sequence. This is equivalent to Python `len()`.

@@ -17,13 +17,17 @@ use super::{PyObject, PyStringData};
 pub struct PyString(PyPtr);
 
 pyobject_convert!(PyString);
-pyobject_nativetype!(PyString, PyUnicode_Check, PyUnicode_Type);
+pyobject_nativetype!(PyString, PyUnicode_Type, PyUnicode_Check);
+
+/// Represents a Python unicode string.
+/// Corresponds to `unicode` in Python 2, and `str` in Python 3.
+pub use PyString as PyUnicode;
 
 /// Represents a Python byte string.
 pub struct PyBytes(PyPtr);
 
 pyobject_convert!(PyBytes);
-pyobject_nativetype!(PyBytes, PyBytes_Check, PyBytes_Type);
+pyobject_nativetype!(PyBytes, PyBytes_Type, PyBytes_Check);
 
 impl PyString {
 

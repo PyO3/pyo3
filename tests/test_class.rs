@@ -509,15 +509,17 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         Ok(format!("format({})", format_spec))
     }
 
-    //fn __unicode__(&self) -> PyResult<PyString> {
+    // fn __unicode__(&self) -> PyResult<PyString> {
     //    Ok(PyString::new(py, "unicode"))
-    //}
+    // }
 
+    #[cfg(Py_3)]
     fn __bytes__(&self, py: Python) -> PyResult<PyBytes> {
         Ok(PyBytes::new(py, b"bytes"))
     }
 }
 
+#[cfg(Py_3)]
 #[test]
 fn string_methods() {
     let gil = Python::acquire_gil();
@@ -528,6 +530,18 @@ fn string_methods() {
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
     py_assert!(py, obj, "bytes(obj) == b'bytes'");
+}
+
+#[cfg(not(Py_3))]
+#[test]
+fn string_methods() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let obj = py.init(|t| StringMethods{token: t}).unwrap();
+    py_assert!(py, obj, "str(obj) == 'str'");
+    py_assert!(py, obj, "repr(obj) == 'repr'");
+    py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
 }
 
 
@@ -964,6 +978,7 @@ fn rich_comparisons() {
 }
 
 #[test]
+#[cfg(Py_3)]
 fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();

@@ -42,8 +42,40 @@ macro_rules! pyobject_nativetype(
                 $name(unsafe{$crate::PyPtr::from_borrowed_ptr(self.as_ptr())})
             }
         }
+        impl $crate::python::ToPyPointer for $name {
+            /// Gets the underlying FFI pointer, returns a borrowed pointer.
+            #[inline]
+            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
+                self.0.as_ptr()
+            }
+        }
+        impl<'a> $crate::python::ToPyPointer for &'a $name {
+            /// Gets the underlying FFI pointer, returns a borrowed pointer.
+            #[inline]
+            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
+                self.0.as_ptr()
+            }
+        }
+
+        impl $crate::python::IntoPyPointer for $name {
+            /// Gets the underlying FFI pointer, returns a owned pointer.
+            #[inline]
+            #[must_use]
+            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
+                let ptr = self.0.as_ptr();
+                $crate::std::mem::forget(self);
+                ptr
+            }
+        }
     );
-    ($name: ident, $checkfunction: ident, $typeobject: ident) => {
+
+    ($name: ident, $typeobject: ident, $checkfunction: ident) => {
+        pyobject_downcast!($name, $checkfunction);
+        pyobject_nativetype!($name, $typeobject);
+    };
+
+    ($name: ident, $typeobject: ident) => (
+        pyobject_nativetype!($name);
 
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
@@ -73,125 +105,6 @@ macro_rules! pyobject_nativetype(
             #[inline]
             fn type_object(py: $crate::Python) -> $crate::PyType {
                 unsafe { $crate::PyType::from_type_ptr(py, &mut $crate::ffi::$typeobject) }
-            }
-        }
-
-        pyobject_nativetype!($name, $checkfunction);
-    };
-
-    ($name: ident, $checkfunction: ident) => (
-        pyobject_nativetype!($name);
-
-        impl $crate::python::PyDowncastFrom for $name
-        {
-            fn downcast_from<'a, 'p>(py: $crate::Python<'p>, ob: &'a $crate::PyObject)
-                                     -> Result<&'a $name, $crate::PyDowncastError<'p>>
-            {
-                use $crate::ToPyPointer;
-
-                unsafe {
-                    if $crate::ffi::$checkfunction(ob.as_ptr()) > 0 {
-                        let ptr = ob as *const _ as *mut u8 as *mut $name;
-                        Ok(ptr.as_ref().unwrap())
-                    } else {
-                        Err($crate::PyDowncastError(py, None))
-                    }
-                }
-            }
-        }
-        impl $crate::python::PyDowncastInto for $name
-        {
-            fn downcast_into<'p, I>(py: $crate::Python<'p>, ob: I)
-                                -> Result<Self, $crate::PyDowncastError<'p>>
-                where I: $crate::IntoPyPointer
-            {
-                unsafe{
-                    let ptr = ob.into_ptr();
-                    if ffi::$checkfunction(ptr) != 0 {
-                        Ok($name(PyPtr::from_owned_ptr(ptr)))
-                    } else {
-                        $crate::ffi::Py_DECREF(ptr);
-                        Err($crate::PyDowncastError(py, None))
-                    }
-                }
-            }
-
-            fn downcast_from_ptr<'p>(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject)
-                                     -> Result<$name, $crate::PyDowncastError<'p>>
-            {
-                unsafe{
-                    if ffi::$checkfunction(ptr) != 0 {
-                        Ok($name(PyPtr::from_owned_ptr(ptr)))
-                    } else {
-                        $crate::ffi::Py_DECREF(ptr);
-                        Err($crate::PyDowncastError(py, None))
-                    }
-                }
-            }
-
-            fn unchecked_downcast_into<'p, I>(ob: I) -> Self
-                where I: $crate::IntoPyPointer
-            {
-                unsafe{
-                    $name(PyPtr::from_owned_ptr(ob.into_ptr()))
-                }
-            }
-        }
-
-        impl $crate::python::ToPyPointer for $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
-                self.0.as_ptr()
-            }
-        }
-
-        impl<'a> $crate::python::ToPyPointer for &'a $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
-                self.0.as_ptr()
-            }
-        }
-
-        impl $crate::python::IntoPyPointer for $name {
-            /// Gets the underlying FFI pointer, returns a owned pointer.
-            #[inline]
-            #[must_use]
-            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
-                let ptr = self.0.as_ptr();
-                $crate::std::mem::forget(self);
-                ptr
-            }
-        }
-
-        impl<'a> $crate::FromPyObject<'a> for $name
-        {
-            /// Extracts `Self` from the source `Py<PyObject>`.
-            fn extract(py: Python, ob: &'a $crate::PyObject) -> $crate::PyResult<Self>
-            {
-                unsafe {
-                    if ffi::$checkfunction(ob.as_ptr()) != 0 {
-                        Ok( $name($crate::pointers::PyPtr::from_borrowed_ptr(ob.as_ptr())) )
-                    } else {
-                        Err(::PyDowncastError(py, None).into())
-                    }
-                }
-            }
-        }
-
-        impl<'a> $crate::FromPyObject<'a> for &'a $name
-        {
-            /// Extracts `Self` from the source `PyObject`.
-            fn extract(py: Python, ob: &'a $crate::PyObject) -> $crate::PyResult<Self>
-            {
-                unsafe {
-                    if ffi::$checkfunction(ob.as_ptr()) != 0 {
-                        Ok($crate::std::mem::transmute(ob))
-                    } else {
-                        Err($crate::PyDowncastError(py, None).into())
-                    }
-                }
             }
         }
 
@@ -258,6 +171,95 @@ macro_rules! pyobject_nativetype(
     );
 );
 
+macro_rules! pyobject_downcast(
+    ($name: ident, $checkfunction: ident) => (
+        impl $crate::python::PyDowncastFrom for $name
+        {
+            fn downcast_from<'a, 'p>(py: $crate::Python<'p>, ob: &'a $crate::PyObject)
+                                     -> Result<&'a $name, $crate::PyDowncastError<'p>>
+            {
+                use $crate::ToPyPointer;
+
+                unsafe {
+                    if $crate::ffi::$checkfunction(ob.as_ptr()) > 0 {
+                        let ptr = ob as *const _ as *mut u8 as *mut $name;
+                        Ok(ptr.as_ref().unwrap())
+                    } else {
+                        Err($crate::PyDowncastError(py, None))
+                    }
+                }
+            }
+        }
+        impl $crate::python::PyDowncastInto for $name
+        {
+            fn downcast_into<'p, I>(py: $crate::Python<'p>, ob: I)
+                                -> Result<Self, $crate::PyDowncastError<'p>>
+                where I: $crate::IntoPyPointer
+            {
+                unsafe{
+                    let ptr = ob.into_ptr();
+                    if ffi::$checkfunction(ptr) != 0 {
+                        Ok($name(PyPtr::from_owned_ptr(ptr)))
+                    } else {
+                        $crate::ffi::Py_DECREF(ptr);
+                        Err($crate::PyDowncastError(py, None))
+                    }
+                }
+            }
+
+            fn downcast_from_ptr<'p>(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject)
+                                     -> Result<$name, $crate::PyDowncastError<'p>>
+            {
+                unsafe{
+                    if ffi::$checkfunction(ptr) != 0 {
+                        Ok($name(PyPtr::from_owned_ptr(ptr)))
+                    } else {
+                        $crate::ffi::Py_DECREF(ptr);
+                        Err($crate::PyDowncastError(py, None))
+                    }
+                }
+            }
+
+            fn unchecked_downcast_into<'p, I>(ob: I) -> Self
+                where I: $crate::IntoPyPointer
+            {
+                unsafe{
+                    $name(PyPtr::from_owned_ptr(ob.into_ptr()))
+                }
+            }
+        }
+
+        impl<'a> $crate::FromPyObject<'a> for $name
+        {
+            /// Extracts `Self` from the source `PyObject`.
+            fn extract(py: Python, ob: &'a $crate::PyObject) -> $crate::PyResult<Self>
+            {
+                unsafe {
+                    if ffi::$checkfunction(ob.as_ptr()) != 0 {
+                        Ok( $name($crate::pointers::PyPtr::from_borrowed_ptr(ob.as_ptr())) )
+                    } else {
+                        Err(::PyDowncastError(py, None).into())
+                    }
+                }
+            }
+        }
+
+        impl<'a> $crate::FromPyObject<'a> for &'a $name
+        {
+            /// Extracts `Self` from the source `PyObject`.
+            fn extract(py: Python, ob: &'a $crate::PyObject) -> $crate::PyResult<Self>
+            {
+                unsafe {
+                    if ffi::$checkfunction(ob.as_ptr()) != 0 {
+                        Ok($crate::std::mem::transmute(ob))
+                    } else {
+                        Err($crate::PyDowncastError(py, None).into())
+                    }
+                }
+            }
+        }
+    );
+);
 
 macro_rules! pyobject_convert(
     ($name: ident) => (

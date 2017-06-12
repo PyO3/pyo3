@@ -54,6 +54,7 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __bool__(&'p self, py: Python<'p>)
                 -> Self::Result where Self: PyObjectBoolProtocol<'p> {unimplemented!()}
 
+    #[cfg(Py_3)]
     fn __bytes__(&'p self, py: Python<'p>)
                  -> Self::Result where Self: PyObjectBytesProtocol<'p> {unimplemented!()}
 

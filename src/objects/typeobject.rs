@@ -16,7 +16,7 @@ use typeob::PyTypeObject;
 pub struct PyType(PyPtr);
 
 pyobject_convert!(PyType);
-pyobject_nativetype!(PyType, PyType_Check, PyType_Type);
+pyobject_nativetype!(PyType, PyType_Type, PyType_Check);
 
 
 impl PyType {

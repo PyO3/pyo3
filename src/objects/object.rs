@@ -10,7 +10,7 @@ use conversion::FromPyObject;
 
 pub struct PyObject(PyPtr);
 
-pyobject_nativetype!(PyObject, PyObject_Check, PyBaseObject_Type);
+pyobject_nativetype!(PyObject, PyBaseObject_Type, PyObject_Check);
 
 
 impl PyObject {

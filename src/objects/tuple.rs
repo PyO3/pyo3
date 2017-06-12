@@ -16,7 +16,7 @@ use super::exc;
 pub struct PyTuple(PyPtr);
 
 pyobject_convert!(PyTuple);
-pyobject_nativetype!(PyTuple, PyTuple_Check, PyTuple_Type);
+pyobject_nativetype!(PyTuple, PyTuple_Type, PyTuple_Check);
 
 
 impl PyTuple {

@@ -8,7 +8,7 @@ use conversion::{ToPyObject, IntoPyObject};
 pub struct PyBool(PyPtr);
 
 pyobject_convert!(PyBool);
-pyobject_nativetype!(PyBool, PyBool_Check, PyBool_Type);
+pyobject_nativetype!(PyBool, PyBool_Type, PyBool_Check);
 
 
 impl PyBool {

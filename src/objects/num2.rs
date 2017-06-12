@@ -26,7 +26,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 pub struct PyInt(PyPtr);
 
 pyobject_convert!(PyInt);
-pyobject_nativetype!(PyInt, PyInt_Check, PyInt_Type);
+pyobject_nativetype!(PyInt, PyInt_Type, PyInt_Check);
 
 /// In Python 2.x, represents a Python `long` object.
 /// Both `PyInt` and `PyLong` refer to the same type on Python 3.x.
@@ -38,7 +38,7 @@ pyobject_nativetype!(PyInt, PyInt_Check, PyInt_Type);
 pub struct PyLong(PyPtr);
 
 pyobject_convert!(PyLong);
-pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
+pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
 
 impl PyInt {
     /// Creates a new Python 2.7 `int` object.
@@ -285,7 +285,6 @@ mod test {
         let py = gil.python();
         let v = std::u64::MAX;
         let obj = v.to_object(py);
-        println!("{:?}", obj);
         assert_eq!(v, obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<i64>(py).is_err());
     }

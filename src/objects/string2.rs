@@ -9,29 +9,29 @@ use std::ascii::AsciiExt;
 use std::os::raw::c_char;
 
 use ffi;
-use err::PyResult;
+use conversion::FromPyObject;
+use err::{PyResult, PyDowncastError};
 use pointers::PyPtr;
-use python::{Python, ToPyPointer};
+use python::{Python, ToPyPointer, IntoPyPointer, PyDowncastInto, PyDowncastFrom};
 use super::{PyObject, PyStringData};
 
 /// Represents a Python string.
 pub struct PyString(PyPtr);
 
 pyobject_convert!(PyString);
-pyobject_nativetype!(PyString, PyString_Check, PyBaseString_Type);
-
+pyobject_nativetype!(PyString, PyBaseString_Type);
 
 /// Represents a Python unicode string.
 pub struct PyUnicode(PyPtr);
 
 pyobject_convert!(PyUnicode);
-pyobject_nativetype!(PyUnicode, PyUnicode_Check, PyUnicode_Type);
+pyobject_nativetype!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python byte string. Corresponds to `str` in Python 2
 pub struct PyBytes(PyPtr);
 
 pyobject_convert!(PyBytes);
-pyobject_nativetype!(PyBytes, PyString_Check, PyBaseString_Type);
+pyobject_nativetype!(PyBytes, PyBaseString_Type, PyString_Check);
 
 impl PyString {
     /// Creates a new Python string object.
@@ -99,15 +99,97 @@ impl PyString {
     }
 
     #[inline]
-    pub fn is_base_string(obj: &PyObject) -> bool {
+    pub fn is_base_string(ptr: *mut ffi::PyObject) -> bool {
         unsafe {
             ffi::PyType_FastSubclass(
-                ffi::Py_TYPE(obj.as_ptr()),
+                ffi::Py_TYPE(ptr),
                 ffi::Py_TPFLAGS_STRING_SUBCLASS | ffi::Py_TPFLAGS_UNICODE_SUBCLASS) != 0
         }
     }
 }
 
+impl PyDowncastFrom for PyString
+{
+    fn downcast_from<'a, 'p>(py: Python<'p>, ob: &'a PyObject)
+                             -> Result<&'a PyString, PyDowncastError<'p>>
+    {
+        unsafe {
+            if PyString::is_base_string(ob.as_ptr()) {
+                let ptr = ob as *const _ as *mut u8 as *mut PyString;
+                Ok(ptr.as_ref().unwrap())
+            } else {
+                Err(PyDowncastError(py, None))
+            }
+        }
+    }
+}
+
+impl PyDowncastInto for PyString
+{
+    fn downcast_into<'p, I>(py: Python<'p>, ob: I) -> Result<Self, PyDowncastError<'p>>
+        where I: IntoPyPointer
+    {
+        unsafe{
+            let ptr = ob.into_ptr();
+            if PyString::is_base_string(ptr) {
+                Ok(PyString(PyPtr::from_owned_ptr(ptr)))
+            } else {
+                ffi::Py_DECREF(ptr);
+                Err(PyDowncastError(py, None))
+            }
+        }
+    }
+
+    fn downcast_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
+                             -> Result<PyString, PyDowncastError<'p>>
+    {
+        unsafe{
+            if PyString::is_base_string(ptr) {
+                Ok(PyString(PyPtr::from_owned_ptr(ptr)))
+            } else {
+                ffi::Py_DECREF(ptr);
+                Err(PyDowncastError(py, None))
+            }
+        }
+    }
+
+    fn unchecked_downcast_into<'p, I>(ob: I) -> Self where I: IntoPyPointer
+    {
+        unsafe{
+            PyString(PyPtr::from_owned_ptr(ob.into_ptr()))
+        }
+    }
+}
+
+impl<'a> FromPyObject<'a> for PyString
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(py: Python, ob: &'a PyObject) -> PyResult<Self>
+    {
+        unsafe {
+            if PyString::is_base_string(ob.as_ptr()) {
+                Ok( PyString(PyPtr::from_borrowed_ptr(ob.as_ptr())) )
+            } else {
+                Err(PyDowncastError(py, None).into())
+            }
+        }
+    }
+}
+
+impl<'a> FromPyObject<'a> for &'a PyString
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(py: Python, ob: &'a PyObject) -> PyResult<Self>
+    {
+        unsafe {
+            if PyString::is_base_string(ob.as_ptr()) {
+                Ok(std::mem::transmute(ob))
+            } else {
+                Err(PyDowncastError(py, None).into())
+            }
+        }
+    }
+}
 
 impl PyBytes {
     /// Creates a new Python byte string object.

@@ -14,7 +14,7 @@ use conversion::ToPyObject;
 pub struct PySlice(PyPtr);
 
 pyobject_convert!(PySlice);
-pyobject_nativetype!(PySlice, PySlice_Check, PySlice_Type);
+pyobject_nativetype!(PySlice, PySlice_Type, PySlice_Check);
 
 
 /// Represents a Python `slice` indices

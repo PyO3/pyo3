@@ -15,7 +15,7 @@ use err::{self, PyResult, PyErr};
 pub struct PyDict(PyPtr);
 
 pyobject_convert!(PyDict);
-pyobject_nativetype!(PyDict, PyDict_Check, PyDict_Type);
+pyobject_nativetype!(PyDict, PyDict_Type, PyDict_Check);
 
 
 impl PyDict {

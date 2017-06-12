@@ -20,7 +20,7 @@ use conversion::{ToPyObject, IntoPyObject};
 pub struct PyFloat(PyPtr);
 
 pyobject_convert!(PyFloat);
-pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type);
+pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
 
 
 impl PyFloat {

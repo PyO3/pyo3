@@ -44,28 +44,9 @@ pub trait PyGCProtocolImpl {
 
 impl<'p, T> PyGCProtocolImpl for T where T: PyGCProtocol<'p>
 {
-    #[cfg(Py_3)]
     fn update_type_object(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_traverse = Self::tp_traverse();
         type_object.tp_clear = Self::tp_clear();
-
-        if type_object.tp_traverse != None || type_object.tp_clear != None {
-            type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
-        } else {
-            type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
-        }
-    }
-
-    #[cfg(not(Py_3))]
-    fn update_type_object(type_object: &mut ffi::PyTypeObject) {
-        type_object.tp_traverse = Self::tp_traverse();
-        type_object.tp_clear = Self::tp_clear();
-
-        if type_object.tp_traverse != None || type_object.tp_clear != None {
-            type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
-        } else {
-            type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
-        }
     }
 }
 

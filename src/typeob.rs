@@ -230,6 +230,9 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         mem::forget(props);
     }
 
+    // set type flags
+    py_class_flags(type_object);
+
     // register type object
     unsafe {
         if ffi::PyType_Ready(type_object) == 0 {
@@ -262,6 +265,27 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     let r = <T as PyObjectAlloc<T>>::dealloc(py, obj);
     mem::forget(guard);
     r
+}
+
+#[cfg(Py_3)]
+fn py_class_flags(type_object: &mut ffi::PyTypeObject) {
+    if type_object.tp_traverse != None || type_object.tp_clear != None {
+        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
+    } else {
+        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
+    }
+}
+
+#[cfg(not(Py_3))]
+fn py_class_flags(type_object: &mut ffi::PyTypeObject) {
+    if type_object.tp_traverse != None || type_object.tp_clear != None {
+        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
+    } else {
+        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
+    }
+    if !type_object.tp_as_buffer.is_null() {
+        type_object.tp_flags = type_object.tp_flags | ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
+    }
 }
 
 fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
