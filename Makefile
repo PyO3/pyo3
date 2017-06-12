@@ -4,9 +4,15 @@ ifndef PY
 PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
 endif
 
+ifeq ($(PY),2)
+FEATURES := python2
+endif
+ifeq ($(PY),3)
+FEATURES := python3
 ifdef PEP384
 export PEP384=1
-FEATURES := pep-384
+FEATURES := $(FEATURES) pep-384
+endif
 endif
 
 CARGO_FLAGS := --features "$(FEATURES)" --no-default-features
