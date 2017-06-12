@@ -66,11 +66,11 @@
 //! # Example
 //! ```
 //! #![feature(proc_macro)]
-//! #![macro_use] extern crate pyo3;
+//! #[macro_use] extern crate pyo3;
 //! use pyo3::{py, Python, PyResult, PyObject, PyModule};
 //!
 //! #[py::modinit(hello)]
-//! fn init_module(py: Python, m: &PyModule) {
+//! fn init_module(py: Python, m: &PyModule) -> PyResult<()> {
 //!     m.add(py, "__doc__", "Module documentation string")?;
 //!     m.add(py, "run", py_fn!(py, run()))?;
 //!     Ok(())

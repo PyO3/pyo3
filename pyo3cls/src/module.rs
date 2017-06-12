@@ -23,6 +23,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String) -> Tokens {
         pub unsafe extern "C" fn #cb_name() -> *mut ::pyo3::ffi::PyObject {
             use std;
             extern crate pyo3 as _pyo3;
+            use pyo3::IntoPyPointer;
 
             static mut MODULE_DEF: _pyo3::ffi::PyModuleDef = _pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
