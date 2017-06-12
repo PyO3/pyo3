@@ -36,7 +36,12 @@ pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Build the output
     let init = module::build_py2_module_init(&mut ast, attr.to_string());
 
-    TokenStream::from_str(init.as_str()).unwrap()
+    // Return the generated impl as a TokenStream
+    let mut tokens = Tokens::new();
+    ast.to_tokens(&mut tokens);
+    let s = String::from(tokens.as_str()) + init.as_str();
+
+    TokenStream::from_str(s.as_str()).unwrap()
 }
 
 #[proc_macro_attribute]
@@ -50,7 +55,12 @@ pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Build the output
     let init = module::build_py3_module_init(&mut ast, attr.to_string());
 
-    TokenStream::from_str(init.as_str()).unwrap()
+    // Return the generated impl as a TokenStream
+    let mut tokens = Tokens::new();
+    ast.to_tokens(&mut tokens);
+    let s = String::from(tokens.as_str()) + init.as_str();
+
+    TokenStream::from_str(s.as_str()).unwrap()
 }
 
 #[proc_macro_attribute]

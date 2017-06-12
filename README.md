@@ -12,7 +12,7 @@ Python is licensed under the [Python License](https://docs.python.org/2/license.
 
 Supported Python versions:
 
-* Python 3.5 and up
+* Python2.7, Python 3.5 and up
 
 Supported Rust version:
 
@@ -74,15 +74,17 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
-#[macro_use] extern crate pyo3;
+#![feature(proc_macro)]
+#![macro_use] extern crate pyo3;
 
-use pyo3::{PyResult, Python};
+use pyo3::{py, PyResult, Python, PyModule};
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-py_module_init!(librust2py, PyInit__librust2py, |py, m| {
-    try!(m.add(py, "__doc__", "This module is implemented in Rust."));
-    try!(m.add(py, "sum_as_string", py_fn!(py, sum_as_string_py(a: i64, b:i64))));
+#[py::modinit(rust2py)]
+fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add(py, "__doc__", "This module is implemented in Rust.")?;
+    m.add(py, "sum_as_string", py_fn!(py, sum_as_string_py(a: i64, b:i64)))?;
     Ok(())
 });
 
