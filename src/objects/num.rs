@@ -2,10 +2,10 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-extern crate num_traits;
+use std::os::raw::c_long;
 
+extern crate num_traits;
 use self::num_traits::cast::cast;
-use std::os::raw::{c_long, c_double};
 
 use ffi;
 use objects::exc;
@@ -25,33 +25,6 @@ pub struct PyLong(PyPtr);
 
 pyobject_convert!(PyLong);
 pyobject_nativetype!(PyLong, PyLong_Check, PyLong_Type);
-
-/// Represents a Python `float` object.
-///
-/// You can usually avoid directly working with this type
-/// by using [`ToPyObject`](trait.ToPyObject.html)
-/// and [extract](struct.PyObject.html#method.extract)
-/// with `f32`/`f64`.
-pub struct PyFloat(PyPtr);
-
-pyobject_convert!(PyFloat);
-pyobject_nativetype!(PyFloat, PyFloat_Check, PyFloat_Type);
-
-
-impl PyFloat {
-    /// Creates a new Python `float` object.
-    pub fn new(_py: Python, val: c_double) -> PyFloat {
-        unsafe {
-            PyFloat(PyPtr::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val)))
-        }
-    }
-
-    /// Gets the value of this float.
-    pub fn value(&self, _py: Python) -> c_double {
-        unsafe { ffi::PyFloat_AsDouble(self.0.as_ptr()) }
-    }
-}
-
 
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
@@ -187,44 +160,9 @@ int_fits_larger_int!(usize, u64);
 // u64 has a manual implementation as it never fits into signed long
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
-impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, *self).into()
-    }
-}
-impl IntoPyObject for f64 {
-    fn into_object(self, py: Python) -> PyObject {
-        PyFloat::new(py, self).into()
-    }
-}
-
-pyobject_extract!(py, obj to f64 => {
-    let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
-    if v == -1.0 && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
-    } else {
-        Ok(v)
-    }
-});
-
 fn overflow_error(py: Python) -> PyErr {
     PyErr::new_lazy_init(py.get_type::<exc::OverflowError>(), None)
 }
-
-impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, *self as f64).into()
-    }
-}
-impl IntoPyObject for f32 {
-    fn into_object(self, py: Python) -> PyObject {
-        PyFloat::new(py, self as f64).into()
-    }
-}
-
-pyobject_extract!(py, obj to f32 => {
-    Ok(try!(obj.extract::<f64>(py)) as f32)
-});
 
 #[cfg(test)]
 mod test {
@@ -245,8 +183,6 @@ mod test {
         )
     );
 
-    num_to_py_object_and_back!(to_from_f64, f64, f64);
-    num_to_py_object_and_back!(to_from_f32, f32, f32);
     num_to_py_object_and_back!(to_from_i8,   i8,  i8);
     num_to_py_object_and_back!(to_from_u8,   u8,  u8);
     num_to_py_object_and_back!(to_from_i16, i16, i16);
@@ -257,11 +193,6 @@ mod test {
     num_to_py_object_and_back!(to_from_u64, u64, u64);
     num_to_py_object_and_back!(to_from_isize, isize, isize);
     num_to_py_object_and_back!(to_from_usize, usize, usize);
-    num_to_py_object_and_back!(float_to_i32, f64, i32);
-    num_to_py_object_and_back!(float_to_u32, f64, u32);
-    num_to_py_object_and_back!(float_to_i64, f64, i64);
-    num_to_py_object_and_back!(float_to_u64, f64, u64);
-    num_to_py_object_and_back!(int_to_float, i32, f64);
 
     #[test]
     fn test_u32_max() {
