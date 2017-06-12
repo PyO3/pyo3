@@ -75,7 +75,6 @@ pyobject_extract!(py, obj to f32 => {
 
 #[cfg(test)]
 mod test {
-    use std;
     use python::Python;
     use conversion::ToPyObject;
 

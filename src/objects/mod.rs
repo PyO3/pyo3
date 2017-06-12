@@ -9,7 +9,6 @@ pub use self::bytearray::{PyByteArray};
 pub use self::tuple::{PyTuple, NoArgs};
 pub use self::dict::PyDict;
 pub use self::list::PyList;
-pub use self::num::PyLong;
 pub use self::floatob::PyFloat;
 pub use self::sequence::PySequence;
 pub use self::slice::PySlice;
@@ -22,6 +21,13 @@ pub use self::string::{PyBytes, PyString};
 #[cfg(not(Py_3))]
 pub use self::string2::{PyBytes, PyString};
 
+#[cfg(Py_3)]
+pub use self::num3::PyLong;
+#[cfg(Py_3)]
+pub use self::num3::PyLong as PyInt;
+
+#[cfg(not(Py_3))]
+pub use self::num2::{PyInt, PyLong};
 
 #[macro_export]
 macro_rules! pyobject_nativetype(
@@ -285,7 +291,6 @@ mod boolobject;
 mod bytearray;
 mod tuple;
 mod list;
-mod num;
 mod floatob;
 mod sequence;
 mod slice;
@@ -294,6 +299,12 @@ mod stringutils;
 mod set;
 mod object;
 pub mod exc;
+
+#[cfg(Py_3)]
+mod num3;
+
+#[cfg(not(Py_3))]
+mod num2;
 
 #[cfg(Py_3)]
 mod string;

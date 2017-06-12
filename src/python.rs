@@ -273,7 +273,7 @@ impl<'p> Python<'p> {
 #[cfg(test)]
 mod test {
     use {Python, PyDict};
-    use objects::{PyBool, PyList, PyLong};
+    use objects::{PyBool, PyList, PyInt};
 
     #[test]
     fn test_eval() {
@@ -314,7 +314,7 @@ mod test {
     fn test_is_subclass() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.is_subclass::<PyBool, PyLong>().unwrap());
+        assert!(py.is_subclass::<PyBool, PyInt>().unwrap());
         assert!(!py.is_subclass::<PyBool, PyList>().unwrap());
     }
 }
