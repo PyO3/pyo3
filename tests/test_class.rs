@@ -239,6 +239,7 @@ struct InstanceMethodPtr(PyPtr);
 
 #[py::methods]
 impl InstanceMethod {
+    /// Test method
     fn method(&self, py: Python) -> PyResult<i32> {
         Ok(self.member)
     }
@@ -254,6 +255,7 @@ fn instance_method() {
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
     py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
+    py.run("assert obj.method.__doc__ == '/// Test method'", None, Some(&d)).unwrap();
 }
 
 #[py::class]

@@ -82,7 +82,7 @@ impl PyMethodDef {
                 "Method name must not contain NULL byte").into_raw(),
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
-            ml_doc: 0 as *const ::c_char,
+            ml_doc: self.ml_doc.as_ptr() as *const _,
         }
     }
 

@@ -4,29 +4,32 @@ use syn;
 use quote::{Tokens, ToTokens};
 use method::{FnArg, FnSpec, FnType};
 
+use utils;
+
 
 pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
                          sig: &mut syn::MethodSig, meth_attrs: &mut Vec<syn::Attribute>) -> Tokens
 {
     check_generic(name, sig);
 
+    let doc = utils::get_doc(&meth_attrs);
     let spec = FnSpec::parse(name, sig, meth_attrs);
 
     match spec.tp {
         FnType::Fn =>
-            impl_py_method_def(name, &spec, &impl_wrap(cls, name, &spec, true)),
+            impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
         FnType::FnNew =>
-            impl_py_method_def_new(name, &impl_wrap_type(cls, name, &spec)),
+            impl_py_method_def_new(name, doc, &impl_wrap_type(cls, name, &spec)),
         FnType::FnCall =>
-            impl_py_method_def_call(name, &impl_wrap(cls, name, &spec, false)),
+            impl_py_method_def_call(name, doc, &impl_wrap(cls, name, &spec, false)),
         FnType::FnClass =>
-            impl_py_method_def_class(name, &impl_wrap_class(cls, name, &spec)),
+            impl_py_method_def_class(name, doc, &impl_wrap_class(cls, name, &spec)),
         FnType::FnStatic =>
-            impl_py_method_def_static(name, &impl_wrap_static(cls, name, &spec)),
+            impl_py_method_def_static(name, doc, &impl_wrap_static(cls, name, &spec)),
         FnType::Getter(ref getter) =>
-            impl_py_getter_def(name, getter, &impl_wrap_getter(cls, name, &spec)),
+            impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name, &spec)),
         FnType::Setter(ref setter) =>
-            impl_py_setter_def(name, setter, &impl_wrap_setter(cls, name, &spec)),
+            impl_py_setter_def(name, doc, setter, &impl_wrap_setter(cls, name, &spec)),
     }
 }
 
@@ -447,7 +450,9 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
     }
 }
 
-pub fn impl_py_method_def(name: &syn::Ident, spec: &FnSpec, wrapper: &Tokens) -> Tokens {
+pub fn impl_py_method_def(name: &syn::Ident, doc: syn::Lit, spec: &FnSpec, wrapper: &Tokens)
+                          -> Tokens
+{
     if spec.args.is_empty() {
         quote! {
             _pyo3::class::PyMethodDefType::Method({
@@ -457,7 +462,7 @@ pub fn impl_py_method_def(name: &syn::Ident, spec: &FnSpec, wrapper: &Tokens) ->
                     ml_name: stringify!(#name),
                     ml_meth: _pyo3::class::PyMethodType::PyNoArgsFunction(wrap),
                     ml_flags: _pyo3::ffi::METH_NOARGS,
-                    ml_doc: "",
+                    ml_doc: #doc,
                 }
             })
         }
@@ -470,14 +475,15 @@ pub fn impl_py_method_def(name: &syn::Ident, spec: &FnSpec, wrapper: &Tokens) ->
                     ml_name: stringify!(#name),
                     ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
                     ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
-                    ml_doc: "",
+                    ml_doc: #doc,
                 }
             })
         }
     }
 }
 
-pub fn impl_py_method_def_new(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
+pub fn impl_py_method_def_new(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+{
     quote! {
         _pyo3::class::PyMethodDefType::New({
             #wrapper
@@ -486,13 +492,14 @@ pub fn impl_py_method_def_new(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
                 ml_name: stringify!(#name),
                 ml_meth: _pyo3::class::PyMethodType::PyNewFunc(wrap),
                 ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
-                ml_doc: "",
+                ml_doc: #doc,
             }
         })
     }
 }
 
-pub fn impl_py_method_def_class(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
+pub fn impl_py_method_def_class(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+{
     quote! {
         _pyo3::class::PyMethodDefType::Class({
             #wrapper
@@ -502,13 +509,14 @@ pub fn impl_py_method_def_class(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
                 ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
                 ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS |
                 _pyo3::ffi::METH_CLASS,
-                ml_doc: "",
+                ml_doc: #doc,
             }
         })
     }
 }
 
-pub fn impl_py_method_def_static(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
+pub fn impl_py_method_def_static(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+{
     quote! {
         _pyo3::class::PyMethodDefType::Static({
             #wrapper
@@ -517,13 +525,14 @@ pub fn impl_py_method_def_static(name: &syn::Ident, wrapper: &Tokens) -> Tokens 
                 ml_name: stringify!(#name),
                 ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
                 ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS | _pyo3::ffi::METH_STATIC,
-                ml_doc: "",
+                ml_doc: #doc,
             }
         })
     }
 }
 
-pub fn impl_py_method_def_call(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
+pub fn impl_py_method_def_call(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+{
     quote! {
         _pyo3::class::PyMethodDefType::Call({
             #wrapper
@@ -532,13 +541,15 @@ pub fn impl_py_method_def_call(name: &syn::Ident, wrapper: &Tokens) -> Tokens {
                 ml_name: stringify!(#name),
                 ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
                 ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
-                ml_doc: "",
+                ml_doc: #doc,
             }
         })
     }
 }
 
-fn impl_py_setter_def(name: &syn::Ident, setter: &Option<String>, wrapper: &Tokens) -> Tokens {
+fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Option<String>, wrapper: &Tokens)
+                      -> Tokens
+{
     let n = if let &Some(ref name) = setter {
         name.to_string()
     } else {
@@ -557,13 +568,15 @@ fn impl_py_setter_def(name: &syn::Ident, setter: &Option<String>, wrapper: &Toke
             _pyo3::class::PySetterDef {
                 name: #n,
                 meth: wrap,
-                doc: "",
+                doc: #doc,
             }
         })
     }
 }
 
-fn impl_py_getter_def(name: &syn::Ident, getter: &Option<String>, wrapper: &Tokens) -> Tokens {
+fn impl_py_getter_def(name: &syn::Ident, doc: syn::Lit, getter: &Option<String>, wrapper: &Tokens)
+                      -> Tokens
+{
     let n = if let &Some(ref name) = getter {
         name.to_string()
     } else {
@@ -582,7 +595,7 @@ fn impl_py_getter_def(name: &syn::Ident, getter: &Option<String>, wrapper: &Toke
             _pyo3::class::PyGetterDef {
                 name: #n,
                 meth: wrap,
-                doc: "",
+                doc: #doc,
             }
         })
     }
