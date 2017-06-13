@@ -21,7 +21,15 @@ pub fn get_doc(attrs: &Vec<syn::Attribute>) -> syn::Lit {
             syn::MetaItem::NameValue(ref ident, ref lit) => {
                 if ident.as_ref() == "doc" {
                     let s = quote!{ #lit }.to_string();
-                    doc.push(s[1..s.len()-1].to_owned())
+                    let mut s = s[1..s.len()-1].to_string();
+                    if s.starts_with("/// ") {
+                        // Remove leading whitespace and ///
+                        s = s[4..].to_string();
+                    } else {
+                        // Remove only ///
+                        s = s[3..].to_string();
+                    }
+                    doc.push(s)
                 }
             }
             _ => (),
