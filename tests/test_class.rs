@@ -51,9 +51,11 @@ fn empty_class() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
 
-#[py::class]
 /// Line1
-/// Line2
+///Line2
+///  Line3
+// this is not doc string
+#[py::class]
 struct ClassWithDocs { }
 
 #[test]
@@ -61,7 +63,7 @@ fn class_with_docstr() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<ClassWithDocs>();
-    py_run!(py, typeobj, "assert typeobj.__doc__ == '/// Line1\\n/// Line2'");
+    py_run!(py, typeobj, "assert typeobj.__doc__ == 'Line1\\nLine2\\n Line3'");
 }
 
 #[py::class(name=CustomName)]
@@ -255,7 +257,7 @@ fn instance_method() {
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
     py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
-    py.run("assert obj.method.__doc__ == '/// Test method'", None, Some(&d)).unwrap();
+    py.run("assert obj.method.__doc__ == 'Test method'", None, Some(&d)).unwrap();
 }
 
 #[py::class]
