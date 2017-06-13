@@ -29,6 +29,9 @@ pub trait PyTypeInfo {
     /// Type name
     fn type_name() -> &'static str;
 
+    /// Type description
+    fn type_description() -> &'static str { "\0" }
+
     /// PyTypeObject instance for this type
     fn type_object() -> &'static mut ffi::PyTypeObject;
 
@@ -131,7 +134,8 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
             let to = initialize_type::<T>(
-                py, None, <T as PyTypeInfo>::type_name(), ty).expect(
+                py, None, <T as PyTypeInfo>::type_name(),
+                <T as PyTypeInfo>::type_description(), ty).expect(
                 format!("An error occurred while initializing class {}",
                         <T as PyTypeInfo>::type_name()).as_ref());
             py.release(to);
@@ -148,7 +152,8 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 
 
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str,
-                          type_object: &mut ffi::PyTypeObject) -> PyResult<PyType>
+                          type_description: &'static str, type_object: &mut ffi::PyTypeObject)
+                          -> PyResult<PyType>
     where T: PyObjectAlloc<T> + PyTypeInfo
 {
     // type name
@@ -160,6 +165,7 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str
         "Module name/type name must not contain NUL byte").into_raw();
 
     type_object.tp_name = name;
+    type_object.tp_doc = type_description.as_ptr() as *const _;
 
     // dealloc
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);

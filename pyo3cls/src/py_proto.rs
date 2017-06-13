@@ -67,7 +67,9 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
     }
 }
 
-fn impl_proto_impl(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>, proto: &defs::Proto) -> Tokens {
+fn impl_proto_impl(ty: &Box<syn::Ty>,
+                   impls: &mut Vec<syn::ImplItem>, proto: &defs::Proto) -> Tokens
+{
     let mut tokens = Tokens::new();
     let mut py_methods = Vec::new();
 

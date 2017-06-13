@@ -112,7 +112,10 @@ impl<'p> PyModule {
         } else {
             // automatically initialize the class
             let name = self.name(py)?;
-            let to = ::typeob::initialize_type::<T>(py, Some(name), type_name, ty)
+            let type_description = <T as ::typeob::PyTypeInfo>::type_description();
+
+            let to = ::typeob::initialize_type::<T>(
+                py, Some(name), type_name, type_description, ty)
                 .expect(format!("An error occurred while initializing class {}",
                                 <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
             py.release(to);

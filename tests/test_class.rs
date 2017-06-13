@@ -51,6 +51,18 @@ fn empty_class() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
 
+#[py::class]
+/// Line1
+/// Line2
+struct ClassWithDocs { }
+
+#[test]
+fn class_with_docstr() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<ClassWithDocs>();
+    py_run!(py, typeobj, "assert typeobj.__doc__ == '/// Line1\\n/// Line2'");
+}
 
 #[py::class(name=CustomName)]
 struct EmptyClass2 { }
