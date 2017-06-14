@@ -88,7 +88,24 @@ pub fn build_py2_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
     let modname = &attr.to_string()[1..attr.to_string().len()-1].to_string();
 
     match ast.node {
-        syn::ItemKind::Fn(_, _, _, _, _, _) => {
+        syn::ItemKind::Fn(_, _, _, _, _, ref mut block) => {
+            let mut stmts = Vec::new();
+            for stmt in block.stmts.iter_mut() {
+                match stmt {
+                    &mut syn::Stmt::Item(ref mut item) => {
+                        if let Some(block) = wrap_fn(item) {
+                            for stmt in block.stmts.iter() {
+                                stmts.push(stmt.clone());
+                            }
+                            continue
+                        }
+                    }
+                    _ => (),
+                }
+                stmts.push(stmt.clone());
+            }
+            block.stmts = stmts;
+
             py2_init(&ast.ident, &modname)
         },
         _ => panic!("#[modinit] can only be used with fn block"),
@@ -277,8 +294,6 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                     }
                 }
             }.to_string();
-
-            println!("TEST {}", tokens);
 
             let item = syn::parse_item(tokens.as_str()).unwrap();
             match item.node {
