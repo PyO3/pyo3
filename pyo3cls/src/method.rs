@@ -1,7 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use syn;
-use quote::{Tokens, ToTokens};
+use quote::{Tokens, Ident};
+
+use args::{Argument, parse_arguments};
 use utils::for_err_msg;
 
 
@@ -24,16 +26,9 @@ pub enum FnType {
     FnStatic,
 }
 
-#[derive(Clone, Debug)]
-pub enum FnAttr {
-    Args(syn::Ident),
-    Kwargs(syn::Ident),
-    Default(syn::Ident, Tokens),
-}
-
 pub struct FnSpec<'a> {
     pub tp: FnType,
-    pub attrs: Vec<FnAttr>,
+    pub attrs: Vec<Argument>,
     pub args: Vec<FnArg<'a>>,
     pub output: syn::Ty,
 }
@@ -108,8 +103,8 @@ impl<'a> FnSpec<'a> {
     pub fn is_args(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
             match *s {
-                FnAttr::Args(ref ident) =>
-                    return name == ident,
+                Argument::VarArgs(ref ident) =>
+                    return name.as_ref() == ident.as_str(),
                 _ => (),
             }
         }
@@ -119,7 +114,8 @@ impl<'a> FnSpec<'a> {
     pub fn accept_args(&self) -> bool {
         for s in self.attrs.iter() {
             match *s {
-                FnAttr::Args(_) => return true,
+                Argument::VarArgs(_) => return true,
+                Argument::VarArgsSeparator => return true,
                 _ => (),
             }
         }
@@ -129,8 +125,8 @@ impl<'a> FnSpec<'a> {
     pub fn is_kwargs(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
             match *s {
-                FnAttr::Kwargs(ref ident) =>
-                    return name == ident,
+                Argument::KeywordArgs(ref ident) =>
+                    return name.as_ref() == ident.as_str(),
                 _ => (),
             }
         }
@@ -140,7 +136,7 @@ impl<'a> FnSpec<'a> {
     pub fn accept_kwargs(&self) -> bool {
         for s in self.attrs.iter() {
             match *s {
-                FnAttr::Kwargs(_) => return true,
+                Argument::KeywordArgs(_) => return true,
                 _ => (),
             }
         }
@@ -150,15 +146,38 @@ impl<'a> FnSpec<'a> {
     pub fn default_value(&self, name: &syn::Ident) -> Option<Tokens> {
         for s in self.attrs.iter() {
             match *s {
-                FnAttr::Default(ref ident, ref val) => {
-                    if ident == name {
-                        return Some(val.clone())
+                Argument::Arg(ref ident, ref opt) => {
+                    if ident.as_str() == name.as_ref() {
+                        if let &Some(ref val) = opt {
+                            let i = Ident::from(val.as_str());
+                            return Some(quote!(#i))
+                        }
+                    }
+                },
+                Argument::Kwarg(ref ident, ref opt) => {
+                    if ident.as_str() == name.as_ref() {
+                        let i = Ident::from(opt.as_str());
+                        return Some(quote!(#i))
                     }
                 },
                 _ => (),
             }
         }
         None
+    }
+
+    pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
+        for s in self.attrs.iter() {
+            match *s {
+                Argument::Kwarg(ref ident, _) => {
+                    if ident.as_str() == name.as_ref() {
+                        return true
+                    }
+                },
+                _ => (),
+            }
+        }
+        false
     }
 }
 
@@ -206,7 +225,7 @@ fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty) -> Optio
     }
 }
 
-fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<FnAttr>) {
+fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) {
     let mut new_attrs = Vec::new();
     let mut spec = Vec::new();
     let mut res: Option<FnType> = None;
@@ -295,14 +314,6 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<FnAttr>) {
                     "args" => {
                         spec.extend(parse_args(meta))
                     }
-                    "defaults" => {
-                        // parse: #[defaults(param2=12, param3=12)]
-                        for item in meta.iter() {
-                            if let Some(el) = parse_args_default(item) {
-                                spec.push(el)
-                            }
-                        }
-                    }
                     _ => {
                         new_attrs.push(attr.clone())
                     }
@@ -323,7 +334,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<FnAttr>) {
 }
 
 /// parse: #[args(args="args", kw="kwargs")]
-fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<FnAttr> {
+fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<Argument> {
     let mut spec = Vec::new();
 
     for item in items.iter() {
@@ -332,12 +343,18 @@ fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<FnAttr> {
                 match *name {
                     syn::Lit::Str(ref name, _) => match ident.as_ref() {
                         "args" =>
-                            spec.push(FnAttr::Args(syn::Ident::from(name.clone()))),
+                            spec.push(Argument::VarArgs(name.clone())),
                         "kw" =>
-                            spec.push(FnAttr::Kwargs(syn::Ident::from(name.clone()))),
+                            spec.push(Argument::KeywordArgs(name.clone())),
                         _ => (),
                     },
                     _ => (),
+                }
+            },
+            &syn::NestedMetaItem::Literal(syn::Lit::Str(ref args, _)) => {
+                println!("ARGS: {:?}", args);
+                for item in parse_arguments(args.as_ref()) {
+                    spec.push(item);
                 }
             },
             _ => (),
@@ -345,25 +362,4 @@ fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<FnAttr> {
     }
 
     spec
-}
-
-fn parse_args_default(item: &syn::NestedMetaItem) -> Option<FnAttr> {
-    match *item {
-        syn::NestedMetaItem::MetaItem(syn::MetaItem::NameValue(ref name, ref lit)) => {
-            let mut t = Tokens::new();
-            match lit {
-                &syn::Lit::Str(ref val, _) => {
-                    syn::Ident::from(val.as_str()).to_tokens(&mut t);
-                },
-                _ => {
-                    lit.to_tokens(&mut t);
-                }
-            }
-            Some(FnAttr::Default(name.clone(), t))
-        }
-        _ => {
-            println!("expected name value {:?}", item);
-            None
-        }
-    }
 }

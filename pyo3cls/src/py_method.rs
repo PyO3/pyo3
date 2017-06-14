@@ -300,18 +300,24 @@ fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
     for arg in spec.args.iter() {
         if ! (spec.is_args(&arg.name) || spec.is_kwargs(&arg.name)) {
             let name = arg.name.as_ref();
-            let opt = if let Some(_) = arg.optional {
+            let kwonly = if spec.is_kw_only(&arg.name) {
                 syn::Ident::from("true")
             } else {
-                if let Some(_) = spec.default_value(&arg.name) {
-                    syn::Ident::from("true")
-                } else {
-                    syn::Ident::from("false")
-                }
+                syn::Ident::from("false")
             };
+
+            let opt = if let Some(_) = arg.optional {
+                syn::Ident::from("true")
+            } else if let Some(_) = spec.default_value(&arg.name) {
+                syn::Ident::from("true")
+            } else {
+                syn::Ident::from("false")
+            };
+
             params.push(
                 quote! {
-                    _pyo3::argparse::ParamDescription{name: #name, is_optional: #opt,}
+                    _pyo3::argparse::ParamDescription{
+                        name: #name, is_optional: #opt, kw_only: #kwonly}
                 }
             );
         }
@@ -395,7 +401,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
             } else {
                 syn::Ident::from("None").to_tokens(&mut default);
             }
-            
+
             quote! {
                 match
                     match _iter.next().unwrap().as_ref() {

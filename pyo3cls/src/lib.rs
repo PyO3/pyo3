@@ -7,6 +7,7 @@ extern crate proc_macro;
 extern crate syn;
 #[macro_use] extern crate quote;
 #[macro_use] extern crate log;
+#[macro_use] extern crate nom;
 
 use std::str::FromStr;
 use proc_macro::TokenStream;
@@ -18,6 +19,7 @@ mod py_impl;
 mod py_proto;
 mod py_method;
 mod py_ptr;
+mod args;
 mod defs;
 mod func;
 mod method;

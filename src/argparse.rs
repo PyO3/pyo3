@@ -30,7 +30,9 @@ pub struct ParamDescription<'a> {
     /// The name of the parameter.
     pub name: &'a str,
     /// Whether the parameter is optional.
-    pub is_optional: bool
+    pub is_optional: bool,
+    /// Whether the parameter is optional.
+    pub kw_only: bool
 }
 
 /// Parse argument list
@@ -370,14 +372,16 @@ macro_rules! py_argparse_param_description {
     { $pname:ident : $ptype:ty = [ {} {} $rtype:tt ] } => (
         $crate::argparse::ParamDescription {
             name: stringify!($pname),
-            is_optional: false
+            is_optional: false,
+            kw_only: false,
         }
     );
     // optional parameters
     { $pname:ident : $ptype:ty = [ {} {$default:expr} {$($rtype:tt)*} ] } => (
         $crate::argparse::ParamDescription {
             name: stringify!($pname),
-            is_optional: true
+            is_optional: true,
+            kw_only: false,
         }
     );
 }
