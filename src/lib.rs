@@ -74,7 +74,7 @@
 //! # Example
 //! ```
 //! #![feature(proc_macro)]
-//! #[macro_use] extern crate pyo3;
+//! extern crate pyo3;
 //! use pyo3::{py, Python, PyResult, PyObject, PyModule, PyString};
 //!
 //! #[py::modinit(hello)]
@@ -177,12 +177,6 @@ macro_rules! cstr(
         }
     );
 );
-
-// AST coercion macros (https://danielkeep.github.io/tlborm/book/blk-ast-coercion.html)
-#[macro_export] #[doc(hidden)]
-macro_rules! py_replace_expr {
-    ($_t:tt $sub:expr) => {$sub};
-}
 
 pub mod python;
 mod fmt;
