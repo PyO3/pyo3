@@ -290,7 +290,7 @@ fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     }}
 }
 
-fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
+pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
     if spec.args.is_empty() {
         return body
     }

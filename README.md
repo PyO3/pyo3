@@ -84,7 +84,17 @@ use pyo3::{py, PyResult, Python, PyModule};
 #[py::modinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     m.add(py, "__doc__", "This module is implemented in Rust.")?;
-    m.add(py, "sum_as_string", py_fn!(py, sum_as_string_py(a: i64, b:i64)))?;
+
+    #[pyfn(m, "sum_as_string")]
+    // pyo3 aware function. All of our python interface could be
+    // declared in a separate module.
+    // Note that the py_fn!() macro automatically converts the arguments from
+    // Python objects to Rust values; and the Rust return value back into a Python object.
+    fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
+       let out = sum_as_string(a, b);
+       Ok(out)
+    }
+
     Ok(())
 }
 
@@ -93,14 +103,6 @@ fn sum_as_string(a:i64, b:i64) -> String {
     format!("{}", a + b).to_string()
 }
 
-// pyo3 aware function. All of our python interface could be
-// declared in a separate module.
-// Note that the py_fn!() macro automatically converts the arguments from
-// Python objects to Rust values; and the Rust return value back into a Python object.
-fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
-    let out = sum_as_string(a, b);
-    Ok(out)
-}
 ```
 
 For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setuptools-rust)

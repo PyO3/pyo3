@@ -123,30 +123,6 @@ pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-// do nothing, if impl block is not wrapped into #[methods] macro
-pub fn getter(_: TokenStream, input: TokenStream) -> TokenStream {
-    input
-}
-
-#[proc_macro_attribute]
-// do nothing, if impl block is not wrapped into #[methods] macro
-pub fn setter(_: TokenStream, input: TokenStream) -> TokenStream {
-    input
-}
-
-#[proc_macro_attribute]
-// do nothing, if impl block is not wrapped into #[methods] macro
-pub fn args(_: TokenStream, input: TokenStream) -> TokenStream {
-    input
-}
-
-#[proc_macro_attribute]
-// do nothing, if impl block is not wrapped into #[methods] macro
-pub fn defaults(_: TokenStream, input: TokenStream) -> TokenStream {
-    input
-}
-
-#[proc_macro_attribute]
 pub fn ptr(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
     let source = input.to_string();

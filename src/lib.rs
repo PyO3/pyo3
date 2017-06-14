@@ -63,23 +63,33 @@
 //!    This function will be called when the module is imported, and is responsible
 //!    for adding the module's members.
 //!
+//! To creates a Python callable object that invokes a Rust function, specify rust
+//! function and decroate it with `#[pyfn()]` attribute. `pyfn()` accepts three parameters.
+//!
+//! 1. `m`: The module name.
+//! 2. function name, name of function visible to Python code.
+//! 3. arguments description string, i.e. "param1, param2=None, *, param3='default'"
+//!
+//!
 //! # Example
 //! ```
 //! #![feature(proc_macro)]
 //! #[macro_use] extern crate pyo3;
-//! use pyo3::{py, Python, PyResult, PyObject, PyModule};
+//! use pyo3::{py, Python, PyResult, PyObject, PyModule, PyString};
 //!
 //! #[py::modinit(hello)]
 //! fn init_module(py: Python, m: &PyModule) -> PyResult<()> {
 //!     m.add(py, "__doc__", "Module documentation string")?;
-//!     m.add(py, "run", py_fn!(py, run()))?;
+//!
+//!     #[pyfn(m, "run_rust_func")]
+//!     fn run(py: Python, name: PyString) -> PyResult<PyObject> {
+//!         println!("Rust says: Hello {} of Python!", name);
+//!         Ok(py.None())
+//!     }
+//!
 //!     Ok(())
 //! }
 //!
-//! fn run(py: Python) -> PyResult<PyObject> {
-//!     println!("Rust says: Hello Python!");
-//!     Ok(py.None())
-//! }
 //! # fn main() {}
 //! ```
 //!
@@ -105,7 +115,7 @@
 //!
 //! ```python
 //! >>> import hello
-//! >>> hello.run()
+//! >>> hello.run_rust_func("test")
 //! Rust says: Hello Python!
 //! ```
 
@@ -184,7 +194,6 @@ mod pythonrun;
 pub mod callback;
 pub mod typeob;
 pub mod argparse;
-pub mod function;
 pub mod buffer;
 pub mod freelist;
 

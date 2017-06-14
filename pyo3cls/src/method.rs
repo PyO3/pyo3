@@ -181,7 +181,9 @@ impl<'a> FnSpec<'a> {
     }
 }
 
-fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty) -> Option<&'a syn::Ty> {
+pub fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty)
+                                     -> Option<&'a syn::Ty>
+{
     match ty {
         &syn::Ty::Path(_, ref path) => {
             //if let &Some(ref qs) = qs {

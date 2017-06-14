@@ -44,8 +44,8 @@ impl IntoPyObject for String {
     }
 }
 
-// /// Allows extracting strings from Python objects.
-// /// Accepts Python `str` and `unicode` objects.
+/// Allows extracting strings from Python objects.
+/// Accepts Python `str` and `unicode` objects.
 pyobject_extract!(py, obj to Cow<'source, str> => {
     try!(obj.cast_as::<PyString>(py)).to_string(py)
 });
