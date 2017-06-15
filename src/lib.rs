@@ -143,7 +143,7 @@ pub mod ffi {
 
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
-pub mod pointers;
+mod pointers;
 pub use pointers::PyPtr;
 
 mod token;
