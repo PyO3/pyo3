@@ -69,7 +69,7 @@ macro_rules! py_exception {
             }
         }
 
-        impl $crate::PyTypeObject for $name {
+        impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
             fn init_type(py: $crate::Python) {
                 let _ = $name::type_object(py);

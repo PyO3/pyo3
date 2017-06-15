@@ -54,8 +54,11 @@
 //! }
 //! ```
 //!
-//! Expands to an `extern "C"` function that allows Python to load
-//! the rust code as a Python extension module.
+//! # Python extension
+//!
+//! To allow Python to load the rust code as a Python extension
+//! module, you need provide initialization function and annotate it with `#[py::modinit(name)]`.
+//! `py::modinit` expands to an `extern "C"` function.
 //!
 //! Macro syntax: `#[py::modinit(name)]`
 //!
@@ -69,7 +72,7 @@
 //!
 //! 1. `m`: The module name.
 //! 2. function name, name of function visible to Python code.
-//! 3. arguments description string, i.e. "param1, param2=None, *, param3='default'"
+//! 3. arguments description string, i.e. "param1, param2=None, *, param3=55"
 //!
 //!
 //! # Example
@@ -158,7 +161,6 @@ pub use pythonrun::{GILGuard, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
 pub mod class;
 pub use class::*;
-pub use self::typeob::PyTypeObject;
 
 pub mod py {
     pub use pyo3cls::*;
@@ -180,7 +182,7 @@ macro_rules! cstr(
     );
 );
 
-pub mod python;
+mod python;
 mod fmt;
 mod err;
 mod conversion;

@@ -55,7 +55,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
     let extra = if let Some(token) = token {
         Some(quote! {
             impl _pyo3::PyObjectWithToken for #cls {
-                fn token<'p>(&'p self) -> _pyo3::python::Python<'p> {
+                fn token<'p>(&'p self) -> _pyo3::Python<'p> {
                     self.#token.token()
                 }
             }
@@ -63,7 +63,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let py = _pyo3::PyObjectWithToken::token(self);
-                    let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
+                    let ptr = <#cls as _pyo3::ToPyPointer>::as_ptr(self);
                     let repr = unsafe {
                         _pyo3::PyString::downcast_from_ptr(
                             py, _pyo3::ffi::PyObject_Repr(ptr)).map_err(|_| std::fmt::Error)?
@@ -77,7 +77,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let py = _pyo3::PyObjectWithToken::token(self);
-                    let ptr = <#cls as _pyo3::python::ToPyPointer>::as_ptr(self);
+                    let ptr = <#cls as _pyo3::ToPyPointer>::as_ptr(self);
                     let str_obj = unsafe {
                         _pyo3::PyString::downcast_from_ptr(
                             py, _pyo3::ffi::PyObject_Str(ptr)).map_err(|_| std::fmt::Error)?
@@ -171,7 +171,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             }
         }
 
-        impl _pyo3::python::PyDowncastFrom for #cls
+        impl _pyo3::PyDowncastFrom for #cls
         {
             fn downcast_from<'a, 'p>(py: Python<'p>, ob: &'a _pyo3::PyObject)
                                      -> Result<&'a #cls, _pyo3::PyDowncastError<'p>>
@@ -190,7 +190,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 }
             }
         }
-        impl _pyo3::python::PyMutDowncastFrom for #cls
+        impl _pyo3::PyMutDowncastFrom for #cls
         {
             fn downcast_mut_from<'a, 'p>(py: Python<'p>, ob: &'a mut _pyo3::PyObject)
                                          -> Result<&'a mut #cls, _pyo3::PyDowncastError<'p>>
@@ -228,7 +228,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 unsafe{std::mem::transmute(self.as_ptr())}
             }
         }
-        impl _pyo3::python::ToPyPointer for #cls {
+        impl _pyo3::ToPyPointer for #cls {
             #[inline]
             fn as_ptr(&self) -> *mut ffi::PyObject {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();

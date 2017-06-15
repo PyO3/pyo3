@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use pyo3::ffi;
-use pyo3::python::ToPyPointer;
 
 
 macro_rules! py_run {

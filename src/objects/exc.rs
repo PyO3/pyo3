@@ -19,7 +19,7 @@ macro_rules! exc_type(
 
         // pyobject_newtype!($name);
 
-        impl $crate::PyTypeObject for $name {
+        impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
             fn init_type(_py: Python) {}
 
