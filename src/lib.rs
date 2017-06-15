@@ -114,7 +114,7 @@
 //! ```
 //!
 //! The full example project can be found at:
-//!   <https://github.com/PyO3/setuptools-rust/tree/master/example/extensions>
+//!   <https://github.com/PyO3/setuptools-rust/tree/master/example/>
 //!
 //! Rust will compile the code into a file named `libhello.so`, but we have to
 //! rename the file in order to use it with Python:
