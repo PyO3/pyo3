@@ -36,8 +36,9 @@ script:
 
 # Upload docs
 after_success:
+  - echo $TRAVIS_PYTHON_VERSION
   - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" ]]; then
+    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && TRAVIS_PYTHON_VERSION = "3.6.1" ]]; then
     cargo doc --no-deps &&
     echo "<meta http-equiv=refresh content=0;url=os_balloon/index.html>" > target/doc/index.html &&
     git clone https://github.com/davisp/ghp-import.git &&
