@@ -20,8 +20,6 @@ use conversion::{FromPyObject, IntoPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
 
-// classmethod
-// staticmethod
 // __instancecheck__
 // __subclasscheck__
 
