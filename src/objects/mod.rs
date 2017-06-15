@@ -11,7 +11,7 @@ pub use self::dict::PyDict;
 pub use self::list::PyList;
 pub use self::floatob::PyFloat;
 pub use self::sequence::PySequence;
-pub use self::slice::PySlice;
+pub use self::slice::{PySlice, PySliceIndices};
 pub use self::set::{PySet, PyFrozenSet};
 pub use self::stringdata::PyStringData;
 

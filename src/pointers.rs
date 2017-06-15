@@ -8,7 +8,7 @@ use objects::PyObject;
 use python::{Python, ToPyPointer, IntoPyPointer};
 
 
-#[allow(non_camel_case_types)]
+/// Wrapper around unsafe `*mut ffi::PyObject` pointer. Decrement ref counter on `Drop`
 pub struct PyPtr(*mut ffi::PyObject);
 
 // `PyPtr` is thread-safe, because any python related operations require a Python<'p> token.
@@ -72,23 +72,16 @@ impl PyPtr {
         unsafe { ffi::Py_REFCNT(self.0) }
     }
 
-    /// Get reference to &PyObject<'p>
+    /// Get reference to &PyObject.
     #[inline]
     pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
-    /// Converts `PyPtr` instance -> PyObject<'p>
+    /// Converts `PyPtr` instance -> PyObject.
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
     pub fn into_object(self, _py: Python) -> PyObject {
-        unsafe { std::mem::transmute(self) }
-    }
-
-    /// Converts `PyPtr` instance -> PyObject
-    /// Consumes `self` without calling `Py_DECREF()`
-    #[inline]
-    pub fn park(self) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 
@@ -107,6 +100,7 @@ impl PyPtr {
         <D as ::PyDowncastInto>::downcast_into(py, self)
     }
 
+    /// Calls `ffi::Py_DECREF` and sets ptr to null value.
     #[inline]
     pub unsafe fn drop_ref(&mut self) {
         ffi::Py_DECREF(self.0);

@@ -4,19 +4,25 @@ use std;
 use std::ffi::CString;
 
 use ffi;
-use err::PyResult;
-use objects::PyObject;
-use python::Python;
 
 static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
+/// `PyMethodDefType` represents different types of python callable objects.
+/// It is used by `#[py::methods]` and `#[py::proto]` annotations.
 pub enum PyMethodDefType {
+    /// Represents class `__new__` method
     New(PyMethodDef),
+    /// Represents class `__call__` method
     Call(PyMethodDef),
+    /// Represents class method
     Class(PyMethodDef),
+    /// Represents static method
     Static(PyMethodDef),
+    /// Represents normal method
     Method(PyMethodDef),
+    /// Represents getter descriptor, used by `#[getter]`
     Getter(PyGetterDef),
+    /// Represents setter descriptor, used by `#[setter]`
     Setter(PySetterDef),
 }
 
@@ -60,6 +66,7 @@ unsafe impl Sync for ffi::PyGetSetDef {}
 
 impl PyMethodDef {
 
+    /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
@@ -85,29 +92,10 @@ impl PyMethodDef {
             ml_doc: self.ml_doc.as_ptr() as *const _,
         }
     }
-
-    pub fn as_method_descr(&self, py: Python, ty: *mut ffi::PyTypeObject) -> PyResult<PyObject> {
-        unsafe {
-            if self.ml_flags & ffi::METH_CLASS != 0 {
-                PyObject::from_owned_ptr_or_err(
-                    py, ffi::PyDescr_NewClassMethod(
-                        ty, Box::into_raw(Box::new(self.as_method_def()))))
-            }
-            else if self.ml_flags & ffi::METH_STATIC != 0 {
-                PyObject::from_owned_ptr_or_err(
-                    py, ffi::PyCFunction_New(
-                        Box::into_raw(Box::new(self.as_method_def())), std::ptr::null_mut()))
-            }
-            else {
-                PyObject::from_owned_ptr_or_err(
-                    py, ffi::PyDescr_NewMethod(
-                        ty, Box::into_raw(Box::new(self.as_method_def()))))
-            }
-        }
-    }
 }
 
 impl PyGetterDef {
+    /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
             dst.name = CString::new(self.name).expect(
@@ -118,6 +106,7 @@ impl PyGetterDef {
 }
 
 impl PySetterDef {
+    /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
             dst.name = CString::new(self.name).expect(

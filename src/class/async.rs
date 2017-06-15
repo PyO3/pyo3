@@ -1,10 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Python Async/Await Interface
-//! Trait and support implementation for implementing awaitable objects
+//! Python Async/Await Interface.
 //!
-//! more information on python async support
+//! Python c-api information is available:
 //! https://docs.python.org/3/c-api/typeobj.html#async-object-structures
+//!
+//! Python documentation is available: https://www.python.org/dev/peps/pep-0492/
+//!
 
 use ffi;
 use err::PyResult;
@@ -15,7 +17,9 @@ use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
 
-/// Awaitable interface
+/// Python Async/Await support interface.
+///
+/// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
 pub trait PyAsyncProtocol<'p>: PyTypeInfo + Sized + 'static {
 
@@ -37,7 +41,6 @@ pub trait PyAsyncProtocol<'p>: PyTypeInfo + Sized + 'static {
                  traceback: Option<Self::Traceback>)
                  -> Self::Result where Self: PyAsyncAexitProtocol<'p> { unimplemented!() }
 }
-
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
     type Success: ::IntoPyObject;

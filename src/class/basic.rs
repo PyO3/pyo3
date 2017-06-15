@@ -2,8 +2,9 @@
 
 //! Basic Python Object customization
 //!
-//! more information on python async support
+//! Python c-api information is available:
 //! https://docs.python.org/3/reference/datamodel.html#basic-customization
+//!
 
 use std;
 use std::os::raw::c_int;
@@ -24,7 +25,7 @@ use class::methods::PyMethodDef;
 // __subclasscheck__
 
 
-/// Object customization
+/// Basic python class customization
 #[allow(unused_variables)]
 pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
 
@@ -55,6 +56,7 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __bytes__(&'p self, py: Python<'p>)
                  -> Self::Result where Self: PyObjectBytesProtocol<'p> {unimplemented!()}
 
+    /// This method is used by Python2 only.
     fn __unicode__(&'p self, py: Python<'p>)
                    -> Self::Result where Self: PyObjectUnicodeProtocol<'p> {unimplemented!()}
 
