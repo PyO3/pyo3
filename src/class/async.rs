@@ -191,7 +191,7 @@ impl<'p, T> PyAsyncAenterProtocolImpl for T where T: PyAsyncProtocol<'p>
     }
 }
 
-pub trait PyAsyncAexitProtocolImpl {
+trait PyAsyncAexitProtocolImpl {
     fn __aexit__() -> Option<PyMethodDef>;
 }
 

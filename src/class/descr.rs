@@ -59,7 +59,7 @@ pub trait PyDescrSetNameProtocol<'p>: PyDescrProtocol<'p> {
 }
 
 
-pub trait PyDescrGetProtocolImpl {
+trait PyDescrGetProtocolImpl {
     fn tp_descr_get() -> Option<ffi::descrgetfunc>;
 }
 impl<'p, T> PyDescrGetProtocolImpl for T where T: PyDescrProtocol<'p> {
@@ -73,7 +73,7 @@ impl<T> PyDescrGetProtocolImpl for T where T: for<'p> PyDescrGetProtocol<'p> + T
         py_ternary_func!(PyDescrGetProtocol, T::__get__, T::Success, PyObjectCallbackConverter)
     }
 }
-pub trait PyDescrSetProtocolImpl {
+trait PyDescrSetProtocolImpl {
     fn tp_descr_set() -> Option<ffi::descrsetfunc>;
 }
 impl<'p, T> PyDescrSetProtocolImpl for T where T: PyDescrProtocol<'p> {
@@ -88,7 +88,7 @@ impl<T> PyDescrSetProtocolImpl for T where T: for<'p> PyDescrSetProtocol<'p> + T
     }
 }
 
-pub trait PyDescrDelProtocolImpl {
+trait PyDescrDelProtocolImpl {
     fn __del__() -> Option<PyMethodDef>;
 }
 impl<'p, T> PyDescrDelProtocolImpl for T where T: PyDescrProtocol<'p> {
@@ -97,7 +97,7 @@ impl<'p, T> PyDescrDelProtocolImpl for T where T: PyDescrProtocol<'p> {
     }
 }
 
-pub trait PyDescrSetNameProtocolImpl {
+trait PyDescrSetNameProtocolImpl {
     fn __set_name__() -> Option<PyMethodDef>;
 }
 impl<'p, T> PyDescrSetNameProtocolImpl for T where T: PyDescrProtocol<'p> {
