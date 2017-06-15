@@ -13,12 +13,7 @@ repository = "https://github.com/pyo3/pyo3.git"
 documentation = "http://pyo3.github.io/pyo3/doc/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT/APACHE-2"
-exclude = [
-    ".gitignore",
-    ".travis.yml",
-    ".cargo/config",
-    "appveyor.yml",
-]
+exclude = [".gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
 build = "build.rs"
 
 [dependencies]
@@ -26,7 +21,7 @@ log = "0.3"
 libc = "0.2"
 num-traits = "0.1"
 pyo3cls = { path = "pyo3cls" }
-backtrace = "0.3"
+# backtrace = "0.3"
 
 [build-dependencies]
 regex = "0.2"

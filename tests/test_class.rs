@@ -525,11 +525,10 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         Ok(format!("format({})", format_spec))
     }
 
-    // fn __unicode__(&self) -> PyResult<PyString> {
-    //    Ok(PyString::new(py, "unicode"))
-    // }
+    fn __unicode__(&self, py: Python) -> PyResult<PyString> {
+        Ok(PyString::new(py, "unicode"))
+    }
 
-    #[cfg(Py_3)]
     fn __bytes__(&self, py: Python) -> PyResult<PyBytes> {
         Ok(PyBytes::new(py, b"bytes"))
     }
@@ -557,6 +556,7 @@ fn string_methods() {
     let obj = py.init(|t| StringMethods{token: t}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
+    py_assert!(py, obj, "unicode(obj) == 'unicode'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
 }
 

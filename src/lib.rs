@@ -123,7 +123,6 @@
 //! ```
 
 extern crate libc;
-extern crate backtrace;
 extern crate pyo3cls;
 #[macro_use] extern crate log;
 

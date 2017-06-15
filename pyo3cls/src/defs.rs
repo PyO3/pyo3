@@ -52,6 +52,10 @@ pub const OBJECT: Proto = Proto {
             pyres: true,
             proto: "::pyo3::class::basic::PyObjectBytesProtocol"},
         MethodProto::Unary {
+            name: "__unicode__",
+            pyres: true,
+            proto: "::pyo3::class::basic::PyObjectUnicodeProtocol"},
+        MethodProto::Unary {
             name: "__bool__",
             pyres: false,
             proto: "::pyo3::class::basic::PyObjectBoolProtocol"},
@@ -69,6 +73,10 @@ pub const OBJECT: Proto = Proto {
         PyMethod {
             name: "__bytes__",
             proto: "::pyo3::class::basic::PyObjectBytesProtocolImpl",
+        },
+        PyMethod {
+            name: "__unicode__",
+            proto: "::pyo3::class::basic::PyObjectUnicodeProtocolImpl",
         },
     ]
 };

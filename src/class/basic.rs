@@ -52,9 +52,11 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
     fn __bool__(&'p self, py: Python<'p>)
                 -> Self::Result where Self: PyObjectBoolProtocol<'p> {unimplemented!()}
 
-    #[cfg(Py_3)]
     fn __bytes__(&'p self, py: Python<'p>)
                  -> Self::Result where Self: PyObjectBytesProtocol<'p> {unimplemented!()}
+
+    fn __unicode__(&'p self, py: Python<'p>)
+                   -> Self::Result where Self: PyObjectUnicodeProtocol<'p> {unimplemented!()}
 
     fn __richcmp__(&'p self, py: Python<'p>, other: Self::Other, op: CompareOp)
                    -> Self::Result where Self: PyObjectRichcmpProtocol<'p> {unimplemented!()}
@@ -80,6 +82,10 @@ pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
+    type Success: IntoPyObject;
+    type Result: Into<PyResult<Self::Success>>;
+}
+pub trait PyObjectUnicodeProtocol<'p>: PyObjectProtocol<'p> {
     type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -132,6 +138,9 @@ impl<'p, T> PyObjectProtocolImpl for T where T: PyObjectProtocol<'p> {
             methods.push(def)
         }
         if let Some(def) = <Self as PyObjectBytesProtocolImpl>::__bytes__() {
+            methods.push(def)
+        }
+        if let Some(def) = <Self as PyObjectUnicodeProtocolImpl>::__unicode__() {
             methods.push(def)
         }
         methods
@@ -284,6 +293,17 @@ impl<'p, T> PyObjectBytesProtocolImpl for T where T: PyObjectProtocol<'p>
     }
 }
 
+#[doc(hidden)]
+pub trait PyObjectUnicodeProtocolImpl {
+    fn __unicode__() -> Option<PyMethodDef>;
+}
+impl<'p, T> PyObjectUnicodeProtocolImpl for T where T: PyObjectProtocol<'p>
+{
+    #[inline]
+    default fn __unicode__() -> Option<PyMethodDef> {
+        None
+    }
+}
 
 trait PyObjectHashProtocolImpl {
     fn tp_hash() -> Option<ffi::hashfunc>;

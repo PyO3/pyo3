@@ -391,6 +391,9 @@ fn modify_self_ty(sig: &mut syn::MethodSig)
 // modify Python signature
 fn modify_py_ty(sig: &mut syn::MethodSig)
 {
+    if sig.decl.inputs.len() <= 1 {
+        return
+    }
     match sig.decl.inputs[1] {
         syn::FnArg::Captured(_, ref mut arg_ty) => {
             match arg_ty {
