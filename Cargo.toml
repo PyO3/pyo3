@@ -10,7 +10,7 @@ keywords = [
 ]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3.git"
-documentation = "http://pyo3.github.io/PyO3/"
+documentation = "http://pyo3.github.io/PyO3/doc/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT/APACHE-2"
 exclude = [".gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
