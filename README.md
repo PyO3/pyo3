@@ -2,7 +2,7 @@
 
 [Rust](http://www.rust-lang.org/) bindings for the [python](https://www.python.org/) interpreter.
 
-* [Documentation](http://pyo3.github.io/PyO3/doc/PyO3/)
+* [Documentation](http://pyo3.github.io/PyO3/)
 * Cargo package: [pyo3](https://crates.io/crates/pyo3)
 
 ---
