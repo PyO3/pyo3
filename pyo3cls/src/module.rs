@@ -288,7 +288,6 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                                 py, pyo3::ffi::PyCFunction_New(
                                     Box::into_raw(Box::new(def.as_method_def())),
                                     std::ptr::null_mut()));
-                            std::mem::forget(def);
 
                             #m.add(py, stringify!(#fnname), func)?
                         }
