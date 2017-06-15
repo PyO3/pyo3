@@ -30,7 +30,8 @@
 //! also exposed as Python exceptions.
 //!
 //! # Example
-//! ```
+//!
+//! ```rust
 //! extern crate pyo3;
 //!
 //! use pyo3::{Python, PyDict, PyResult};
@@ -72,9 +73,11 @@
 //!
 //!
 //! # Example
-//! ```
+//!
+//! ```rust
 //! #![feature(proc_macro)]
-//! #[macro_use] extern crate pyo3;
+//!
+//! extern crate pyo3;
 //! use pyo3::{py, Python, PyResult, PyObject, PyModule, PyString};
 //!
 //! #[py::modinit(hello)]
