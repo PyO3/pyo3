@@ -284,7 +284,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                         }.as_method_def();
 
                         unsafe {
-                            let func = PyObject::from_owned_ptr_or_panic(
+                            let func = pyo3::PyObject::from_owned_ptr_or_panic(
                                 py, pyo3::ffi::PyCFunction_New(
                                     &def as *const _ as *mut _, std::ptr::null_mut()));
                             std::mem::forget(def);
