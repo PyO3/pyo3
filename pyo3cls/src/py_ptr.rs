@@ -54,7 +54,7 @@ pub fn build_ptr(cls: syn::Ident, ast: &mut syn::DeriveInput) -> Tokens {
             }
 
             impl std::ops::Deref for #ptr {
-                type Target = _pyo3::pointers::PyPtr;
+                type Target = _pyo3::PyPtr;
 
                 fn deref(&self) -> &Self::Target {
                     &self.0
