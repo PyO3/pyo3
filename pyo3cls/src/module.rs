@@ -281,12 +281,13 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                             ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
                             ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                             ml_doc: #doc,
-                        }.as_method_def();
+                        };
 
                         unsafe {
                             let func = pyo3::PyObject::from_owned_ptr_or_panic(
                                 py, pyo3::ffi::PyCFunction_New(
-                                    &def as *const _ as *mut _, std::ptr::null_mut()));
+                                    Box::into_raw(Box::new(def.as_method_def())),
+                                    std::ptr::null_mut()));
                             std::mem::forget(def);
 
                             #m.add(py, stringify!(#fnname), func)?
@@ -335,6 +336,8 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
                 let result: #output = {
                     #body
                 };
+                py.release(kwargs);
+                py.release(args);
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, py, result)
             })

@@ -68,10 +68,10 @@
 //!    for adding the module's members.
 //!
 //! To creates a Python callable object that invokes a Rust function, specify rust
-//! function and decroate it with `#[pyfn()]` attribute. `pyfn()` accepts three parameters.
+//! function and decorate it with `#[pyfn()]` attribute. `pyfn()` accepts three parameters.
 //!
 //! 1. `m`: The module name.
-//! 2. function name, name of function visible to Python code.
+//! 2. name of function visible to Python code.
 //! 3. arguments description string, i.e. "param1, param2=None, *, param3=55"
 //!
 //!
@@ -83,10 +83,16 @@
 //! extern crate pyo3;
 //! use pyo3::{py, Python, PyResult, PyObject, PyModule, PyString};
 //!
+//! // add bindings to the generated python module
+//! // N.B: names: "libhello" must be the name of the `.so` or `.pyd` file
 //! #[py::modinit(hello)]
 //! fn init_module(py: Python, m: &PyModule) -> PyResult<()> {
 //!     m.add(py, "__doc__", "Module documentation string")?;
 //!
+//!     // pyo3 aware function. All of our python interface could be declared
+//!     // in a separate module.
+//!     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
+//!     // Python objects to Rust values; and the Rust return value back into a Python object.
 //!     #[pyfn(m, "run_rust_func")]
 //!     fn run(py: Python, name: PyString) -> PyResult<PyObject> {
 //!         println!("Rust says: Hello {} of Python!", name);

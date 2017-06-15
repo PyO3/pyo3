@@ -86,9 +86,8 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     m.add(py, "__doc__", "This module is implemented in Rust.")?;
 
     #[pyfn(m, "sum_as_string")]
-    // pyo3 aware function. All of our python interface could be
-    // declared in a separate module.
-    // Note that the py_fn!() macro automatically converts the arguments from
+    // pyo3 aware function. All of our python interface could be declared in a separate module.
+    // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
     fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
        let out = sum_as_string(a, b);
