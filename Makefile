@@ -25,6 +25,10 @@ build:
 test: build
 	cargo test $(CARGO_FLAGS)
 
+clippy:
+	if $$CLIPPY; then cargo clippy $(CARGO_FLAGS); fi
+
+
 #ifeq ($(NIGHTLY),1)
 # ast-json output is only supported on nightly
 #	python$(PY) tests/check_symbols.py

@@ -51,6 +51,7 @@ pub trait InstancePtr<T> : Sized {
 
     fn as_ref(&self, py: Python) -> &T;
 
+    #[allow(mut_from_ref)]
     fn as_mut(&self, py: Python) -> &mut T;
 
     fn with<F, R>(&self, f: F) -> R where F: FnOnce(Python, &T) -> R

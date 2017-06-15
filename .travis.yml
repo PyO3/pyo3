@@ -10,6 +10,15 @@ env:
 
 sudo: required
 dist: trusty
+
+# Add clippy
+before_script:
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
+        ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
+    fi
+  - export PATH=$PATH:~/.cargo/bin
+
 install:
   - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
   - mkdir ~/rust-installer
@@ -23,3 +32,15 @@ install:
   - rustc -V
 script:
   - make test
+  # - make clippy
+
+# Upload docs
+after_success:
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" ]]; then
+    cargo doc --nodeps &&
+    echo "<meta http-equiv=refresh content=0;url=os_balloon/index.html>" > target/doc/index.html &&
+    git clone https://github.com/davisp/ghp-import.git &&
+    ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
+    echo "Uploaded documentation"
+    fi

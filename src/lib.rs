@@ -97,6 +97,7 @@
 //! ```
 //!
 //! In your `Cargo.toml`, use the `extension-module` feature for the `pyo3` dependency:
+//!
 //! ```cargo
 //! [dependencies.pyo3]
 //! version = "*"
@@ -104,7 +105,7 @@
 //! ```
 //!
 //! The full example project can be found at:
-//!   https://github.com/PyO3/setuptools-rust/tree/master/example/extensions
+//!   <https://github.com/PyO3/setuptools-rust/tree/master/example/extensions>
 //!
 //! Rust will compile the code into a file named `libhello.so`, but we have to
 //! rename the file in order to use it with Python:
@@ -155,7 +156,6 @@ pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};
 pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
-pub use class::{CompareOp};
 pub mod class;
 pub use class::*;
 pub use self::typeob::PyTypeObject;
@@ -194,4 +194,5 @@ pub mod buffer;
 pub mod freelist;
 
 // re-export for simplicity
+#[doc(hidden)]
 pub use std::os::raw::*;

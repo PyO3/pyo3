@@ -29,7 +29,7 @@ pub use self::num3::PyLong as PyInt;
 #[cfg(not(Py_3))]
 pub use self::num2::{PyInt, PyLong};
 
-#[macro_export]
+//#[macro_export]
 macro_rules! pyobject_nativetype(
     ($name: ident) => (
         impl $crate::std::convert::AsRef<PyObject> for $name {
