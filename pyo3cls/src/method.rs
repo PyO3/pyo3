@@ -354,7 +354,6 @@ fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<Argument> {
                 }
             },
             &syn::NestedMetaItem::Literal(syn::Lit::Str(ref args, _)) => {
-                println!("ARGS: {:?}", args);
                 for item in parse_arguments(args.as_ref()) {
                     spec.push(item);
                 }
