@@ -276,7 +276,7 @@ pub unsafe fn PySequence_Fast_ITEMS(o : *mut PyObject) -> *mut *mut PyObject {
 
 #[inline]
 pub unsafe fn PySequence_ITEM(o : *mut PyObject, i : Py_ssize_t) -> *mut PyObject {
-    (*(*Py_TYPE(o)).tp_as_sequence).sq_item.unwrap()(o, i)
+    (*(*Py_TYPE(o)).tp_as_sequence).sq_item.expect("Failed to get sq_item")(o, i)
 }
 
 pub const PY_ITERSEARCH_COUNT    : c_int = 1;

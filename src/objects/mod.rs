@@ -183,7 +183,7 @@ macro_rules! pyobject_downcast(
                 unsafe {
                     if $crate::ffi::$checkfunction(ob.as_ptr()) > 0 {
                         let ptr = ob as *const _ as *mut u8 as *mut $name;
-                        Ok(ptr.as_ref().unwrap())
+                        Ok(ptr.as_ref().expect("Failed to call as_ref"))
                     } else {
                         Err($crate::PyDowncastError(py, None))
                     }

@@ -12,7 +12,7 @@ use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
-use err::{PyResult, PyErr};
+use err::{PyResult, PyErr, ToPyErr};
 
 
 /// Represents a Python module object.
@@ -25,14 +25,14 @@ pyobject_nativetype!(PyModule, PyModule_Type, PyModule_Check);
 impl<'p> PyModule {
     /// Create a new module object with the `__name__` attribute set to name.
     pub fn new(py: Python, name: &str) -> PyResult<PyModule> {
-        let name = CString::new(name).unwrap();
+        let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
         Ok(PyModule(PyPtr::from_owned_ptr_or_err(
             py, unsafe{ffi::PyModule_New(name.as_ptr())} )?))
     }
 
     /// Import the Python module with the specified name.
     pub fn import(py: Python, name: &str) -> PyResult<PyModule> {
-        let name = CString::new(name).unwrap();
+        let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
         Ok(PyModule(PyPtr::from_owned_ptr_or_err(
             py, unsafe{ffi::PyImport_ImportModule(name.as_ptr())} )?))
     }

@@ -132,7 +132,7 @@ impl <K, V> ToPyObject for collections::HashMap<K, V>
     fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(py, key, value).unwrap();
+            dict.set_item(py, key, value).expect("Failed to set_item on dict");
         };
         dict.into()
     }
@@ -145,7 +145,7 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(py, key, value).unwrap();
+            dict.set_item(py, key, value).expect("Failed to set_item on dict");
         };
         dict.into()
     }

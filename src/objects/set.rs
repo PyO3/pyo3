@@ -86,7 +86,7 @@ impl<T> ToPyObject for collections::HashSet<T>
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
         for val in self {
-            set.add(py, val).unwrap();
+            set.add(py, val).expect("Failed to add to set");
         }
         set.into()
     }
@@ -98,7 +98,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
         for val in self {
-            set.add(py, val).unwrap();
+            set.add(py, val).expect("Failed to add to set");
         }
         set.into()
     }

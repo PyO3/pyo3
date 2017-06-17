@@ -370,7 +370,7 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
                 if !defs.contains_key(&name) {
                     let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
                 }
-                let def = defs.get_mut(&name).unwrap();
+                let def = defs.get_mut(&name).expect("Failed to call get_mut");
                 getter.copy_to(def);
             },
             &PyMethodDefType::Setter(ref setter) => {
@@ -378,7 +378,7 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
                 if !defs.contains_key(&name) {
                     let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
                 }
-                let def = defs.get_mut(&name).unwrap();
+                let def = defs.get_mut(&name).expect("Failed to call get_mut");
                 setter.copy_to(def);
             },
             _ => (),

@@ -116,7 +116,7 @@ impl PyDowncastFrom for PyString
         unsafe {
             if PyString::is_base_string(ob.as_ptr()) {
                 let ptr = ob as *const _ as *mut u8 as *mut PyString;
-                Ok(ptr.as_ref().unwrap())
+                Ok(ptr.as_ref().expect("Failed to call as_ref"))
             } else {
                 Err(PyDowncastError(py, None))
             }
@@ -253,7 +253,7 @@ impl PyUnicode {
     pub fn into_basestring(self) -> PyString {
         <PyString as ::PyDowncastInto>::unchecked_downcast_into(self)
     }
-    
+
     /// Gets the python string data in its underlying representation.
     pub fn data(&self, _py: Python) -> PyStringData {
         unsafe {

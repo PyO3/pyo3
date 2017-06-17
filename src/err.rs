@@ -154,7 +154,7 @@ impl PyErr {
         };
 
         unsafe {
-            let null_terminated_name = CString::new(name).unwrap();
+            let null_terminated_name = CString::new(name).expect("Failed to initialize nul terminated exception name");
             let ptr = ffi::PyErr_NewException(
                 null_terminated_name.as_ptr() as *mut c_char,
                 base, dict) as *mut ffi::PyTypeObject;
@@ -221,7 +221,7 @@ impl PyErr {
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: PyType::downcast_into(py, obj).unwrap(),
+                ptype: PyType::downcast_into(py, obj).expect("Failed to downcast into PyType"),
                 pvalue: None,
                 ptraceback: None
             }
@@ -335,7 +335,7 @@ impl PyErr {
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
     pub fn warn(py: Python, category: &PyObject, message: &str, stacklevel: i32) -> PyResult<()> {
-        let message = CString::new(message).unwrap();
+        let message = CString::new(message).map_err(|e| e.to_pyerr(py))?;
         unsafe {
             error_on_minusone(py, ffi::PyErr_WarnEx(
                 category.as_ptr(), message.as_ptr(), stacklevel as ffi::Py_ssize_t))
@@ -441,6 +441,7 @@ impl_to_pyerr!(std::num::ParseFloatError, exc::ValueError);
 impl_to_pyerr!(std::string::ParseError, exc::ValueError);
 impl_to_pyerr!(std::str::ParseBoolError, exc::ValueError);
 impl_to_pyerr!(std::ffi::IntoStringError, exc::UnicodeDecodeError);
+impl_to_pyerr!(std::ffi::NulError, exc::ValueError);
 impl_to_pyerr!(std::str::Utf8Error, exc::UnicodeDecodeError);
 impl_to_pyerr!(std::string::FromUtf8Error, exc::UnicodeDecodeError);
 impl_to_pyerr!(std::string::FromUtf16Error, exc::UnicodeDecodeError);

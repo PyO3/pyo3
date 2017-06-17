@@ -600,7 +600,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
                                arg3: *mut *mut PyObject) -> *mut PyObject;
     pub fn PyType_ClearCache() -> c_uint;
     pub fn PyType_Modified(t: *mut PyTypeObject);
-    
+
     pub fn PyObject_Print(o: *mut PyObject, fp: *mut FILE,
                           flags: c_int) -> c_int;
     fn _PyObject_Dump(o: *mut PyObject);
@@ -617,7 +617,7 @@ pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(py_sys_config="Py_USING_UNICODE")]
     pub fn PyObject_Unicode(o: *mut PyObject) -> *mut PyObject;
-    
+
     pub fn PyObject_Compare(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     pub fn PyObject_RichCompare(arg1: *mut PyObject, arg2: *mut PyObject,
                                 arg3: c_int) -> *mut PyObject;
@@ -771,7 +771,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
     } else {
         (*op).ob_refcnt -= 1;
         if (*op).ob_refcnt == 0 {
-            (*Py_TYPE(op)).tp_dealloc.unwrap()(op)
+            (*Py_TYPE(op)).tp_dealloc.expect("Fail to get tp_dealloc")(op)
         }
     }
 }

@@ -11,7 +11,7 @@ use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use token::{PyToken, ToInstancePtr};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
-use err::{PyErr, PyResult, PyDowncastError};
+use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 use pythonrun::GILGuard;
 
 
@@ -172,7 +172,7 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
                 globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyObject> {
-        let code = CString::new(code).unwrap();
+        let code = CString::new(code).map_err(|e| e.to_pyerr(self))?;
 
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
