@@ -12,7 +12,7 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
 {
     check_generic(name, sig);
 
-    let doc = utils::get_doc(&meth_attrs);
+    let doc = utils::get_doc(&meth_attrs, true);
     let spec = FnSpec::parse(name, sig, meth_attrs);
 
     match spec.tp {
@@ -294,7 +294,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
     if spec.args.is_empty() {
         return body
     }
-    
+
     let mut params = Vec::new();
 
     for arg in spec.args.iter() {

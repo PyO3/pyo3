@@ -11,7 +11,7 @@ use utils;
 
 pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     let params = parse_attribute(attr);
-    let doc = utils::get_doc(&ast.attrs);
+    let doc = utils::get_doc(&ast.attrs, true);
 
     let base = syn::Ident::from("_pyo3::PyObject");
     let mut token: Option<syn::Ident> = None;
