@@ -75,7 +75,7 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
-#![feature(proc_macro)]
+#![feature(proc_macro, specialization)]
 
 extern crate pyo3;
 use pyo3::{py, PyResult, Python, PyModule};

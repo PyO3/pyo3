@@ -4,6 +4,7 @@ Python module generation is powered by unstable [Procedural Macros](https://doc.
 
 ```rust
 #![feature(proc_macro)]
+
 extern crate pyo3;
 # fn main() {}
 ```
