@@ -23,6 +23,9 @@ num-traits = "0.1"
 pyo3cls = { path = "pyo3cls" }
 # backtrace = "0.3"
 
+[dev-dependencies]
+compiletest_rs = "*"
+
 [build-dependencies]
 regex = "0.2"
 

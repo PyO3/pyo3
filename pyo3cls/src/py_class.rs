@@ -25,7 +25,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
                 }
             }
         },
-        _ => panic!("#[class] can only be used with notmal structs"),
+        _ => panic!("#[class] can only be used with normal structs"),
     }
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
