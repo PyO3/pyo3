@@ -29,9 +29,9 @@ use pyo3::{py, PyResult, Python, PyModule};
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
+/// This module is implemented in Rust.
 #[py::modinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add(py, "__doc__", "This module is implemented in Rust.")?;
 
     // pyo3 aware function. All of our python interface could be declared in a separate module.
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
@@ -54,6 +54,16 @@ fn sum_as_string(a:i64, b:i64) -> String {
 ```
 
 The `modinit` procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, it must be the name of the `.so` or `.pyd` file.
+
+The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module initialization function will be applied automatically as the Python doc string of your module.
+
+```python
+import rust2py
+
+print(rust2py.__doc__)
+```
+
+Which means that the above Python code will print `This module is implemented in Rust.`.
 
 > On macOS, you will need to rename the output from `*.dylib` to `*.so`.
 >

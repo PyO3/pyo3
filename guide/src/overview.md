@@ -52,7 +52,7 @@ fn hello(py: Python) -> PyResult<()> {
 Example library with python bindings:
 
 The following two files will build with `cargo build`, and will generate a python-compatible library.
-On Mac OS, you will need to rename the output from \*.dylib to \*.so.
+On macOS, you will need to rename the output from \*.dylib to \*.so.
 On Windows, you will need to rename the output from \*.dll to \*.pyd.
 
 **`Cargo.toml`:**
@@ -77,9 +77,9 @@ use pyo3::{py, PyResult, Python, PyModule};
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
+/// This module is implemented in Rust.
 #[py::modinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add(py, "__doc__", "This module is implemented in Rust.")?;
 
     #[pyfn(m, "sum_as_string")]
     // pyo3 aware function. All of our python interface could be declared in a separate module.
