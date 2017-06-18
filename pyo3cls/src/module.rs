@@ -31,13 +31,13 @@ pub fn build_py3_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
             }
             block.stmts = stmts;
 
-            py3_init(&ast.ident, &modname)
+            py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false))
         },
         _ => panic!("#[modinit] can only be used with fn block"),
     }
 }
 
-pub fn py3_init(fnname: &syn::Ident, name: &String) -> Tokens {
+pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     let cb_name = syn::Ident::from(format!("PyInit_{}", name.trim()).as_ref());
     quote! {
         #[no_mangle]
@@ -71,6 +71,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String) -> Tokens {
                     return std::ptr::null_mut();
                 }
             };
+            module.add(py, "__doc__", #doc).expect("Failed to add doc for module");
             let ret = match #fnname(py, &module) {
                 Ok(_) => module.into_ptr(),
                 Err(e) => {
@@ -106,13 +107,13 @@ pub fn build_py2_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
             }
             block.stmts = stmts;
 
-            py2_init(&ast.ident, &modname)
+            py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false))
         },
         _ => panic!("#[modinit] can only be used with fn block"),
     }
 }
 
-pub fn py2_init(fnname: &syn::Ident, name: &String) -> Tokens {
+pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     let cb_name = syn::Ident::from(format!("init{}", name.trim()).as_ref());
 
     quote! {
@@ -142,6 +143,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String) -> Tokens {
                     return
                 }
             };
+            module.add(py, "__doc__", #doc).expect("Failed to add doc for module");
             let ret = match #fnname(py, &module) {
                 Ok(()) => (),
                 Err(e) => e.restore(py)
@@ -264,7 +266,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
             let fnname = fnname.unwrap();
             let wrapper = impl_wrap(&name, &spec);
             let item2 = item.clone();
-            let doc = utils::get_doc(&item.attrs);
+            let doc = utils::get_doc(&item.attrs, true);
 
             let tokens = quote! {
                 fn test() {

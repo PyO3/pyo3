@@ -13,7 +13,7 @@ pub fn for_err_msg(i: &ToTokens) -> String {
     tokens.as_str().to_string()
 }
 
-pub fn get_doc(attrs: &Vec<syn::Attribute>) -> syn::Lit {
+pub fn get_doc(attrs: &Vec<syn::Attribute>, null_terminated: bool) -> syn::Lit {
     let mut doc = Vec::new();
 
     for attr in attrs.iter() {
@@ -36,5 +36,9 @@ pub fn get_doc(attrs: &Vec<syn::Attribute>) -> syn::Lit {
         }
     }
     let doc = doc.join("\n");
-    syn::Lit::Str(format!("{}\0", doc), syn::StrStyle::Cooked)
+    if null_terminated {
+        syn::Lit::Str(format!("{}\0", doc), syn::StrStyle::Cooked)
+    } else {
+        syn::Lit::Str(doc, syn::StrStyle::Cooked)
+    }
 }
