@@ -102,3 +102,32 @@ fn sum_as_string(a:i64, b:i64) -> String {
 ```
 
 For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setuptools-rust)
+
+## Ownership and Lifetimes
+
+In Python, all objects are implicitly reference counted.
+In Rust, we will use the [`PyObject`](https://pyo3.github.io/PyO3/pyo3/struct.PyObject.html) type
+to represent a reference to a Python object.
+
+The method [`clone_ref()`](https://pyo3.github.io/PyO3/pyo3/trait.PyClone.html#tymethod.clone_ref) (from trait [`PyClone`](https://pyo3.github.io/PyO3/pyo3/trait.PyClone.html)) can be used to create additional
+references to the same Python object.
+
+Because all Python objects potentially have multiple owners, the
+concept of Rust mutability does not apply to Python objects.
+As a result, this API will **allow mutating Python objects even if they are not stored
+in a mutable Rust variable**.
+
+The Python interpreter uses a global interpreter lock (GIL) to ensure thread-safety.
+This API uses a zero-sized [`struct Python<'p>`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) as a token to indicate
+that a function can assume that the GIL is held.
+
+You obtain a [`Python`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) instance by acquiring the GIL,
+and have to pass it into all operations that call into the Python runtime.
+
+## Error Handling
+
+The vast majority of operations in this library will return [`PyResult<T>`](https://pyo3.github.io/PyO3/pyo3/type.PyResult.html).
+This is an alias for the type `Result<T, PyErr>`.
+
+A [`PyErr`](https://pyo3.github.io/PyO3/pyo3/struct.PyErr.html) represents a Python exception.
+Errors within the `PyO3` library are also exposed as Python exceptions.
