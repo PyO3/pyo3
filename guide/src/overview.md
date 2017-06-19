@@ -123,11 +123,3 @@ that a function can assume that the GIL is held.
 
 You obtain a [`Python`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) instance by acquiring the GIL,
 and have to pass it into all operations that call into the Python runtime.
-
-## Error Handling
-
-The vast majority of operations in this library will return [`PyResult<T>`](https://pyo3.github.io/PyO3/pyo3/type.PyResult.html).
-This is an alias for the type `Result<T, PyErr>`.
-
-A [`PyErr`](https://pyo3.github.io/PyO3/pyo3/struct.PyErr.html) represents a Python exception.
-Errors within the `PyO3` library are also exposed as Python exceptions.
