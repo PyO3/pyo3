@@ -184,12 +184,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                             modname = None
                         }
                         if meta.len() >= 3 {
-                            match meta[2] {
-                                syn::NestedMetaItem::Literal(syn::Lit::Str(ref s, _)) => {
-                                    fn_attrs = args::parse_arguments(s.as_ref());
-                                },
-                                _ => modname = None
-                            }
+                            fn_attrs = args::parse_arguments(&meta[2..meta.len()]);
                         }
                         continue;
                     }

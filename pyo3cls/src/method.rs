@@ -35,6 +35,7 @@ pub struct FnSpec<'a> {
 
 impl<'a> FnSpec<'a> {
 
+    /// Parser function signature and function attributes
     pub fn parse(name: &'a syn::Ident,
                  sig: &'a syn::MethodSig,
                  meth_attrs: &'a mut Vec<syn::Attribute>) -> FnSpec<'a> {
@@ -314,7 +315,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                         }
                     },
                     "args" => {
-                        spec.extend(parse_args(meta))
+                        spec.extend(parse_arguments(meta.as_slice()))
                     }
                     _ => {
                         new_attrs.push(attr.clone())
@@ -333,34 +334,4 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
         Some(tp) => (tp, spec),
         None => (FnType::Fn, spec),
     }
-}
-
-/// parse: #[args(args="args", kw="kwargs")]
-fn parse_args(items: &Vec<syn::NestedMetaItem>) -> Vec<Argument> {
-    let mut spec = Vec::new();
-
-    for item in items.iter() {
-        match item {
-            &syn::NestedMetaItem::MetaItem(syn::MetaItem::NameValue(ref ident, ref name)) => {
-                match *name {
-                    syn::Lit::Str(ref name, _) => match ident.as_ref() {
-                        "args" =>
-                            spec.push(Argument::VarArgs(name.clone())),
-                        "kw" =>
-                            spec.push(Argument::KeywordArgs(name.clone())),
-                        _ => (),
-                    },
-                    _ => (),
-                }
-            },
-            &syn::NestedMetaItem::Literal(syn::Lit::Str(ref args, _)) => {
-                for item in parse_arguments(args.as_ref()) {
-                    spec.push(item);
-                }
-            },
-            _ => (),
-        }
-    }
-
-    spec
 }

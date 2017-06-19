@@ -85,9 +85,10 @@
 //!
 //! // add bindings to the generated python module
 //! // N.B: names: "libhello" must be the name of the `.so` or `.pyd` file
+//!
+//! /// Module documentation string
 //! #[py::modinit(hello)]
 //! fn init_module(py: Python, m: &PyModule) -> PyResult<()> {
-//!     m.add(py, "__doc__", "Module documentation string")?;
 //!
 //!     // pyo3 aware function. All of our python interface could be declared
 //!     // in a separate module.
