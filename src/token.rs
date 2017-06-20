@@ -286,3 +286,65 @@ impl<'a, T> std::convert::From<&'a mut T> for PyObject
         unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
     }
 }
+
+impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
+{
+    fn downcast_into<'p, I>(py: Python<'p>, ob: I)
+                            -> Result<Self, PyDowncastError<'p>>
+        where I: IntoPyPointer
+    {
+        unsafe{
+            let ptr = ob.into_ptr();
+            let checked = ffi::PyObject_TypeCheck(
+                ptr, <T as PyTypeInfo>::type_object()) != 0;
+
+            if checked {
+                Ok(Py::from_owned_ptr(ptr))
+            } else {
+                ffi::Py_DECREF(ptr);
+                Err(PyDowncastError(py, None))
+            }
+        }
+    }
+
+    fn downcast_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
+                             -> Result<Self, PyDowncastError<'p>>
+    {
+        unsafe{
+            let checked = ffi::PyObject_TypeCheck(ptr, <T as PyTypeInfo>::type_object()) != 0;
+            if checked {
+                Ok(Py::from_owned_ptr(ptr))
+            } else {
+                ffi::Py_DECREF(ptr);
+                Err(PyDowncastError(py, None))
+            }
+        }
+    }
+
+    fn unchecked_downcast_into<'p, I>(ob: I) -> Self
+        where I: IntoPyPointer
+    {
+        unsafe{
+            Py::from_owned_ptr(ob.into_ptr())
+        }
+    }
+}
+
+
+impl<'a, T> ::FromPyObject<'a> for Py<T> where T: PyTypeInfo
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(py: Python, ob: &'a PyObject) -> PyResult<Self>
+    {
+        unsafe {
+            let checked = ffi::PyObject_TypeCheck(
+                ob.as_ptr(), <T as PyTypeInfo>::type_object()) != 0;
+
+            if checked {
+                Ok( Py::from_borrowed_ptr(ob.as_ptr()) )
+            } else {
+                Err(::PyDowncastError(py, None).into())
+            }
+        }
+    }
+}
