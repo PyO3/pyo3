@@ -53,7 +53,7 @@ impl<'a> IntoPyObject for &'a String {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 pyobject_extract!(py, obj to Cow<'source, str> => {
-    try!(obj.cast_as::<PyString>(py)).to_string(py)
+    try!(obj.cast_as::<PyString>(py)).to_string()
 });
 
 
@@ -61,7 +61,7 @@ pyobject_extract!(py, obj to Cow<'source, str> => {
 /// Accepts Python `str` and `unicode` objects.
 pyobject_extract!(py, obj to String => {
     let s = try!(obj.cast_as::<PyString>(py));
-    s.to_string(py).map(Cow::into_owned)
+    s.to_string().map(Cow::into_owned)
 });
 
 

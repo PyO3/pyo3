@@ -10,6 +10,7 @@ use err::{PyErr, PyResult, self};
 use python::{Python, PyDowncastInto, ToPyPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, IntoPyTuple};
+use token::Py;
 
 
 pub trait ObjectProtocol {
@@ -62,11 +63,11 @@ pub trait ObjectProtocol {
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'repr(self)'.
-    fn repr(&self, py: Python) -> PyResult<PyString>;
+    fn repr(&self, py: Python) -> PyResult<Py<PyString>>;
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
-    fn str(&self, py: Python) -> PyResult<PyString>;
+    fn str(&self, py: Python) -> PyResult<Py<PyString>>;
 
     /// Determines whether this object is callable.
     fn is_callable(&self, py: Python) -> bool;
@@ -239,16 +240,16 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
-    fn repr(&self, py: Python) -> PyResult<PyString> {
-        Ok(PyString::downcast_from_ptr(
+    fn repr(&self, py: Python) -> PyResult<Py<PyString>> {
+        Ok(Py::downcast_from_ptr(
             py, unsafe{ffi::PyObject_Repr(self.as_ptr())})?)
     }
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
-    fn str(&self, py: Python) -> PyResult<PyString> {
-        Ok(PyString::downcast_from_ptr(
+    fn str(&self, py: Python) -> PyResult<Py<PyString>> {
+        Ok(Py::downcast_from_ptr(
             py, unsafe{ffi::PyObject_Str(self.as_ptr())})?)
     }
 

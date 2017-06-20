@@ -9,29 +9,27 @@ use std::ascii::AsciiExt;
 use std::os::raw::c_char;
 
 use ffi;
-use conversion::FromPyObject;
-use err::{PyResult, PyDowncastError};
+use err::PyResult;
 use pointers::PyPtr;
-use python::{Python, ToPyPointer, IntoPyPointer, PyDowncastInto, PyDowncastFrom};
+use token::{Py, PyObjectWithToken};
+use python::{Python, ToPyPointer};
 use super::{PyObject, PyStringData};
 
 /// Represents a Python string.
 pub struct PyString(PyPtr);
 
-pyobject_convert!(PyString);
-pyobject_nativetype!(PyString, PyBaseString_Type);
+pyobject_nativetype2!(PyString, PyBaseString_Type, PyBaseString_Check);
 
 /// Represents a Python unicode string.
 pub struct PyUnicode(PyPtr);
 
-pyobject_convert!(PyUnicode);
-pyobject_nativetype!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
+pyobject_nativetype2!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python byte string. Corresponds to `str` in Python 2
 pub struct PyBytes(PyPtr);
 
-pyobject_convert!(PyBytes);
-pyobject_nativetype!(PyBytes, PyBaseString_Type, PyString_Check);
+pyobject_nativetype2!(PyBytes, PyBaseString_Type, PyString_Check);
+
 
 impl PyString {
     /// Creates a new Python string object.
@@ -41,21 +39,21 @@ impl PyString {
     /// Use `PyUnicode::new()` to always create a unicode string.
     ///
     /// Panics if out of memory.
-    pub fn new(py: Python, s: &str) -> PyString {
+    pub fn new(py: Python, s: &str) -> Py<PyString> {
         if s.is_ascii() {
-            PyBytes::new(py, s.as_bytes()).into_basestring()
+            PyBytes::new(py, s.as_bytes()).into()
         } else {
-            PyUnicode::new(py, s).into_basestring()
+            PyUnicode::new(py, s).into()
         }
     }
 
     pub fn from_object(py: Python, src: &PyObject,
-                       encoding: &str, errors: &str) -> PyResult<PyString> {
+                       encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
-            Ok(PyString(PyPtr::from_owned_ptr_or_err(
+            Ok(Py::from_owned_ptr_or_err(
                 py, ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))?
-            ))
+            )
         }
     }
 
@@ -64,12 +62,12 @@ impl PyString {
     /// For Python 2 byte strings, this function always returns `PyStringData::Utf8`,
     /// even if the bytes are not valid UTF-8.
     /// For unicode strings, returns the underlying representation used by Python.
-    pub fn data(&self, py: Python) -> PyStringData {
+    pub fn data(&self) -> PyStringData {
         let ob: &PyObject = self.as_ref();
-        if let Ok(bytes) = ob.cast_as::<PyBytes>(py) {
-            PyStringData::Utf8(bytes.data(py))
-        } else if let Ok(unicode) = ob.cast_as::<PyUnicode>(py) {
-            unicode.data(py)
+        if let Ok(bytes) = ob.cast_as::<PyBytes>(self.token()) {
+            PyStringData::Utf8(bytes.data())
+        } else if let Ok(unicode) = ob.cast_as::<PyUnicode>(self.token()) {
+            unicode.data()
         } else {
             panic!("PyString is neither `str` nor `unicode`")
         }
@@ -83,8 +81,8 @@ impl PyString {
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates, or a Python 2.7 byte string that is
     /// not valid UTF-8).
-    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
-        self.data(py).to_string(py)
+    pub fn to_string(&self) -> PyResult<Cow<str>> {
+        self.data().to_string(self.token())
     }
 
     /// Convert the `PyString` into a Rust string.
@@ -94,100 +92,8 @@ impl PyString {
     ///
     /// Unpaired surrogates and (on Python 2.7) invalid UTF-8 sequences are
     /// replaced with U+FFFD REPLACEMENT CHARACTER.
-    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
-        self.data(py).to_string_lossy()
-    }
-
-    #[inline]
-    pub fn is_base_string(ptr: *mut ffi::PyObject) -> bool {
-        unsafe {
-            ffi::PyType_FastSubclass(
-                ffi::Py_TYPE(ptr),
-                ffi::Py_TPFLAGS_STRING_SUBCLASS | ffi::Py_TPFLAGS_UNICODE_SUBCLASS) != 0
-        }
-    }
-}
-
-impl PyDowncastFrom for PyString
-{
-    fn downcast_from<'a, 'p>(py: Python<'p>, ob: &'a PyObject)
-                             -> Result<&'a PyString, PyDowncastError<'p>>
-    {
-        unsafe {
-            if PyString::is_base_string(ob.as_ptr()) {
-                let ptr = ob as *const _ as *mut u8 as *mut PyString;
-                Ok(ptr.as_ref().expect("Failed to call as_ref"))
-            } else {
-                Err(PyDowncastError(py, None))
-            }
-        }
-    }
-}
-
-impl PyDowncastInto for PyString
-{
-    fn downcast_into<'p, I>(py: Python<'p>, ob: I) -> Result<Self, PyDowncastError<'p>>
-        where I: IntoPyPointer
-    {
-        unsafe{
-            let ptr = ob.into_ptr();
-            if PyString::is_base_string(ptr) {
-                Ok(PyString(PyPtr::from_owned_ptr(ptr)))
-            } else {
-                ffi::Py_DECREF(ptr);
-                Err(PyDowncastError(py, None))
-            }
-        }
-    }
-
-    fn downcast_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
-                             -> Result<PyString, PyDowncastError<'p>>
-    {
-        unsafe{
-            if PyString::is_base_string(ptr) {
-                Ok(PyString(PyPtr::from_owned_ptr(ptr)))
-            } else {
-                ffi::Py_DECREF(ptr);
-                Err(PyDowncastError(py, None))
-            }
-        }
-    }
-
-    fn unchecked_downcast_into<'p, I>(ob: I) -> Self where I: IntoPyPointer
-    {
-        unsafe{
-            PyString(PyPtr::from_owned_ptr(ob.into_ptr()))
-        }
-    }
-}
-
-impl<'a> FromPyObject<'a> for PyString
-{
-    /// Extracts `Self` from the source `PyObject`.
-    fn extract(py: Python, ob: &'a PyObject) -> PyResult<Self>
-    {
-        unsafe {
-            if PyString::is_base_string(ob.as_ptr()) {
-                Ok( PyString(PyPtr::from_borrowed_ptr(ob.as_ptr())) )
-            } else {
-                Err(PyDowncastError(py, None).into())
-            }
-        }
-    }
-}
-
-impl<'a> FromPyObject<'a> for &'a PyString
-{
-    /// Extracts `Self` from the source `PyObject`.
-    fn extract(py: Python, ob: &'a PyObject) -> PyResult<Self>
-    {
-        unsafe {
-            if PyString::is_base_string(ob.as_ptr()) {
-                Ok(std::mem::transmute(ob))
-            } else {
-                Err(PyDowncastError(py, None).into())
-            }
-        }
+    pub fn to_string_lossy(&self) -> Cow<str> {
+        self.data().to_string_lossy()
     }
 }
 
@@ -196,23 +102,16 @@ impl PyBytes {
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(_py: Python, s: &[u8]) -> PyBytes {
+    pub fn new(_py: Python, s: &[u8]) -> Py<PyBytes> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyBytes(PyPtr::from_owned_ptr_or_panic(
-                ffi::PyBytes_FromStringAndSize(ptr, len)))
+            Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len))
         }
     }
 
-    /// Converts from `PyBytes` to `PyString`.
-    #[inline]
-    pub fn into_basestring(self) -> PyString {
-        <PyString as ::PyDowncastInto>::unchecked_downcast_into(self)
-    }
-
     /// Gets the Python string data as byte slice.
-    pub fn data(&self, _py: Python) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
@@ -226,36 +125,28 @@ impl PyUnicode {
     /// Creates a new Python unicode string object.
     ///
     /// Panics if out of memory.
-    pub fn new(_py: Python, s: &str) -> PyUnicode {
+    pub fn new(_py: Python, s: &str) -> Py<PyUnicode> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe {
-            PyUnicode(PyPtr::from_owned_ptr_or_panic(
-                ffi::PyUnicode_FromStringAndSize(ptr, len)))
+            Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len))
         }
     }
 
     pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str)
-                       -> PyResult<PyUnicode>
+                       -> PyResult<Py<PyUnicode>>
     {
         unsafe {
-            Ok(PyUnicode(
-                PyPtr::from_owned_ptr_or_err(
-                    py, ffi::PyUnicode_FromEncodedObject(
-                        src.as_ptr(),
-                        encoding.as_ptr() as *const i8,
-                        errors.as_ptr() as *const i8))?))
+            Ok(Py::from_owned_ptr_or_err(
+                py, ffi::PyUnicode_FromEncodedObject(
+                    src.as_ptr(),
+                    encoding.as_ptr() as *const i8,
+                    errors.as_ptr() as *const i8))?)
         }
     }
 
-    /// Converts from `PyUnicode` to `PyString`.
-    #[inline]
-    pub fn into_basestring(self) -> PyString {
-        <PyString as ::PyDowncastInto>::unchecked_downcast_into(self)
-    }
-
     /// Gets the python string data in its underlying representation.
-    pub fn data(&self, _py: Python) -> PyStringData {
+    pub fn data(&self) -> PyStringData {
         unsafe {
             let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr());
             let length = ffi::PyUnicode_GET_SIZE(self.as_ptr()) as usize;
@@ -267,17 +158,34 @@ impl PyUnicode {
     ///
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
-    pub fn to_string(&self, py: Python) -> PyResult<Cow<str>> {
-        self.data(py).to_string(py)
+    pub fn to_string(&self) -> PyResult<Cow<str>> {
+        self.data().to_string(self.token())
     }
 
     /// Convert the `PyString` into a Rust string.
     ///
     /// Unpaired surrogates are replaced with U+FFFD REPLACEMENT CHARACTER.
-    pub fn to_string_lossy(&self, py: Python) -> Cow<str> {
-        self.data(py).to_string_lossy()
+    pub fn to_string_lossy(&self) -> Cow<str> {
+        self.data().to_string_lossy()
     }
 }
+
+/// Converts from `PyBytes` to `PyString`.
+impl std::convert::From<Py<PyBytes>> for Py<PyString> {
+    #[inline]
+    fn from(ob: Py<PyBytes>) -> Py<PyString> {
+        <Py<PyString> as ::PyDowncastInto>::unchecked_downcast_into(ob)
+    }
+}
+
+/// Converts from `PyUnicode` to `PyString`.
+impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
+    #[inline]
+    fn from(ob: Py<PyUnicode>) -> Py<PyString> {
+        <Py<PyString> as ::PyDowncastInto>::unchecked_downcast_into(ob)
+    }
+}
+
 
 #[cfg(test)]
 mod test {

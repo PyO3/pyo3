@@ -55,6 +55,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
     let extra = if let Some(token) = token {
         Some(quote! {
             impl _pyo3::PyObjectWithToken for #cls {
+                #[inline]
                 fn token<'p>(&'p self) -> _pyo3::Python<'p> {
                     self.#token.token()
                 }
@@ -100,13 +101,18 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let py = _pyo3::PyObjectWithToken::token(self);
                     let ptr = <#cls as _pyo3::ToPyPointer>::as_ptr(self);
-                    let repr = unsafe {
-                        _pyo3::PyString::downcast_from_ptr(
-                            py, _pyo3::ffi::PyObject_Repr(ptr)).map_err(|_| std::fmt::Error)?
-                    };
-                    let result = f.write_str(&repr.to_string_lossy(py));
-                    py.release(repr);
-                    result
+                    unsafe {
+                        let repr = PyObject::from_borrowed_ptr(
+                            py, _pyo3::ffi::PyObject_Repr(ptr));
+
+                        let result = {
+                            let s = _pyo3::PyString::downcast_from(py,  &repr);
+                            let s = try!(s.map_err(|_| std::fmt::Error));
+                            f.write_str(&s.to_string_lossy())
+                        };
+                        py.release(repr);
+                        result
+                    }
                 }
             }
 
@@ -114,13 +120,18 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let py = _pyo3::PyObjectWithToken::token(self);
                     let ptr = <#cls as _pyo3::ToPyPointer>::as_ptr(self);
-                    let str_obj = unsafe {
-                        _pyo3::PyString::downcast_from_ptr(
-                            py, _pyo3::ffi::PyObject_Str(ptr)).map_err(|_| std::fmt::Error)?
-                    };
-                    let result = f.write_str(&str_obj.to_string_lossy(py));
-                    py.release(str_obj);
-                    result
+                    unsafe {
+                        let repr = PyObject::from_borrowed_ptr(
+                            py, _pyo3::ffi::PyObject_Str(ptr));
+
+                        let result = {
+                            let s = _pyo3::PyString::downcast_from(py,  &repr);
+                            let s = try!(s.map_err(|_| std::fmt::Error));
+                            f.write_str(&s.to_string_lossy())
+                        };
+                        py.release(repr);
+                        result
+                    }
                 }
             }
         })
@@ -183,6 +194,12 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
                 static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
                 unsafe { &mut TYPE_OBJECT }
+            }
+
+            #[inline]
+            fn is_instance(ptr: *mut ffi::PyObject) -> bool {
+                unsafe {ffi::PyObject_TypeCheck(
+                    ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0}
             }
         }
 

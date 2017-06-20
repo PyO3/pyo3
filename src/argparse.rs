@@ -82,7 +82,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
         for (key, _value) in kwargs.unwrap().items(py) {
-            let key = try!(try!(key.cast_as::<PyString>(py)).to_string(py));
+            let key = try!(try!(key.cast_as::<PyString>(py)).to_string());
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
                     py,

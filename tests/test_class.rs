@@ -305,7 +305,7 @@ struct ClassMethodWithArgs{token: PyToken}
 #[py::methods]
 impl ClassMethodWithArgs {
     #[classmethod]
-    fn method(cls: &PyType, py: Python, input: PyString) -> PyResult<String> {
+    fn method(cls: &PyType, py: Python, input: &PyString) -> PyResult<String> {
         Ok(format!("{}.method({})", cls.name(py), input))
     }
 }
@@ -483,12 +483,12 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         Ok(format!("format({})", format_spec))
     }
 
-    fn __unicode__(&self, py: Python) -> PyResult<PyString> {
-        Ok(PyString::new(py, "unicode"))
+    fn __unicode__(&self, py: Python) -> PyResult<PyObject> {
+        Ok(PyString::new(py, "unicode").into())
     }
 
-    fn __bytes__(&self, py: Python) -> PyResult<PyBytes> {
-        Ok(PyBytes::new(py, b"bytes"))
+    fn __bytes__(&self, py: Python) -> PyResult<PyObject> {
+        Ok(PyBytes::new(py, b"bytes").into())
     }
 }
 

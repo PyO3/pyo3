@@ -4,6 +4,7 @@ use std::fmt;
 
 use pointers::PyPtr;
 use python::Python;
+use token::InstancePtr;
 use objectprotocol::ObjectProtocol;
 
 impl fmt::Debug for PyPtr {
@@ -14,7 +15,7 @@ impl fmt::Debug for PyPtr {
         // TODO: we shouldn't use fmt::Error when repr() fails
         let r = self.as_object(py);
         let repr_obj = try!(r.repr(py).map_err(|_| fmt::Error));
-        let result = f.write_str(&repr_obj.to_string_lossy(py));
+        let result = f.write_str(&repr_obj.as_ref(py).to_string_lossy());
         py.release(repr_obj);
         result
     }
@@ -28,7 +29,7 @@ impl fmt::Display for PyPtr {
         // TODO: we shouldn't use fmt::Error when repr() fails
         let r = self.as_object(py);
         let str_obj = try!(r.str(py).map_err(|_| fmt::Error));
-        let result = f.write_str(&str_obj.to_string_lossy(py));
+        let result = f.write_str(&str_obj.as_ref(py).to_string_lossy());
         py.release(str_obj);
         result
     }

@@ -12,10 +12,12 @@ use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
+pub trait PyNativeType {}
+
 pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {
-    pub fn token(&self) -> Python {
+    pub fn token<'p>(&'p self) -> Python<'p> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -70,6 +72,7 @@ pub trait AsPyRef<T> : Sized {
 }
 
 /// Wrapper around unsafe `*mut ffi::PyObject` pointer. Decrement ref counter on `Drop`
+#[derive(Debug)]
 pub struct Py<T>(*mut ffi::PyObject, std::marker::PhantomData<T>);
 
 // `PyPtr` is thread-safe, because any python related operations require a Python<'p> token.
@@ -179,7 +182,7 @@ impl<T> Py<T> where T: PyTypeInfo,
 impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
 
     #[inline]
-    fn as_ref(&self, _py: Python) -> &T {
+    default fn as_ref(&self, _py: Python) -> &T {
         let offset = <T as PyTypeInfo>::offset();
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut T;
@@ -187,12 +190,24 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
         }
     }
     #[inline]
-    fn as_mut(&self, _py: Python) -> &mut T {
+    default fn as_mut(&self, _py: Python) -> &mut T {
         let offset = <T as PyTypeInfo>::offset();
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut T;
             ptr.as_mut().unwrap()
         }
+    }
+}
+
+impl<T> InstancePtr<T> for Py<T> where T: PyTypeInfo + PyNativeType {
+
+    #[inline]
+    fn as_ref(&self, _py: Python) -> &T {
+        unsafe {std::mem::transmute(self)}
+    }
+    #[inline]
+    fn as_mut(&self, _py: Python) -> &mut T {
+        unsafe {std::mem::transmute(self as *const _ as *mut T)}
     }
 }
 
@@ -250,8 +265,9 @@ impl<T> Drop for Py<T> {
 
 
 impl<T> std::convert::From<Py<T>> for PyObject {
+    #[inline]
     fn from(ob: Py<T>) -> Self {
-        unsafe{std::mem::transmute(ob)}
+        unsafe {std::mem::transmute(ob)}
     }
 }
 
@@ -294,11 +310,7 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
         where I: IntoPyPointer
     {
         unsafe{
-            let ptr = ob.into_ptr();
-            let checked = ffi::PyObject_TypeCheck(
-                ptr, <T as PyTypeInfo>::type_object()) != 0;
-
-            if checked {
+            if T::is_instance(ptr) {
                 Ok(Py::from_owned_ptr(ptr))
             } else {
                 ffi::Py_DECREF(ptr);
@@ -311,8 +323,7 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
                              -> Result<Self, PyDowncastError<'p>>
     {
         unsafe{
-            let checked = ffi::PyObject_TypeCheck(ptr, <T as PyTypeInfo>::type_object()) != 0;
-            if checked {
+            if T::is_instance(ptr) {
                 Ok(Py::from_owned_ptr(ptr))
             } else {
                 ffi::Py_DECREF(ptr);
@@ -330,17 +341,13 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
     }
 }
 
-
 impl<'a, T> ::FromPyObject<'a> for Py<T> where T: PyTypeInfo
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(py: Python, ob: &'a PyObject) -> PyResult<Self>
     {
         unsafe {
-            let checked = ffi::PyObject_TypeCheck(
-                ob.as_ptr(), <T as PyTypeInfo>::type_object()) != 0;
-
-            if checked {
+            if T::is_instance(ob.as_ptr()) {
                 Ok( Py::from_borrowed_ptr(ob.as_ptr()) )
             } else {
                 Err(::PyDowncastError(py, None).into())

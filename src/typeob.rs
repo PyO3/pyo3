@@ -35,6 +35,9 @@ pub trait PyTypeInfo {
     /// PyTypeObject instance for this type
     fn type_object() -> &'static mut ffi::PyTypeObject;
 
+    /// Check `*mut ffi::PyObject` if it is the same type
+    fn is_instance(ptr: *mut ffi::PyObject) -> bool;
+
 }
 
 
@@ -60,6 +63,12 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     default fn type_object() -> &'static mut ffi::PyTypeObject {
         <T as PyTypeInfo>::type_object()
     }
+
+    #[inline]
+    default fn is_instance(ptr: *mut ffi::PyObject) -> bool {
+        <T as PyTypeInfo>::is_instance(ptr)
+    }
+
 }
 
 pub trait PyObjectAlloc<T> {
