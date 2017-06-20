@@ -15,7 +15,7 @@ use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer};
 use objects::PyObject;
 use objects::exc;
-use token::{Ptr, InstancePtr};
+use token::{Py, InstancePtr};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
@@ -369,7 +369,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
             let guard = ::callback::AbortOnDrop(LOCATION);
             let ret = std::panic::catch_unwind(|| {
                 let py = Python::assume_gil_acquired();
-                let slf = Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = Py::<T>::from_borrowed_ptr(slf);
                 let arg = PyObject::from_borrowed_ptr(py, arg);
 
                 let result = {

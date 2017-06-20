@@ -99,8 +99,8 @@ struct EmptyClassWithNew {
 #[py::methods]
 impl EmptyClassWithNew {
     #[__new__]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<Ptr<EmptyClassWithNew>> {
-        Ptr::new(py, |t| EmptyClassWithNew{token: t})
+    fn __new__(cls: &PyType, py: Python) -> PyResult<Py<EmptyClassWithNew>> {
+        Py::new(py, |t| EmptyClassWithNew{token: t})
     }
 }
 
@@ -121,8 +121,8 @@ struct NewWithOneArg {
 #[py::methods]
 impl NewWithOneArg {
     #[new]
-    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<Ptr<NewWithOneArg>> {
-        Ptr::new(py, |t| NewWithOneArg{_data: arg, token: t})
+    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<Py<NewWithOneArg>> {
+        Py::new(py, |t| NewWithOneArg{_data: arg, token: t})
     }
 }
 
@@ -147,9 +147,9 @@ struct NewWithTwoArgs {
 #[py::methods]
 impl NewWithTwoArgs {
     #[new]
-    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<Ptr<NewWithTwoArgs>>
+    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<Py<NewWithTwoArgs>>
     {
-        Ptr::new(py, |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
+        Py::new(py, |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
 }
 
@@ -172,12 +172,12 @@ fn class_with_freelist() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Ptr::new(py, |t| ClassWithFreelist{token: t}).unwrap();
-    let inst2 = Ptr::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst2 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     let ptr = inst.as_ptr();
     drop(inst);
 
-    let inst3 = Ptr::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst3 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     assert_eq!(ptr, inst3.as_ptr());
 }
 
@@ -204,7 +204,7 @@ fn data_is_dropped() {
 
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
-    let inst = Ptr::new(py, |t| DataIsDropped{
+    let inst = Py::new(py, |t| DataIsDropped{
         member1: TestDropCall { drop_called: drop_called1.clone() },
         member2: TestDropCall { drop_called: drop_called2.clone() },
         token: t
@@ -236,7 +236,7 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Ptr::new(py, |t| InstanceMethod{member: 42, token: t}).unwrap();
+    let obj = Py::new(py, |t| InstanceMethod{member: 42, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
@@ -262,7 +262,7 @@ fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Ptr::new(py, |t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
+    let obj = Py::new(py, |t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py, 6).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
@@ -277,8 +277,8 @@ struct ClassMethod {token: PyToken}
 #[py::methods]
 impl ClassMethod {
     #[new]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<Ptr<ClassMethod>> {
-        Ptr::new(py, |t| ClassMethod{token: t})
+    fn __new__(cls: &PyType, py: Python) -> PyResult<Py<ClassMethod>> {
+        Py::new(py, |t| ClassMethod{token: t})
     }
 
     #[classmethod]
@@ -328,8 +328,8 @@ struct StaticMethod {
 #[py::methods]
 impl StaticMethod {
     #[new]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<Ptr<StaticMethod>> {
-        Ptr::new(py, |t| StaticMethod{token: t})
+    fn __new__(cls: &PyType, py: Python) -> PyResult<Py<StaticMethod>> {
+        Py::new(py, |t| StaticMethod{token: t})
     }
 
     #[staticmethod]
@@ -398,7 +398,7 @@ fn gc_integration() {
     let py = gil.python();
 
     let drop_called = Arc::new(AtomicBool::new(false));
-    let inst = Ptr::new(py, |t| GCIntegration{
+    let inst = Py::new(py, |t| GCIntegration{
         self_ref: RefCell::new(py.None()),
         dropped: TestDropCall { drop_called: drop_called.clone() },
         token: t}).unwrap();
@@ -428,14 +428,14 @@ fn len() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Ptr::new(py, |t| Len{l: 10, token: t}).unwrap();
+    let inst = Py::new(py, |t| Len{l: 10, token: t}).unwrap();
     py_assert!(py, inst, "len(inst) == 10");
     unsafe {
         assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
         assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
     }
 
-    let inst = Ptr::new(py, |t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
+    let inst = Py::new(py, |t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
@@ -447,7 +447,7 @@ struct Iterator{
 
 #[py::proto]
 impl PyIterProtocol for Iterator {
-    fn __iter__(&mut self, py: Python) -> PyResult<Ptr<Iterator>> {
+    fn __iter__(&mut self, py: Python) -> PyResult<Py<Iterator>> {
         Ok(self.into())
     }
 
@@ -461,7 +461,7 @@ fn iterator() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Ptr::new(py, |t| Iterator{iter: Box::new(5..8), token: t}).unwrap();
+    let inst = Py::new(py, |t| Iterator{iter: Box::new(5..8), token: t}).unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
@@ -498,7 +498,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Ptr::new(py, |t| StringMethods{token: t}).unwrap();
+    let obj = Py::new(py, |t| StringMethods{token: t}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
@@ -511,7 +511,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Ptr::new(py, |t| StringMethods{token: t}).unwrap();
+    let obj = Py::new(py, |t| StringMethods{token: t}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "unicode(obj) == 'unicode'");
@@ -541,10 +541,10 @@ fn comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let zero = Ptr::new(py, |t| Comparisons{val: 0, token: t}).unwrap();
-    let one = Ptr::new(py, |t| Comparisons{val: 1, token: t}).unwrap();
-    let ten = Ptr::new(py, |t| Comparisons{val: 10, token: t}).unwrap();
-    let minus_one = Ptr::new(py, |t| Comparisons{val: -1, token: t}).unwrap();
+    let zero = Py::new(py, |t| Comparisons{val: 0, token: t}).unwrap();
+    let one = Py::new(py, |t| Comparisons{val: 1, token: t}).unwrap();
+    let ten = Py::new(py, |t| Comparisons{val: 10, token: t}).unwrap();
+    let minus_one = Py::new(py, |t| Comparisons{val: -1, token: t}).unwrap();
     py_assert!(py, one, "hash(one) == 1");
     py_assert!(py, ten, "hash(ten) == 10");
     py_assert!(py, minus_one, "hash(minus_one) == -2");

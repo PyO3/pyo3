@@ -53,8 +53,7 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                 const LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
                 _pyo3::callback::cb_meth(LOCATION, |py| {
-                    //println!("METH {:?} =====: {:?} {:?} {:?}", LOCATION, slf, args, kwargs);
-                    let slf = _pyo3::Ptr::<#cls>::from_borrowed_ptr(slf);
+                    let slf = _pyo3::Py::<#cls>::from_borrowed_ptr(slf);
 
                     let result = {
                         let result: #output = {
@@ -64,7 +63,6 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                             _pyo3::callback::PyObjectCallbackConverter, py, result)
                     };
                     py.release(slf);
-                    //println!("METH {:?} =====", LOCATION);
                     result
                 })
             }
@@ -81,8 +79,7 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                 const LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
                 _pyo3::callback::cb_meth(LOCATION, |py| {
-                    //println!("METH {:?} =====: {:?} {:?} {:?}", LOCATION, slf, args, kwargs);
-                    let slf = _pyo3::Ptr::<#cls>::from_borrowed_ptr(slf);
+                    let slf = _pyo3::Py::<#cls>::from_borrowed_ptr(slf);
                     let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                     let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
@@ -96,7 +93,6 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                     py.release(kwargs);
                     py.release(args);
                     py.release(slf);
-                    //println!("METH {:?} =====", LOCATION);
                     result
                 })
             }
@@ -117,7 +113,7 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
         {
             const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let slf = _pyo3::Ptr::<#cls>::from_borrowed_ptr(slf);
+                let slf = _pyo3::Py::<#cls>::from_borrowed_ptr(slf);
                 let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
@@ -262,7 +258,7 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
             const LOCATION: &'static str = concat!(
                 stringify!(#cls), ".setter", stringify!(#name), "()");
             _pyo3::callback::cb_setter(LOCATION, |py| {
-                let slf = _pyo3::Ptr::<#cls>::from_borrowed_ptr(slf);
+                let slf = _pyo3::Py::<#cls>::from_borrowed_ptr(slf);
                 let value = _pyo3::PyObject::from_borrowed_ptr(py, value);
 
                 let result = match <#val_ty as _pyo3::FromPyObject>::extract(py, &value) {

@@ -309,30 +309,6 @@ fn get_res_success(ty: &syn::Ty) -> (Tokens, syn::Ty) {
         _ => panic!("not supported: {:?}", ty),
     };
 
-    // add lifetime to Py<T>
-    match succ {
-        syn::Ty::Path(_, ref mut path) => {
-            let last = path.segments.len()-1;
-            let seg = path.segments[last].clone();
-
-            if seg.ident.as_ref() == "Py" {
-                if let syn::PathParameters::AngleBracketed(ref data) = seg.parameters {
-                    path.segments[last] = syn::PathSegment{
-                        ident: seg.ident.clone(),
-                        parameters: syn::PathParameters::AngleBracketed(
-                            syn::AngleBracketedParameterData{
-                                lifetimes: vec![syn::Lifetime {
-                                    ident: syn::Ident::from("'p")}],
-                                types: data.types.clone(),
-                                bindings: data.bindings.clone(),
-                            })
-                    }
-                }
-            }
-        }
-        _ => (),
-    }
-
     // result
     let res = if result {
         quote! {PyResult<#succ>}

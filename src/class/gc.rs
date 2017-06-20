@@ -9,7 +9,7 @@ use std::os::raw::{c_int, c_void};
 use ffi;
 use python::{Python, ToPyPointer};
 use callback::AbortOnDrop;
-use token::{Ptr, InstancePtr};
+use token::{Py, InstancePtr};
 use typeob::PyTypeInfo;
 
 pub struct PyTraverseError(c_int);
@@ -100,7 +100,7 @@ impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
             let guard = AbortOnDrop(LOCATION);
             let py = Python::assume_gil_acquired();
             let visit = PyVisit { visit: visit, arg: arg, _py: py };
-            let slf = Ptr::<T>::from_borrowed_ptr(slf);
+            let slf = Py::<T>::from_borrowed_ptr(slf);
 
             let ret = match slf.as_ref(py).__traverse__(py, visit) {
                 Ok(()) => 0,
@@ -138,7 +138,7 @@ impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p>
 
             let guard = AbortOnDrop(LOCATION);
             let py = Python::assume_gil_acquired();
-            let slf = Ptr::<T>::from_borrowed_ptr(slf);
+            let slf = Py::<T>::from_borrowed_ptr(slf);
             T::__clear__(&mut slf.as_mut(py), py);
             mem::forget(guard);
             0

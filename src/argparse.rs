@@ -63,10 +63,9 @@ pub fn parse_args<'p>(py: Python<'p>,
             },
             None => {
                 if p.kw_only {
-                    return Err(err::PyErr::new::<exc::TypeError, _>(
-                        py, format!("Required keywordargument ('{}') not found", p.name)));
+                    *out = None;
                 }
-                if i < nargs {
+                else if i < nargs {
                     *out = Some(args.get_item(py, i));
                 } else {
                     *out = None;

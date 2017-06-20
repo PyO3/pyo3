@@ -9,7 +9,7 @@ use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
-use token::{Ptr, InstancePtr};
+use token::{Py, InstancePtr};
 use typeob::PyTypeInfo;
 
 
@@ -204,7 +204,7 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let slf = Ptr::<Slf>::from_borrowed_ptr(slf);
+        let slf = Py::<Slf>::from_borrowed_ptr(slf);
 
         let result = match f(py, slf.as_mut(py)) {
             Ok(val) => {
@@ -238,7 +238,7 @@ pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: 
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let slf = Ptr::<Slf>::from_borrowed_ptr(slf);
+        let slf = Py::<Slf>::from_borrowed_ptr(slf);
 
         let result = f(py, slf.as_mut(py));
         py.release(slf);

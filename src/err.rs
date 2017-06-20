@@ -107,7 +107,7 @@ pub struct PyErr {
 pub type PyResult<T> = Result<T, PyErr>;
 
 
-// Marker type that indicates an error while downcasting
+/// Marker type that indicates an error while downcasting
 pub struct PyDowncastError<'p>(pub Python<'p>, pub Option<&'p str>);
 
 

@@ -74,6 +74,13 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     f(self.as_ptr())
                 }
             }
+            impl<'a> _pyo3::IntoPyObject for &'a #cls
+            {
+                #[inline]
+                fn into_object<'p>(self, py: _pyo3::Python) -> _pyo3::PyObject {
+                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
+                }
+            }
             impl std::convert::AsRef<PyObject> for #cls {
                 fn as_ref(&self) -> &_pyo3::PyObject {
                     unsafe{std::mem::transmute(self.as_ptr())}

@@ -157,7 +157,7 @@ mod pointers;
 pub use pointers::PyPtr;
 
 pub mod token;
-pub use token::{PyToken, PyObjectWithToken, InstancePtr, Ptr};
+pub use token::{PyToken, PyObjectWithToken, InstancePtr, Py};
 
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;

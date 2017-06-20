@@ -14,7 +14,7 @@ macro_rules! py_unary_func {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let result = {
                     let res = slf.as_mut(py).$f(py).into();
                     $crate::callback::cb_convert($conv, py, res)
@@ -39,7 +39,7 @@ macro_rules! py_unary_func {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let result = {
                     let res = slf.as_mut(py).$f(py).into();
                     $crate::callback::cb_convert($conv, py, res)
@@ -86,7 +86,7 @@ macro_rules! py_binary_func{
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
                 let result = {
@@ -120,7 +120,7 @@ macro_rules! py_binary_self_func{
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
-                let slf1 = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf1 = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
 
                 let result = {
@@ -165,7 +165,7 @@ macro_rules! py_ssizearg_func {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
-                let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let result = {
                     let result = slf.as_mut(py).$f(py, arg as isize).into();
                     $crate::callback::cb_convert($conv, py, result)
@@ -194,7 +194,7 @@ macro_rules! py_ternary_func{
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                 let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
 
@@ -233,7 +233,7 @@ macro_rules! py_ternary_self_func{
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
-                let slf1 = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf1 = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
                 let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
 
@@ -330,7 +330,7 @@ macro_rules! py_func_del{
                 LOCATION, $crate::callback::UnitCallbackConverter, |py|
             {
                 if value.is_null() {
-                    let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                    let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                     let name = PyObject::from_borrowed_ptr(py, name);
 
                     let result = {
@@ -381,7 +381,7 @@ macro_rules! py_func_set_del{
             $crate::callback::cb_pyfunc::<_, _, ()>(
                 LOCATION, $crate::callback::UnitCallbackConverter, |py|
             {
-                let slf = $crate::Ptr::<T>::from_borrowed_ptr(slf);
+                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
                 let name = PyObject::from_borrowed_ptr(py, name);
 
                 let result = {

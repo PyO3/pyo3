@@ -86,6 +86,19 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                             arguments.push(Argument::Arg(name, Some(format!("{}", s))));
                         }
                     }
+                    &syn::Lit::Bool(ref b) => {
+                        if has_varargs {
+                            arguments.push(Argument::Kwarg(name, format!("{}", b)));
+                        } else {
+                            if has_kwargs {
+                                println!("syntax error, keyword arguments is defined: {:?}",
+                                         args_str);
+                                return Vec::new()
+                            }
+                            has_kw = true;
+                            arguments.push(Argument::Arg(name, Some(format!("{}", b))));
+                        }
+                    }
                     _ => {
                         println!("Only string literal is supported, got: {:?}", lit);
                         return Vec::new()
