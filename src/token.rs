@@ -24,7 +24,7 @@ pub trait PyObjectWithToken : Sized {
     fn token(&self) -> Python;
 }
 
-pub trait InstancePtr<T> : Sized {
+pub trait AsPyRef<T> : Sized {
 
     fn as_ref(&self, py: Python) -> &T;
 
@@ -176,7 +176,7 @@ impl<T> Py<T> where T: PyTypeInfo,
     }
 }
 
-impl<T> InstancePtr<T> for Py<T> where T: PyTypeInfo {
+impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
 
     #[inline]
     fn as_ref(&self, _py: Python) -> &T {
@@ -201,7 +201,6 @@ impl<T> ToPyObject for Py<T> {
         PyObject::from_borrowed_ptr(py, self.as_ptr())
     }
 }
-
 
 impl<T> IntoPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.

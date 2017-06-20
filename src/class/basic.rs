@@ -15,7 +15,7 @@ use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer};
 use objects::PyObject;
 use objects::exc;
-use token::{Py, InstancePtr};
+use token::{Py, AsPyRef};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
