@@ -12,7 +12,6 @@ use ffi;
 use err::PyResult;
 use python::Python;
 use callback::PyObjectCallbackConverter;
-use token::ToInstancePtr;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
@@ -131,7 +130,7 @@ impl<'p, T> PyAsyncAwaitProtocolImpl for T where T: PyAsyncProtocol<'p>
     }
 }
 
-impl<T> PyAsyncAwaitProtocolImpl for T where T: for<'p> PyAsyncAwaitProtocol<'p> + ToInstancePtr<T>
+impl<T> PyAsyncAwaitProtocolImpl for T where T: for<'p> PyAsyncAwaitProtocol<'p>
 {
     #[inline]
     fn am_await() -> Option<ffi::unaryfunc> {
@@ -152,7 +151,7 @@ impl<'p, T> PyAsyncAiterProtocolImpl for T where T: PyAsyncProtocol<'p>
     }
 }
 
-impl<T> PyAsyncAiterProtocolImpl for T where T: for<'p> PyAsyncAiterProtocol<'p> + ToInstancePtr<T>
+impl<T> PyAsyncAiterProtocolImpl for T where T: for<'p> PyAsyncAiterProtocol<'p>
 {
     #[inline]
     fn am_aiter() -> Option<ffi::unaryfunc> {
@@ -173,7 +172,7 @@ impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p>
     }
 }
 
-impl<T> PyAsyncAnextProtocolImpl for T where T: for<'p> PyAsyncAnextProtocol<'p> + ToInstancePtr<T>
+impl<T> PyAsyncAnextProtocolImpl for T where T: for<'p> PyAsyncAnextProtocol<'p>
 {
     #[inline]
     fn am_anext() -> Option<ffi::unaryfunc> {

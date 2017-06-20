@@ -156,8 +156,8 @@ pub use ffi::{Py_ssize_t, Py_hash_t};
 mod pointers;
 pub use pointers::PyPtr;
 
-mod token;
-pub use token::{PyToken, PyObjectWithToken, ToInstancePtr, InstancePtr};
+pub mod token;
+pub use token::{PyToken, PyObjectWithToken, InstancePtr, Ptr};
 
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;

@@ -9,7 +9,7 @@ use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
-use token::{InstancePtr, ToInstancePtr};
+use token::{Ptr, InstancePtr};
 use typeob::PyTypeInfo;
 
 
@@ -198,13 +198,13 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
                                      slf: *mut ffi::PyObject, _c: C, f: F) -> C::R
     where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> PyResult<T>,
           F: panic::UnwindSafe,
-          Slf: PyTypeInfo + ToInstancePtr<Slf>,
+          Slf: PyTypeInfo,
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let slf = Slf::from_borrowed_ptr(slf);
+        let slf = Ptr::<Slf>::from_borrowed_ptr(slf);
 
         let result = match f(py, slf.as_mut(py)) {
             Ok(val) => {
@@ -233,12 +233,12 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
 pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: F) -> c_int
     where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> c_int,
           F: panic::UnwindSafe,
-          Slf: PyTypeInfo + ToInstancePtr<Slf>,
+          Slf: PyTypeInfo,
 {
     let guard = AbortOnDrop(location);
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let slf = Slf::from_borrowed_ptr(slf);
+        let slf = Ptr::<Slf>::from_borrowed_ptr(slf);
 
         let result = f(py, slf.as_mut(py));
         py.release(slf);

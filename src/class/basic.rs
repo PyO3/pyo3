@@ -15,7 +15,7 @@ use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer};
 use objects::PyObject;
 use objects::exc;
-use token::{InstancePtr, ToInstancePtr};
+use token::{Ptr, InstancePtr};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
@@ -175,7 +175,7 @@ impl<'p, T> PyObjectGetAttrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectGetAttrProtocolImpl for T where T: for<'p> PyObjectGetAttrProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectGetAttrProtocolImpl for T where T: for<'p> PyObjectGetAttrProtocol<'p>
 {
     #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
@@ -196,7 +196,7 @@ impl<'p, T> PyObjectSetAttrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectSetAttrProtocolImpl for T where T: for<'p> PyObjectSetAttrProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectSetAttrProtocolImpl for T where T: for<'p> PyObjectSetAttrProtocol<'p>
 {
     #[inline]
     fn tp_setattro() -> Option<ffi::setattrofunc> {
@@ -215,7 +215,7 @@ impl<'p, T> PyObjectDelAttrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtocol<'p>
 {
     #[inline]
     default fn tp_delattro() -> Option<ffi::setattrofunc> {
@@ -223,7 +223,7 @@ impl<T> PyObjectDelAttrProtocolImpl for T where T: for<'p> PyObjectDelAttrProtoc
     }
 }
 impl<T> PyObjectDelAttrProtocolImpl for T
-    where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p> + ToInstancePtr<T>
+    where T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>
 {
     #[inline]
     fn tp_delattro() -> Option<ffi::setattrofunc> {
@@ -243,7 +243,7 @@ impl<'p, T> PyObjectStrProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectStrProtocolImpl for T where T: for<'p> PyObjectStrProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectStrProtocolImpl for T where T: for<'p> PyObjectStrProtocol<'p>
 {
     #[inline]
     fn tp_str() -> Option<ffi::unaryfunc> {
@@ -262,7 +262,7 @@ impl<'p, T> PyObjectReprProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectReprProtocolImpl for T where T: for<'p> PyObjectReprProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectReprProtocolImpl for T where T: for<'p> PyObjectReprProtocol<'p>
 {
     #[inline]
     fn tp_repr() -> Option<ffi::unaryfunc> {
@@ -318,7 +318,7 @@ impl<'p, T> PyObjectHashProtocolImpl for T where T: PyObjectProtocol<'p>
     }
 }
 impl<T> PyObjectHashProtocolImpl for T
-    where T: for<'p> PyObjectHashProtocol<'p> + ToInstancePtr<T>
+    where T: for<'p> PyObjectHashProtocol<'p>
 {
     #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
@@ -336,7 +336,7 @@ impl<'p, T> PyObjectBoolProtocolImpl for T where T: PyObjectProtocol<'p>
         None
     }
 }
-impl<T> PyObjectBoolProtocolImpl for T where T: for<'p> PyObjectBoolProtocol<'p> + ToInstancePtr<T>
+impl<T> PyObjectBoolProtocolImpl for T where T: for<'p> PyObjectBoolProtocol<'p>
 {
     #[inline]
     fn nb_bool() -> Option<ffi::inquiry> {
@@ -355,21 +355,21 @@ impl<'p, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol<'p>
     }
 }
 impl<T> PyObjectRichcmpProtocolImpl for T
-    where T: for<'p> PyObjectRichcmpProtocol<'p> + ToInstancePtr<T>
+    where T: for<'p> PyObjectRichcmpProtocol<'p>
 {
     #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject,
                                      op: c_int) -> *mut ffi::PyObject
-            where T: for<'p> PyObjectRichcmpProtocol<'p> + ToInstancePtr<T>
+            where T: for<'p> PyObjectRichcmpProtocol<'p>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
 
             let guard = ::callback::AbortOnDrop(LOCATION);
             let ret = std::panic::catch_unwind(|| {
                 let py = Python::assume_gil_acquired();
-                let slf = T::from_borrowed_ptr(slf);
+                let slf = Ptr::<T>::from_borrowed_ptr(slf);
                 let arg = PyObject::from_borrowed_ptr(py, arg);
 
                 let result = {

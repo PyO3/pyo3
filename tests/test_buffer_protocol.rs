@@ -14,8 +14,6 @@ struct TestClass {
     vec: Vec<u8>,
     token: PyToken,
 }
-#[py::ptr(TestClass)]
-struct TestClassPtr(PyPtr);
 
 #[py::proto]
 impl class::PyBufferProtocol for TestClass {

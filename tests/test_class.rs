@@ -96,14 +96,11 @@ struct EmptyClassWithNew {
     token: PyToken
 }
 
-#[py::ptr(EmptyClassWithNew)]
-struct EmptyClassWithNewPtr(PyPtr);
-
 #[py::methods]
 impl EmptyClassWithNew {
     #[__new__]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<EmptyClassWithNewPtr> {
-        py.init(|t| EmptyClassWithNew{token: t})
+    fn __new__(cls: &PyType, py: Python) -> PyResult<Ptr<EmptyClassWithNew>> {
+        Ptr::new(py, |t| EmptyClassWithNew{token: t})
     }
 }
 
@@ -121,14 +118,11 @@ struct NewWithOneArg {
     token: PyToken
 }
 
-#[py::ptr(NewWithOneArg)]
-struct NewWithOneArgPtr(PyPtr);
-
 #[py::methods]
 impl NewWithOneArg {
     #[new]
-    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<NewWithOneArgPtr> {
-        py.init(|t| NewWithOneArg{_data: arg, token: t})
+    fn __new__(_cls: &PyType, py: Python, arg: i32) -> PyResult<Ptr<NewWithOneArg>> {
+        Ptr::new(py, |t| NewWithOneArg{_data: arg, token: t})
     }
 }
 
@@ -150,14 +144,12 @@ struct NewWithTwoArgs {
     token: PyToken
 }
 
-#[py::ptr(NewWithTwoArgs)]
-struct NewWithTwoArgsPtr(PyPtr);
-
 #[py::methods]
 impl NewWithTwoArgs {
     #[new]
-    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<NewWithTwoArgsPtr> {
-        py.init(|t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
+    fn __new__(_cls: &PyType, py: Python, arg1: i32, arg2: i32) -> PyResult<Ptr<NewWithTwoArgs>>
+    {
+        Ptr::new(py, |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
 }
 
@@ -175,20 +167,17 @@ fn new_with_two_args() {
 #[py::class(freelist=10)]
 struct ClassWithFreelist{token: PyToken}
 
-#[py::ptr(ClassWithFreelist)]
-struct ClassWithFreelistPtr(PyPtr);
-
 #[test]
 fn class_with_freelist() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| ClassWithFreelist{token: t}).unwrap();
-    let inst2 = py.init(|t| ClassWithFreelist{token: t}).unwrap();
+    let inst = Ptr::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst2 = Ptr::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     let ptr = inst.as_ptr();
     drop(inst);
 
-    let inst3 = py.init(|t| ClassWithFreelist{token: t}).unwrap();
+    let inst3 = Ptr::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     assert_eq!(ptr, inst3.as_ptr());
 }
 
@@ -207,8 +196,6 @@ struct DataIsDropped {
     member2: TestDropCall,
     token: PyToken,
 }
-#[py::ptr(DataIsDropped)]
-struct DataIsDroppedPtr(PyPtr);
 
 #[test]
 fn data_is_dropped() {
@@ -217,7 +204,7 @@ fn data_is_dropped() {
 
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
-    let inst = py.init(|t| DataIsDropped{
+    let inst = Ptr::new(py, |t| DataIsDropped{
         member1: TestDropCall { drop_called: drop_called1.clone() },
         member2: TestDropCall { drop_called: drop_called2.clone() },
         token: t
@@ -235,8 +222,6 @@ struct InstanceMethod {
     member: i32,
     token: PyToken
 }
-#[py::ptr(InstanceMethod)]
-struct InstanceMethodPtr(PyPtr);
 
 #[py::methods]
 impl InstanceMethod {
@@ -251,7 +236,7 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.init(|t| InstanceMethod{member: 42, token: t}).unwrap();
+    let obj = Ptr::new(py, |t| InstanceMethod{member: 42, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
@@ -264,8 +249,6 @@ struct InstanceMethodWithArgs {
     member: i32,
     token: PyToken
 }
-#[py::ptr(InstanceMethodWithArgs)]
-struct InstanceMethodWithArgsPtr(PyPtr);
 
 #[py::methods]
 impl InstanceMethodWithArgs {
@@ -279,7 +262,7 @@ fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.init(|t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
+    let obj = Ptr::new(py, |t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py, 6).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item(py, "obj", obj).unwrap();
@@ -291,14 +274,11 @@ fn instance_method_with_args() {
 #[py::class]
 struct ClassMethod {token: PyToken}
 
-#[py::ptr(ClassMethod)]
-struct ClassMethodPtr(PyPtr);
-
 #[py::methods]
 impl ClassMethod {
     #[new]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<ClassMethodPtr> {
-        py.init(|t| ClassMethod{token: t})
+    fn __new__(cls: &PyType, py: Python) -> PyResult<Ptr<ClassMethod>> {
+        Ptr::new(py, |t| ClassMethod{token: t})
     }
 
     #[classmethod]
@@ -321,9 +301,6 @@ fn class_method() {
 
 #[py::class]
 struct ClassMethodWithArgs{token: PyToken}
-
-#[py::ptr(ClassMethodWithArgs)]
-struct ClassMethodWithArgsPtr(PyPtr);
 
 #[py::methods]
 impl ClassMethodWithArgs {
@@ -348,14 +325,11 @@ struct StaticMethod {
     token: PyToken
 }
 
-#[py::ptr(StaticMethod)]
-struct StaticMethodPtr(PyPtr);
-
 #[py::methods]
 impl StaticMethod {
     #[new]
-    fn __new__(cls: &PyType, py: Python) -> PyResult<StaticMethodPtr> {
-        py.init(|t| StaticMethod{token: t})
+    fn __new__(cls: &PyType, py: Python) -> PyResult<Ptr<StaticMethod>> {
+        Ptr::new(py, |t| StaticMethod{token: t})
     }
 
     #[staticmethod]
@@ -378,9 +352,6 @@ fn static_method() {
 
 #[py::class]
 struct StaticMethodWithArgs{token: PyToken}
-
-#[py::ptr(StaticMethodWithArgs)]
-struct StaticMethodWithArgsPtr(PyPtr);
 
 #[py::methods]
 impl StaticMethodWithArgs {
@@ -410,9 +381,6 @@ struct GCIntegration {
     token: PyToken,
 }
 
-#[py::ptr(GCIntegration)]
-struct GCIntegrationPtr(PyPtr);
-
 #[py::proto]
 impl PyGCProtocol for GCIntegration {
     fn __traverse__(&self, py: Python, visit: PyVisit) -> Result<(), PyTraverseError> {
@@ -430,7 +398,7 @@ fn gc_integration() {
     let py = gil.python();
 
     let drop_called = Arc::new(AtomicBool::new(false));
-    let inst = py.init(|t| GCIntegration{
+    let inst = Ptr::new(py, |t| GCIntegration{
         self_ref: RefCell::new(py.None()),
         dropped: TestDropCall { drop_called: drop_called.clone() },
         token: t}).unwrap();
@@ -448,9 +416,6 @@ pub struct Len {
     token: PyToken,
 }
 
-#[py::ptr(Len)]
-pub struct LenPtr(PyPtr);
-
 #[py::proto]
 impl PyMappingProtocol for Len {
     fn __len__(&self, py: Python) -> PyResult<usize> {
@@ -463,14 +428,14 @@ fn len() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| Len{l: 10, token: t}).unwrap();
+    let inst = Ptr::new(py, |t| Len{l: 10, token: t}).unwrap();
     py_assert!(py, inst, "len(inst) == 10");
     unsafe {
         assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
         assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
     }
 
-    let inst = py.init(|t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
+    let inst = Ptr::new(py, |t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
@@ -480,13 +445,10 @@ struct Iterator{
     token: PyToken,
 }
 
-#[py::ptr(Iterator)]
-struct IteratorPtr(PyPtr);
-
 #[py::proto]
 impl PyIterProtocol for Iterator {
-    fn __iter__(&mut self, py: Python) -> PyResult<IteratorPtr> {
-        Ok(self.to_inst_ptr())
+    fn __iter__(&mut self, py: Python) -> PyResult<Ptr<Iterator>> {
+        Ok(self.into())
     }
 
     fn __next__(&mut self, py: Python) -> PyResult<Option<i32>> {
@@ -499,16 +461,13 @@ fn iterator() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| Iterator{iter: Box::new(5..8), token: t}).unwrap();
+    let inst = Ptr::new(py, |t| Iterator{iter: Box::new(5..8), token: t}).unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
 
 #[py::class]
 struct StringMethods {token: PyToken}
-
-#[py::ptr(StringMethods)]
-struct StringMethodsPtr(PyPtr);
 
 #[py::proto]
 impl<'p> PyObjectProtocol<'p> for StringMethods {
@@ -539,7 +498,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.init(|t| StringMethods{token: t}).unwrap();
+    let obj = Ptr::new(py, |t| StringMethods{token: t}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
@@ -552,7 +511,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.init(|t| StringMethods{token: t}).unwrap();
+    let obj = Ptr::new(py, |t| StringMethods{token: t}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "unicode(obj) == 'unicode'");
@@ -565,9 +524,6 @@ struct Comparisons {
     val: i32,
     token: PyToken,
 }
-
-#[py::ptr(Comparisons)]
-struct ComparisonsPtr(PyPtr);
 
 #[py::proto]
 impl PyObjectProtocol for Comparisons {
@@ -585,10 +541,10 @@ fn comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let zero = py.init(|t| Comparisons{val: 0, token: t}).unwrap();
-    let one = py.init(|t| Comparisons{val: 1, token: t}).unwrap();
-    let ten = py.init(|t| Comparisons{val: 10, token: t}).unwrap();
-    let minus_one = py.init(|t| Comparisons{val: -1, token: t}).unwrap();
+    let zero = Ptr::new(py, |t| Comparisons{val: 0, token: t}).unwrap();
+    let one = Ptr::new(py, |t| Comparisons{val: 1, token: t}).unwrap();
+    let ten = Ptr::new(py, |t| Comparisons{val: 10, token: t}).unwrap();
+    let minus_one = Ptr::new(py, |t| Comparisons{val: -1, token: t}).unwrap();
     py_assert!(py, one, "hash(one) == 1");
     py_assert!(py, ten, "hash(ten) == 10");
     py_assert!(py, minus_one, "hash(minus_one) == -2");
@@ -602,9 +558,6 @@ fn comparisons() {
 struct Sequence {
     token: PyToken
 }
-
-#[py::ptr(Sequence)]
-struct SequencePtr(PyPtr);
 
 #[py::proto]
 impl PySequenceProtocol for Sequence {
@@ -633,9 +586,6 @@ fn sequence() {
 
 #[py::class]
 struct Callable {token: PyToken}
-
-#[py::ptr(Callable)]
-struct CallablePtr(PyPtr);
 
 #[py::methods]
 impl Callable {
@@ -666,9 +616,6 @@ struct SetItem {
     token: PyToken,
 }
 
-#[py::ptr(SetItem)]
-struct SetItemPtr(PyPtr);
-
 #[py::proto]
 impl PyMappingProtocol<'a> for SetItem {
     fn __setitem__(&mut self, py: Python, key: i32, val: i32) -> PyResult<()> {
@@ -696,9 +643,6 @@ struct DelItem {
     token: PyToken,
 }
 
-#[py::ptr(DelItem)]
-struct DelItemPtr(PyPtr);
-
 #[py::proto]
 impl PyMappingProtocol<'a> for DelItem {
     fn __delitem__(&mut self, py: Python, key: i32) -> PyResult<()> {
@@ -723,9 +667,6 @@ struct SetDelItem {
     val: Option<i32>,
     token: PyToken,
 }
-
-#[py::ptr(SetDelItem)]
-struct SetDelItemPtr(PyPtr);
 
 #[py::proto]
 impl PyMappingProtocol for SetDelItem {
@@ -755,9 +696,6 @@ fn setdelitem() {
 #[py::class]
 struct Reversed {token: PyToken}
 
-#[py::ptr(Reversed)]
-struct ReversedPtr(PyPtr);
-
 #[py::proto]
 impl PyMappingProtocol for Reversed{
     fn __reversed__(&self, py: Python) -> PyResult<&'static str> {
@@ -776,9 +714,6 @@ fn reversed() {
 
 #[py::class]
 struct Contains {token: PyToken}
-
-#[py::ptr(Contains)]
-struct ContainsPtr(PyPtr);
 
 #[py::proto]
 impl PySequenceProtocol for Contains {
@@ -802,9 +737,6 @@ fn contains() {
 
 #[py::class]
 struct UnaryArithmetic {token: PyToken}
-
-#[py::ptr(UnaryArithmetic)]
-struct UnaryArithmeticPtr(PyPtr);
 
 #[py::proto]
 impl PyNumberProtocol for UnaryArithmetic {
@@ -843,9 +775,6 @@ fn unary_arithmetic() {
 struct BinaryArithmetic {
     token: PyToken
 }
-
-#[py::ptr(BinaryArithmetic)]
-struct BinaryArithmeticPtr(PyPtr);
 
 #[py::proto]
 impl PyObjectProtocol for BinaryArithmetic {
@@ -921,9 +850,6 @@ struct RichComparisons {
     token: PyToken
 }
 
-#[py::ptr(RichComparisons)]
-struct RichComparisonsPtr(PyPtr);
-
 #[py::proto]
 impl PyObjectProtocol for RichComparisons {
     fn __repr__(&self, py: Python) -> PyResult<&'static str> {
@@ -946,9 +872,6 @@ impl PyObjectProtocol for RichComparisons {
 struct RichComparisons2 {
     py: PyToken
 }
-
-#[py::ptr(RichComparisons2)]
-struct RichComparisons2Ptr(PyPtr);
 
 #[py::proto]
 impl PyObjectProtocol for RichComparisons2 {
@@ -1024,9 +947,6 @@ struct InPlaceOperations {
     value: u32,
     token: PyToken,
 }
-
-#[py::ptr(InPlaceOperations)]
-struct InPlaceOperationsPtr(PyPtr);
 
 #[py::proto]
 impl PyObjectProtocol for InPlaceOperations {
@@ -1114,9 +1034,6 @@ struct ContextManager {
     token: PyToken,
 }
 
-#[py::ptr(ContextManager)]
-struct ContextManagerPtr(PyPtr);
-
 #[py::proto]
 impl<'p> PyContextProtocol<'p> for ContextManager {
 
@@ -1162,9 +1079,6 @@ struct ClassWithProperties {
     num: i32,
     token: PyToken,
 }
-
-#[py::ptr(ClassWithProperties)]
-struct ClassWithPropertiesPtr(PyPtr);
 
 #[py::methods]
 impl ClassWithProperties {

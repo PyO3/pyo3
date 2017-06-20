@@ -9,7 +9,6 @@ use python::Python;
 use objects::{exc, PyObject};
 use callback::{PyObjectCallbackConverter, LenResultConverter};
 use conversion::{IntoPyObject, FromPyObject};
-use token::ToInstancePtr;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
@@ -144,7 +143,7 @@ impl<'p, T> PyMappingLenProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<T> PyMappingLenProtocolImpl for T where T: for<'p> PyMappingLenProtocol<'p> + ToInstancePtr<T>
+impl<T> PyMappingLenProtocolImpl for T where T: for<'p> PyMappingLenProtocol<'p>
 {
     #[inline]
     fn mp_length() -> Option<ffi::lenfunc> {
@@ -164,7 +163,7 @@ impl<'p, T> PyMappingGetItemProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<T> PyMappingGetItemProtocolImpl for T where T: for<'p> PyMappingGetItemProtocol<'p> + ToInstancePtr<T>
+impl<T> PyMappingGetItemProtocolImpl for T where T: for<'p> PyMappingGetItemProtocol<'p>
 {
     #[inline]
     fn mp_subscript() -> Option<ffi::binaryfunc> {
@@ -185,7 +184,7 @@ impl<'p, T> PyMappingSetItemProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<T> PyMappingSetItemProtocolImpl for T where T: for<'p> PyMappingSetItemProtocol<'p> + ToInstancePtr<T>
+impl<T> PyMappingSetItemProtocolImpl for T where T: for<'p> PyMappingSetItemProtocol<'p>
 {
     #[inline]
     fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
@@ -206,7 +205,7 @@ impl<'p, T> PyMappingDelItemProtocolImpl for T where T: PyMappingProtocol<'p>
     }
 }
 
-impl<T> PyMappingDelItemProtocolImpl for T where T: for<'p> PyMappingDelItemProtocol<'p> + ToInstancePtr<T>
+impl<T> PyMappingDelItemProtocolImpl for T where T: for<'p> PyMappingDelItemProtocol<'p>
 {
     #[inline]
     default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
@@ -216,7 +215,7 @@ impl<T> PyMappingDelItemProtocolImpl for T where T: for<'p> PyMappingDelItemProt
 
 
 impl<T> PyMappingDelItemProtocolImpl for T
-    where T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p> + ToInstancePtr<T>
+    where T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>
 {
     #[inline]
     fn mp_del_subscript() -> Option<ffi::objobjargproc> {

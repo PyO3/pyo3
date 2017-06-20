@@ -60,6 +60,35 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 }
             }
 
+            impl _pyo3::ToPyObject for #cls
+            {
+                #[inline]
+                fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
+                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
+                }
+
+                #[inline]
+                fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
+                    where F: FnOnce(*mut ffi::PyObject) -> R
+                {
+                    f(self.as_ptr())
+                }
+            }
+            impl std::convert::AsRef<PyObject> for #cls {
+                fn as_ref(&self) -> &_pyo3::PyObject {
+                    unsafe{std::mem::transmute(self.as_ptr())}
+                }
+            }
+            impl _pyo3::ToPyPointer for #cls {
+                #[inline]
+                fn as_ptr(&self) -> *mut ffi::PyObject {
+                    let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                    unsafe {
+                        {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
+                    }
+                }
+            }
+
             impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     let py = _pyo3::PyObjectWithToken::token(self);
@@ -206,34 +235,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     } else {
                         Err(_pyo3::PyDowncastError(py, None))
                     }
-                }
-            }
-        }
-        impl _pyo3::ToPyObject for #cls
-        {
-            #[inline]
-            fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
-                _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
-            }
-
-            #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
-                where F: FnOnce(*mut ffi::PyObject) -> R
-            {
-                f(self.as_ptr())
-            }
-        }
-        impl std::convert::AsRef<PyObject> for #cls {
-            fn as_ref(&self) -> &_pyo3::PyObject {
-                unsafe{std::mem::transmute(self.as_ptr())}
-            }
-        }
-        impl _pyo3::ToPyPointer for #cls {
-            #[inline]
-            fn as_ptr(&self) -> *mut ffi::PyObject {
-                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                unsafe {
-                    {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
                 }
             }
         }

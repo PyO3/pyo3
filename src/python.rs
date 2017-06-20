@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{PyToken, ToInstancePtr};
+use token::{Ptr, PyToken};
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 use pythonrun::GILGuard;
@@ -231,11 +231,11 @@ impl<'p> Python<'p> {
 
     /// Create new python object and move T instance under python management
     #[inline]
-    pub fn init<T, F>(self, f: F) -> PyResult<T::Target>
+    pub fn init<T, F>(self, f: F) -> PyResult<Ptr<T>>
         where F: FnOnce(PyToken) -> T,
-              T: ToInstancePtr<T> + PyTypeInfo + PyObjectAlloc<T>
+              T: PyTypeInfo + PyObjectAlloc<T>
     {
-        ::token::init(self, f)
+        Ptr::new(self, f)
     }
 
     /// Release PyObject reference

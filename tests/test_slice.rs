@@ -24,8 +24,6 @@ fn test_basics() {
 struct Test {
     token: PyToken
 }
-#[py::ptr(Test)]
-struct TestPtr(PyPtr);
 
 #[py::proto]
 impl<'p> PyMappingProtocol<'p> for Test

@@ -17,7 +17,6 @@ mod py_class;
 mod py_impl;
 mod py_proto;
 mod py_method;
-mod py_ptr;
 mod args;
 mod defs;
 mod func;
@@ -112,27 +111,6 @@ pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
 
     // Build the output
     let expanded = py_impl::build_py_methods(&mut ast);
-
-    // Return the generated impl as a TokenStream
-    let mut tokens = Tokens::new();
-    ast.to_tokens(&mut tokens);
-    let s = String::from(tokens.as_str()) + expanded.as_str();
-
-    TokenStream::from_str(s.as_str()).unwrap()
-}
-
-#[proc_macro_attribute]
-pub fn ptr(attr: TokenStream, input: TokenStream) -> TokenStream {
-    // Construct a string representation of the type definition
-    let source = input.to_string();
-
-    let cls = syn::Ident::from(&attr.to_string()[1..attr.to_string().len()-1]);
-
-    // Parse the string representation into a syntax tree
-    let mut ast = syn::parse_derive_input(&source).unwrap();
-
-    // Build the output
-    let expanded = py_ptr::build_ptr(cls, &mut ast);
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();

@@ -43,6 +43,12 @@ impl IntoPyObject for String {
         PyString::new(py, &self).into()
     }
 }
+impl<'a> IntoPyObject for &'a String {
+    #[inline]
+    fn into_object(self, py: Python) -> PyObject {
+        PyString::new(py, self).into()
+    }
+}
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
