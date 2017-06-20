@@ -11,50 +11,50 @@ use conversion::{ToPyObject, IntoPyTuple};
 use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyType, exc};
-use objectprotocol::ObjectProtocol;
+use objectprotocol2::ObjectProtocol2;
+use token::{Py, PyObjectWithToken};
 use err::{PyResult, PyErr, ToPyErr};
 
 
 /// Represents a Python module object.
 pub struct PyModule(PyPtr);
 
-pyobject_convert!(PyModule);
-pyobject_nativetype!(PyModule, PyModule_Type, PyModule_Check);
+pyobject_nativetype2!(PyModule, PyModule_Type, PyModule_Check);
 
 
-impl<'p> PyModule {
+impl PyModule {
     /// Create a new module object with the `__name__` attribute set to name.
-    pub fn new(py: Python, name: &str) -> PyResult<PyModule> {
+    pub fn new(py: Python, name: &str) -> PyResult<Py<PyModule>> {
         let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
-        Ok(PyModule(PyPtr::from_owned_ptr_or_err(
-            py, unsafe{ffi::PyModule_New(name.as_ptr())} )?))
+        Ok(Py::from_owned_ptr_or_err(
+            py, unsafe{ffi::PyModule_New(name.as_ptr())} )?)
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(py: Python, name: &str) -> PyResult<PyModule> {
+    pub fn import(py: Python, name: &str) -> PyResult<Py<PyModule>> {
         let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
-        Ok(PyModule(PyPtr::from_owned_ptr_or_err(
-            py, unsafe{ffi::PyImport_ImportModule(name.as_ptr())} )?))
+        Ok(Py::from_owned_ptr_or_err(
+            py, unsafe{ffi::PyImport_ImportModule(name.as_ptr())} )?)
     }
 
     /// Return the dictionary object that implements module's namespace;
     /// this object is the same as the `__dict__` attribute of the module object.
-    pub fn dict(&self, py: Python) -> PyDict {
+    pub fn dict(&self) -> PyDict {
         unsafe {
-            PyDict::from_borrowed_ptr(py, ffi::PyModule_GetDict(self.as_ptr()))
+            PyDict::from_borrowed_ptr(self.token(), ffi::PyModule_GetDict(self.as_ptr()))
         }
     }
 
-    unsafe fn str_from_ptr<'a>(&'a self, py: Python, ptr: *const c_char) -> PyResult<&'a str> {
+    unsafe fn str_from_ptr<'a>(&'a self, ptr: *const c_char) -> PyResult<&'a str> {
         if ptr.is_null() {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(self.token()))
         } else {
             let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    py,
-                    try!(exc::UnicodeDecodeError::new_utf8(py, slice, e))))
+                    self.token(),
+                    try!(exc::UnicodeDecodeError::new_utf8(self.token(), slice, e))))
             }
         }
     }
@@ -62,38 +62,39 @@ impl<'p> PyModule {
     /// Gets the module name.
     ///
     /// May fail if the module does not have a `__name__` attribute.
-    pub fn name<'a>(&'a self, py: Python) -> PyResult<&'a str> {
-        unsafe { self.str_from_ptr(py, ffi::PyModule_GetName(self.as_ptr())) }
+    pub fn name<'a>(&'a self) -> PyResult<&'a str> {
+        unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
     }
 
     /// Gets the module filename.
     ///
     /// May fail if the module does not have a `__file__` attribute.
-    pub fn filename<'a>(&'a self, py: Python) -> PyResult<&'a str> {
-        unsafe { self.str_from_ptr(py, ffi::PyModule_GetFilename(self.as_ptr())) }
+    pub fn filename<'a>(&'a self) -> PyResult<&'a str> {
+        unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
     }
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, py: Python, name: &str,
-                   args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
         where A: IntoPyTuple
     {
-        self.getattr(py, name)?.call(py, args, kwargs)
+        use objectprotocol::ObjectProtocol;
+
+        ObjectProtocol2::getattr(&self, name)?.call(self.token(), args, kwargs)
     }
 
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
-    pub fn get(&self, py: Python, name: &str) -> PyResult<PyObject>
+    pub fn get(&self, name: &str) -> PyResult<PyObject>
     {
-        self.getattr(py, name)
+        self.getattr(name)
     }
 
     /// Adds a member to the module.
     ///
     /// This is a convenience function which can be used from the module's initialization function.
-    pub fn add<V>(&self, py: Python, name: &str, value: V) -> PyResult<()> where V: ToPyObject {
-        self.setattr(py, name, value)
+    pub fn add<V>(&self, name: &str, value: V) -> PyResult<()> where V: ToPyObject {
+        self.setattr(name, value)
     }
 
     /// Adds a new extension type to the module.
@@ -111,7 +112,7 @@ impl<'p> PyModule {
             unsafe { PyType::from_type_ptr(py, ty) }
         } else {
             // automatically initialize the class
-            let name = self.name(py)?;
+            let name = self.name()?;
             let type_description = <T as ::typeob::PyTypeInfo>::type_description();
 
             let to = ::typeob::initialize_type::<T>(
@@ -122,7 +123,7 @@ impl<'p> PyModule {
             unsafe { PyType::from_type_ptr(py, ty) }
         };
 
-        self.setattr(py, type_name, &ty)?;
+        self.setattr(type_name, &ty)?;
 
         py.release(ty);
         Ok(())

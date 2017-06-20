@@ -12,8 +12,6 @@ use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
-pub trait PyNativeType {}
-
 pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {
@@ -22,15 +20,20 @@ impl PyToken {
     }
 }
 
-pub trait PyObjectWithToken : Sized {
+pub trait PyObjectWithToken: Sized {
     fn token(&self) -> Python;
 }
 
-pub trait AsPyRef<T> : Sized {
+pub trait PyNativeType: PyObjectWithToken {}
+
+
+pub trait AsPyRef<T>: Sized {
 
     fn as_ref(&self, py: Python) -> &T;
 
     fn as_mut(&self, py: Python) -> &mut T;
+
+    fn as_ob_ref(&self, py: Python) -> &PyObject;
 
     fn with<F, R>(&self, f: F) -> R where F: FnOnce(Python, &T) -> R
     {
@@ -197,9 +200,14 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
             ptr.as_mut().unwrap()
         }
     }
+
+    #[inline]
+    default fn as_ob_ref(&self, _py: Python) -> &PyObject {
+        unsafe {std::mem::transmute(self)}
+    }
 }
 
-impl<T> InstancePtr<T> for Py<T> where T: PyTypeInfo + PyNativeType {
+impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo + PyNativeType {
 
     #[inline]
     fn as_ref(&self, _py: Python) -> &T {
@@ -310,6 +318,7 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
         where I: IntoPyPointer
     {
         unsafe{
+            let ptr = ob.into_ptr();
             if T::is_instance(ptr) {
                 Ok(Py::from_owned_ptr(ptr))
             } else {

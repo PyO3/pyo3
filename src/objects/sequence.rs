@@ -3,6 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
+use token::Py;
 use pointers::PyPtr;
 use python::{Python, ToPyPointer, PyDowncastFrom, PyDowncastInto};
 use conversion::{FromPyObject, ToPyObject};
@@ -182,9 +183,9 @@ impl PySequence {
 
     /// Return a fresh list based on the Sequence.
     #[inline]
-    pub fn list(&self, py: Python) -> PyResult<PyList> {
+    pub fn list(&self, py: Python) -> PyResult<Py<PyList>> {
         unsafe {
-            Ok(PyList::downcast_from_ptr(
+            Ok(Py::downcast_from_ptr(
                 py, ffi::PySequence_List(self.as_ptr()))?)
         }
     }

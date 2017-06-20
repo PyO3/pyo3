@@ -84,7 +84,7 @@ fn empty_class_in_module() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let module = PyModule::new(py, "test_module.nested").unwrap();
-    module.add_class::<EmptyClassInModule>(py).unwrap();
+    module.as_ref(py).add_class::<EmptyClassInModule>(py).unwrap();
 
     let ty = module.getattr(py, "EmptyClassInModule").unwrap();
     assert_eq!(ty.getattr(py, "__name__").unwrap().extract::<String>(py).unwrap(), "EmptyClassInModule");

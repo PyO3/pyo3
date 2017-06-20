@@ -15,7 +15,7 @@ use err::{PyResult, PyErr};
 use super::{PyObject, PyStringData};
 
 /// Represents a Python string.
-pub struct PyString(PyPtr);
+pub struct PyString(pub PyPtr);
 
 pyobject_nativetype2!(PyString, PyUnicode_Type, PyUnicode_Check);
 
@@ -82,6 +82,7 @@ impl PyString {
         self.data().to_string_lossy()
     }
 }
+
 
 impl PyBytes {
     /// Creates a new Python byte string object.

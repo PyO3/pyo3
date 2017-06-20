@@ -157,11 +157,12 @@ mod pointers;
 pub use pointers::PyPtr;
 
 pub mod token;
-pub use token::{PyToken, PyObjectWithToken, Py, AsPyRef};
+pub use token::{PyToken, PyObjectWithToken, AsPyRef, Py};
 
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
+pub use objectprotocol2::ObjectProtocol2;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};
@@ -195,6 +196,7 @@ mod err;
 mod conversion;
 mod objects;
 mod objectprotocol;
+mod objectprotocol2;
 mod pythonrun;
 pub mod callback;
 pub mod typeob;

@@ -9,6 +9,7 @@ use objects::PyObject;
 use pointers::PyPtr;
 use python::{ToPyPointer, Python};
 use err::PyErr;
+use token::Py;
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `float` object.
@@ -19,20 +20,19 @@ use conversion::{ToPyObject, IntoPyObject};
 /// with `f32`/`f64`.
 pub struct PyFloat(PyPtr);
 
-pyobject_convert!(PyFloat);
-pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
+pyobject_nativetype2!(PyFloat, PyFloat_Type, PyFloat_Check);
 
 
 impl PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new(_py: Python, val: c_double) -> PyFloat {
+    pub fn new(_py: Python, val: c_double) -> Py<PyFloat> {
         unsafe {
-            PyFloat(PyPtr::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val)))
+            Py::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val))
         }
     }
 
     /// Gets the value of this float.
-    pub fn value(&self, _py: Python) -> c_double {
+    pub fn value(&self) -> c_double {
         unsafe { ffi::PyFloat_AsDouble(self.0.as_ptr()) }
     }
 }

@@ -5,6 +5,7 @@
 use std::{mem, collections, hash, cmp};
 
 use ffi;
+use token::Py;
 use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use conversion::{ToPyObject};
@@ -99,10 +100,10 @@ impl PyDict {
 
     /// List of dict items.
     /// This is equivalent to the python expression `list(dict.items())`.
-    pub fn items_list(&self, py: Python) -> PyList {
+    pub fn items_list(&self, py: Python) -> Py<PyList> {
         unsafe {
             PyObject::from_owned_ptr(
-                py, ffi::PyDict_Items(self.as_ptr())).unchecked_cast_into::<PyList>()
+                py, ffi::PyDict_Items(self.as_ptr())).unchecked_cast_into::<Py<PyList>>()
         }
     }
 
@@ -265,7 +266,7 @@ mod test {
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
-        for el in dict.items_list(py).iter(py) {
+        for el in dict.items_list().iter(py) {
             let tuple = el.cast_into::<PyTuple>(py).unwrap();
             key_sum += tuple.get_item(py, 0).extract::<i32>(py).unwrap();
             value_sum += tuple.get_item(py, 1).extract::<i32>(py).unwrap();

@@ -12,7 +12,7 @@ fn test_basics() {
     let py = gil.python();
 
     let v = PySlice::new(py, 1, 10, 2);
-    let indices = v.indices(py, 100).unwrap();
+    let indices = v.as_ref(py).indices(100).unwrap();
     assert_eq!(1, indices.start);
     assert_eq!(10, indices.stop);
     assert_eq!(2, indices.step);
@@ -30,7 +30,7 @@ impl<'p> PyMappingProtocol<'p> for Test
 {
     fn __getitem__(&self, py: Python, idx: PyObject) -> PyResult<PyObject> {
         if let Ok(slice) = idx.cast_as::<PySlice>(py) {
-            let indices = slice.indices(py, 1000)?;
+            let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
                 return Ok("slice".into_object(py))
             }

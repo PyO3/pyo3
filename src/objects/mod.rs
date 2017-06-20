@@ -399,6 +399,7 @@ macro_rules! pyobject_nativetype2(
             fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                    -> Result<(), $crate::std::fmt::Error>
             {
+                use $crate::PyObjectWithToken;
                 use $crate::python::PyDowncastFrom;
 
                 let py = self.token();
@@ -423,6 +424,7 @@ macro_rules! pyobject_nativetype2(
             fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                    -> Result<(), $crate::std::fmt::Error>
             {
+                use $crate::PyObjectWithToken;
                 use $crate::python::PyDowncastFrom;
                 let py = self.token();
 

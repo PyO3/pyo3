@@ -23,8 +23,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 /// with the primitive Rust integer types.
 pub struct PyLong(PyPtr);
 
-pyobject_convert!(PyLong);
-pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
+pyobject_nativetype2!(PyLong, PyLong_Type, PyLong_Check);
 
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (

@@ -197,7 +197,7 @@ impl<'p> Python<'p> {
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<PyModule> {
+    pub fn import(self, name : &str) -> PyResult<Py<PyModule>> {
         PyModule::import(self, name)
     }
 
@@ -211,14 +211,14 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> PyBool {
+    pub fn True(self) -> Py<PyBool> {
         PyBool::new(self, true)
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> PyBool {
+    pub fn False(self) -> Py<PyBool> {
         PyBool::new(self, false)
     }
 
@@ -272,8 +272,8 @@ impl<'p> Python<'p> {
 
 #[cfg(test)]
 mod test {
-    use {Python, PyDict};
-    use objects::{PyBool, PyList, PyInt};
+    use {AsPyRef, Python};
+    use objects::{PyBool, PyList, PyInt, PyDict};
 
     #[test]
     fn test_eval() {
@@ -304,7 +304,7 @@ mod test {
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.is_instance::<PyBool>(py.True().as_ref()).unwrap());
+        assert!(py.is_instance::<PyBool>(py.True().as_ob_ref(py)).unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool>(list.as_ref()).unwrap());
         assert!(py.is_instance::<PyList>(list.as_ref()).unwrap());

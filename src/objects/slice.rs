@@ -6,6 +6,7 @@ use pointers::PyPtr;
 use python::{ToPyPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
+use token::{Py, PyObjectWithToken};
 use objects::PyObject;
 use conversion::ToPyObject;
 
@@ -13,8 +14,7 @@ use conversion::ToPyObject;
 /// at the moment by `PySlice` object.
 pub struct PySlice(PyPtr);
 
-pyobject_convert!(PySlice);
-pyobject_nativetype!(PySlice, PySlice_Type, PySlice_Check);
+pyobject_nativetype2!(PySlice, PySlice_Type, PySlice_Check);
 
 
 /// Represents a Python `slice` indices
@@ -40,18 +40,18 @@ impl PySliceIndices {
 impl PySlice {
 
     /// Construct a new slice with the given elements.
-    pub fn new(_py: Python, start: isize, stop: isize, step: isize) -> PySlice {
+    pub fn new(_py: Python, start: isize, stop: isize, step: isize) -> Py<PySlice> {
         unsafe {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            PySlice(PyPtr::from_owned_ptr_or_panic(ptr))
+            Py::from_owned_ptr_or_panic(ptr)
         }
     }
 
     /// Retrieve the start, stop, and step indices from the slice object slice assuming a sequence of length length, and store the length of the slice in slicelength.
     #[inline]
-    pub fn indices(&self, py: Python, length: c_long) -> PyResult<PySliceIndices> {
+    pub fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
             let slicelen: isize = 0;
@@ -72,7 +72,7 @@ impl PySlice {
                     slicelength: slicelen,
                 })
             } else {
-                Err(PyErr::fetch(py))
+                Err(PyErr::fetch(self.token()))
             }
         }
     }

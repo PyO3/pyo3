@@ -13,6 +13,7 @@ use objects::PyObject;
 use pointers::PyPtr;
 use python::{ToPyPointer, IntoPyPointer, Python};
 use err::{PyResult, PyErr};
+use token::Py;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
@@ -25,8 +26,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 /// with the primitive Rust integer types.
 pub struct PyInt(PyPtr);
 
-pyobject_convert!(PyInt);
-pyobject_nativetype!(PyInt, PyInt_Type, PyInt_Check);
+pyobject_nativetype2!(PyInt, PyInt_Type, PyInt_Check);
 
 /// In Python 2.x, represents a Python `long` object.
 /// Both `PyInt` and `PyLong` refer to the same type on Python 3.x.
@@ -37,8 +37,7 @@ pyobject_nativetype!(PyInt, PyInt_Type, PyInt_Check);
 /// with the primitive Rust integer types.
 pub struct PyLong(PyPtr);
 
-pyobject_convert!(PyLong);
-pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
+pyobject_nativetype2!(PyLong, PyLong_Type, PyLong_Check);
 
 impl PyInt {
     /// Creates a new Python 2.7 `int` object.
@@ -46,9 +45,9 @@ impl PyInt {
     /// Note: you might want to call `val.to_py_object(py)` instead
     /// to avoid truncation if the value does not fit into a `c_long`,
     /// and to make your code compatible with Python 3.x.
-    pub fn new(_py: Python, val: c_long) -> PyInt {
+    pub fn new(_py: Python, val: c_long) -> Py<PyInt> {
         unsafe {
-            PyInt(PyPtr::from_owned_ptr_or_panic(ffi::PyLong_FromLong(val)))
+            Py::from_owned_ptr_or_panic(ffi::PyLong_FromLong(val))
         }
     }
 
@@ -58,7 +57,7 @@ impl PyInt {
     /// but not for `long` objects.
     /// In almost all cases, you can avoid the distinction between these types
     /// by simply calling `obj.extract::<i32>(py)`.
-    pub fn value(&self, _py: Python) -> c_long {
+    pub fn value(&self) -> c_long {
         unsafe { ffi::PyInt_AS_LONG(self.0.as_ptr()) }
     }
 }

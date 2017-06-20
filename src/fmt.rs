@@ -4,7 +4,7 @@ use std::fmt;
 
 use pointers::PyPtr;
 use python::Python;
-use token::InstancePtr;
+use token::AsPyRef;
 use objectprotocol::ObjectProtocol;
 
 impl fmt::Debug for PyPtr {
