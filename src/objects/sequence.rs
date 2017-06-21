@@ -185,7 +185,7 @@ impl PySequence {
     #[inline]
     pub fn list(&self, py: Python) -> PyResult<Py<PyList>> {
         unsafe {
-            Ok(Py::downcast_from_ptr(
+            Ok(Py::downcast_into_from_ptr(
                 py, ffi::PySequence_List(self.as_ptr()))?)
         }
     }
@@ -194,7 +194,7 @@ impl PySequence {
     #[inline]
     pub fn tuple(&self, py: Python) -> PyResult<PyTuple> {
         unsafe {
-            Ok(PyTuple::downcast_from_ptr(
+            Ok(PyTuple::downcast_into_from_ptr(
                 py, ffi::PySequence_Tuple(self.as_ptr()))?)
         }
     }

@@ -241,7 +241,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
     fn repr(&self, py: Python) -> PyResult<Py<PyString>> {
-        Ok(Py::downcast_from_ptr(
+        Ok(Py::downcast_into_from_ptr(
             py, unsafe{ffi::PyObject_Repr(self.as_ptr())})?)
     }
 
@@ -249,7 +249,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
     /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
     fn str(&self, py: Python) -> PyResult<Py<PyString>> {
-        Ok(Py::downcast_from_ptr(
+        Ok(Py::downcast_into_from_ptr(
             py, unsafe{ffi::PyObject_Str(self.as_ptr())})?)
     }
 

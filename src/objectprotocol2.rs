@@ -7,10 +7,10 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::{PyErr, PyResult, self};
-use python::{Python, PyDowncastInto, ToPyPointer};
+use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, IntoPyTuple};
-use token::{Py, PyObjectWithToken};
+use token::PyObjectWithToken;
 
 
 pub trait ObjectProtocol2 {
@@ -63,11 +63,11 @@ pub trait ObjectProtocol2 {
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'repr(self)'.
-    fn repr(&self) -> PyResult<Py<PyString>>;
+    fn repr(&self) -> PyResult<&PyString>;
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
-    fn str(&self) -> PyResult<Py<PyString>>;
+    fn str(&self) -> PyResult<&PyString>;
 
     /// Determines whether this object is callable.
     fn is_callable(&self) -> bool;
@@ -117,8 +117,9 @@ pub trait ObjectProtocol2 {
     fn iter<'p>(&'p self) -> PyResult<PyIterator<'p>>;
 
     /// Gets the Python type object for this object's type.
-    #[inline]
     fn get_type(&self) -> PyType;
+
+    fn get_refcnt(&self) -> isize;
 
 }
 
@@ -237,17 +238,25 @@ impl<'a, T> ObjectProtocol2 for &'a T where T: PyObjectWithToken + ToPyPointer {
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'repr(self)'.
     #[inline]
-    fn repr(&self) -> PyResult<Py<PyString>> {
-        Ok(Py::downcast_from_ptr(
-            self.token(), unsafe{ffi::PyObject_Repr(self.as_ptr())})?)
+    fn repr(&self) -> PyResult<&PyString> {
+        unsafe {
+            let py = self.token();
+            let obj = PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Repr(self.as_ptr()))?;
+            Ok(py.unchecked_cast_as::<PyString>(obj))
+        }
     }
 
     /// Compute the string representation of self.
     /// This is equivalent to the Python expression 'str(self)'.
     #[inline]
-    fn str(&self) -> PyResult<Py<PyString>> {
-        Ok(Py::downcast_from_ptr(
-            self.token(), unsafe{ffi::PyObject_Str(self.as_ptr())})?)
+    fn str(&self) -> PyResult<&PyString> {
+        unsafe {
+            let py = self.token();
+            let obj = PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Str(self.as_ptr()))?;
+            Ok(py.unchecked_cast_as::<PyString>(obj))
+        }
     }
 
     /// Determines whether this object is callable.
@@ -383,6 +392,10 @@ impl<'a, T> ObjectProtocol2 for &'a T where T: PyObjectWithToken + ToPyPointer {
         unsafe {
             PyType::from_type_ptr(self.token(), (*self.as_ptr()).ob_type)
         }
+    }
+
+    fn get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 }
 

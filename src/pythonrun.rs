@@ -2,9 +2,10 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::{sync, rc, marker};
+use std::{sync, rc, marker, mem};
 use ffi;
-use python::Python;
+use python::{Python, ToPyPointer};
+use objects::PyObject;
 
 static START: sync::Once = sync::ONCE_INIT;
 
@@ -57,6 +58,9 @@ pub fn prepare_freethreaded_python() {
             // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the Python runtime,
             // and will be restored by PyGILState_Ensure.
         }
+
+        // initialize release pool
+        POOL = Box::into_raw(Box::new(Vec::with_capacity(250)));
     });
 }
 
@@ -72,7 +76,9 @@ pub fn prepare_freethreaded_python() {
 /// } // GIL is released when gil_guard is dropped
 /// ```
 #[must_use]
+#[derive(Debug)]
 pub struct GILGuard {
+    pos: usize,
     gstate: ffi::PyGILState_STATE,
     // hack to opt out of Send on stable rust, which doesn't
     // have negative impls
@@ -82,10 +88,31 @@ pub struct GILGuard {
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
-        debug!("RELEASE");
-        unsafe { ffi::PyGILState_Release(self.gstate) }
+        unsafe {
+            let pos = self.pos;
+            let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+
+            let len = pool.len();
+            for ob in &mut pool[pos..len] {
+                ffi::Py_DECREF(ob.as_ptr());
+            }
+            pool.set_len(pos);
+
+            ffi::PyGILState_Release(self.gstate);
+        }
     }
 }
+
+static mut POOL: *mut Vec<PyObject> = 0 as *mut _;
+
+pub fn register<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyObject {
+    unsafe {
+        let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+        pool.push(obj);
+        &pool[pool.len()-1]
+    }
+}
+
 
 impl GILGuard {
     /// Acquires the global interpreter lock, which allows access to the Python runtime.
@@ -94,9 +121,13 @@ impl GILGuard {
     /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
     pub fn acquire() -> GILGuard {
         ::pythonrun::prepare_freethreaded_python();
-        debug!("ACQUIRE");
-        let gstate = unsafe { ffi::PyGILState_Ensure() }; // acquire GIL
-        GILGuard { gstate: gstate, no_send: marker::PhantomData }
+
+        unsafe {
+            let gstate = ffi::PyGILState_Ensure(); // acquire GIL
+            let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+
+            GILGuard { pos: pool.len(), gstate: gstate, no_send: marker::PhantomData }
+        }
     }
 
     /// Retrieves the marker type that proves that the GIL was acquired.

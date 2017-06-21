@@ -4,7 +4,7 @@
 
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use token::{Py, PyObjectWithToken};
+use token::PyObjectWithToken;
 use pointers::PyPtr;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use objects::PyObject;
@@ -17,20 +17,21 @@ pyobject_nativetype2!(PyList, PyList_Type, PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.
-    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PyList> {
+    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> &'p PyList {
         unsafe {
             let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
             for (i, e) in elements.iter().enumerate() {
-                ffi::PyList_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
+                let obj = e.to_object(py).into_ptr();
+                ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            Py::from_owned_ptr_or_panic(ptr)
+            py.unchecked_cast_from_ptr::<PyList>(ptr)
         }
     }
 
     /// Construct a new empty list.
-    pub fn empty(_py: Python) -> Py<PyList> {
+    pub fn empty<'p>(py: Python<'p>) -> &'p PyList {
         unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyList_New(0))
+            py.unchecked_cast_from_ptr::<PyList>(ffi::PyList_New(0))
         }
     }
 
@@ -46,10 +47,21 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> PyObject {
+    pub fn get_item(&self, index: isize) -> &PyObject {
         unsafe {
-            PyObject::from_borrowed_ptr(
-                self.token(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
+            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
+            let ob = PyObject::from_borrowed_ptr(self.token(), ptr);
+            self.token().track_object(ob)
+        }
+    }
+
+    /// Gets the item at the specified index.
+    ///
+    /// Panics if the index is out of range.
+    pub fn get_parked_item(&self, index: isize) -> PyObject {
+        unsafe {
+            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
+            PyObject::from_borrowed_ptr(self.token(), ptr)
         }
     }
 
@@ -90,10 +102,10 @@ pub struct PyListIterator<'a> {
 }
 
 impl<'a> Iterator for PyListIterator<'a> {
-    type Item = PyObject;
+    type Item = &'a PyObject;
 
     #[inline]
-    fn next(&mut self) -> Option<PyObject> {
+    fn next(&mut self) -> Option<&'a PyObject> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
@@ -150,6 +162,18 @@ mod test {
     use objects::PyList;
 
     #[test]
+    fn test_new() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let list = PyList::new(py, &v);
+        assert_eq!(2, list.get_item(0).extract::<i32>(py).unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>(py).unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>(py).unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>(py).unwrap());
+    }
+
+    #[test]
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -170,6 +194,19 @@ mod test {
         assert_eq!(3, list.get_item(1).extract::<i32>(py).unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>(py).unwrap());
         assert_eq!(7, list.get_item(3).extract::<i32>(py).unwrap());
+    }
+
+    #[test]
+    fn test_get_parked_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let ob = v.to_object(py);
+        let list = PyList::downcast_from(py, &ob).unwrap();
+        assert_eq!(2, list.get_parked_item(0).extract::<i32>(py).unwrap());
+        assert_eq!(3, list.get_parked_item(1).extract::<i32>(py).unwrap());
+        assert_eq!(5, list.get_parked_item(2).extract::<i32>(py).unwrap());
+        assert_eq!(7, list.get_parked_item(3).extract::<i32>(py).unwrap());
     }
 
     #[test]

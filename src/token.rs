@@ -328,8 +328,8 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
         }
     }
 
-    fn downcast_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
-                             -> Result<Self, PyDowncastError<'p>>
+    fn downcast_into_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                  -> Result<Self, PyDowncastError<'p>>
     {
         unsafe{
             if T::is_instance(ptr) {

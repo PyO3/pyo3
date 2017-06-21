@@ -32,7 +32,7 @@ pub enum PyThreadState { }
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum PyGILState_STATE {
     PyGILState_LOCKED,
     PyGILState_UNLOCKED

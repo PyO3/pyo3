@@ -253,7 +253,7 @@ mod test {
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
 
-    #[test]
+    /*#[test]
     fn test_items_list() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -273,7 +273,7 @@ mod test {
         }
         assert_eq!(7 + 8 + 9, key_sum);
         assert_eq!(32 + 42 + 123, value_sum);
-    }
+    }*/
 
     #[test]
     fn test_items() {

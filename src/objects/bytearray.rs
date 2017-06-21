@@ -20,7 +20,7 @@ impl PyByteArray {
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(_py: Python, src: &[u8]) -> Py<PyByteArray> {
+    pub fn new<'p>(_py: Python<'p>, src: &[u8]) -> Py<PyByteArray> {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {

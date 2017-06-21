@@ -7,6 +7,7 @@ use python::Python;
 use token::AsPyRef;
 use objectprotocol::ObjectProtocol;
 
+
 impl fmt::Debug for PyPtr {
     fn fmt(&self, f : &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let gil = Python::acquire_gil();

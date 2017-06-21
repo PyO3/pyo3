@@ -89,16 +89,6 @@ impl <'p, T: ?Sized> RefFromPyObject<'p> for T
     }
 }
 
-// Default IntoPyObject implementation
-/*impl<T> IntoPyObject for T where T: ToPyObject
-{
-    #[inline]
-    fn into_object(self, py: Python) -> ::PyObject
-    {
-        self.to_object(py)
-    }
-}*/
-
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
 // `ToPyObject` for references

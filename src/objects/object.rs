@@ -8,7 +8,7 @@ use err::{PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPyPointer};
 use conversion::FromPyObject;
 
-pub struct PyObject(PyPtr);
+pub struct PyObject(pub PyPtr);
 
 pyobject_nativetype!(PyObject, PyBaseObject_Type, PyObject_Check);
 

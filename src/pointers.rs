@@ -9,7 +9,7 @@ use python::{Python, ToPyPointer, IntoPyPointer};
 
 
 /// Wrapper around unsafe `*mut ffi::PyObject` pointer. Decrement ref counter on `Drop`
-pub struct PyPtr(pub *mut ffi::PyObject);
+pub struct PyPtr(*mut ffi::PyObject);
 
 // `PyPtr` is thread-safe, because any python related operations require a Python<'p> token.
 unsafe impl Send for PyPtr {}

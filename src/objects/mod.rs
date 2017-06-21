@@ -207,6 +207,11 @@ macro_rules! pyobject_downcast(
                     }
                 }
             }
+            unsafe fn unchecked_downcast_from<'p>(
+                _py: $crate::Python<'p>, ob: &'p $crate::PyObject) -> &'p Self
+            {
+                $crate::std::mem::transmute(ob)
+            }
         }
         impl $crate::python::PyDowncastInto for $name
         {
@@ -225,8 +230,8 @@ macro_rules! pyobject_downcast(
                 }
             }
 
-            fn downcast_from_ptr<'p>(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject)
-                                     -> Result<$name, $crate::PyDowncastError<'p>>
+            fn downcast_into_from_ptr<'p>(py: $crate::Python<'p>, ptr: *mut $crate::ffi::PyObject)
+                                          -> Result<$name, $crate::PyDowncastError<'p>>
             {
                 unsafe{
                     if ffi::$checkfunction(ptr) != 0 {
@@ -328,6 +333,12 @@ macro_rules! pyobject_nativetype2(
                     }
                 }
             }
+
+            unsafe fn unchecked_downcast_from<'p>(
+                _py: $crate::Python<'p>, ob: &'p $crate::PyObject) -> &'p Self
+            {
+                $crate::std::mem::transmute(ob)
+            }
         }
 
         impl<'a> $crate::FromPyObject<'a> for &'a $name
@@ -399,24 +410,10 @@ macro_rules! pyobject_nativetype2(
             fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                    -> Result<(), $crate::std::fmt::Error>
             {
-                use $crate::PyObjectWithToken;
-                use $crate::python::PyDowncastFrom;
+                use $crate::objectprotocol2::ObjectProtocol2;
 
-                let py = self.token();
-
-                unsafe {
-                    let repr_ob = PyObject::from_borrowed_ptr(
-                        py, $crate::ffi::PyObject_Repr(
-                            $crate::python::ToPyPointer::as_ptr(self)));
-
-                    let result = {
-                        let s = $crate::PyString::downcast_from(py,  &repr_ob);
-                        let s = try!(s.map_err(|_| $crate::std::fmt::Error));
-                        f.write_str(&s.to_string_lossy())
-                    };
-                    py.release(repr_ob);
-                    result
-                }
+                let s = try!(self.repr().map_err(|_| $crate::std::fmt::Error));
+                f.write_str(&s.to_string_lossy())
             }
         }
 
@@ -424,23 +421,10 @@ macro_rules! pyobject_nativetype2(
             fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
                    -> Result<(), $crate::std::fmt::Error>
             {
-                use $crate::PyObjectWithToken;
-                use $crate::python::PyDowncastFrom;
-                let py = self.token();
+                use $crate::objectprotocol2::ObjectProtocol2;
 
-                unsafe {
-                    let str_ob = PyObject::from_borrowed_ptr(
-                        py, $crate::ffi::PyObject_Str(
-                            $crate::python::ToPyPointer::as_ptr(self)));
-
-                    let result = {
-                        let s = $crate::PyString::downcast_from(py,  &str_ob);
-                        let s = try!(s.map_err(|_| $crate::std::fmt::Error));
-                        f.write_str(&s.to_string_lossy())
-                    };
-                    py.release(str_ob);
-                    result
-                }
+                let s = try!(self.str().map_err(|_| $crate::std::fmt::Error));
+                f.write_str(&s.to_string_lossy())
             }
         }
     };
