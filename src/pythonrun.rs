@@ -76,7 +76,6 @@ pub fn prepare_freethreaded_python() {
 /// } // GIL is released when gil_guard is dropped
 /// ```
 #[must_use]
-#[derive(Debug)]
 pub struct GILGuard {
     pos: usize,
     gstate: ffi::PyGILState_STATE,
