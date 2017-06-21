@@ -120,7 +120,7 @@ pub trait ObjectProtocol {
 
     /// Gets the Python type object for this object's type.
     #[inline]
-    fn get_type(&self, py: Python) -> PyType;
+    fn get_type<'p>(&self, py: Python<'p>) -> &'p PyType;
 
     fn get_refcnt(&self) -> isize;
 }
@@ -383,7 +383,7 @@ impl<T> ObjectProtocol for T where T: ToPyPointer {
 
     /// Gets the Python type object for this object's type.
     #[inline]
-    fn get_type(&self, py: Python) -> PyType {
+    fn get_type<'p>(&self, py: Python<'p>) -> &'p PyType {
         unsafe {
             PyType::from_type_ptr(py, (*self.as_ptr()).ob_type)
         }

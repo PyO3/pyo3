@@ -130,7 +130,7 @@ pub trait PyTypeObject {
     fn init_type(py: Python);
 
     /// Retrieves the type object for this Python object type.
-    fn type_object(py: Python) -> PyType;
+    fn type_object<'p>(py: Python<'p>) -> &'p PyType;
 
 }
 
@@ -152,7 +152,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
     }
 
     #[inline]
-    default fn type_object(py: Python) -> PyType {
+    default fn type_object<'p>(py: Python<'p>) -> &'p PyType {
         <T as PyTypeObject>::init_type(py);
 
         unsafe { PyType::from_type_ptr(py, <T as PyTypeInfo>::type_object()) }
@@ -160,9 +160,11 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 }
 
 
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str,
-                          type_description: &'static str, type_object: &mut ffi::PyTypeObject)
-                          -> PyResult<PyType>
+pub fn initialize_type<'p, T>(py: Python<'p>,
+                              module_name: Option<&str>,
+                              type_name: &str,
+                              type_description: &'static str,
+                              type_object: &mut ffi::PyTypeObject) -> PyResult<&'p PyType>
     where T: PyObjectAlloc<T> + PyTypeInfo
 {
     // type name

@@ -195,7 +195,7 @@ impl<'p> Python<'p> {
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> PyType where T: PyTypeObject {
+    pub fn get_type<T>(self) -> &'p PyType where T: PyTypeObject {
         T::type_object(self)
     }
 
@@ -261,7 +261,7 @@ impl<'p> Python<'p> {
 
     /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
     pub fn is_instance<T: PyTypeObject>(self, obj: &PyObject) -> PyResult<bool> {
-        T::type_object(self).is_instance(self, obj)
+        T::type_object(self).is_instance(obj)
     }
 
     /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
@@ -269,7 +269,7 @@ impl<'p> Python<'p> {
         where T: PyTypeObject,
             U: PyTypeObject
     {
-        T::type_object(self).is_subclass::<U>(self)
+        T::type_object(self).is_subclass::<U>()
     }
 }
 
@@ -293,6 +293,14 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         let obj = PyObject::from_owned_ptr_or_panic(self, ptr);
+        let p = pythonrun::register(self, obj);
+        <D as PyDowncastFrom>::unchecked_downcast_from(self, p)
+    }
+
+    pub unsafe fn unchecked_cast_from_borrowed_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p D
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_borrowed_ptr(self, ptr);
         let p = pythonrun::register(self, obj);
         <D as PyDowncastFrom>::unchecked_downcast_from(self, p)
     }
@@ -343,15 +351,15 @@ mod test {
         assert_eq!(v, 2);
     }
 
-    /*#[test]
+    #[test]
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.is_instance::<PyBool>(py.True().as_ob_ref(py)).unwrap());
+        assert!(py.is_instance::<PyBool>(py.True().into()).unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool>(list.as_ref()).unwrap());
         assert!(py.is_instance::<PyList>(list.as_ref()).unwrap());
-    }*/
+    }
 
     #[test]
     fn test_is_subclass() {

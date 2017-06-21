@@ -117,7 +117,7 @@ pub trait ObjectProtocol2 {
     fn iter<'p>(&'p self) -> PyResult<PyIterator<'p>>;
 
     /// Gets the Python type object for this object's type.
-    fn get_type(&self) -> PyType;
+    fn get_type(&self) -> &PyType;
 
     fn get_refcnt(&self) -> isize;
 
@@ -388,7 +388,7 @@ impl<'a, T> ObjectProtocol2 for &'a T where T: PyObjectWithToken + ToPyPointer {
 
     /// Gets the Python type object for this object's type.
     #[inline]
-    fn get_type(&self) -> PyType {
+    fn get_type(&self) -> &PyType {
         unsafe {
             PyType::from_type_ptr(self.token(), (*self.as_ptr()).ob_type)
         }

@@ -10,13 +10,13 @@ use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use objects::PyObject;
 use err::{PyErr, PyResult};
+use token::PyObjectWithToken;
 use typeob::PyTypeObject;
 
 /// Represents a reference to a Python type object.
 pub struct PyType(PyPtr);
 
-pyobject_convert!(PyType);
-pyobject_nativetype!(PyType, PyType_Type, PyType_Check);
+pyobject_nativetype2!(PyType, PyType_Type, PyType_Check);
 
 
 impl PyType {
@@ -30,26 +30,28 @@ impl PyType {
     /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_type_ptr(_py: Python, p: *mut ffi::PyTypeObject) -> PyType {
-        PyType(PyPtr::from_borrowed_ptr(p as *mut ffi::PyObject))
+    pub unsafe fn from_type_ptr<'p>(py: Python<'p>, p: *mut ffi::PyTypeObject) -> &'p PyType
+    {
+
+        py.unchecked_cast_from_borrowed_ptr::<PyType>(p as *mut ffi::PyObject)
     }
 
     /// Gets the name of the PyType.
-    pub fn name<'a>(&'a self, _py: Python) -> Cow<'a, str> {
+    pub fn name<'a>(&'a self) -> Cow<'a, str> {
         unsafe {
             CStr::from_ptr((*self.as_type_ptr()).tp_name).to_string_lossy()
         }
     }
 
     /// Check whether `self` is subclass of type `T` like Python `issubclass` function
-    pub fn is_subclass<T>(&self, py: Python) -> PyResult<bool>
+    pub fn is_subclass<T>(&self) -> PyResult<bool>
         where T: PyTypeObject
     {
         let result = unsafe {
-            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(py).as_ptr())
+            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.token()).as_ptr())
         };
         if result == -1 {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(self.token()))
         } else if result == 1 {
             Ok(true)
         } else {
@@ -58,12 +60,12 @@ impl PyType {
     }
 
     // Check whether `obj` is an instance of `self`
-    pub fn is_instance<T: ToPyPointer>(&self, py: Python, obj: &T) -> PyResult<bool> {
+    pub fn is_instance<T: ToPyPointer>(&self, obj: &T) -> PyResult<bool> {
         let result = unsafe {
             ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr())
         };
         if result == -1 {
-            Err(PyErr::fetch(py))
+            Err(PyErr::fetch(self.token()))
         } else if result == 1 {
             Ok(true)
         } else {

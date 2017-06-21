@@ -109,7 +109,7 @@ macro_rules! pyobject_nativetype(
             fn init_type(_py: Python) {}
 
             #[inline]
-            fn type_object(py: $crate::Python) -> $crate::PyType {
+            fn type_object<'p>(py: $crate::Python<'p>) -> &'p $crate::PyType {
                 unsafe { $crate::PyType::from_type_ptr(py, &mut $crate::ffi::$typeobject) }
             }
         }
@@ -293,6 +293,11 @@ macro_rules! pyobject_nativetype2(
                 unsafe{$crate::std::mem::transmute(self)}
             }
         }
+        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObject {
+            fn from(ob: &'a $name) -> Self {
+                unsafe{$crate::std::mem::transmute(ob)}
+            }
+        }
         impl $crate::PyObjectWithToken for $name {
             #[inline]
             fn token<'p>(&'p self) -> $crate::Python<'p> {
@@ -395,7 +400,7 @@ macro_rules! pyobject_nativetype2(
             fn init_type(_py: Python) {}
 
             #[inline]
-            fn type_object(py: $crate::Python) -> $crate::PyType {
+            fn type_object<'p>(py: $crate::Python<'p>) -> &'p $crate::PyType {
                 unsafe { $crate::PyType::from_type_ptr(py, &mut $crate::ffi::$typeobject) }
             }
         }

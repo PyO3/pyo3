@@ -97,41 +97,21 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 }
             }
 
-            impl std::fmt::Debug for #cls {
+            impl<'a> std::fmt::Debug for &'a #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    let py = _pyo3::PyObjectWithToken::token(self);
-                    let ptr = <#cls as _pyo3::ToPyPointer>::as_ptr(self);
-                    unsafe {
-                        let repr = PyObject::from_borrowed_ptr(
-                            py, _pyo3::ffi::PyObject_Repr(ptr));
+                    use pyo3::ObjectProtocol2;
 
-                        let result = {
-                            let s = _pyo3::PyString::downcast_from(py,  &repr);
-                            let s = try!(s.map_err(|_| std::fmt::Error));
-                            f.write_str(&s.to_string_lossy())
-                        };
-                        py.release(repr);
-                        result
-                    }
+                    let s = try!(ObjectProtocol2::repr(self).map_err(|_| std::fmt::Error));
+                    f.write_str(&s.to_string_lossy())
                 }
             }
 
-            impl std::fmt::Display for #cls {
+            impl<'a> std::fmt::Display for &'a #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    let py = _pyo3::PyObjectWithToken::token(self);
-                    let ptr = <#cls as _pyo3::ToPyPointer>::as_ptr(self);
-                    unsafe {
-                        let repr = PyObject::from_borrowed_ptr(
-                            py, _pyo3::ffi::PyObject_Str(ptr));
+                    use pyo3::ObjectProtocol2;
 
-                        let result = {
-                            let s = _pyo3::PyString::downcast_from(py,  &repr);
-                            let s = try!(s.map_err(|_| std::fmt::Error));
-                            f.write_str(&s.to_string_lossy())
-                        };
-                        py.release(repr);
-                        result
-                    }
+                    let s = try!(ObjectProtocol2::str(self).map_err(|_| std::fmt::Error));
+                    f.write_str(&s.to_string_lossy())
                 }
             }
         })

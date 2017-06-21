@@ -59,10 +59,16 @@ struct ClassWithDocs { }
 
 #[test]
 fn class_with_docstr() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let typeobj = py.get_type::<ClassWithDocs>();
-    py_run!(py, typeobj, "assert typeobj.__doc__ == 'Line1\\nLine2\\n Line3'");
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        println!("TEST1");
+        let typeobj = py.get_type::<ClassWithDocs>();
+        println!("TEST2");
+        py_run!(py, typeobj, "assert typeobj.__doc__ == 'Line1\\nLine2\\n Line3'");
+        println!("TEST3");
+    }
+    println!("TEST4");
 }
 
 #[py::class(name=CustomName)]
@@ -283,7 +289,7 @@ impl ClassMethod {
 
     #[classmethod]
     fn method(cls: &PyType, py: Python) -> PyResult<String> {
-        Ok(format!("{}.method()!", cls.name(py)))
+        Ok(format!("{}.method()!", cls.name()))
     }
 }
 
@@ -306,7 +312,7 @@ struct ClassMethodWithArgs{token: PyToken}
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &PyType, py: Python, input: &PyString) -> PyResult<String> {
-        Ok(format!("{}.method({})", cls.name(py), input))
+        Ok(format!("{}.method({})", cls.name(), input))
     }
 }
 
@@ -1042,7 +1048,7 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
     }
 
     fn __exit__(&mut self, py: Python,
-                ty: Option<PyType>,
+                ty: Option<&'p PyType>,
                 value: Option<PyObject>,
                 traceback: Option<PyObject>) -> PyResult<bool> {
         self.exit_called = true;
