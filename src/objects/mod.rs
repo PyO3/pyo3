@@ -216,7 +216,7 @@ macro_rules! pyobject_downcast(
         impl $crate::python::PyDowncastInto for $name
         {
             fn downcast_into<'p, I>(py: $crate::Python<'p>, ob: I)
-                                -> Result<Self, $crate::PyDowncastError<'p>>
+                                    -> Result<Self, $crate::PyDowncastError<'p>>
                 where I: $crate::IntoPyPointer
             {
                 unsafe{
@@ -294,6 +294,7 @@ macro_rules! pyobject_nativetype2(
             }
         }
         impl $crate::PyObjectWithToken for $name {
+            #[inline]
             fn token<'p>(&'p self) -> $crate::Python<'p> {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }

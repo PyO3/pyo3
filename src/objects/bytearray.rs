@@ -1,10 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::ptr;
 use std::os::raw::c_char;
 use ffi;
-use token::{Py, PyObjectWithToken};
+use token::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use objects::PyObject;
 use err::{PyResult, PyErr};
@@ -20,25 +19,23 @@ impl PyByteArray {
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(_py: Python<'p>, src: &[u8]) -> Py<PyByteArray> {
+    pub fn new<'p>(py: Python<'p>, src: &[u8]) -> &'p PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
-            Py::from_owned_ptr_or_panic(
+            py.unchecked_cast_from_ptr::<PyByteArray>(
                 ffi::PyByteArray_FromStringAndSize(ptr, len))
         }
     }
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<I>(py: Python, src: I) -> PyResult<Py<PyByteArray>>
+    pub fn from<'p, I>(py: Python<'p>, src: I) -> PyResult<&'p PyByteArray>
         where I: ToPyPointer
     {
-        let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
-        if res != ptr::null_mut() {
-            Ok(Py::from_owned_ptr_or_panic(res))
-        } else {
-            Err(PyErr::fetch(py))
+        unsafe {
+            py.unchecked_cast_from_ptr_or_err(
+                ffi::PyByteArray_FromObject(src.as_ptr()))
         }
     }
 
@@ -77,7 +74,6 @@ impl PyByteArray {
 #[cfg(test)]
 mod test {
     use exc;
-    use AsPyRef;
     use python::Python;
     use objects::{PyObject, PyByteArray};
 
@@ -87,17 +83,13 @@ mod test {
         let py = gil.python();
 
         let src = b"Hello Python";
-        let ba = PyByteArray::new(py, src);
-        {
-            let bytearray = ba.as_ref(py);
-            assert_eq!(src.len(), bytearray.len());
-            assert_eq!(src, bytearray.data());
-        }
+        let bytearray = PyByteArray::new(py, src);
+        assert_eq!(src.len(), bytearray.len());
+        assert_eq!(src, bytearray.data());
 
-        let ba: PyObject = ba.into();
-        let ba = PyByteArray::from(py, &ba).unwrap();
+        let ba: PyObject = bytearray.into();
+        let bytearray = PyByteArray::from(py, &ba).unwrap();
 
-        let bytearray = ba.as_ref(py);
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());
 

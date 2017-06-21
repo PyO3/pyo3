@@ -1,5 +1,4 @@
 use ffi;
-use token::Py;
 use pointers::PyPtr;
 use python::{ToPyPointer, Python};
 use objects::PyObject;
@@ -14,9 +13,9 @@ pyobject_nativetype2!(PyBool, PyBool_Type, PyBool_Check);
 impl PyBool {
     /// Depending on `val`, returns `py.True()` or `py.False()`.
     #[inline]
-    pub fn new(_py: Python, val: bool) -> Py<PyBool> {
+    pub fn new<'p>(py: Python<'p>, val: bool) -> &'p PyBool {
         unsafe {
-            Py::from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
+            py.unchecked_cast_from_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
         }
     }
 
@@ -31,7 +30,11 @@ impl PyBool {
 impl ToPyObject for bool {
     #[inline]
     fn to_object(&self, py: Python) -> PyObject {
-        PyBool::new(py, *self).into()
+        unsafe {
+            PyObject::from_borrowed_ptr(
+                py,
+                if *self { ffi::Py_True() } else { ffi::Py_False() })
+        }
     }
 
     #[inline]
@@ -60,8 +63,7 @@ pyobject_extract!(py, obj to bool => {
 
 #[cfg(test)]
 mod test {
-    use token::AsPyRef;
-    use python::{Python};
+    use python::Python;
     use objects::PyObject;
     use conversion::ToPyObject;
 
@@ -69,7 +71,7 @@ mod test {
     fn test_true() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.True().as_ref(py).is_true());
+        assert!(py.True().is_true());
         let t: PyObject = py.True().into();
         assert_eq!(true, t.extract(py).unwrap());
         assert!(true.to_object(py) == py.True().into());
@@ -79,7 +81,7 @@ mod test {
     fn test_false() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(!py.False().as_ref(py).is_true());
+        assert!(!py.False().is_true());
         let t: PyObject = py.False().into();
         assert_eq!(false, t.extract(py).unwrap());
         assert!(false.to_object(py) == py.False().into());

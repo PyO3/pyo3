@@ -12,7 +12,7 @@ use pointers::PyPtr;
 use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyType, exc};
 use objectprotocol2::ObjectProtocol2;
-use token::{Py, PyObjectWithToken};
+use token::PyObjectWithToken;
 use err::{PyResult, PyErr, ToPyErr};
 
 
@@ -24,17 +24,21 @@ pyobject_nativetype2!(PyModule, PyModule_Type, PyModule_Check);
 
 impl PyModule {
     /// Create a new module object with the `__name__` attribute set to name.
-    pub fn new(py: Python, name: &str) -> PyResult<Py<PyModule>> {
+    pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
-        Ok(Py::from_owned_ptr_or_err(
-            py, unsafe{ffi::PyModule_New(name.as_ptr())} )?)
+        unsafe {
+            py.unchecked_cast_from_ptr_or_err(
+                ffi::PyModule_New(name.as_ptr()))
+        }
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(py: Python, name: &str) -> PyResult<Py<PyModule>> {
+    pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
-        Ok(Py::from_owned_ptr_or_err(
-            py, unsafe{ffi::PyImport_ImportModule(name.as_ptr())} )?)
+        unsafe {
+            py.unchecked_cast_from_ptr_or_err(
+                ffi::PyImport_ImportModule(name.as_ptr()))
+        }
     }
 
     /// Return the dictionary object that implements module's namespace;
@@ -102,30 +106,30 @@ impl PyModule {
     /// This is a convenience function that initializes the `class`,
     /// sets `new_type.__module__` to this module's name,
     /// and adds the type to this module.
-    pub fn add_class<T>(&self, py: Python) -> PyResult<()>
+    pub fn add_class<T>(&self) -> PyResult<()>
         where T: ::typeob::PyTypeInfo
     {
         let mut ty = <T as ::typeob::PyTypeInfo>::type_object();
         let type_name = <T as ::typeob::PyTypeInfo>::type_name();
 
         let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-            unsafe { PyType::from_type_ptr(py, ty) }
+            unsafe { PyType::from_type_ptr(self.token(), ty) }
         } else {
             // automatically initialize the class
             let name = self.name()?;
             let type_description = <T as ::typeob::PyTypeInfo>::type_description();
 
             let to = ::typeob::initialize_type::<T>(
-                py, Some(name), type_name, type_description, ty)
+                self.token(), Some(name), type_name, type_description, ty)
                 .expect(format!("An error occurred while initializing class {}",
                                 <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
-            py.release(to);
-            unsafe { PyType::from_type_ptr(py, ty) }
+            self.token().release(to);
+            unsafe { PyType::from_type_ptr(self.token(), ty) }
         };
 
         self.setattr(type_name, &ty)?;
 
-        py.release(ty);
+        self.token().release(ty);
         Ok(())
     }
 }

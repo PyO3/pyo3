@@ -200,7 +200,7 @@ impl<'p> Python<'p> {
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<Py<PyModule>> {
+    pub fn import(self, name : &str) -> PyResult<&'p PyModule> {
         PyModule::import(self, name)
     }
 
@@ -214,14 +214,14 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> Py<PyBool> {
+    pub fn True(self) -> &'p PyBool {
         PyBool::new(self, true)
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> Py<PyBool> {
+    pub fn False(self) -> &'p PyBool {
         PyBool::new(self, false)
     }
 
@@ -271,6 +271,9 @@ impl<'p> Python<'p> {
     {
         T::type_object(self).is_subclass::<U>(self)
     }
+}
+
+impl<'p> Python<'p> {
 
     pub fn cast_as<D>(self, obj: PyObject) -> Result<&'p D, PyDowncastError<'p>>
         where D: PyDowncastFrom
@@ -278,12 +281,14 @@ impl<'p> Python<'p> {
         let p = pythonrun::register(self, obj);
         <D as PyDowncastFrom>::downcast_from(self, &p)
     }
+
     pub unsafe fn unchecked_cast_as<D>(self, obj: PyObject) -> &'p D
         where D: PyDowncastFrom
     {
         let p = pythonrun::register(self, obj);
         <D as PyDowncastFrom>::unchecked_downcast_from(self, &p)
     }
+
     pub unsafe fn unchecked_cast_from_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p D
         where D: PyDowncastFrom
     {
@@ -291,6 +296,17 @@ impl<'p> Python<'p> {
         let p = pythonrun::register(self, obj);
         <D as PyDowncastFrom>::unchecked_downcast_from(self, p)
     }
+
+    pub fn unchecked_cast_from_ptr_or_err<D>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p D>
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_owned_ptr_or_err(self, ptr)?;
+        let p = pythonrun::register(self, obj);
+        unsafe {
+            Ok(<D as PyDowncastFrom>::unchecked_downcast_from(self, p))
+        }
+    }
+
     pub fn track_object(self, obj: PyObject) -> &'p PyObject
     {
         pythonrun::register(self, obj)
