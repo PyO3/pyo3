@@ -14,8 +14,8 @@ use pyo3::ffi;
 macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
         let d = PyDict::new($py);
-        d.set_item($py, stringify!($val), &$val).unwrap();
-        $py.run($code, None, Some(&d)).expect($code);
+        d.set_item(stringify!($val), &$val).unwrap();
+        $py.run($code, None, Some(d)).expect($code);
     }}
 }
 
@@ -26,8 +26,8 @@ macro_rules! py_assert {
 macro_rules! py_expect_exception {
     ($py:expr, $val:ident, $code:expr, $err:ident) => {{
         let d = PyDict::new($py);
-        d.set_item($py, stringify!($val), &$val).unwrap();
-        let res = $py.run($code, None, Some(&d));
+        d.set_item(stringify!($val), &$val).unwrap();
+        let res = $py.run($code, None, Some(d));
         let err = res.unwrap_err();
         if !err.matches($py, $py.get_type::<exc::$err>()) {
             panic!(format!("Expected {} but got {:?}", stringify!($err), err))
@@ -239,8 +239,8 @@ fn instance_method() {
     let obj = Py::new(py, |t| InstanceMethod{member: 42, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py).unwrap() == 42);
     let d = PyDict::new(py);
-    d.set_item(py, "obj", obj).unwrap();
-    py.run("assert obj.method() == 42", None, Some(&d)).unwrap();
+    d.set_item("obj", obj).unwrap();
+    py.run("assert obj.method() == 42", None, Some(d)).unwrap();
     py.run("assert obj.method.__doc__ == 'Test method'", None, Some(&d)).unwrap();
 }
 
@@ -265,9 +265,9 @@ fn instance_method_with_args() {
     let obj = Py::new(py, |t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
     assert!(obj.as_ref(py).method(py, 6).unwrap() == 42);
     let d = PyDict::new(py);
-    d.set_item(py, "obj", obj).unwrap();
-    py.run("assert obj.method(3) == 21", None, Some(&d)).unwrap();
-    py.run("assert obj.method(multiplier=6) == 42", None, Some(&d)).unwrap();
+    d.set_item("obj", obj).unwrap();
+    py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
+    py.run("assert obj.method(multiplier=6) == 42", None, Some(d)).unwrap();
 }
 
 
@@ -293,9 +293,9 @@ fn class_method() {
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item(py, "C", py.get_type::<ClassMethod>()).unwrap();
-    py.run("assert C.method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
-    py.run("assert C().method() == 'ClassMethod.method()!'", None, Some(&d)).unwrap();
+    d.set_item("C", py.get_type::<ClassMethod>()).unwrap();
+    py.run("assert C.method() == 'ClassMethod.method()!'", None, Some(d)).unwrap();
+    py.run("assert C().method() == 'ClassMethod.method()!'", None, Some(d)).unwrap();
 }
 
 
@@ -316,8 +316,8 @@ fn class_method_with_args() {
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item(py, "C", py.get_type::<ClassMethodWithArgs>()).unwrap();
-    py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(&d)).unwrap();
+    d.set_item("C", py.get_type::<ClassMethodWithArgs>()).unwrap();
+    py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(d)).unwrap();
 }
 
 #[py::class]
@@ -345,9 +345,9 @@ fn static_method() {
 
     assert_eq!(StaticMethod::method(py).unwrap(), "StaticMethod.method()!");
     let d = PyDict::new(py);
-    d.set_item(py, "C", py.get_type::<StaticMethod>()).unwrap();
-    py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
-    py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(&d)).unwrap();
+    d.set_item("C", py.get_type::<StaticMethod>()).unwrap();
+    py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(d)).unwrap();
+    py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(d)).unwrap();
 }
 
 #[py::class]
@@ -370,8 +370,8 @@ fn static_method_with_args() {
     assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
 
     let d = PyDict::new(py);
-    d.set_item(py, "C", py.get_type::<StaticMethodWithArgs>()).unwrap();
-    py.run("assert C.method(1337) == '0x539'", None, Some(&d)).unwrap();
+    d.set_item("C", py.get_type::<StaticMethodWithArgs>()).unwrap();
+    py.run("assert C.method(1337) == '0x539'", None, Some(d)).unwrap();
 }
 
 #[py::class]

@@ -55,15 +55,14 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             let guard = _pyo3::callback::AbortOnDrop("py_module_init");
             let py = _pyo3::Python::assume_gil_acquired();
             _pyo3::ffi::PyEval_InitThreads();
+
             let module = _pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
             if module.is_null() {
                 std::mem::forget(guard);
                 return module;
             }
 
-            let module = match _pyo3::PyObject::from_owned_ptr(
-                py, module).cast_into::<PyModule>(py)
-            {
+            let module = match py.unchecked_cast_from_ptr_or_err::<PyModule>(module) {
                 Ok(m) => m,
                 Err(e) => {
                     _pyo3::PyErr::from(e).restore(py);
@@ -71,8 +70,8 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                     return std::ptr::null_mut();
                 }
             };
-            module.add(py, "__doc__", #doc).expect("Failed to add doc for module");
-            let ret = match #fnname(py, &module) {
+            module.add("__doc__", #doc).expect("Failed to add doc for module");
+            let result = match #fnname(py, module) {
                 Ok(_) => module.into_ptr(),
                 Err(e) => {
                     e.restore(py);
@@ -80,7 +79,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 }
             };
             std::mem::forget(guard);
-            ret
+            result
         }
     }
 }
@@ -133,9 +132,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 return
             }
 
-            let module = match pyo3::PyObject::from_borrowed_ptr(
-                py, module).cast_into::<pyo3::PyModule>(py)
-            {
+            let module = match py.unchecked_cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
                 Ok(m) => m,
                 Err(e) => {
                     _pyo3::PyErr::from(e).restore(py);
@@ -143,8 +140,8 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                     return
                 }
             };
-            module.add(py, "__doc__", #doc).expect("Failed to add doc for module");
-            let ret = match #fnname(py, &module) {
+            module.add("__doc__", #doc).expect("Failed to add doc for module");
+            let ret = match #fnname(py, module) {
                 Ok(()) => (),
                 Err(e) => e.restore(py)
             };
@@ -286,7 +283,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                                     Box::into_raw(Box::new(def.as_method_def())),
                                     std::ptr::null_mut()));
 
-                            #m.add(py, stringify!(#fnname), func)?
+                            #m.add(stringify!(#fnname), func)?
                         }
                     }
                 }
@@ -332,7 +329,6 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
                 let result: #output = {
                     #body
                 };
-                py.release(kwargs);
                 py.release(args);
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, py, result)

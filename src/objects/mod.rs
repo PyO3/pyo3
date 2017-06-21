@@ -311,14 +311,22 @@ macro_rules! pyobject_nativetype2(
                 self.0.as_ptr()
             }
         }
-        impl<'a> $crate::python::ToPyPointer for &'a $name {
+        /*impl<'a> $crate::python::ToPyPointer for &'a $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
                 self.0.as_ptr()
             }
+        }*/
+        impl<'a> $crate::python::IntoPyPointer for &'a $name {
+            /// Gets the underlying FFI pointer, returns a borrowed pointer.
+            #[inline]
+            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
+                let ptr = self.0.as_ptr();
+                unsafe { $crate::ffi::Py_INCREF(ptr); }
+                ptr
+            }
         }
-
         impl $crate::python::PyDowncastFrom for $name
         {
             fn downcast_from<'a, 'p>(py: $crate::Python<'p>, ob: &'a $crate::PyObject)

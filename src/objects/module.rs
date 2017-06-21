@@ -43,9 +43,10 @@ impl PyModule {
 
     /// Return the dictionary object that implements module's namespace;
     /// this object is the same as the `__dict__` attribute of the module object.
-    pub fn dict(&self) -> PyDict {
+    pub fn dict(&self) -> &PyDict {
         unsafe {
-            PyDict::from_borrowed_ptr(self.token(), ffi::PyModule_GetDict(self.as_ptr()))
+            self.token().unchecked_cast_from_ptr::<PyDict>(
+                ffi::PyModule_GetDict(self.as_ptr()))
         }
     }
 

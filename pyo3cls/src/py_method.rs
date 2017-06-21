@@ -90,7 +90,6 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                         _pyo3::callback::cb_convert(
                             _pyo3::callback::PyObjectCallbackConverter, py, result)
                     };
-                    py.release(kwargs);
                     py.release(args);
                     py.release(slf);
                     result
@@ -343,7 +342,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
         let mut output = [#(#placeholders),*];
         let result = match _pyo3::argparse::parse_args(
             py, Some(LOCATION), PARAMS, &args,
-            kwargs.as_ref(), #accept_args, #accept_kwargs, &mut output)
+            kwargs, #accept_args, #accept_kwargs, &mut output)
         {
             Ok(_) => {
                 let mut _iter = output.iter();

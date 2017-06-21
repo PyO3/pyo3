@@ -34,10 +34,10 @@ let gil = Python::acquire_gil();
     let py = gil.python();
     let ctx = PyDict::new(py);
 
-    ctx.set_item(py, "CustomError", py.get_type::<CustomError>()).unwrap();
+    ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
 
     py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
-    py.run("assert CustomError('oops').args == ('oops',)", None, Some(&ctx)).unwrap();
+    py.run("assert CustomError('oops').args == ('oops',)", None, Some(ctx)).unwrap();
 }
 ```
 */

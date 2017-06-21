@@ -43,11 +43,11 @@
 //!
 //! fn hello(py: Python) -> PyResult<()> {
 //!     let sys = py.import("sys")?;
-//!     let version: String = sys.get(py, "version")?.extract(py)?;
+//!     let version: String = sys.get("version")?.extract(py)?;
 //!
 //!     let locals = PyDict::new(py);
-//!     locals.set_item(py, "os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
+//!     locals.set_item("os", py.import("os")?)?;
+//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(locals))?.extract(py)?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
@@ -95,9 +95,9 @@
 //!     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
 //!     // Python objects to Rust values; and the Rust return value back into a Python object.
 //!     #[pyfn(m, "run_rust_func")]
-//!     fn run(py: Python, name: &PyString) -> PyResult<PyObject> {
+//!     fn run(py: Python, name: &PyString) -> PyResult<()> {
 //!         println!("Rust says: Hello {} of Python!", name);
-//!         Ok(py.None())
+//!         Ok(())
 //!     }
 //!
 //!     Ok(())

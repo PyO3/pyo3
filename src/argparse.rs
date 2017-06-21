@@ -36,7 +36,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     assert!(params.len() == output.len());
 
     let nargs = args.len(py);
-    let nkeywords = kwargs.map_or(0, |d| d.len(py));
+    let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
             py,
@@ -51,7 +51,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     let mut used_keywords = 0;
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(py, p.name)) {
+        match kwargs.and_then(|d| d.get_item(p.name)) {
             Some(kwarg) => {
                 *out = Some(kwarg);
                 used_keywords += 1;
@@ -81,7 +81,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     }
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
-        for (key, _value) in kwargs.unwrap().items(py) {
+        for (key, _value) in kwargs.unwrap().items() {
             let key = try!(try!(key.cast_as::<PyString>(py)).to_string());
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
@@ -96,11 +96,11 @@ pub fn parse_args<'p>(py: Python<'p>,
 
 #[inline]
 #[doc(hidden)]
-pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
+pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&PyDict> {
     if ptr.is_null() {
         None
     } else {
-        Some(PyDict::from_borrowed_ptr(py, ptr))
+        Some(py.unchecked_cast_from_ptr::<PyDict>(ptr))
     }
 }
 

@@ -51,8 +51,8 @@ fn test_cls_impl() {
 
     let ob = py.init(|t| Test{token: t}).unwrap();
     let d = PyDict::new(py);
-    d.set_item(py, "ob", ob).unwrap();
+    d.set_item("ob", ob).unwrap();
 
-    py.run("assert ob[1] == 'int'", None, Some(&d)).unwrap();
-    py.run("assert ob[100:200:1] == 'slice'", None, Some(&d)).unwrap();
+    py.run("assert ob[1] == 'int'", None, Some(d)).unwrap();
+    py.run("assert ob[100:200:1] == 'slice'", None, Some(d)).unwrap();
 }

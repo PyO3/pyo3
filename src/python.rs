@@ -328,7 +328,7 @@ mod test {
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
-        d.set_item(py, "foo", 13).unwrap();
+        d.set_item("foo", 13).unwrap();
 
         // Inject our own global namespace
         let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract(py).unwrap();

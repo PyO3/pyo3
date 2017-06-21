@@ -74,8 +74,8 @@ fn test_buffer() {
     let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
 
     let d = PyDict::new(py);
-    let _ = d.set_item(py, "ob", t);
-    py.run("assert bytes(ob) == b' 23'", None, Some(&d)).unwrap();
+    d.set_item("ob", t).unwrap();
+    py.run("assert bytes(ob) == b' 23'", None, Some(d)).unwrap();
 }
 
 #[cfg(not(Py_3))]
@@ -87,6 +87,6 @@ fn test_buffer() {
     let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
 
     let d = PyDict::new(py);
-    let _ = d.set_item(py, "ob", t);
-    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(&d)).unwrap();
+    d.set_item("ob", t);
+    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d)).unwrap();
 }
