@@ -370,29 +370,23 @@ impl<T> PyObjectRichcmpProtocolImpl for T
                 let slf = py.cast_from_borrowed_ptr::<T>(slf);
                 let arg = py.cast_from_borrowed_ptr::<PyObject>(arg);
 
-                let result = {
-                    let res = match extract_op(py, op) {
-                        Ok(op) => {
-                            match arg.extract() {
-                                Ok(arg) => {
-                                    slf.__richcmp__(arg, op).into()
-                                }
-                                Err(e) => Err(e.into()),
-                            }
-                        },
-                        Err(e) => Err(e)
-                    };
-                    match res {
-                        Ok(val) => {
-                            val.into_object(py).into_ptr()
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            std::ptr::null_mut()
-                        }
-                    }
+                let res = match extract_op(py, op) {
+                    Ok(op) => match arg.extract() {
+                        Ok(arg) =>
+                            slf.__richcmp__(arg, op).into(),
+                        Err(e) => Err(e.into()),
+                    },
+                    Err(e) => Err(e)
                 };
-                result
+                match res {
+                    Ok(val) => {
+                        val.into_object(py).into_ptr()
+                    }
+                    Err(e) => {
+                        e.restore(py);
+                        std::ptr::null_mut()
+                    }
+                }
             })
         }
         Some(wrap::<T>)

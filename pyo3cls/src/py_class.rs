@@ -57,7 +57,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl _pyo3::PyObjectWithToken for #cls {
                 #[inline]
                 fn token<'p>(&'p self) -> _pyo3::Python<'p> {
-                    self.#token.token()
+                    self.#token.py()
                 }
             }
             impl _pyo3::ToPyObject for #cls
