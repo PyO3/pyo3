@@ -4,7 +4,7 @@ use std;
 
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
-use token::AsPyRef;
+use instance::AsPyRef;
 use objects::PyObject;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 use python::{Python, PyClone, ToPyPointer, IntoPyPointer};

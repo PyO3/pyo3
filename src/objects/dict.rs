@@ -5,8 +5,8 @@
 use std::{mem, collections, hash, cmp};
 
 use ffi;
-use object::PyObjectPtr;
-use token::PyObjectWithToken;
+use pointer::PyObjectPtr;
+use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use conversion::ToPyObject;
 use objects::{PyObject, PyList};
@@ -152,7 +152,7 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
 mod test {
     use std::collections::{BTreeMap, HashMap};
     use python::Python;
-    use token::AsPyRef;
+    use instance::AsPyRef;
     use conversion::ToPyObject;
     use objects::{PyDict, PyTuple};
     use {PyDowncastFrom, ObjectProtocol};

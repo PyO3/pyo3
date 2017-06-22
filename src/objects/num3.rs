@@ -8,11 +8,11 @@ extern crate num_traits;
 use self::num_traits::cast::cast;
 
 use ffi;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
 use objects::{exc, PyObject};
-use token::PyObjectWithToken;
+use instance::PyObjectWithToken;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
 /// Represents a Python `int` object.

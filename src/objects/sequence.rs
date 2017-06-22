@@ -3,8 +3,8 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use object::PyObjectPtr;
-use token::PyObjectWithToken;
+use pointer::PyObjectPtr;
+use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use conversion::{FromPyObject, ToPyObject};
 use objects::{PyObject, PyList, PyTuple};
@@ -248,7 +248,7 @@ fn extract_sequence<'s, T>(obj: &'s PyObject) -> PyResult<Vec<T>> where T: FromP
 
 #[cfg(test)]
 mod test {
-    use token::AsPyRef;
+    use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
     use objects::{PySequence};

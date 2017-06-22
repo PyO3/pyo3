@@ -10,8 +10,8 @@ use std::os::raw::c_char;
 
 use ffi;
 use err::PyResult;
-use object::PyObject;
-use token::{Py, PyObjectWithToken};
+use pointer::PyObject;
+use instance::{Py, PyObjectWithToken};
 use python::{Python, ToPyPointer};
 use super::{PyObject, PyStringData};
 

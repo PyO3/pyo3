@@ -5,7 +5,7 @@
 use std::{sync, rc, marker, mem};
 use ffi;
 use python::{Python, ToPyPointer};
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use objects::PyObject;
 
 static START: sync::Once = sync::ONCE_INIT;

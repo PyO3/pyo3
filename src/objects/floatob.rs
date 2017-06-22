@@ -5,10 +5,10 @@
 use std::os::raw::c_double;
 
 use ffi;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{ToPyPointer, Python};
 use err::PyErr;
-use token::{Py, PyObjectWithToken};
+use instance::{Py, PyObjectWithToken};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `float` object.

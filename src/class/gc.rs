@@ -9,7 +9,7 @@ use std::os::raw::{c_int, c_void};
 use ffi;
 use python::{Python, ToPyPointer};
 use callback::AbortOnDrop;
-use token::{Py, AsPyRef};
+use instance::{Py, AsPyRef};
 use typeob::PyTypeInfo;
 
 pub struct PyTraverseError(c_int);

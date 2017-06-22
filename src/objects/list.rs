@@ -4,8 +4,8 @@
 
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
-use token::PyObjectWithToken;
-use object::PyObjectPtr;
+use instance::PyObjectWithToken;
+use pointer::PyObjectPtr;
 use objects::PyObject;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{ToPyObject, IntoPyObject};
@@ -158,7 +158,7 @@ impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 
 #[cfg(test)]
 mod test {
-    use token::AsPyRef;
+    use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
     use objects::PyList;

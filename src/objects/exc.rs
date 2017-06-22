@@ -9,7 +9,7 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{Python, ToPyPointer};
 use err::PyResult;
 use super::{PyTuple, PyType};

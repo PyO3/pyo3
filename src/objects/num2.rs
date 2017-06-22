@@ -9,10 +9,10 @@ use self::num_traits::cast::cast;
 
 use ffi;
 use objects::exc;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{ToPyPointer, IntoPyPointer, Python};
 use err::{PyResult, PyErr};
-use token::Py;
+use instance::Py;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
 /// Represents a Python `int` object.

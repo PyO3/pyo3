@@ -1,5 +1,5 @@
 use ffi;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{ToPyPointer, Python};
 use conversion::{ToPyObject, IntoPyObject};
 

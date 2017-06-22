@@ -6,10 +6,10 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{Python, ToPyPointer};
 use err::{PyErr, PyResult};
-use token::PyObjectWithToken;
+use instance::PyObjectWithToken;
 use typeob::PyTypeObject;
 
 /// Represents a reference to a Python type object.

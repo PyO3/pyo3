@@ -8,11 +8,11 @@ use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
 use conversion::{ToPyObject, IntoPyTuple};
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
-use token::PyObjectWithToken;
+use instance::PyObjectWithToken;
 use err::{PyResult, PyErr, ToPyErr};
 
 

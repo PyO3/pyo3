@@ -9,8 +9,8 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{Py, PyToken};
-use object::PyObjectPtr;
+use instance::{Py, PyToken};
+use pointer::PyObjectPtr;
 use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 use pythonrun::{self, GILGuard};

@@ -10,7 +10,7 @@ macro_rules! py_unary_func {
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use $crate::instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
@@ -35,7 +35,7 @@ macro_rules! py_unary_func {
                                      -> *mut $crate::ffi::PyObject
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
@@ -82,7 +82,7 @@ macro_rules! py_binary_func{
                                      arg: *mut ffi::PyObject) -> $return
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
@@ -116,7 +116,7 @@ macro_rules! py_binary_self_func{
                                      arg: *mut ffi::PyObject) -> *mut $crate::ffi::PyObject
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
@@ -161,7 +161,7 @@ macro_rules! py_ssizearg_func {
                                      arg: $crate::Py_ssize_t) -> *mut $crate::ffi::PyObject
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
@@ -190,7 +190,7 @@ macro_rules! py_ternary_func{
                                      arg2: *mut $crate::ffi::PyObject) -> $return_type
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
@@ -229,7 +229,7 @@ macro_rules! py_ternary_self_func{
                                      -> *mut $crate::ffi::PyObject
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
@@ -323,7 +323,7 @@ macro_rules! py_func_del{
                                      value: *mut $crate::ffi::PyObject) -> $crate::c_int
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, ()>(
@@ -375,7 +375,7 @@ macro_rules! py_func_set_del{
                                      value: *mut $crate::ffi::PyObject) -> $crate::c_int
             where T: for<'p> $trait<'p> + for<'p> $trait2<'p>
         {
-            use token::AsPyRef;
+            use instance::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, ()>(

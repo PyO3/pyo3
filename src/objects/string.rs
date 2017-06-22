@@ -8,8 +8,8 @@ use std::borrow::Cow;
 use std::os::raw::c_char;
 
 use ffi;
-use token::{Py, PyObjectWithToken};
-use object::PyObjectPtr;
+use instance::{Py, PyObjectWithToken};
+use pointer::PyObjectPtr;
 use objects::PyObject;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};

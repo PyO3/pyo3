@@ -9,7 +9,7 @@ use ffi;
 use python::Python;
 use err::{PyErr, PyResult};
 use objects::exc;
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
 use typeob::PyTypeInfo;
 use conversion::{IntoPyObject, FromPyObject};

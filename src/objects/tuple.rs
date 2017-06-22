@@ -6,8 +6,8 @@ use std::slice;
 
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
-use token::{Py, PyObjectWithToken};
-use object::PyObjectPtr;
+use instance::{Py, PyObjectWithToken};
+use pointer::PyObjectPtr;
 use objects::PyObject;
 use objectprotocol::ObjectProtocol;
 use python::{Python, ToPyPointer, IntoPyPointer};
@@ -236,7 +236,7 @@ pyobject_extract!(py, obj to NoArgs => {
 #[cfg(test)]
 mod test {
     use PyTuple;
-    use token::AsPyRef;
+    use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
     use objects::PyObject;

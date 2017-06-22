@@ -5,7 +5,7 @@
 use ffi;
 use objects::PyObject;
 use python::{Python, ToPyPointer, IntoPyPointer};
-use token::PyObjectWithToken;
+use instance::PyObjectWithToken;
 use err::{PyErr, PyResult, PyDowncastError};
 
 /// A python iterator object.
@@ -61,7 +61,7 @@ impl <'p> Iterator for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
-    use token::AsPyRef;
+    use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
     use objects::PyObject;

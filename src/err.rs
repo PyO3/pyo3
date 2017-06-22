@@ -9,7 +9,7 @@ use ffi;
 use python::{ToPyPointer, IntoPyPointer, Python, PyClone};
 use PyObjectPtr;
 use objects::{PyObject, PyType, exc};
-use token::Py;
+use instance::Py;
 use typeob::PyTypeObject;
 use conversion::{ToPyObject, IntoPyTuple, IntoPyObject};
 

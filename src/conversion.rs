@@ -1,11 +1,11 @@
 use ffi;
 use err::PyResult;
 use python::{Python, ToPyPointer, PyDowncastFrom};
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use objects::{PyObject, PyTuple};
 use objectprotocol::ObjectProtocol;
 use typeob::PyTypeInfo;
-use token::Py;
+use instance::Py;
 
 
 /// Conversion trait that allows various objects to be converted into `PyObject`

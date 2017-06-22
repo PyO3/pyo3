@@ -4,9 +4,9 @@
 use std::{hash, collections};
 use ffi;
 use python::{Python, ToPyPointer};
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use conversion::ToPyObject;
-use token::{AsPyRef, Py, PyObjectWithToken};
+use instance::{AsPyRef, Py, PyObjectWithToken};
 use err::{self, PyResult, PyErr};
 
 
@@ -147,7 +147,7 @@ mod test {
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
     use objectprotocol::ObjectProtocol;
-    use token::AsPyRef;
+    use instance::AsPyRef;
 
     #[test]
     fn test_set_new() {

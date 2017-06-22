@@ -9,7 +9,7 @@ use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
-use token::{Py, AsPyRef};
+use instance::{Py, AsPyRef};
 use typeob::PyTypeInfo;
 
 

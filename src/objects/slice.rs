@@ -2,11 +2,11 @@
 
 use std::os::raw::c_long;
 
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use python::{ToPyPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
-use token::{Py, PyObjectWithToken};
+use instance::{Py, PyObjectWithToken};
 use conversion::ToPyObject;
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted

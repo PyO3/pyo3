@@ -62,7 +62,7 @@ macro_rules! pyobject_downcast(
             /// Extracts `Self` from the source `PyObject`.
             fn extract(ob: &'a $crate::PyObject) -> $crate::PyResult<Self>
             {
-                use token::PyObjectWithToken;
+                use instance::PyObjectWithToken;
                 unsafe {
                     if $crate::ffi::$checkfunction(ob.as_ptr()) != 0 {
                         Ok($crate::std::mem::transmute(ob))
@@ -87,7 +87,7 @@ macro_rules! pyobject_convert(
 
 macro_rules! pyobject_nativetype(
     ($name: ident) => {
-        impl $crate::token::PyNativeType for $name {}
+        impl $crate::PyNativeType for $name {}
 
         impl $crate::std::convert::AsRef<$crate::PyObject> for $name {
             fn as_ref(&self) -> &$crate::PyObject {

@@ -7,10 +7,10 @@ use std::os::raw::c_int;
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError, self};
 use python::{Python, ToPyPointer, PyDowncastFrom};
-use object::PyObjectPtr;
+use pointer::PyObjectPtr;
 use objects::{PyObject, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
-use token::PyObjectWithToken;
+use instance::PyObjectWithToken;
 
 
 pub trait ObjectProtocol {
@@ -369,7 +369,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
 #[cfg(test)]
 mod test {
-    use token::AsPyRef;
+    use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
     use objects::PyString;
