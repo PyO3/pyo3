@@ -60,12 +60,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     self.#token.token()
                 }
             }
-
             impl _pyo3::ToPyObject for #cls
             {
                 #[inline]
-                fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
-                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
+                fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObjectPtr {
+                    unsafe { _pyo3::PyObjectPtr::from_borrowed_ptr(py, self.as_ptr()) }
                 }
 
                 #[inline]
@@ -78,8 +77,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl<'a> _pyo3::IntoPyObject for &'a #cls
             {
                 #[inline]
-                fn into_object<'p>(self, py: _pyo3::Python) -> _pyo3::PyObject {
-                    _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr())
+                fn into_object<'p>(self, py: _pyo3::Python) -> _pyo3::PyObjectPtr {
+                    unsafe { _pyo3::PyObjectPtr::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
             impl std::convert::AsRef<PyObject> for #cls {
@@ -97,20 +96,17 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 }
             }
 
-            impl<'a> std::fmt::Debug for &'a #cls {
+            impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    use pyo3::ObjectProtocol2;
-
-                    let s = try!(ObjectProtocol2::repr(self).map_err(|_| std::fmt::Error));
+                    use pyo3::ObjectProtocol;
+                    let s = try!(self.repr().map_err(|_| std::fmt::Error));
                     f.write_str(&s.to_string_lossy())
                 }
             }
-
-            impl<'a> std::fmt::Display for &'a #cls {
+            impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    use pyo3::ObjectProtocol2;
-
-                    let s = try!(ObjectProtocol2::str(self).map_err(|_| std::fmt::Error));
+                    use pyo3::ObjectProtocol;
+                    let s = try!(self.str().map_err(|_| std::fmt::Error));
                     f.write_str(&s.to_string_lossy())
                 }
             }
@@ -206,8 +202,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
         impl _pyo3::PyDowncastFrom for #cls
         {
-            fn downcast_from<'a, 'p>(py: Python<'p>, ob: &'a _pyo3::PyObject)
-                                     -> Result<&'a #cls, _pyo3::PyDowncastError<'p>>
+            fn downcast_from(ob: &_pyo3::PyObject) -> Result<&#cls, _pyo3::PyDowncastError>
             {
                 unsafe {
                     let checked = ffi::PyObject_TypeCheck(
@@ -218,13 +213,18 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                         Ok(ptr.as_ref().unwrap())
                     } else {
-                        Err(_pyo3::PyDowncastError(py, None))
+                        Err(_pyo3::PyDowncastError(ob.token(), None))
                     }
                 }
             }
 
-            unsafe fn unchecked_downcast_from<'p>(_py: _pyo3::Python<'p>,
-                                                  ob: &'p _pyo3::PyObject) -> &'p Self
+            unsafe fn unchecked_downcast_from(ob: &_pyo3::PyObject) -> &Self
+            {
+                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
+                let ptr = (ob.as_ptr() as *mut u8).offset(-offset) as *mut #cls;
+                std::mem::transmute(ptr)
+            }
+            unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObject) -> &mut Self
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                 let ptr = (ob.as_ptr() as *mut u8).offset(-offset) as *mut #cls;
@@ -233,8 +233,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         }
         impl _pyo3::PyMutDowncastFrom for #cls
         {
-            fn downcast_mut_from<'a, 'p>(py: Python<'p>, ob: &'a mut _pyo3::PyObject)
-                                         -> Result<&'a mut #cls, _pyo3::PyDowncastError<'p>>
+            fn downcast_mut_from(ob: &mut _pyo3::PyObject)
+                                 -> Result<&mut #cls, _pyo3::PyDowncastError>
             {
                 unsafe {
                     let checked = ffi::PyObject_TypeCheck(
@@ -245,7 +245,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                         Ok(ptr.as_mut().unwrap())
                     } else {
-                        Err(_pyo3::PyDowncastError(py, None))
+                        Err(_pyo3::PyDowncastError(ob.token(), None))
                     }
                 }
             }

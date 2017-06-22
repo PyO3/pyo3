@@ -6,7 +6,8 @@ use std::error::Error;
 use libc;
 
 use ffi;
-use python::{ToPyPointer, IntoPyPointer, Python, PyDowncastFrom, PyClone};
+use python::{ToPyPointer, IntoPyPointer, Python, PyClone};
+use PyObjectPtr;
 use objects::{PyObject, PyType, exc};
 use token::Py;
 use typeob::PyTypeObject;
@@ -98,9 +99,9 @@ pub struct PyErr {
     /// a tuple of arguments to be passed to `ptype`'s constructor,
     /// or a single argument to be passed to `ptype`'s constructor.
     /// Call `PyErr::instance()` to get the exception instance in all cases.
-    pub pvalue: Option<PyObject>,
+    pub pvalue: Option<PyObjectPtr>,
     /// The `PyTraceBack` object associated with the error.
-    pub ptraceback: Option<PyObject>,
+    pub ptraceback: Option<PyObjectPtr>,
 }
 
 
@@ -142,23 +143,24 @@ impl PyErr {
     /// `base` can be an existing exception type to subclass, or a tuple of classes
     /// `dict` specifies an optional dictionary of class variables and methods
     pub fn new_type<'p>(py: Python<'p>,
-                        name: &str, base: Option<&PyType>, dict: Option<PyObject>) -> &'p PyType
+                        name: &str, base: Option<&PyType>, dict: Option<PyObjectPtr>)
+                        -> &'p PyType
     {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
-            Some(obj) => obj.into_ptr()
+            Some(obj) => obj.as_ptr()
         };
 
         let dict: *mut ffi::PyObject = match dict {
             None => std::ptr::null_mut(),
-            Some(obj) => obj.into_ptr(),
+            Some(obj) => obj.as_ptr(),
         };
 
         unsafe {
             let null_terminated_name = CString::new(name).expect("Failed to initialize nul terminated exception name");
             let ptr = ffi::PyErr_NewException(
-                null_terminated_name.as_ptr() as *mut c_char,
-                base, dict) as *mut ffi::PyTypeObject;
+                null_terminated_name.as_ptr() as *mut c_char, base, dict)
+                as *mut ffi::PyTypeObject;
             PyType::from_type_ptr(py, ptr)
         }
     }
@@ -188,12 +190,12 @@ impl PyErr {
             } else {
                 PyType::from_type_ptr(py, ptype as *mut ffi::PyTypeObject).into()
             },
-            pvalue: PyObject::from_owned_ptr_or_opt(py, pvalue),
-            ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback)
+            pvalue: PyObjectPtr::from_owned_ptr_or_opt(py, pvalue),
+            ptraceback: PyObjectPtr::from_owned_ptr_or_opt(py, ptraceback)
         }
     }
 
-    fn new_helper(_py: Python, ty: &PyType, value: PyObject) -> PyErr {
+    fn new_helper(_py: Python, ty: &PyType, value: PyObjectPtr) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
         PyErr {
             ptype: ty.into(),
@@ -211,7 +213,7 @@ impl PyErr {
         PyErr::from_instance_helper(py, obj.into_object(py))
     }
 
-    fn from_instance_helper<'p>(py: Python, obj: PyObject) -> PyErr {
+    fn from_instance_helper<'p>(py: Python, obj: PyObjectPtr) -> PyErr {
         let ptr = obj.as_ptr();
 
         if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
@@ -222,8 +224,7 @@ impl PyErr {
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: PyType::downcast_from(py, &obj)
-                    .expect("Failed to downcast into PyType").into(),
+                ptype: unsafe { Py::from_borrowed_ptr(ptr) },
                 pvalue: None,
                 ptraceback: None
             }
@@ -240,7 +241,7 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
     /// `value` is the exception instance, or a tuple of arguments to pass to the exception constructor.
     #[inline]
-    pub fn new_lazy_init(exc: &PyType, value: Option<PyObject>) -> PyErr {
+    pub fn new_lazy_init(exc: &PyType, value: Option<PyObjectPtr>) -> PyErr {
         PyErr {
             ptype: exc.into(),
             pvalue: value,
@@ -316,10 +317,10 @@ impl PyErr {
     /// Retrieves the exception instance for this error.
     /// This method takes `&mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    pub fn instance(&mut self, py: Python) -> PyObject {
+    pub fn instance(&mut self, py: Python) -> PyObjectPtr {
         self.normalize(py);
         match self.pvalue {
-            Some(ref instance) => instance.to_object(py),
+            Some(ref instance) => instance.clone_ref(py),
             None => py.None(),
         }
     }

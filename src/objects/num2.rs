@@ -9,8 +9,7 @@ use self::num_traits::cast::cast;
 
 use ffi;
 use objects::exc;
-use objects::PyObject;
-use pointers::PyPtr;
+use object::PyObjectPtr;
 use python::{ToPyPointer, IntoPyPointer, Python};
 use err::{PyResult, PyErr};
 use token::Py;
@@ -24,7 +23,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
-pub struct PyInt(PyPtr);
+pub struct PyInt(PyObjectPtr);
 
 pyobject_nativetype2!(PyInt, PyInt_Type, PyInt_Check);
 
@@ -35,7 +34,7 @@ pyobject_nativetype2!(PyInt, PyInt_Type, PyInt_Check);
 /// by using [ToPyObject](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
-pub struct PyLong(PyPtr);
+pub struct PyLong(PyObjectPtr);
 
 pyobject_nativetype2!(PyLong, PyLong_Type, PyLong_Check);
 
@@ -65,16 +64,16 @@ impl PyInt {
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python) -> PyObjectPtr {
                 unsafe {
-                    PyObject::from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(*self as c_long))
+                    PyObjectPtr::from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(*self as c_long))
                 }
             }
         }
         impl IntoPyObject for $rust_type {
-            fn into_object(self, py: Python) -> PyObject {
+            fn into_object(self, py: Python) -> PyObjectPtr {
                 unsafe {
-                    PyObject::from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(self as c_long))
+                    PyObjectPtr::from_owned_ptr_or_panic(py, ffi::PyInt_FromLong(self as c_long))
                 }
             }
         }
@@ -96,12 +95,12 @@ macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python) -> PyObjectPtr {
                 (*self as $larger_type).to_object(py)
             }
         }
         impl IntoPyObject for $rust_type {
-            fn into_object(self, py: Python) -> PyObject {
+            fn into_object(self, py: Python) -> PyObjectPtr {
                 (self as $larger_type).into_object(py)
             }
         }
@@ -129,24 +128,24 @@ fn err_if_invalid_value<'p, T: PartialEq>
 macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl ToPyObject for $rust_type {
-            fn to_object(&self, py: Python) -> PyObject {
+            fn to_object(&self, py: Python) -> PyObjectPtr {
                 unsafe {
                     let ptr = match cast::<$rust_type, c_long>(*self) {
                         Some(v) => ffi::PyInt_FromLong(v),
                         None => $pylong_from_ll_or_ull(*self)
                     };
-                    PyObject::from_owned_ptr_or_panic(py, ptr)
+                    PyObjectPtr::from_owned_ptr_or_panic(py, ptr)
                 }
             }
         }
         impl IntoPyObject for $rust_type {
-            fn into_object(self, py: Python) -> PyObject {
+            fn into_object(self, py: Python) -> PyObjectPtr {
                 unsafe {
                     let ptr = match cast::<$rust_type, c_long>(self) {
                         Some(v) => ffi::PyInt_FromLong(v),
                         None => $pylong_from_ll_or_ull(self)
                     };
-                    PyObject::from_owned_ptr_or_panic(py, ptr)
+                    PyObjectPtr::from_owned_ptr_or_panic(py, ptr)
                 }
             }
         }
@@ -164,7 +163,7 @@ macro_rules! int_convert_u64_or_i64 (
                             None => Err(overflow_error(py))
                         }
                     } else {
-                        let num = PyPtr::from_owned_ptr_or_err(py, ffi::PyNumber_Long(ptr))?;
+                        let num = PyObjectPtr::from_owned_ptr_or_err(py, ffi::PyNumber_Long(ptr))?;
                         err_if_invalid_value(py, !0, $pylong_as_ull_or_ull(num.into_ptr()))
                     }
                 }

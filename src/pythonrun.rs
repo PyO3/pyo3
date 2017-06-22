@@ -5,6 +5,7 @@
 use std::{sync, rc, marker, mem};
 use ffi;
 use python::{Python, ToPyPointer};
+use object::PyObjectPtr;
 use objects::PyObject;
 
 static START: sync::Once = sync::ONCE_INIT;
@@ -89,7 +90,7 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
             let pos = self.pos;
-            let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+            let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
 
             let len = pool.len();
             for ob in &mut pool[pos..len] {
@@ -102,13 +103,13 @@ impl Drop for GILGuard {
     }
 }
 
-static mut POOL: *mut Vec<PyObject> = 0 as *mut _;
+static mut POOL: *mut Vec<PyObjectPtr> = 0 as *mut _;
 
-pub fn register<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyObject {
+pub fn register<'p>(_py: Python<'p>, obj: PyObjectPtr) -> &'p PyObject {
     unsafe {
-        let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+        let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
         pool.push(obj);
-        &pool[pool.len()-1]
+        mem::transmute(&pool[pool.len()-1])
     }
 }
 

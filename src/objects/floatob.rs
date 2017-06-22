@@ -5,11 +5,10 @@
 use std::os::raw::c_double;
 
 use ffi;
-use objects::PyObject;
-use pointers::PyPtr;
+use object::PyObjectPtr;
 use python::{ToPyPointer, Python};
 use err::PyErr;
-use token::Py;
+use token::{Py, PyObjectWithToken};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `float` object.
@@ -18,9 +17,10 @@ use conversion::{ToPyObject, IntoPyObject};
 /// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat(PyPtr);
+pub struct PyFloat(PyObjectPtr);
 
-pyobject_nativetype2!(PyFloat, PyFloat_Type, PyFloat_Check);
+pyobject_convert!(PyFloat);
+pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
 
 
 impl PyFloat {
@@ -38,38 +38,38 @@ impl PyFloat {
 }
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python) -> PyObjectPtr {
         PyFloat::new(py, *self).into()
     }
 }
 impl IntoPyObject for f64 {
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_object(self, py: Python) -> PyObjectPtr {
         PyFloat::new(py, self).into()
     }
 }
 
 pyobject_extract!(py, obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
-    if v == -1.0 && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
+    if v == -1.0 && PyErr::occurred(obj.token()) {
+        Err(PyErr::fetch(obj.token()))
     } else {
         Ok(v)
     }
 });
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python) -> PyObjectPtr {
         PyFloat::new(py, *self as f64).into()
     }
 }
 impl IntoPyObject for f32 {
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_object(self, py: Python) -> PyObjectPtr {
         PyFloat::new(py, self as f64).into()
     }
 }
 
 pyobject_extract!(py, obj to f32 => {
-    Ok(try!(obj.extract::<f64>(py)) as f32)
+    Ok(try!(obj.extract::<f64>()) as f32)
 });
 
 

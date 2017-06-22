@@ -3,16 +3,16 @@
 use std;
 use std::os::raw::c_char;
 use ffi;
+use object::PyObjectPtr;
 use token::PyObjectWithToken;
 use python::{Python, ToPyPointer};
-use objects::PyObject;
 use err::{PyResult, PyErr};
-use pointers::PyPtr;
 
 /// Represents a Python bytearray.
-pub struct PyByteArray(PyPtr);
+pub struct PyByteArray(PyObjectPtr);
 
-pyobject_nativetype2!(PyByteArray, PyByteArray_Type, PyByteArray_Check);
+pyobject_convert!(PyByteArray);
+pyobject_nativetype!(PyByteArray, PyByteArray_Type, PyByteArray_Check);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.
@@ -23,7 +23,7 @@ impl PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
-            py.unchecked_cast_from_ptr::<PyByteArray>(
+            py.cast_from_ptr::<PyByteArray>(
                 ffi::PyByteArray_FromStringAndSize(ptr, len))
         }
     }
@@ -34,7 +34,7 @@ impl PyByteArray {
         where I: ToPyPointer
     {
         unsafe {
-            py.unchecked_cast_from_ptr_or_err(
+            py.cast_from_ptr_or_err(
                 ffi::PyByteArray_FromObject(src.as_ptr()))
         }
     }
@@ -75,7 +75,8 @@ impl PyByteArray {
 mod test {
     use exc;
     use python::Python;
-    use objects::{PyObject, PyByteArray};
+    use object::PyObjectPtr;
+    use objects::PyByteArray;
 
     #[test]
     fn test_bytearray() {
@@ -87,8 +88,8 @@ mod test {
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());
 
-        let ba: PyObject = bytearray.into();
-        let bytearray = PyByteArray::from(py, &ba).unwrap();
+        let ba: PyObjectPtr = bytearray.into();
+        let bytearray = PyByteArray::from(py, ba).unwrap();
 
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());
@@ -98,7 +99,7 @@ mod test {
 
         let none = py.None();
         if let Err(mut err) = PyByteArray::from(py, &none) {
-            assert!(py.is_instance::<exc::TypeError>(&err.instance(py)).unwrap())
+            assert!(py.is_instance::<exc::TypeError, _>(&err.instance(py)).unwrap())
         } else {
             panic!("error");
         }

@@ -8,18 +8,19 @@ use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
 use conversion::{ToPyObject, IntoPyTuple};
-use pointers::PyPtr;
+use object::PyObjectPtr;
 use python::{Python, ToPyPointer};
 use objects::{PyObject, PyDict, PyType, exc};
-use objectprotocol2::ObjectProtocol2;
+use objectprotocol::ObjectProtocol;
 use token::PyObjectWithToken;
 use err::{PyResult, PyErr, ToPyErr};
 
 
 /// Represents a Python module object.
-pub struct PyModule(PyPtr);
+pub struct PyModule(PyObjectPtr);
 
-pyobject_nativetype2!(PyModule, PyModule_Type, PyModule_Check);
+pyobject_convert!(PyModule);
+pyobject_nativetype!(PyModule, PyModule_Type, PyModule_Check);
 
 
 impl PyModule {
@@ -27,7 +28,7 @@ impl PyModule {
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
         unsafe {
-            py.unchecked_cast_from_ptr_or_err(
+            py.cast_from_ptr_or_err(
                 ffi::PyModule_New(name.as_ptr()))
         }
     }
@@ -36,7 +37,7 @@ impl PyModule {
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
         unsafe {
-            py.unchecked_cast_from_ptr_or_err(
+            py.cast_from_ptr_or_err(
                 ffi::PyImport_ImportModule(name.as_ptr()))
         }
     }
@@ -45,7 +46,7 @@ impl PyModule {
     /// this object is the same as the `__dict__` attribute of the module object.
     pub fn dict(&self) -> &PyDict {
         unsafe {
-            self.token().unchecked_cast_from_ptr::<PyDict>(
+            self.token().cast_from_ptr::<PyDict>(
                 ffi::PyModule_GetDict(self.as_ptr()))
         }
     }
@@ -80,17 +81,15 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObject>
         where A: IntoPyTuple
     {
-        use objectprotocol::ObjectProtocol;
-
-        ObjectProtocol2::getattr(&self, name)?.call(self.token(), args, kwargs)
+        self.getattr(name)?.call(args, kwargs)
     }
 
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
-    pub fn get(&self, name: &str) -> PyResult<PyObject>
+    pub fn get(&self, name: &str) -> PyResult<&PyObject>
     {
         self.getattr(name)
     }
@@ -120,17 +119,13 @@ impl PyModule {
             let name = self.name()?;
             let type_description = <T as ::typeob::PyTypeInfo>::type_description();
 
-            let to = ::typeob::initialize_type::<T>(
+            ::typeob::initialize_type::<T>(
                 self.token(), Some(name), type_name, type_description, ty)
                 .expect(format!("An error occurred while initializing class {}",
                                 <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
-            self.token().release(to);
             unsafe { PyType::from_type_ptr(self.token(), ty) }
         };
 
-        self.setattr(type_name, &ty)?;
-
-        self.token().release(ty);
-        Ok(())
+        self.setattr(type_name, ty)
     }
 }

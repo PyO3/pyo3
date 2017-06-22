@@ -9,9 +9,10 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use python::{Python, IntoPyPointer};
+use object::PyObjectPtr;
+use python::{Python, ToPyPointer};
 use err::PyResult;
-use super::{PyObject, PyTuple, PyType};
+use super::{PyTuple, PyType};
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
@@ -101,10 +102,10 @@ exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 impl UnicodeDecodeError {
 
     pub fn new(py: Python, encoding: &CStr, input: &[u8],
-               range: ops::Range<usize>, reason: &CStr) -> PyResult<PyObject> {
+               range: ops::Range<usize>, reason: &CStr) -> PyResult<PyObjectPtr> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            PyObject::from_owned_ptr_or_err(
+            PyObjectPtr::from_owned_ptr_or_err(
                 py, ffi::PyUnicodeDecodeError_Create(
                     encoding.as_ptr(),
                     input.as_ptr(),
@@ -116,7 +117,7 @@ impl UnicodeDecodeError {
     }
 
     pub fn new_utf8<'p>(py: Python, input: &[u8], err: std::str::Utf8Error)
-                        -> PyResult<PyObject>
+                        -> PyResult<PyObjectPtr>
     {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))
@@ -126,10 +127,10 @@ impl UnicodeDecodeError {
 
 impl StopIteration {
 
-    pub fn stop_iteration(_py: Python, args: PyTuple) {
+    pub fn stop_iteration(_py: Python, args: &PyTuple) {
         unsafe {
             ffi::PyErr_SetObject(
-                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.into_ptr());
+                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.as_ptr());
         }
     }
 }

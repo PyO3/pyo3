@@ -153,20 +153,17 @@ pub mod ffi {
 
 pub use ffi::{Py_ssize_t, Py_hash_t};
 
-mod pointers;
-pub use pointers::PyPtr;
-
 pub mod token;
 pub use token::{PyToken, PyObjectWithToken, AsPyRef, Py};
 
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
+pub use object::PyObjectPtr;
 pub use objectprotocol::ObjectProtocol;
-pub use objectprotocol2::ObjectProtocol2;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
+pub use conversion::{FromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
 pub mod class;
 pub use class::*;
 
@@ -191,12 +188,11 @@ macro_rules! cstr(
 );
 
 mod python;
-mod fmt;
 mod err;
 mod conversion;
+mod object;
 mod objects;
 mod objectprotocol;
-mod objectprotocol2;
 mod pythonrun;
 pub mod callback;
 pub mod typeob;

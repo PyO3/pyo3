@@ -6,7 +6,7 @@
 use ffi;
 use python::Python;
 use objects::{PyObject, PyTuple, PyDict, PyString, exc};
-use conversion::RefFromPyObject;
+//use conversion::RefFromPyObject;
 use err::{self, PyResult};
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -31,11 +31,11 @@ pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
                       args: &'p PyTuple, kwargs: Option<&'p PyDict>,
                       accept_args: bool, accept_kwargs: bool,
-                      output: &mut[Option<PyObject>]) -> PyResult<()>
+                      output: &mut[Option<&'p PyObject>]) -> PyResult<()>
 {
     assert!(params.len() == output.len());
 
-    let nargs = args.len(py);
+    let nargs = args.len();
     let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
@@ -66,7 +66,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                     *out = None;
                 }
                 else if i < nargs {
-                    *out = Some(args.get_item(py, i));
+                    *out = Some(args.get_item(i));
                 } else {
                     *out = None;
                     if !p.is_optional {
@@ -100,21 +100,21 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
     if ptr.is_null() {
         None
     } else {
-        Some(py.unchecked_cast_from_ptr::<PyDict>(ptr))
+        Some(py.cast_from_ptr::<PyDict>(ptr))
     }
 }
 
-#[doc(hidden)] // used in py_argparse_extract!() macro
-pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
-    py: Python, obj: Option<&'p PyObject>, f: F, default: &'static P) -> PyResult<R>
+/*#[doc(hidden)] // used in py_argparse_extract!() macro
+pub fn with_extracted_or_default<P: ?Sized, R, F>(
+    py: Python, obj: Option<&PyObject>, f: F, default: &'static P) -> PyResult<R>
     where F: FnOnce(&P) -> PyResult<R>,
-          P: RefFromPyObject<'p>
+          P: RefFromPyObject
 {
     match obj {
-        Some(obj) => match P::with_extracted(py, obj, f) {
+        Some(obj) => match P::with_extracted(obj, f) {
             Ok(result) => result,
             Err(e) => Err(e)
         },
         None => f(default)
     }
-}
+}*/

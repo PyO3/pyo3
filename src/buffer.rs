@@ -621,8 +621,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let array = py.import("array").unwrap().call_method(
-            py, "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
-        let buffer = PyBuffer::get(py, &array).unwrap();
+            "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
+        let buffer = PyBuffer::get(py, array.into()).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 4);
         assert_eq!(buffer.format().to_str().unwrap(), "f");

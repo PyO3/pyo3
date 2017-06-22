@@ -4,21 +4,22 @@
 use std::{hash, collections};
 use ffi;
 use python::{Python, ToPyPointer};
-use pointers::PyPtr;
+use object::PyObjectPtr;
 use conversion::ToPyObject;
-use objects::PyObject;
 use token::{AsPyRef, Py, PyObjectWithToken};
 use err::{self, PyResult, PyErr};
 
 
 /// Represents a Python `set`
-pub struct PySet(PyPtr);
+pub struct PySet(PyObjectPtr);
 
 /// Represents a  Python `frozenset`
-pub struct PyFrozenSet(PyPtr);
+pub struct PyFrozenSet(PyObjectPtr);
 
-pyobject_nativetype2!(PySet, PySet_Type, PySet_Check);
-pyobject_nativetype2!(PyFrozenSet, PyFrozenSet_Type, PyFrozenSet_Check);
+pyobject_convert!(PySet);
+pyobject_convert!(PyFrozenSet);
+pyobject_nativetype!(PySet, PySet_Type, PySet_Check);
+pyobject_nativetype!(PyFrozenSet, PyFrozenSet_Type, PyFrozenSet_Check);
 
 impl PySet {
     /// Creates a new set.
@@ -71,9 +72,9 @@ impl PySet {
     }
 
     /// Remove and return an arbitrary element from the set
-    pub fn pop(&self) -> Option<PyObject> {
+    pub fn pop(&self) -> Option<PyObjectPtr> {
         unsafe {
-            PyObject::from_borrowed_ptr_or_opt(self.token(), ffi::PySet_Pop(self.as_ptr()))
+            PyObjectPtr::from_owned_ptr_or_opt(self.token(), ffi::PySet_Pop(self.as_ptr()))
         }
     }
 }
@@ -81,7 +82,7 @@ impl PySet {
 impl<T> ToPyObject for collections::HashSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python) -> PyObjectPtr {
         let set = PySet::new::<T>(py, &[]);
         {
             let s = set.as_ref(py);
@@ -96,7 +97,7 @@ impl<T> ToPyObject for collections::HashSet<T>
 impl<T> ToPyObject for collections::BTreeSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object(&self, py: Python) -> PyObjectPtr {
         let set = PySet::new::<T>(py, &[]);
         {
             let s = set.as_ref(py);
@@ -145,7 +146,7 @@ mod test {
     use super::{PySet, PyFrozenSet};
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
-    use objectprotocol2::ObjectProtocol2;
+    use objectprotocol::ObjectProtocol;
     use token::AsPyRef;
 
     #[test]
@@ -164,11 +165,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = PySet::downcast_from(py, &ob).unwrap();
+        let set = PySet::downcast_from(ob.as_ref(py)).unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = PySet::downcast_from(py, &ob).unwrap();
+        let set2 = PySet::downcast_from(ob.as_ref(py)).unwrap();
         assert_eq!(1, set2.len());
     }
 
@@ -233,7 +234,7 @@ mod test {
         let ob = PySet::new(py, &[1]);
         let set = ob.as_ref(py);
         for el in set.iter().unwrap() {
-            assert_eq!(1i32, el.unwrap().extract::<i32>(py).unwrap());
+            assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
         }
     }
 
@@ -264,7 +265,7 @@ mod test {
         let ob = PyFrozenSet::new(py, &[1]);
         let set = ob.as_ref(py);
         for el in set.iter().unwrap() {
-            assert_eq!(1i32, el.unwrap().extract::<i32>(py).unwrap());
+            assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
         }
     }
 }

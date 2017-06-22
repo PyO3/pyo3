@@ -10,23 +10,23 @@ use std::os::raw::c_char;
 
 use ffi;
 use err::PyResult;
-use pointers::PyPtr;
+use object::PyObject;
 use token::{Py, PyObjectWithToken};
 use python::{Python, ToPyPointer};
 use super::{PyObject, PyStringData};
 
 /// Represents a Python string.
-pub struct PyString(PyPtr);
+pub struct PyString(PyObject);
 
 pyobject_nativetype2!(PyString, PyBaseString_Type, PyBaseString_Check);
 
 /// Represents a Python unicode string.
-pub struct PyUnicode(PyPtr);
+pub struct PyUnicode(PyObject);
 
 pyobject_nativetype2!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python byte string. Corresponds to `str` in Python 2
-pub struct PyBytes(PyPtr);
+pub struct PyBytes(PyObject);
 
 pyobject_nativetype2!(PyBytes, PyBaseString_Type, PyString_Check);
 

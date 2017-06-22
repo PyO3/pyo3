@@ -87,7 +87,7 @@ macro_rules! py_binary_func{
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                let arg = $crate::PyObjectPtr::from_borrowed_ptr(py, arg);
 
                 let result = {
                     let result = match arg.extract(py) {
@@ -121,7 +121,7 @@ macro_rules! py_binary_self_func{
 
             $crate::callback::cb_meth(LOCATION, |py| {
                 let slf1 = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                let arg = $crate::PyObjectPtr::from_borrowed_ptr(py, arg);
 
                 let result = {
                     let result = match arg.extract(py) {
@@ -195,8 +195,8 @@ macro_rules! py_ternary_func{
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
-                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
+                let arg1 = $crate::PyObjectPtr::from_borrowed_ptr(py, arg1);
+                let arg2 = $crate::PyObjectPtr::from_borrowed_ptr(py, arg2);
 
                 let result = {
                     let result = match arg1.extract(py) {
@@ -234,8 +234,8 @@ macro_rules! py_ternary_self_func{
 
             $crate::callback::cb_meth(LOCATION, |py| {
                 let slf1 = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
-                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
+                let arg1 = $crate::PyObjectPtr::from_borrowed_ptr(py, arg1);
+                let arg2 = $crate::PyObjectPtr::from_borrowed_ptr(py, arg2);
 
                 let result = {
                     let result = match arg1.extract(py) {
@@ -282,8 +282,8 @@ macro_rules! py_func_set{
                     e.restore(py);
                     -1
                 } else {
-                    let name = $crate::PyObject::from_borrowed_ptr(py, name);
-                    let value = $crate::PyObject::from_borrowed_ptr(py, value);
+                    let name = $crate::PyObjectPtr::from_borrowed_ptr(py, name);
+                    let value = $crate::PyObjectPtr::from_borrowed_ptr(py, value);
                     let result = match name.extract(py) {
                         Ok(name) => match value.extract(py) {
                             Ok(value) => {
@@ -331,7 +331,7 @@ macro_rules! py_func_del{
             {
                 if value.is_null() {
                     let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                    let name = PyObject::from_borrowed_ptr(py, name);
+                    let name = $crate::PyObjectPtr::from_borrowed_ptr(py, name);
 
                     let result = {
                         let result = match name.extract(py) {
@@ -382,7 +382,7 @@ macro_rules! py_func_set_del{
                 LOCATION, $crate::callback::UnitCallbackConverter, |py|
             {
                 let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let name = PyObject::from_borrowed_ptr(py, name);
+                let name = $crate::PyObjectPtr::from_borrowed_ptr(py, name);
 
                 let result = {
                     if value.is_null() {
@@ -399,7 +399,7 @@ macro_rules! py_func_set_del{
                             }
                         }
                     } else {
-                        let value = ::PyObject::from_borrowed_ptr(py, value);
+                        let value = ::PyObjectPtr::from_borrowed_ptr(py, value);
                         let result = {
                             let result = match name.extract(py) {
                                 Ok(name) => match value.extract(py) {

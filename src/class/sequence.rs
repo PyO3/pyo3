@@ -9,7 +9,7 @@ use ffi;
 use python::Python;
 use err::{PyErr, PyResult};
 use objects::exc;
-use objects::PyObject;
+use object::PyObjectPtr;
 use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
 use typeob::PyTypeInfo;
 use conversion::{IntoPyObject, FromPyObject};
@@ -224,7 +224,7 @@ impl<T> PySequenceSetItemProtocolImpl for T
                     e.restore(py);
                     -1
                 } else {
-                    let value = PyObject::from_borrowed_ptr(py, value);
+                    let value = PyObjectPtr::from_borrowed_ptr(py, value);
                     let result = match value.extract(py) {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()
@@ -313,7 +313,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                         }
                     }
                 } else {
-                    let value = ::PyObject::from_borrowed_ptr(py, value);
+                    let value = ::PyObjectPtr::from_borrowed_ptr(py, value);
                     let result = match value.extract(py) {
                         Ok(value) => {
                             slf.__setitem__(py, key as isize, value).into()

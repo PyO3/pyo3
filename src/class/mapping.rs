@@ -6,7 +6,7 @@
 use ffi;
 use err::{PyErr, PyResult};
 use python::Python;
-use objects::{exc, PyObject};
+use objects::exc;
 use callback::{PyObjectCallbackConverter, LenResultConverter};
 use conversion::{IntoPyObject, FromPyObject};
 use typeob::PyTypeInfo;

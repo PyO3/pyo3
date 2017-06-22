@@ -13,7 +13,7 @@ use ::CompareOp;
 use ffi;
 use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer};
-use objects::PyObject;
+use object::PyObjectPtr;
 use objects::exc;
 use token::{Py, AsPyRef};
 use typeob::PyTypeInfo;
@@ -370,7 +370,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
             let ret = std::panic::catch_unwind(|| {
                 let py = Python::assume_gil_acquired();
                 let slf = Py::<T>::from_borrowed_ptr(slf);
-                let arg = PyObject::from_borrowed_ptr(py, arg);
+                let arg = PyObjectPtr::from_borrowed_ptr(py, arg);
 
                 let result = {
                     let res = match extract_op(py, op) {

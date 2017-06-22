@@ -6,17 +6,17 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use pointers::PyPtr;
+use object::PyObjectPtr;
 use python::{Python, ToPyPointer};
-use objects::PyObject;
 use err::{PyErr, PyResult};
 use token::PyObjectWithToken;
 use typeob::PyTypeObject;
 
 /// Represents a reference to a Python type object.
-pub struct PyType(PyPtr);
+pub struct PyType(PyObjectPtr);
 
-pyobject_nativetype2!(PyType, PyType_Type, PyType_Check);
+pyobject_convert!(PyType);
+pyobject_nativetype!(PyType, PyType_Type, PyType_Check);
 
 
 impl PyType {
@@ -32,8 +32,7 @@ impl PyType {
     #[inline]
     pub unsafe fn from_type_ptr<'p>(py: Python<'p>, p: *mut ffi::PyTypeObject) -> &'p PyType
     {
-
-        py.unchecked_cast_from_borrowed_ptr::<PyType>(p as *mut ffi::PyObject)
+        py.cast_from_borrowed_ptr::<PyType>(p as *mut ffi::PyObject)
     }
 
     /// Gets the name of the PyType.
@@ -73,11 +72,3 @@ impl PyType {
         }
     }
 }
-
-impl PartialEq for PyType {
-    #[inline]
-    fn eq(&self, other: &PyType) -> bool {
-        self.as_type_ptr() == other.as_type_ptr()
-    }
-}
-impl Eq for PyType { }
