@@ -34,7 +34,7 @@
 //! ```rust
 //! extern crate pyo3;
 //!
-//! use pyo3::{Python, PyDict, PyResult};
+//! use pyo3::{Python, PyDict, PyResult, ObjectProtocol};
 //!
 //! fn main() {
 //!     let gil = Python::acquire_gil();
@@ -43,11 +43,11 @@
 //!
 //! fn hello(py: Python) -> PyResult<()> {
 //!     let sys = py.import("sys")?;
-//!     let version: String = sys.get("version")?.extract(py)?;
+//!     let version: String = sys.get("version")?.extract()?;
 //!
 //!     let locals = PyDict::new(py);
 //!     locals.set_item("os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(locals))?.extract(py)?;
+//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(locals))?.extract()?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
@@ -81,7 +81,7 @@
 //! #![feature(proc_macro, specialization)]
 //!
 //! extern crate pyo3;
-//! use pyo3::{py, Python, PyResult, PyObject, PyModule, PyString};
+//! use pyo3::{py, Python, PyResult, PyModule, PyString};
 //!
 //! // add bindings to the generated python module
 //! // N.B: names: "libhello" must be the name of the `.so` or `.pyd` file

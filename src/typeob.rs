@@ -5,7 +5,7 @@ use std::mem;
 use std::ffi::{CStr, CString};
 use std::collections::HashMap;
 
-use {ffi, class};
+use {ffi, class, pythonrun};
 use err::{PyErr, PyResult};
 use python::Python;
 use objects::PyType;
@@ -277,6 +277,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     debug!("DEALLOC: {:?} - {:?}", obj,
            CStr::from_ptr((*(*obj).ob_type).tp_name).to_string_lossy());
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
+    let _pool = pythonrun::Pool::new();
     let py = Python::assume_gil_acquired();
     let r = <T as PyObjectAlloc<T>>::dealloc(py, obj);
     mem::forget(guard);

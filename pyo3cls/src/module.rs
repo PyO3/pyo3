@@ -45,41 +45,37 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
         pub unsafe extern "C" fn #cb_name() -> *mut ::pyo3::ffi::PyObject {
             use std;
             extern crate pyo3 as _pyo3;
-            use pyo3::IntoPyPointer;
+            use pyo3::{IntoPyPointer, ObjectProtocol};
 
             static mut MODULE_DEF: _pyo3::ffi::PyModuleDef = _pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#cb_name), "\0").as_ptr() as *const _;
 
-            let guard = _pyo3::callback::AbortOnDrop("py_module_init");
-            let py = _pyo3::Python::assume_gil_acquired();
-            _pyo3::ffi::PyEval_InitThreads();
+            _pyo3::callback::cb_meth("py_module_init", |py| {
+                _pyo3::ffi::PyEval_InitThreads();
 
-            let module = _pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
-            if module.is_null() {
-                std::mem::forget(guard);
-                return module;
-            }
+                let module = _pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
+                if module.is_null() {
+                    return module;
+                }
 
-            let module = match py.unchecked_cast_from_ptr_or_err::<PyModule>(module) {
-                Ok(m) => m,
-                Err(e) => {
-                    _pyo3::PyErr::from(e).restore(py);
-                    std::mem::forget(guard);
-                    return std::ptr::null_mut();
+                let module = match py.cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        _pyo3::PyErr::from(e).restore(py);
+                        return std::ptr::null_mut();
+                    }
+                };
+                module.add("__doc__", #doc).expect("Failed to add doc for module");
+                match #fnname(py, module) {
+                    Ok(_) => module.into_ptr(),
+                    Err(e) => {
+                        e.restore(py);
+                        std::ptr::null_mut()
+                    }
                 }
-            };
-            module.add("__doc__", #doc).expect("Failed to add doc for module");
-            let result = match #fnname(py, module) {
-                Ok(_) => module.into_ptr(),
-                Err(e) => {
-                    e.restore(py);
-                    std::ptr::null_mut()
-                }
-            };
-            std::mem::forget(guard);
-            result
+            })
         }
     }
 }
@@ -132,7 +128,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 return
             }
 
-            let module = match py.unchecked_cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
+            let module = match py.cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
                 Ok(m) => m,
                 Err(e) => {
                     _pyo3::PyErr::from(e).restore(py);
@@ -278,7 +274,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                         };
 
                         unsafe {
-                            let func = pyo3::PyObject::from_owned_ptr_or_panic(
+                            let func = pyo3::PyObjectPtr::from_owned_ptr_or_panic(
                                 py, pyo3::ffi::PyCFunction_New(
                                     Box::into_raw(Box::new(def.as_method_def())),
                                     std::ptr::null_mut()));
@@ -320,16 +316,16 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
+            use pyo3::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result: #output = {
                     #body
                 };
-                py.release(args);
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, py, result)
             })

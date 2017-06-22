@@ -221,13 +221,13 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             unsafe fn unchecked_downcast_from(ob: &_pyo3::PyObject) -> &Self
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                let ptr = (ob.as_ptr() as *mut u8).offset(-offset) as *mut #cls;
+                let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                 std::mem::transmute(ptr)
             }
             unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObject) -> &mut Self
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                let ptr = (ob.as_ptr() as *mut u8).offset(-offset) as *mut #cls;
+                let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                 std::mem::transmute(ptr)
             }
         }

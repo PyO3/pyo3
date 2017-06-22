@@ -280,8 +280,10 @@ impl<'p> Python<'p> {
     pub fn checked_cast_as<D>(self, obj: PyObjectPtr) -> Result<&'p D, PyDowncastError<'p>>
         where D: PyDowncastFrom
     {
-        let p = pythonrun::register(self, obj);
-        <D as PyDowncastFrom>::downcast_from(p)
+        unsafe {
+            let p = pythonrun::register(self, obj);
+            <D as PyDowncastFrom>::downcast_from(p)
+        }
     }
 
     pub unsafe fn cast_as<D>(self, obj: PyObjectPtr) -> &'p D
@@ -303,8 +305,8 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         let obj = PyObjectPtr::from_owned_ptr_or_err(self, ptr)?;
-        let p = pythonrun::register(self, obj);
         unsafe {
+            let p = pythonrun::register(self, obj);
             Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
         }
     }
@@ -363,7 +365,7 @@ impl<'p> Python<'p> {
 
     pub fn track_object(self, obj: PyObjectPtr) -> &'p PyObject
     {
-        pythonrun::register(self, obj)
+        unsafe { pythonrun::register(self, obj) }
     }
 }
 
@@ -379,22 +381,23 @@ mod test {
         let py = gil.python();
 
         // Make sure builtin names are accessible
-        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract().unwrap();
+        let v: i32 = py.eval("min(1, 2)", None, None)
+            .map_err(|e| e.print(py)).unwrap().extract().unwrap();
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
         d.set_item("foo", 13).unwrap();
 
         // Inject our own global namespace
-        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract().unwrap();
+        let v: i32 = py.eval("foo + 29", Some(d), None).unwrap().extract().unwrap();
         assert_eq!(v, 42);
 
         // Inject our own local namespace
-        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract().unwrap();
+        let v: i32 = py.eval("foo + 29", None, Some(d)).unwrap().extract().unwrap();
         assert_eq!(v, 42);
 
         // Make sure builtin names are still accessible when using a local namespace
-        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract().unwrap();
+        let v: i32 = py.eval("min(foo, 2)", None, Some(d)).unwrap().extract().unwrap();
         assert_eq!(v, 2);
     }
 

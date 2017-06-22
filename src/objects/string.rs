@@ -127,18 +127,18 @@ mod test {
         assert_eq!(s, py_string.extract::<String>(py).unwrap());
     }
 
-    /*#[test]
+    #[test]
     fn test_extract_str() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "Hello Python";
         let py_string = s.to_object(py);
         let mut called = false;
-        RefFromPyObject::with_extracted(py, &py_string.into(),
+        RefFromPyObject::with_extracted(py_string.as_ref(py),
             |s2: &str| {
                 assert_eq!(s, s2);
                 called = true;
             }).unwrap();
         assert!(called);
-    }*/
+    }
 }

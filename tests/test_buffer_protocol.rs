@@ -87,6 +87,6 @@ fn test_buffer() {
     let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
 
     let d = PyDict::new(py);
-    d.set_item("ob", t);
+    d.set_item("ob", t).unwrap();
     py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d)).unwrap();
 }

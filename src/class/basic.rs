@@ -11,6 +11,7 @@ use std::os::raw::c_int;
 
 use ::CompareOp;
 use ffi;
+use callback;
 use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer};
 use pointer::PyObjectPtr;
@@ -366,9 +367,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
 
-            let guard = ::callback::AbortOnDrop(LOCATION);
-            let ret = std::panic::catch_unwind(|| {
-                let py = Python::assume_gil_acquired();
+            callback::cb_meth(LOCATION, |py| {
                 let slf = Py::<T>::from_borrowed_ptr(slf);
                 let arg = PyObjectPtr::from_borrowed_ptr(py, arg);
 
@@ -397,17 +396,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
                 py.release(arg);
                 py.release(slf);
                 result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    ::callback::handle_panic(Python::assume_gil_acquired(), err);
-                    std::ptr::null_mut()
-                }
-            };
-            std::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<T>)
     }

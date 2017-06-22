@@ -73,13 +73,13 @@ pub trait FromPyObject<'source> : Sized {
     fn extract(ob: &'source PyObject) -> PyResult<Self>;
 }
 
-/*pub trait RefFromPyObject {
+pub trait RefFromPyObject {
     fn with_extracted<F, R>(ob: &PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R;
 }
 
 impl <T: ?Sized> RefFromPyObject for T
-    where for<'a> &'a T: FromPyObject + Sized
+    where for<'a> &'a T: FromPyObject<'a> + Sized
 {
     #[inline]
     fn with_extracted<F, R>(obj: &PyObject, f: F) -> PyResult<R>
@@ -90,11 +90,10 @@ impl <T: ?Sized> RefFromPyObject for T
             Err(e) => Err(e)
         }
     }
-}*/
+}
 
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
-// `ToPyObject` for references
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 
     #[inline]

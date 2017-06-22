@@ -10,25 +10,29 @@ use std::os::raw::c_char;
 
 use ffi;
 use err::PyResult;
-use pointer::PyObject;
+use pointer::PyObjectPtr;
 use instance::{Py, PyObjectWithToken};
 use python::{Python, ToPyPointer};
+use objectprotocol::ObjectProtocol;
 use super::{PyObject, PyStringData};
 
 /// Represents a Python string.
-pub struct PyString(PyObject);
+pub struct PyString(PyObjectPtr);
 
-pyobject_nativetype2!(PyString, PyBaseString_Type, PyBaseString_Check);
+pyobject_convert!(PyString);
+pyobject_nativetype!(PyString, PyBaseString_Type, PyBaseString_Check);
 
 /// Represents a Python unicode string.
-pub struct PyUnicode(PyObject);
+pub struct PyUnicode(PyObjectPtr);
 
-pyobject_nativetype2!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
+pyobject_convert!(PyUnicode);
+pyobject_nativetype!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python byte string. Corresponds to `str` in Python 2
-pub struct PyBytes(PyObject);
+pub struct PyBytes(PyObjectPtr);
 
-pyobject_nativetype2!(PyBytes, PyBaseString_Type, PyString_Check);
+pyobject_convert!(PyBytes);
+pyobject_nativetype!(PyBytes, PyBaseString_Type, PyString_Check);
 
 
 impl PyString {
@@ -47,11 +51,10 @@ impl PyString {
         }
     }
 
-    pub fn from_object(py: Python, src: &PyObject,
-                       encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
+    pub fn from_object(src: &PyObject, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
-                py, ffi::PyUnicode_FromEncodedObject(
+                src.token(), ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))?
             )
         }
@@ -63,10 +66,9 @@ impl PyString {
     /// even if the bytes are not valid UTF-8.
     /// For unicode strings, returns the underlying representation used by Python.
     pub fn data(&self) -> PyStringData {
-        let ob: &PyObject = self.as_ref();
-        if let Ok(bytes) = ob.cast_as::<PyBytes>(self.token()) {
+        if let Ok(bytes) = self.cast_as::<PyBytes>() {
             PyStringData::Utf8(bytes.data())
-        } else if let Ok(unicode) = ob.cast_as::<PyUnicode>(self.token()) {
+        } else if let Ok(unicode) = self.cast_as::<PyUnicode>() {
             unicode.data()
         } else {
             panic!("PyString is neither `str` nor `unicode`")
@@ -133,12 +135,11 @@ impl PyUnicode {
         }
     }
 
-    pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str)
-                       -> PyResult<Py<PyUnicode>>
+    pub fn from_object(src: &PyObject, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>>
     {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
-                py, ffi::PyUnicode_FromEncodedObject(
+                src.token(), ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const i8,
                     errors.as_ptr() as *const i8))?)
@@ -190,6 +191,7 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 #[cfg(test)]
 mod test {
     use python::Python;
+    use instance::AsPyRef;
     use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
@@ -208,7 +210,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
         let mut called = false;
-        RefFromPyObject::with_extracted(py, &py_string,
+        RefFromPyObject::with_extracted(py_string.as_ref(py),
             |s2: &str| {
                 assert_eq!(s, s2);
                 called = true;

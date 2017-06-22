@@ -89,14 +89,7 @@ pub struct GILGuard {
 impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
-            let pos = self.pos;
-            let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
-
-            let len = pool.len();
-            for ob in &mut pool[pos..len] {
-                ffi::Py_DECREF(ob.as_ptr());
-            }
-            pool.set_len(pos);
+            drain(self.pos);
 
             ffi::PyGILState_Release(self.gstate);
         }
@@ -105,11 +98,46 @@ impl Drop for GILGuard {
 
 static mut POOL: *mut Vec<PyObjectPtr> = 0 as *mut _;
 
-pub fn register<'p>(_py: Python<'p>, obj: PyObjectPtr) -> &'p PyObject {
-    unsafe {
-        let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
-        pool.push(obj);
-        mem::transmute(&pool[pool.len()-1])
+pub struct Pool {
+    pos: usize,
+    no_send: marker::PhantomData<rc::Rc<()>>,
+}
+
+impl Pool {
+    pub unsafe fn new() -> Pool {
+        let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+        Pool{ pos: pool.len(), no_send: marker::PhantomData }
+    }
+    /// Retrieves the marker type that proves that the GIL was acquired.
+    #[inline]
+    pub fn python<'p>(&'p self) -> Python<'p> {
+        unsafe { Python::assume_gil_acquired() }
+    }
+}
+
+impl Drop for Pool {
+    fn drop(&mut self) {
+        unsafe {
+            drain(self.pos);
+        }
+    }
+}
+
+pub unsafe fn register<'p>(_py: Python<'p>, obj: PyObjectPtr) -> &'p PyObject {
+    let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
+    pool.push(obj);
+    mem::transmute(&pool[pool.len()-1])
+}
+
+pub unsafe fn drain(pos: usize) {
+    let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
+
+    let len = pool.len();
+    if pos < len {
+        for ob in &mut pool[pos..len] {
+            ffi::Py_DECREF(ob.as_ptr());
+        }
+        pool.set_len(pos);
     }
 }
 

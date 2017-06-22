@@ -5,7 +5,7 @@ use pointer::PyObjectPtr;
 use objects::{PyObject, PyString};
 use objectprotocol::ObjectProtocol;
 use python::Python;
-use conversion::{ToPyObject, IntoPyObject}; //, RefFromPyObject};
+use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.
@@ -69,11 +69,11 @@ pyobject_extract!(py, obj to String => {
     s.to_string().map(Cow::into_owned)
 });
 
-/*impl RefFromPyObject for str {
+impl RefFromPyObject for str {
     fn with_extracted<F, R>(obj: &PyObject, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
         let s = try!(obj.extract::<Cow<str>>());
         Ok(f(&s))
     }
-}*/
+}
