@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::Python;
+use python::PyDowncastFrom;
 use objects::{PyType, PyObject};
 use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use typeob::PyTypeInfo;
@@ -19,18 +19,18 @@ use conversion::{IntoPyObject, FromPyObject};
 
 /// Descriptor interface
 #[allow(unused_variables)]
-pub trait PyDescrProtocol<'p>: PyTypeInfo {
+pub trait PyDescrProtocol<'p>: PyTypeInfo + PyDowncastFrom {
 
-    fn __get__(&'p self, py: Python<'p>, instance: &'p PyObject, owner: Option<&'p PyType>)
+    fn __get__(&'p self, instance: &'p PyObject, owner: Option<&'p PyType>)
                -> Self::Result where Self: PyDescrGetProtocol<'p> { unimplemented!() }
 
-    fn __set__(&'p self, py: Python<'p>, instance: &'p PyObject, value: &'p PyObject)
+    fn __set__(&'p self, instance: &'p PyObject, value: &'p PyObject)
                -> Self::Result where Self: PyDescrSetProtocol<'p> { unimplemented!() }
 
-    fn __delete__(&'p self, py: Python<'p>, instance: &'p PyObject)
+    fn __delete__(&'p self, instance: &'p PyObject)
                   -> Self::Result where Self: PyDescrDeleteProtocol<'p> { unimplemented!() }
 
-    fn __set_name__(&'p self, py: Python<'p>, instance: &'p PyObject)
+    fn __set_name__(&'p self, instance: &'p PyObject)
                     -> Self::Result where Self: PyDescrSetNameProtocol<'p> { unimplemented!() }
 }
 

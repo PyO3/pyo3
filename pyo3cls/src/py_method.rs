@@ -120,9 +120,10 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().map(
+        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
     let cb = quote! {{
-        #cls::#name(&cls, py, #(#names),*)
+        #cls::#name(&cls, #(#names),*)
     }};
 
     let body = impl_arg_params(spec, cb);
@@ -153,9 +154,10 @@ pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> T
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().map(
+        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
     let cb = quote! {{
-        #cls::#name(&cls, py, #(#names),*)
+        #cls::#name(&cls, #(#names),*)
     }};
     let body = impl_arg_params(spec, cb);
     let output = &spec.output;
@@ -185,9 +187,10 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().map(
+        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
     let cb = quote! {{
-        #cls::#name(py, #(#names),*)
+        #cls::#name(#(#names),*)
     }};
 
     let body = impl_arg_params(spec, cb);
@@ -226,8 +229,8 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _spec: &FnSpec) -> To
                 stringify!(#cls), ".getter_", stringify!(#name), "()");
             _pyo3::callback::cb_unary::<#cls, _, _, _>(
                 LOCATION, slf, _pyo3::callback::PyObjectCallbackConverter, |py, slf| {
-                slf.#name(py)
-            })
+                    slf.#name()
+                })
         }
     }
 }
@@ -252,7 +255,7 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
                 let value = py.cast_from_borrowed_ptr(value);
 
                 let result = match <#val_ty as _pyo3::FromPyObject>::extract(value) {
-                    Ok(val) => slf.#name(py, val),
+                    Ok(val) => slf.#name(val),
                     Err(e) => Err(e)
                 };
                 match result {
@@ -269,20 +272,26 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
 
 
 fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().map(
+        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
     quote! {{
-        slf.#fname(py, #(#names),*)
+        slf.#fname(#(#names),*)
     }}
 }
 
 pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
-    if spec.args.is_empty() {
+    let args: Vec<FnArg> = spec.args.iter()
+        .filter(|item| !item.py).map(|item| item.clone()).collect();
+    if args.is_empty() {
         return body
     }
 
     let mut params = Vec::new();
 
     for arg in spec.args.iter() {
+        if arg.py {
+            continue
+        }
         if ! (spec.is_args(&arg.name) || spec.is_kwargs(&arg.name)) {
             let name = arg.name.as_ref();
             let kwonly = if spec.is_kw_only(&arg.name) {
@@ -330,7 +339,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
         ];
 
         let mut output = [#(#placeholders),*];
-        let result = match _pyo3::argparse::parse_args(
+        match _pyo3::argparse::parse_args(
             py, Some(LOCATION), PARAMS, &args,
             kwargs, #accept_args, #accept_kwargs, &mut output)
         {
@@ -340,18 +349,14 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
                 #body
             },
             Err(err) => Err(err)
-        };
-        for p in output.iter_mut() {
-            if let Some(ob) = p.take() {
-                py.release(ob);
-            }
         }
-
-        result
     }
 }
 
 fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
+    if arg.py {
+        return body.clone()
+    }
     let ty = arg.ty;
     let name = arg.name;
 

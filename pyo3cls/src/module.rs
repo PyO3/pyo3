@@ -200,7 +200,6 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
 
     match item.node {
         syn::ItemKind::Fn(ref decl, _, _, _, _, _) => {
-            let mut py = false;
             let mut arguments = Vec::new();
 
             for input in decl.inputs.iter() {
@@ -214,24 +213,22 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                                 panic!("unsupported argument: {:?}", pat),
                         };
 
-                        if !py {
-                            match ty {
-                                &syn::Ty::Path(_, ref path) =>
-                                    if let Some(segment) = path.segments.last() {
-                                        if segment.ident.as_ref() == "Python" {
-                                            py = true;
-                                            continue;
-                                        }
-                                    },
-                                _ => (),
-                            }
-                        }
+                        let py = match ty {
+                            &syn::Ty::Path(_, ref path) =>
+                                if let Some(segment) = path.segments.last() {
+                                    segment.ident.as_ref() == "Python"
+                                } else {
+                                    false
+                                },
+                            _ => false
+                        };
 
                         let opt = method::check_arg_ty_and_optional(&name, ty);
                         arguments.push(method::FnArg {name: ident,
                                                       mode: mode,
                                                       ty: ty,
-                                                      optional: opt});
+                                                      optional: opt,
+                                                      py: py});
                     }
                     &syn::FnArg::Ignored(_) =>
                         panic!("ignored argument: {:?}", name),
@@ -302,9 +299,10 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().map(
+        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
     let cb = quote! {{
-        #name(py, #(#names),*)
+        #name(#(#names),*)
     }};
 
     let body = py_method::impl_arg_params(spec, cb);

@@ -16,10 +16,10 @@ pub struct PyTraverseError(c_int);
 #[allow(unused_variables)]
 pub trait PyGCProtocol<'p> : PyTypeInfo {
 
-    fn __traverse__(&'p self, py: Python<'p>, visit: PyVisit)
+    fn __traverse__(&'p self, visit: PyVisit)
                     -> Result<(), PyTraverseError> { unimplemented!() }
 
-    fn __clear__(&'p mut self, py: Python<'p>) { unimplemented!() }
+    fn __clear__(&'p mut self) { unimplemented!() }
 
 }
 
@@ -28,11 +28,10 @@ pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
 
 impl<'p, T> PyGCProtocol<'p> for T where T: PyTypeInfo {
-    default fn __traverse__(&'p self, _py: Python<'p>, _: PyVisit)
-                            -> Result<(), PyTraverseError> {
+    default fn __traverse__(&'p self, _: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
-    default fn __clear__(&'p mut self, _py: Python<'p>) {}
+    default fn __clear__(&'p mut self) {}
 }
 
 #[doc(hidden)]
@@ -97,7 +96,7 @@ impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
 
             callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 let visit = PyVisit { visit: visit, arg: arg, _py: py };
-                match slf.__traverse__(py, visit) {
+                match slf.__traverse__(visit) {
                     Ok(()) => 0,
                     Err(PyTraverseError(code)) => code
                 }
@@ -130,8 +129,8 @@ impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__clear__()");
 
-            callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
-                slf.__clear__(py);
+            callback::cb_unary_unit::<T, _>(LOCATION, slf, |_, slf| {
+                slf.__clear__();
                 0
             })
         }

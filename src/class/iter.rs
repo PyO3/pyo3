@@ -8,18 +8,18 @@
 
 use ffi;
 use err::PyResult;
-use python::Python;
+use python::PyDowncastFrom;
 use typeob::PyTypeInfo;
 use callback::{PyObjectCallbackConverter, IterNextResultConverter};
 
 
 /// Iterator protocol
 #[allow(unused_variables)]
-pub trait PyIterProtocol<'p> : PyTypeInfo {
-    fn __iter__(&'p mut self, py: Python<'p>)
+pub trait PyIterProtocol<'p> : PyTypeInfo + PyDowncastFrom {
+    fn __iter__(&'p mut self)
                 -> Self::Result where Self: PyIterIterProtocol<'p> { unimplemented!() }
 
-    fn __next__(&'p mut self, py: Python<'p>)
+    fn __next__(&'p mut self)
                 -> Self::Result where Self: PyIterNextProtocol<'p> { unimplemented!() }
 
 }

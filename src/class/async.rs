@@ -10,7 +10,7 @@
 
 use ffi;
 use err::PyResult;
-use python::Python;
+use python::PyDowncastFrom;
 use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
@@ -20,21 +20,21 @@ use class::methods::PyMethodDef;
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
-pub trait PyAsyncProtocol<'p>: PyTypeInfo + Sized + 'static {
+pub trait PyAsyncProtocol<'p>: PyTypeInfo + PyDowncastFrom {
 
-    fn __await__(&'p self, py: Python<'p>)
+    fn __await__(&'p self)
                  -> Self::Result where Self: PyAsyncAwaitProtocol<'p> { unimplemented!() }
 
-    fn __aiter__(&'p self, py: Python<'p>)
+    fn __aiter__(&'p self)
                  -> Self::Result where Self: PyAsyncAiterProtocol<'p> { unimplemented!() }
 
-    fn __anext__(&'p mut self, py: Python<'p>)
+    fn __anext__(&'p mut self)
                  -> Self::Result where Self: PyAsyncAnextProtocol<'p> { unimplemented!() }
 
-    fn __aenter__(&'p mut self, py: Python<'p>)
+    fn __aenter__(&'p mut self)
                   -> Self::Result where Self: PyAsyncAenterProtocol<'p> { unimplemented!() }
 
-    fn __aexit__(&'p mut self, py: Python<'p>,
+    fn __aexit__(&'p mut self,
                  exc_type: Option<Self::ExcType>,
                  exc_value: Option<Self::ExcValue>,
                  traceback: Option<Self::Traceback>)

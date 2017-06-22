@@ -5,7 +5,7 @@
 
 use ffi;
 use err::{PyErr, PyResult};
-use python::Python;
+use python::{Python, PyDowncastFrom};
 use objects::exc;
 use callback::{PyObjectCallbackConverter, LenResultConverter};
 use conversion::{IntoPyObject, FromPyObject};
@@ -15,27 +15,27 @@ use class::methods::PyMethodDef;
 
 /// Mapping interface
 #[allow(unused_variables)]
-pub trait PyMappingProtocol<'p>: PyTypeInfo + Sized + 'static {
+pub trait PyMappingProtocol<'p>: PyTypeInfo + PyDowncastFrom + Sized + 'static {
 
-    fn __len__(&'p self, py: Python<'p>)
+    fn __len__(&'p self)
                -> Self::Result where Self: PyMappingLenProtocol<'p> {unimplemented!()}
 
-    fn __getitem__(&'p self, py: Python<'p>, key: Self::Key)
+    fn __getitem__(&'p self, key: Self::Key)
                    -> Self::Result where Self: PyMappingGetItemProtocol<'p> {unimplemented!()}
 
-    fn __setitem__(&'p mut self, py: Python<'p>, key: Self::Key, value: Self::Value)
+    fn __setitem__(&'p mut self, key: Self::Key, value: Self::Value)
                    -> Self::Result where Self: PyMappingSetItemProtocol<'p> {unimplemented!()}
 
-    fn __delitem__(&'p mut self, py: Python<'p>, key: Self::Key)
+    fn __delitem__(&'p mut self, key: Self::Key)
                    -> Self::Result where Self: PyMappingDelItemProtocol<'p> {unimplemented!()}
 
     fn __iter__(&'p self, py: Python<'p>)
                 -> Self::Result where Self: PyMappingIterProtocol<'p> {unimplemented!()}
 
-    fn __contains__(&'p self, py: Python<'p>, value: Self::Value)
+    fn __contains__(&'p self, value: Self::Value)
                     -> Self::Result where Self: PyMappingContainsProtocol<'p> {unimplemented!()}
 
-    fn __reversed__(&'p self, py: Python<'p>)
+    fn __reversed__(&'p self)
                     -> Self::Result where Self: PyMappingReversedProtocol<'p> {unimplemented!()}
 
 }

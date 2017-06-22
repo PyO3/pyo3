@@ -188,13 +188,12 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
                     if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) == 0 {
                         // automatically initialize the class on-demand
-                        let to = _pyo3::typeob::initialize_type::<#cls>(
+                        _pyo3::typeob::initialize_type::<#cls>(
                             py, None, <#cls as _pyo3::typeob::PyTypeInfo>::type_name(),
                             <#cls as _pyo3::typeob::PyTypeInfo>::type_description(), ty).expect(
                             format!("An error occurred while initializing class {}",
                                     <#cls as _pyo3::typeob::PyTypeInfo>::type_name())
                                 .as_ref());
-                        py.release(to);
                     }
                 });
             }

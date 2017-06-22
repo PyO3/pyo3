@@ -28,19 +28,19 @@ struct Test {
 #[py::proto]
 impl<'p> PyMappingProtocol<'p> for Test
 {
-    fn __getitem__(&self, py: Python, idx: &PyObject) -> PyResult<PyObjectPtr> {
+    fn __getitem__(&self, idx: &PyObject) -> PyResult<PyObjectPtr> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".into_object(py))
+                return Ok("slice".into_object(self.token()))
             }
         }
         else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".into_object(py))
+                return Ok("int".into_object(self.token()))
             }
         }
-        Err(PyErr::new::<exc::ValueError, _>(py, "error"))
+        Err(PyErr::new::<exc::ValueError, _>(self.token(), "error"))
     }
 }
 

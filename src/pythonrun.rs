@@ -104,15 +104,16 @@ pub struct Pool {
 }
 
 impl Pool {
+    #[inline]
     pub unsafe fn new() -> Pool {
         let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
         Pool{ pos: pool.len(), no_send: marker::PhantomData }
     }
-    /// Retrieves the marker type that proves that the GIL was acquired.
-    #[inline]
-    pub fn python<'p>(&'p self) -> Python<'p> {
-        unsafe { Python::assume_gil_acquired() }
-    }
+    // /// Retrieves the marker type that proves that the GIL was acquired.
+    // #[inline]
+    // pub fn python<'p>(&'p self) -> Python<'p> {
+    //    unsafe { Python::assume_gil_acquired() }
+    //}
 }
 
 impl Drop for Pool {

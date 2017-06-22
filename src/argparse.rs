@@ -16,7 +16,7 @@ pub struct ParamDescription<'a> {
     /// Whether the parameter is optional.
     pub is_optional: bool,
     /// Whether the parameter is optional.
-    pub kw_only: bool
+    pub kw_only: bool,
 }
 
 /// Parse argument list
@@ -33,7 +33,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                       accept_args: bool, accept_kwargs: bool,
                       output: &mut[Option<&'p PyObject>]) -> PyResult<()>
 {
-    assert!(params.len() == output.len());
+
 
     let nargs = args.len();
     let nkeywords = kwargs.map_or(0, |d| d.len());

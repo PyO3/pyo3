@@ -116,7 +116,8 @@ impl PyBytes {
 #[cfg(test)]
 mod test {
     use python::Python;
-    use conversion::{ToPyObject}; //, RefFromPyObject};
+    use instance::AsPyRef;
+    use conversion::{ToPyObject, RefFromPyObject};
 
     #[test]
     fn test_non_bmp() {
