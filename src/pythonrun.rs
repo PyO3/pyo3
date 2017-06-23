@@ -69,7 +69,8 @@ pub fn prepare_freethreaded_python() {
 pub fn prepare_pyo3_library() {
     START_PYO3.call_once(|| unsafe {
         // initialize release pool
-        POOL = Box::into_raw(Box::new(Vec::with_capacity(250)));
+        OWNED = Box::into_raw(Box::new(Vec::with_capacity(250)));
+        BORROWED = Box::into_raw(Box::new(Vec::with_capacity(250)));
     });
 }
 
@@ -86,7 +87,8 @@ pub fn prepare_pyo3_library() {
 /// ```
 #[must_use]
 pub struct GILGuard {
-    pos: usize,
+    owned: usize,
+    borrowed: usize,
     gstate: ffi::PyGILState_STATE,
     // hack to opt out of Send on stable rust, which doesn't
     // have negative impls
@@ -97,25 +99,30 @@ pub struct GILGuard {
 impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
-            drain(self.pos);
+            drain(self.owned, self.borrowed);
 
             ffi::PyGILState_Release(self.gstate);
         }
     }
 }
 
-static mut POOL: *mut Vec<PyObject> = 0 as *mut _;
+static mut OWNED: *mut Vec<PyObject> = 0 as *mut _;
+static mut BORROWED: *mut Vec<PyObject> = 0 as *mut _;
 
 pub struct Pool {
-    pos: usize,
+    owned: usize,
+    borrowed: usize,
     no_send: marker::PhantomData<rc::Rc<()>>,
 }
 
 impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
-        let pool: &'static mut Vec<PyInstance> = mem::transmute(POOL);
-        Pool{ pos: pool.len(), no_send: marker::PhantomData }
+        let owned: &'static mut Vec<PyObject> = mem::transmute(OWNED);
+        let borrowed: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+        Pool{ owned: owned.len(),
+              borrowed: borrowed.len(),
+              no_send: marker::PhantomData }
     }
     // /// Retrieves the marker type that proves that the GIL was acquired.
     // #[inline]
@@ -127,27 +134,43 @@ impl Pool {
 impl Drop for Pool {
     fn drop(&mut self) {
         unsafe {
-            drain(self.pos);
+            drain(self.owned, self.borrowed);
         }
     }
 }
 
-pub unsafe fn register<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyInstance {
-    let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyInstance {
+    let pool: &'static mut Vec<PyObject> = mem::transmute(OWNED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
 }
 
-pub unsafe fn drain(pos: usize) {
-    let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyInstance {
+    let pool: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+    pool.push(obj);
+    mem::transmute(&pool[pool.len()-1])
+}
 
-    let len = pool.len();
-    if pos < len {
-        for ob in &mut pool[pos..len] {
+pub unsafe fn drain(owned: usize, borrowed: usize) {
+    let owned_pool: &'static mut Vec<PyObject> = mem::transmute(OWNED);
+
+    let len = owned_pool.len();
+    if owned < len {
+        for ob in &mut owned_pool[owned..len] {
             ffi::Py_DECREF(ob.as_ptr());
         }
-        pool.set_len(pos);
+        owned_pool.set_len(owned);
     }
+
+    let borrowed_pool: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+    let len = borrowed_pool.len();
+    if borrowed < len {
+        for ob in &mut borrowed_pool[borrowed..len] {
+            ffi::Py_DECREF(ob.as_ptr());
+        }
+        borrowed_pool.set_len(borrowed);
+    }
+
 }
 
 
@@ -157,13 +180,17 @@ impl GILGuard {
     /// If the Python runtime is not already initialized, this function will initialize it.
     /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
     pub fn acquire() -> GILGuard {
-        ::pythonrun::prepare_freethreaded_python();
+        prepare_freethreaded_python();
 
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-            let pool: &'static mut Vec<PyInstance> = mem::transmute(POOL);
+            let owned: &'static mut Vec<PyObject> = mem::transmute(OWNED);
+            let borrowed: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
 
-            GILGuard { pos: pool.len(), gstate: gstate, no_send: marker::PhantomData }
+            GILGuard { owned: owned.len(),
+                       borrowed: borrowed.len(),
+                       gstate: gstate,
+                       no_send: marker::PhantomData }
         }
     }
 

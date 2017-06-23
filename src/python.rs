@@ -11,7 +11,7 @@ use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use instance::{Py, PyToken};
 use pointer::PyObject;
-use objects::{PyInstance, PyType, PyBool, PyDict, PyModule};
+use objects::{PyInstance, PyType, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 use pythonrun::{self, GILGuard};
 
@@ -213,20 +213,6 @@ impl<'p> Python<'p> {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
     }
 
-    /// Gets the Python builtin value `True`.
-    #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
-    pub fn True(self) -> &'p PyBool {
-        PyBool::new(self, true)
-    }
-
-    /// Gets the Python builtin value `False`.
-    #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
-    pub fn False(self) -> &'p PyBool {
-        PyBool::new(self, false)
-    }
-
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -281,7 +267,7 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         unsafe {
-            let p = pythonrun::register(self, obj);
+            let p = pythonrun::register_owned(self, obj);
             <D as PyDowncastFrom>::downcast_from(p)
         }
     }
@@ -289,7 +275,7 @@ impl<'p> Python<'p> {
     pub unsafe fn cast_as<D>(self, obj: PyObject) -> &'p D
         where D: PyDowncastFrom
     {
-        let p = pythonrun::register(self, obj);
+        let p = pythonrun::register_owned(self, obj);
         <D as PyDowncastFrom>::unchecked_downcast_from(p)
     }
 
@@ -297,7 +283,7 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         let obj = PyObject::from_owned_ptr_or_panic(self, ptr);
-        let p = pythonrun::register(self, obj);
+        let p = pythonrun::register_owned(self, obj);
         <D as PyDowncastFrom>::unchecked_downcast_from(p)
     }
 
@@ -306,7 +292,7 @@ impl<'p> Python<'p> {
     {
         let obj = PyObject::from_owned_ptr_or_err(self, ptr)?;
         unsafe {
-            let p = pythonrun::register(self, obj);
+            let p = pythonrun::register_owned(self, obj);
             Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
         }
     }
@@ -319,7 +305,7 @@ impl<'p> Python<'p> {
         } else {
             unsafe {
                 let obj = PyObject::from_owned_ptr(self, ptr);
-                let p = pythonrun::register(self, obj);
+                let p = pythonrun::register_owned(self, obj);
                 Some(<D as PyDowncastFrom>::unchecked_downcast_from(p))
             }
         }
@@ -329,7 +315,7 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         let obj = PyObject::from_borrowed_ptr(self, ptr);
-        let p = pythonrun::register(self, obj);
+        let p = pythonrun::register_borrowed(self, obj);
         <D as PyDowncastFrom>::unchecked_downcast_from(p)
     }
 
@@ -338,7 +324,7 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         let obj = PyObject::from_borrowed_ptr_or_err(self, ptr)?;
-        let p = pythonrun::register(self, obj);
+        let p = pythonrun::register_borrowed(self, obj);
         Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
     }
 
@@ -350,7 +336,7 @@ impl<'p> Python<'p> {
             None
         } else {
             let obj = PyObject::from_borrowed_ptr(self, ptr);
-            let p = pythonrun::register(self, obj);
+            let p = pythonrun::register_borrowed(self, obj);
             Some(<D as PyDowncastFrom>::unchecked_downcast_from(p))
         }
     }
@@ -359,13 +345,13 @@ impl<'p> Python<'p> {
         where D: PyDowncastFrom
     {
         let obj = PyObject::from_borrowed_ptr(self, ptr);
-        let p = pythonrun::register(self, obj);
+        let p = pythonrun::register_borrowed(self, obj);
         <D as PyDowncastFrom>::unchecked_mut_downcast_from(p)
     }
 
     pub fn track_object(self, obj: PyObject) -> &'p PyInstance
     {
-        unsafe { pythonrun::register(self, obj) }
+        unsafe { pythonrun::register_owned(self, obj) }
     }
 }
 
@@ -405,7 +391,7 @@ mod test {
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.is_instance::<PyBool, PyInstance>(py.True().into()).unwrap());
+        assert!(py.is_instance::<PyBool, PyInstance>(PyBool::new(py, true).into()).unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
         assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());

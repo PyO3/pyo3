@@ -32,8 +32,7 @@ impl ToPyObject for bool {
     fn to_object(&self, py: Python) -> PyObject {
         unsafe {
             PyObject::from_borrowed_ptr(
-                py,
-                if *self { ffi::Py_True() } else { ffi::Py_False() })
+                py, if *self { ffi::Py_True() } else { ffi::Py_False() })
         }
     }
 
@@ -64,7 +63,7 @@ pyobject_extract!(py, obj to bool => {
 #[cfg(test)]
 mod test {
     use python::Python;
-    use objects::PyInstance;
+    use objects::{PyBool, PyInstance};
     use conversion::ToPyObject;
     use objectprotocol::ObjectProtocol;
 
@@ -72,19 +71,19 @@ mod test {
     fn test_true() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.True().is_true());
-        let t: &PyInstance = py.True().into();
+        assert!(PyBool::new(py, true).is_true());
+        let t: &PyInstance = PyBool::new(py, true).into();
         assert_eq!(true, t.extract().unwrap());
-        assert!(true.to_object(py) == py.True().into());
+        assert!(true.to_object(py) == PyBool::new(py, true).into());
     }
 
     #[test]
     fn test_false() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(!py.False().is_true());
-        let t: &PyInstance = py.False().into();
+        assert!(!PyBool::new(py, false).is_true());
+        let t: &PyInstance = PyBool::new(py, false).into();
         assert_eq!(false, t.extract().unwrap());
-        assert!(false.to_object(py) == py.False().into());
+        assert!(false.to_object(py) == PyBool::new(py, false).into());
     }
 }
