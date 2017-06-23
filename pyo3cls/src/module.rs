@@ -43,30 +43,30 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
         #[no_mangle]
         #[allow(non_snake_case)]
         pub unsafe extern "C" fn #cb_name() -> *mut ::pyo3::ffi::PyObject {
+            extern crate pyo3;
             use std;
-            extern crate pyo3 as _pyo3;
             use pyo3::{IntoPyPointer, ObjectProtocol};
 
             // initialize python
-            pyo3::pythonrun::prepare_freethreaded_python();
+            pyo3::prepare_freethreaded_python();
 
-            static mut MODULE_DEF: _pyo3::ffi::PyModuleDef = _pyo3::ffi::PyModuleDef_INIT;
+            static mut MODULE_DEF: pyo3::ffi::PyModuleDef = pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#cb_name), "\0").as_ptr() as *const _;
 
-            _pyo3::callback::cb_meth("py_module_init", |py| {
-                _pyo3::ffi::PyEval_InitThreads();
+            pyo3::callback::cb_meth("py_module_init", |py| {
+                pyo3::ffi::PyEval_InitThreads();
 
-                let module = _pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
+                let module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
                 if module.is_null() {
                     return module;
                 }
 
-                let module = match py.cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
+                let module = match py.cast_from_ptr_or_err::<pyo3::PyModule>(module) {
                     Ok(m) => m,
                     Err(e) => {
-                        _pyo3::PyErr::from(e).restore(py);
+                        pyo3::PyErr::from(e).restore(py);
                         return std::ptr::null_mut();
                     }
                 };
@@ -118,15 +118,14 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
         #[no_mangle]
         #[allow(non_snake_case)]
         pub unsafe extern "C" fn #cb_name() {
-            extern crate pyo3 as _pyo3;
+            extern crate pyo3;
             use std;
-            use pyo3::pythonrun;
 
             // initialize python
-            pyo3::pythonrun::prepare_freethreaded_python();
+            pyo3::prepare_freethreaded_python();
 
             let name = concat!(stringify!(#cb_name), "\0").as_ptr() as *const _;
-            let guard = _pyo3::callback::AbortOnDrop("py_module_initializer");
+            let guard = pyo3::callback::AbortOnDrop("py_module_initializer");
             let py = pyo3::Python::assume_gil_acquired();
             pyo3::ffi::PyEval_InitThreads();
             let module = pyo3::ffi::Py_InitModule(name, std::ptr::null_mut());
@@ -135,10 +134,10 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 return
             }
 
-            let module = match py.cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
+            let module = match py.cast_from_ptr_or_err::<pyo3::PyModule>(module) {
                 Ok(m) => m,
                 Err(e) => {
-                    _pyo3::PyErr::from(e).restore(py);
+                    pyo3::PyErr::from(e).restore(py);
                     std::mem::forget(guard);
                     return
                 }
