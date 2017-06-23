@@ -161,9 +161,24 @@ impl<T> Py<T> {
 
 impl<T> Py<T> where T: PyTypeInfo,
 {
+    /// Create new instance of T and move under python management
+    /// Returns `Py<T>`.
+    pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
+    where F: FnOnce(::PyToken) -> T,
+          T: PyObjectAlloc<T>
+    {
+        let ob = f(PyToken(PhantomData));
+
+        let ob = unsafe {
+            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
+            Py::from_owned_ptr(ob)
+        };
+        Ok(ob)
+    }
+
     /// Create new instance of `T` and move under python management.
     /// Returns references to `T`
-    pub fn new<'p, F>(py: Python<'p>, f: F) -> PyResult<&'p T>
+    pub fn new_ref<'p, F>(py: Python<'p>, f: F) -> PyResult<&'p T>
         where F: FnOnce(::PyToken) -> T,
               T: PyObjectAlloc<T> + PyDowncastFrom
     {
@@ -189,20 +204,6 @@ impl<T> Py<T> where T: PyTypeInfo,
         }
     }
 
-    /// Create new instance of T and move under python management
-    /// Returns `Py<T>`.
-    pub fn new_ptr<F>(py: Python, f: F) -> PyResult<Py<T>>
-        where F: FnOnce(::PyToken) -> T,
-              T: PyObjectAlloc<T>
-    {
-        let ob = f(PyToken(PhantomData));
-
-        let ob = unsafe {
-            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
-            Py::from_owned_ptr(ob)
-        };
-        Ok(ob)
-    }
 }
 
 impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {

@@ -155,7 +155,7 @@ impl NewWithTwoArgs {
     #[new]
     fn __new__(cls: &PyType, arg1: i32, arg2: i32) -> PyResult<Py<NewWithTwoArgs>>
     {
-        Py::new_ptr(
+        Py::new(
             cls.token(),
             |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
@@ -180,12 +180,12 @@ fn class_with_freelist() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Py::new_ptr(py, |t| ClassWithFreelist{token: t}).unwrap();
-    let inst2 = Py::new_ptr(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst2 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     let ptr = inst.as_ptr();
     drop(inst);
 
-    let inst3 = Py::new_ptr(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst3 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     assert_eq!(ptr, inst3.as_ptr());
 }
 
@@ -212,7 +212,7 @@ fn data_is_dropped() {
 
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
-    let inst = py.init_ptr(|t| DataIsDropped{
+    let inst = py.init(|t| DataIsDropped{
         member1: TestDropCall { drop_called: drop_called1.clone() },
         member2: TestDropCall { drop_called: drop_called2.clone() },
         token: t
@@ -244,7 +244,7 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Py::new(py, |t| InstanceMethod{member: 42, token: t}).unwrap();
+    let obj = py.init_ref(|t| InstanceMethod{member: 42, token: t}).unwrap();
     assert!(obj.method().unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
@@ -270,7 +270,7 @@ fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Py::new(py, |t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
+    let obj = py.init_ref(|t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
     assert!(obj.method(6).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
@@ -286,7 +286,7 @@ struct ClassMethod {token: PyToken}
 impl ClassMethod {
     #[new]
     fn __new__(cls: &PyType) -> PyResult<Py<ClassMethod>> {
-        Py::new_ptr(cls.token(), |t| ClassMethod{token: t})
+        cls.token().init(|t| ClassMethod{token: t})
     }
 
     #[classmethod]
@@ -407,7 +407,7 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = Py::new(py, |t| GCIntegration{
+        let inst = Py::new_ref(py, |t| GCIntegration{
             self_ref: RefCell::new(py.None().into()),
             dropped: TestDropCall { drop_called: drop_called.clone() },
             token: t}).unwrap();
@@ -642,7 +642,7 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| SetItem{key: 0, val: 0, token: t}).unwrap();
+    let c = py.init_ref(|t| SetItem{key: 0, val: 0, token: t}).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.key, 1);
     assert_eq!(c.val, 2);
@@ -668,7 +668,7 @@ fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| DelItem{key:0, token:t}).unwrap();
+    let c = py.init_ref(|t| DelItem{key:0, token:t}).unwrap();
     py_run!(py, c, "del c[1]");
     assert_eq!(c.key, 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
@@ -698,7 +698,7 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| SetDelItem{val: None, token: t}).unwrap();
+    let c = py.init_ref(|t| SetDelItem{val: None, token: t}).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.val, Some(2));
     py_run!(py, c, "del c[1]");

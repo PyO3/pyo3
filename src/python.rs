@@ -237,13 +237,23 @@ impl<'p> Python<'p> {
 impl<'p> Python<'p> {
 
     /// Create new instance of T and move under python management.
+    /// Returns `Py<T>`.
+    #[inline]
+    pub fn init<T, F>(self, f: F) -> PyResult<Py<T>>
+        where F: FnOnce(PyToken) -> T,
+              T: PyTypeInfo + PyObjectAlloc<T>
+    {
+        Py::new(self, f)
+    }
+
+    /// Create new instance of T and move under python management.
     /// Created object get registered in release pool. Returns references to `T`
     #[inline]
-    pub fn init<T, F>(self, f: F) -> PyResult<&'p T>
+        pub fn init_ref<T, F>(self, f: F) -> PyResult<&'p T>
         where F: FnOnce(PyToken) -> T,
               T: PyTypeInfo + PyObjectAlloc<T> + PyDowncastFrom
     {
-        Py::new(self, f)
+        Py::new_ref(self, f)
     }
 
     /// Create new instance of T and move under python management.
@@ -254,16 +264,6 @@ impl<'p> Python<'p> {
               T: PyTypeInfo + PyObjectAlloc<T> + PyDowncastFrom
     {
         Py::new_mut(self, f)
-    }
-
-    /// Create new instance of T and move under python management.
-    /// Returns `Py<T>`.
-    #[inline]
-    pub fn init_ptr<T, F>(self, f: F) -> PyResult<Py<T>>
-        where F: FnOnce(PyToken) -> T,
-              T: PyTypeInfo + PyObjectAlloc<T>
-    {
-        Py::new_ptr(self, f)
     }
 }
 
