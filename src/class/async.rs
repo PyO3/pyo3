@@ -53,7 +53,7 @@ pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
     type Success: ::IntoPyObject;
-    type Result: Into<PyResult<Self::Success>>;
+    type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
@@ -172,12 +172,46 @@ impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p>
     }
 }
 
-impl<T> PyAsyncAnextProtocolImpl for T where T: for<'p> PyAsyncAnextProtocol<'p>
-{
-    #[inline]
-    fn am_anext() -> Option<ffi::unaryfunc> {
-        py_unary_func!(PyAsyncAnextProtocol, T::__anext__,
-                           <T as PyAsyncAnextProtocol>::Success, PyObjectCallbackConverter)
+
+#[cfg(Py_3)]
+mod anext {
+    use std::ptr;
+    use ffi;
+    use callback::CallbackConverter;
+    use conversion::IntoPyObject;
+    use python::{Python, IntoPyPointer};
+    use super::{PyAsyncAnextProtocolImpl, PyAsyncAnextProtocol};
+
+    pub struct IterANextResultConverter;
+
+    impl <T> CallbackConverter<Option<T>> for IterANextResultConverter
+        where T: IntoPyObject
+    {
+        type R = *mut ffi::PyObject;
+
+        fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
+            match val {
+                Some(val) => val.into_object(py).into_ptr(),
+                None => unsafe {
+                    ffi::PyErr_SetNone(ffi::PyExc_StopAsyncIteration);
+                    ptr::null_mut()
+                }
+            }
+        }
+
+        #[inline]
+        fn error_value() -> *mut ffi::PyObject {
+            ptr::null_mut()
+        }
+    }
+
+    impl<T> PyAsyncAnextProtocolImpl for T where T: for<'p> PyAsyncAnextProtocol<'p>
+    {
+        #[inline]
+        fn am_anext() -> Option<ffi::unaryfunc> {
+            py_unary_func!(PyAsyncAnextProtocol, T::__anext__,
+                           Option<T::Success>, IterANextResultConverter)
+        }
     }
 }
 
