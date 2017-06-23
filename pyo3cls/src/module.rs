@@ -309,12 +309,11 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
     let output = &spec.output;
 
     quote! {
-        #[allow(unused_mut)]
+        #[allow(unused_variables)]
         unsafe extern "C" fn wrap(_slf: *mut _pyo3::ffi::PyObject,
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-            use pyo3::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             _pyo3::callback::cb_meth(LOCATION, |py| {

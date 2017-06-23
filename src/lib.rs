@@ -72,7 +72,7 @@
 //!
 //! 1. `m`: The module name.
 //! 2. name of function visible to Python code.
-//! 3. arguments description string, i.e. "param1, param2=None, *, param3=55"
+//! 3. comma separated arguments, i.e. param="None", "*", param3="55"
 //!
 //!
 //! # Example
@@ -81,7 +81,7 @@
 //! #![feature(proc_macro, specialization)]
 //!
 //! extern crate pyo3;
-//! use pyo3::{py, Python, PyResult, PyModule, PyString};
+//! use pyo3::{py, Python, PyResult, PyModule, PyString, ObjectProtocol};
 //!
 //! // add bindings to the generated python module
 //! // N.B: names: "libhello" must be the name of the `.so` or `.pyd` file
