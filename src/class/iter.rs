@@ -6,11 +6,14 @@
 //! more information
 //! https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter
 
+use std::ptr;
+
 use ffi;
 use err::PyResult;
-use python::PyDowncastFrom;
+use python::{Python, PyDowncastFrom, IntoPyPointer};
 use typeob::PyTypeInfo;
-use callback::{PyObjectCallbackConverter, IterNextResultConverter};
+use conversion::IntoPyObject;
+use callback::{CallbackConverter, PyObjectCallbackConverter};
 
 
 /// Iterator protocol
@@ -91,6 +94,30 @@ impl<T> PyIterNextProtocolImpl for T where T: for<'p> PyIterNextProtocol<'p>
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
         py_unary_func!(PyIterNextProtocol, T::__next__,
-                       Option<T::Success>, IterNextResultConverter)
+                       Option<T::Success>, IterNextConverter)
+    }
+}
+
+
+struct IterNextConverter;
+
+impl <T> CallbackConverter<Option<T>> for IterNextConverter
+    where T: IntoPyObject
+{
+    type R = *mut ffi::PyObject;
+
+    fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
+        match val {
+            Some(val) => val.into_object(py).into_ptr(),
+            None => unsafe {
+                ffi::PyErr_SetNone(ffi::PyExc_StopIteration);
+                ptr::null_mut()
+            }
+        }
+    }
+
+    #[inline]
+    fn error_value() -> *mut ffi::PyObject {
+        ptr::null_mut()
     }
 }

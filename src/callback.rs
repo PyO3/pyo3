@@ -93,29 +93,6 @@ impl CallbackConverter<()> for UnitCallbackConverter {
     }
 }
 
-pub struct IterNextResultConverter;
-
-impl <T> CallbackConverter<Option<T>> for IterNextResultConverter
-    where T: IntoPyObject
-{
-    type R = *mut ffi::PyObject;
-
-    fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
-        match val {
-            Some(val) => val.into_object(py).into_ptr(),
-            None => unsafe {
-                ffi::PyErr_SetNone(ffi::PyExc_StopIteration);
-                ptr::null_mut()
-            }
-        }
-    }
-
-    #[inline]
-    fn error_value() -> *mut ffi::PyObject {
-        ptr::null_mut()
-    }
-}
-
 pub trait WrappingCastTo<T> {
     fn wrapping_cast(self) -> T;
 }
