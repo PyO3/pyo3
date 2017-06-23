@@ -9,9 +9,10 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use python::{Python, IntoPyPointer};
+use pointer::PyObject;
+use python::{Python, ToPyPointer};
 use err::PyResult;
-use super::{PyObject, PyTuple, PyType};
+use super::{PyTuple, PyType};
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
@@ -24,7 +25,7 @@ macro_rules! exc_type(
             fn init_type(_py: Python) {}
 
             #[inline]
-            fn type_object(py: $crate::python::Python) -> $crate::PyType {
+            fn type_object<'p>(py: $crate::python::Python<'p>) -> &'p $crate::PyType {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }
@@ -126,10 +127,10 @@ impl UnicodeDecodeError {
 
 impl StopIteration {
 
-    pub fn stop_iteration(_py: Python, args: PyTuple) {
+    pub fn stop_iteration(_py: Python, args: &PyTuple) {
         unsafe {
             ffi::PyErr_SetObject(
-                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.into_ptr());
+                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.as_ptr());
         }
     }
 }

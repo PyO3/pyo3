@@ -11,13 +11,13 @@ use std::os::raw::c_int;
 
 use ::CompareOp;
 use ffi;
+use callback;
 use err::{PyErr, PyResult};
-use python::{Python, IntoPyPointer};
-use objects::PyObject;
-use objects::exc;
-use token::{Py, AsPyRef};
+use python::{Python, IntoPyPointer, PyDowncastFrom};
+use objects::{exc, PyInstance};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
+use objectprotocol::ObjectProtocol;
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
 
@@ -27,40 +27,40 @@ use class::methods::PyMethodDef;
 
 /// Basic python class customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'p>: PyTypeInfo + Sized + 'static {
+pub trait PyObjectProtocol<'p>: PyTypeInfo + PyDowncastFrom + Sized + 'static {
 
-    fn __getattr__(&'p self, py: Python<'p>, name: Self::Name)
+    fn __getattr__(&'p self, name: Self::Name)
                    -> Self::Result where Self: PyObjectGetAttrProtocol<'p> {unimplemented!()}
 
-    fn __setattr__(&'p mut self, py: Python<'p>, name: Self::Name, value: Self::Value)
+    fn __setattr__(&'p mut self, name: Self::Name, value: Self::Value)
                    -> Self::Result where Self: PyObjectSetAttrProtocol<'p> {unimplemented!()}
 
-    fn __delattr__(&'p mut self, py: Python<'p>, name: Self::Name)
+    fn __delattr__(&'p mut self, name: Self::Name)
                    -> Self::Result where Self: PyObjectDelAttrProtocol<'p> {unimplemented!()}
 
-    fn __str__(&'p self, py: Python<'p>)
+    fn __str__(&'p self)
                -> Self::Result where Self: PyObjectStrProtocol<'p> {unimplemented!()}
 
-    fn __repr__(&'p self, py: Python<'p>)
+    fn __repr__(&'p self)
                 -> Self::Result where Self: PyObjectReprProtocol<'p> {unimplemented!()}
 
-    fn __format__(&'p self, py: Python<'p>, format_spec: Self::Format)
+    fn __format__(&'p self, format_spec: Self::Format)
                   -> Self::Result where Self: PyObjectFormatProtocol<'p> {unimplemented!()}
 
-    fn __hash__(&'p self, py: Python<'p>)
+    fn __hash__(&'p self)
                 -> Self::Result where Self: PyObjectHashProtocol<'p> {unimplemented!()}
 
-    fn __bool__(&'p self, py: Python<'p>)
+    fn __bool__(&'p self)
                 -> Self::Result where Self: PyObjectBoolProtocol<'p> {unimplemented!()}
 
-    fn __bytes__(&'p self, py: Python<'p>)
+    fn __bytes__(&'p self)
                  -> Self::Result where Self: PyObjectBytesProtocol<'p> {unimplemented!()}
 
     /// This method is used by Python2 only.
-    fn __unicode__(&'p self, py: Python<'p>)
+    fn __unicode__(&'p self)
                    -> Self::Result where Self: PyObjectUnicodeProtocol<'p> {unimplemented!()}
 
-    fn __richcmp__(&'p self, py: Python<'p>, other: Self::Other, op: CompareOp)
+    fn __richcmp__(&'p self, other: Self::Other, op: CompareOp)
                    -> Self::Result where Self: PyObjectRichcmpProtocol<'p> {unimplemented!()}
 }
 
@@ -355,59 +355,39 @@ impl<'p, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol<'p>
     }
 }
 impl<T> PyObjectRichcmpProtocolImpl for T
-    where T: for<'p> PyObjectRichcmpProtocol<'p>
+    where T: for<'p> PyObjectRichcmpProtocol<'p> + PyDowncastFrom
 {
     #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject,
                                      op: c_int) -> *mut ffi::PyObject
-            where T: for<'p> PyObjectRichcmpProtocol<'p>
+            where T: for<'p> PyObjectRichcmpProtocol<'p> + PyDowncastFrom
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
 
-            let guard = ::callback::AbortOnDrop(LOCATION);
-            let ret = std::panic::catch_unwind(|| {
-                let py = Python::assume_gil_acquired();
-                let slf = Py::<T>::from_borrowed_ptr(slf);
-                let arg = PyObject::from_borrowed_ptr(py, arg);
+            callback::cb_meth(LOCATION, |py| {
+                let slf = py.cast_from_borrowed_ptr::<T>(slf);
+                let arg = py.cast_from_borrowed_ptr::<PyInstance>(arg);
 
-                let result = {
-                    let res = match extract_op(py, op) {
-                        Ok(op) => {
-                            match arg.extract(py) {
-                                Ok(arg) => {
-                                    slf.as_ref(py).__richcmp__(py, arg, op).into()
-                                }
-                                Err(e) => Err(e.into()),
-                            }
-                        },
-                        Err(e) => Err(e)
-                    };
-                    match res {
-                        Ok(val) => {
-                            val.into_object(py).into_ptr()
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            std::ptr::null_mut()
-                        }
-                    }
+                let res = match extract_op(py, op) {
+                    Ok(op) => match arg.extract() {
+                        Ok(arg) =>
+                            slf.__richcmp__(arg, op).into(),
+                        Err(e) => Err(e.into()),
+                    },
+                    Err(e) => Err(e)
                 };
-                py.release(arg);
-                py.release(slf);
-                result
-            });
-
-            let ret = match ret {
-                Ok(r) => r,
-                Err(ref err) => {
-                    ::callback::handle_panic(Python::assume_gil_acquired(), err);
-                    std::ptr::null_mut()
+                match res {
+                    Ok(val) => {
+                        val.into_object(py).into_ptr()
+                    }
+                    Err(e) => {
+                        e.restore(py);
+                        std::ptr::null_mut()
+                    }
                 }
-            };
-            std::mem::forget(guard);
-            ret
+            })
         }
         Some(wrap::<T>)
     }

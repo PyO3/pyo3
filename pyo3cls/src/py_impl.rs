@@ -55,7 +55,7 @@ fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
     quote! {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes,
-                unused_qualifications, unused_variables)]
+                unused_qualifications, unused_variables, unused_imports)]
         const #dummy_const: () = {
             extern crate pyo3 as _pyo3;
 

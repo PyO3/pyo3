@@ -6,10 +6,10 @@
 use std::os::raw::c_int;
 
 use ffi;
-use python::Python;
+use python::PyDowncastFrom;
 use err::{PyErr, PyResult};
-use objects::exc;
-use objects::PyObject;
+use objects::{exc, PyInstance};
+use objectprotocol::ObjectProtocol;
 use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
 use typeob::PyTypeInfo;
 use conversion::{IntoPyObject, FromPyObject};
@@ -17,32 +17,33 @@ use conversion::{IntoPyObject, FromPyObject};
 
 /// Sequece interface
 #[allow(unused_variables)]
-pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized + 'static {
-    fn __len__(&'p self, py: Python<'p>) -> Self::Result
+pub trait PySequenceProtocol<'p>: PyTypeInfo + PyDowncastFrom
+{
+    fn __len__(&'p self) -> Self::Result
         where Self: PySequenceLenProtocol<'p> { unimplemented!() }
 
-    fn __getitem__(&'p self, py: Python<'p>, key: isize) -> Self::Result
+    fn __getitem__(&'p self, key: isize) -> Self::Result
         where Self: PySequenceGetItemProtocol<'p> { unimplemented!() }
 
-    fn __setitem__(&'p mut self, py: Python<'p>, key: isize, value: Self::Value) -> Self::Result
+    fn __setitem__(&'p mut self, key: isize, value: Self::Value) -> Self::Result
         where Self: PySequenceSetItemProtocol<'p> { unimplemented!() }
 
-    fn __delitem__(&'p mut self, py: Python<'p>, key: isize) -> Self::Result
+    fn __delitem__(&'p mut self, key: isize) -> Self::Result
         where Self: PySequenceDelItemProtocol<'p> { unimplemented!() }
 
-    fn __contains__(&'p self, py: Python<'p>, item: Self::Item) -> Self::Result
+    fn __contains__(&'p self, item: Self::Item) -> Self::Result
         where Self: PySequenceContainsProtocol<'p> { unimplemented!() }
 
-    fn __concat__(&'p self, py: Python<'p>, other: Self::Other) -> Self::Result
+    fn __concat__(&'p self, other: Self::Other) -> Self::Result
         where Self: PySequenceConcatProtocol<'p> { unimplemented!() }
 
-    fn __repeat__(&'p self, py: Python<'p>, count: isize) -> Self::Result
+    fn __repeat__(&'p self, count: isize) -> Self::Result
         where Self: PySequenceRepeatProtocol<'p> { unimplemented!() }
 
-    fn __inplace_concat__(&'p mut self, py: Python<'p>, other: Self::Other) -> Self::Result
+    fn __inplace_concat__(&'p mut self, other: Self::Other) -> Self::Result
         where Self: PySequenceInplaceConcatProtocol<'p> { unimplemented!() }
 
-    fn __inplace_repeat__(&'p mut self, py: Python<'p>, count: isize) -> Self::Result
+    fn __inplace_repeat__(&'p mut self, count: isize) -> Self::Result
         where Self: PySequenceInplaceRepeatProtocol<'p> { unimplemented!() }
 }
 
@@ -224,10 +225,10 @@ impl<T> PySequenceSetItemProtocolImpl for T
                     e.restore(py);
                     -1
                 } else {
-                    let value = PyObject::from_borrowed_ptr(py, value);
-                    let result = match value.extract(py) {
+                    let value = py.cast_from_borrowed_ptr::<PyInstance>(value);
+                    let result = match value.extract() {
                         Ok(value) => {
-                            slf.__setitem__(py, key as isize, value).into()
+                            slf.__setitem__(key as isize, value).into()
                         },
                         Err(e) => Err(e.into()),
                     };
@@ -269,7 +270,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
             const LOCATION: &'static str = "T.__detitem__()";
             ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
-                    let result = slf.__delitem__(py, key as isize).into();
+                    let result = slf.__delitem__(key as isize).into();
                     match result {
                         Ok(_) => 0,
                         Err(e) => {
@@ -304,7 +305,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
             const LOCATION: &'static str = "T.__set/del_item__()";
             ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
-                    let result = slf.__delitem__(py, key as isize).into();
+                    let result = slf.__delitem__(key as isize).into();
                     match result {
                         Ok(_) => 0,
                         Err(e) => {
@@ -313,10 +314,10 @@ impl<T> PySequenceDelItemProtocolImpl for T
                         }
                     }
                 } else {
-                    let value = ::PyObject::from_borrowed_ptr(py, value);
-                    let result = match value.extract(py) {
+                    let value = py.cast_from_borrowed_ptr::<PyInstance>(value);
+                    let result = match value.extract() {
                         Ok(value) => {
-                            slf.__setitem__(py, key as isize, value).into()
+                            slf.__setitem__(key as isize, value).into()
                         },
                         Err(e) => Err(e.into()),
                     };

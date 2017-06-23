@@ -1,8 +1,10 @@
 use std::borrow::Cow;
 
 use err::PyResult;
-use objects::{PyObject, PyString};
-use python::{ToPyPointer, Python};
+use pointer::PyObject;
+use objects::{PyInstance, PyString};
+use objectprotocol::ObjectProtocol;
+use python::Python;
 use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 
 /// Converts Rust `str` to Python object.
@@ -52,25 +54,26 @@ impl<'a> IntoPyObject for &'a String {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-pyobject_extract!(py, obj to Cow<'source, str> => {
-    try!(obj.cast_as::<PyString>(py)).to_string(py)
-});
-
+impl<'source> ::FromPyObject<'source> for Cow<'source, str>
+{
+    fn extract(ob: &'source PyInstance) -> PyResult<Self>
+    {
+        try!(ob.cast_as::<PyString>()).to_string()
+    }
+}
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 pyobject_extract!(py, obj to String => {
-    let s = try!(obj.cast_as::<PyString>(py));
-    s.to_string(py).map(Cow::into_owned)
+    let s = try!(obj.cast_as::<PyString>());
+    s.to_string().map(Cow::into_owned)
 });
 
-
-impl<'p> RefFromPyObject<'p> for str {
-    fn with_extracted<F, R>(py: Python, obj: &'p PyObject, f: F) -> PyResult<R>
+impl RefFromPyObject for str {
+    fn with_extracted<F, R>(obj: &PyInstance, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
-        let p = PyObject::from_borrowed_ptr(py, obj.as_ptr());
-        let s = try!(p.extract::<Cow<str>>(py));
+        let s = try!(obj.extract::<Cow<str>>());
         Ok(f(&s))
     }
 }

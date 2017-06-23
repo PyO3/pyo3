@@ -1,17 +1,15 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::ptr;
 use std::os::raw::c_char;
 use ffi;
+use pointer::PyObject;
+use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
-use objects::PyObject;
 use err::{PyResult, PyErr};
-use pointers::PyPtr;
-
 
 /// Represents a Python bytearray.
-pub struct PyByteArray(PyPtr);
+pub struct PyByteArray(PyObject);
 
 pyobject_convert!(PyByteArray);
 pyobject_nativetype!(PyByteArray, PyByteArray_Type, PyByteArray_Check);
@@ -21,29 +19,29 @@ impl PyByteArray {
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(_py: Python, src: &[u8]) -> PyByteArray {
+    pub fn new<'p>(py: Python<'p>, src: &[u8]) -> &'p PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
-        let ptr = unsafe {ffi::PyByteArray_FromStringAndSize(ptr, len)};
-        PyByteArray(PyPtr::from_owned_ptr_or_panic(ptr))
+        unsafe {
+            py.cast_from_ptr::<PyByteArray>(
+                ffi::PyByteArray_FromStringAndSize(ptr, len))
+        }
     }
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<I>(py: Python, src: I) -> PyResult<PyByteArray>
+    pub fn from<'p, I>(py: Python<'p>, src: I) -> PyResult<&'p PyByteArray>
         where I: ToPyPointer
     {
-        let res = unsafe {ffi::PyByteArray_FromObject(src.as_ptr())};
-        if res != ptr::null_mut() {
-            Ok(PyByteArray(PyPtr::from_owned_ptr_or_panic(res)))
-        } else {
-            Err(PyErr::fetch(py))
+        unsafe {
+            py.cast_from_ptr_or_err(
+                ffi::PyByteArray_FromObject(src.as_ptr()))
         }
     }
 
     /// Gets the length of the bytearray.
     #[inline]
-    pub fn len(&self, _py: Python) -> usize {
+    pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
             ffi::PyByteArray_Size(self.0.as_ptr()) as usize
@@ -51,7 +49,7 @@ impl PyByteArray {
     }
 
     /// Gets the Python bytearray data as byte slice.
-    pub fn data(&self, _py: Python) -> &mut [u8] {
+    pub fn data(&self) -> &mut [u8] {
         unsafe {
             let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;
             let length = ffi::PyByteArray_Size(self.0.as_ptr()) as usize;
@@ -60,13 +58,13 @@ impl PyByteArray {
     }
 
     /// Resize bytearray object.
-    pub fn resize(&self, py: Python, len: usize) -> PyResult<()> {
+    pub fn resize(&self, len: usize) -> PyResult<()> {
         unsafe {
             let result = ffi::PyByteArray_Resize(self.0.as_ptr(), len as ffi::Py_ssize_t);
             if result == 0 {
                 Ok(())
             } else {
-                Err(PyErr::fetch(py))
+                Err(PyErr::fetch(self.token()))
             }
         }
     }
@@ -77,7 +75,8 @@ impl PyByteArray {
 mod test {
     use exc;
     use python::Python;
-    use objects::{PyObject, PyByteArray};
+    use pointer::PyObject;
+    use objects::PyByteArray;
 
     #[test]
     fn test_bytearray() {
@@ -86,20 +85,21 @@ mod test {
 
         let src = b"Hello Python";
         let bytearray = PyByteArray::new(py, src);
-        assert_eq!(src.len(), bytearray.len(py));
-        assert_eq!(src, bytearray.data(py));
+        assert_eq!(src.len(), bytearray.len());
+        assert_eq!(src, bytearray.data());
 
         let ba: PyObject = bytearray.into();
-        let bytearray = PyByteArray::from(py, &ba).unwrap();
-        assert_eq!(src.len(), bytearray.len(py));
-        assert_eq!(src, bytearray.data(py));
+        let bytearray = PyByteArray::from(py, ba).unwrap();
 
-        bytearray.resize(py, 20).unwrap();
-        assert_eq!(20, bytearray.len(py));
+        assert_eq!(src.len(), bytearray.len());
+        assert_eq!(src, bytearray.data());
+
+        bytearray.resize(20).unwrap();
+        assert_eq!(20, bytearray.len());
 
         let none = py.None();
         if let Err(mut err) = PyByteArray::from(py, &none) {
-            assert!(py.is_instance::<exc::TypeError>(&err.instance(py)).unwrap())
+            assert!(py.is_instance::<exc::TypeError, _>(&err.instance(py)).unwrap())
         } else {
             panic!("error");
         }

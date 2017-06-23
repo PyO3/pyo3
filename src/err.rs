@@ -6,9 +6,11 @@ use std::error::Error;
 use libc;
 
 use ffi;
-use python::{ToPyPointer, IntoPyPointer, Python, PyDowncastInto, PyClone};
-use objects::{PyObject, PyType, exc};
-use typeob::{PyTypeObject};
+use python::{ToPyPointer, IntoPyPointer, Python, PyClone};
+use PyObject;
+use objects::{PyInstance, PyType, exc};
+use instance::Py;
+use typeob::PyTypeObject;
 use conversion::{ToPyObject, IntoPyTuple, IntoPyObject};
 
 /**
@@ -34,10 +36,10 @@ let gil = Python::acquire_gil();
     let py = gil.python();
     let ctx = PyDict::new(py);
 
-    ctx.set_item(py, "CustomError", py.get_type::<CustomError>()).unwrap();
+    ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
 
     py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
-    py.run("assert CustomError('oops').args == ('oops',)", None, Some(&ctx)).unwrap();
+    py.run("assert CustomError('oops').args == ('oops',)", None, Some(ctx)).unwrap();
 }
 ```
 */
@@ -76,7 +78,7 @@ macro_rules! py_exception {
             }
 
             #[inline]
-            fn type_object(py: $crate::Python) -> $crate::PyType {
+            fn type_object<'p>(py: $crate::Python<'p>) -> &'p $crate::PyType {
                 unsafe { $crate::PyType::from_type_ptr(py, $name::type_object(py)) }
             }
         }
@@ -90,7 +92,7 @@ macro_rules! py_exception {
 #[derive(Debug)]
 pub struct PyErr {
     /// The type of the exception. This should be either a `PyClass` or a `PyType`.
-    pub ptype: PyType,
+    pub ptype: Py<PyType>,
     /// The value of the exception.
     ///
     /// This can be either an instance of `ptype`,
@@ -140,24 +142,25 @@ impl PyErr {
     ///
     /// `base` can be an existing exception type to subclass, or a tuple of classes
     /// `dict` specifies an optional dictionary of class variables and methods
-    pub fn new_type(py: Python, name: &str, base: Option<PyType>, dict: Option<PyObject>)
-                    -> PyType
+    pub fn new_type<'p>(py: Python<'p>,
+                        name: &str, base: Option<&PyType>, dict: Option<PyObject>)
+                        -> &'p PyType
     {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
-            Some(obj) => obj.into_ptr()
+            Some(obj) => obj.as_ptr()
         };
 
         let dict: *mut ffi::PyObject = match dict {
             None => std::ptr::null_mut(),
-            Some(obj) => obj.into_ptr(),
+            Some(obj) => obj.as_ptr(),
         };
 
         unsafe {
             let null_terminated_name = CString::new(name).expect("Failed to initialize nul terminated exception name");
             let ptr = ffi::PyErr_NewException(
-                null_terminated_name.as_ptr() as *mut c_char,
-                base, dict) as *mut ffi::PyTypeObject;
+                null_terminated_name.as_ptr() as *mut c_char, base, dict)
+                as *mut ffi::PyTypeObject;
             PyType::from_type_ptr(py, ptr)
         }
     }
@@ -183,19 +186,19 @@ impl PyErr {
         // and because we mustn't panic in normalize().
         PyErr {
             ptype: if ptype.is_null() {
-                py.get_type::<exc::SystemError>()
+                py.get_type::<exc::SystemError>().into()
             } else {
-                PyObject::from_owned_ptr(py, ptype).unchecked_cast_into::<PyType>()
+                PyType::from_type_ptr(py, ptype as *mut ffi::PyTypeObject).into()
             },
             pvalue: PyObject::from_owned_ptr_or_opt(py, pvalue),
             ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback)
         }
     }
 
-    fn new_helper(_py: Python, ty: PyType, value: PyObject) -> PyErr {
+    fn new_helper(_py: Python, ty: &PyType, value: PyObject) -> PyErr {
         assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
         PyErr {
-            ptype: ty,
+            ptype: ty.into(),
             pvalue: Some(value),
             ptraceback: None
         }
@@ -211,23 +214,23 @@ impl PyErr {
     }
 
     fn from_instance_helper<'p>(py: Python, obj: PyObject) -> PyErr {
-        if unsafe { ffi::PyExceptionInstance_Check(obj.as_ptr()) } != 0 {
+        let ptr = obj.as_ptr();
+
+        if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
             PyErr {
-                ptype: unsafe { PyObject::from_borrowed_ptr(
-                    py, ffi::PyExceptionInstance_Class(obj.as_ptr()))
-                                .unchecked_cast_into::<PyType>() },
+                ptype: unsafe { PyType::from_type_ptr(py, ptr as *mut ffi::PyTypeObject).into() },
                 pvalue: Some(obj),
                 ptraceback: None
             }
         } else if unsafe { ffi::PyExceptionClass_Check(obj.as_ptr()) } != 0 {
             PyErr {
-                ptype: PyType::downcast_into(py, obj).expect("Failed to downcast into PyType"),
+                ptype: unsafe { Py::from_borrowed_ptr(ptr) },
                 pvalue: None,
                 ptraceback: None
             }
         } else {
             PyErr {
-                ptype: py.get_type::<exc::TypeError>(),
+                ptype: py.get_type::<exc::TypeError>().into(),
                 pvalue: Some("exceptions must derive from BaseException".into_object(py)),
                 ptraceback: None
             }
@@ -238,9 +241,9 @@ impl PyErr {
     /// `exc` is the exception type; usually one of the standard exceptions like `py.get_type::<exc::RuntimeError>()`.
     /// `value` is the exception instance, or a tuple of arguments to pass to the exception constructor.
     #[inline]
-    pub fn new_lazy_init(exc: PyType, value: Option<PyObject>) -> PyErr {
+    pub fn new_lazy_init(exc: &PyType, value: Option<PyObject>) -> PyErr {
         PyErr {
-            ptype: exc,
+            ptype: exc.into(),
             pvalue: value,
             ptraceback: None
         }
@@ -254,7 +257,7 @@ impl PyErr {
         where A: IntoPyTuple
     {
         PyErr {
-            ptype: exc.clone_ref(py),
+            ptype: exc.into(),
             pvalue: Some(args.into_tuple(py).into()),
             ptraceback: None
         }
@@ -307,7 +310,7 @@ impl PyErr {
     }
 
     /// Retrieves the exception type.
-    pub fn get_type(&self, py: Python) -> PyType {
+    pub fn get_type(&self, py: Python) -> Py<PyType> {
         self.ptype.clone_ref(py)
     }
 
@@ -317,7 +320,7 @@ impl PyErr {
     pub fn instance(&mut self, py: Python) -> PyObject {
         self.normalize(py);
         match self.pvalue {
-            Some(ref instance) => instance.to_object(py),
+            Some(ref instance) => instance.clone_ref(py),
             None => py.None(),
         }
     }
@@ -334,7 +337,7 @@ impl PyErr {
 
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
-    pub fn warn(py: Python, category: &PyObject, message: &str, stacklevel: i32) -> PyResult<()> {
+    pub fn warn(py: Python, category: &PyInstance, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message).map_err(|e| e.to_pyerr(py))?;
         unsafe {
             error_on_minusone(py, ffi::PyErr_WarnEx(

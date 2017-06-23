@@ -5,8 +5,8 @@
 
 use ffi;
 use python::Python;
-use objects::{PyObject, PyTuple, PyDict, PyString, exc};
-use conversion::RefFromPyObject;
+use objects::{PyInstance, PyTuple, PyDict, PyString, exc};
+//use conversion::RefFromPyObject;
 use err::{self, PyResult};
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -16,7 +16,7 @@ pub struct ParamDescription<'a> {
     /// Whether the parameter is optional.
     pub is_optional: bool,
     /// Whether the parameter is optional.
-    pub kw_only: bool
+    pub kw_only: bool,
 }
 
 /// Parse argument list
@@ -31,12 +31,12 @@ pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
                       args: &'p PyTuple, kwargs: Option<&'p PyDict>,
                       accept_args: bool, accept_kwargs: bool,
-                      output: &mut[Option<PyObject>]) -> PyResult<()>
+                      output: &mut[Option<&'p PyInstance>]) -> PyResult<()>
 {
-    assert!(params.len() == output.len());
 
-    let nargs = args.len(py);
-    let nkeywords = kwargs.map_or(0, |d| d.len(py));
+
+    let nargs = args.len();
+    let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
             py,
@@ -51,7 +51,7 @@ pub fn parse_args<'p>(py: Python<'p>,
     let mut used_keywords = 0;
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(py, p.name)) {
+        match kwargs.and_then(|d| d.get_item(p.name)) {
             Some(kwarg) => {
                 *out = Some(kwarg);
                 used_keywords += 1;
@@ -66,7 +66,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                     *out = None;
                 }
                 else if i < nargs {
-                    *out = Some(args.get_item(py, i));
+                    *out = Some(args.get_item(i));
                 } else {
                     *out = None;
                     if !p.is_optional {
@@ -81,8 +81,8 @@ pub fn parse_args<'p>(py: Python<'p>,
     }
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
-        for (key, _value) in kwargs.unwrap().items(py) {
-            let key = try!(try!(key.cast_as::<PyString>(py)).to_string(py));
+        for (key, _value) in kwargs.unwrap().items() {
+            let key = try!(try!(key.cast_as::<PyString>(py)).to_string());
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
                     py,
@@ -96,25 +96,25 @@ pub fn parse_args<'p>(py: Python<'p>,
 
 #[inline]
 #[doc(hidden)]
-pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<PyDict> {
+pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&PyDict> {
     if ptr.is_null() {
         None
     } else {
-        Some(PyDict::from_borrowed_ptr(py, ptr))
+        Some(py.cast_from_ptr::<PyDict>(ptr))
     }
 }
 
-#[doc(hidden)] // used in py_argparse_extract!() macro
-pub fn with_extracted_or_default<'p, P: ?Sized, R, F>(
-    py: Python, obj: Option<&'p PyObject>, f: F, default: &'static P) -> PyResult<R>
+/*#[doc(hidden)] // used in py_argparse_extract!() macro
+pub fn with_extracted_or_default<P: ?Sized, R, F>(
+    py: Python, obj: Option<&PyInstance>, f: F, default: &'static P) -> PyResult<R>
     where F: FnOnce(&P) -> PyResult<R>,
-          P: RefFromPyObject<'p>
+          P: RefFromPyObject
 {
     match obj {
-        Some(obj) => match P::with_extracted(py, obj, f) {
+        Some(obj) => match P::with_extracted(obj, f) {
             Ok(result) => result,
             Err(e) => Err(e)
         },
         None => f(default)
     }
-}
+}*/

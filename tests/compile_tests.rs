@@ -1,8 +1,9 @@
 extern crate compiletest_rs as compiletest;
 
-use std::path::PathBuf;
-use std::env::var;
+//use std::path::PathBuf;
+//use std::env::var;
 
+/*
 fn run_mode(mode: &'static str) {
     let mut config = compiletest::default_config();
     let cfg_mode = mode.parse().ok().expect("Invalid mode");
@@ -22,4 +23,4 @@ fn run_mode(mode: &'static str) {
 fn compile_tests() {
     run_mode("compile-fail");
     // run_mode("run-pass");
-}
+}*/

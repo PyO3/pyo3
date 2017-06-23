@@ -5,7 +5,6 @@
 //!
 
 use err::PyResult;
-use python::Python;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 
@@ -14,10 +13,10 @@ use class::methods::PyMethodDef;
 #[allow(unused_variables)]
 pub trait PyContextProtocol<'p>: PyTypeInfo {
 
-    fn __enter__(&'p mut self, py: Python<'p>)
+    fn __enter__(&'p mut self)
                  -> Self::Result where Self: PyContextEnterProtocol<'p> {unimplemented!()}
 
-    fn __exit__(&'p mut self, py: Python<'p>,
+    fn __exit__(&'p mut self,
                 exc_type: Option<Self::ExcType>,
                 exc_value: Option<Self::ExcValue>,
                 traceback: Option<Self::Traceback>)

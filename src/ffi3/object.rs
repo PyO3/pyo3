@@ -3,7 +3,7 @@ use std::os::raw::{c_void, c_int, c_uint, c_ulong, c_char};
 use ffi3::pyport::{Py_ssize_t, Py_hash_t};
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyObject {
     #[cfg(py_sys_config="Py_TRACE_REFS")]
     _ob_next: *mut PyObject,
@@ -36,6 +36,9 @@ pub struct PyVarObject {
 
 #[inline(always)]
 pub unsafe fn Py_REFCNT(ob : *mut PyObject) -> Py_ssize_t {
+    if ob.is_null() {
+        panic!();
+    }
     (*ob).ob_refcnt
 }
 

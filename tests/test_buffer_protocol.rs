@@ -18,9 +18,9 @@ struct TestClass {
 #[py::proto]
 impl class::PyBufferProtocol for TestClass {
 
-    fn bf_getbuffer(&self, py: Python, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
+    fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view == ptr::null_mut() {
-            return Err(PyErr::new::<exc::BufferError, _>(py, "View is null"))
+            return Err(PyErr::new::<exc::BufferError, _>(self.token(), "View is null"))
         }
 
         unsafe {
@@ -28,7 +28,7 @@ impl class::PyBufferProtocol for TestClass {
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(PyErr::new::<exc::BufferError, _>(py, "Object is not writable"))
+            return Err(PyErr::new::<exc::BufferError, _>(self.token(), "Object is not writable"))
         }
 
         let bytes = &self.vec;
@@ -74,8 +74,8 @@ fn test_buffer() {
     let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
 
     let d = PyDict::new(py);
-    let _ = d.set_item(py, "ob", t);
-    py.run("assert bytes(ob) == b' 23'", None, Some(&d)).unwrap();
+    d.set_item("ob", t).unwrap();
+    py.run("assert bytes(ob) == b' 23'", None, Some(d)).unwrap();
 }
 
 #[cfg(not(Py_3))]
@@ -87,6 +87,6 @@ fn test_buffer() {
     let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
 
     let d = PyDict::new(py);
-    let _ = d.set_item(py, "ob", t);
-    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(&d)).unwrap();
+    d.set_item("ob", t).unwrap();
+    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d)).unwrap();
 }

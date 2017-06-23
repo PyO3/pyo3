@@ -5,7 +5,7 @@ use std::mem;
 use std::ffi::{CStr, CString};
 use std::collections::HashMap;
 
-use {ffi, class};
+use {ffi, class, pythonrun};
 use err::{PyErr, PyResult};
 use python::Python;
 use objects::PyType;
@@ -35,6 +35,9 @@ pub trait PyTypeInfo {
     /// PyTypeObject instance for this type
     fn type_object() -> &'static mut ffi::PyTypeObject;
 
+    /// Check `*mut ffi::PyObject` if it is the same type
+    fn is_instance(ptr: *mut ffi::PyObject) -> bool;
+
 }
 
 
@@ -60,6 +63,12 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     default fn type_object() -> &'static mut ffi::PyTypeObject {
         <T as PyTypeInfo>::type_object()
     }
+
+    #[inline]
+    default fn is_instance(ptr: *mut ffi::PyObject) -> bool {
+        <T as PyTypeInfo>::is_instance(ptr)
+    }
+
 }
 
 pub trait PyObjectAlloc<T> {
@@ -121,7 +130,7 @@ pub trait PyTypeObject {
     fn init_type(py: Python);
 
     /// Retrieves the type object for this Python object type.
-    fn type_object(py: Python) -> PyType;
+    fn type_object<'p>(py: Python<'p>) -> &'p PyType;
 
 }
 
@@ -133,17 +142,16 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
-            let to = initialize_type::<T>(
+            initialize_type::<T>(
                 py, None, <T as PyTypeInfo>::type_name(),
                 <T as PyTypeInfo>::type_description(), ty).expect(
                 format!("An error occurred while initializing class {}",
                         <T as PyTypeInfo>::type_name()).as_ref());
-            py.release(to);
         }
     }
 
     #[inline]
-    default fn type_object(py: Python) -> PyType {
+    default fn type_object<'p>(py: Python<'p>) -> &'p PyType {
         <T as PyTypeObject>::init_type(py);
 
         unsafe { PyType::from_type_ptr(py, <T as PyTypeInfo>::type_object()) }
@@ -151,9 +159,11 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 }
 
 
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>, type_name: &str,
-                          type_description: &'static str, type_object: &mut ffi::PyTypeObject)
-                          -> PyResult<PyType>
+pub fn initialize_type<'p, T>(py: Python<'p>,
+                              module_name: Option<&str>,
+                              type_name: &str,
+                              type_description: &'static str,
+                              type_object: &mut ffi::PyTypeObject) -> PyResult<&'p PyType>
     where T: PyObjectAlloc<T> + PyTypeInfo
 {
     // type name
@@ -267,6 +277,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     debug!("DEALLOC: {:?} - {:?}", obj,
            CStr::from_ptr((*(*obj).ob_type).tp_name).to_string_lossy());
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
+    let _pool = pythonrun::Pool::new();
     let py = Python::assume_gil_acquired();
     let r = <T as PyObjectAlloc<T>>::dealloc(py, obj);
     mem::forget(guard);

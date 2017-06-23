@@ -9,10 +9,11 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use token::{Py, PyToken};
-use objects::{PyObject, PyType, PyBool, PyDict, PyModule};
+use instance::{Py, PyToken};
+use pointer::PyObject;
+use objects::{PyInstance, PyType, PyBool, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
-use pythonrun::GILGuard;
+use pythonrun::{self, GILGuard};
 
 
 /// Marker type that indicates that the GIL is currently held.
@@ -33,15 +34,20 @@ pub struct Python<'p>(PhantomData<&'p GILGuard>);
 pub trait PyDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from<'a, 'p>(Python<'p>, &'a PyObject) -> Result<&'a Self, PyDowncastError<'p>>;
+    fn downcast_from(&PyInstance) -> Result<&Self, PyDowncastError>;
+
+    /// Cast from PyObject to a concrete Python object type.
+    unsafe fn unchecked_downcast_from(&PyInstance) -> &Self;
+
+    /// Cast from PyObject to a concrete Python object type.
+    unsafe fn unchecked_mut_downcast_from(&PyInstance) -> &mut Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
 pub trait PyMutDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_mut_from<'a, 'p>(Python<'p>, &'a mut PyObject) ->
-        Result<&'a mut Self, PyDowncastError<'p>>;
+    fn downcast_mut_from(&mut PyInstance) -> Result<&mut Self, PyDowncastError>;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
@@ -52,8 +58,8 @@ pub trait PyDowncastInto : Sized {
         where I: ToPyPointer + IntoPyPointer;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
-    fn downcast_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
-                             -> Result<Self, PyDowncastError<'p>>;
+    fn downcast_into_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
+                                  -> Result<Self, PyDowncastError<'p>>;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn unchecked_downcast_into<'p, I>(I) -> Self where I: IntoPyPointer;
@@ -149,7 +155,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn eval(self, code: &str, globals: Option<&PyDict>,
-                locals: Option<&PyDict>) -> PyResult<PyObject> {
+                locals: Option<&PyDict>) -> PyResult<&'p PyInstance> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -159,8 +165,7 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn run(self, code: &str, globals: Option<&PyDict>,
                 locals: Option<&PyDict>) -> PyResult<()> {
-        let result = self.run_code(code, ffi::Py_file_input, globals, locals)?;
-        self.release(result);
+        let _ = self.run_code(code, ffi::Py_file_input, globals, locals)?;
         Ok(())
     }
 
@@ -171,7 +176,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
-                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<PyObject> {
+                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<&'p PyInstance> {
         let code = CString::new(code).map_err(|e| e.to_pyerr(self))?;
 
         unsafe {
@@ -187,17 +192,17 @@ impl<'p> Python<'p> {
             let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
                 start, globals, locals, 0 as *mut _);
 
-            PyObject::from_owned_ptr_or_err(self, res_ptr)
+            self.cast_from_ptr_or_err(res_ptr)
         }
     }
 
     /// Gets the Python type object for type T.
-    pub fn get_type<T>(self) -> PyType where T: PyTypeObject {
+    pub fn get_type<T>(self) -> &'p PyType where T: PyTypeObject {
         T::type_object(self)
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<PyModule> {
+    pub fn import(self, name : &str) -> PyResult<&'p PyModule> {
         PyModule::import(self, name)
     }
 
@@ -211,14 +216,14 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `True`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn True(self) -> PyBool {
+    pub fn True(self) -> &'p PyBool {
         PyBool::new(self, true)
     }
 
     /// Gets the Python builtin value `False`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn False(self) -> PyBool {
+    pub fn False(self) -> &'p PyBool {
         PyBool::new(self, false)
     }
 
@@ -257,8 +262,8 @@ impl<'p> Python<'p> {
     }
 
     /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
-    pub fn is_instance<T: PyTypeObject>(self, obj: &PyObject) -> PyResult<bool> {
-        T::type_object(self).is_instance(self, obj)
+    pub fn is_instance<T: PyTypeObject, V: ToPyPointer>(self, obj: &V) -> PyResult<bool> {
+        T::type_object(self).is_instance(obj)
     }
 
     /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
@@ -266,14 +271,109 @@ impl<'p> Python<'p> {
         where T: PyTypeObject,
             U: PyTypeObject
     {
-        T::type_object(self).is_subclass::<U>(self)
+        T::type_object(self).is_subclass::<U>()
+    }
+}
+
+impl<'p> Python<'p> {
+
+    pub fn checked_cast_as<D>(self, obj: PyObject) -> Result<&'p D, PyDowncastError<'p>>
+        where D: PyDowncastFrom
+    {
+        unsafe {
+            let p = pythonrun::register(self, obj);
+            <D as PyDowncastFrom>::downcast_from(p)
+        }
+    }
+
+    pub unsafe fn cast_as<D>(self, obj: PyObject) -> &'p D
+        where D: PyDowncastFrom
+    {
+        let p = pythonrun::register(self, obj);
+        <D as PyDowncastFrom>::unchecked_downcast_from(p)
+    }
+
+    pub unsafe fn cast_from_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p D
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_owned_ptr_or_panic(self, ptr);
+        let p = pythonrun::register(self, obj);
+        <D as PyDowncastFrom>::unchecked_downcast_from(p)
+    }
+
+    pub fn cast_from_ptr_or_err<D>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p D>
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_owned_ptr_or_err(self, ptr)?;
+        unsafe {
+            let p = pythonrun::register(self, obj);
+            Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+        }
+    }
+
+    pub fn cast_from_ptr_or_opt<D>(self, ptr: *mut ffi::PyObject) -> Option<&'p D>
+        where D: PyDowncastFrom
+    {
+        if ptr.is_null() {
+            None
+        } else {
+            unsafe {
+                let obj = PyObject::from_owned_ptr(self, ptr);
+                let p = pythonrun::register(self, obj);
+                Some(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+            }
+        }
+    }
+
+    pub unsafe fn cast_from_borrowed_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p D
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_borrowed_ptr(self, ptr);
+        let p = pythonrun::register(self, obj);
+        <D as PyDowncastFrom>::unchecked_downcast_from(p)
+    }
+
+    pub unsafe fn cast_from_borrowed_ptr_or_err<D>(self, ptr: *mut ffi::PyObject)
+                                                   -> PyResult<&'p D>
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_borrowed_ptr_or_err(self, ptr)?;
+        let p = pythonrun::register(self, obj);
+        Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+    }
+
+    pub unsafe fn cast_from_borrowed_ptr_or_opt<D>(self, ptr: *mut ffi::PyObject)
+                                                   -> Option<&'p D>
+        where D: PyDowncastFrom
+    {
+        if ptr.is_null() {
+            None
+        } else {
+            let obj = PyObject::from_borrowed_ptr(self, ptr);
+            let p = pythonrun::register(self, obj);
+            Some(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+        }
+    }
+
+    pub unsafe fn mut_cast_from_borrowed_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p mut D
+        where D: PyDowncastFrom
+    {
+        let obj = PyObject::from_borrowed_ptr(self, ptr);
+        let p = pythonrun::register(self, obj);
+        <D as PyDowncastFrom>::unchecked_mut_downcast_from(p)
+    }
+
+    pub fn track_object(self, obj: PyObject) -> &'p PyInstance
+    {
+        unsafe { pythonrun::register(self, obj) }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use {Python, PyDict};
-    use objects::{PyBool, PyList, PyInt};
+    use Python;
+    use objectprotocol::ObjectProtocol;
+    use objects::{PyInstance, PyBool, PyList, PyInt, PyDict};
 
     #[test]
     fn test_eval() {
@@ -281,22 +381,23 @@ mod test {
         let py = gil.python();
 
         // Make sure builtin names are accessible
-        let v: i32 = py.eval("min(1, 2)", None, None).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("min(1, 2)", None, None)
+            .map_err(|e| e.print(py)).unwrap().extract().unwrap();
         assert_eq!(v, 1);
 
         let d = PyDict::new(py);
-        d.set_item(py, "foo", 13).unwrap();
+        d.set_item("foo", 13).unwrap();
 
         // Inject our own global namespace
-        let v: i32 = py.eval("foo + 29", Some(&d), None).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("foo + 29", Some(d), None).unwrap().extract().unwrap();
         assert_eq!(v, 42);
 
         // Inject our own local namespace
-        let v: i32 = py.eval("foo + 29", None, Some(&d)).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("foo + 29", None, Some(d)).unwrap().extract().unwrap();
         assert_eq!(v, 42);
 
         // Make sure builtin names are still accessible when using a local namespace
-        let v: i32 = py.eval("min(foo, 2)", None, Some(&d)).unwrap().extract(py).unwrap();
+        let v: i32 = py.eval("min(foo, 2)", None, Some(d)).unwrap().extract().unwrap();
         assert_eq!(v, 2);
     }
 
@@ -304,10 +405,10 @@ mod test {
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.is_instance::<PyBool>(py.True().as_ref()).unwrap());
+        assert!(py.is_instance::<PyBool, PyInstance>(py.True().into()).unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
-        assert!(!py.is_instance::<PyBool>(list.as_ref()).unwrap());
-        assert!(py.is_instance::<PyList>(list.as_ref()).unwrap());
+        assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
+        assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
     }
 
     #[test]

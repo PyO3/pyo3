@@ -5,120 +5,119 @@
 
 use ffi;
 use err::PyResult;
-use python::Python;
 use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 use class::basic::PyObjectProtocolImpl;
-use ::{IntoPyObject, FromPyObject};
+use {IntoPyObject, FromPyObject, PyDowncastFrom};
 
 /// Number interface
 #[allow(unused_variables)]
-pub trait PyNumberProtocol<'p>: PyTypeInfo {
+pub trait PyNumberProtocol<'p>: PyTypeInfo + PyDowncastFrom {
 
-    fn __add__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __add__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberAddProtocol<'p> { unimplemented!() }
-    fn __sub__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __sub__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberSubProtocol<'p> { unimplemented!() }
-    fn __mul__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __mul__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberMulProtocol<'p> { unimplemented!() }
-    fn __matmul__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __matmul__(&'p self, other: Self::Other)
                   -> Self::Result where Self: PyNumberMatmulProtocol<'p> { unimplemented!() }
-    fn __truediv__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __truediv__(&'p self, other: Self::Other)
                    -> Self::Result where Self: PyNumberTruedivProtocol<'p> { unimplemented!() }
-    fn __floordiv__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __floordiv__(&'p self, other: Self::Other)
                     -> Self::Result where Self: PyNumberFloordivProtocol<'p> { unimplemented!() }
-    fn __mod__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __mod__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberModProtocol<'p> { unimplemented!() }
-    fn __divmod__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __divmod__(&'p self, other: Self::Other)
                   -> Self::Result where Self: PyNumberDivmodProtocol<'p> { unimplemented!() }
-    fn __pow__(&'p self, py: Python<'p>, other: Self::Other, modulo: Self::Modulo)
+    fn __pow__(&'p self, other: Self::Other, modulo: Self::Modulo)
                -> Self::Result where Self: PyNumberPowProtocol<'p> { unimplemented!() }
-    fn __lshift__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __lshift__(&'p self, other: Self::Other)
                   -> Self::Result where Self: PyNumberLShiftProtocol<'p> { unimplemented!() }
-    fn __rshift__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rshift__(&'p self, other: Self::Other)
                   -> Self::Result where Self: PyNumberRShiftProtocol<'p> { unimplemented!() }
-    fn __and__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __and__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberAndProtocol<'p> { unimplemented!() }
-    fn __xor__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __xor__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberXorProtocol<'p> { unimplemented!() }
-    fn __or__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __or__(&'p self, other: Self::Other)
               -> Self::Result where Self: PyNumberOrProtocol<'p> { unimplemented!() }
 
-    fn __radd__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __radd__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRAddProtocol<'p> { unimplemented!() }
-    fn __rsub__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rsub__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRSubProtocol<'p> { unimplemented!() }
-    fn __rmul__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rmul__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRMulProtocol<'p> { unimplemented!() }
-    fn __rmatmul__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rmatmul__(&'p self, other: Self::Other)
                    -> Self::Result where Self: PyNumberRMatmulProtocol<'p> { unimplemented!() }
-    fn __rtruediv__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rtruediv__(&'p self, other: Self::Other)
                     -> Self::Result where Self: PyNumberRTruedivProtocol<'p> { unimplemented!() }
-    fn __rfloordiv__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rfloordiv__(&'p self, other: Self::Other)
                      -> Self::Result where Self: PyNumberRFloordivProtocol<'p> { unimplemented!() }
-    fn __rmod__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rmod__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRModProtocol<'p> { unimplemented!() }
-    fn __rdivmod__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rdivmod__(&'p self, other: Self::Other)
                    -> Self::Result where Self: PyNumberRDivmodProtocol<'p> { unimplemented!() }
-    fn __rpow__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rpow__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRPowProtocol<'p> { unimplemented!() }
-    fn __rlshift__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rlshift__(&'p self, other: Self::Other)
                    -> Self::Result where Self: PyNumberRLShiftProtocol<'p> { unimplemented!() }
-    fn __rrshift__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rrshift__(&'p self, other: Self::Other)
                    -> Self::Result where Self: PyNumberRRShiftProtocol<'p> { unimplemented!() }
-    fn __rand__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rand__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRAndProtocol<'p> { unimplemented!() }
-    fn __rxor__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __rxor__(&'p self, other: Self::Other)
                 -> Self::Result where Self: PyNumberRXorProtocol<'p> { unimplemented!() }
-    fn __ror__(&'p self, py: Python<'p>, other: Self::Other)
+    fn __ror__(&'p self, other: Self::Other)
                -> Self::Result where Self: PyNumberROrProtocol<'p> { unimplemented!() }
 
-    fn __iadd__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __iadd__(&'p mut self, other: Self::Other)
                 -> Self::Result where Self: PyNumberIAddProtocol<'p> { unimplemented!() }
-    fn __isub__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __isub__(&'p mut self, other: Self::Other)
                 -> Self::Result where Self: PyNumberISubProtocol<'p> { unimplemented!() }
-    fn __imul__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __imul__(&'p mut self, other: Self::Other)
                 -> Self::Result where Self: PyNumberIMulProtocol<'p> { unimplemented!() }
-    fn __imatmul__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __imatmul__(&'p mut self, other: Self::Other)
                    -> Self::Result where Self: PyNumberIMatmulProtocol<'p> { unimplemented!() }
-    fn __itruediv__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __itruediv__(&'p mut self, other: Self::Other)
                     -> Self::Result where Self: PyNumberITruedivProtocol<'p> {unimplemented!()}
-    fn __ifloordiv__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __ifloordiv__(&'p mut self, other: Self::Other)
                      -> Self::Result where Self: PyNumberIFloordivProtocol<'p> {unimplemented!() }
-    fn __imod__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __imod__(&'p mut self, other: Self::Other)
                 -> Self::Result where Self: PyNumberIModProtocol<'p> { unimplemented!() }
-    fn __ipow__(&'p mut self, py: Python<'p>, other: Self::Other, modulo: Self::Modulo)
+    fn __ipow__(&'p mut self, other: Self::Other, modulo: Self::Modulo)
                 -> Self::Result where Self: PyNumberIPowProtocol<'p> { unimplemented!() }
-    fn __ilshift__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __ilshift__(&'p mut self, other: Self::Other)
                    -> Self::Result where Self: PyNumberILShiftProtocol<'p> { unimplemented!() }
-    fn __irshift__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __irshift__(&'p mut self, other: Self::Other)
                    -> Self::Result where Self: PyNumberIRShiftProtocol<'p> { unimplemented!() }
-    fn __iand__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __iand__(&'p mut self, other: Self::Other)
                 -> Self::Result where Self: PyNumberIAndProtocol<'p> { unimplemented!() }
-    fn __ixor__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __ixor__(&'p mut self, other: Self::Other)
                 -> Self::Result where Self: PyNumberIXorProtocol<'p> { unimplemented!() }
-    fn __ior__(&'p mut self, py: Python<'p>, other: Self::Other)
+    fn __ior__(&'p mut self, other: Self::Other)
                -> Self::Result where Self: PyNumberIOrProtocol<'p> { unimplemented!() }
 
     // Unary arithmetic
-    fn __neg__(&'p self, py: Python<'p>)
+    fn __neg__(&'p self)
                -> Self::Result where Self: PyNumberNegProtocol<'p> { unimplemented!() }
-    fn __pos__(&'p self, py: Python<'p>)
+    fn __pos__(&'p self)
                -> Self::Result where Self: PyNumberPosProtocol<'p> { unimplemented!() }
-    fn __abs__(&'p self, py: Python<'p>)
+    fn __abs__(&'p self)
                -> Self::Result where Self: PyNumberAbsProtocol<'p> { unimplemented!() }
-    fn __invert__(&'p self, py: Python<'p>)
+    fn __invert__(&'p self)
                   -> Self::Result where Self: PyNumberInvertProtocol<'p> { unimplemented!() }
-    fn __complex__(&'p self, py: Python<'p>)
+    fn __complex__(&'p self)
                    -> Self::Result where Self: PyNumberComplexProtocol<'p> { unimplemented!() }
-    fn __int__(&'p self, py: Python<'p>)
+    fn __int__(&'p self)
                -> Self::Result where Self: PyNumberIntProtocol<'p> { unimplemented!() }
-    fn __float__(&'p self, py: Python<'p>)
+    fn __float__(&'p self)
                  -> Self::Result where Self: PyNumberFloatProtocol<'p> { unimplemented!() }
-    fn __round__(&'p self, py: Python<'p>)
+    fn __round__(&'p self)
                  -> Self::Result where Self: PyNumberRoundProtocol<'p> { unimplemented!() }
-    fn __index__(&'p self, py: Python<'p>)
+    fn __index__(&'p self)
                  -> Self::Result where Self: PyNumberIndexProtocol<'p> { unimplemented!() }
 }
 

@@ -13,6 +13,7 @@ pub struct FnArg<'a> {
     pub mode: &'a syn::BindingMode,
     pub ty: &'a syn::Ty,
     pub optional: Option<&'a syn::Ty>,
+    pub py: bool,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -42,7 +43,6 @@ impl<'a> FnSpec<'a> {
         let (fn_type, fn_attrs) = parse_attributes(meth_attrs);
 
         let mut has_self = false;
-        let mut py = false;
         let mut arguments = Vec::new();
 
         for input in sig.decl.inputs.iter() {
@@ -67,21 +67,26 @@ impl<'a> FnSpec<'a> {
                             panic!("unsupported argument: {:?}", pat),
                     };
 
-                    if !py {
-                        match ty {
-                            &syn::Ty::Path(_, ref path) =>
-                                if let Some(segment) = path.segments.last() {
-                                    if segment.ident.as_ref() == "Python" {
-                                        py = true;
-                                        continue;
-                                    }
-                                },
-                            _ => (),
-                        }
-                    }
+                    let py = match ty {
+                        &syn::Ty::Path(_, ref path) =>
+                            if let Some(segment) = path.segments.last() {
+                                segment.ident.as_ref() == "Python"
+                            } else {
+                                false
+                            },
+                        _ => false
+                    };
 
                     let opt = check_arg_ty_and_optional(name, ty);
-                    arguments.push(FnArg{name: ident, mode: mode, ty: ty, optional: opt});
+                    arguments.push(
+                        FnArg {
+                            name: ident,
+                            mode: mode,
+                            ty: ty,
+                            optional: opt,
+                            py: py,
+                        }
+                    );
                 }
                 &syn::FnArg::Ignored(_) =>
                     panic!("ignored argument: {:?}", name),

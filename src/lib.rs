@@ -34,7 +34,7 @@
 //! ```rust
 //! extern crate pyo3;
 //!
-//! use pyo3::{Python, PyDict, PyResult};
+//! use pyo3::{Python, PyDict, PyResult, ObjectProtocol};
 //!
 //! fn main() {
 //!     let gil = Python::acquire_gil();
@@ -43,11 +43,11 @@
 //!
 //! fn hello(py: Python) -> PyResult<()> {
 //!     let sys = py.import("sys")?;
-//!     let version: String = sys.get(py, "version")?.extract(py)?;
+//!     let version: String = sys.get("version")?.extract()?;
 //!
 //!     let locals = PyDict::new(py);
-//!     locals.set_item(py, "os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
+//!     locals.set_item("os", py.import("os")?)?;
+//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(locals))?.extract()?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
@@ -72,7 +72,7 @@
 //!
 //! 1. `m`: The module name.
 //! 2. name of function visible to Python code.
-//! 3. arguments description string, i.e. "param1, param2=None, *, param3=55"
+//! 3. comma separated arguments, i.e. param="None", "*", param3="55"
 //!
 //!
 //! # Example
@@ -81,7 +81,7 @@
 //! #![feature(proc_macro, specialization)]
 //!
 //! extern crate pyo3;
-//! use pyo3::{py, Python, PyResult, PyObject, PyModule, PyString};
+//! use pyo3::{py, Python, PyResult, PyModule, PyString, ObjectProtocol};
 //!
 //! // add bindings to the generated python module
 //! // N.B: names: "libhello" must be the name of the `.so` or `.pyd` file
@@ -95,9 +95,9 @@
 //!     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
 //!     // Python objects to Rust values; and the Rust return value back into a Python object.
 //!     #[pyfn(m, "run_rust_func")]
-//!     fn run(py: Python, name: PyString) -> PyResult<PyObject> {
+//!     fn run(py: Python, name: &PyString) -> PyResult<()> {
 //!         println!("Rust says: Hello {} of Python!", name);
-//!         Ok(py.None())
+//!         Ok(())
 //!     }
 //!
 //!     Ok(())
@@ -152,20 +152,15 @@ pub mod ffi {
 }
 
 pub use ffi::{Py_ssize_t, Py_hash_t};
-
-mod pointers;
-pub use pointers::PyPtr;
-
-pub mod token;
-pub use token::{PyToken, PyObjectWithToken, Py, AsPyRef};
-
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
+pub use pointer::PyObject;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};
-pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
+pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
+pub use conversion::{FromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
 pub mod class;
 pub use class::*;
 
@@ -190,11 +185,12 @@ macro_rules! cstr(
 );
 
 mod python;
-mod fmt;
 mod err;
 mod conversion;
+mod instance;
 mod objects;
 mod objectprotocol;
+mod pointer;
 mod pythonrun;
 pub mod callback;
 pub mod typeob;

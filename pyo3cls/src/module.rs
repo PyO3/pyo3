@@ -45,42 +45,37 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
         pub unsafe extern "C" fn #cb_name() -> *mut ::pyo3::ffi::PyObject {
             use std;
             extern crate pyo3 as _pyo3;
-            use pyo3::IntoPyPointer;
+            use pyo3::{IntoPyPointer, ObjectProtocol};
 
             static mut MODULE_DEF: _pyo3::ffi::PyModuleDef = _pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#cb_name), "\0").as_ptr() as *const _;
 
-            let guard = _pyo3::callback::AbortOnDrop("py_module_init");
-            let py = _pyo3::Python::assume_gil_acquired();
-            _pyo3::ffi::PyEval_InitThreads();
-            let module = _pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
-            if module.is_null() {
-                std::mem::forget(guard);
-                return module;
-            }
+            _pyo3::callback::cb_meth("py_module_init", |py| {
+                _pyo3::ffi::PyEval_InitThreads();
 
-            let module = match _pyo3::PyObject::from_owned_ptr(
-                py, module).cast_into::<PyModule>(py)
-            {
-                Ok(m) => m,
-                Err(e) => {
-                    _pyo3::PyErr::from(e).restore(py);
-                    std::mem::forget(guard);
-                    return std::ptr::null_mut();
+                let module = _pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
+                if module.is_null() {
+                    return module;
                 }
-            };
-            module.add(py, "__doc__", #doc).expect("Failed to add doc for module");
-            let ret = match #fnname(py, &module) {
-                Ok(_) => module.into_ptr(),
-                Err(e) => {
-                    e.restore(py);
-                    std::ptr::null_mut()
+
+                let module = match py.cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        _pyo3::PyErr::from(e).restore(py);
+                        return std::ptr::null_mut();
+                    }
+                };
+                module.add("__doc__", #doc).expect("Failed to add doc for module");
+                match #fnname(py, module) {
+                    Ok(_) => module.into_ptr(),
+                    Err(e) => {
+                        e.restore(py);
+                        std::ptr::null_mut()
+                    }
                 }
-            };
-            std::mem::forget(guard);
-            ret
+            })
         }
     }
 }
@@ -133,9 +128,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 return
             }
 
-            let module = match pyo3::PyObject::from_borrowed_ptr(
-                py, module).cast_into::<pyo3::PyModule>(py)
-            {
+            let module = match py.cast_from_ptr_or_err::<_pyo3::PyModule>(module) {
                 Ok(m) => m,
                 Err(e) => {
                     _pyo3::PyErr::from(e).restore(py);
@@ -143,8 +136,8 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                     return
                 }
             };
-            module.add(py, "__doc__", #doc).expect("Failed to add doc for module");
-            let ret = match #fnname(py, &module) {
+            module.add("__doc__", #doc).expect("Failed to add doc for module");
+            let ret = match #fnname(py, module) {
                 Ok(()) => (),
                 Err(e) => e.restore(py)
             };
@@ -207,7 +200,6 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
 
     match item.node {
         syn::ItemKind::Fn(ref decl, _, _, _, _, _) => {
-            let mut py = false;
             let mut arguments = Vec::new();
 
             for input in decl.inputs.iter() {
@@ -221,24 +213,22 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                                 panic!("unsupported argument: {:?}", pat),
                         };
 
-                        if !py {
-                            match ty {
-                                &syn::Ty::Path(_, ref path) =>
-                                    if let Some(segment) = path.segments.last() {
-                                        if segment.ident.as_ref() == "Python" {
-                                            py = true;
-                                            continue;
-                                        }
-                                    },
-                                _ => (),
-                            }
-                        }
+                        let py = match ty {
+                            &syn::Ty::Path(_, ref path) =>
+                                if let Some(segment) = path.segments.last() {
+                                    segment.ident.as_ref() == "Python"
+                                } else {
+                                    false
+                                },
+                            _ => false
+                        };
 
                         let opt = method::check_arg_ty_and_optional(&name, ty);
                         arguments.push(method::FnArg {name: ident,
                                                       mode: mode,
                                                       ty: ty,
-                                                      optional: opt});
+                                                      optional: opt,
+                                                      py: py});
                     }
                     &syn::FnArg::Ignored(_) =>
                         panic!("ignored argument: {:?}", name),
@@ -286,7 +276,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                                     Box::into_raw(Box::new(def.as_method_def())),
                                     std::ptr::null_mut()));
 
-                            #m.add(py, stringify!(#fnname), func)?
+                            #m.add(stringify!(#fnname), func)?
                         }
                     }
                 }
@@ -309,16 +299,17 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
-    let names: Vec<&syn::Ident> = spec.args.iter().map(|item| item.name).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().map(
+        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
     let cb = quote! {{
-        #name(py, #(#names),*)
+        #name(#(#names),*)
     }};
 
     let body = py_method::impl_arg_params(spec, cb);
     let output = &spec.output;
 
     quote! {
-        #[allow(unused_mut)]
+        #[allow(unused_variables)]
         unsafe extern "C" fn wrap(_slf: *mut _pyo3::ffi::PyObject,
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
@@ -326,14 +317,12 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
             const LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             _pyo3::callback::cb_meth(LOCATION, |py| {
-                let args = _pyo3::PyTuple::from_borrowed_ptr(py, args);
+                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
                 let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
                 let result: #output = {
                     #body
                 };
-                py.release(kwargs);
-                py.release(args);
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, py, result)
             })

@@ -8,19 +8,14 @@ macro_rules! py_unary_func {
     };
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $ret_type:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let result = {
-                    let res = slf.as_mut(py).$f(py).into();
-                    $crate::callback::cb_convert($conv, py, res)
-                };
-                py.release(slf);
-                result
+                let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let res = slf.$f().into();
+                $crate::callback::cb_convert($conv, py, res)
             })
         }
         Some(wrap::<$class>)
@@ -33,19 +28,15 @@ macro_rules! py_unary_func {
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject)
                                      -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let result = {
-                    let res = slf.as_mut(py).$f(py).into();
-                    $crate::callback::cb_convert($conv, py, res)
-                };
-                py.release(slf);
-                result
+                let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let res = slf.$f().into();
+                $crate::callback::cb_convert($conv, py, res)
             })
         }
         Some(wrap::<$class>)
@@ -59,11 +50,11 @@ macro_rules! py_len_func {
     ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject)
                                      -> $crate::ffi::Py_ssize_t
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
-                  $crate::callback::cb_unary::<T, _, _, _>(LOCATION, slf, $conv, |py, slf| {
-                slf.$f(py).into()
+                  $crate::callback::cb_unary::<T, _, _, _>(LOCATION, slf, $conv, |_, slf| {
+                      slf.$f().into()
             })
         }
         Some(wrap::<$class>)
@@ -80,27 +71,20 @@ macro_rules! py_binary_func{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject) -> $return
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let arg = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg);
 
-                let result = {
-                    let result = match arg.extract(py) {
-                        Ok(arg) => {
-                            slf.as_mut(py).$f(py, arg).into()
-                        }
-                        Err(e) => Err(e.into()),
-                    };
-                    $crate::callback::cb_convert($conv, py, result)
+                let result = match arg.extract() {
+                    Ok(arg) => slf.$f(arg).into(),
+                    Err(e) => Err(e.into()),
                 };
-                py.release(arg);
-                py.release(slf);
-                result
+                $crate::callback::cb_convert($conv, py, result)
             })
         }
         Some(wrap::<$class>)
@@ -114,37 +98,29 @@ macro_rules! py_binary_self_func{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
-                let slf1 = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg = $crate::PyObject::from_borrowed_ptr(py, arg);
+                let slf1 = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let arg = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg);
 
-                let result = {
-                    let result = match arg.extract(py) {
-                        Ok(arg) => {
-                            slf1.as_mut(py).$f(py, arg).into()
-                        }
-                        Err(e) => Err(e.into()),
-                    };
-
-                    match result {
-                        Ok(_) => {
-                            ffi::Py_INCREF(slf);
-                            slf
-                        }
-                        Err(e) => {
-                            e.restore(py);
-                            $crate::std::ptr::null_mut()
-                        }
-                    }
+                let result = match arg.extract() {
+                    Ok(arg) => slf1.$f(arg).into(),
+                    Err(e) => Err(e.into()),
                 };
-                py.release(arg);
-                py.release(slf1);
-                result
+                match result {
+                    Ok(_) => {
+                        ffi::Py_INCREF(slf);
+                        slf
+                    }
+                    Err(e) => {
+                        e.restore(py);
+                        $crate::std::ptr::null_mut()
+                    }
+                }
             })
         }
         Some(wrap::<$class>)
@@ -159,19 +135,14 @@ macro_rules! py_ssizearg_func {
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: $crate::Py_ssize_t) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
-                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let result = {
-                    let result = slf.as_mut(py).$f(py, arg as isize).into();
-                    $crate::callback::cb_convert($conv, py, result)
-                };
-                py.release(slf);
-                result
+                let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let result = slf.$f(arg as isize).into();
+                $crate::callback::cb_convert($conv, py, result)
             })
         }
         Some(wrap::<$class>)
@@ -188,30 +159,24 @@ macro_rules! py_ternary_func{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
                                      arg1: *mut $crate::ffi::PyObject,
                                      arg2: *mut $crate::ffi::PyObject) -> $return_type
-            where T: for<'p> $trait<'p>
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
-                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
-                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
+                let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg1);
+                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg2);
 
-                let result = {
-                    let result = match arg1.extract(py) {
-                        Ok(arg1) => match arg2.extract(py) {
-                            Ok(arg2) => slf.as_mut(py).$f(py, arg1, arg2).into(),
-                            Err(e) => Err(e.into())
-                        },
-                        Err(e) => Err(e.into()),
-                    };
-                    $crate::callback::cb_convert($conv, py, result)
+                let result = match arg1.extract() {
+                    Ok(arg1) => match arg2.extract() {
+                        Ok(arg2) => slf.$f(arg1, arg2).into(),
+                        Err(e) => Err(e.into())
+                    },
+                    Err(e) => Err(e.into()),
                 };
-                py.release(arg2);
-                py.release(arg1);
-                py.release(slf);
-                result
+                $crate::callback::cb_convert($conv, py, result)
             })
         }
 
@@ -229,35 +194,29 @@ macro_rules! py_ternary_self_func{
                                      -> *mut $crate::ffi::PyObject
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_meth(LOCATION, |py| {
-                let slf1 = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let arg1 = $crate::PyObject::from_borrowed_ptr(py, arg1);
-                let arg2 = $crate::PyObject::from_borrowed_ptr(py, arg2);
+                let slf1 = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg1);
+                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg2);
 
-                let result = {
-                    let result = match arg1.extract(py) {
-                        Ok(arg1) => match arg2.extract(py) {
-                            Ok(arg2) => slf1.as_mut(py).$f(py, arg1, arg2).into(),
-                            Err(e) => Err(e.into())
-                        },
-                        Err(e) => Err(e.into()),
-                    };
-
-                    match result {
-                        Ok(_) => slf,
-                        Err(e) => {
-                            e.restore(py);
-                            $crate::std::ptr::null_mut()
-                        }
-                    }
+                let result = match arg1.extract() {
+                    Ok(arg1) => match arg2.extract() {
+                        Ok(arg2) => slf1.$f(arg1, arg2).into(),
+                        Err(e) => Err(e.into())
+                    },
+                    Err(e) => Err(e.into()),
                 };
-                py.release(arg2);
-                py.release(arg1);
-                py.release(slf1);
-                result
+
+                match result {
+                    Ok(_) => slf,
+                    Err(e) => {
+                        e.restore(py);
+                        $crate::std::ptr::null_mut()
+                    }
+                }
             })
         }
          Some(wrap::<T>)
@@ -274,6 +233,7 @@ macro_rules! py_func_set{
                                      value: *mut $crate::ffi::PyObject) -> $crate::c_int
             where T: for<'p> $trait<'p>
         {
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
             $crate::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
                 if value.is_null() {
@@ -282,20 +242,16 @@ macro_rules! py_func_set{
                     e.restore(py);
                     -1
                 } else {
-                    let name = $crate::PyObject::from_borrowed_ptr(py, name);
-                    let value = $crate::PyObject::from_borrowed_ptr(py, value);
-                    let result = match name.extract(py) {
-                        Ok(name) => match value.extract(py) {
-                            Ok(value) => {
-                                slf.$f(py, name, value).into()
-                            },
+                    let name = py.mut_cast_from_borrowed_ptr::<$crate::PyInstance>(name);
+                    let value = py.cast_from_borrowed_ptr::<$crate::PyInstance>(value);
+                    let result = match name.extract() {
+                        Ok(name) => match value.extract() {
+                            Ok(value) =>
+                                slf.$f(name, value).into(),
                             Err(e) => Err(e.into()),
                         },
                         Err(e) => Err(e.into()),
                     };
-                    py.release(value);
-                    py.release(name);
-
                     match result {
                         Ok(_) =>
                             0,
@@ -323,40 +279,33 @@ macro_rules! py_func_del{
                                      value: *mut $crate::ffi::PyObject) -> $crate::c_int
             where T: for<'p> $trait<'p>
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, ()>(
                 LOCATION, $crate::callback::UnitCallbackConverter, |py|
             {
                 if value.is_null() {
-                    let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                    let name = PyObject::from_borrowed_ptr(py, name);
+                    let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                    let name = py.cast_from_borrowed_ptr::<$crate::PyInstance>(name);
 
-                    let result = {
-                        let result = match name.extract(py) {
-                            Ok(name) =>
-                                slf.as_mut(py).$f(py, name).into(),
-                            Err(e) => Err(e.into()),
-                        };
-                        match result {
-                            Ok(_) => 0,
-                            Err(e) => {
-                                e.restore(py);
-                                -1
-                            }
-                        }
+                    let result = match name.extract() {
+                        Ok(name) => slf.$f(name).into(),
+                        Err(e) => Err(e.into()),
                     };
-                    py.release(name);
-                    py.release(slf);
-                    result
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
+                        }
+                    }
                 } else {
                     let e = PyErr::new::<exc::NotImplementedError, _>(
                         py, format!("Subscript assignment not supported by {:?}",
                                             stringify!(T)));
                     e.restore(py);
                     -1
-
                 }
             })
         }
@@ -373,59 +322,48 @@ macro_rules! py_func_set_del{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
                                      name: *mut $crate::ffi::PyObject,
                                      value: *mut $crate::ffi::PyObject) -> $crate::c_int
-            where T: for<'p> $trait<'p> + for<'p> $trait2<'p>
+            where T: for<'p> $trait<'p> + for<'p> $trait2<'p> + $crate::PyDowncastFrom
         {
-            use token::AsPyRef;
+            use $crate::ObjectProtocol;
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
 
             $crate::callback::cb_pyfunc::<_, _, ()>(
                 LOCATION, $crate::callback::UnitCallbackConverter, |py|
             {
-                let slf = $crate::Py::<T>::from_borrowed_ptr(slf);
-                let name = PyObject::from_borrowed_ptr(py, name);
+                let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+                let name = py.cast_from_borrowed_ptr::<$crate::PyInstance>(name);
 
-                let result = {
-                    if value.is_null() {
-                        let result = match name.extract(py) {
-                            Ok(name) =>
-                                slf.as_mut(py).$f2(py, name).into(),
-                            Err(e) => Err(e.into()),
-                        };
-                        match result {
-                            Ok(_) => 0,
-                            Err(e) => {
-                                e.restore(py);
-                                -1
-                            }
+                if value.is_null() {
+                    let result = match name.extract() {
+                        Ok(name) => slf.$f2(name).into(),
+                        Err(e) => Err(e.into()),
+                    };
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
                         }
-                    } else {
-                        let value = ::PyObject::from_borrowed_ptr(py, value);
-                        let result = {
-                            let result = match name.extract(py) {
-                                Ok(name) => match value.extract(py) {
-                                    Ok(value) => {
-                                        slf.as_mut(py).$f(py, name, value).into()
-                                    },
-                                    Err(e) => Err(e.into()),
-                                },
-                                Err(e) => Err(e.into()),
-                            };
-                            match result {
-                                Ok(_) => 0,
-                                Err(e) => {
-                                    e.restore(py);
-                                    -1
-                                }
-                            }
-                        };
-                        py.release(value);
-                        result
                     }
-                };
-
-                py.release(name);
-                py.release(slf);
-                result
+                } else {
+                    let value = py.cast_from_borrowed_ptr::<$crate::PyInstance>(value);
+                    let result = match name.extract() {
+                        Ok(name) => match value.extract() {
+                            Ok(value) => {
+                                slf.$f(name, value).into()
+                            },
+                            Err(e) => Err(e.into()),
+                        },
+                        Err(e) => Err(e.into()),
+                    };
+                    match result {
+                        Ok(_) => 0,
+                        Err(e) => {
+                            e.restore(py);
+                            -1
+                        }
+                    }
+                }
             })
         }
         Some(wrap::<T>)

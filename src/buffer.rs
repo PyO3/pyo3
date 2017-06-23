@@ -25,7 +25,7 @@ use ffi;
 use exc;
 use err::{self, PyResult};
 use python::{Python, ToPyPointer};
-use objects::PyObject;
+use objects::PyInstance;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 pub struct PyBuffer(Box<ffi::Py_buffer>); // use Box<> because Python expects that the Py_buffer struct has a stable memory address
@@ -138,7 +138,7 @@ fn validate(b: &ffi::Py_buffer) {
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
-    pub fn get(py: Python, obj: &PyObject) -> PyResult<PyBuffer> {
+    pub fn get(py: Python, obj: &PyInstance) -> PyResult<PyBuffer> {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(
@@ -621,8 +621,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let array = py.import("array").unwrap().call_method(
-            py, "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
-        let buffer = PyBuffer::get(py, &array).unwrap();
+            "array", ("f", (1.0, 1.5, 2.0, 2.5)), None).unwrap();
+        let buffer = PyBuffer::get(py, array.into()).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 4);
         assert_eq!(buffer.format().to_str().unwrap(), "f");

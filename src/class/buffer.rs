@@ -9,7 +9,6 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::Python;
 use typeob::PyTypeInfo;
 use callback::UnitCallbackConverter;
 
@@ -18,11 +17,11 @@ use callback::UnitCallbackConverter;
 #[allow(unused_variables)]
 pub trait PyBufferProtocol<'p> : PyTypeInfo + Sized + 'static
 {
-    fn bf_getbuffer(&'p self, py: Python<'p>,
+    fn bf_getbuffer(&'p self,
                     view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
         where Self: PyBufferGetBufferProtocol<'p> { unimplemented!() }
 
-    fn bf_releasebuffer(&'p self, py: Python<'p>, view: *mut ffi::Py_buffer) -> Self::Result
+    fn bf_releasebuffer(&'p self, view: *mut ffi::Py_buffer) -> Self::Result
         where Self: PyBufferReleaseBufferProtocol<'p> { unimplemented!() }
 }
 
@@ -79,8 +78,8 @@ impl<T> PyBufferGetBufferProtocolImpl for T
             where T: for<'p> PyBufferGetBufferProtocol<'p>
         {
             const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |py, slf| {
-                slf.bf_getbuffer(py, arg1, arg2).into()
+            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |_, slf| {
+                slf.bf_getbuffer(arg1, arg2).into()
             })
         }
         Some(wrap::<T>)

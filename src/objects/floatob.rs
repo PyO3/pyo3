@@ -5,10 +5,10 @@
 use std::os::raw::c_double;
 
 use ffi;
-use objects::PyObject;
-use pointers::PyPtr;
+use pointer::PyObject;
 use python::{ToPyPointer, Python};
 use err::PyErr;
+use instance::{Py, PyObjectWithToken};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `float` object.
@@ -17,7 +17,7 @@ use conversion::{ToPyObject, IntoPyObject};
 /// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat(PyPtr);
+pub struct PyFloat(PyObject);
 
 pyobject_convert!(PyFloat);
 pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
@@ -25,14 +25,14 @@ pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
 
 impl PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new(_py: Python, val: c_double) -> PyFloat {
+    pub fn new(_py: Python, val: c_double) -> Py<PyFloat> {
         unsafe {
-            PyFloat(PyPtr::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val)))
+            Py::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val))
         }
     }
 
     /// Gets the value of this float.
-    pub fn value(&self, _py: Python) -> c_double {
+    pub fn value(&self) -> c_double {
         unsafe { ffi::PyFloat_AsDouble(self.0.as_ptr()) }
     }
 }
@@ -50,8 +50,8 @@ impl IntoPyObject for f64 {
 
 pyobject_extract!(py, obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
-    if v == -1.0 && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
+    if v == -1.0 && PyErr::occurred(obj.token()) {
+        Err(PyErr::fetch(obj.token()))
     } else {
         Ok(v)
     }
@@ -69,7 +69,7 @@ impl IntoPyObject for f32 {
 }
 
 pyobject_extract!(py, obj to f32 => {
-    Ok(try!(obj.extract::<f64>(py)) as f32)
+    Ok(try!(obj.extract::<f64>()) as f32)
 });
 
 

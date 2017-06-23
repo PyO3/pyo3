@@ -4,12 +4,13 @@ use std::os::raw::c_int;
 use std::{any, mem, ptr, isize, io, panic};
 use libc;
 
+use pythonrun;
 use python::{Python, IntoPyPointer};
 use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
-use token::{Py, AsPyRef};
+use instance::{Py, AsPyRef};
 use typeob::PyTypeInfo;
 
 
@@ -170,6 +171,7 @@ pub unsafe fn handle<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
+    let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         match f(py) {
@@ -189,6 +191,7 @@ pub unsafe fn handle<'p, F, T, C>(location: &str, _c: C, f: F) -> C::R
             C::error_value()
         }
     };
+    drop(pool);
     mem::forget(guard);
     ret
 }
@@ -202,6 +205,7 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
+    let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         let slf = Py::<Slf>::from_borrowed_ptr(slf);
@@ -225,6 +229,7 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
             C::error_value()
         }
     };
+    drop(pool);
     mem::forget(guard);
     ret
 }
@@ -236,6 +241,7 @@ pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: 
           Slf: PyTypeInfo,
 {
     let guard = AbortOnDrop(location);
+    let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         let slf = Py::<Slf>::from_borrowed_ptr(slf);
@@ -251,6 +257,7 @@ pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: 
             -1
         }
     };
+    drop(pool);
     mem::forget(guard);
     ret
 }
@@ -260,6 +267,7 @@ pub unsafe fn cb_meth<F>(location: &str, f: F) -> *mut ffi::PyObject
           F: panic::UnwindSafe
 {
     let guard = AbortOnDrop(location);
+    let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         f(py)
@@ -271,6 +279,7 @@ pub unsafe fn cb_meth<F>(location: &str, f: F) -> *mut ffi::PyObject
             ptr::null_mut()
         }
     };
+    drop(pool);
     mem::forget(guard);
     ret
 }
@@ -281,6 +290,7 @@ pub unsafe fn cb_pyfunc<F, C, T>(location: &str, _c: C, f: F) -> C::R
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
+    let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         f(py)
@@ -292,6 +302,7 @@ pub unsafe fn cb_pyfunc<F, C, T>(location: &str, _c: C, f: F) -> C::R
             C::error_value()
         }
     };
+    drop(pool);
     mem::forget(guard);
     ret
 }
@@ -301,6 +312,7 @@ pub unsafe fn cb_setter<F>(location: &str, f: F) -> c_int
           F: panic::UnwindSafe
 {
     let guard = AbortOnDrop(location);
+    let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
         f(py)
@@ -312,6 +324,7 @@ pub unsafe fn cb_setter<F>(location: &str, f: F) -> c_int
             -1
         }
     };
+    drop(pool);
     mem::forget(guard);
     ret
 }
