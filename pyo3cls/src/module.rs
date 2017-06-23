@@ -38,6 +38,7 @@ pub fn build_py3_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
 }
 
 pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
+    let m_name = syn::Ident::from(name.trim().as_ref());
     let cb_name = syn::Ident::from(format!("PyInit_{}", name.trim()).as_ref());
     quote! {
         #[no_mangle]
@@ -47,13 +48,13 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             use std;
             use pyo3::{IntoPyPointer, ObjectProtocol};
 
-            // initialize python
-            pyo3::prepare_freethreaded_python();
+            // initialize pyo3
+            pyo3::prepare_pyo3_library();
 
             static mut MODULE_DEF: pyo3::ffi::PyModuleDef = pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
-            MODULE_DEF.m_name = concat!(stringify!(#cb_name), "\0").as_ptr() as *const _;
+            MODULE_DEF.m_name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
 
             pyo3::callback::cb_meth("py_module_init", |py| {
                 pyo3::ffi::PyEval_InitThreads();
@@ -112,6 +113,7 @@ pub fn build_py2_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
 }
 
 pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
+    let m_name = syn::Ident::from(name.trim().as_ref());
     let cb_name = syn::Ident::from(format!("init{}", name.trim()).as_ref());
 
     quote! {
@@ -122,12 +124,12 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             use std;
 
             // initialize python
-            pyo3::prepare_freethreaded_python();
+            pyo3::prepare_pyo3_library();
+            ffi::PyEval_InitThreads();
 
-            let name = concat!(stringify!(#cb_name), "\0").as_ptr() as *const _;
+            let name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
             let guard = pyo3::callback::AbortOnDrop("py_module_initializer");
             let py = pyo3::Python::assume_gil_acquired();
-            pyo3::ffi::PyEval_InitThreads();
             let module = pyo3::ffi::Py_InitModule(name, std::ptr::null_mut());
             if module.is_null() {
                 std::mem::forget(guard);
@@ -143,12 +145,10 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 }
             };
             module.add("__doc__", #doc).expect("Failed to add doc for module");
-            let ret = match #fnname(py, module) {
-                Ok(()) => (),
-                Err(e) => e.restore(py)
-            };
+            if let Err(e) = #fnname(py, module) {
+                e.restore(py)
+            }
             std::mem::forget(guard);
-            ret
         }
     }
 }

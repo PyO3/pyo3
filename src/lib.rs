@@ -158,7 +158,7 @@ pub use objectprotocol::ObjectProtocol;
 pub use pointer::PyObject;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
-pub use pythonrun::{GILGuard, prepare_freethreaded_python};
+pub use pythonrun::{GILGuard, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
 pub use conversion::{FromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
 pub mod class;

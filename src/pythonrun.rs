@@ -9,6 +9,7 @@ use pointer::PyObject;
 use objects::PyInstance;
 
 static START: sync::Once = sync::ONCE_INIT;
+static START_PYO3: sync::Once = sync::ONCE_INIT;
 
 /// Prepares the use of Python in a free-threaded context.
 ///
@@ -60,6 +61,13 @@ pub fn prepare_freethreaded_python() {
             // and will be restored by PyGILState_Ensure.
         }
 
+        prepare_pyo3_library();
+    });
+}
+
+#[doc(hidden)]
+pub fn prepare_pyo3_library() {
+    START_PYO3.call_once(|| unsafe {
         // initialize release pool
         POOL = Box::into_raw(Box::new(Vec::with_capacity(250)));
     });
