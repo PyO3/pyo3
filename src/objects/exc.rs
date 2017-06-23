@@ -34,33 +34,45 @@ macro_rules! exc_type(
 
 exc_type!(BaseException, PyExc_BaseException);
 exc_type!(Exception, PyExc_Exception);
+#[cfg(Py_3)]
+exc_type!(StopAsyncIteration, PyExc_StopAsyncIteration);
+exc_type!(StopIteration, PyExc_StopIteration);
+exc_type!(GeneratorExit, PyExc_GeneratorExit);
+exc_type!(ArithmeticError, PyExc_ArithmeticError);
 exc_type!(LookupError, PyExc_LookupError);
+
 exc_type!(AssertionError, PyExc_AssertionError);
 exc_type!(AttributeError, PyExc_AttributeError);
 exc_type!(BufferError, PyExc_BufferError);
 exc_type!(EOFError, PyExc_EOFError);
-exc_type!(EnvironmentError, PyExc_EnvironmentError);
 exc_type!(FloatingPointError, PyExc_FloatingPointError);
-exc_type!(IOError, PyExc_IOError);
+exc_type!(OSError, PyExc_OSError);
 exc_type!(ImportError, PyExc_ImportError);
+
+#[cfg(Py_3_6)]
+exc_type!(ModuleNotFoundError, PyExc_ModuleNotFoundError);
+
 exc_type!(IndexError, PyExc_IndexError);
 exc_type!(KeyError, PyExc_KeyError);
 exc_type!(KeyboardInterrupt, PyExc_KeyboardInterrupt);
 exc_type!(MemoryError, PyExc_MemoryError);
 exc_type!(NameError, PyExc_NameError);
-exc_type!(NotImplementedError, PyExc_NotImplementedError);
-exc_type!(OSError, PyExc_OSError);
 exc_type!(OverflowError, PyExc_OverflowError);
-exc_type!(ReferenceError, PyExc_ReferenceError);
 exc_type!(RuntimeError, PyExc_RuntimeError);
-exc_type!(StopIteration, PyExc_StopIteration);
+#[cfg(Py_3)]
+exc_type!(RecursionError, PyExc_RecursionError);
+exc_type!(NotImplementedError, PyExc_NotImplementedError);
 exc_type!(SyntaxError, PyExc_SyntaxError);
+exc_type!(ReferenceError, PyExc_ReferenceError);
 exc_type!(SystemError, PyExc_SystemError);
 exc_type!(SystemExit, PyExc_SystemExit);
 exc_type!(TypeError, PyExc_TypeError);
+exc_type!(UnboundLocalError, PyExc_UnboundLocalError);
+exc_type!(UnicodeError, PyExc_UnicodeError);
+exc_type!(UnicodeDecodeError, PyExc_UnicodeDecodeError);
+exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
+exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 exc_type!(ValueError, PyExc_ValueError);
-#[cfg(target_os="windows")]
-exc_type!(WindowsError, PyExc_WindowsError);
 exc_type!(ZeroDivisionError, PyExc_ZeroDivisionError);
 
 #[cfg(Py_3)]
@@ -94,9 +106,10 @@ exc_type!(ProcessLookupError, PyExc_ProcessLookupError);
 #[cfg(Py_3)]
 exc_type!(TimeoutError, PyExc_TimeoutError);
 
-exc_type!(UnicodeDecodeError, PyExc_UnicodeDecodeError);
-exc_type!(UnicodeEncodeError, PyExc_UnicodeEncodeError);
-exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
+exc_type!(EnvironmentError, PyExc_EnvironmentError);
+exc_type!(IOError, PyExc_IOError);
+#[cfg(target_os="windows")]
+exc_type!(WindowsError, PyExc_WindowsError);
 
 
 impl UnicodeDecodeError {
