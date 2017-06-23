@@ -106,7 +106,7 @@ struct EmptyClassWithNew {
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(cls: &PyType) -> PyResult<Py<EmptyClassWithNew>> {
-        Py::new(cls.token(), |t| EmptyClassWithNew{token: t})
+        Ok(Py::new(cls.token(), |t| EmptyClassWithNew{token: t})?.into())
     }
 }
 
@@ -127,8 +127,8 @@ struct NewWithOneArg {
 #[py::methods]
 impl NewWithOneArg {
     #[new]
-    fn __new__(cls: &PyType, arg: i32) -> PyResult<Py<NewWithOneArg>> {
-        Py::new(cls.token(), |t| NewWithOneArg{_data: arg, token: t})
+    fn __new__(cls: &PyType, arg: i32) -> PyResult<&mut NewWithOneArg> {
+        cls.token().init_mut(|t| NewWithOneArg{_data: arg, token: t})
     }
 }
 
@@ -155,7 +155,9 @@ impl NewWithTwoArgs {
     #[new]
     fn __new__(cls: &PyType, arg1: i32, arg2: i32) -> PyResult<Py<NewWithTwoArgs>>
     {
-        Py::new(cls.token(), |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
+        Py::new_ptr(
+            cls.token(),
+            |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
 }
 
@@ -178,12 +180,12 @@ fn class_with_freelist() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
-    let inst2 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst = Py::new_ptr(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst2 = Py::new_ptr(py, |t| ClassWithFreelist{token: t}).unwrap();
     let ptr = inst.as_ptr();
     drop(inst);
 
-    let inst3 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    let inst3 = Py::new_ptr(py, |t| ClassWithFreelist{token: t}).unwrap();
     assert_eq!(ptr, inst3.as_ptr());
 }
 
@@ -210,7 +212,7 @@ fn data_is_dropped() {
 
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
-    let inst = Py::new(py, |t| DataIsDropped{
+    let inst = py.init_ptr(|t| DataIsDropped{
         member1: TestDropCall { drop_called: drop_called1.clone() },
         member2: TestDropCall { drop_called: drop_called2.clone() },
         token: t
@@ -243,7 +245,7 @@ fn instance_method() {
     let py = gil.python();
 
     let obj = Py::new(py, |t| InstanceMethod{member: 42, token: t}).unwrap();
-    assert!(obj.as_ref(py).method().unwrap() == 42);
+    assert!(obj.method().unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
     py.run("assert obj.method() == 42", None, Some(d)).unwrap();
@@ -269,7 +271,7 @@ fn instance_method_with_args() {
     let py = gil.python();
 
     let obj = Py::new(py, |t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
-    assert!(obj.as_ref(py).method(6).unwrap() == 42);
+    assert!(obj.method(6).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
     py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
@@ -284,7 +286,7 @@ struct ClassMethod {token: PyToken}
 impl ClassMethod {
     #[new]
     fn __new__(cls: &PyType) -> PyResult<Py<ClassMethod>> {
-        Py::new(cls.token(), |t| ClassMethod{token: t})
+        Py::new_ptr(cls.token(), |t| ClassMethod{token: t})
     }
 
     #[classmethod]
@@ -334,8 +336,8 @@ struct StaticMethod {
 #[py::methods]
 impl StaticMethod {
     #[new]
-    fn __new__(cls: &PyType) -> PyResult<Py<StaticMethod>> {
-        Py::new(cls.token(), |t| StaticMethod{token: t})
+    fn __new__(cls: &PyType) -> PyResult<&StaticMethod> {
+        Ok(cls.token().init_mut(|t| StaticMethod{token: t})?.into())
     }
 
     #[staticmethod]
@@ -400,18 +402,22 @@ impl PyGCProtocol for GCIntegration {
 
 #[test]
 fn gc_integration() {
+    let drop_called = Arc::new(AtomicBool::new(false));
+
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let inst = Py::new(py, |t| GCIntegration{
+            self_ref: RefCell::new(py.None().into()),
+            dropped: TestDropCall { drop_called: drop_called.clone() },
+            token: t}).unwrap();
+
+        *inst.self_ref.borrow_mut() = inst.into();
+        drop(inst);
+    }
+
     let gil = Python::acquire_gil();
     let py = gil.python();
-
-    let drop_called = Arc::new(AtomicBool::new(false));
-    let inst = Py::new(py, |t| GCIntegration{
-        self_ref: RefCell::new(py.None().into()),
-        dropped: TestDropCall { drop_called: drop_called.clone() },
-        token: t}).unwrap();
-
-    *inst.as_mut(py).self_ref.borrow_mut() = inst.clone_ref(py).into();
-    drop(inst);
-
     py.run("import gc; gc.collect()", None, None).unwrap();
     assert!(drop_called.load(Ordering::Relaxed));
 }
@@ -638,8 +644,8 @@ fn setitem() {
 
     let c = py.init(|t| SetItem{key: 0, val: 0, token: t}).unwrap();
     py_run!(py, c, "c[1] = 2");
-    assert_eq!(c.as_ref(py).key, 1);
-    assert_eq!(c.as_ref(py).val, 2);
+    assert_eq!(c.key, 1);
+    assert_eq!(c.val, 2);
     py_expect_exception!(py, c, "del c[1]", NotImplementedError);
 }
 
@@ -664,7 +670,7 @@ fn delitem() {
 
     let c = py.init(|t| DelItem{key:0, token:t}).unwrap();
     py_run!(py, c, "del c[1]");
-    assert_eq!(c.as_ref(py).key, 1);
+    assert_eq!(c.key, 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
 }
 
@@ -694,9 +700,9 @@ fn setdelitem() {
 
     let c = py.init(|t| SetDelItem{val: None, token: t}).unwrap();
     py_run!(py, c, "c[1] = 2");
-    assert_eq!(c.as_ref(py).val, Some(2));
+    assert_eq!(c.val, Some(2));
     py_run!(py, c, "del c[1]");
-    assert_eq!(c.as_ref(py).val, None);
+    assert_eq!(c.val, None);
 }
 
 #[py::class]
@@ -1064,19 +1070,18 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| ContextManager{exit_called: false, token: t}).unwrap();
+    let mut c = py.init_mut(|t| ContextManager{exit_called: false, token: t}).unwrap();
     py_run!(py, c, "with c as x:\n  assert x == 42");
-    assert!(c.as_ref(py).exit_called);
+    assert!(c.exit_called);
 
-    c.as_mut(py).exit_called = false;
+    c.exit_called = false;
     py_run!(py, c, "with c as x:\n  raise ValueError");
-    assert!(c.as_ref(py).exit_called);
+    assert!(c.exit_called);
 
-    c.as_mut(py).exit_called = false;
+    c.exit_called = false;
     py_expect_exception!(
-        py, c, "with c as x:\n  raise NotImplementedError",
-        NotImplementedError);
-    assert!(c.as_ref(py).exit_called);
+        py, c, "with c as x:\n  raise NotImplementedError", NotImplementedError);
+    assert!(c.exit_called);
 }
 
 #[py::class]

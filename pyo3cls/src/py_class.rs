@@ -60,13 +60,23 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     self.#token.py()
                 }
             }
-            impl _pyo3::ToPyObject for #cls
-            {
+            impl _pyo3::ToPyObject for #cls {
                 #[inline]
                 fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
                     unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
-
+                #[inline]
+                fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
+                    where F: FnOnce(*mut ffi::PyObject) -> R
+                {
+                    f(self.as_ptr())
+                }
+            }
+            impl<'a> _pyo3::ToPyObject for &'a mut #cls {
+                #[inline]
+                fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
+                    unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+                }
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
                     where F: FnOnce(*mut ffi::PyObject) -> R
@@ -81,9 +91,22 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
+            impl<'a> _pyo3::IntoPyObject for &'a mut #cls
+            {
+                #[inline]
+                fn into_object<'p>(self, py: _pyo3::Python) -> _pyo3::PyObject {
+                    unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+                }
+            }
             impl std::convert::AsRef<PyInstance> for #cls {
                 fn as_ref(&self) -> &_pyo3::PyInstance {
                     unsafe{std::mem::transmute(self.as_ptr())}
+                }
+            }
+            impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
+            {
+                fn from(ob: &'a mut #cls) -> Self {
+                    unsafe{std::mem::transmute(ob)}
                 }
             }
             impl _pyo3::ToPyPointer for #cls {
@@ -95,7 +118,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     }
                 }
             }
-
             impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     use pyo3::ObjectProtocol;

@@ -10,7 +10,7 @@ use pointer::PyObject;
 use objects::PyInstance;
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
-use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto};
+use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto, PyDowncastFrom};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
@@ -161,8 +161,37 @@ impl<T> Py<T> {
 
 impl<T> Py<T> where T: PyTypeInfo,
 {
-    /// Create new python object and move T instance under python management
-    pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
+    /// Create new instance of `T` and move under python management.
+    /// Returns references to `T`
+    pub fn new<'p, F>(py: Python<'p>, f: F) -> PyResult<&'p T>
+        where F: FnOnce(::PyToken) -> T,
+              T: PyObjectAlloc<T> + PyDowncastFrom
+    {
+        let ob = f(PyToken(PhantomData));
+
+        unsafe {
+            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
+            Ok(py.cast_from_ptr(ob))
+        }
+    }
+
+    /// Create new instance of `T` and move under python management.
+    /// Returns mutable references to `T`
+    pub fn new_mut<'p, F>(py: Python<'p>, f: F) -> PyResult<&'p mut T>
+        where F: FnOnce(::PyToken) -> T,
+              T: PyObjectAlloc<T> + PyDowncastFrom
+    {
+        let ob = f(PyToken(PhantomData));
+
+        unsafe {
+            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
+            Ok(py.mut_cast_from_ptr(ob))
+        }
+    }
+
+    /// Create new instance of T and move under python management
+    /// Returns `Py<T>`.
+    pub fn new_ptr<F>(py: Python, f: F) -> PyResult<Py<T>>
         where F: FnOnce(::PyToken) -> T,
               T: PyObjectAlloc<T>
     {

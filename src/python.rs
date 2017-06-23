@@ -206,6 +206,19 @@ impl<'p> Python<'p> {
         PyModule::import(self, name)
     }
 
+    /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
+    pub fn is_instance<T: PyTypeObject, V: ToPyPointer>(self, obj: &V) -> PyResult<bool> {
+        T::type_object(self).is_instance(obj)
+    }
+
+    /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
+    pub fn is_subclass<T, U>(self) -> PyResult<bool>
+        where T: PyTypeObject,
+              U: PyTypeObject
+    {
+        T::type_object(self).is_subclass::<U>()
+    }
+
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
@@ -219,78 +232,99 @@ impl<'p> Python<'p> {
     pub fn NotImplemented(self) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
     }
+}
 
-    /// Create new python object and move T instance under python management
+impl<'p> Python<'p> {
+
+    /// Create new instance of T and move under python management.
+    /// Created object get registered in release pool. Returns references to `T`
     #[inline]
-    pub fn init<T, F>(self, f: F) -> PyResult<Py<T>>
+    pub fn init<T, F>(self, f: F) -> PyResult<&'p T>
         where F: FnOnce(PyToken) -> T,
-              T: PyTypeInfo + PyObjectAlloc<T>
+              T: PyTypeInfo + PyObjectAlloc<T> + PyDowncastFrom
     {
         Py::new(self, f)
     }
 
-    /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
-    pub fn is_instance<T: PyTypeObject, V: ToPyPointer>(self, obj: &V) -> PyResult<bool> {
-        T::type_object(self).is_instance(obj)
+    /// Create new instance of T and move under python management.
+    /// Created object get registered in release pool. Returns mutable references to `T`
+    #[inline]
+    pub fn init_mut<T, F>(self, f: F) -> PyResult<&'p mut T>
+        where F: FnOnce(PyToken) -> T,
+              T: PyTypeInfo + PyObjectAlloc<T> + PyDowncastFrom
+    {
+        Py::new_mut(self, f)
     }
 
-    /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
-    pub fn is_subclass<T, U>(self) -> PyResult<bool>
-        where T: PyTypeObject,
-              U: PyTypeObject
+    /// Create new instance of T and move under python management.
+    /// Returns `Py<T>`.
+    #[inline]
+    pub fn init_ptr<T, F>(self, f: F) -> PyResult<Py<T>>
+        where F: FnOnce(PyToken) -> T,
+              T: PyTypeInfo + PyObjectAlloc<T>
     {
-        T::type_object(self).is_subclass::<U>()
+        Py::new_ptr(self, f)
     }
 }
 
 impl<'p> Python<'p> {
 
     /// Register object in release pool, and try to downcast to specific Python object.
-    pub fn checked_cast_as<D>(self, obj: PyObject) -> Result<&'p D, PyDowncastError<'p>>
-        where D: PyDowncastFrom
+    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError<'p>>
+        where T: PyDowncastFrom
     {
         unsafe {
             let p = pythonrun::register_owned(self, obj);
-            <D as PyDowncastFrom>::downcast_from(p)
+            <T as PyDowncastFrom>::downcast_from(p)
         }
     }
 
     /// Register object in release pool, and do unchecked downcast to specific Python object.
-    pub unsafe fn cast_as<D>(self, obj: PyObject) -> &'p D
-        where D: PyDowncastFrom
+    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
+        where T: PyDowncastFrom
     {
         let p = pythonrun::register_owned(self, obj);
-        <D as PyDowncastFrom>::unchecked_downcast_from(p)
+        <T as PyDowncastFrom>::unchecked_downcast_from(p)
     }
 
     /// Register `ffi::PyObject` pointer in release pool,
     /// and do unchecked downcast to specific Python object.
-    pub unsafe fn cast_from_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p D
-        where D: PyDowncastFrom
+    pub unsafe fn cast_from_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
+        where T: PyDowncastFrom
     {
         let obj = PyObject::from_owned_ptr_or_panic(self, ptr);
         let p = pythonrun::register_owned(self, obj);
-        <D as PyDowncastFrom>::unchecked_downcast_from(p)
+        <T as PyDowncastFrom>::unchecked_downcast_from(p)
+    }
+
+    /// Register `ffi::PyObject` pointer in release pool,
+    /// Do unchecked downcast to specific Python object. Returns mutable reference.
+    pub unsafe fn mut_cast_from_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p mut T
+        where T: PyDowncastFrom
+    {
+        let obj = PyObject::from_owned_ptr_or_panic(self, ptr);
+        let p = pythonrun::register_owned(self, obj);
+        <T as PyDowncastFrom>::unchecked_mut_downcast_from(p)
     }
 
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific Python object.
-    pub fn cast_from_ptr_or_err<D>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p D>
-        where D: PyDowncastFrom
+    pub fn cast_from_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
+        where T: PyDowncastFrom
     {
         let obj = PyObject::from_owned_ptr_or_err(self, ptr)?;
         unsafe {
             let p = pythonrun::register_owned(self, obj);
-            Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+            Ok(<T as PyDowncastFrom>::unchecked_downcast_from(p))
         }
     }
 
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific Python object.
-    pub fn cast_from_ptr_or_opt<D>(self, ptr: *mut ffi::PyObject) -> Option<&'p D>
-        where D: PyDowncastFrom
+    pub fn cast_from_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
+        where T: PyDowncastFrom
     {
         if ptr.is_null() {
             None
@@ -298,7 +332,7 @@ impl<'p> Python<'p> {
             unsafe {
                 let obj = PyObject::from_owned_ptr(self, ptr);
                 let p = pythonrun::register_owned(self, obj);
-                Some(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+                Some(<T as PyDowncastFrom>::unchecked_downcast_from(p))
             }
         }
     }
@@ -306,51 +340,51 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Panics if the pointer is `null`.
     /// do unchecked downcast to specific Python object.
-    pub unsafe fn cast_from_borrowed_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p D
-        where D: PyDowncastFrom
+    pub unsafe fn cast_from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
+        where T: PyDowncastFrom
     {
         let obj = PyObject::from_borrowed_ptr(self, ptr);
         let p = pythonrun::register_borrowed(self, obj);
-        <D as PyDowncastFrom>::unchecked_downcast_from(p)
+        <T as PyDowncastFrom>::unchecked_downcast_from(p)
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific Python object.
-    pub unsafe fn cast_from_borrowed_ptr_or_err<D>(self, ptr: *mut ffi::PyObject)
-                                                   -> PyResult<&'p D>
-        where D: PyDowncastFrom
+    pub unsafe fn cast_from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject)
+                                                   -> PyResult<&'p T>
+        where T: PyDowncastFrom
     {
         let obj = PyObject::from_borrowed_ptr_or_err(self, ptr)?;
         let p = pythonrun::register_borrowed(self, obj);
-        Ok(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+        Ok(<T as PyDowncastFrom>::unchecked_downcast_from(p))
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific Python object.
-    pub unsafe fn cast_from_borrowed_ptr_or_opt<D>(self, ptr: *mut ffi::PyObject)
-                                                   -> Option<&'p D>
-        where D: PyDowncastFrom
+    pub unsafe fn cast_from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject)
+                                                   -> Option<&'p T>
+        where T: PyDowncastFrom
     {
         if ptr.is_null() {
             None
         } else {
             let obj = PyObject::from_borrowed_ptr(self, ptr);
             let p = pythonrun::register_borrowed(self, obj);
-            Some(<D as PyDowncastFrom>::unchecked_downcast_from(p))
+            Some(<T as PyDowncastFrom>::unchecked_downcast_from(p))
         }
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Panics if the pointer is `null`.
     /// do unchecked downcast to specific Python object, returns mutable reference.
-    pub unsafe fn mut_cast_from_borrowed_ptr<D>(self, ptr: *mut ffi::PyObject) -> &'p mut D
-        where D: PyDowncastFrom
+    pub unsafe fn mut_cast_from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p mut T
+        where T: PyDowncastFrom
     {
         let obj = PyObject::from_borrowed_ptr(self, ptr);
         let p = pythonrun::register_borrowed(self, obj);
-        <D as PyDowncastFrom>::unchecked_mut_downcast_from(p)
+        <T as PyDowncastFrom>::unchecked_mut_downcast_from(p)
     }
 
     pub fn track_object(self, obj: PyObject) -> &'p PyInstance
