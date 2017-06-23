@@ -14,14 +14,14 @@ use python::{Python, PyClone, ToPyPointer, IntoPyPointer};
 #[derive(Debug)]
 pub struct PyObject(*mut ffi::PyObject);
 
-// `PyPtr` is thread-safe, because any python related operations require a Python<'p> token.
+// `PyObject` is thread-safe, because any python related operations require a Python<'p> token.
 unsafe impl Send for PyObject {}
 unsafe impl Sync for PyObject {}
 
 
 impl PyObject {
-    /// Creates a `PyPtr` instance for the given FFI pointer.
-    /// This moves ownership over the pointer into the `PyPtr`.
+    /// Creates a `PyObject` instance for the given FFI pointer.
+    /// This moves ownership over the pointer into the `PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_owned_ptr(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
@@ -30,23 +30,22 @@ impl PyObject {
         PyObject(ptr)
     }
 
-    /// Cast from ffi::PyObject ptr to a concrete object.
+    /// Creates a `PyObject` instance for the given FFI pointer.
+    /// Panics if the pointer is `null`.
+    /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObject
+    pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObject
     {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
-            unsafe{
-                PyObject::from_owned_ptr(py, ptr)
-            }
+            PyObject::from_owned_ptr(py, ptr)
         }
     }
 
-    /// Construct `PyPtr` from the result of a Python FFI call that
+    /// Construct `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
-    /// Unsafe because the pointer might be invalid.
     pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
     {
         if ptr.is_null() {
@@ -58,10 +57,9 @@ impl PyObject {
         }
     }
 
-    /// Construct `PyPtr` from the result of a Python FFI call that
+    /// Construct `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
     /// Returns `None` if the pointer is `null`.
-    /// Unsafe because the pointer might be invalid.
     pub fn from_owned_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
     {
         if ptr.is_null() {
@@ -73,7 +71,7 @@ impl PyObject {
         }
     }
 
-    /// Creates a `PyPtr` instance for the given Python FFI pointer.
+    /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
@@ -84,33 +82,29 @@ impl PyObject {
         PyObject(ptr)
     }
 
-    /// Creates a `PyPtr` instance for the given Python FFI pointer.
+    /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns `Err(PyErr)` if the pointer is `null`.
-    /// Unsafe because the pointer might be invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject)
-                                           -> PyResult<PyObject>
+    pub fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(PyObject::from_owned_ptr(py, ptr))
+            Ok(unsafe{PyObject::from_owned_ptr(py, ptr)})
         }
     }
 
-    /// Creates a `PyPtr` instance for the given Python FFI pointer.
+    /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns `None` if the pointer is `null`.
-    /// Unsafe because the pointer might be invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject)
-                                           -> Option<PyObject>
+    pub fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
     {
         if ptr.is_null() {
             None
         } else {
-            Some(PyObject::from_owned_ptr(py, ptr))
+            Some(unsafe{PyObject::from_owned_ptr(py, ptr)})
         }
     }
 
@@ -277,8 +271,7 @@ impl PyClone for PyObject {
 impl IntoPyObject for PyObject
 {
     #[inline]
-    fn into_object(self, _py: Python) -> PyObject
-    {
+    fn into_object(self, _py: Python) -> PyObject {
         self
     }
 }
@@ -295,22 +288,11 @@ impl<'a> FromPyObject<'a> for PyObject
     }
 }
 
-//use backtrace::Backtrace;
-
 /// Dropping a `PyObject` instance decrements the reference count on the object by 1.
 impl Drop for PyObject {
 
     fn drop(&mut self) {
         if !self.0.is_null() {
-            //unsafe {
-                //debug!("drop PyPtr: {:?} {} {:?} {:?} {:?}",
-                //       self.0, ffi::Py_REFCNT(self.0), &self as *const _,
-                //       std::ffi::CStr::from_ptr((*(*self.0).ob_type).tp_name).to_string_lossy(),
-                //       &self);
-                //let bt = Backtrace::new();
-                //let bt = Backtrace::from(Vec::from(&bt.frames()[0..15]));
-                //println!("{:?}", bt);
-            //}
             let _gil_guard = Python::acquire_gil();
             unsafe { ffi::Py_DECREF(self.0); }
         }
