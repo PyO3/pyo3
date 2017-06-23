@@ -125,7 +125,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
 
             // initialize python
             pyo3::prepare_pyo3_library();
-            py03::ffi::PyEval_InitThreads();
+            pyo3::ffi::PyEval_InitThreads();
 
             let name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
             let guard = pyo3::callback::AbortOnDrop("py_module_initializer");
