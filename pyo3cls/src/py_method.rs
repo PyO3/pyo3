@@ -377,7 +377,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
     }
     else if spec.is_kwargs(&name) {
         quote! {
-            let #name = kwargs.as_ref();
+            let #name = kwargs;
             #body
         }
     }

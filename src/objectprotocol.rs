@@ -137,7 +137,7 @@ pub trait ObjectProtocol {
     fn get_refcnt(&self) -> isize;
 
     /// Clones PyObject. (utility function)
-    fn clone_ref(&self, ptr: PyObject) -> PyObject;
+    fn clone_ref(&self, ptr: &PyObject) -> PyObject;
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
@@ -369,7 +369,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         FromPyObject::extract(self.into())
     }
 
-    fn clone_ref(&self, ptr: PyObject) -> PyObject {
+    fn clone_ref(&self, ptr: &PyObject) -> PyObject {
         ptr.clone_ref(self.token())
     }
 
