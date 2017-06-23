@@ -8,7 +8,7 @@ use std::os::raw::c_int;
 use ffi;
 use python::PyDowncastFrom;
 use err::{PyErr, PyResult};
-use objects::{exc, PyObject};
+use objects::{exc, PyInstance};
 use objectprotocol::ObjectProtocol;
 use callback::{PyObjectCallbackConverter, LenResultConverter, BoolCallbackConverter};
 use typeob::PyTypeInfo;
@@ -225,7 +225,7 @@ impl<T> PySequenceSetItemProtocolImpl for T
                     e.restore(py);
                     -1
                 } else {
-                    let value = py.cast_from_borrowed_ptr::<PyObject>(value);
+                    let value = py.cast_from_borrowed_ptr::<PyInstance>(value);
                     let result = match value.extract() {
                         Ok(value) => {
                             slf.__setitem__(key as isize, value).into()
@@ -314,7 +314,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                         }
                     }
                 } else {
-                    let value = py.cast_from_borrowed_ptr::<PyObject>(value);
+                    let value = py.cast_from_borrowed_ptr::<PyInstance>(value);
                     let result = match value.extract() {
                         Ok(value) => {
                             slf.__setitem__(key as isize, value).into()

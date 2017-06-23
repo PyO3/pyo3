@@ -9,7 +9,7 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use python::{Python, ToPyPointer};
 use err::PyResult;
 use super::{PyTuple, PyType};
@@ -102,10 +102,10 @@ exc_type!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 impl UnicodeDecodeError {
 
     pub fn new(py: Python, encoding: &CStr, input: &[u8],
-               range: ops::Range<usize>, reason: &CStr) -> PyResult<PyObjectPtr> {
+               range: ops::Range<usize>, reason: &CStr) -> PyResult<PyObject> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            PyObjectPtr::from_owned_ptr_or_err(
+            PyObject::from_owned_ptr_or_err(
                 py, ffi::PyUnicodeDecodeError_Create(
                     encoding.as_ptr(),
                     input.as_ptr(),
@@ -117,7 +117,7 @@ impl UnicodeDecodeError {
     }
 
     pub fn new_utf8<'p>(py: Python, input: &[u8], err: std::str::Utf8Error)
-                        -> PyResult<PyObjectPtr>
+                        -> PyResult<PyObject>
     {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))

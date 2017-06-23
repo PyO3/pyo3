@@ -3,13 +3,13 @@
 use std;
 use std::os::raw::c_char;
 use ffi;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use err::{PyResult, PyErr};
 
 /// Represents a Python bytearray.
-pub struct PyByteArray(PyObjectPtr);
+pub struct PyByteArray(PyObject);
 
 pyobject_convert!(PyByteArray);
 pyobject_nativetype!(PyByteArray, PyByteArray_Type, PyByteArray_Check);
@@ -75,7 +75,7 @@ impl PyByteArray {
 mod test {
     use exc;
     use python::Python;
-    use pointer::PyObjectPtr;
+    use pointer::PyObject;
     use objects::PyByteArray;
 
     #[test]
@@ -88,7 +88,7 @@ mod test {
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());
 
-        let ba: PyObjectPtr = bytearray.into();
+        let ba: PyObject = bytearray.into();
         let bytearray = PyByteArray::from(py, ba).unwrap();
 
         assert_eq!(src.len(), bytearray.len());

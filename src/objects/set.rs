@@ -4,17 +4,17 @@
 use std::{hash, collections};
 use ffi;
 use python::{Python, ToPyPointer};
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use conversion::ToPyObject;
 use instance::{AsPyRef, Py, PyObjectWithToken};
 use err::{self, PyResult, PyErr};
 
 
 /// Represents a Python `set`
-pub struct PySet(PyObjectPtr);
+pub struct PySet(PyObject);
 
 /// Represents a  Python `frozenset`
-pub struct PyFrozenSet(PyObjectPtr);
+pub struct PyFrozenSet(PyObject);
 
 pyobject_convert!(PySet);
 pyobject_convert!(PyFrozenSet);
@@ -72,9 +72,9 @@ impl PySet {
     }
 
     /// Remove and return an arbitrary element from the set
-    pub fn pop(&self) -> Option<PyObjectPtr> {
+    pub fn pop(&self) -> Option<PyObject> {
         unsafe {
-            PyObjectPtr::from_owned_ptr_or_opt(self.token(), ffi::PySet_Pop(self.as_ptr()))
+            PyObject::from_owned_ptr_or_opt(self.token(), ffi::PySet_Pop(self.as_ptr()))
         }
     }
 }
@@ -82,7 +82,7 @@ impl PySet {
 impl<T> ToPyObject for collections::HashSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
         {
             let s = set.as_ref(py);
@@ -97,7 +97,7 @@ impl<T> ToPyObject for collections::HashSet<T>
 impl<T> ToPyObject for collections::BTreeSet<T>
    where T: hash::Hash + Eq + ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
         {
             let s = set.as_ref(py);

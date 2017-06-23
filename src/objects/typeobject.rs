@@ -6,14 +6,14 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use python::{Python, ToPyPointer};
 use err::{PyErr, PyResult};
 use instance::PyObjectWithToken;
 use typeob::PyTypeObject;
 
 /// Represents a reference to a Python type object.
-pub struct PyType(PyObjectPtr);
+pub struct PyType(PyObject);
 
 pyobject_convert!(PyType);
 pyobject_nativetype!(PyType, PyType_Type, PyType_Check);

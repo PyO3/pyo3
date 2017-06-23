@@ -382,7 +382,7 @@ fn static_method_with_args() {
 
 #[py::class]
 struct GCIntegration {
-    self_ref: RefCell<PyObjectPtr>,
+    self_ref: RefCell<PyObject>,
     dropped: TestDropCall,
     token: PyToken,
 }
@@ -489,11 +489,11 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         Ok(format!("format({})", format_spec))
     }
 
-    fn __unicode__(&self) -> PyResult<PyObjectPtr> {
+    fn __unicode__(&self) -> PyResult<PyObject> {
         Ok(PyString::new(self.token(), "unicode").into())
     }
 
-    fn __bytes__(&self) -> PyResult<PyObjectPtr> {
+    fn __bytes__(&self) -> PyResult<PyObject> {
         Ok(PyBytes::new(self.token(), b"bytes").into())
     }
 }
@@ -791,35 +791,35 @@ impl PyObjectProtocol for BinaryArithmetic {
 
 #[py::proto]
 impl PyNumberProtocol for BinaryArithmetic {
-    fn __add__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __add__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", self, rhs))
     }
 
-    fn __sub__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __sub__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} - {:?}", self, rhs))
     }
 
-    fn __mul__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __mul__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} * {:?}", self, rhs))
     }
 
-    fn __lshift__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __lshift__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} << {:?}", self, rhs))
     }
 
-    fn __rshift__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __rshift__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} >> {:?}", self, rhs))
     }
 
-    fn __and__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __and__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} & {:?}", self, rhs))
     }
 
-    fn __xor__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __xor__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} ^ {:?}", self, rhs))
     }
 
-    fn __or__(&self, rhs: &PyObject) -> PyResult<String> {
+    fn __or__(&self, rhs: &PyInstance) -> PyResult<String> {
         Ok(format!("{:?} | {:?}", self, rhs))
     }
 }
@@ -862,7 +862,7 @@ impl PyObjectProtocol for RichComparisons {
         Ok("RC")
     }
 
-    fn __richcmp__(&self, other: &PyObject, op: CompareOp) -> PyResult<String> {
+    fn __richcmp__(&self, other: &PyInstance, op: CompareOp) -> PyResult<String> {
         match op {
             CompareOp::Lt => Ok(format!("{} < {:?}", self.__repr__().unwrap(), other)),
             CompareOp::Le => Ok(format!("{} <= {:?}", self.__repr__().unwrap(), other)),
@@ -885,7 +885,7 @@ impl PyObjectProtocol for RichComparisons2 {
         Ok("RC2")
     }
 
-    fn __richcmp__(&self, other: &'p PyObject, op: CompareOp) -> PyResult<PyObjectPtr> {
+    fn __richcmp__(&self, other: &'p PyInstance, op: CompareOp) -> PyResult<PyObject> {
         match op {
             CompareOp::Eq => Ok(true.to_object(self.token())),
             CompareOp::Ne => Ok(false.to_object(self.token())),
@@ -1048,8 +1048,8 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
 
     fn __exit__(&mut self,
                 ty: Option<&'p PyType>,
-                value: Option<&'p PyObject>,
-                traceback: Option<&'p PyObject>) -> PyResult<bool> {
+                value: Option<&'p PyInstance>,
+                traceback: Option<&'p PyInstance>) -> PyResult<bool> {
         self.exit_called = true;
         if ty == Some(self.token().get_type::<exc::ValueError>()) {
             Ok(true)

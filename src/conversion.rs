@@ -1,8 +1,8 @@
 use ffi;
 use err::PyResult;
 use python::{Python, ToPyPointer, PyDowncastFrom};
-use pointer::PyObjectPtr;
-use objects::{PyObject, PyTuple};
+use pointer::PyObject;
+use objects::{PyInstance, PyTuple};
 use objectprotocol::ObjectProtocol;
 use typeob::PyTypeInfo;
 use instance::Py;
@@ -12,7 +12,7 @@ use instance::Py;
 pub trait ToPyObject {
 
     /// Converts self into a Python object.
-    fn to_object(&self, py: Python) -> PyObjectPtr;
+    fn to_object(&self, py: Python) -> PyObject;
 
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -34,7 +34,7 @@ pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
     #[inline]
-    fn into_object(self, py: Python) -> PyObjectPtr
+    fn into_object(self, py: Python) -> PyObject
         where Self: Sized;
 }
 
@@ -70,11 +70,11 @@ pub trait IntoPyTuple {
 /// the inherent method `PyObject::extract()` can be used.
 pub trait FromPyObject<'source> : Sized {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'source PyObject) -> PyResult<Self>;
+    fn extract(ob: &'source PyInstance) -> PyResult<Self>;
 }
 
 pub trait RefFromPyObject {
-    fn with_extracted<F, R>(ob: &PyObject, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(ob: &PyInstance, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R;
 }
 
@@ -82,7 +82,7 @@ impl <T: ?Sized> RefFromPyObject for T
     where for<'a> &'a T: FromPyObject<'a> + Sized
 {
     #[inline]
-    fn with_extracted<F, R>(obj: &PyObject, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &PyInstance, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R
     {
         match FromPyObject::extract(obj) {
@@ -97,7 +97,7 @@ impl <T: ?Sized> RefFromPyObject for T
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 
     #[inline]
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         <T as ToPyObject>::to_object(*self, py)
     }
 
@@ -113,7 +113,7 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
 /// `Option::None` is converted to Python `None`.
 impl <T> ToPyObject for Option<T> where T: ToPyObject {
 
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         match *self {
             Some(ref val) => val.to_object(py),
             None => py.None(),
@@ -122,7 +122,7 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
 }
 impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         match self {
             Some(val) => val.into_object(py),
             None => py.None(),
@@ -132,12 +132,12 @@ impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         py.None()
     }
 }
 impl IntoPyObject for () {
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         py.None()
     }
 }
@@ -147,7 +147,7 @@ impl<'a, T> FromPyObject<'a> for &'a T
     where T: PyTypeInfo + PyDowncastFrom
 {
     #[inline]
-    default fn extract(ob: &'a PyObject) -> PyResult<&'a T>
+    default fn extract(ob: &'a PyInstance) -> PyResult<&'a T>
     {
         Ok(ob.cast_as()?)
     }
@@ -155,7 +155,7 @@ impl<'a, T> FromPyObject<'a> for &'a T
 
 impl<'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source>
 {
-    fn extract(obj: &'source PyObject) -> PyResult<Self>
+    fn extract(obj: &'source PyInstance) -> PyResult<Self>
     {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)

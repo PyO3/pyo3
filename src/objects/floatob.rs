@@ -5,7 +5,7 @@
 use std::os::raw::c_double;
 
 use ffi;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use python::{ToPyPointer, Python};
 use err::PyErr;
 use instance::{Py, PyObjectWithToken};
@@ -17,7 +17,7 @@ use conversion::{ToPyObject, IntoPyObject};
 /// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
-pub struct PyFloat(PyObjectPtr);
+pub struct PyFloat(PyObject);
 
 pyobject_convert!(PyFloat);
 pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
@@ -38,12 +38,12 @@ impl PyFloat {
 }
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         PyFloat::new(py, *self).into()
     }
 }
 impl IntoPyObject for f64 {
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         PyFloat::new(py, self).into()
     }
 }
@@ -58,12 +58,12 @@ pyobject_extract!(py, obj to f64 => {
 });
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         PyFloat::new(py, *self as f64).into()
     }
 }
 impl IntoPyObject for f32 {
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         PyFloat::new(py, self as f64).into()
     }
 }

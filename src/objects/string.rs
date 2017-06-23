@@ -9,14 +9,14 @@ use std::os::raw::c_char;
 
 use ffi;
 use instance::{Py, PyObjectWithToken};
-use pointer::PyObjectPtr;
-use objects::PyObject;
+use pointer::PyObject;
+use objects::PyInstance;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
 use super::PyStringData;
 
 /// Represents a Python string.
-pub struct PyString(PyObjectPtr);
+pub struct PyString(PyObject);
 
 pyobject_convert!(PyString);
 pyobject_nativetype!(PyString, PyUnicode_Type, PyUnicode_Check);
@@ -26,7 +26,7 @@ pyobject_nativetype!(PyString, PyUnicode_Type, PyUnicode_Check);
 pub use PyString as PyUnicode;
 
 /// Represents a Python byte string.
-pub struct PyBytes(PyObjectPtr);
+pub struct PyBytes(PyObject);
 
 pyobject_convert!(PyBytes);
 pyobject_nativetype!(PyBytes, PyBytes_Type, PyBytes_Check);
@@ -45,7 +45,7 @@ impl PyString {
         }
     }
 
-    pub fn from_object(py: Python, src: &PyObject, encoding: &str, errors: &str)
+    pub fn from_object(py: Python, src: &PyInstance, encoding: &str, errors: &str)
                        -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(

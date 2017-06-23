@@ -5,8 +5,8 @@
 use std::{sync, rc, marker, mem};
 use ffi;
 use python::{Python, ToPyPointer};
-use pointer::PyObjectPtr;
-use objects::PyObject;
+use pointer::PyObject;
+use objects::PyInstance;
 
 static START: sync::Once = sync::ONCE_INIT;
 
@@ -96,7 +96,7 @@ impl Drop for GILGuard {
     }
 }
 
-static mut POOL: *mut Vec<PyObjectPtr> = 0 as *mut _;
+static mut POOL: *mut Vec<PyObject> = 0 as *mut _;
 
 pub struct Pool {
     pos: usize,
@@ -106,7 +106,7 @@ pub struct Pool {
 impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
-        let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+        let pool: &'static mut Vec<PyInstance> = mem::transmute(POOL);
         Pool{ pos: pool.len(), no_send: marker::PhantomData }
     }
     // /// Retrieves the marker type that proves that the GIL was acquired.
@@ -124,14 +124,14 @@ impl Drop for Pool {
     }
 }
 
-pub unsafe fn register<'p>(_py: Python<'p>, obj: PyObjectPtr) -> &'p PyObject {
-    let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
+pub unsafe fn register<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyInstance {
+    let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
 }
 
 pub unsafe fn drain(pos: usize) {
-    let pool: &'static mut Vec<PyObjectPtr> = mem::transmute(POOL);
+    let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
 
     let len = pool.len();
     if pos < len {
@@ -153,7 +153,7 @@ impl GILGuard {
 
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-            let pool: &'static mut Vec<PyObject> = mem::transmute(POOL);
+            let pool: &'static mut Vec<PyInstance> = mem::transmute(POOL);
 
             GILGuard { pos: pool.len(), gstate: gstate, no_send: marker::PhantomData }
         }

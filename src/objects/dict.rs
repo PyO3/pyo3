@@ -5,15 +5,15 @@
 use std::{mem, collections, hash, cmp};
 
 use ffi;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use conversion::ToPyObject;
-use objects::{PyObject, PyList};
+use objects::{PyInstance, PyList};
 use err::{self, PyResult, PyErr};
 
 /// Represents a Python `dict`.
-pub struct PyDict(PyObjectPtr);
+pub struct PyDict(PyObject);
 
 pyobject_convert!(PyDict);
 pyobject_nativetype!(PyDict, PyDict_Type, PyDict_Check);
@@ -64,7 +64,7 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyObject> where K: ToPyObject {
+    pub fn get_item<K>(&self, key: K) -> Option<&PyInstance> where K: ToPyObject {
         key.with_borrowed_ptr(self.token(), |key| unsafe {
             self.token().cast_from_borrowed_ptr_or_opt(
                 ffi::PyDict_GetItem(self.as_ptr(), key))
@@ -104,7 +104,7 @@ impl PyDict {
     }
 
     /// Returns the list of (key, value) pairs in this dictionary.
-    pub fn items(&self) -> Vec<(PyObjectPtr, PyObjectPtr)> {
+    pub fn items(&self) -> Vec<(PyObject, PyObject)> {
         // Note that we don't provide an iterator because
         // PyDict_Next() is unsafe to use when the dictionary might be changed
         // by other python code.
@@ -114,8 +114,8 @@ impl PyDict {
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
-                vec.push((PyObjectPtr::from_borrowed_ptr(self.token(), key),
-                          PyObjectPtr::from_borrowed_ptr(self.token(), value)));
+                vec.push((PyObject::from_borrowed_ptr(self.token(), key),
+                          PyObject::from_borrowed_ptr(self.token(), value)));
             }
         }
         vec
@@ -126,7 +126,7 @@ impl <K, V> ToPyObject for collections::HashMap<K, V>
     where K: hash::Hash+cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).expect("Failed to set_item on dict");
@@ -139,7 +139,7 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     where K: cmp::Eq+ToPyObject,
           V: ToPyObject
 {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).expect("Failed to set_item on dict");

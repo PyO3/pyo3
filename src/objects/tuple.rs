@@ -7,15 +7,15 @@ use std::slice;
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken};
-use pointer::PyObjectPtr;
-use objects::PyObject;
+use pointer::PyObject;
+use objects::PyInstance;
 use objectprotocol::ObjectProtocol;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject};
 use super::exc;
 
 /// Represents a Python tuple object.
-pub struct PyTuple(PyObjectPtr);
+pub struct PyTuple(PyObject);
 
 pyobject_convert!(PyTuple);
 pyobject_nativetype!(PyTuple, PyTuple_Type, PyTuple_Check);
@@ -54,7 +54,7 @@ impl PyTuple {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyObject {
+    pub fn get_item(&self, index: usize) -> &PyInstance {
         // TODO: reconsider whether we should panic
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
@@ -65,13 +65,13 @@ impl PyTuple {
     }
 
     #[inline]
-    pub fn as_slice<'a>(&'a self) -> &'a [PyObjectPtr] {
+    pub fn as_slice<'a>(&'a self) -> &'a [PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            PyObjectPtr::borrow_from_owned_ptr_slice(
+            PyObject::borrow_from_owned_ptr_slice(
                 slice::from_raw_parts(
                     (*ptr).ob_item.as_ptr(), self.len()
                 ))
@@ -79,7 +79,7 @@ impl PyTuple {
     }
 
     #[inline]
-    pub fn iter(&self) -> slice::Iter<PyObjectPtr> {
+    pub fn iter(&self) -> slice::Iter<PyObject> {
         self.as_slice().iter()
     }
 }
@@ -115,20 +115,20 @@ fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr 
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python) -> PyObjectPtr {
+        fn to_object(&self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+;
-                PyObjectPtr::from_owned_ptr_or_panic(py, ptr)
+                PyObject::from_owned_ptr_or_panic(py, ptr)
             }
         }
     }
     impl <$($T: IntoPyObject),+> IntoPyObject for ($($T,)+) {
-        fn into_object(self, py: Python) -> PyObjectPtr {
+        fn into_object(self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;
-                PyObjectPtr::from_owned_ptr_or_panic(py, ptr)
+                PyObject::from_owned_ptr_or_panic(py, ptr)
             }
         }
     }
@@ -144,7 +144,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyObject) -> PyResult<Self>
+        fn extract(obj: &'s PyInstance) -> PyResult<Self>
         {
             let t = try!(obj.cast_as::<PyTuple>());
             let slice = t.as_slice();
@@ -192,14 +192,14 @@ pub struct NoArgs;
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyObject for NoArgs {
 
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         PyTuple::empty(py).into()
     }
 }
 
 impl IntoPyObject for NoArgs
 {
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         PyTuple::empty(py).into()
     }
 }
@@ -239,7 +239,7 @@ mod test {
     use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
-    use objects::PyObject;
+    use objects::PyInstance;
     use objectprotocol::ObjectProtocol;
 
     #[test]
@@ -249,7 +249,7 @@ mod test {
         let pyob = PyTuple::new(py, &[1, 2, 3]);
         let ob = pyob.as_ref(py);
         assert_eq!(3, ob.len());
-        let ob: &PyObject = ob.into();
+        let ob: &PyInstance = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
     }
 
@@ -260,7 +260,7 @@ mod test {
         let ob = (1, 2, 3).to_object(py);
         let tuple = PyTuple::downcast_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
-        let ob: &PyObject = tuple.into();
+        let ob: &PyInstance = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
     }
 }

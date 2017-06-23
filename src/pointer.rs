@@ -4,41 +4,41 @@ use std;
 
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
-use instance::AsPyRef;
-use objects::PyObject;
-use conversion::{ToPyObject, IntoPyObject, FromPyObject};
+use instance::{AsPyRef, PyObjectWithToken};
+use objects::{PyInstance, PyDict};
+use conversion::{ToPyObject, IntoPyObject, IntoPyTuple, FromPyObject};
 use python::{Python, PyClone, ToPyPointer, IntoPyPointer};
 
 
 /// Wrapper around unsafe `*mut ffi::PyObject` pointer. Decrement ref counter on `Drop`
 #[derive(Debug)]
-pub struct PyObjectPtr(*mut ffi::PyObject);
+pub struct PyObject(*mut ffi::PyObject);
 
 // `PyPtr` is thread-safe, because any python related operations require a Python<'p> token.
-unsafe impl Send for PyObjectPtr {}
-unsafe impl Sync for PyObjectPtr {}
+unsafe impl Send for PyObject {}
+unsafe impl Sync for PyObject {}
 
 
-impl PyObjectPtr {
+impl PyObject {
     /// Creates a `PyPtr` instance for the given FFI pointer.
     /// This moves ownership over the pointer into the `PyPtr`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr(_py: Python, ptr: *mut ffi::PyObject) -> PyObjectPtr {
+    pub unsafe fn from_owned_ptr(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
                       format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr)));
-        PyObjectPtr(ptr)
+        PyObject(ptr)
     }
 
     /// Cast from ffi::PyObject ptr to a concrete object.
     #[inline]
-    pub fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObjectPtr
+    pub fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObject
     {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
             unsafe{
-                PyObjectPtr::from_owned_ptr(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             }
         }
     }
@@ -47,13 +47,13 @@ impl PyObjectPtr {
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
-    pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObjectPtr>
+    pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
             Ok(unsafe{
-                PyObjectPtr::from_owned_ptr(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             })
         }
     }
@@ -62,13 +62,13 @@ impl PyObjectPtr {
     /// returns a new reference (owned pointer).
     /// Returns `None` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
-    pub fn from_owned_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObjectPtr>
+    pub fn from_owned_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
     {
         if ptr.is_null() {
             None
         } else {
             Some(unsafe{
-                PyObjectPtr::from_owned_ptr(py, ptr)
+                PyObject::from_owned_ptr(py, ptr)
             })
         }
     }
@@ -77,11 +77,11 @@ impl PyObjectPtr {
     /// Calls Py_INCREF() on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_borrowed_ptr(_py: Python, ptr: *mut ffi::PyObject) -> PyObjectPtr {
+    pub unsafe fn from_borrowed_ptr(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
         debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
                       format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr)));
         ffi::Py_INCREF(ptr);
-        PyObjectPtr(ptr)
+        PyObject(ptr)
     }
 
     /// Creates a `PyPtr` instance for the given Python FFI pointer.
@@ -90,12 +90,12 @@ impl PyObjectPtr {
     /// Unsafe because the pointer might be invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject)
-                                           -> PyResult<PyObjectPtr>
+                                           -> PyResult<PyObject>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(PyObjectPtr::from_owned_ptr(py, ptr))
+            Ok(PyObject::from_owned_ptr(py, ptr))
         }
     }
 
@@ -105,20 +105,20 @@ impl PyObjectPtr {
     /// Unsafe because the pointer might be invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject)
-                                           -> Option<PyObjectPtr>
+                                           -> Option<PyObject>
     {
         if ptr.is_null() {
             None
         } else {
-            Some(PyObjectPtr::from_owned_ptr(py, ptr))
+            Some(PyObject::from_owned_ptr(py, ptr))
         }
     }
 
-    /// Transmutes a slice of owned FFI pointers to `&[Py<'p, PyObject>]`.
+    /// Transmutes a slice of owned FFI pointers to `&[PyObject]`.
     /// Undefined behavior if any pointer in the slice is NULL or invalid.
     #[inline]
     pub unsafe fn borrow_from_owned_ptr_slice<'a>(ptr: &'a [*mut ffi::PyObject])
-                                                  -> &'a [PyObjectPtr] {
+                                                  -> &'a [PyObject] {
         std::mem::transmute(ptr)
     }
 
@@ -152,6 +152,51 @@ impl PyObjectPtr {
         FromPyObject::extract(self.as_ref(py))
     }
 
+    /// Calls the object.
+    /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
+    #[inline]
+    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+        where A: IntoPyTuple
+    {
+        let t = args.into_tuple(py);
+        let result = unsafe {
+            PyObject::from_borrowed_ptr_or_err(
+                py, ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
+        };
+        py.release(t);
+        result
+    }
+
+    /// Retrieves an attribute value.
+    /// This is equivalent to the Python expression 'self.attr_name'.
+    #[inline]
+    pub fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject>
+        where N: ToPyObject
+    {
+        attr_name.with_borrowed_ptr(py, |attr_name| unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
+        })
+    }
+
+    /// Calls a method on the object.
+    /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
+    #[inline]
+    pub fn call_method<A>(&self, py: Python,
+                          name: &str, args: A,
+                          kwargs: Option<&PyDict>) -> PyResult<PyObject>
+        where A: IntoPyTuple
+    {
+        name.with_borrowed_ptr(py, |name| unsafe {
+            let t = args.into_tuple(py);
+            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            let result = PyObject::from_borrowed_ptr_or_err(
+                py, ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
+            py.release(t);
+            result
+        })
+    }
+
     /// Calls `ffi::Py_DECREF` and sets ptr to null value.
     #[inline]
     pub unsafe fn drop_ref(&mut self) {
@@ -160,23 +205,23 @@ impl PyObjectPtr {
     }
 }
 
-impl AsPyRef<PyObject> for PyObjectPtr {
+impl AsPyRef<PyInstance> for PyObject {
 
     #[inline]
-    fn as_ref(&self, _py: Python) -> &PyObject {
+    fn as_ref(&self, _py: Python) -> &PyInstance {
         unsafe {std::mem::transmute(self)}
     }
     #[inline]
-    fn as_mut(&self, _py: Python) -> &mut PyObject {
-        unsafe {std::mem::transmute(self as *const _ as *mut PyObject)}
+    fn as_mut(&self, _py: Python) -> &mut PyInstance {
+        unsafe {std::mem::transmute(self as *const _ as *mut PyInstance)}
     }
 }
 
-impl ToPyObject for PyObjectPtr
+impl ToPyObject for PyObject
 {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObjectPtr {
-        unsafe {PyObjectPtr::from_borrowed_ptr(py, self.as_ptr())}
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
+        unsafe {PyObject::from_borrowed_ptr(py, self.as_ptr())}
     }
 
     #[inline]
@@ -187,7 +232,7 @@ impl ToPyObject for PyObjectPtr
     }
 }
 
-impl ToPyPointer for PyObjectPtr {
+impl ToPyPointer for PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -195,7 +240,7 @@ impl ToPyPointer for PyObjectPtr {
     }
 }
 
-impl<'a> ToPyPointer for &'a PyObjectPtr {
+impl<'a> ToPyPointer for &'a PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -203,7 +248,7 @@ impl<'a> ToPyPointer for &'a PyObjectPtr {
     }
 }
 
-impl IntoPyPointer for PyObjectPtr {
+impl IntoPyPointer for PyObject {
     /// Gets the underlying FFI pointer, returns a owned pointer.
     #[inline]
     #[must_use]
@@ -214,34 +259,46 @@ impl IntoPyPointer for PyObjectPtr {
     }
 }
 
-impl PartialEq for PyObjectPtr {
+impl PartialEq for PyObject {
     #[inline]
-    fn eq(&self, o: &PyObjectPtr) -> bool {
+    fn eq(&self, o: &PyObject) -> bool {
         self.0 == o.0
     }
 }
 
-impl PyClone for PyObjectPtr {
+impl PyClone for PyObject {
     fn clone_ref(&self, py: Python) -> Self {
         unsafe {
-            PyObjectPtr::from_borrowed_ptr(py, self.as_ptr())
+            PyObject::from_borrowed_ptr(py, self.as_ptr())
         }
     }
 }
 
-impl IntoPyObject for PyObjectPtr
+impl IntoPyObject for PyObject
 {
     #[inline]
-    fn into_object(self, _py: Python) -> PyObjectPtr
+    fn into_object(self, _py: Python) -> PyObject
     {
         self
+    }
+}
+
+impl<'a> FromPyObject<'a> for PyObject
+{
+    #[inline]
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(ob: &'a PyInstance) -> PyResult<Self>
+    {
+        unsafe {
+            Ok(PyObject::from_borrowed_ptr(ob.token(), ob.as_ptr()))
+        }
     }
 }
 
 //use backtrace::Backtrace;
 
 /// Dropping a `PyObject` instance decrements the reference count on the object by 1.
-impl Drop for PyObjectPtr {
+impl Drop for PyObject {
 
     fn drop(&mut self) {
         if !self.0.is_null() {

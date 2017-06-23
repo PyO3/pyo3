@@ -6,9 +6,10 @@ use std::marker::PhantomData;
 
 use ffi;
 use err::{PyResult, PyErr, PyDowncastError};
-use pointer::PyObjectPtr;
-use objects::PyObject;
-use conversion::{ToPyObject, IntoPyObject};
+use pointer::PyObject;
+use objects::PyInstance;
+use objectprotocol::ObjectProtocol;
+use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
@@ -134,12 +135,6 @@ impl<T> Py<T> {
         unsafe { ffi::Py_REFCNT(self.0) }
     }
 
-    /// Get reference to &PyObject.
-    #[inline]
-    pub fn as_object<'p>(&self, _py: Python<'p>) -> &PyObject {
-        unsafe { std::mem::transmute(self) }
-    }
-
     /// Clone self, Calls Py_INCREF() on the ptr.
     #[inline]
     pub fn clone_ref(&self, _py: Python) -> Py<T> {
@@ -214,9 +209,9 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo + PyNativeType {
 }
 
 impl<T> ToPyObject for Py<T> {
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         unsafe {
-            PyObjectPtr::from_borrowed_ptr(py, self.as_ptr())
+            PyObject::from_borrowed_ptr(py, self.as_ptr())
         }
     }
 }
@@ -225,7 +220,7 @@ impl<T> IntoPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    fn into_object(self, _py: Python) -> PyObjectPtr {
+    fn into_object(self, _py: Python) -> PyObject {
         unsafe { std::mem::transmute(self) }
     }
 }
@@ -268,7 +263,7 @@ impl<T> Drop for Py<T> {
 }
 
 
-impl<T> std::convert::From<Py<T>> for PyObjectPtr {
+impl<T> std::convert::From<Py<T>> for PyObject {
     #[inline]
     fn from(ob: Py<T>) -> Self {
         unsafe {std::mem::transmute(ob)}
@@ -291,7 +286,7 @@ impl<'a, T> std::convert::From<&'a mut T> for Py<T>
     }
 }
 
-impl<'a, T> std::convert::From<&'a T> for PyObjectPtr
+impl<'a, T> std::convert::From<&'a T> for PyObject
     where T: ToPyPointer,
 {
     fn from(ob: &'a T) -> Self {
@@ -299,7 +294,7 @@ impl<'a, T> std::convert::From<&'a T> for PyObjectPtr
     }
 }
 
-impl<'a, T> std::convert::From<&'a mut T> for PyObjectPtr
+impl<'a, T> std::convert::From<&'a mut T> for PyObject
     where T: ToPyPointer,
 {
     fn from(ob: &'a mut T) -> Self {
@@ -342,6 +337,18 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
     {
         unsafe{
             Py::from_owned_ptr(ob.into_ptr())
+        }
+    }
+}
+
+
+impl<'a, T> FromPyObject<'a> for Py<T> where T: ToPyPointer + FromPyObject<'a>
+{
+    /// Extracts `Self` from the source `PyObject`.
+    fn extract(ob: &'a PyInstance) -> PyResult<Self>
+    {
+        unsafe {
+            ob.extract::<T>().map(|val| Py::from_borrowed_ptr(val.as_ptr()))
         }
     }
 }

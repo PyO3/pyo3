@@ -8,16 +8,16 @@ use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
 use conversion::{ToPyObject, IntoPyTuple};
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use python::{Python, ToPyPointer};
-use objects::{PyObject, PyDict, PyType, exc};
+use objects::{PyInstance, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use instance::PyObjectWithToken;
 use err::{PyResult, PyErr, ToPyErr};
 
 
 /// Represents a Python module object.
-pub struct PyModule(PyObjectPtr);
+pub struct PyModule(PyObject);
 
 pyobject_convert!(PyModule);
 pyobject_nativetype!(PyModule, PyModule_Type, PyModule_Check);
@@ -81,7 +81,7 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObject>
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyInstance>
         where A: IntoPyTuple
     {
         self.getattr(name)?.call(args, kwargs)
@@ -89,7 +89,7 @@ impl PyModule {
 
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
-    pub fn get(&self, name: &str) -> PyResult<&PyObject>
+    pub fn get(&self, name: &str) -> PyResult<&PyInstance>
     {
         self.getattr(name)
     }

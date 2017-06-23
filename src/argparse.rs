@@ -5,7 +5,7 @@
 
 use ffi;
 use python::Python;
-use objects::{PyObject, PyTuple, PyDict, PyString, exc};
+use objects::{PyInstance, PyTuple, PyDict, PyString, exc};
 //use conversion::RefFromPyObject;
 use err::{self, PyResult};
 
@@ -31,7 +31,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                       fname: Option<&str>, params: &[ParamDescription],
                       args: &'p PyTuple, kwargs: Option<&'p PyDict>,
                       accept_args: bool, accept_kwargs: bool,
-                      output: &mut[Option<&'p PyObject>]) -> PyResult<()>
+                      output: &mut[Option<&'p PyInstance>]) -> PyResult<()>
 {
 
 
@@ -106,7 +106,7 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
 
 /*#[doc(hidden)] // used in py_argparse_extract!() macro
 pub fn with_extracted_or_default<P: ?Sized, R, F>(
-    py: Python, obj: Option<&PyObject>, f: F, default: &'static P) -> PyResult<R>
+    py: Python, obj: Option<&PyInstance>, f: F, default: &'static P) -> PyResult<R>
     where F: FnOnce(&P) -> PyResult<R>,
           P: RefFromPyObject
 {

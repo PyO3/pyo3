@@ -10,26 +10,26 @@ use std::os::raw::c_char;
 
 use ffi;
 use err::PyResult;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use instance::{Py, PyObjectWithToken};
 use python::{Python, ToPyPointer};
 use objectprotocol::ObjectProtocol;
-use super::{PyObject, PyStringData};
+use super::{PyInstance, PyStringData};
 
 /// Represents a Python string.
-pub struct PyString(PyObjectPtr);
+pub struct PyString(PyObject);
 
 pyobject_convert!(PyString);
 pyobject_nativetype!(PyString, PyBaseString_Type, PyBaseString_Check);
 
 /// Represents a Python unicode string.
-pub struct PyUnicode(PyObjectPtr);
+pub struct PyUnicode(PyObject);
 
 pyobject_convert!(PyUnicode);
 pyobject_nativetype!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python byte string. Corresponds to `str` in Python 2
-pub struct PyBytes(PyObjectPtr);
+pub struct PyBytes(PyObject);
 
 pyobject_convert!(PyBytes);
 pyobject_nativetype!(PyBytes, PyBaseString_Type, PyString_Check);
@@ -51,7 +51,7 @@ impl PyString {
         }
     }
 
-    pub fn from_object(src: &PyObject, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
+    pub fn from_object(src: &PyInstance, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
                 src.token(), ffi::PyUnicode_FromEncodedObject(
@@ -135,7 +135,7 @@ impl PyUnicode {
         }
     }
 
-    pub fn from_object(src: &PyObject, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>>
+    pub fn from_object(src: &PyInstance, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>>
     {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(

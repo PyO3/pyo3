@@ -33,7 +33,8 @@ macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
         impl $crate::python::PyDowncastFrom for $name
         {
-            fn downcast_from(ob: &$crate::PyObject) -> Result<&$name, $crate::PyDowncastError>
+            fn downcast_from(ob: &$crate::PyInstance)
+                             -> Result<&$name, $crate::PyDowncastError>
             {
                 use $crate::{ToPyPointer, PyObjectWithToken};
 
@@ -46,11 +47,11 @@ macro_rules! pyobject_downcast(
                 }
             }
 
-            unsafe fn unchecked_downcast_from(ob: &$crate::PyObject) -> &Self
+            unsafe fn unchecked_downcast_from(ob: &$crate::PyInstance) -> &Self
             {
                 $crate::std::mem::transmute(ob)
             }
-            unsafe fn unchecked_mut_downcast_from(ob: &$crate::PyObject) -> &mut Self
+            unsafe fn unchecked_mut_downcast_from(ob: &$crate::PyInstance) -> &mut Self
             {
                 #[allow(mutable_transmutes)]
                 $crate::std::mem::transmute(ob)
@@ -60,7 +61,7 @@ macro_rules! pyobject_downcast(
         impl<'a> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
-            fn extract(ob: &'a $crate::PyObject) -> $crate::PyResult<Self>
+            fn extract(ob: &'a $crate::PyInstance) -> $crate::PyResult<Self>
             {
                 use instance::PyObjectWithToken;
                 unsafe {
@@ -77,7 +78,7 @@ macro_rules! pyobject_downcast(
 
 macro_rules! pyobject_convert(
     ($name: ident) => (
-        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObject {
+        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyInstance {
             fn from(ob: &'a $name) -> Self {
                 unsafe{$crate::std::mem::transmute(ob)}
             }
@@ -89,8 +90,8 @@ macro_rules! pyobject_nativetype(
     ($name: ident) => {
         impl $crate::PyNativeType for $name {}
 
-        impl $crate::std::convert::AsRef<$crate::PyObject> for $name {
-            fn as_ref(&self) -> &$crate::PyObject {
+        impl $crate::std::convert::AsRef<$crate::PyInstance> for $name {
+            fn as_ref(&self) -> &$crate::PyInstance {
                 unsafe{$crate::std::mem::transmute(self)}
             }
         }
@@ -175,8 +176,8 @@ macro_rules! pyobject_nativetype(
         impl $crate::ToPyObject for $name
         {
             #[inline]
-            fn to_object<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObjectPtr {
-                unsafe {$crate::PyObjectPtr::from_borrowed_ptr(py, self.0.as_ptr())}
+            fn to_object<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObject {
+                unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }
 
             #[inline]
@@ -184,6 +185,14 @@ macro_rules! pyobject_nativetype(
                 where F: FnOnce(*mut $crate::ffi::PyObject) -> R
             {
                 f(self.0.as_ptr())
+            }
+        }
+
+        impl<'a> $crate::IntoPyObject for &'a $name
+        {
+            #[inline]
+            fn into_object<'p>(self, py: $crate::Python) -> $crate::PyObject {
+                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 
@@ -208,14 +217,14 @@ macro_rules! pyobject_nativetype(
         }
 
         pyobject_downcast!($name, $checkfunction);
-    };
+};
 );
 
 macro_rules! pyobject_extract(
     ($py:ident, $obj:ident to $t:ty => $body: block) => {
         impl<'source> $crate::FromPyObject<'source> for $t
         {
-            fn extract($obj: &'source ::PyObject) -> $crate::PyResult<Self>
+            fn extract($obj: &'source $crate::PyInstance) -> $crate::PyResult<Self>
             {
                 #[allow(unused_imports)]
                 use objectprotocol::ObjectProtocol;
@@ -230,8 +239,8 @@ macro_rules! pyobject_extract(
 use python::ToPyPointer;
 
 /// Represents general python instance.
-pub struct PyObject(::PyObjectPtr);
-pyobject_nativetype!(PyObject, PyBaseObject_Type, PyObject_Check);
+pub struct PyInstance(::PyObject);
+pyobject_nativetype!(PyInstance, PyBaseObject_Type, PyObject_Check);
 
 mod typeobject;
 mod module;

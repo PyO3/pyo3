@@ -5,13 +5,13 @@
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
-use pointer::PyObjectPtr;
-use objects::PyObject;
+use pointer::PyObject;
+use objects::PyInstance;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{ToPyObject, IntoPyObject};
 
 /// Represents a Python `list`.
-pub struct PyList(PyObjectPtr);
+pub struct PyList(PyObject);
 
 pyobject_convert!(PyList);
 pyobject_nativetype!(PyList, PyList_Type, PyList_Check);
@@ -48,10 +48,10 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> &PyObject {
+    pub fn get_item(&self, index: isize) -> &PyInstance {
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            let ob = PyObjectPtr::from_borrowed_ptr(self.token(), ptr);
+            let ob = PyObject::from_borrowed_ptr(self.token(), ptr);
             self.token().track_object(ob)
         }
     }
@@ -59,10 +59,10 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_parked_item(&self, index: isize) -> PyObjectPtr {
+    pub fn get_parked_item(&self, index: isize) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            PyObjectPtr::from_borrowed_ptr(self.token(), ptr)
+            PyObject::from_borrowed_ptr(self.token(), ptr)
         }
     }
 
@@ -103,10 +103,10 @@ pub struct PyListIterator<'a> {
 }
 
 impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyObject;
+    type Item = &'a PyInstance;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyObject> {
+    fn next(&mut self) -> Option<&'a PyInstance> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
@@ -122,21 +122,21 @@ impl<'a> Iterator for PyListIterator<'a> {
 
 impl <T> ToPyObject for [T] where T: ToPyObject {
 
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObjectPtr {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyObjectPtr::from_owned_ptr_or_panic(py, ptr)
+            PyObject::from_owned_ptr_or_panic(py, ptr)
         }
     }
 }
 
 impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObjectPtr {
+    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
         self.as_slice().to_object(py)
     }
 
@@ -144,14 +144,14 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
 
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {
                 let obj = e.into_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyObjectPtr::from_owned_ptr_or_panic(py, ptr)
+            PyObject::from_owned_ptr_or_panic(py, ptr)
         }
     }
 }

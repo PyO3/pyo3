@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use err::PyResult;
-use pointer::PyObjectPtr;
-use objects::{PyObject, PyString};
+use pointer::PyObject;
+use objects::{PyInstance, PyString};
 use objectprotocol::ObjectProtocol;
 use python::Python;
 use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
@@ -11,13 +11,13 @@ use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
 impl<'a> IntoPyObject for &'a str {
     #[inline]
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -26,7 +26,7 @@ impl<'a> IntoPyObject for &'a str {
 /// See `PyString::new` for details on the conversion.
 impl<'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -35,19 +35,19 @@ impl<'a> ToPyObject for Cow<'a, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObjectPtr {
+    fn to_object(&self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
 impl IntoPyObject for String {
     #[inline]
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         PyString::new(py, &self).into()
     }
 }
 impl<'a> IntoPyObject for &'a String {
     #[inline]
-    fn into_object(self, py: Python) -> PyObjectPtr {
+    fn into_object(self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -56,7 +56,7 @@ impl<'a> IntoPyObject for &'a String {
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> ::FromPyObject<'source> for Cow<'source, str>
 {
-    fn extract(ob: &'source PyObject) -> PyResult<Self>
+    fn extract(ob: &'source PyInstance) -> PyResult<Self>
     {
         try!(ob.cast_as::<PyString>()).to_string()
     }
@@ -70,7 +70,7 @@ pyobject_extract!(py, obj to String => {
 });
 
 impl RefFromPyObject for str {
-    fn with_extracted<F, R>(obj: &PyObject, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &PyInstance, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
         let s = try!(obj.extract::<Cow<str>>());

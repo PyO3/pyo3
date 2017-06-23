@@ -155,7 +155,7 @@ pub use ffi::{Py_ssize_t, Py_hash_t};
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use pointer::PyObjectPtr;
+pub use pointer::PyObject;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python};

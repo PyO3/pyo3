@@ -3,11 +3,11 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use pointer::PyObjectPtr;
+use pointer::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use conversion::{FromPyObject, ToPyObject};
-use objects::{PyObject, PyList, PyTuple};
+use objects::{PyInstance, PyList, PyTuple};
 use ffi::Py_ssize_t;
 use err;
 use err::{PyErr, PyResult};
@@ -16,7 +16,7 @@ use objectprotocol::ObjectProtocol;
 
 
 /// Represents a reference to a python object supporting the sequence protocol.
-pub struct PySequence(PyObjectPtr);
+pub struct PySequence(PyObject);
 
 pyobject_nativetype!(PySequence);
 pyobject_downcast!(PySequence, PySequence_Check);
@@ -84,7 +84,7 @@ impl PySequence {
 
     /// Return the ith element of the Sequence. Equivalent to python `o[index]`
     #[inline]
-    pub fn get_item(&self, index: isize) -> PyResult<&PyObject> {
+    pub fn get_item(&self, index: isize) -> PyResult<&PyInstance> {
         unsafe {
             self.token().cast_from_ptr_or_err(
                 ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -94,7 +94,7 @@ impl PySequence {
     /// Return the slice of sequence object o between begin and end.
     /// This is the equivalent of the Python expression `o[begin:end]`
     #[inline]
-    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyObject> {
+    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyInstance> {
         unsafe {
             self.token().cast_from_ptr_or_err(
                 ffi::PySequence_GetSlice(
@@ -105,7 +105,7 @@ impl PySequence {
     /// Assign object v to the ith element of o.
     /// Equivalent to Python statement `o[i] = v`
     #[inline]
-    pub fn set_item(&self, i: isize, v: &PyObject) -> PyResult<()> {
+    pub fn set_item(&self, i: isize, v: &PyInstance) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.token(),
@@ -127,7 +127,7 @@ impl PySequence {
     /// Assign the sequence object v to the slice in sequence object o from i1 to i2.
     /// This is the equivalent of the Python statement `o[i1:i2] = v`
     #[inline]
-    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyObject) -> PyResult<()> {
+    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyInstance) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.token(), ffi::PySequence_SetSlice(
@@ -210,7 +210,7 @@ impl PySequence {
 
 impl<'a, T> FromPyObject<'a> for Vec<T> where T: FromPyObject<'a>
 {
-    default fn extract(obj: &'a PyObject) -> PyResult<Self> {
+    default fn extract(obj: &'a PyInstance) -> PyResult<Self> {
         extract_sequence(obj)
     }
 }
@@ -219,7 +219,7 @@ impl<'a, T> FromPyObject<'a> for Vec<T> where T: FromPyObject<'a>
 impl <'source, T> FromPyObject<'source> for Vec<T>
     where for<'a> T: FromPyObject<'a> + buffer::Element + Copy
 {
-    fn extract(py: Python, obj: &'source PyObject) -> PyResult<Self> {
+    fn extract(py: Python, obj: &'source PyInstance) -> PyResult<Self> {
         // first try buffer protocol
         if let Ok(buf) = buffer::PyBuffer::get(py, obj) {
             if buf.dimensions() == 1 {
@@ -235,7 +235,7 @@ impl <'source, T> FromPyObject<'source> for Vec<T>
     }
 }*/
 
-fn extract_sequence<'s, T>(obj: &'s PyObject) -> PyResult<Vec<T>> where T: FromPyObject<'s>
+fn extract_sequence<'s, T>(obj: &'s PyInstance) -> PyResult<Vec<T>> where T: FromPyObject<'s>
 {
     let seq = PySequence::downcast_from(obj)?;
     let mut v = Vec::new();
