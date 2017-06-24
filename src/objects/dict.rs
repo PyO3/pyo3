@@ -9,7 +9,7 @@ use pointer::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use conversion::ToPyObject;
-use objects::{PyInstance, PyList};
+use objects::{PyObjectRef, PyList};
 use err::{self, PyResult, PyErr};
 
 /// Represents a Python `dict`.
@@ -64,7 +64,7 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyInstance> where K: ToPyObject {
+    pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef> where K: ToPyObject {
         key.with_borrowed_ptr(self.token(), |key| unsafe {
             self.token().cast_from_borrowed_ptr_or_opt(
                 ffi::PyDict_GetItem(self.as_ptr(), key))

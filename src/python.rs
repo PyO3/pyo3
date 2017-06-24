@@ -11,7 +11,7 @@ use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
 use instance::{Py, PyToken};
 use pointer::PyObject;
-use objects::{PyInstance, PyType, PyDict, PyModule};
+use objects::{PyObjectRef, PyType, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 use pythonrun::{self, GILGuard};
 
@@ -34,20 +34,20 @@ pub struct Python<'p>(PhantomData<&'p GILGuard>);
 pub trait PyDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from(&PyInstance) -> Result<&Self, PyDowncastError>;
+    fn downcast_from(&PyObjectRef) -> Result<&Self, PyDowncastError>;
 
     /// Cast from PyObject to a concrete Python object type.
-    unsafe fn unchecked_downcast_from(&PyInstance) -> &Self;
+    unsafe fn unchecked_downcast_from(&PyObjectRef) -> &Self;
 
     /// Cast from PyObject to a concrete Python object type.
-    unsafe fn unchecked_mut_downcast_from(&PyInstance) -> &mut Self;
+    unsafe fn unchecked_mut_downcast_from(&PyObjectRef) -> &mut Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
 pub trait PyMutDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_mut_from(&mut PyInstance) -> Result<&mut Self, PyDowncastError>;
+    fn downcast_mut_from(&mut PyObjectRef) -> Result<&mut Self, PyDowncastError>;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
@@ -155,7 +155,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn eval(self, code: &str, globals: Option<&PyDict>,
-                locals: Option<&PyDict>) -> PyResult<&'p PyInstance> {
+                locals: Option<&PyDict>) -> PyResult<&'p PyObjectRef> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -176,7 +176,7 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
-                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<&'p PyInstance> {
+                globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<&'p PyObjectRef> {
         let code = CString::new(code).map_err(|e| e.to_pyerr(self))?;
 
         unsafe {
@@ -387,7 +387,7 @@ impl<'p> Python<'p> {
         <T as PyDowncastFrom>::unchecked_mut_downcast_from(p)
     }
 
-    pub fn track_object(self, obj: PyObject) -> &'p PyInstance
+    pub fn track_object(self, obj: PyObject) -> &'p PyObjectRef
     {
         unsafe { pythonrun::register_owned(self, obj) }
     }
@@ -417,7 +417,7 @@ impl<'p> Python<'p> {
 mod test {
     use Python;
     use objectprotocol::ObjectProtocol;
-    use objects::{PyInstance, PyBool, PyList, PyInt, PyDict};
+    use objects::{PyObjectRef, PyBool, PyList, PyInt, PyDict};
 
     #[test]
     fn test_eval() {
@@ -449,7 +449,7 @@ mod test {
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(py.is_instance::<PyBool, PyInstance>(PyBool::new(py, true).into()).unwrap());
+        assert!(py.is_instance::<PyBool, PyObjectRef>(PyBool::new(py, true).into()).unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
         assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());

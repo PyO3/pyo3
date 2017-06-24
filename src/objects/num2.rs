@@ -12,7 +12,7 @@ use pointer::PyObject;
 use python::{ToPyPointer, IntoPyPointer, Python};
 use err::{PyResult, PyErr};
 use instance::{Py, PyObjectWithToken};
-use objects::{exc, PyInstance};
+use objects::{exc, PyObjectRef};
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
 /// Represents a Python `int` object.
@@ -153,7 +153,7 @@ macro_rules! int_convert_u64_or_i64 (
         }
 
         impl <'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyInstance) -> PyResult<$rust_type>
+            fn extract(obj: &'source PyObjectRef) -> PyResult<$rust_type>
             {
                 let ptr = obj.as_ptr();
                 unsafe {

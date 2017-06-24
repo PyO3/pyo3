@@ -6,7 +6,7 @@ use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
 use pointer::PyObject;
-use objects::PyInstance;
+use objects::PyObjectRef;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{ToPyObject, IntoPyObject};
 
@@ -48,7 +48,7 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> &PyInstance {
+    pub fn get_item(&self, index: isize) -> &PyObjectRef {
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
             let ob = PyObject::from_borrowed_ptr(self.token(), ptr);
@@ -103,10 +103,10 @@ pub struct PyListIterator<'a> {
 }
 
 impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyInstance;
+    type Item = &'a PyObjectRef;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyInstance> {
+    fn next(&mut self) -> Option<&'a PyObjectRef> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;

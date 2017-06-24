@@ -3,7 +3,7 @@ use std::borrow::Cow;
 
 use err::PyResult;
 use pointer::PyObject;
-use objects::{PyInstance, PyString};
+use objects::{PyObjectRef, PyString};
 use objectprotocol::ObjectProtocol;
 use python::Python;
 use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
@@ -57,7 +57,7 @@ impl<'a> IntoPyObject for &'a String {
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> ::FromPyObject<'source> for Cow<'source, str>
 {
-    fn extract(ob: &'source PyInstance) -> PyResult<Self>
+    fn extract(ob: &'source PyObjectRef) -> PyResult<Self>
     {
         try!(ob.cast_as::<PyString>()).to_string()
     }
@@ -71,7 +71,7 @@ pyobject_extract!(py, obj to String => {
 });
 
 impl RefFromPyObject for str {
-    fn with_extracted<F, R>(obj: &PyInstance, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &PyObjectRef, f: F) -> PyResult<R>
         where F: FnOnce(&str) -> R
     {
         let s = try!(obj.extract::<Cow<str>>());

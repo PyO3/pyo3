@@ -5,7 +5,7 @@ use std;
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError};
 use instance::{AsPyRef, PyObjectWithToken};
-use objects::{PyInstance, PyDict};
+use objects::{PyObjectRef, PyDict};
 use conversion::{ToPyObject, IntoPyObject, IntoPyTuple, FromPyObject};
 use python::{Python, PyClone, ToPyPointer, IntoPyPointer};
 
@@ -199,15 +199,15 @@ impl PyObject {
     }
 }
 
-impl AsPyRef<PyInstance> for PyObject {
+impl AsPyRef<PyObjectRef> for PyObject {
 
     #[inline]
-    fn as_ref(&self, _py: Python) -> &PyInstance {
+    fn as_ref(&self, _py: Python) -> &PyObjectRef {
         unsafe {std::mem::transmute(self)}
     }
     #[inline]
-    fn as_mut(&self, _py: Python) -> &mut PyInstance {
-        unsafe {std::mem::transmute(self as *const _ as *mut PyInstance)}
+    fn as_mut(&self, _py: Python) -> &mut PyObjectRef {
+        unsafe {std::mem::transmute(self as *const _ as *mut PyObjectRef)}
     }
 }
 
@@ -280,7 +280,7 @@ impl<'a> FromPyObject<'a> for PyObject
 {
     #[inline]
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyInstance) -> PyResult<Self>
+    fn extract(ob: &'a PyObjectRef) -> PyResult<Self>
     {
         unsafe {
             Ok(PyObject::from_borrowed_ptr(ob.token(), ob.as_ptr()))

@@ -5,7 +5,7 @@ use ffi;
 use err::PyResult;
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use pointer::PyObject;
-use objects::{PyInstance, PyTuple};
+use objects::{PyObjectRef, PyTuple};
 use objectprotocol::ObjectProtocol;
 use typeob::PyTypeInfo;
 use instance::Py;
@@ -73,11 +73,11 @@ pub trait IntoPyTuple {
 /// the inherent method `PyObject::extract()` can be used.
 pub trait FromPyObject<'source> : Sized {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'source PyInstance) -> PyResult<Self>;
+    fn extract(ob: &'source PyObjectRef) -> PyResult<Self>;
 }
 
 pub trait RefFromPyObject {
-    fn with_extracted<F, R>(ob: &PyInstance, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(ob: &PyObjectRef, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R;
 }
 
@@ -85,7 +85,7 @@ impl <T: ?Sized> RefFromPyObject for T
     where for<'a> &'a T: FromPyObject<'a> + Sized
 {
     #[inline]
-    fn with_extracted<F, R>(obj: &PyInstance, f: F) -> PyResult<R>
+    fn with_extracted<F, R>(obj: &PyObjectRef, f: F) -> PyResult<R>
         where F: FnOnce(&Self) -> R
     {
         match FromPyObject::extract(obj) {
@@ -150,7 +150,7 @@ impl<'a, T> FromPyObject<'a> for &'a T
     where T: PyTypeInfo + PyDowncastFrom
 {
     #[inline]
-    default fn extract(ob: &'a PyInstance) -> PyResult<&'a T>
+    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T>
     {
         Ok(ob.cast_as()?)
     }
@@ -158,7 +158,7 @@ impl<'a, T> FromPyObject<'a> for &'a T
 
 impl<'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source>
 {
-    fn extract(obj: &'source PyInstance) -> PyResult<Self>
+    fn extract(obj: &'source PyObjectRef) -> PyResult<Self>
     {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)

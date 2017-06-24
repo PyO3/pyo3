@@ -8,7 +8,7 @@ use ffi;
 use err::{PyErr, PyResult, PyDowncastError, self};
 use python::{Python, ToPyPointer, PyDowncastFrom, PyClone};
 use pointer::PyObject;
-use objects::{PyInstance, PyDict, PyString, PyIterator, PyType};
+use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
 use instance::PyObjectWithToken;
 
@@ -21,7 +21,7 @@ pub trait ObjectProtocol {
 
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
-    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyInstance> where N: ToPyObject;
+    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef> where N: ToPyObject;
 
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
@@ -74,13 +74,13 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyInstance>
+    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
         where A: IntoPyTuple;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>)
-                      -> PyResult<&PyInstance>
+                      -> PyResult<&PyObjectRef>
         where A: IntoPyTuple;
 
     /// Retrieves the hash code of the object.
@@ -101,7 +101,7 @@ pub trait ObjectProtocol {
     fn len(&self) -> PyResult<usize>;
 
     /// This is equivalent to the Python expression: 'self[key]'
-    fn get_item<K>(&self, key: K) -> PyResult<&PyInstance> where K: ToPyObject;
+    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToPyObject;
 
     /// Sets an item value.
     /// This is equivalent to the Python expression 'self[key] = value'.
@@ -124,14 +124,14 @@ pub trait ObjectProtocol {
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'a>>
         where D: PyDowncastFrom,
-              &'a PyInstance: std::convert::From<&'a Self>;
+              &'a PyObjectRef: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
     #[inline]
     fn extract<'a, D>(&'a self) -> PyResult<D>
         where D: FromPyObject<'a>,
-              &'a PyInstance: std::convert::From<&'a Self>;
+              &'a PyObjectRef: std::convert::From<&'a Self>;
 
     /// Returns reference count for python object.
     fn get_refcnt(&self) -> isize;
@@ -156,7 +156,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[inline]
-    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyInstance> where N: ToPyObject
+    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef> where N: ToPyObject
     {
         attr_name.with_borrowed_ptr(self.token(), |attr_name| unsafe {
             self.token().cast_from_ptr_or_err(
@@ -247,7 +247,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[inline]
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyInstance>
+    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
         where A: IntoPyTuple
     {
         let t = args.into_tuple(self.token());
@@ -261,7 +261,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
     #[inline]
     fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>)
-                          -> PyResult<&PyInstance>
+                          -> PyResult<&PyObjectRef>
         where A: IntoPyTuple
     {
         name.with_borrowed_ptr(self.token(), |name| unsafe {
@@ -310,7 +310,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[inline]
-    fn get_item<K>(&self, key: K) -> PyResult<&PyInstance> where K: ToPyObject {
+    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToPyObject {
         key.with_borrowed_ptr(self.token(), |key| unsafe {
             self.token().cast_from_ptr_or_err(
                 ffi::PyObject_GetItem(self.as_ptr(), key))
@@ -356,7 +356,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     #[inline]
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'a>>
         where D: PyDowncastFrom,
-                 &'a PyInstance: std::convert::From<&'a Self>
+                 &'a PyObjectRef: std::convert::From<&'a Self>
     {
         <D as PyDowncastFrom>::downcast_from(self.into())
     }
@@ -364,7 +364,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     #[inline]
     fn extract<'a, D>(&'a self) -> PyResult<D>
         where D: FromPyObject<'a>,
-              &'a PyInstance: std::convert::From<&'a T>
+              &'a PyObjectRef: std::convert::From<&'a T>
     {
         FromPyObject::extract(self.into())
     }

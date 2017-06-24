@@ -10,7 +10,7 @@ use std::os::raw::c_char;
 use ffi;
 use instance::{Py, PyObjectWithToken};
 use pointer::PyObject;
-use objects::PyInstance;
+use objects::PyObjectRef;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
 use super::PyStringData;
@@ -45,7 +45,7 @@ impl PyString {
         }
     }
 
-    pub fn from_object(py: Python, src: &PyInstance, encoding: &str, errors: &str)
+    pub fn from_object(py: Python, src: &PyObjectRef, encoding: &str, errors: &str)
                        -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(

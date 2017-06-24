@@ -6,7 +6,7 @@ use std::{sync, rc, marker, mem};
 use ffi;
 use python::{Python, ToPyPointer};
 use pointer::PyObject;
-use objects::PyInstance;
+use objects::PyObjectRef;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -139,13 +139,13 @@ impl Drop for Pool {
     }
 }
 
-pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyInstance {
+pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyObjectRef {
     let pool: &'static mut Vec<PyObject> = mem::transmute(OWNED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
 }
 
-pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyInstance {
+pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyObjectRef {
     let pool: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])

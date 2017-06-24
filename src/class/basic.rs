@@ -14,7 +14,7 @@ use ffi;
 use callback;
 use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer, PyDowncastFrom};
-use objects::{exc, PyInstance};
+use objects::{exc, PyObjectRef};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
 use objectprotocol::ObjectProtocol;
@@ -368,7 +368,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
 
             callback::cb_meth(LOCATION, |py| {
                 let slf = py.cast_from_borrowed_ptr::<T>(slf);
-                let arg = py.cast_from_borrowed_ptr::<PyInstance>(arg);
+                let arg = py.cast_from_borrowed_ptr::<PyObjectRef>(arg);
 
                 let res = match extract_op(py, op) {
                     Ok(op) => match arg.extract() {

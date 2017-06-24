@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use ffi;
 use err::{PyResult, PyErr, PyDowncastError};
 use pointer::PyObject;
-use objects::PyInstance;
+use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto, PyDowncastFrom};
@@ -375,7 +375,7 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
 impl<'a, T> FromPyObject<'a> for Py<T> where T: ToPyPointer + FromPyObject<'a>
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyInstance) -> PyResult<Self>
+    fn extract(ob: &'a PyObjectRef) -> PyResult<Self>
     {
         unsafe {
             ob.extract::<T>().map(|val| Py::from_borrowed_ptr(val.as_ptr()))

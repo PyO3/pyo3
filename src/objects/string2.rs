@@ -14,7 +14,7 @@ use pointer::PyObject;
 use instance::{Py, PyObjectWithToken};
 use python::{Python, ToPyPointer};
 use objectprotocol::ObjectProtocol;
-use super::{PyInstance, PyStringData};
+use super::{PyObjectRef, PyStringData};
 
 /// Represents a Python string.
 pub struct PyString(PyObject);
@@ -51,7 +51,7 @@ impl PyString {
         }
     }
 
-    pub fn from_object(src: &PyInstance, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
+    pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
                 src.token(), ffi::PyUnicode_FromEncodedObject(
@@ -135,7 +135,7 @@ impl PyUnicode {
         }
     }
 
-    pub fn from_object(src: &PyInstance, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>>
+    pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>>
     {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(

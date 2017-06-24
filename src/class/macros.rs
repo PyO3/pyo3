@@ -78,7 +78,7 @@ macro_rules! py_binary_func{
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
-                let arg = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg);
+                let arg = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg);
 
                 let result = match arg.extract() {
                     Ok(arg) => slf.$f(arg).into(),
@@ -105,7 +105,7 @@ macro_rules! py_binary_self_func{
 
             $crate::callback::cb_meth(LOCATION, |py| {
                 let slf1 = py.mut_cast_from_borrowed_ptr::<T>(slf);
-                let arg = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg);
+                let arg = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg);
 
                 let result = match arg.extract() {
                     Ok(arg) => slf1.$f(arg).into(),
@@ -166,8 +166,8 @@ macro_rules! py_ternary_func{
 
             $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
                 let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
-                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg1);
-                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg2);
+                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg1);
+                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg2);
 
                 let result = match arg1.extract() {
                     Ok(arg1) => match arg2.extract() {
@@ -199,8 +199,8 @@ macro_rules! py_ternary_self_func{
 
             $crate::callback::cb_meth(LOCATION, |py| {
                 let slf1 = py.mut_cast_from_borrowed_ptr::<T>(slf);
-                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg1);
-                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyInstance>(arg2);
+                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg1);
+                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg2);
 
                 let result = match arg1.extract() {
                     Ok(arg1) => match arg2.extract() {
@@ -242,8 +242,8 @@ macro_rules! py_func_set{
                     e.restore(py);
                     -1
                 } else {
-                    let name = py.mut_cast_from_borrowed_ptr::<$crate::PyInstance>(name);
-                    let value = py.cast_from_borrowed_ptr::<$crate::PyInstance>(value);
+                    let name = py.mut_cast_from_borrowed_ptr::<$crate::PyObjectRef>(name);
+                    let value = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(value);
                     let result = match name.extract() {
                         Ok(name) => match value.extract() {
                             Ok(value) =>
@@ -287,7 +287,7 @@ macro_rules! py_func_del{
             {
                 if value.is_null() {
                     let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
-                    let name = py.cast_from_borrowed_ptr::<$crate::PyInstance>(name);
+                    let name = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
                     let result = match name.extract() {
                         Ok(name) => slf.$f(name).into(),
@@ -331,7 +331,7 @@ macro_rules! py_func_set_del{
                 LOCATION, $crate::callback::UnitCallbackConverter, |py|
             {
                 let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
-                let name = py.cast_from_borrowed_ptr::<$crate::PyInstance>(name);
+                let name = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
                 if value.is_null() {
                     let result = match name.extract() {
@@ -346,7 +346,7 @@ macro_rules! py_func_set_del{
                         }
                     }
                 } else {
-                    let value = py.cast_from_borrowed_ptr::<$crate::PyInstance>(value);
+                    let value = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(value);
                     let result = match name.extract() {
                         Ok(name) => match value.extract() {
                             Ok(value) => {

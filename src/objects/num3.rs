@@ -11,7 +11,7 @@ use ffi;
 use pointer::PyObject;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
-use objects::{exc, PyInstance};
+use objects::{exc, PyObjectRef};
 use instance::PyObjectWithToken;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 
@@ -110,7 +110,7 @@ macro_rules! int_convert_u64_or_i64 (
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyInstance) -> PyResult<$rust_type>
+            fn extract(ob: &'source PyObjectRef) -> PyResult<$rust_type>
             {
                 let ptr = ob.as_ptr();
                 unsafe {

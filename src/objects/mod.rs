@@ -33,7 +33,7 @@ macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
         impl $crate::python::PyDowncastFrom for $name
         {
-            fn downcast_from(ob: &$crate::PyInstance)
+            fn downcast_from(ob: &$crate::PyObjectRef)
                              -> Result<&$name, $crate::PyDowncastError>
             {
                 use $crate::{ToPyPointer, PyObjectWithToken};
@@ -47,11 +47,11 @@ macro_rules! pyobject_downcast(
                 }
             }
 
-            unsafe fn unchecked_downcast_from(ob: &$crate::PyInstance) -> &Self
+            unsafe fn unchecked_downcast_from(ob: &$crate::PyObjectRef) -> &Self
             {
                 $crate::std::mem::transmute(ob)
             }
-            unsafe fn unchecked_mut_downcast_from(ob: &$crate::PyInstance) -> &mut Self
+            unsafe fn unchecked_mut_downcast_from(ob: &$crate::PyObjectRef) -> &mut Self
             {
                 #[allow(mutable_transmutes)]
                 $crate::std::mem::transmute(ob)
@@ -61,7 +61,7 @@ macro_rules! pyobject_downcast(
         impl<'a> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
-            fn extract(ob: &'a $crate::PyInstance) -> $crate::PyResult<Self>
+            fn extract(ob: &'a $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
                 use instance::PyObjectWithToken;
                 unsafe {
@@ -78,7 +78,7 @@ macro_rules! pyobject_downcast(
 
 macro_rules! pyobject_convert(
     ($name: ident) => (
-        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyInstance {
+        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
             fn from(ob: &'a $name) -> Self {
                 unsafe{$crate::std::mem::transmute(ob)}
             }
@@ -90,8 +90,8 @@ macro_rules! pyobject_nativetype(
     ($name: ident) => {
         impl $crate::PyNativeType for $name {}
 
-        impl $crate::std::convert::AsRef<$crate::PyInstance> for $name {
-            fn as_ref(&self) -> &$crate::PyInstance {
+        impl $crate::std::convert::AsRef<$crate::PyObjectRef> for $name {
+            fn as_ref(&self) -> &$crate::PyObjectRef {
                 unsafe{$crate::std::mem::transmute(self)}
             }
         }
@@ -224,7 +224,7 @@ macro_rules! pyobject_extract(
     ($py:ident, $obj:ident to $t:ty => $body: block) => {
         impl<'source> $crate::FromPyObject<'source> for $t
         {
-            fn extract($obj: &'source $crate::PyInstance) -> $crate::PyResult<Self>
+            fn extract($obj: &'source $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
                 #[allow(unused_imports)]
                 use objectprotocol::ObjectProtocol;
@@ -239,8 +239,8 @@ macro_rules! pyobject_extract(
 use python::ToPyPointer;
 
 /// Represents general python instance.
-pub struct PyInstance(::PyObject);
-pyobject_nativetype!(PyInstance, PyBaseObject_Type, PyObject_Check);
+pub struct PyObjectRef(::PyObject);
+pyobject_nativetype!(PyObjectRef, PyBaseObject_Type, PyObject_Check);
 
 mod typeobject;
 mod module;

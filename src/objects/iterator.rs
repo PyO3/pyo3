@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use objects::PyInstance;
+use objects::PyObjectRef;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use instance::PyObjectWithToken;
 use err::{PyErr, PyResult, PyDowncastError};
@@ -12,7 +12,7 @@ use err::{PyErr, PyResult, PyDowncastError};
 ///
 /// Unlike other python objects, this class includes a `Python<'p>` token
 /// so that `PyIterator` can implement the rust `Iterator` trait.
-pub struct PyIterator<'p>(&'p PyInstance);
+pub struct PyIterator<'p>(&'p PyObjectRef);
 
 
 impl <'p> PyIterator<'p> {
@@ -34,7 +34,7 @@ impl <'p> PyIterator<'p> {
 }
 
 impl <'p> Iterator for PyIterator<'p> {
-    type Item = PyResult<&'p PyInstance>;
+    type Item = PyResult<&'p PyObjectRef>;
 
     /// Retrieves the next item from an iterator.
     /// Returns `None` when the iterator is exhausted.
@@ -64,7 +64,7 @@ mod tests {
     use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
-    use objects::PyInstance;
+    use objects::PyObjectRef;
     use objectprotocol::ObjectProtocol;
 
     #[test]
@@ -72,7 +72,7 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj = vec![10, 20].to_object(py);
-        let inst = PyInstance::downcast_from(obj.as_ref(py)).unwrap();
+        let inst = PyObjectRef::downcast_from(obj.as_ref(py)).unwrap();
         let mut it = inst.iter().unwrap();
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());

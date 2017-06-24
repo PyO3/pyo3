@@ -64,7 +64,7 @@ pyobject_extract!(py, obj to bool => {
 #[cfg(test)]
 mod test {
     use python::Python;
-    use objects::{PyBool, PyInstance};
+    use objects::{PyBool, PyObjectRef};
     use conversion::ToPyObject;
     use objectprotocol::ObjectProtocol;
 
@@ -73,7 +73,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(PyBool::new(py, true).is_true());
-        let t: &PyInstance = PyBool::new(py, true).into();
+        let t: &PyObjectRef = PyBool::new(py, true).into();
         assert_eq!(true, t.extract().unwrap());
         assert!(true.to_object(py) == PyBool::new(py, true).into());
     }
@@ -83,7 +83,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(!PyBool::new(py, false).is_true());
-        let t: &PyInstance = PyBool::new(py, false).into();
+        let t: &PyObjectRef = PyBool::new(py, false).into();
         assert_eq!(false, t.extract().unwrap());
         assert!(false.to_object(py) == PyBool::new(py, false).into());
     }

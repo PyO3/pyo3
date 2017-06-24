@@ -28,7 +28,7 @@ struct Test {
 #[py::proto]
 impl<'p> PyMappingProtocol<'p> for Test
 {
-    fn __getitem__(&self, idx: &PyInstance) -> PyResult<PyObject> {
+    fn __getitem__(&self, idx: &PyObjectRef) -> PyResult<PyObject> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {

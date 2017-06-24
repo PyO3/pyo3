@@ -9,7 +9,7 @@ use libc;
 use ffi;
 use python::{ToPyPointer, IntoPyPointer, Python, PyClone};
 use PyObject;
-use objects::{PyInstance, PyType, exc};
+use objects::{PyObjectRef, PyType, exc};
 use instance::Py;
 use typeob::PyTypeObject;
 use conversion::{ToPyObject, IntoPyTuple, IntoPyObject};
@@ -338,7 +338,7 @@ impl PyErr {
 
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
-    pub fn warn(py: Python, category: &PyInstance, message: &str, stacklevel: i32) -> PyResult<()> {
+    pub fn warn(py: Python, category: &PyObjectRef, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message).map_err(|e| e.to_pyerr(py))?;
         unsafe {
             error_on_minusone(py, ffi::PyErr_WarnEx(

@@ -13,7 +13,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     let params = parse_attribute(attr);
     let doc = utils::get_doc(&ast.attrs, true);
 
-    let base = syn::Ident::from("_pyo3::PyInstance");
+    let base = syn::Ident::from("_pyo3::PyObjectRef");
     let mut token: Option<syn::Ident> = None;
 
     match ast.body {
@@ -98,8 +98,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
-            impl std::convert::AsRef<PyInstance> for #cls {
-                fn as_ref(&self) -> &_pyo3::PyInstance {
+            impl std::convert::AsRef<PyObjectRef> for #cls {
+                fn as_ref(&self) -> &_pyo3::PyObjectRef {
                     unsafe{std::mem::transmute(self.as_ptr())}
                 }
             }
@@ -223,7 +223,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
         impl _pyo3::PyDowncastFrom for #cls
         {
-            fn downcast_from(ob: &_pyo3::PyInstance) -> Result<&#cls, _pyo3::PyDowncastError>
+            fn downcast_from(ob: &_pyo3::PyObjectRef) -> Result<&#cls, _pyo3::PyDowncastError>
             {
                 unsafe {
                     let checked = ffi::PyObject_TypeCheck(
@@ -239,13 +239,13 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 }
             }
 
-            unsafe fn unchecked_downcast_from(ob: &_pyo3::PyInstance) -> &Self
+            unsafe fn unchecked_downcast_from(ob: &_pyo3::PyObjectRef) -> &Self
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                 let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
                 std::mem::transmute(ptr)
             }
-            unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyInstance) -> &mut Self
+            unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObjectRef) -> &mut Self
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                 let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
@@ -254,7 +254,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         }
         impl _pyo3::PyMutDowncastFrom for #cls
         {
-            fn downcast_mut_from(ob: &mut _pyo3::PyInstance)
+            fn downcast_mut_from(ob: &mut _pyo3::PyObjectRef)
                                  -> Result<&mut #cls, _pyo3::PyDowncastError>
             {
                 unsafe {

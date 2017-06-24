@@ -8,7 +8,7 @@ use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken};
 use pointer::PyObject;
-use objects::PyInstance;
+use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject};
@@ -54,7 +54,7 @@ impl PyTuple {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyInstance {
+    pub fn get_item(&self, index: usize) -> &PyObjectRef {
         // TODO: reconsider whether we should panic
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
@@ -144,7 +144,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyInstance) -> PyResult<Self>
+        fn extract(obj: &'s PyObjectRef) -> PyResult<Self>
         {
             let t = try!(obj.cast_as::<PyTuple>());
             let slice = t.as_slice();
@@ -239,7 +239,7 @@ mod test {
     use instance::AsPyRef;
     use python::{Python, PyDowncastFrom};
     use conversion::ToPyObject;
-    use objects::PyInstance;
+    use objects::PyObjectRef;
     use objectprotocol::ObjectProtocol;
 
     #[test]
@@ -249,7 +249,7 @@ mod test {
         let pyob = PyTuple::new(py, &[1, 2, 3]);
         let ob = pyob.as_ref(py);
         assert_eq!(3, ob.len());
-        let ob: &PyInstance = ob.into();
+        let ob: &PyObjectRef = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
     }
 
@@ -260,7 +260,7 @@ mod test {
         let ob = (1, 2, 3).to_object(py);
         let tuple = PyTuple::downcast_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
-        let ob: &PyInstance = tuple.into();
+        let ob: &PyObjectRef = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
     }
 }
