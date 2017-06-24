@@ -1,4 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+
+//! Free allocation list
 use std;
 
 use ffi;

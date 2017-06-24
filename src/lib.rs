@@ -143,6 +143,7 @@ mod ffi2;
 #[cfg(Py_3)]
 mod ffi3;
 
+/// Rust FFI declarations for Python
 pub mod ffi {
     #[cfg(not(Py_3))]
     pub use ffi2::*;
@@ -164,6 +165,7 @@ pub use conversion::{FromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
 pub mod class;
 pub use class::*;
 
+/// Procedural macros
 pub mod py {
     pub use pyo3cls::*;
 

@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+//! Python type object information
+
 use std;
 use std::mem;
 use std::ffi::{CStr, CString};

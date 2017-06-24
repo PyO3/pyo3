@@ -2,6 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+//! Python argument parsing
 
 use ffi;
 use python::Python;

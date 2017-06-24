@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+//! Python object protocols
+
 #[macro_use] mod macros;
 
 pub mod async;

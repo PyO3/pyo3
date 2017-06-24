@@ -16,6 +16,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+//! `PyBuffer` implementation
 use std::os::raw;
 use std::{mem, slice, cell};
 use std::ffi::CStr;
@@ -180,7 +181,7 @@ impl PyBuffer {
     }
 
     /// Gets the size of a single element, in bytes.
-    /// Important exception: when requesting an unformatted buffer, item_size still has the value 
+    /// Important exception: when requesting an unformatted buffer, item_size still has the value
     #[inline]
     pub fn item_size(&self) -> usize {
         self.0.itemsize as usize
@@ -459,7 +460,7 @@ impl PyBuffer {
     pub fn copy_from_slice<T: Element+Copy>(&self, py: Python, source: &[T]) -> PyResult<()> {
         self.copy_from_slice_impl(py, source, b'C')
     }
-    
+
     /// Copies the specified slice into the buffer.
     /// If the buffer is multi-dimensional, the elements in the slice are expected to be in Fortran-style order.
     ///
@@ -473,7 +474,7 @@ impl PyBuffer {
     pub fn copy_from_fortran_slice<T: Element+Copy>(&self, py: Python, source: &[T]) -> PyResult<()> {
         self.copy_from_slice_impl(py, source, b'F')
     }
-    
+
     fn copy_from_slice_impl<T: Element+Copy>(&self, py: Python, source: &[T], fort: u8) -> PyResult<()> {
         if self.readonly() {
             return buffer_readonly_error(py);
@@ -609,7 +610,7 @@ mod test {
         assert_eq!(arr, b"abcde" as &[u8]);
 
         assert!(buffer.copy_from_slice(py, &[0u8; 5]).is_err());
-        
+
         assert!(buffer.to_vec::<i8>(py).is_err());
         assert!(buffer.to_vec::<u16>(py).is_err());
         assert_eq!(buffer.to_vec::<u8>(py).unwrap(), b"abcde");
@@ -635,7 +636,7 @@ mod test {
         assert_eq!(slice.len(), 4);
         assert_eq!(slice[0].get(), 1.0);
         assert_eq!(slice[3].get(), 2.5);
-        
+
         let mut_slice = buffer.as_mut_slice::<f32>(py).unwrap();
         assert_eq!(mut_slice.len(), 4);
         assert_eq!(mut_slice[0].get(), 1.0);
