@@ -1,3 +1,4 @@
+// Copyright (c) 2017-present PyO3 Project and Contributors
 use syn;
 use quote::Tokens;
 use utils::print_err;
@@ -311,7 +312,7 @@ fn get_res_success(ty: &syn::Ty) -> (Tokens, syn::Ty) {
     } else {
         quote! {#ty}
     };
-    
+
     (res, succ)
 }
 

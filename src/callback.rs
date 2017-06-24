@@ -1,4 +1,6 @@
-/// Utilities for a Python callable object that invokes a Rust function.
+// Copyright (c) 2017-present PyO3 Project and Contributors
+
+//! Utilities for a Python callable object that invokes a Rust function.
 
 use std::os::raw::c_int;
 use std::{any, mem, ptr, isize, io, panic};

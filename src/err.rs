@@ -1,3 +1,4 @@
+// Copyright (c) 2017-present PyO3 Project and Contributors
 use std;
 use std::io;
 use std::ffi::CString;

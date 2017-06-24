@@ -1,3 +1,6 @@
+// Copyright (c) 2017-present PyO3 Project and Contributors
+
+//! This module contains some conversion traits
 use ffi;
 use err::PyResult;
 use python::{Python, ToPyPointer, PyDowncastFrom};
