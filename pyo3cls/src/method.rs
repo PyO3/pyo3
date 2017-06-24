@@ -14,6 +14,7 @@ pub struct FnArg<'a> {
     pub ty: &'a syn::Ty,
     pub optional: Option<&'a syn::Ty>,
     pub py: bool,
+    pub reference: bool,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -85,6 +86,7 @@ impl<'a> FnSpec<'a> {
                             ty: ty,
                             optional: opt,
                             py: py,
+                            reference: is_ref(name, ty),
                         }
                     );
                 }
@@ -185,6 +187,47 @@ impl<'a> FnSpec<'a> {
         }
         false
     }
+}
+
+pub fn is_ref<'a>(name: &'a syn::Ident, ty: &'a syn::Ty) -> bool {
+    match ty {
+        &syn::Ty::Rptr(_, _) => {
+            return true
+        }
+        &syn::Ty::Path(_, ref path) => {
+            if let Some(segment) = path.segments.last() {
+                match segment.ident.as_ref() {
+                    "Option" => {
+                        match segment.parameters {
+                            syn::PathParameters::AngleBracketed(ref params) => {
+                                if params.types.len() != 1 {
+                                    panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
+                                           for_err_msg(name),
+                                           for_err_msg(ty),
+                                           for_err_msg(path));
+                                }
+                                match &params.types[params.types.len()-1] {
+                                    &syn::Ty::Rptr(_, _) => {
+                                        return true
+                                    },
+                                    _ => ()
+                                }
+                            },
+                            _ => {
+                                panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
+                                       for_err_msg(name),
+                                       for_err_msg(ty),
+                                       for_err_msg(path));
+                            }
+                        }
+                    },
+                    _ => (),
+                }
+            }
+        },
+        _ => ()
+    }
+    false
 }
 
 pub fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Ty)

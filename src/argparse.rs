@@ -7,7 +7,6 @@
 use ffi;
 use python::Python;
 use objects::{PyObjectRef, PyTuple, PyDict, PyString, exc};
-//use conversion::RefFromPyObject;
 use err::{self, PyResult};
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -104,18 +103,3 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
         Some(py.cast_from_ptr::<PyDict>(ptr))
     }
 }
-
-/*#[doc(hidden)] // used in py_argparse_extract!() macro
-pub fn with_extracted_or_default<P: ?Sized, R, F>(
-    py: Python, obj: Option<&PyObjectRef>, f: F, default: &'static P) -> PyResult<R>
-    where F: FnOnce(&P) -> PyResult<R>,
-          P: RefFromPyObject
-{
-    match obj {
-        Some(obj) => match P::with_extracted(obj, f) {
-            Ok(result) => result,
-            Err(e) => Err(e)
-        },
-        None => f(default)
-    }
-}*/

@@ -376,10 +376,10 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
         }
     }
     else if spec.is_kwargs(&name) {
-        quote! {
+        quote! {{
             let #name = kwargs;
             #body
-        }
+        }}
     }
     else {
         if let Some(_) = arg.optional {
@@ -392,54 +392,120 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens) -> Tokens {
                 syn::Ident::from("None").to_tokens(&mut default);
             }
 
-            quote! {
-                match
+            if arg.reference {
+                quote! {
                     match _iter.next().unwrap().as_ref() {
+                        Some(obj) => {
+                            if obj.is_none() {
+                                let #name = #default;
+                                #body
+                            } else {
+                                match _pyo3::RefFromPyObject::with_extracted(
+                                    obj, |#name| {
+                                        let #name = Some(#name);
+                                        #body
+                                    })
+                                {
+                                    Ok(v) => v,
+                                    Err(e) => Err(e)
+                                }
+                            }
+                        },
+                        None => {
+                            let #name = #default;
+                            #body
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    match
+                        match _iter.next().unwrap().as_ref() {
+                            Some(obj) => {
+                                if obj.is_none() {
+                                    Ok(#default)
+                                } else {
+                                    match obj.extract() {
+                                        Ok(obj) => Ok(Some(obj)),
+                                        Err(e) => Err(e)
+                                    }
+                                }
+                            },
+                            None => Ok(#default) }
+                    {
+                        Ok(#name) => #body,
+                        Err(e) => Err(e)
+                    }
+                }
+            }
+        } else if let Some(default) = spec.default_value(name) {
+            if arg.reference {
+                quote! {
+                    match _iter.next().unwrap().as_ref() {
+                        Some(obj) => {
+                            if obj.is_none() {
+                                let #name = #default;
+                                #body
+                            } else {
+                                match _pyo3::RefFromPyObject::with_extracted(
+                                    obj, |#name| {
+                                        #body
+                                    })
+                                {
+                                    Ok(v) => v,
+                                    Err(e) => Err(e)
+                                }
+                            }
+                        },
+                        None => {
+                            let #name = #default;
+                            #body
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    match match _iter.next().unwrap().as_ref() {
                         Some(obj) => {
                             if obj.is_none() {
                                 Ok(#default)
                             } else {
                                 match obj.extract() {
-                                    Ok(obj) => Ok(Some(obj)),
-                                    Err(e) => Err(e)
+                                    Ok(obj) => Ok(obj),
+                                    Err(e) => Err(e),
                                 }
                             }
                         },
                         None => Ok(#default)
+                    } {
+                        Ok(#name) => #body,
+                        Err(e) => Err(e)
                     }
-                {
-                    Ok(#name) => #body,
-                    Err(e) => Err(e)
-                }
-            }
-        } else if let Some(default) = spec.default_value(name) {
-            quote! {
-                match match _iter.next().unwrap().as_ref() {
-                    Some(obj) => {
-                        if obj.is_none() {
-                            Ok(#default)
-                        } else {
-                            match obj.extract() {
-                                Ok(obj) => Ok(obj),
-                                Err(e) => Err(e),
-                            }
-                        }
-                    },
-                    None => Ok(#default)
-                } {
-                    Ok(#name) => #body,
-                    Err(e) => Err(e)
                 }
             }
         }
         else {
-            quote! {
-                match _iter.next().unwrap().as_ref().unwrap().extract()
-                {
-                    Ok(#name) => {
-                        #body
+            if arg.reference {
+                quote! {
+                    match _pyo3::RefFromPyObject::with_extracted(
+                        _iter.next().unwrap().as_ref().unwrap(),
+                        |#name| {
+                            #body
+                        })
+                    {
+                        Ok(v) => v,
+                        Err(e) => Err(e)
                     }
-                    Err(e) => Err(e)
+                }
+            } else {
+                quote! {
+                    match _iter.next().unwrap().as_ref().unwrap().extract()
+                    {
+                        Ok(#name) => {
+                            #body
+                        }
+                        Err(e) => Err(e)
+                    }
                 }
             }
         }

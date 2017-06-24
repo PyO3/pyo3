@@ -234,7 +234,8 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                                                       mode: mode,
                                                       ty: ty,
                                                       optional: opt,
-                                                      py: py});
+                                                      py: py,
+                                                      reference: method::is_ref(&name, ty)});
                     }
                     &syn::FnArg::Ignored(_) =>
                         panic!("ignored argument: {:?}", name),
