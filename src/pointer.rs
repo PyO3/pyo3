@@ -91,7 +91,7 @@ impl PyObject {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(unsafe{PyObject::from_owned_ptr(py, ptr)})
+            Ok(unsafe{PyObject::from_borrowed_ptr(py, ptr)})
         }
     }
 
@@ -104,7 +104,7 @@ impl PyObject {
         if ptr.is_null() {
             None
         } else {
-            Some(unsafe{PyObject::from_owned_ptr(py, ptr)})
+            Some(unsafe{PyObject::from_borrowed_ptr(py, ptr)})
         }
     }
 

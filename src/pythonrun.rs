@@ -4,8 +4,7 @@
 
 use std::{sync, rc, marker, mem};
 use ffi;
-use python::{Python, ToPyPointer};
-use pointer::PyObject;
+use python::Python;
 use objects::PyObjectRef;
 
 static START: sync::Once = sync::ONCE_INIT;
@@ -106,8 +105,8 @@ impl Drop for GILGuard {
     }
 }
 
-static mut OWNED: *mut Vec<PyObject> = 0 as *mut _;
-static mut BORROWED: *mut Vec<PyObject> = 0 as *mut _;
+static mut OWNED: *mut Vec<*mut ffi::PyObject> = 0 as *mut _;
+static mut BORROWED: *mut Vec<*mut ffi::PyObject> = 0 as *mut _;
 
 pub struct Pool {
     owned: usize,
@@ -118,8 +117,8 @@ pub struct Pool {
 impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
-        let owned: &'static mut Vec<PyObject> = mem::transmute(OWNED);
-        let borrowed: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+        let owned: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(OWNED);
+        let borrowed: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(BORROWED);
         Pool{ owned: owned.len(),
               borrowed: borrowed.len(),
               no_send: marker::PhantomData }
@@ -139,35 +138,32 @@ impl Drop for Pool {
     }
 }
 
-pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyObjectRef {
-    let pool: &'static mut Vec<PyObject> = mem::transmute(OWNED);
+pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef {
+    let pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(OWNED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
 }
 
-pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: PyObject) -> &'p PyObjectRef {
-    let pool: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef {
+    let pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(BORROWED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
 }
 
 pub unsafe fn drain(owned: usize, borrowed: usize) {
-    let owned_pool: &'static mut Vec<PyObject> = mem::transmute(OWNED);
+    let owned_pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(OWNED);
 
     let len = owned_pool.len();
     if owned < len {
-        for ob in &mut owned_pool[owned..len] {
-            ffi::Py_DECREF(ob.as_ptr());
+        for ptr in &mut owned_pool[owned..len] {
+            ffi::Py_DECREF(*ptr);
         }
         owned_pool.set_len(owned);
     }
 
-    let borrowed_pool: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+    let borrowed_pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(BORROWED);
     let len = borrowed_pool.len();
     if borrowed < len {
-        for ob in &mut borrowed_pool[borrowed..len] {
-            ffi::Py_DECREF(ob.as_ptr());
-        }
         borrowed_pool.set_len(borrowed);
     }
 
@@ -184,8 +180,8 @@ impl GILGuard {
 
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-            let owned: &'static mut Vec<PyObject> = mem::transmute(OWNED);
-            let borrowed: &'static mut Vec<PyObject> = mem::transmute(BORROWED);
+            let owned: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(OWNED);
+            let borrowed: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(BORROWED);
 
             GILGuard { owned: owned.len(),
                        borrowed: borrowed.len(),
