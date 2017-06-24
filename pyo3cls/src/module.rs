@@ -266,6 +266,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                     {
                         use std;
                         use pyo3 as _pyo3;
+                        use pyo3::ObjectProtocol;
 
                         #wrapper
 
