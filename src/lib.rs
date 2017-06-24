@@ -152,7 +152,6 @@ pub mod ffi {
     pub use ffi3::*;
 }
 
-pub use ffi::{Py_ssize_t, Py_hash_t};
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;

@@ -85,7 +85,7 @@ pub trait ObjectProtocol {
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: 'hash(self)'
-    fn hash(&self) -> PyResult<::Py_hash_t>;
+    fn hash(&self) -> PyResult<ffi::Py_hash_t>;
 
     /// Returns whether the object is considered to be true.
     /// This is equivalent to the Python expression: 'not not self'

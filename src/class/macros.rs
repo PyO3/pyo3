@@ -134,7 +134,7 @@ macro_rules! py_ssizearg_func {
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
-                                     arg: $crate::Py_ssize_t) -> *mut $crate::ffi::PyObject
+                                     arg: $crate::ffi::Py_ssize_t) -> *mut $crate::ffi::PyObject
             where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
         {
             const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
