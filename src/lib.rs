@@ -196,6 +196,7 @@ mod pointer;
 mod pythonrun;
 pub mod callback;
 pub mod typeob;
+#[doc(hidden)]
 pub mod argparse;
 pub mod buffer;
 pub mod freelist;
