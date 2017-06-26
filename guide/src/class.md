@@ -6,6 +6,8 @@ To define python custom class, rust struct needs to be annotated
 with `#[py::class]` attribute.
 
 ```rust
+#![feature(proc_macro, specialization)]
+
 extern crate pyo3;
 
 use pyo3::*;
@@ -43,7 +45,6 @@ To declare constructor, you need to define class method and annotate it with `#[
 attribute. Only python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
-
 #[py::method]
 impl MyClass {
 
@@ -80,8 +81,7 @@ possible to specify instance get/set descriptors. Descriptor methods can be defi
 attributes. i.e.
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      #[getter]
@@ -99,8 +99,7 @@ Descriptor name becomes function name with prefix removed. This is useful in cas
 rust's special keywords like `type`.
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      #[getter]
@@ -121,8 +120,7 @@ Also both `#[getter]` and `#[setter]` attributes accepts one parameter.
 If parameter is specified, it is used and property name. i.e.
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      #[getter(number)]
@@ -147,8 +145,7 @@ wrappers for all functions in this block with some variations, like descriptors,
 class method static methods, etc.
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      fn method1(&self) -> PyResult<i32> {
@@ -169,8 +166,7 @@ The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject
 get injected by method wrapper. i.e
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      fn method2(&self, py: Python) -> PyResult<i32> {
@@ -187,8 +183,7 @@ To specify class method for custom class, method needs to be annotated
 with`#[classmethod]` attribute.
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      #[classmethod]
@@ -196,6 +191,7 @@ impl MyClass {
         Ok(10)
      }
 }
+```
 
 Declares a class method callable from Python.
 
@@ -212,8 +208,7 @@ with `#[staticmethod]` attribute. The return type must be `PyResult<T>`
 for some `T` that implements `IntoPyObject`.
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      #[staticmethod]
@@ -221,7 +216,7 @@ impl MyClass {
         Ok(10)
      }
 }
-
+```
 
 ## Method arguments
 
@@ -234,8 +229,7 @@ with `#[call]` attribute. Arguments of the method are speficied same as for inst
 
 
 ```rust
-
-#[methods]
+#[py::methods]
 impl MyClass {
 
      #[call]

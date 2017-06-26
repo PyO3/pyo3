@@ -42,7 +42,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     let cb_name = syn::Ident::from(format!("PyInit_{}", name.trim()).as_ref());
     quote! {
         #[no_mangle]
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unused_imports)]
         pub unsafe extern "C" fn #cb_name() -> *mut ::pyo3::ffi::PyObject {
             extern crate pyo3;
             use std;
@@ -118,7 +118,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
 
     quote! {
         #[no_mangle]
-        #[allow(non_snake_case)]
+        #[allow(non_snake_case, unused_imports)]
         pub unsafe extern "C" fn #cb_name() {
             extern crate pyo3;
             use std;
