@@ -97,7 +97,7 @@ pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
-    type Result: Into<PyResult<usize>>;
+    type Result: Into<PyResult<isize>>;
 }
 pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<bool>>;
@@ -322,7 +322,7 @@ impl<T> PyObjectHashProtocolImpl for T
 {
     #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
-        py_unary_func!(PyObjectHashProtocol, T::__hash__, usize, HashConverter, ffi::Py_hash_t)
+        py_unary_func!(PyObjectHashProtocol, T::__hash__, isize, HashConverter, ffi::Py_hash_t)
     }
 }
 

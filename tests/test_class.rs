@@ -539,8 +539,8 @@ struct Comparisons {
 
 #[py::proto]
 impl PyObjectProtocol for Comparisons {
-    fn __hash__(&self) -> PyResult<usize> {
-        Ok(self.val as usize)
+    fn __hash__(&self) -> PyResult<isize> {
+        Ok(self.val as isize)
     }
     fn __bool__(&self) -> PyResult<bool> {
         Ok(self.val != 0)
