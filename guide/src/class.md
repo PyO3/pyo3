@@ -1,15 +1,20 @@
 # Python Class
 
-## Define new class
-
-To define python custom class, rust struct needs to be annotated
-with `#[py::class]` attribute.
+Python class generation is powered by unstable [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html) and
+[Specialization](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md) features, so you need to turn on `proc_macro` and `specialization` features:
 
 ```rust
 #![feature(proc_macro, specialization)]
 
 extern crate pyo3;
+```
 
+
+## Define new class
+
+To define python custom class, rust struct needs to be annotated with `#[py::class]` attribute.
+
+```rust
 use pyo3::*;
 
 #[py::class]
