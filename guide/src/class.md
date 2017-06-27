@@ -22,7 +22,7 @@ struct MyClass {
 
 The above example generates the following implementations for `MyClass` struct
 
-```ignore
+```rust,ignore
 impl PyTypeInfo for MyClass { ... }
 impl PyTypeObject for MyClass { ... }
 impl PyObjectWithToken for MyClass { ... }
@@ -50,7 +50,7 @@ impl MyClass {
 
      #[new]
      fn __new__(cls: &PyType, ...) -> PyResult<Py<MyClass>> {
-         cls.tokne().init(|token| {
+         cls.token().init(|token| {
              MyClass {
                  num: 10,
                  debug: False,
@@ -174,8 +174,8 @@ impl MyClass {
      }
 }
 ```
-From python prespective `method2`, in above example, does not accept any arguments.
 
+From python prespective `method2`, in above example, does not accept any arguments.
 
 ## Class methods
 
@@ -226,7 +226,6 @@ impl MyClass {
 
 To specify custom `__call__` method for custom class, call method needs to be annotated
 with `#[call]` attribute. Arguments of the method are speficied same as for instance method.
-
 
 ```rust
 #[py::methods]
