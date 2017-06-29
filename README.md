@@ -43,11 +43,11 @@ fn main() {
 
 fn hello(py: Python) -> PyResult<()> {
     let sys = py.import("sys")?;
-    let version: String = sys.get("version")?.extract(py)?;
+    let version: String = sys.get("version")?.extract()?;
 
     let locals = PyDict::new(py);
     locals.set_item("os", py.import("os")?)?;
-    let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract(py)?;
+    let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
 
     println!("Hello {}, I'm Python {}", user, version);
     Ok(())
