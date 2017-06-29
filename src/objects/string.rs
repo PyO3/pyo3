@@ -45,14 +45,15 @@ impl PyString {
         }
     }
 
-    pub fn from_object(py: Python, src: &PyObjectRef, encoding: &str, errors: &str)
-                       -> PyResult<Py<PyString>> {
+    pub fn from_object<'p>(src: &'p PyObjectRef, encoding: &str, errors: &str)
+                           -> PyResult<&'p PyString>
+    {
         unsafe {
-            Ok(Py::from_owned_ptr_or_err(
-                py, ffi::PyUnicode_FromEncodedObject(
+            src.token().cast_from_ptr_or_err::<PyString>(
+                ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const i8,
-                    errors.as_ptr() as *const i8))?)
+                    errors.as_ptr() as *const i8))
         }
     }
 
@@ -103,7 +104,7 @@ impl PyBytes {
     }
 
     /// Gets the Python string data as byte slice.
-    pub fn data(&self, _py: Python) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;

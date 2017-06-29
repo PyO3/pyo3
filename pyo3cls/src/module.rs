@@ -264,6 +264,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                 fn test() {
                     #item2
 
+                    #[allow(unused_imports)]
                     {
                         use std;
                         use pyo3 as _pyo3;
@@ -317,7 +318,7 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
     let output = &spec.output;
 
     quote! {
-        #[allow(unused_variables)]
+        #[allow(unused_variables, unused_imports)]
         unsafe extern "C" fn wrap(_slf: *mut _pyo3::ffi::PyObject,
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject

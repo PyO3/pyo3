@@ -129,6 +129,18 @@ impl PyObject {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
+    /// Returns whether the object is considered to be true.
+    /// This is equivalent to the Python expression: 'not not self'
+    #[inline]
+    pub fn is_true(&self, py: Python) -> PyResult<bool> {
+        let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
+        if v == -1 {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(v != 0)
+        }
+    }
+
     /// Casts the PyObject to a concrete Python object type.
     /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]

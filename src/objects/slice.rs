@@ -6,7 +6,7 @@ use pointer::PyObject;
 use python::{ToPyPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
-use instance::{Py, PyObjectWithToken};
+use instance::PyObjectWithToken;
 use conversion::ToPyObject;
 
 /// Represents a Python `slice`. Only `c_long` indeces supprted
@@ -40,12 +40,12 @@ impl PySliceIndices {
 impl PySlice {
 
     /// Construct a new slice with the given elements.
-    pub fn new(_py: Python, start: isize, stop: isize, step: isize) -> Py<PySlice> {
+    pub fn new<'p>(py: Python<'p>, start: isize, stop: isize, step: isize) -> &'p PySlice {
         unsafe {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),
                                        ffi::PyLong_FromLong(step as i64));
-            Py::from_owned_ptr_or_panic(ptr)
+            py.cast_from_ptr(ptr)
         }
     }
 
