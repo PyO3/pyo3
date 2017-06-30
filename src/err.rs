@@ -189,7 +189,7 @@ impl PyErr {
             ptype: if ptype.is_null() {
                 py.get_type::<exc::SystemError>().into()
             } else {
-                PyType::from_type_ptr(py, ptype as *mut ffi::PyTypeObject).into()
+                Py::from_owned_ptr(ptype)
             },
             pvalue: PyObject::from_owned_ptr_or_opt(py, pvalue),
             ptraceback: PyObject::from_owned_ptr_or_opt(py, ptraceback)
@@ -219,7 +219,7 @@ impl PyErr {
 
         if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
             PyErr {
-                ptype: unsafe { PyType::from_type_ptr(py, ptr as *mut ffi::PyTypeObject).into() },
+                ptype: unsafe { Py::from_borrowed_ptr( ffi::PyExceptionInstance_Class(ptr)) },
                 pvalue: Some(obj),
                 ptraceback: None
             }

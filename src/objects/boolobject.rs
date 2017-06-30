@@ -16,7 +16,7 @@ impl PyBool {
     #[inline]
     pub fn new<'p>(py: Python<'p>, val: bool) -> &'p PyBool {
         unsafe {
-            py.cast_from_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
+            py.cast_from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
         }
     }
 

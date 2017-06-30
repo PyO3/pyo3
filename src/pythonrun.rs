@@ -138,13 +138,15 @@ impl Drop for Pool {
     }
 }
 
-pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef {
+pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef
+{
     let pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(OWNED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
 }
 
-pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef {
+pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef
+{
     let pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(BORROWED);
     pool.push(obj);
     mem::transmute(&pool[pool.len()-1])
