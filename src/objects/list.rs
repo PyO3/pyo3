@@ -51,8 +51,7 @@ impl PyList {
     pub fn get_item(&self, index: isize) -> &PyObjectRef {
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            let ob = PyObject::from_borrowed_ptr(self.token(), ptr);
-            self.token().track_object(ob)
+            self.token().cast_from_borrowed_ptr(ptr)
         }
     }
 

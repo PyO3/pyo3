@@ -100,6 +100,6 @@ pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<
     if ptr.is_null() {
         None
     } else {
-        Some(py.cast_from_ptr::<PyDict>(ptr))
+        Some(py.cast_from_borrowed_ptr::<PyDict>(ptr))
     }
 }

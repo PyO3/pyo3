@@ -391,11 +391,6 @@ impl<'p> Python<'p> {
         <T as PyDowncastFrom>::unchecked_mut_downcast_from(p)
     }
 
-    pub fn track_object(self, obj: PyObject) -> &'p PyObjectRef
-    {
-        unsafe { pythonrun::register_owned(self, obj.into_ptr()) }
-    }
-
     /// Release PyObject reference.
     #[inline]
     pub fn release<T>(self, ob: T) where T: IntoPyPointer {

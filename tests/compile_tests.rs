@@ -1,4 +1,4 @@
-extern crate compiletest_rs as compiletest;
+//extern crate compiletest_rs as compiletest;
 
 //use std::path::PathBuf;
 //use std::env::var;

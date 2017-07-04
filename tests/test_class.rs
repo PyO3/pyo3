@@ -172,7 +172,7 @@ fn new_with_two_args() {
     assert_eq!(obj._data2, 20);
 }
 
-#[py::class(freelist=10)]
+#[py::class(freelist=2)]
 struct ClassWithFreelist{token: PyToken}
 
 #[test]
@@ -187,6 +187,9 @@ fn class_with_freelist() {
 
     let inst3 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
     assert_eq!(ptr, inst3.as_ptr());
+
+    let inst4 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+    assert_ne!(ptr, inst4.as_ptr())
 }
 
 struct TestDropCall {
