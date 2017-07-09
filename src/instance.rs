@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::marker::PhantomData;
 
 use ffi;
+use pythonrun;
 use err::{PyResult, PyErr, PyDowncastError};
 use pointer::PyObject;
 use objects::PyObjectRef;
@@ -149,13 +150,6 @@ impl<T> Py<T> {
     {
         <D as PyDowncastInto>::downcast_into(py, self)
     }
-
-    /// Calls `ffi::Py_DECREF` and sets ptr to null value.
-    #[inline]
-    pub unsafe fn drop_ref(&mut self) {
-        ffi::Py_DECREF(self.0);
-        self.0 = std::ptr::null_mut();
-    }
 }
 
 
@@ -285,10 +279,7 @@ impl<T> PartialEq for Py<T> {
 impl<T> Drop for Py<T> {
 
     fn drop(&mut self) {
-        if !self.0.is_null() {
-            let _gil_guard = Python::acquire_gil();
-            unsafe { ffi::Py_DECREF(self.0); }
-        }
+        unsafe { pythonrun::register_pointer(self.0); }
     }
 }
 

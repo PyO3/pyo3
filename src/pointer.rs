@@ -3,6 +3,7 @@
 use std;
 
 use ffi;
+use pythonrun;
 use err::{PyErr, PyResult, PyDowncastError};
 use instance::{AsPyRef, PyObjectWithToken};
 use objects::{PyObjectRef, PyDict};
@@ -202,13 +203,6 @@ impl PyObject {
             result
         })
     }
-
-    /// Calls `ffi::Py_DECREF` and sets ptr to null value.
-    #[inline]
-    pub unsafe fn drop_ref(&mut self) {
-        ffi::Py_DECREF(self.0);
-        self.0 = std::ptr::null_mut();
-    }
 }
 
 impl AsPyRef<PyObjectRef> for PyObject {
@@ -304,9 +298,6 @@ impl<'a> FromPyObject<'a> for PyObject
 impl Drop for PyObject {
 
     fn drop(&mut self) {
-        if !self.0.is_null() {
-            let _gil_guard = Python::acquire_gil();
-            unsafe { ffi::Py_DECREF(self.0); }
-        }
+        unsafe { pythonrun::register_pointer(self.0); }
     }
 }

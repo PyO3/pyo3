@@ -134,6 +134,7 @@
 //! ```
 
 extern crate libc;
+extern crate spin;
 extern crate pyo3cls;
 #[macro_use] extern crate log;
 
