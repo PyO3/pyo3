@@ -401,15 +401,6 @@ impl<'p> Python<'p> {
             }
         }
     }
-
-    /// Release PyResult<PyObject> object
-    #[inline]
-    pub fn release_res<T>(self, res: PyResult<T>) where T: IntoPyPointer {
-        match res {
-            Ok(ob) => unsafe {ffi::Py_DECREF(ob.into_ptr())},
-            Err(e) => e.release(self)
-        }
-    }
 }
 
 #[cfg(test)]

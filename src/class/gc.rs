@@ -7,14 +7,14 @@ use std::os::raw::{c_int, c_void};
 
 use ffi;
 use callback;
-use python::{Python, ToPyPointer};
+use python::{Python, ToPyPointer, PyDowncastFrom};
 use typeob::PyTypeInfo;
 
 pub struct PyTraverseError(c_int);
 
 /// GC support
 #[allow(unused_variables)]
-pub trait PyGCProtocol<'p> : PyTypeInfo {
+pub trait PyGCProtocol<'p> : PyTypeInfo + PyDowncastFrom {
 
     fn __traverse__(&'p self, visit: PyVisit)
                     -> Result<(), PyTraverseError> { unimplemented!() }
@@ -26,17 +26,13 @@ pub trait PyGCProtocol<'p> : PyTypeInfo {
 pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
 pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
-
-impl<'p, T> PyGCProtocol<'p> for T where T: PyTypeInfo {
-    default fn __traverse__(&'p self, _: PyVisit) -> Result<(), PyTraverseError> {
-        Ok(())
-    }
-    default fn __clear__(&'p mut self) {}
-}
-
 #[doc(hidden)]
 pub trait PyGCProtocolImpl {
     fn update_type_object(type_object: &mut ffi::PyTypeObject);
+}
+
+impl<'p, T> PyGCProtocolImpl for T {
+    default fn update_type_object(_type_object: &mut ffi::PyTypeObject) {}
 }
 
 impl<'p, T> PyGCProtocolImpl for T where T: PyGCProtocol<'p>

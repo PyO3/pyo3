@@ -7,12 +7,11 @@ use std::{any, mem, ptr, isize, io, panic};
 use libc;
 
 use pythonrun;
-use python::{Python, IntoPyPointer};
+use python::{Python, PyDowncastFrom, IntoPyPointer};
 use objects::exc;
 use conversion::IntoPyObject;
 use ffi::{self, Py_hash_t};
 use err::{PyErr, PyResult};
-use instance::{Py, AsPyRef};
 use typeob::PyTypeInfo;
 
 
@@ -180,16 +179,16 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
                                      slf: *mut ffi::PyObject, _c: C, f: F) -> C::R
     where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> PyResult<T>,
           F: panic::UnwindSafe,
-          Slf: PyTypeInfo,
+          Slf: PyTypeInfo + PyDowncastFrom,
           C: CallbackConverter<T>
 {
     let guard = AbortOnDrop(location);
     let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let slf = Py::<Slf>::from_borrowed_ptr(slf);
+        let mut slf = py.mut_cast_from_borrowed_ptr::<Slf>(slf);
 
-        let result = match f(py, slf.as_mut(py)) {
+        match f(py, slf) {
             Ok(val) => {
                 C::convert(val, py)
             }
@@ -197,9 +196,7 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
                 e.restore(py);
                 C::error_value()
             }
-        };
-        py.release(slf);
-        result
+        }
     });
     let ret = match ret {
         Ok(r) => r,
@@ -217,17 +214,15 @@ pub unsafe fn cb_unary<Slf, F, T, C>(location: &str,
 pub unsafe fn cb_unary_unit<Slf, F>(location: &str, slf: *mut ffi::PyObject, f: F) -> c_int
     where F: for<'p> FnOnce(Python<'p>, &'p mut Slf) -> c_int,
           F: panic::UnwindSafe,
-          Slf: PyTypeInfo,
+          Slf: PyTypeInfo  + PyDowncastFrom,
 {
     let guard = AbortOnDrop(location);
     let pool = pythonrun::Pool::new();
     let ret = panic::catch_unwind(|| {
         let py = Python::assume_gil_acquired();
-        let slf = Py::<Slf>::from_borrowed_ptr(slf);
+        let slf = py.mut_cast_from_borrowed_ptr::<Slf>(slf);
 
-        let result = f(py, slf.as_mut(py));
-        py.release(slf);
-        result
+        f(py, slf)
     });
     let ret = match ret {
         Ok(r) => r,
