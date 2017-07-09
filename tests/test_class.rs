@@ -62,13 +62,9 @@ fn class_with_docstr() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        println!("TEST1");
         let typeobj = py.get_type::<ClassWithDocs>();
-        println!("TEST2");
         py_run!(py, typeobj, "assert typeobj.__doc__ == 'Line1\\nLine2\\n Line3'");
-        println!("TEST3");
     }
-    println!("TEST4");
 }
 
 #[py::class(name=CustomName)]
@@ -177,19 +173,27 @@ struct ClassWithFreelist{token: PyToken}
 
 #[test]
 fn class_with_freelist() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    let ptr;
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
 
-    let inst = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
-    let inst2 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
-    let ptr = inst.as_ptr();
-    drop(inst);
+        let inst = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+        let inst2 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+        ptr = inst.as_ptr();
+        drop(inst);
+    }
 
-    let inst3 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
-    assert_eq!(ptr, inst3.as_ptr());
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
 
-    let inst4 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
-    assert_ne!(ptr, inst4.as_ptr())
+        let inst3 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+        assert_eq!(ptr, inst3.as_ptr());
+
+        let inst4 = Py::new(py, |t| ClassWithFreelist{token: t}).unwrap();
+        assert_ne!(ptr, inst4.as_ptr())
+    }
 }
 
 struct TestDropCall {
@@ -210,19 +214,22 @@ struct DataIsDropped {
 
 #[test]
 fn data_is_dropped() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
     let drop_called1 = Arc::new(AtomicBool::new(false));
     let drop_called2 = Arc::new(AtomicBool::new(false));
-    let inst = py.init(|t| DataIsDropped{
-        member1: TestDropCall { drop_called: drop_called1.clone() },
-        member2: TestDropCall { drop_called: drop_called2.clone() },
-        token: t
-    }).unwrap();
-    assert!(drop_called1.load(Ordering::Relaxed) == false);
-    assert!(drop_called2.load(Ordering::Relaxed) == false);
-    drop(inst);
+
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let inst = py.init(|t| DataIsDropped{
+            member1: TestDropCall { drop_called: drop_called1.clone() },
+            member2: TestDropCall { drop_called: drop_called2.clone() },
+            token: t
+        }).unwrap();
+        assert!(drop_called1.load(Ordering::Relaxed) == false);
+        assert!(drop_called2.load(Ordering::Relaxed) == false);
+        drop(inst);
+    }
+
     assert!(drop_called1.load(Ordering::Relaxed) == true);
     assert!(drop_called2.load(Ordering::Relaxed) == true);
 }

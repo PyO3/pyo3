@@ -71,8 +71,6 @@ pub fn prepare_pyo3_library() {
     START_PYO3.call_once(|| unsafe {
         // initialize release pool
         POINTERS = Box::into_raw(Box::new(Pointers::new()));
-        let p: &'static mut Pointers = mem::transmute(POINTERS);
-        p.init();
     });
 }
 
@@ -111,6 +109,7 @@ impl Drop for GILGuard {
 
 
 struct Pointers {
+    rc: usize,
     owned: Vec<*mut ffi::PyObject>,
     borrowed: Vec<*mut ffi::PyObject>,
     pointers: *mut Vec<*mut ffi::PyObject>,
@@ -120,15 +119,12 @@ struct Pointers {
 impl Pointers {
     fn new() -> Pointers {
         Pointers {
+            rc: 0,
             owned: Vec::with_capacity(250),
             borrowed: Vec::with_capacity(250),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(250))),
-            p: spin::Mutex::new(0 as *mut _),
+            p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(250)))),
         }
-    }
-    fn init(&mut self) {
-        let v = Box::into_raw(Box::new(Vec::with_capacity(250)));
-        *self.p.lock() = v;
     }
 
     unsafe fn release_pointers(&mut self) {
@@ -161,6 +157,8 @@ impl Pointers {
         }
 
         self.release_pointers();
+
+        self.rc -= 1;
     }
 }
 
@@ -176,9 +174,18 @@ impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
         let p: &'static mut Pointers = mem::transmute(POINTERS);
-        Pool{ owned: p.owned.len(),
+        p.rc += 1;
+        Pool {owned: p.owned.len(),
               borrowed: p.borrowed.len(),
-              no_send: marker::PhantomData }
+              no_send: marker::PhantomData}
+    }
+    pub unsafe fn new_if_needed() -> Option<Pool> {
+        let p: &'static mut Pointers = mem::transmute(POINTERS);
+        if p.rc == 0 {
+            Some(Pool::new())
+        } else {
+            None
+        }
     }
 }
 
@@ -226,6 +233,7 @@ impl GILGuard {
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
             let pool: &'static mut Pointers = mem::transmute(POINTERS);
+            pool.rc += 1;
 
             GILGuard { owned: pool.owned.len(),
                        borrowed: pool.borrowed.len(),
