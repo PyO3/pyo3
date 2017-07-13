@@ -32,7 +32,6 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     let tokens = impl_class(&ast.ident, &base, token, doc, params);
 
     quote! {
-        #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
@@ -167,6 +166,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
     quote! {
         impl _pyo3::typeob::PyTypeInfo for #cls {
             type Type = #cls;
+            const NAME: &'static str = #cls_name;
+            const DESCRIPTION: &'static str = #doc;
 
             #[inline]
             fn size() -> usize {
@@ -182,16 +183,10 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 ((bs + align - 1) / align * align) as isize
             }
 
-            fn type_name() -> &'static str { #cls_name }
-
-            fn type_description() -> &'static str {
-                #doc
-            }
-
             #[inline]
-            fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
+            unsafe fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
                 static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
-                unsafe { &mut TYPE_OBJECT }
+                &mut TYPE_OBJECT
             }
 
             #[inline]
@@ -206,16 +201,13 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             fn init_type(py: Python) {
                 static START: std::sync::Once = std::sync::ONCE_INIT;
                 START.call_once(|| {
-                    let mut ty = <#cls as _pyo3::typeob::PyTypeInfo>::type_object();
+                    let mut ty = unsafe{<#cls as _pyo3::typeob::PyTypeInfo>::type_object()};
 
                     if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) == 0 {
                         // automatically initialize the class on-demand
-                        _pyo3::typeob::initialize_type::<#cls>(
-                            py, None, <#cls as _pyo3::typeob::PyTypeInfo>::type_name(),
-                            <#cls as _pyo3::typeob::PyTypeInfo>::type_description(), ty).expect(
+                        _pyo3::typeob::initialize_type::<#cls>(py, None, ty).expect(
                             format!("An error occurred while initializing class {}",
-                                    <#cls as _pyo3::typeob::PyTypeInfo>::type_name())
-                                .as_ref());
+                                    <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }
                 });
             }

@@ -21,6 +21,10 @@ use class::methods::PyMethodDefType;
 pub trait PyTypeInfo {
     /// Type of objects to store in PyObject struct
     type Type;
+    /// Class name
+    const NAME: &'static str;
+    /// Class doc string
+    const DESCRIPTION: &'static str = "\0";
 
     /// Size of the PyObject structure
     fn size() -> usize;
@@ -28,14 +32,8 @@ pub trait PyTypeInfo {
     /// `Type` instance offset inside PyObject structure
     fn offset() -> isize;
 
-    /// Type name
-    fn type_name() -> &'static str;
-
-    /// Type description
-    fn type_description() -> &'static str { "\0" }
-
     /// PyTypeObject instance for this type
-    fn type_object() -> &'static mut ffi::PyTypeObject;
+    unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check `*mut ffi::PyObject` if it is the same type
     fn is_instance(ptr: *mut ffi::PyObject) -> bool;
@@ -45,6 +43,7 @@ pub trait PyTypeInfo {
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;
+    const NAME: &'static str = T::NAME;
 
     #[inline]
     default fn size() -> usize {
@@ -57,12 +56,7 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     }
 
     #[inline]
-    default fn type_name() -> &'static str {
-        <T as PyTypeInfo>::type_name()
-    }
-
-    #[inline]
-    default fn type_object() -> &'static mut ffi::PyTypeObject {
+    default unsafe fn type_object() -> &'static mut ffi::PyTypeObject {
         <T as PyTypeInfo>::type_object()
     }
 
@@ -140,15 +134,12 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 
     #[inline]
     default fn init_type(py: Python) {
-        let mut ty = <T as PyTypeInfo>::type_object();
+        let mut ty = unsafe { <T as PyTypeInfo>::type_object() };
 
         if (ty.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
-            initialize_type::<T>(
-                py, None, <T as PyTypeInfo>::type_name(),
-                <T as PyTypeInfo>::type_description(), ty).expect(
-                format!("An error occurred while initializing class {}",
-                        <T as PyTypeInfo>::type_name()).as_ref());
+            initialize_type::<T>(py, None, ty).expect(
+                format!("An error occurred while initializing class {}", T::NAME).as_ref());
         }
     }
 
@@ -163,21 +154,19 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 
 pub fn initialize_type<'p, T>(py: Python<'p>,
                               module_name: Option<&str>,
-                              type_name: &str,
-                              type_description: &'static str,
                               type_object: &mut ffi::PyTypeObject) -> PyResult<&'p PyType>
     where T: PyObjectAlloc<T> + PyTypeInfo
 {
     // type name
     let name = match module_name {
-        Some(module_name) => CString::new(format!("{}.{}", module_name, type_name)),
-        None => CString::new(type_name)
+        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME)),
+        None => CString::new(T::NAME)
     };
     let name = name.expect(
         "Module name/type name must not contain NUL byte").into_raw();
 
     type_object.tp_name = name;
-    type_object.tp_doc = type_description.as_ptr() as *const _;
+    type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
 
     // dealloc
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);

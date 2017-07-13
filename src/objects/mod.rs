@@ -139,6 +139,7 @@ macro_rules! pyobject_nativetype(
 
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
+            const NAME: &'static str = stringify!($name);
 
             #[inline]
             fn size() -> usize {
@@ -149,12 +150,8 @@ macro_rules! pyobject_nativetype(
                 0
             }
             #[inline]
-            fn type_name() -> &'static str {
-                stringify!($name)
-            }
-            #[inline]
-            fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
-                unsafe { &mut $crate::ffi::$typeobject }
+            unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
+                &mut $crate::ffi::$typeobject
             }
             #[inline]
             fn is_instance(ptr: *mut $crate::ffi::PyObject) -> bool {

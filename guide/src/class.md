@@ -4,7 +4,7 @@ Python class generation is powered by unstable [Procedural Macros](https://doc.r
 [Specialization](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md) features, so you need to turn on `proc_macro` and `specialization` features:
 
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(proc_macro, specialization, associated_consts)]
 
 extern crate pyo3;
 ```

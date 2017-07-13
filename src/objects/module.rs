@@ -109,23 +109,21 @@ impl PyModule {
     pub fn add_class<T>(&self) -> PyResult<()>
         where T: ::typeob::PyTypeInfo
     {
-        let mut ty = <T as ::typeob::PyTypeInfo>::type_object();
-        let type_name = <T as ::typeob::PyTypeInfo>::type_name();
+        let mut ty = unsafe{<T as ::typeob::PyTypeInfo>::type_object()};
 
         let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
             unsafe { PyType::from_type_ptr(self.token(), ty) }
         } else {
             // automatically initialize the class
             let name = self.name()?;
-            let type_description = <T as ::typeob::PyTypeInfo>::type_description();
 
             ::typeob::initialize_type::<T>(
-                self.token(), Some(name), type_name, type_description, ty)
-                .expect(format!("An error occurred while initializing class {}",
-                                <T as ::typeob::PyTypeInfo>::type_name()).as_ref());
+                self.token(), Some(name), ty)
+                .expect(
+                    format!("An error occurred while initializing class {}", T::NAME).as_ref());
             unsafe { PyType::from_type_ptr(self.token(), ty) }
         };
 
-        self.setattr(type_name, ty)
+        self.setattr(T::NAME, ty)
     }
 }
