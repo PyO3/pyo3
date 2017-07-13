@@ -62,7 +62,7 @@ impl PyString {
         // TODO: return the original representation instead
         // of forcing the UTF-8 representation to be created.
         unsafe {
-            let mut size : ffi::Py_ssize_t = mem::uninitialized();
+            let mut size: ffi::Py_ssize_t = mem::uninitialized();
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
             if data.is_null() {
                 PyErr::fetch(self.token()).print(self.token());

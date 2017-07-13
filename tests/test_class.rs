@@ -234,6 +234,51 @@ fn data_is_dropped() {
     assert!(drop_called2.load(Ordering::Relaxed) == true);
 }
 
+#[py::class]
+struct ClassWithDrop {
+    token: PyToken,
+}
+impl Drop for ClassWithDrop {
+    fn drop(&mut self) {
+        unsafe {
+            let py = Python::assume_gil_acquired();
+
+            let _empty1 = PyTuple::empty(py);
+            let _empty2: PyObject = PyTuple::empty(py).into();
+            let _empty3: &PyObjectRef = py.cast_from_ptr(ffi::PyTuple_New(0));
+        }
+    }
+}
+
+// Test behavior of pythonrun::register_pointers + typeob::dealloc
+#[test]
+fn create_pointers_in_drop() {
+    let gil = Python::acquire_gil();
+
+    let ptr;
+    let cnt;
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let empty = PyTuple::empty(py);
+        ptr = empty.as_ptr();
+        cnt = empty.get_refcnt() - 1;
+        let inst = py.init(|t| ClassWithDrop{token: t}).unwrap();
+        drop(inst);
+    }
+
+    // empty1 and empty2 are still alive (stored in pointers list)
+    {
+        let _gil = Python::acquire_gil();
+        assert_eq!(cnt + 2, unsafe {ffi::Py_REFCNT(ptr)});
+    }
+
+    // empty1 and empty2 should be released
+    {
+        let _gil = Python::acquire_gil();
+        assert_eq!(cnt, unsafe {ffi::Py_REFCNT(ptr)});
+    }
+}
 
 #[py::class]
 struct InstanceMethod {

@@ -100,7 +100,7 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut Pointers = mem::transmute(POINTERS);
-            pool.drain(self.owned, self.borrowed);
+            pool.drain(self.owned, self.borrowed, true);
 
             ffi::PyGILState_Release(self.gstate);
         }
@@ -109,7 +109,6 @@ impl Drop for GILGuard {
 
 
 struct Pointers {
-    rc: usize,
     owned: Vec<*mut ffi::PyObject>,
     borrowed: Vec<*mut ffi::PyObject>,
     pointers: *mut Vec<*mut ffi::PyObject>,
@@ -119,7 +118,6 @@ struct Pointers {
 impl Pointers {
     fn new() -> Pointers {
         Pointers {
-            rc: 0,
             owned: Vec::with_capacity(250),
             borrowed: Vec::with_capacity(250),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(250))),
@@ -130,19 +128,26 @@ impl Pointers {
     unsafe fn release_pointers(&mut self) {
         let mut v = self.p.lock();
 
+        // vec of pointers
         let ptr = *v;
+        let vec: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(ptr);
+        if vec.is_empty() {
+            return
+        }
+
+        // switch vectors
         *v = self.pointers;
         self.pointers = ptr;
         drop(v);
 
-        let vec: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(ptr);
+        // release py objects
         for ptr in vec.iter_mut() {
             ffi::Py_DECREF(*ptr);
         }
         vec.set_len(0);
     }
 
-    pub unsafe fn drain(&mut self, owned: usize, borrowed: usize) {
+    pub unsafe fn drain(&mut self, owned: usize, borrowed: usize, pointers: bool) {
         let len = self.owned.len();
         if owned < len {
             for ptr in &mut self.owned[owned..len] {
@@ -156,9 +161,9 @@ impl Pointers {
             self.borrowed.set_len(borrowed);
         }
 
-        self.release_pointers();
-
-        self.rc -= 1;
+        if pointers {
+            self.release_pointers();
+        }
     }
 }
 
@@ -167,6 +172,7 @@ static mut POINTERS: *mut Pointers = 0 as *mut _;
 pub struct Pool {
     owned: usize,
     borrowed: usize,
+    pointers: bool,
     no_send: marker::PhantomData<rc::Rc<()>>,
 }
 
@@ -174,18 +180,18 @@ impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
         let p: &'static mut Pointers = mem::transmute(POINTERS);
-        p.rc += 1;
         Pool {owned: p.owned.len(),
               borrowed: p.borrowed.len(),
+              pointers: true,
               no_send: marker::PhantomData}
     }
-    pub unsafe fn new_if_needed() -> Option<Pool> {
+    #[inline]
+    pub unsafe fn new_no_pointers() -> Pool {
         let p: &'static mut Pointers = mem::transmute(POINTERS);
-        if p.rc == 0 {
-            Some(Pool::new())
-        } else {
-            None
-        }
+        Pool {owned: p.owned.len(),
+              borrowed: p.borrowed.len(),
+              pointers: false,
+              no_send: marker::PhantomData}
     }
 }
 
@@ -193,7 +199,7 @@ impl Drop for Pool {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut Pointers = mem::transmute(POINTERS);
-            pool.drain(self.owned, self.borrowed);
+            pool.drain(self.owned, self.borrowed, self.pointers);
         }
     }
 }
@@ -233,8 +239,6 @@ impl GILGuard {
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
             let pool: &'static mut Pointers = mem::transmute(POINTERS);
-            pool.rc += 1;
-
             GILGuard { owned: pool.owned.len(),
                        borrowed: pool.borrowed.len(),
                        gstate: gstate,
@@ -246,5 +250,172 @@ impl GILGuard {
     #[inline]
     pub fn python<'p>(&'p self) -> Python<'p> {
         unsafe { Python::assume_gil_acquired() }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std;
+    use {ffi, pythonrun};
+    use python::Python;
+    use pointer::PyObject;
+    use super::{Pool, Pointers, POINTERS};
+
+    #[test]
+    fn test_owned() {
+        pythonrun::prepare_pyo3_library();
+
+        unsafe {
+            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+
+            let cnt;
+            let empty;
+            {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+
+                empty = ffi::PyTuple_New(0);
+                cnt = ffi::Py_REFCNT(empty) - 1;
+                let _ = pythonrun::register_owned(py, empty);
+
+                assert_eq!(p.owned.len(), 1);
+            }
+            {
+                let _gil = Python::acquire_gil();
+                assert_eq!(p.owned.len(), 0);
+                assert_eq!(cnt, ffi::Py_REFCNT(empty));
+            }
+        }
+    }
+
+    #[test]
+    fn test_owned_nested() {
+        pythonrun::prepare_pyo3_library();
+
+        unsafe {
+            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+
+            let cnt;
+            let empty;
+            {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                assert_eq!(p.owned.len(), 0);
+
+                // empty tuple is singleton
+                empty = ffi::PyTuple_New(0);
+                cnt = ffi::Py_REFCNT(empty) - 1;
+                let _ = pythonrun::register_owned(py, empty);
+
+                assert_eq!(p.owned.len(), 1);
+
+                {
+                    let _pool = Pool::new();
+                    let empty = ffi::PyTuple_New(0);
+                    let _ = pythonrun::register_owned(py, empty);
+                    assert_eq!(p.owned.len(), 2);
+                }
+                assert_eq!(p.owned.len(), 1);
+            }
+            {
+                let _gil = Python::acquire_gil();
+                assert_eq!(p.owned.len(), 0);
+                assert_eq!(cnt, ffi::Py_REFCNT(empty));
+            }
+        }
+    }
+
+    #[test]
+    fn test_borrowed() {
+        pythonrun::prepare_pyo3_library();
+
+        unsafe {
+            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+
+            let cnt;
+            {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                assert_eq!(p.borrowed.len(), 0);
+
+                cnt = ffi::Py_REFCNT(ffi::Py_True());
+                pythonrun::register_borrowed(py, ffi::Py_True());
+
+                assert_eq!(p.borrowed.len(), 1);
+                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+            }
+            {
+                let _gil = Python::acquire_gil();
+                assert_eq!(p.borrowed.len(), 0);
+                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+            }
+        }
+    }
+
+    #[test]
+    fn test_borrowed_nested() {
+        pythonrun::prepare_pyo3_library();
+
+        unsafe {
+            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+
+            let cnt;
+            {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                assert_eq!(p.borrowed.len(), 0);
+
+                cnt = ffi::Py_REFCNT(ffi::Py_True());
+                pythonrun::register_borrowed(py, ffi::Py_True());
+
+                assert_eq!(p.borrowed.len(), 1);
+                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+
+                {
+                    let _pool = Pool::new();
+                    assert_eq!(p.borrowed.len(), 1);
+                    pythonrun::register_borrowed(py, ffi::Py_True());
+                    assert_eq!(p.borrowed.len(), 2);
+                }
+
+                assert_eq!(p.borrowed.len(), 1);
+                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+            }
+            {
+                let _gil = Python::acquire_gil();
+                assert_eq!(p.borrowed.len(), 0);
+                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+            }
+        }
+    }
+
+    #[test]
+    fn test_pyobject_drop() {
+        pythonrun::prepare_pyo3_library();
+
+        unsafe {
+            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+
+            let ob;
+            let cnt;
+            let empty;
+            {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                assert_eq!(p.owned.len(), 0);
+
+                // empty tuple is singleton
+                empty = ffi::PyTuple_New(0);
+                cnt = ffi::Py_REFCNT(empty);
+                ob = PyObject::from_owned_ptr(py, empty);
+            }
+            drop(ob);
+            assert_eq!(cnt, ffi::Py_REFCNT(empty));
+
+            {
+                let _gil = Python::acquire_gil();
+            }
+            assert_eq!(cnt - 1, ffi::Py_REFCNT(empty));
+        }
     }
 }

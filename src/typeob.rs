@@ -279,7 +279,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     debug!("DEALLOC: {:?} - {:?}", obj,
            CStr::from_ptr((*(*obj).ob_type).tp_name).to_string_lossy());
     let guard = AbortOnDrop("Cannot unwind out of tp_dealloc");
-    let _pool = pythonrun::Pool::new_if_needed();
+    let _pool = pythonrun::Pool::new_no_pointers();
     let py = Python::assume_gil_acquired();
     let r = <T as PyObjectAlloc<T>>::dealloc(py, obj);
     mem::forget(guard);
