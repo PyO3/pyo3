@@ -1,8 +1,8 @@
 # Overview
 
-[![Build Status](https://travis-ci.org/PyO3/PyO3.svg?branch=master)](https://travis-ci.org/PyO3/PyO3)
+[![Build Status](https://travis-ci.org/PyO3/pyo3.svg?branch=master)](https://travis-ci.org/PyO3/pyo3)
 [![Latest Version](https://img.shields.io/crates/v/pyo3.svg)](https://crates.io/crates/pyo3)
-[![Rust Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](http://pyo3.github.io/PyO3/pyo3/)
+[![Rust Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](http://pyo3.github.io/pyo3/pyo3/)
 
 PyO3 is a [Rust](http://www.rust-lang.org/) bindings for the [Python](https://www.python.org/) interpreter.
 
