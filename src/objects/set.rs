@@ -4,7 +4,7 @@
 use std::{hash, collections};
 use ffi;
 use python::{Python, ToPyPointer};
-use pointer::PyObject;
+use object::PyObject;
 use conversion::ToPyObject;
 use instance::{AsPyRef, Py, PyObjectWithToken};
 use err::{self, PyResult, PyErr};

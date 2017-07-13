@@ -258,7 +258,7 @@ mod test {
     use std;
     use {ffi, pythonrun};
     use python::Python;
-    use pointer::PyObject;
+    use object::PyObject;
     use super::{Pool, Pointers, POINTERS};
 
     #[test]

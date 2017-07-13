@@ -8,7 +8,7 @@ extern crate num_traits;
 use self::num_traits::cast::cast;
 
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
 use objects::{exc, PyObjectRef};

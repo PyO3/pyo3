@@ -7,7 +7,7 @@ use std::os::raw::c_int;
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError, self};
 use python::{Python, ToPyPointer, PyDowncastFrom, PyClone};
-use pointer::PyObject;
+use object::PyObject;
 use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
 use instance::PyObjectWithToken;

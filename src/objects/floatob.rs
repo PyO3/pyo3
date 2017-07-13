@@ -5,7 +5,7 @@
 use std::os::raw::c_double;
 
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use python::{ToPyPointer, Python};
 use err::PyErr;
 use instance::{Py, PyObjectWithToken};

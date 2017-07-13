@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use python::{ToPyPointer, Python};
 use conversion::{ToPyObject, IntoPyObject};
 

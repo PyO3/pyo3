@@ -5,7 +5,7 @@
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
-use pointer::PyObject;
+use object::PyObject;
 use objects::PyObjectRef;
 use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{ToPyObject, IntoPyObject};

@@ -5,7 +5,7 @@
 use std::{mem, collections, hash, cmp};
 
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use conversion::ToPyObject;

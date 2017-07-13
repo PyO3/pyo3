@@ -2,7 +2,7 @@
 
 use std::os::raw::c_long;
 
-use pointer::PyObject;
+use object::PyObject;
 use python::{ToPyPointer, Python};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};

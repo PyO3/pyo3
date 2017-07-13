@@ -2,7 +2,7 @@
 use std::borrow::Cow;
 
 use err::PyResult;
-use pointer::PyObject;
+use object::PyObject;
 use objects::{PyObjectRef, PyString};
 use objectprotocol::ObjectProtocol;
 use python::Python;

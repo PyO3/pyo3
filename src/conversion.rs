@@ -4,7 +4,7 @@
 use ffi;
 use err::PyResult;
 use python::{Python, ToPyPointer, PyDowncastFrom};
-use pointer::PyObject;
+use object::PyObject;
 use objects::{PyObjectRef, PyTuple};
 use objectprotocol::ObjectProtocol;
 use typeob::PyTypeInfo;

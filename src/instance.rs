@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use ffi;
 use pythonrun;
 use err::{PyResult, PyErr, PyDowncastError};
-use pointer::PyObject;
+use object::PyObject;
 use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};

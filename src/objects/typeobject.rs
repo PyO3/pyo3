@@ -6,7 +6,7 @@ use std::ffi::CStr;
 use std::borrow::Cow;
 
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use python::{Python, ToPyPointer};
 use err::{PyErr, PyResult};
 use instance::PyObjectWithToken;

@@ -7,7 +7,7 @@ use std::slice;
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken};
-use pointer::PyObject;
+use object::PyObject;
 use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
 use python::{Python, ToPyPointer, IntoPyPointer};

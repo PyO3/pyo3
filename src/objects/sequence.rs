@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use conversion::{FromPyObject, ToPyObject};

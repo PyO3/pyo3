@@ -3,7 +3,7 @@
 use std;
 use std::os::raw::c_char;
 use ffi;
-use pointer::PyObject;
+use object::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use err::{PyResult, PyErr};
@@ -75,7 +75,7 @@ impl PyByteArray {
 mod test {
     use exc;
     use python::Python;
-    use pointer::PyObject;
+    use object::PyObject;
     use objects::PyByteArray;
 
     #[test]

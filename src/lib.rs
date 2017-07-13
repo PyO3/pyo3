@@ -156,7 +156,7 @@ pub mod ffi {
 pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
-pub use pointer::PyObject;
+pub use object::PyObject;
 pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python, prepare_pyo3_library};
@@ -190,9 +190,9 @@ mod python;
 mod err;
 mod conversion;
 mod instance;
+mod object;
 mod objects;
 mod objectprotocol;
-mod pointer;
 mod pythonrun;
 pub mod callback;
 pub mod typeob;

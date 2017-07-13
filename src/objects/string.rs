@@ -9,7 +9,7 @@ use std::os::raw::c_char;
 
 use ffi;
 use instance::{Py, PyObjectWithToken};
-use pointer::PyObject;
+use object::PyObject;
 use objects::PyObjectRef;
 use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
