@@ -81,12 +81,12 @@ macro_rules! int_fits_c_long(
         }
         pyobject_extract!(py, obj to $rust_type => {
             let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
-            if val == -1 && PyErr::occurred(obj.token()) {
-                return Err(PyErr::fetch(obj.token()));
+            if val == -1 && PyErr::occurred(obj.py()) {
+                return Err(PyErr::fetch(obj.py()));
             }
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.token()))
+                None => Err(overflow_error(obj.py()))
             }
         });
     )
@@ -110,7 +110,7 @@ macro_rules! int_fits_larger_int(
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.token()))
+                None => Err(overflow_error(obj.py()))
             }
         });
     )
@@ -158,17 +158,17 @@ macro_rules! int_convert_u64_or_i64 (
                 let ptr = obj.as_ptr();
                 unsafe {
                     if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(obj.token(), !0, $pylong_as_ull_or_ull(ptr))
+                        err_if_invalid_value(obj.py(), !0, $pylong_as_ull_or_ull(ptr))
                     } else if ffi::PyInt_Check(ptr) != 0 {
                         match cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
                             Some(v) => Ok(v),
-                            None => Err(overflow_error(obj.token()))
+                            None => Err(overflow_error(obj.py()))
                         }
                     } else {
                         let num = PyObject::from_owned_ptr_or_err(
-                            obj.token(), ffi::PyNumber_Long(ptr))?;
+                            obj.py(), ffi::PyNumber_Long(ptr))?;
                         err_if_invalid_value(
-                            obj.token(), !0, $pylong_as_ull_or_ull(num.into_ptr()))
+                            obj.py(), !0, $pylong_as_ull_or_ull(num.into_ptr()))
                     }
                 }
             }

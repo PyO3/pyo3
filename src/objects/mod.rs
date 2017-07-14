@@ -42,7 +42,7 @@ macro_rules! pyobject_downcast(
                     if $crate::ffi::$checkfunction(ob.as_ptr()) > 0 {
                         Ok($crate::std::mem::transmute(ob))
                     } else {
-                        Err($crate::PyDowncastError(ob.token(), None))
+                        Err($crate::PyDowncastError(ob.py(), None))
                     }
                 }
             }
@@ -68,7 +68,7 @@ macro_rules! pyobject_downcast(
                     if $crate::ffi::$checkfunction(ob.as_ptr()) != 0 {
                         Ok($crate::std::mem::transmute(ob))
                     } else {
-                        Err($crate::PyDowncastError(ob.token(), None).into())
+                        Err($crate::PyDowncastError(ob.py(), None).into())
                     }
                 }
             }
@@ -97,7 +97,7 @@ macro_rules! pyobject_nativetype(
         }
         impl $crate::PyObjectWithToken for $name {
             #[inline]
-            fn token<'p>(&'p self) -> $crate::Python<'p> {
+            fn py<'p>(&'p self) -> $crate::Python<'p> {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }
         }

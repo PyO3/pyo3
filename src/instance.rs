@@ -24,7 +24,7 @@ impl PyToken {
 }
 
 pub trait PyObjectWithToken: Sized {
-    fn token(&self) -> Python;
+    fn py(&self) -> Python;
 }
 
 pub trait PyNativeType: PyObjectWithToken {}

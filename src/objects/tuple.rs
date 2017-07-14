@@ -59,7 +59,7 @@ impl PyTuple {
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
-            self.token().cast_from_borrowed_ptr(
+            self.py().cast_from_borrowed_ptr(
                 ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
@@ -150,10 +150,10 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $( try!(slice[$n].extract::<$T>(obj.token())), )+
+                    $( try!(slice[$n].extract::<$T>(obj.py())), )+
                 ))
             } else {
-                Err(wrong_tuple_length(obj.token(), t, $length))
+                Err(wrong_tuple_length(obj.py(), t, $length))
             }
         }
     }
@@ -228,7 +228,7 @@ pyobject_extract!(py, obj to NoArgs => {
     if t.len() == 0 {
         Ok(NoArgs)
     } else {
-        Err(wrong_tuple_length(obj.token(), t, 0))
+        Err(wrong_tuple_length(obj.py(), t, 0))
     }
 });
 

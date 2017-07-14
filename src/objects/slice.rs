@@ -72,7 +72,7 @@ impl PySlice {
                     slicelength: slicelen,
                 })
             } else {
-                Err(PyErr::fetch(self.token()))
+                Err(PyErr::fetch(self.py()))
             }
         }
     }

@@ -48,33 +48,33 @@ impl PySet {
     /// Determine if the set contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
-        key.with_borrowed_ptr(self.token(), |key| unsafe {
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PySet_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.token()))
+                _ => Err(PyErr::fetch(self.py()))
             }
         })
     }
 
     /// Remove element from the set if it is present.
     pub fn discard<K>(&self, key: K) where K: ToPyObject {
-        key.with_borrowed_ptr(self.token(), |key| unsafe {
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
             ffi::PySet_Discard(self.as_ptr(), key);
         })
     }
 
     /// Add element to the set.
     pub fn add<K>(&self, key: K) -> PyResult<()> where K: ToPyObject {
-        key.with_borrowed_ptr(self.token(), move |key| unsafe {
-            err::error_on_minusone(self.token(), ffi::PySet_Add(self.as_ptr(), key))
+        key.with_borrowed_ptr(self.py(), move |key| unsafe {
+            err::error_on_minusone(self.py(), ffi::PySet_Add(self.as_ptr(), key))
         })
     }
 
     /// Remove and return an arbitrary element from the set
     pub fn pop(&self) -> Option<PyObject> {
         unsafe {
-            PyObject::from_owned_ptr_or_opt(self.token(), ffi::PySet_Pop(self.as_ptr()))
+            PyObject::from_owned_ptr_or_opt(self.py(), ffi::PySet_Pop(self.as_ptr()))
         }
     }
 }
@@ -130,11 +130,11 @@ impl PyFrozenSet {
     /// Determine if the set contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
-        key.with_borrowed_ptr(self.token(), |key| unsafe {
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PySet_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.token()))
+                _ => Err(PyErr::fetch(self.py()))
             }
         })
     }

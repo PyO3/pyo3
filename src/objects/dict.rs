@@ -33,7 +33,7 @@ impl PyDict {
     /// Corresponds to `dict(self)` in Python.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
-            self.token().cast_from_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
+            self.py().cast_from_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
         }
     }
 
@@ -53,11 +53,11 @@ impl PyDict {
     /// Determine if the dictionary contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
-        key.with_borrowed_ptr(self.token(), |key| unsafe {
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PyDict_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.token()))
+                _ => Err(PyErr::fetch(self.py()))
             }
         })
     }
@@ -65,8 +65,8 @@ impl PyDict {
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
     pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef> where K: ToPyObject {
-        key.with_borrowed_ptr(self.token(), |key| unsafe {
-            self.token().cast_from_borrowed_ptr_or_opt(
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
+            self.py().cast_from_borrowed_ptr_or_opt(
                 ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }
@@ -77,10 +77,10 @@ impl PyDict {
         where K: ToPyObject, V: ToPyObject
     {
         key.with_borrowed_ptr(
-            self.token(), move |key|
-            value.with_borrowed_ptr(self.token(), |value| unsafe {
+            self.py(), move |key|
+            value.with_borrowed_ptr(self.py(), |value| unsafe {
                 err::error_on_minusone(
-                    self.token(), ffi::PyDict_SetItem(self.as_ptr(), key, value))
+                    self.py(), ffi::PyDict_SetItem(self.as_ptr(), key, value))
             }))
     }
 
@@ -88,9 +88,9 @@ impl PyDict {
     /// This is equivalent to the Python expression `del self[key]`.
     pub fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToPyObject
     {
-        key.with_borrowed_ptr(self.token(), |key| unsafe {
+        key.with_borrowed_ptr(self.py(), |key| unsafe {
             err::error_on_minusone(
-                self.token(), ffi::PyDict_DelItem(self.as_ptr(), key))
+                self.py(), ffi::PyDict_DelItem(self.as_ptr(), key))
         })
     }
 
@@ -98,7 +98,7 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.items())`.
     pub fn items_list(&self) -> &PyList {
         unsafe {
-            self.token().cast_from_ptr::<PyList>(
+            self.py().cast_from_ptr::<PyList>(
                 ffi::PyDict_Items(self.as_ptr()))
         }
     }
@@ -114,8 +114,8 @@ impl PyDict {
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
-                vec.push((PyObject::from_borrowed_ptr(self.token(), key),
-                          PyObject::from_borrowed_ptr(self.token(), value)));
+                vec.push((PyObject::from_borrowed_ptr(self.py(), key),
+                          PyObject::from_borrowed_ptr(self.py(), value)));
             }
         }
         vec

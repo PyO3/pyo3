@@ -64,7 +64,7 @@ impl PyByteArray {
             if result == 0 {
                 Ok(())
             } else {
-                Err(PyErr::fetch(self.token()))
+                Err(PyErr::fetch(self.py()))
             }
         }
     }

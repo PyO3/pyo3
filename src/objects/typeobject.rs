@@ -47,10 +47,10 @@ impl PyType {
         where T: PyTypeObject
     {
         let result = unsafe {
-            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.token()).as_ptr())
+            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.py()).as_ptr())
         };
         if result == -1 {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.py()))
         } else if result == 1 {
             Ok(true)
         } else {
@@ -64,7 +64,7 @@ impl PyType {
             ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr())
         };
         if result == -1 {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.py()))
         } else if result == 1 {
             Ok(true)
         } else {

@@ -51,7 +51,7 @@ impl PyList {
     pub fn get_item(&self, index: isize) -> &PyObjectRef {
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            self.token().cast_from_borrowed_ptr(ptr)
+            self.py().cast_from_borrowed_ptr(ptr)
         }
     }
 
@@ -61,7 +61,7 @@ impl PyList {
     pub fn get_parked_item(&self, index: isize) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            PyObject::from_borrowed_ptr(self.token(), ptr)
+            PyObject::from_borrowed_ptr(self.py(), ptr)
         }
     }
 
@@ -71,9 +71,9 @@ impl PyList {
     pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()>
         where I: ToPyObject
     {
-        item.with_borrowed_ptr(self.token(), |item| unsafe {
+        item.with_borrowed_ptr(self.py(), |item| unsafe {
             err::error_on_minusone(
-                self.token(), ffi::PyList_SetItem(self.as_ptr(), index, item))
+                self.py(), ffi::PyList_SetItem(self.as_ptr(), index, item))
         })
     }
 
@@ -83,9 +83,9 @@ impl PyList {
     pub fn insert_item<I>(&self, index: isize, item: I) -> PyResult<()>
         where I: ToPyObject
     {
-        item.with_borrowed_ptr(self.token(), |item| unsafe {
+        item.with_borrowed_ptr(self.py(), |item| unsafe {
             err::error_on_minusone(
-                self.token(), ffi::PyList_Insert(self.as_ptr(), index, item))
+                self.py(), ffi::PyList_Insert(self.as_ptr(), index, item))
         })
     }
 

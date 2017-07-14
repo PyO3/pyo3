@@ -46,21 +46,21 @@ impl PyModule {
     /// this object is the same as the `__dict__` attribute of the module object.
     pub fn dict(&self) -> &PyDict {
         unsafe {
-            self.token().cast_from_ptr::<PyDict>(
+            self.py().cast_from_ptr::<PyDict>(
                 ffi::PyModule_GetDict(self.as_ptr()))
         }
     }
 
     unsafe fn str_from_ptr<'a>(&'a self, ptr: *const c_char) -> PyResult<&'a str> {
         if ptr.is_null() {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.py()))
         } else {
             let slice = CStr::from_ptr(ptr).to_bytes();
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    self.token(),
-                    try!(exc::UnicodeDecodeError::new_utf8(self.token(), slice, e))))
+                    self.py(),
+                    try!(exc::UnicodeDecodeError::new_utf8(self.py(), slice, e))))
             }
         }
     }
@@ -112,16 +112,16 @@ impl PyModule {
         let mut ty = unsafe{<T as ::typeob::PyTypeInfo>::type_object()};
 
         let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-            unsafe { PyType::from_type_ptr(self.token(), ty) }
+            unsafe { PyType::from_type_ptr(self.py(), ty) }
         } else {
             // automatically initialize the class
             let name = self.name()?;
 
             ::typeob::initialize_type::<T>(
-                self.token(), Some(name), ty)
+                self.py(), Some(name), ty)
                 .expect(
                     format!("An error occurred while initializing class {}", T::NAME).as_ref());
-            unsafe { PyType::from_type_ptr(self.token(), ty) }
+            unsafe { PyType::from_type_ptr(self.py(), ty) }
         };
 
         self.setattr(T::NAME, ty)

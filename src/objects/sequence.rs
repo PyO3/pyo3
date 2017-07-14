@@ -28,7 +28,7 @@ impl PySequence {
     pub fn len(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
         if v == -1 {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(v as isize)
         }
@@ -38,7 +38,7 @@ impl PySequence {
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
-            self.token().cast_from_ptr_or_err::<PySequence>(
+            self.py().cast_from_ptr_or_err::<PySequence>(
                 ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
         }
     }
@@ -49,7 +49,7 @@ impl PySequence {
     #[inline]
     pub fn repeat(&self, count: isize) -> PyResult<&PySequence> {
         unsafe {
-            self.token().cast_from_ptr_or_err::<PySequence>(
+            self.py().cast_from_ptr_or_err::<PySequence>(
                 ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
         }
     }
@@ -60,7 +60,7 @@ impl PySequence {
         unsafe {
             let ptr = ffi::PySequence_InPlaceConcat(self.as_ptr(), other.as_ptr());
             if ptr.is_null() {
-                Err(PyErr::fetch(self.token()))
+                Err(PyErr::fetch(self.py()))
             } else {
                 Ok(())
             }
@@ -75,7 +75,7 @@ impl PySequence {
         unsafe {
             let ptr = ffi::PySequence_InPlaceRepeat(self.as_ptr(), count as Py_ssize_t);
             if ptr.is_null() {
-                Err(PyErr::fetch(self.token()))
+                Err(PyErr::fetch(self.py()))
             } else {
                 Ok(())
             }
@@ -86,7 +86,7 @@ impl PySequence {
     #[inline]
     pub fn get_item(&self, index: isize) -> PyResult<&PyObjectRef> {
         unsafe {
-            self.token().cast_from_ptr_or_err(
+            self.py().cast_from_ptr_or_err(
                 ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
@@ -96,7 +96,7 @@ impl PySequence {
     #[inline]
     pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyObjectRef> {
         unsafe {
-            self.token().cast_from_ptr_or_err(
+            self.py().cast_from_ptr_or_err(
                 ffi::PySequence_GetSlice(
                     self.as_ptr(), begin as Py_ssize_t, end as Py_ssize_t))
         }
@@ -108,7 +108,7 @@ impl PySequence {
     pub fn set_item(&self, i: isize, v: &PyObjectRef) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
-                self.token(),
+                self.py(),
                 ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr()))
         }
     }
@@ -119,7 +119,7 @@ impl PySequence {
     pub fn del_item(&self, i: isize) -> PyResult<()> {
         unsafe { 
             err::error_on_minusone(
-                self.token(),
+                self.py(),
                 ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t))
         }
     }
@@ -130,7 +130,7 @@ impl PySequence {
     pub fn set_slice(&self, i1: isize, i2: isize, v: &PyObjectRef) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
-                self.token(), ffi::PySequence_SetSlice(
+                self.py(), ffi::PySequence_SetSlice(
                     self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t, v.as_ptr()))
         }
     }
@@ -141,7 +141,7 @@ impl PySequence {
     pub fn del_slice(&self, i1: isize, i2: isize) -> PyResult<()> {
         unsafe { 
             err::error_on_minusone(
-                self.token(),
+                self.py(),
                 ffi::PySequence_DelSlice(self.as_ptr(), i1 as Py_ssize_t, i2 as Py_ssize_t))
         }
     }
@@ -151,11 +151,11 @@ impl PySequence {
     #[inline]
     pub fn count<V>(&self, value: V) -> PyResult<usize> where V: ToPyObject
     {
-        let r = value.with_borrowed_ptr(self.token(), |ptr| unsafe {
+        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
             ffi::PySequence_Count(self.as_ptr(), ptr)
         });
         if r == -1 {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(r as usize)
         }
@@ -165,13 +165,13 @@ impl PySequence {
     #[inline]
     pub fn contains<V>(&self, value: V) -> PyResult<bool> where V: ToPyObject
     {
-        let r = value.with_borrowed_ptr(self.token(), |ptr| unsafe {
+        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
             ffi::PySequence_Contains(self.as_ptr(), ptr)
         });
         match r {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(PyErr::fetch(self.token()))
+            _ => Err(PyErr::fetch(self.py()))
         }
     }
 
@@ -180,11 +180,11 @@ impl PySequence {
     #[inline]
     pub fn index<V>(&self, value: V) -> PyResult<usize> where V: ToPyObject
     {
-        let r = value.with_borrowed_ptr(self.token(), |ptr| unsafe {
+        let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
             ffi::PySequence_Index(self.as_ptr(), ptr)
         });
         if r == -1 {
-            Err(PyErr::fetch(self.token()))
+            Err(PyErr::fetch(self.py()))
         } else {
             Ok(r as usize)
         }

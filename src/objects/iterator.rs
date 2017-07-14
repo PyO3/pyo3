@@ -42,7 +42,7 @@ impl <'p> Iterator for PyIterator<'p> {
     /// Further `next()` calls after an exception occurs are likely
     /// to repeatedly result in the same exception.
     fn next(&mut self) -> Option<Self::Item> {
-        let py = self.0.token();
+        let py = self.0.py();
 
         match unsafe {
             py.cast_from_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) }

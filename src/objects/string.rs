@@ -49,7 +49,7 @@ impl PyString {
                            -> PyResult<&'p PyString>
     {
         unsafe {
-            src.token().cast_from_ptr_or_err::<PyString>(
+            src.py().cast_from_ptr_or_err::<PyString>(
                 ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const i8,
@@ -65,7 +65,7 @@ impl PyString {
             let mut size: ffi::Py_ssize_t = mem::uninitialized();
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
             if data.is_null() {
-                PyErr::fetch(self.token()).print(self.token());
+                PyErr::fetch(self.py()).print(self.py());
                 panic!("PyUnicode_AsUTF8AndSize failed");
             }
             PyStringData::Utf8(std::slice::from_raw_parts(data, size as usize))
@@ -77,7 +77,7 @@ impl PyString {
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     pub fn to_string(&self) -> PyResult<Cow<str>> {
-        self.data().to_string(self.token())
+        self.data().to_string(self.py())
     }
 
     /// Convert the `PyString` into a Rust string.

@@ -54,7 +54,7 @@ impl PyString {
     pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
-                src.token(), ffi::PyUnicode_FromEncodedObject(
+                src.py(), ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))?
             )
         }
@@ -84,7 +84,7 @@ impl PyString {
     /// (containing unpaired surrogates, or a Python 2.7 byte string that is
     /// not valid UTF-8).
     pub fn to_string(&self) -> PyResult<Cow<str>> {
-        self.data().to_string(self.token())
+        self.data().to_string(self.py())
     }
 
     /// Convert the `PyString` into a Rust string.
@@ -139,7 +139,7 @@ impl PyUnicode {
     {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
-                src.token(), ffi::PyUnicode_FromEncodedObject(
+                src.py(), ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const i8,
                     errors.as_ptr() as *const i8))?)
@@ -160,7 +160,7 @@ impl PyUnicode {
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     pub fn to_string(&self) -> PyResult<Cow<str>> {
-        self.data().to_string(self.token())
+        self.data().to_string(self.py())
     }
 
     /// Convert the `PyString` into a Rust string.

@@ -55,7 +55,7 @@ impl MyClass {
 
      #[new]
      fn __new__(cls: &PyType, ...) -> PyResult<Py<MyClass>> {
-         cls.token().init(|token| {
+         cls.py().init(|token| {
              MyClass {
                  num: 10,
                  debug: False,

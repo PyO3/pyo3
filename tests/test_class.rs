@@ -102,7 +102,7 @@ struct EmptyClassWithNew {
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(cls: &PyType) -> PyResult<Py<EmptyClassWithNew>> {
-        Ok(Py::new(cls.token(), |t| EmptyClassWithNew{token: t})?.into())
+        Ok(Py::new(cls.py(), |t| EmptyClassWithNew{token: t})?.into())
     }
 }
 
@@ -124,7 +124,7 @@ struct NewWithOneArg {
 impl NewWithOneArg {
     #[new]
     fn __new__(cls: &PyType, arg: i32) -> PyResult<&mut NewWithOneArg> {
-        cls.token().init_mut(|t| NewWithOneArg{_data: arg, token: t})
+        cls.py().init_mut(|t| NewWithOneArg{_data: arg, token: t})
     }
 }
 
@@ -152,7 +152,7 @@ impl NewWithTwoArgs {
     fn __new__(cls: &PyType, arg1: i32, arg2: i32) -> PyResult<Py<NewWithTwoArgs>>
     {
         Py::new(
-            cls.token(),
+            cls.py(),
             |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
 }
@@ -341,7 +341,7 @@ struct ClassMethod {token: PyToken}
 impl ClassMethod {
     #[new]
     fn __new__(cls: &PyType) -> PyResult<Py<ClassMethod>> {
-        cls.token().init(|t| ClassMethod{token: t})
+        cls.py().init(|t| ClassMethod{token: t})
     }
 
     #[classmethod]
@@ -392,7 +392,7 @@ struct StaticMethod {
 impl StaticMethod {
     #[new]
     fn __new__(cls: &PyType) -> PyResult<&StaticMethod> {
-        Ok(cls.token().init_mut(|t| StaticMethod{token: t})?.into())
+        Ok(cls.py().init_mut(|t| StaticMethod{token: t})?.into())
     }
 
     #[staticmethod]
@@ -451,7 +451,7 @@ impl PyGCProtocol for GCIntegration {
     }
 
     fn __clear__(&mut self) {
-        *self.self_ref.borrow_mut() = self.token().None();
+        *self.self_ref.borrow_mut() = self.py().None();
     }
 }
 
@@ -551,11 +551,11 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
     }
 
     fn __unicode__(&self) -> PyResult<PyObject> {
-        Ok(PyString::new(self.token(), "unicode").into())
+        Ok(PyString::new(self.py(), "unicode").into())
     }
 
     fn __bytes__(&self) -> PyResult<PyObject> {
-        Ok(PyBytes::new(self.token(), b"bytes").into())
+        Ok(PyBytes::new(self.py(), b"bytes").into())
     }
 }
 
@@ -634,7 +634,7 @@ impl PySequenceProtocol for Sequence {
 
     fn __getitem__(&self, key: isize) -> PyResult<isize> {
         if key == 5 {
-            return Err(PyErr::new::<exc::IndexError, NoArgs>(self.token(), NoArgs));
+            return Err(PyErr::new::<exc::IndexError, NoArgs>(self.py(), NoArgs));
         }
         Ok(key)
     }
@@ -948,9 +948,9 @@ impl PyObjectProtocol for RichComparisons2 {
 
     fn __richcmp__(&self, other: &'p PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
         match op {
-            CompareOp::Eq => Ok(true.to_object(self.token())),
-            CompareOp::Ne => Ok(false.to_object(self.token())),
-            _ => Ok(self.token().NotImplemented())
+            CompareOp::Eq => Ok(true.to_object(self.py())),
+            CompareOp::Ne => Ok(false.to_object(self.py())),
+            _ => Ok(self.py().NotImplemented())
         }
     }
 }
@@ -1112,7 +1112,7 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
                 value: Option<&'p PyObjectRef>,
                 traceback: Option<&'p PyObjectRef>) -> PyResult<bool> {
         self.exit_called = true;
-        if ty == Some(self.token().get_type::<exc::ValueError>()) {
+        if ty == Some(self.py().get_type::<exc::ValueError>()) {
             Ok(true)
         } else {
             Ok(false)
@@ -1196,7 +1196,7 @@ impl MethArgs {
     }
     #[args(args="*", kwargs="**")]
     fn get_kwargs(&self, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        Ok([args.into(), kwargs.to_object(self.token())].to_object(self.token()))
+        Ok([args.into(), kwargs.to_object(self.py())].to_object(self.py()))
     }
 }
 

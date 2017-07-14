@@ -50,8 +50,8 @@ impl IntoPyObject for f64 {
 
 pyobject_extract!(py, obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
-    if v == -1.0 && PyErr::occurred(obj.token()) {
-        Err(PyErr::fetch(obj.token()))
+    if v == -1.0 && PyErr::occurred(obj.py()) {
+        Err(PyErr::fetch(obj.py()))
     } else {
         Ok(v)
     }

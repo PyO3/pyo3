@@ -289,7 +289,7 @@ impl<'a> FromPyObject<'a> for PyObject
     fn extract(ob: &'a PyObjectRef) -> PyResult<Self>
     {
         unsafe {
-            Ok(PyObject::from_borrowed_ptr(ob.token(), ob.as_ptr()))
+            Ok(PyObject::from_borrowed_ptr(ob.py(), ob.as_ptr()))
         }
     }
 }
