@@ -96,7 +96,7 @@ macro_rules! pyobject_nativetype(
             }
         }
         impl $crate::PyObjectWithToken for $name {
-            #[inline]
+            #[inline(always)]
             fn py<'p>(&'p self) -> $crate::Python<'p> {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }

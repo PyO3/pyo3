@@ -51,12 +51,12 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         None => quote! { #cls }.as_str().to_string()
     };
 
-    let extra = if let Some(token) = token {
+    let extra = if let Some(_) = token {
         Some(quote! {
             impl _pyo3::PyObjectWithToken for #cls {
-                #[inline]
+                #[inline(always)]
                 fn py<'p>(&'p self) -> _pyo3::Python<'p> {
-                    self.#token.py()
+                    unsafe { _pyo3::Python::assume_gil_acquired() }
                 }
             }
             impl _pyo3::ToPyObject for #cls {
