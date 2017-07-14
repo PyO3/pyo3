@@ -15,7 +15,7 @@ macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
         let d = PyDict::new($py);
         d.set_item(stringify!($val), &$val).unwrap();
-        $py.run($code, None, Some(d)).expect($code);
+        $py.run($code, None, Some(d)).map_err(|e| e.print($py)).expect($code);
     }}
 }
 
@@ -1176,4 +1176,44 @@ fn class_with_properties() {
     py_run!(py, inst, "inst.DATA = 20");
     py_run!(py, inst, "assert inst.get_num() == 20");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
+}
+
+#[py::class]
+struct MethArgs {
+    token: PyToken
+}
+
+#[py::methods]
+impl MethArgs {
+
+    #[args(test="10")]
+    fn get_default(&self, test: i32) -> PyResult<i32> {
+        Ok(test)
+    }
+    #[args("*", test=10)]
+    fn get_kwarg(&self, test: i32) -> PyResult<i32> {
+        Ok(test)
+    }
+    #[args(args="*", kwargs="**")]
+    fn get_kwargs(&self, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+        Ok([args.into(), kwargs.to_object(self.token())].to_object(self.token()))
+    }
+}
+
+#[test]
+fn meth_args() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = py.init(|t| MethArgs{token: t}).unwrap();
+
+    py_run!(py, inst, "assert inst.get_default() == 10");
+    py_run!(py, inst, "assert inst.get_default(100) == 100");
+    py_run!(py, inst, "assert inst.get_kwarg() == 10");
+    py_run!(py, inst, "assert inst.get_kwarg(100) == 10");
+    py_run!(py, inst, "assert inst.get_kwarg(test=100) == 100");
+    py_run!(py, inst, "assert inst.get_kwargs() == [(), None]");
+    py_run!(py, inst, "assert inst.get_kwargs(1,2,3) == [(1,2,3), None]");
+    py_run!(py, inst, "assert inst.get_kwargs(t=1,n=2) == [(), {'t': 1, 'n': 2}]");
+    py_run!(py, inst, "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]");
+    // py_expect_exception!(py, inst, "inst.get_kwarg(100)", TypeError);
 }

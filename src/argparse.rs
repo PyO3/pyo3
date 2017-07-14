@@ -9,6 +9,7 @@ use python::Python;
 use objects::{PyObjectRef, PyTuple, PyDict, PyString, exc};
 use err::{self, PyResult};
 
+#[derive(Debug)]
 /// Description of a python parameter; used for `parse_args()`.
 pub struct ParamDescription<'a> {
     /// The name of the parameter.
@@ -63,6 +64,11 @@ pub fn parse_args<'p>(py: Python<'p>,
             },
             None => {
                 if p.kw_only {
+                    if !p.is_optional {
+                        return Err(err::PyErr::new::<exc::TypeError, _>(
+                            py, format!(
+                                "Required argument ('{}') is keyword only argument", p.name)));
+                    }
                     *out = None;
                 }
                 else if i < nargs {
