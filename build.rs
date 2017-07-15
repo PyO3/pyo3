@@ -1,10 +1,17 @@
 extern crate regex;
+extern crate version_check;
 
 use std::process::Command;
 use std::collections::HashMap;
 use std::env;
-use regex::Regex;
 use std::fmt;
+
+use regex::Regex;
+use version_check::{supports_features, is_min_version, is_min_date};
+
+// Specifies the minimum nightly version needed to compile pyo3.
+const MIN_DATE: &'static str = "2017-07-09";
+const MIN_VERSION: &'static str = "1.20.0-nightly";
 
 #[derive(Debug)]
 struct PythonVersion {
@@ -394,7 +401,43 @@ fn version_from_env() -> Result<PythonVersion, String> {
          feature must be enabled.".to_owned())
 }
 
+fn check_rustc_version() {
+    let ok_channel = supports_features();
+    let ok_version = is_min_version(MIN_VERSION);
+    let ok_date = is_min_date(MIN_DATE);
+
+    let print_version_err = |version: &str, date: &str| {
+        eprintln!("Installed version is: {} ({}). Minimum required: {} ({}).",
+                  version,
+                  date,
+                  MIN_VERSION,
+                  MIN_DATE);
+    };
+
+    match (ok_channel, ok_version, ok_date) {
+        (Some(ok_channel), Some((ok_version, version)), Some((ok_date, date))) => {
+            if !ok_channel {
+                eprintln!("Error: pyo3 requires a nightly or dev version of Rust.");
+                print_version_err(&*version, &*date);
+                panic!("Aborting compilation due to incompatible compiler.")
+            }
+
+            if !ok_version || !ok_date {
+                eprintln!("Error: pyo3 requires a more recent version of rustc.");
+                eprintln!("Use `rustup update` or your preferred method to update Rust");
+                print_version_err(&*version, &*date);
+                panic!("Aborting compilation due to incompatible compiler.")
+            }
+        },
+        _ => {
+            println!("cargo:warning={}", "pyo3 was unable to check rustc compatibility.");
+            println!("cargo:warning={}", "Build may fail due to incompatible rustc version.");
+        }
+    }
+}
+
 fn main() {
+    check_rustc_version();
     // 1. Setup cfg variables so we can do conditional compilation in this 
     // library based on the python interpeter's compilation flags. This is 
     // necessary for e.g. matching the right unicode and threading interfaces.
