@@ -21,9 +21,6 @@ use objectprotocol::ObjectProtocol;
 use callback::{PyObjectCallbackConverter, HashConverter, BoolCallbackConverter};
 use class::methods::PyMethodDef;
 
-// __instancecheck__
-// __subclasscheck__
-
 
 /// Basic python class customization
 #[allow(unused_variables)]

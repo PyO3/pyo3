@@ -11,10 +11,17 @@ pub enum MethodProto {
     Free{name: &'static str, proto: &'static str, },
     Unary{name: &'static str, pyres: bool, proto: &'static str, },
     Binary{name: &'static str, arg: &'static str, pyres: bool, proto: &'static str},
+    BinaryS{name: &'static str,
+            arg1: &'static str, arg2: &'static str, pyres: bool, proto: &'static str},
     Ternary{name: &'static str,
             arg1: &'static str,
             arg2: &'static str,
             pyres: bool, proto: &'static str},
+    TernaryS{name: &'static str,
+             arg1: &'static str,
+             arg2: &'static str,
+             arg3: &'static str,
+             pyres: bool, proto: &'static str},
     Quaternary{name: &'static str,
                arg1: &'static str,
                arg2: &'static str,
@@ -28,7 +35,10 @@ impl MethodProto {
             MethodProto::Free{name: n, proto: _} => n == name,
             MethodProto::Unary{name: n, pyres: _, proto: _} => n == name,
             MethodProto::Binary{name: n, arg: _, pyres: _, proto: _} => n == name,
+            MethodProto::BinaryS{name: n, arg1: _, arg2: _, pyres: _, proto: _} => n == name,
             MethodProto::Ternary{name: n, arg1: _, arg2: _, pyres: _, proto: _} => n == name,
+            MethodProto::TernaryS{name: n, arg1: _, arg2: _, arg3: _,
+                                  pyres: _, proto: _} => n == name,
             MethodProto::Quaternary{name: n, arg1: _, arg2: _, arg3: _, proto: _} => n == name,
         }
     }
@@ -119,6 +129,51 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                         }
                     }
                 },
+                MethodProto::BinaryS{name: n, arg1, arg2, pyres, proto} => {
+                    if sig.decl.inputs.len() <= 1 {
+                        print_err(format!("Not enough arguments {}", n), quote!(sig));
+                        return Tokens::new();
+                    }
+                    let p = syn::Ident::from(proto);
+                    let arg1_name = syn::Ident::from(arg1);
+                    let arg1_ty = get_arg_ty(sig, 0);
+                    let arg2_name = syn::Ident::from(arg2);
+                    let arg2_ty = get_arg_ty(sig, 1);
+                    let (ty, succ) = get_res_success(ty);
+
+                    // rewrite ty
+                    let tmp = extract_decl(syn::parse_item(
+                        quote! {fn test(
+                            arg1: <#cls as #p<'p>>::#arg1_name,
+                            arg2: <#cls as #p<'p>>::#arg2_name)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
+                    let tmp2 = extract_decl(syn::parse_item(
+                        quote! {fn test(
+                            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+                            arg2: Option<<#cls as #p<'p>>::#arg2_name>)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
+                    modify_arg_ty(sig, 0, &tmp, &tmp2);
+                    modify_arg_ty(sig, 1, &tmp, &tmp2);
+
+                    if pyres {
+                        quote! {
+                            impl<'p> #p<'p> for #cls {
+                                type #arg1_name = #arg1_ty;
+                                type #arg2_name = #arg2_ty;
+                                type Success = #succ;
+                                type Result = #ty;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            impl<'p> #p<'p> for #cls {
+                                type #arg1_name = #arg1_ty;
+                                type #arg2_name = #arg2_ty;
+                                type Result = #ty;
+                            }
+                        }
+                    }
+                },
                 MethodProto::Ternary{name: n, arg1, arg2, pyres, proto} => {
                     if sig.decl.inputs.len() <= 2 {
                         print_err(format!("Not enough arguments {}", n), quote!(sig));
@@ -162,6 +217,58 @@ pub fn impl_method_proto(cls: &Box<syn::Ty>,
                             impl<'p> #p<'p> for #cls {
                                 type #arg1_name = #arg1_ty;
                                 type #arg2_name = #arg2_ty;
+                                type Result = #ty;
+                            }
+                        }
+                    }
+                },
+                MethodProto::TernaryS{name: n, arg1, arg2, arg3, pyres, proto} => {
+                    if sig.decl.inputs.len() <= 2 {
+                        print_err(format!("Not enough arguments {}", n), quote!(sig));
+                        return Tokens::new();
+                    }
+                    let p = syn::Ident::from(proto);
+                    let arg1_name = syn::Ident::from(arg1);
+                    let arg1_ty = get_arg_ty(sig, 0);
+                    let arg2_name = syn::Ident::from(arg2);
+                    let arg2_ty = get_arg_ty(sig, 1);
+                    let arg3_name = syn::Ident::from(arg3);
+                    let arg3_ty = get_arg_ty(sig, 2);
+                    let (ty, succ) = get_res_success(ty);
+
+                    // rewrite ty
+                    let tmp = extract_decl(syn::parse_item(
+                        quote! {fn test(
+                            arg1: <#cls as #p<'p>>::#arg1_name,
+                            arg2: <#cls as #p<'p>>::#arg2_name,
+                            arg3: <#cls as #p<'p>>::#arg3_name)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
+                    let tmp2 = extract_decl(syn::parse_item(
+                        quote! {fn test(
+                            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+                            arg2: Option<<#cls as #p<'p>>::#arg2_name>,
+                            arg3: Option<<#cls as #p<'p>>::#arg3_name>)
+                                -> <#cls as #p<'p>>::Result {}}.as_str()).unwrap());
+                    modify_arg_ty(sig, 0, &tmp, &tmp2);
+                    modify_arg_ty(sig, 1, &tmp, &tmp2);
+                    modify_arg_ty(sig, 2, &tmp, &tmp2);
+
+                    if pyres {
+                        quote! {
+                            impl<'p> #p<'p> for #cls {
+                                type #arg1_name = #arg1_ty;
+                                type #arg2_name = #arg2_ty;
+                                type #arg3_name = #arg3_ty;
+                                type Success = #succ;
+                                type Result = #ty;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            impl<'p> #p<'p> for #cls {
+                                type #arg1_name = #arg1_ty;
+                                type #arg2_name = #arg2_ty;
+                                type #arg3_name = #arg3_ty;
                                 type Result = #ty;
                             }
                         }

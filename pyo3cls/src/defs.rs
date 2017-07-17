@@ -329,75 +329,89 @@ pub const SEQ: Proto = Proto {
 pub const NUM: Proto = Proto {
     name: "Number",
     methods: &[
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__add__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberAddProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__sub__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberSubProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__mul__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberMulProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__matmul__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberMatmulProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__truediv__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberTruedivProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__floordiv__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberFloordivProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__mod__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberModProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__divmod__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberDivmodProtocol"},
-        MethodProto::Ternary {
+        MethodProto::TernaryS {
             name: "__pow__",
-            arg1: "Other",
-            arg2: "Modulo",
+            arg1: "Left",
+            arg2: "Right",
+            arg3: "Modulo",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberPowProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__lshift__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberLShiftProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__rshift__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberRShiftProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__and__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberAndProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__xor__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberXorProtocol"},
-        MethodProto::Binary {
+        MethodProto::BinaryS {
             name: "__or__",
-            arg: "Other",
+            arg1: "Left",
+            arg2: "Right",
             pyres: true,
             proto: "::pyo3::class::number::PyNumberOrProtocol"},
 

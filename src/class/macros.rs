@@ -93,6 +93,36 @@ macro_rules! py_binary_func{
 
 #[macro_export]
 #[doc(hidden)]
+macro_rules! py_binary_num_func{
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
+        #[allow(unused_mut)]
+        unsafe extern "C" fn wrap<T>(lhs: *mut ffi::PyObject,
+                                     rhs: *mut ffi::PyObject) -> *mut $crate::ffi::PyObject
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+        {
+            use $crate::ObjectProtocol;
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+
+            $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
+                let lhs = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(lhs);
+                let rhs = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(rhs);
+
+                let result = match lhs.extract() {
+                    Ok(lhs) => match rhs.extract() {
+                        Ok(rhs) => $class::$f(lhs, rhs).into(),
+                        Err(e) => Err(e.into()),
+                    },
+                    Err(e) => Err(e.into()),
+                };
+                $crate::callback::cb_convert($conv, py, result)
+            })
+        }
+        Some(wrap::<$class>)
+    }}
+}
+
+#[macro_export]
+#[doc(hidden)]
 macro_rules! py_binary_self_func{
     ($trait:ident, $class:ident :: $f:ident) => {{
         #[allow(unused_mut)]
@@ -172,6 +202,41 @@ macro_rules! py_ternary_func{
                 let result = match arg1.extract() {
                     Ok(arg1) => match arg2.extract() {
                         Ok(arg2) => slf.$f(arg1, arg2).into(),
+                        Err(e) => Err(e.into())
+                    },
+                    Err(e) => Err(e.into()),
+                };
+                $crate::callback::cb_convert($conv, py, result)
+            })
+        }
+
+         Some(wrap::<T>)
+    }}
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_ternary_num_func{
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn wrap<T>(arg1: *mut $crate::ffi::PyObject,
+                                     arg2: *mut $crate::ffi::PyObject,
+                                     arg3: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
+            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+        {
+            use $crate::ObjectProtocol;
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+
+            $crate::callback::cb_pyfunc::<_, _, $res_type>(LOCATION, $conv, |py| {
+                let arg1 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg1);
+                let arg2 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg2);
+                let arg3 = py.cast_from_borrowed_ptr::<$crate::PyObjectRef>(arg3);
+
+                let result = match arg1.extract() {
+                    Ok(arg1) => match arg2.extract() {
+                        Ok(arg2) => match arg3.extract() {
+                            Ok(arg3) => $class::$f(arg1, arg2, arg3).into(),
+                            Err(e) => Err(e.into())
+                        },
                         Err(e) => Err(e.into())
                     },
                     Err(e) => Err(e.into()),

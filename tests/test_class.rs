@@ -852,36 +852,36 @@ impl PyObjectProtocol for BinaryArithmetic {
 
 #[py::proto]
 impl PyNumberProtocol for BinaryArithmetic {
-    fn __add__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} + {:?}", self, rhs))
+    fn __add__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} + {:?}", lhs, rhs))
     }
 
-    fn __sub__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} - {:?}", self, rhs))
+    fn __sub__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} - {:?}", lhs, rhs))
     }
 
-    fn __mul__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} * {:?}", self, rhs))
+    fn __mul__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} * {:?}", lhs, rhs))
     }
 
-    fn __lshift__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} << {:?}", self, rhs))
+    fn __lshift__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} << {:?}", lhs, rhs))
     }
 
-    fn __rshift__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} >> {:?}", self, rhs))
+    fn __rshift__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} >> {:?}", lhs, rhs))
     }
 
-    fn __and__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} & {:?}", self, rhs))
+    fn __and__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} & {:?}", lhs, rhs))
     }
 
-    fn __xor__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} ^ {:?}", self, rhs))
+    fn __xor__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} ^ {:?}", lhs, rhs))
     }
 
-    fn __or__(&self, rhs: &PyObjectRef) -> PyResult<String> {
-        Ok(format!("{:?} | {:?}", self, rhs))
+    fn __or__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+        Ok(format!("{:?} | {:?}", lhs, rhs))
     }
 }
 
