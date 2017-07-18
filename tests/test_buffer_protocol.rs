@@ -19,7 +19,7 @@ struct TestClass {
 impl class::PyBufferProtocol for TestClass {
 
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
-        if view == ptr::null_mut() {
+        if view.is_null() {
             return Err(PyErr::new::<exc::BufferError, _>(self.py(), "View is null"))
         }
 
