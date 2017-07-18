@@ -419,8 +419,6 @@ impl<'p, T> PyNumberProtocolImpl for T {
 impl<'p, T> PyNumberProtocolImpl for T where T: PyNumberProtocol<'p> {
     #[cfg(Py_3)]
     fn tp_as_number() -> Option<ffi::PyNumberMethods> {
-        use std::os::raw::c_void;
-
         Some(ffi::PyNumberMethods {
             nb_add: Self::nb_add(),
             nb_subtract: Self::nb_subtract(),
@@ -439,7 +437,7 @@ impl<'p, T> PyNumberProtocolImpl for T where T: PyNumberProtocol<'p> {
             nb_xor: Self::nb_xor(),
             nb_or: Self::nb_or(),
             nb_int: Self::nb_int(),
-            nb_reserved: 0 as *mut c_void,
+            nb_reserved: ::std::ptr::null_mut(),
             nb_float: Self::nb_float(),
             nb_inplace_add: Self::nb_inplace_add(),
             nb_inplace_subtract: Self::nb_inplace_subtract(),

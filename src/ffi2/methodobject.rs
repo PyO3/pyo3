@@ -43,10 +43,10 @@ pub struct PyMethodDef {
 }
 
 pub const PyMethodDef_INIT : PyMethodDef = PyMethodDef {
-    ml_name: 0 as *const _,
+    ml_name: ::std::ptr::null(),
     ml_meth: None,
     ml_flags: 0,
-    ml_doc: 0 as *const _,
+    ml_doc: ::std::ptr::null(),
 };
 
 impl Clone for PyMethodDef {
@@ -69,7 +69,7 @@ pub const METH_STATIC   : c_int = 0x0020;
 
 /* METH_COEXIST allows a method to be entered eventhough a slot has
    already filled the entry.  When defined, the flag allows a separate
-   method, "__contains__" for example, to coexist with a defined 
+   method, "__contains__" for example, to coexist with a defined
    slot like sq_contains. */
 
 pub const METH_COEXIST   : c_int = 0x0040;

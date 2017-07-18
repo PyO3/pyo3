@@ -15,16 +15,16 @@ pub struct PyObject {
 
 #[cfg(py_sys_config="Py_TRACE_REFS")]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
-    _ob_next: 0 as *mut PyObject,
-    _ob_prev: 0 as *mut PyObject,
+    _ob_next: ::std::ptr::null_mut(),
+    _ob_prev: ::std::ptr::null_mut(),
     ob_refcnt: 1,
-    ob_type: 0 as *mut PyTypeObject
+    ob_type: ::std::ptr::null_mut()
 };
 
 #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
-    ob_type: 0 as *mut PyTypeObject
+    ob_type: ::std::ptr::null_mut()
 };
 
 #[repr(C)]
@@ -286,7 +286,7 @@ mod typeobject {
                     nb_xor: None,
                     nb_or: None,
                     nb_int: None,
-                    nb_reserved: 0 as *mut c_void,
+                    nb_reserved: ::std::ptr::null_mut(),
                     nb_float: None,
                     nb_inplace_add: None,
                     nb_inplace_subtract: None,
@@ -337,9 +337,9 @@ mod typeobject {
         sq_concat: None,
         sq_repeat: None,
         sq_item: None,
-        was_sq_slice: 0 as *mut _,
+        was_sq_slice: ::std::ptr::null_mut(),
         sq_ass_item: None,
-        was_sq_ass_slice: 0 as *mut _,
+        was_sq_ass_slice: ::std::ptr::null_mut(),
         sq_contains: None,
         sq_inplace_concat: None,
         sq_inplace_repeat: None,
@@ -462,37 +462,37 @@ mod typeobject {
                         ob_base: ffi3::object::PyObject_HEAD_INIT,
                         ob_size: 0
                     },
-                    tp_name: 0 as *const c_char,
+                    tp_name: ::std::ptr::null(),
                     tp_basicsize: 0,
                     tp_itemsize: 0,
                     tp_dealloc: None,
                     tp_print: None,
                     tp_getattr: None,
                     tp_setattr: None,
-                    $tp_as_async: 0 as *mut _,
+                    $tp_as_async: ::std::ptr::null_mut(),
                     tp_repr: None,
-                    tp_as_number: 0 as *mut PyNumberMethods,
-                    tp_as_sequence: 0 as *mut PySequenceMethods,
-                    tp_as_mapping: 0 as *mut PyMappingMethods,
+                    tp_as_number: ::std::ptr::null_mut(),
+                    tp_as_sequence: ::std::ptr::null_mut(),
+                    tp_as_mapping: ::std::ptr::null_mut(),
                     tp_hash: None,
                     tp_call: None,
                     tp_str: None,
                     tp_getattro: None,
                     tp_setattro: None,
-                    tp_as_buffer: 0 as *mut PyBufferProcs,
+                    tp_as_buffer: ::std::ptr::null_mut(),
                     tp_flags: ffi3::object::Py_TPFLAGS_DEFAULT,
-                    tp_doc: 0 as *const c_char,
+                    tp_doc: ::std::ptr::null(),
                     tp_traverse: None,
                     tp_clear: None,
                     tp_richcompare: None,
                     tp_weaklistoffset: 0,
                     tp_iter: None,
                     tp_iternext: None,
-                    tp_methods: 0 as *mut ffi3::methodobject::PyMethodDef,
-                    tp_members: 0 as *mut ffi3::structmember::PyMemberDef,
-                    tp_getset: 0 as *mut ffi3::descrobject::PyGetSetDef,
-                    tp_base: 0 as *mut PyTypeObject,
-                    tp_dict: 0 as *mut ffi3::object::PyObject,
+                    tp_methods: ::std::ptr::null_mut(),
+                    tp_members: ::std::ptr::null_mut(),
+                    tp_getset: ::std::ptr::null_mut(),
+                    tp_base: ::std::ptr::null_mut(),
+                    tp_dict: ::std::ptr::null_mut(),
                     tp_descr_get: None,
                     tp_descr_set: None,
                     tp_dictoffset: 0,
@@ -501,11 +501,11 @@ mod typeobject {
                     tp_new: None,
                     tp_free: None,
                     tp_is_gc: None,
-                    tp_bases: 0 as *mut ffi3::object::PyObject,
-                    tp_mro: 0 as *mut ffi3::object::PyObject,
-                    tp_cache: 0 as *mut ffi3::object::PyObject,
-                    tp_subclasses: 0 as *mut ffi3::object::PyObject,
-                    tp_weaklist: 0 as *mut ffi3::object::PyObject,
+                    tp_bases: ::std::ptr::null_mut(),
+                    tp_mro: ::std::ptr::null_mut(),
+                    tp_cache: ::std::ptr::null_mut(),
+                    tp_subclasses: ::std::ptr::null_mut(),
+                    tp_weaklist: ::std::ptr::null_mut(),
                     tp_del: None,
                     tp_version_tag: 0,
                     $($tail)*
@@ -522,8 +522,8 @@ mod typeobject {
                 tp_allocs: 0,
                 tp_frees: 0,
                 tp_maxalloc: 0,
-                tp_prev: 0 as *mut PyTypeObject,
-                tp_next: 0 as *mut PyTypeObject,
+                tp_prev: ::std::ptr::null_mut(),
+                tp_next: ::std::ptr::null_mut(),
             )
         }
     }

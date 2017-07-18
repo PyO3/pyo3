@@ -190,21 +190,21 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
         type_object.tp_as_number = Box::into_raw(Box::new(meth));
     } else {
-        type_object.tp_as_number = 0 as *mut ffi::PyNumberMethods;
+        type_object.tp_as_number = ::std::ptr::null_mut()
     }
 
     // mapping methods
     if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
         type_object.tp_as_mapping = Box::into_raw(Box::new(meth));
     } else {
-        type_object.tp_as_mapping = 0 as *mut ffi::PyMappingMethods;
+        type_object.tp_as_mapping = ::std::ptr::null_mut()
     }
 
     // sequence methods
     if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
         type_object.tp_as_sequence = Box::into_raw(Box::new(meth));
     } else {
-        type_object.tp_as_sequence = 0 as *mut ffi::PySequenceMethods;
+        type_object.tp_as_sequence = ::std::ptr::null_mut()
     }
 
     // async methods
@@ -214,7 +214,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     if let Some(meth) = <T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer() {
         type_object.tp_as_buffer = Box::into_raw(Box::new(meth));
     } else {
-        type_object.tp_as_buffer = 0 as *mut ffi::PyBufferProcs;
+        type_object.tp_as_buffer = ::std::ptr::null_mut()
     }
 
     // normal methods
@@ -255,7 +255,7 @@ fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
     if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
         type_info.tp_as_async = Box::into_raw(Box::new(meth));
     } else {
-        type_info.tp_as_async = 0 as *mut ffi::PyAsyncMethods;
+        type_info.tp_as_async = ::std::ptr::null_mut()
     }
 }
 

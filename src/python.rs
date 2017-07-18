@@ -190,7 +190,7 @@ impl<'p> Python<'p> {
             let locals = locals.map(|l| l.as_ptr()).unwrap_or(globals);
 
             let res_ptr = ffi::PyRun_StringFlags(code.as_ptr(),
-                start, globals, locals, 0 as *mut _);
+                start, globals, locals, ::std::ptr::null_mut());
 
             self.cast_from_ptr_or_err(res_ptr)
         }
