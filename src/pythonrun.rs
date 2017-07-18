@@ -30,7 +30,7 @@ static START_PYO3: sync::Once = sync::ONCE_INIT;
 /// thread (the thread which originally initialized Python) also initializes
 /// threading.
 ///
-/// When writing an extension module, the `py_module_initializer!` macro
+/// When writing an extension module, the `#[py::modinit(..)]` macro
 /// will ensure that Python threading is initialized.
 ///
 pub fn prepare_freethreaded_python() {
@@ -70,7 +70,7 @@ pub fn prepare_freethreaded_python() {
 pub fn prepare_pyo3_library() {
     START_PYO3.call_once(|| unsafe {
         // initialize release pool
-        POINTERS = Box::into_raw(Box::new(Pointers::new()));
+        POOL = Box::into_raw(Box::new(ReleasePool::new()));
     });
 }
 
@@ -99,7 +99,7 @@ pub struct GILGuard {
 impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
-            let pool: &'static mut Pointers = &mut *POINTERS;
+            let pool: &'static mut ReleasePool = &mut *POOL;
             pool.drain(self.owned, self.borrowed, true);
 
             ffi::PyGILState_Release(self.gstate);
@@ -108,16 +108,17 @@ impl Drop for GILGuard {
 }
 
 
-struct Pointers {
+/// Release pool
+struct ReleasePool {
     owned: Vec<*mut ffi::PyObject>,
     borrowed: Vec<*mut ffi::PyObject>,
     pointers: *mut Vec<*mut ffi::PyObject>,
     p: spin::Mutex<*mut Vec<*mut ffi::PyObject>>,
 }
 
-impl Pointers {
-    fn new() -> Pointers {
-        Pointers {
+impl ReleasePool {
+    fn new() -> ReleasePool {
+        ReleasePool {
             owned: Vec::with_capacity(250),
             borrowed: Vec::with_capacity(250),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(250))),
@@ -167,7 +168,7 @@ impl Pointers {
     }
 }
 
-static mut POINTERS: *mut Pointers = ::std::ptr::null_mut();
+static mut POOL: *mut ReleasePool = ::std::ptr::null_mut();
 
 pub struct Pool {
     owned: usize,
@@ -179,7 +180,7 @@ pub struct Pool {
 impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
-        let p: &'static mut Pointers = &mut *POINTERS;
+        let p: &'static mut ReleasePool = &mut *POOL;
         Pool {owned: p.owned.len(),
               borrowed: p.borrowed.len(),
               pointers: true,
@@ -187,7 +188,7 @@ impl Pool {
     }
     #[inline]
     pub unsafe fn new_no_pointers() -> Pool {
-        let p: &'static mut Pointers = &mut *POINTERS;
+        let p: &'static mut ReleasePool = &mut *POOL;
         Pool {owned: p.owned.len(),
               borrowed: p.borrowed.len(),
               pointers: false,
@@ -198,7 +199,7 @@ impl Pool {
 impl Drop for Pool {
     fn drop(&mut self) {
         unsafe {
-            let pool: &'static mut Pointers = &mut *POINTERS;
+            let pool: &'static mut ReleasePool = &mut *POOL;
             pool.drain(self.owned, self.borrowed, self.pointers);
         }
     }
@@ -207,7 +208,7 @@ impl Drop for Pool {
 
 pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
 {
-    let pool: &'static mut Pointers = &mut *POINTERS;
+    let pool: &'static mut ReleasePool = &mut *POOL;
 
     let mut v = pool.p.lock();
     let pool: &'static mut Vec<*mut ffi::PyObject> = &mut *(*v);
@@ -216,14 +217,14 @@ pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
 
 pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
 {
-    let pool: &'static mut Pointers = &mut *POINTERS;
+    let pool: &'static mut ReleasePool = &mut *POOL;
     pool.owned.push(obj);
     mem::transmute(&pool.owned[pool.owned.len()-1])
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
 {
-    let pool: &'static mut Pointers = &mut *POINTERS;
+    let pool: &'static mut ReleasePool = &mut *POOL;
     pool.borrowed.push(obj);
     mem::transmute(&pool.borrowed[pool.borrowed.len()-1])
 }
@@ -238,7 +239,7 @@ impl GILGuard {
 
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-            let pool: &'static mut Pointers = &mut *POINTERS;
+            let pool: &'static mut ReleasePool = &mut *POOL;
             GILGuard { owned: pool.owned.len(),
                        borrowed: pool.borrowed.len(),
                        gstate: gstate,
@@ -255,18 +256,17 @@ impl GILGuard {
 
 #[cfg(test)]
 mod test {
-    use std;
     use {ffi, pythonrun};
     use python::Python;
     use object::PyObject;
-    use super::{Pool, Pointers, POINTERS};
+    use super::{Pool, ReleasePool, POOL};
 
     #[test]
     fn test_owned() {
         pythonrun::prepare_pyo3_library();
 
         unsafe {
-            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+            let p: &'static mut ReleasePool = &mut *POOL;
 
             let cnt;
             let empty;
@@ -293,7 +293,7 @@ mod test {
         pythonrun::prepare_pyo3_library();
 
         unsafe {
-            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+            let p: &'static mut ReleasePool = &mut *POOL;
 
             let cnt;
             let empty;
@@ -330,7 +330,7 @@ mod test {
         pythonrun::prepare_pyo3_library();
 
         unsafe {
-            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+            let p: &'static mut ReleasePool = &mut *POOL;
 
             let cnt;
             {
@@ -357,7 +357,7 @@ mod test {
         pythonrun::prepare_pyo3_library();
 
         unsafe {
-            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+            let p: &'static mut ReleasePool = &mut *POOL;
 
             let cnt;
             {
@@ -394,7 +394,7 @@ mod test {
         pythonrun::prepare_pyo3_library();
 
         unsafe {
-            let p: &'static mut Pointers = std::mem::transmute(POINTERS);
+            let p: &'static mut ReleasePool = &mut *POOL;
 
             let ob;
             let cnt;
