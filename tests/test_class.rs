@@ -468,7 +468,6 @@ fn gc_integration() {
             token: t}).unwrap();
 
         *inst.self_ref.borrow_mut() = inst.into();
-        drop(inst);
     }
 
     let gil = Python::acquire_gil();
