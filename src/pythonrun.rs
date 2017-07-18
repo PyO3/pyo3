@@ -167,7 +167,7 @@ impl Pointers {
     }
 }
 
-static mut POINTERS: *mut Pointers = 0 as *mut _;
+static mut POINTERS: *mut Pointers = ::std::ptr::null_mut();
 
 pub struct Pool {
     owned: usize,
