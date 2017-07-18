@@ -99,7 +99,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             }
             impl std::convert::AsRef<PyObjectRef> for #cls {
                 fn as_ref(&self) -> &_pyo3::PyObjectRef {
-                    unsafe{&*(self.as_ptr() as *const pyo3::PyObjectRef)}
+                    unsafe{&*(self.as_ptr() as *const _pyo3::PyObjectRef)}
                 }
             }
             impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
@@ -141,8 +141,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             Some(quote! {
                 impl _pyo3::freelist::PyObjectWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list() -> &'static mut _pyo3::freelist::FreeList<*mut ffi::PyObject> {
-                        static mut FREELIST: *mut _pyo3::freelist::FreeList<*mut ffi::PyObject> = 0 as *mut _;
+                    fn get_free_list() -> &'static mut _pyo3::freelist::FreeList<*mut _pyo3::ffi::PyObject> {
+                        static mut FREELIST: *mut _pyo3::freelist::FreeList<*mut _pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {
                                 FREELIST = Box::into_raw(Box::new(
@@ -190,8 +190,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             }
 
             #[inline]
-            fn is_instance(ptr: *mut ffi::PyObject) -> bool {
-                unsafe {ffi::PyObject_TypeCheck(
+            fn is_instance(ptr: *mut _pyo3::ffi::PyObject) -> bool {
+                unsafe {_pyo3::ffi::PyObject_TypeCheck(
                     ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0}
             }
         }
