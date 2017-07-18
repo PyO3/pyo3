@@ -151,7 +151,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                                 <#cls as _pyo3::typeob::PyTypeObject>::init_type(
                                     _pyo3::Python::assume_gil_acquired());
                             }
-                            std::mem::transmute(FREELIST)
+                            &mut *FREELIST
                         }
                     }
                 }

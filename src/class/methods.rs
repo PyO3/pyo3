@@ -101,7 +101,7 @@ impl PyGetterDef {
             dst.name = CString::new(self.name).expect(
                 "Method name must not contain NULL byte").into_raw();
         }
-        dst.get = Some(self.meth.clone());
+        dst.get = Some(self.meth);
     }
 }
 

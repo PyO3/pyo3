@@ -213,7 +213,7 @@ impl AsPyRef<PyObjectRef> for PyObject {
     }
     #[inline]
     fn as_mut(&self, _py: Python) -> &mut PyObjectRef {
-        unsafe {std::mem::transmute(self as *const _ as *mut PyObjectRef)}
+        unsafe {&mut *(self as *const _ as *mut PyObjectRef)}
     }
 }
 

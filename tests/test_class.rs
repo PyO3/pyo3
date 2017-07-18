@@ -225,13 +225,13 @@ fn data_is_dropped() {
             member2: TestDropCall { drop_called: drop_called2.clone() },
             token: t
         }).unwrap();
-        assert!(drop_called1.load(Ordering::Relaxed) == false);
-        assert!(drop_called2.load(Ordering::Relaxed) == false);
+        assert!(!drop_called1.load(Ordering::Relaxed));
+        assert!(!drop_called2.load(Ordering::Relaxed));
         drop(inst);
     }
 
-    assert!(drop_called1.load(Ordering::Relaxed) == true);
-    assert!(drop_called2.load(Ordering::Relaxed) == true);
+    assert!(drop_called1.load(Ordering::Relaxed));
+    assert!(drop_called2.load(Ordering::Relaxed));
 }
 
 #[py::class]

@@ -216,7 +216,7 @@ pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
 
 pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
 {
-    let pool: &'static mut Pointers = mem::transmute(POINTERS);
+    let pool: &'static mut Pointers = &mut *POINTERS;
     pool.owned.push(obj);
     mem::transmute(&pool.owned[pool.owned.len()-1])
 }
