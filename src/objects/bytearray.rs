@@ -30,7 +30,7 @@ impl PyByteArray {
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<'p, I>(py: Python<'p>, src: I) -> PyResult<&'p PyByteArray>
+    pub fn from<I>(py: Python, src: I) -> PyResult<&PyByteArray>
         where I: ToPyPointer
     {
         unsafe {

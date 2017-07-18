@@ -99,7 +99,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             }
             impl std::convert::AsRef<PyObjectRef> for #cls {
                 fn as_ref(&self) -> &_pyo3::PyObjectRef {
-                    unsafe{std::mem::transmute(self.as_ptr())}
+                    unsafe{&*(self.as_ptr() as *const pyo3::PyObjectRef)}
                 }
             }
             impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
@@ -235,13 +235,13 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                 let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
-                std::mem::transmute(ptr)
+                &*ptr
             }
             unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObjectRef) -> &mut Self
             {
                 let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                 let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
-                std::mem::transmute(ptr)
+                &mut *ptr
             }
         }
         impl _pyo3::PyMutDowncastFrom for #cls

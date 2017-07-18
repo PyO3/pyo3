@@ -65,7 +65,7 @@ impl PyTuple {
     }
 
     #[inline]
-    pub fn as_slice<'a>(&'a self) -> &'a [PyObject] {
+    pub fn as_slice(&self) -> &[PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         // (We don't even need a Python token, thanks to immutability)

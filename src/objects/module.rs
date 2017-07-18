@@ -51,7 +51,7 @@ impl PyModule {
         }
     }
 
-    unsafe fn str_from_ptr<'a>(&'a self, ptr: *const c_char) -> PyResult<&'a str> {
+    unsafe fn str_from_ptr(&self, ptr: *const c_char) -> PyResult<&str> {
         if ptr.is_null() {
             Err(PyErr::fetch(self.py()))
         } else {
@@ -68,14 +68,14 @@ impl PyModule {
     /// Gets the module name.
     ///
     /// May fail if the module does not have a `__name__` attribute.
-    pub fn name<'a>(&'a self) -> PyResult<&'a str> {
+    pub fn name(&self) -> PyResult<&str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
     }
 
     /// Gets the module filename.
     ///
     /// May fail if the module does not have a `__file__` attribute.
-    pub fn filename<'a>(&'a self) -> PyResult<&'a str> {
+    pub fn filename(&self) -> PyResult<&str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetFilename(self.as_ptr())) }
     }
 

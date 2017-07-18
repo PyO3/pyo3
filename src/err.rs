@@ -197,7 +197,7 @@ impl PyErr {
     }
 
     fn new_helper(_py: Python, ty: &PyType, value: PyObject) -> PyErr {
-        assert!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) } != 0);
+        assert_ne!(unsafe { ffi::PyExceptionClass_Check(ty.as_ptr()) }, 0);
         PyErr {
             ptype: ty.into(),
             pvalue: Some(value),
@@ -214,7 +214,7 @@ impl PyErr {
         PyErr::from_instance_helper(py, obj.into_object(py))
     }
 
-    fn from_instance_helper<'p>(py: Python, obj: PyObject) -> PyErr {
+    fn from_instance_helper(py: Python, obj: PyObject) -> PyErr {
         let ptr = obj.as_ptr();
 
         if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
@@ -418,7 +418,7 @@ impl ToPyErr for io::Error {
         let errno = self.raw_os_error().unwrap_or(0);
         let errdesc = self.description();
 
-        PyErr::new_err(py, &tp, (errno, errdesc))
+        PyErr::new_err(py, tp, (errno, errdesc))
     }
 }
 

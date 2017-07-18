@@ -97,7 +97,7 @@ macro_rules! pyobject_nativetype(
         }
         impl $crate::PyObjectWithToken for $name {
             #[inline(always)]
-            fn py<'p>(&'p self) -> $crate::Python<'p> {
+            fn py(&self) -> $crate::Python {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }
         }
@@ -165,7 +165,7 @@ macro_rules! pyobject_nativetype(
             fn init_type(_py: $crate::Python) {}
 
             #[inline]
-            fn type_object<'p>(py: $crate::Python<'p>) -> &'p $crate::PyType {
+            fn type_object(py: $crate::Python) -> &$crate::PyType {
                 unsafe { $crate::PyType::from_type_ptr(py, &mut $crate::ffi::$typeobject) }
             }
         }
@@ -173,7 +173,7 @@ macro_rules! pyobject_nativetype(
         impl $crate::ToPyObject for $name
         {
             #[inline]
-            fn to_object<'p>(&self, py: $crate::Python<'p>) -> $crate::PyObject {
+            fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }
 
@@ -188,7 +188,7 @@ macro_rules! pyobject_nativetype(
         impl<'a> $crate::IntoPyObject for &'a $name
         {
             #[inline]
-            fn into_object<'p>(self, py: $crate::Python) -> $crate::PyObject {
+            fn into_object(self, py: $crate::Python) -> $crate::PyObject {
                 unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }

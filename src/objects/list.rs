@@ -30,7 +30,7 @@ impl PyList {
     }
 
     /// Construct a new empty list.
-    pub fn empty<'p>(py: Python<'p>) -> &'p PyList {
+    pub fn empty(py: Python) -> &PyList {
         unsafe {
             py.cast_from_ptr::<PyList>(ffi::PyList_New(0))
         }

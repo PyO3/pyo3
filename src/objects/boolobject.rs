@@ -14,7 +14,7 @@ pyobject_nativetype!(PyBool, PyBool_Type, PyBool_Check);
 impl PyBool {
     /// Depending on `val`, returns `py.True()` or `py.False()`.
     #[inline]
-    pub fn new<'p>(py: Python<'p>, val: bool) -> &'p PyBool {
+    pub fn new(py: Python, val: bool) -> &PyBool {
         unsafe {
             py.cast_from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
         }

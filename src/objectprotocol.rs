@@ -115,7 +115,7 @@ pub trait ObjectProtocol {
     /// Takes an object and returns an iterator for it.
     /// This is typically a new iterator but if the argument
     /// is an iterator, this returns itself.
-    fn iter<'p>(&'p self) -> PyResult<PyIterator<'p>>;
+    fn iter(&self) -> PyResult<PyIterator>;
 
     /// Gets the Python type object for this object's type.
     fn get_type(&self) -> &PyType;

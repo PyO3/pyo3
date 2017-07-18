@@ -126,7 +126,7 @@ pub trait PyTypeObject {
     fn init_type(py: Python);
 
     /// Retrieves the type object for this Python object type.
-    fn type_object<'p>(py: Python<'p>) -> &'p PyType;
+    fn type_object(py: Python) -> &PyType;
 
 }
 
@@ -144,7 +144,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
     }
 
     #[inline]
-    default fn type_object<'p>(py: Python<'p>) -> &'p PyType {
+    default fn type_object(py: Python) -> &PyType {
         <T as PyTypeObject>::init_type(py);
 
         unsafe { PyType::from_type_ptr(py, <T as PyTypeInfo>::type_object()) }
@@ -305,26 +305,26 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
     let mut new = None;
 
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
-        match def {
-            &PyMethodDefType::New(ref def) => {
+        match *def {
+            PyMethodDefType::New(ref def) => {
                 if let class::methods::PyMethodType::PyNewFunc(meth) = def.ml_meth {
                     new = Some(meth)
                 }
             },
-            &PyMethodDefType::Call(ref def) => {
+            PyMethodDefType::Call(ref def) => {
                 if let class::methods::PyMethodType::PyCFunctionWithKeywords(meth) = def.ml_meth {
                     call = Some(meth)
                 } else {
                     panic!("Method type is not supoorted by tp_call slot")
                 }
             }
-            &PyMethodDefType::Method(ref def) => {
+            PyMethodDefType::Method(ref def) => {
                 defs.push(def.as_method_def());
             }
-            &PyMethodDefType::Class(ref def) => {
+            PyMethodDefType::Class(ref def) => {
                 defs.push(def.as_method_def());
             }
-            &PyMethodDefType::Static(ref def) => {
+            PyMethodDefType::Static(ref def) => {
                 defs.push(def.as_method_def());
             }
             _ => (),
@@ -366,8 +366,8 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();
 
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
-        match def {
-            &PyMethodDefType::Getter(ref getter) => {
+        match *def {
+            PyMethodDefType::Getter(ref getter) => {
                 let name = getter.name.to_string();
                 if !defs.contains_key(&name) {
                     let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
@@ -375,7 +375,7 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
                 let def = defs.get_mut(&name).expect("Failed to call get_mut");
                 getter.copy_to(def);
             },
-            &PyMethodDefType::Setter(ref setter) => {
+            PyMethodDefType::Setter(ref setter) => {
                 let name = setter.name.to_string();
                 if !defs.contains_key(&name) {
                     let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
@@ -387,5 +387,5 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
         }
     }
 
-    defs.values().map(|i| i.clone()).collect()
+    defs.values().cloned().collect()
 }

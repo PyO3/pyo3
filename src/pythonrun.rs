@@ -42,10 +42,10 @@ pub fn prepare_freethreaded_python() {
         if ffi::Py_IsInitialized() != 0 {
             // If Python is already initialized, we expect Python threading to also be initialized,
             // as we can't make the existing Python main thread acquire the GIL.
-            assert!(ffi::PyEval_ThreadsInitialized() != 0);
+            assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
         } else {
             // If Python isn't initialized yet, we expect that Python threading isn't initialized either.
-            assert!(ffi::PyEval_ThreadsInitialized() == 0);
+            assert_eq!(ffi::PyEval_ThreadsInitialized(), 0);
             // Initialize Python.
             // We use Py_InitializeEx() with initsigs=0 to disable Python signal handling.
             // Signal handling depends on the notion of a 'main thread', which doesn't exist in this case.
@@ -99,7 +99,7 @@ pub struct GILGuard {
 impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
-            let pool: &'static mut Pointers = mem::transmute(POINTERS);
+            let pool: &'static mut Pointers = &mut *POINTERS;
             pool.drain(self.owned, self.borrowed, true);
 
             ffi::PyGILState_Release(self.gstate);
@@ -130,7 +130,7 @@ impl Pointers {
 
         // vec of pointers
         let ptr = *v;
-        let vec: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(ptr);
+        let vec: &'static mut Vec<*mut ffi::PyObject> = &mut *ptr;
         if vec.is_empty() {
             return
         }
@@ -179,7 +179,7 @@ pub struct Pool {
 impl Pool {
     #[inline]
     pub unsafe fn new() -> Pool {
-        let p: &'static mut Pointers = mem::transmute(POINTERS);
+        let p: &'static mut Pointers = &mut *POINTERS;
         Pool {owned: p.owned.len(),
               borrowed: p.borrowed.len(),
               pointers: true,
@@ -187,7 +187,7 @@ impl Pool {
     }
     #[inline]
     pub unsafe fn new_no_pointers() -> Pool {
-        let p: &'static mut Pointers = mem::transmute(POINTERS);
+        let p: &'static mut Pointers = &mut *POINTERS;
         Pool {owned: p.owned.len(),
               borrowed: p.borrowed.len(),
               pointers: false,
@@ -198,7 +198,7 @@ impl Pool {
 impl Drop for Pool {
     fn drop(&mut self) {
         unsafe {
-            let pool: &'static mut Pointers = mem::transmute(POINTERS);
+            let pool: &'static mut Pointers = &mut *POINTERS;
             pool.drain(self.owned, self.borrowed, self.pointers);
         }
     }
@@ -207,23 +207,23 @@ impl Drop for Pool {
 
 pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
 {
-    let pool: &'static mut Pointers = mem::transmute(POINTERS);
+    let pool: &'static mut Pointers = &mut *POINTERS;
 
-    let v = pool.p.lock();
-    let pool: &'static mut Vec<*mut ffi::PyObject> = mem::transmute(*v);
+    let mut v = pool.p.lock();
+    let pool: &'static mut Vec<*mut ffi::PyObject> = &mut *(*v);
     pool.push(obj);
 }
 
-pub unsafe fn register_owned<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef
+pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
 {
     let pool: &'static mut Pointers = mem::transmute(POINTERS);
     pool.owned.push(obj);
     mem::transmute(&pool.owned[pool.owned.len()-1])
 }
 
-pub unsafe fn register_borrowed<'p>(_py: Python<'p>, obj: *mut ffi::PyObject) -> &'p PyObjectRef
+pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
 {
-    let pool: &'static mut Pointers = mem::transmute(POINTERS);
+    let pool: &'static mut Pointers = &mut *POINTERS;
     pool.borrowed.push(obj);
     mem::transmute(&pool.borrowed[pool.borrowed.len()-1])
 }
@@ -238,7 +238,7 @@ impl GILGuard {
 
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-            let pool: &'static mut Pointers = mem::transmute(POINTERS);
+            let pool: &'static mut Pointers = &mut *POINTERS;
             GILGuard { owned: pool.owned.len(),
                        borrowed: pool.borrowed.len(),
                        gstate: gstate,
@@ -248,7 +248,7 @@ impl GILGuard {
 
     /// Retrieves the marker type that proves that the GIL was acquired.
     #[inline]
-    pub fn python<'p>(&'p self) -> Python<'p> {
+    pub fn python(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
 }

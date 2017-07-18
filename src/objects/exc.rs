@@ -25,7 +25,7 @@ macro_rules! exc_type(
             fn init_type(_py: Python) {}
 
             #[inline]
-            fn type_object<'p>(py: $crate::python::Python<'p>) -> &'p $crate::PyType {
+            fn type_object(py: $crate::python::Python) -> &$crate::PyType {
                 unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
             }
         }
@@ -129,7 +129,7 @@ impl UnicodeDecodeError {
         }
     }
 
-    pub fn new_utf8<'p>(py: Python, input: &[u8], err: std::str::Utf8Error)
+    pub fn new_utf8(py: Python, input: &[u8], err: std::str::Utf8Error)
                         -> PyResult<PyObject>
     {
         let pos = err.valid_up_to();
