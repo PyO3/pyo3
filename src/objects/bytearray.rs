@@ -8,7 +8,7 @@ use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
 use err::{PyResult, PyErr};
 
-/// Represents a Python bytearray.
+/// Represents a Python `bytearray`.
 pub struct PyByteArray(PyObject);
 
 pyobject_convert!(PyByteArray);

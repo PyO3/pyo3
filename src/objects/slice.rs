@@ -9,8 +9,9 @@ use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
 use conversion::ToPyObject;
 
-/// Represents a Python `slice`. Only `c_long` indeces supprted
-/// at the moment by `PySlice` object.
+/// Represents a Python `slice`.
+///
+/// Only `c_long` indeces supprted at the moment by `PySlice` object.
 pub struct PySlice(PyObject);
 
 pyobject_convert!(PySlice);

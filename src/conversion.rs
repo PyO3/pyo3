@@ -33,6 +33,8 @@ pub trait ToPyObject {
     }
 }
 
+/// Conversion trait that allows various objects to be converted into `PyObject`
+/// by consuming original object.
 pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
@@ -51,14 +53,14 @@ pub trait IntoPyTuple {
 }
 
 
-/// `FromPyObject` is implemented by various types that can be extracted from a Python object.
+/// `FromPyObject` is implemented by various types that can be extracted from
+/// a Python object reference.
 ///
 /// Normal usage is through the `PyObject::extract` helper method:
 /// ```let obj: PyObject = ...;
-/// let value = try!(obj.extract::<TargetType>(py));
+/// let value: &TargetType = obj.extract(py)?;
 /// ```
 ///
-/// TODO: update this documentation
 /// Note: depending on the implementation, the lifetime of the extracted result may
 /// depend on the lifetime of the `obj` or the `prepared` variable.
 ///

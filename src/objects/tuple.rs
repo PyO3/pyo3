@@ -14,7 +14,7 @@ use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject};
 use super::exc;
 
-/// Represents a Python tuple object.
+/// Represents a Python `tuple` object.
 pub struct PyTuple(PyObject);
 
 pyobject_convert!(PyTuple);

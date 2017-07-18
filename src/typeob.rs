@@ -15,9 +15,7 @@ use callback::AbortOnDrop;
 use class::methods::PyMethodDefType;
 
 
-/// Basic python type information
-/// Implementing this trait for custom struct is enough to make it compatible with
-/// python object system
+/// Python type information.
 pub trait PyTypeInfo {
     /// Type of objects to store in PyObject struct
     type Type;
@@ -67,6 +65,7 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
 
 }
 
+/// A Python object allocator that is usable as a base type for #[class]
 pub trait PyObjectAlloc<T> {
 
     /// Allocates a new object (usually by calling ty->tp_alloc),
@@ -79,11 +78,8 @@ pub trait PyObjectAlloc<T> {
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
 }
 
-/// A Python object allocator that is usable as a base type for #[class]
 impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 
-    /// Allocates a new object (usually by calling ty->tp_alloc),
-    /// and initializes it using value.
     default unsafe fn alloc(py: Python, value: T) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
         <T as PyTypeObject>::init_type(py);
@@ -98,9 +94,6 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
         Ok(obj)
     }
 
-    /// Calls the rust destructor for the object and frees the memory
-    /// (usually by calling ptr->ob_type->tp_free).
-    /// This function is used as tp_dealloc implementation.
     default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
         let ptr = (obj as *mut u8).offset(<Self as PyTypeInfo>::offset()) as *mut T;
         std::ptr::drop_in_place(ptr);
@@ -152,6 +145,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 }
 
 
+/// Register new type in python object system.
 pub fn initialize_type<'p, T>(py: Python<'p>,
                               module_name: Option<&str>,
                               type_object: &mut ffi::PyTypeObject) -> PyResult<&'p PyType>

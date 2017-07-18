@@ -16,7 +16,7 @@ use instance::PyObjectWithToken;
 use err::{PyResult, PyErr, ToPyErr};
 
 
-/// Represents a Python module object.
+/// Represents a Python `module` object.
 pub struct PyModule(PyObject);
 
 pyobject_convert!(PyModule);

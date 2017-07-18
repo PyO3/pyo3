@@ -12,7 +12,7 @@ use err::{PyErr, PyResult};
 use instance::PyObjectWithToken;
 use typeob::PyTypeObject;
 
-/// Represents a reference to a Python type object.
+/// Represents a reference to a Python `type object`.
 pub struct PyType(PyObject);
 
 pyobject_convert!(PyType);

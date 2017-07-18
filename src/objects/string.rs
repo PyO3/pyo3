@@ -15,17 +15,17 @@ use python::{ToPyPointer, Python};
 use err::{PyResult, PyErr};
 use super::PyStringData;
 
-/// Represents a Python string.
+/// Represents a Python `string`.
 pub struct PyString(PyObject);
 
 pyobject_convert!(PyString);
 pyobject_nativetype!(PyString, PyUnicode_Type, PyUnicode_Check);
 
-/// Represents a Python unicode string.
+/// Represents a Python `unicode string`.
 /// Corresponds to `unicode` in Python 2, and `str` in Python 3.
 pub use PyString as PyUnicode;
 
-/// Represents a Python byte string.
+/// Represents a Python `byte` string.
 pub struct PyBytes(PyObject);
 
 pyobject_convert!(PyBytes);

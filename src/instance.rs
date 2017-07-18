@@ -24,19 +24,25 @@ impl PyToken {
     }
 }
 
+/// Any instance that is managed Python can have access to `gil`.
 pub trait PyObjectWithToken: Sized {
     fn py(&self) -> Python;
 }
 
+#[doc(hidden)]
 pub trait PyNativeType: PyObjectWithToken {}
 
 
+/// Trait implements objet reference extraction from python managed pointer.
 pub trait AsPyRef<T>: Sized {
 
+    /// Return reference to object.
     fn as_ref(&self, py: Python) -> &T;
 
+    /// Return mutable reference to object.
     fn as_mut(&self, py: Python) -> &mut T;
 
+    /// Acquire python gil and call closure with object reference.
     fn with<F, R>(&self, f: F) -> R where F: FnOnce(Python, &T) -> R
     {
         let gil = Python::acquire_gil();
@@ -45,6 +51,7 @@ pub trait AsPyRef<T>: Sized {
         f(py, self.as_ref(py))
     }
 
+    /// Acquire python gil and call closure with mutable object reference.
     fn with_mut<F, R>(&self, f: F) -> R where F: FnOnce(Python, &mut T) -> R
     {
         let gil = Python::acquire_gil();
@@ -76,7 +83,7 @@ pub trait AsPyRef<T>: Sized {
     }
 }
 
-/// Wrapper around unsafe `*mut ffi::PyObject` pointer. Decrement ref counter on `Drop`
+/// Safe wrapper around unsafe `*mut ffi::PyObject` pointer with specified type information.
 #[derive(Debug)]
 pub struct Py<T>(pub *mut ffi::PyObject, std::marker::PhantomData<T>);
 
@@ -96,7 +103,9 @@ impl<T> Py<T> {
         Py(ptr, std::marker::PhantomData)
     }
 
-    /// Cast from ffi::PyObject ptr to a concrete object.
+    /// Creates a `Py<T>` instance for the given FFI pointer.
+    /// Panics if the pointer is `null`.
+    /// Undefined behavior if the pointer is invalid.
     #[inline]
     pub fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T>
     {
@@ -142,25 +151,16 @@ impl<T> Py<T> {
     pub fn clone_ref(&self, _py: Python) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(self.0) }
     }
-
-    /// Casts the `Py<T>` imstance to a concrete Python object type.
-    /// Fails with `PyDowncastError` if the object is not of the expected type.
-    #[inline]
-    pub fn cast_into<D>(self, py: Python) -> Result<D, PyDowncastError>
-        where D: PyDowncastInto
-    {
-        <D as PyDowncastInto>::downcast_into(py, self)
-    }
 }
 
 
 impl<T> Py<T> where T: PyTypeInfo,
 {
-    /// Create new instance of T and move under python management
+    /// Create new instance of T and move it under python management
     /// Returns `Py<T>`.
     pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
-    where F: FnOnce(::PyToken) -> T,
-          T: PyObjectAlloc<T>
+        where F: FnOnce(::PyToken) -> T,
+              T: PyObjectAlloc<T>
     {
         let ob = f(PyToken(PhantomData));
 
@@ -171,7 +171,7 @@ impl<T> Py<T> where T: PyTypeInfo,
         Ok(ob)
     }
 
-    /// Create new instance of `T` and move under python management.
+    /// Create new instance of `T` and move it under python management.
     /// Returns references to `T`
     pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
         where F: FnOnce(::PyToken) -> T,
@@ -185,7 +185,7 @@ impl<T> Py<T> where T: PyTypeInfo,
         }
     }
 
-    /// Create new instance of `T` and move under python management.
+    /// Create new instance of `T` and move it under python management.
     /// Returns mutable references to `T`
     pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
         where F: FnOnce(::PyToken) -> T,
@@ -234,6 +234,7 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo + PyNativeType {
 }
 
 impl<T> ToPyObject for Py<T> {
+    /// Converts `Py` instance -> PyObject.
     fn to_object(&self, py: Python) -> PyObject {
         unsafe {
             PyObject::from_borrowed_ptr(py, self.as_ptr())

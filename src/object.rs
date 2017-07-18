@@ -8,10 +8,10 @@ use err::{PyErr, PyResult, PyDowncastError};
 use instance::{AsPyRef, PyObjectWithToken};
 use objects::{PyObjectRef, PyDict};
 use conversion::{ToPyObject, IntoPyObject, IntoPyTuple, FromPyObject};
-use python::{Python, PyClone, ToPyPointer, IntoPyPointer};
+use python::{Python, ToPyPointer, IntoPyPointer};
 
 
-/// Wrapper around unsafe `*mut ffi::PyObject` pointer. Decrement ref counter on `Drop`
+/// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]
 pub struct PyObject(*mut ffi::PyObject);
 
@@ -121,6 +121,13 @@ impl PyObject {
     #[inline]
     pub fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.0) }
+    }
+
+    /// Clone self, Calls Py_INCREF() on the ptr.
+    pub fn clone_ref(&self, py: Python) -> Self {
+        unsafe {
+            PyObject::from_borrowed_ptr(py, self.as_ptr())
+        }
     }
 
     /// Returns whether the object is considered to be None.
@@ -263,14 +270,6 @@ impl PartialEq for PyObject {
     #[inline]
     fn eq(&self, o: &PyObject) -> bool {
         self.0 == o.0
-    }
-}
-
-impl PyClone for PyObject {
-    fn clone_ref(&self, py: Python) -> Self {
-        unsafe {
-            PyObject::from_borrowed_ptr(py, self.as_ptr())
-        }
     }
 }
 

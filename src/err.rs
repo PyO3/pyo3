@@ -7,7 +7,7 @@ use std::error::Error;
 use libc;
 
 use ffi;
-use python::{ToPyPointer, IntoPyPointer, Python, PyClone};
+use python::{ToPyPointer, IntoPyPointer, Python};
 use PyObject;
 use objects::{PyObjectRef, PyType, exc};
 use instance::Py;
@@ -347,10 +347,12 @@ impl PyErr {
     }
 
     pub fn clone_ref(&self, py: Python) -> PyErr {
+        let v = if let Some(ref val) = self.pvalue { Some(val.clone_ref(py))} else { None };
+        let t = if let Some(ref val) = self.ptraceback { Some(val.clone_ref(py))} else { None };
         PyErr {
             ptype: self.ptype.clone_ref(py),
-            pvalue: self.pvalue.clone_ref(py),
-            ptraceback: self.ptraceback.clone_ref(py),
+            pvalue: v,
+            ptraceback: t,
         }
     }
 

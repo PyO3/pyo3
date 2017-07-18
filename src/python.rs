@@ -101,21 +101,6 @@ impl <T> IntoPyPointer for Option<T> where T: IntoPyPointer {
     }
 }
 
-pub trait PyClone {
-
-    fn clone_ref(&self, py: Python) -> Self;
-
-}
-
-impl<T> PyClone for Option<T> where T: PyClone {
-    fn clone_ref(&self, py: Python) -> Option<T> {
-        match *self {
-            Some(ref p) => Some(p.clone_ref(py)),
-            None => None,
-        }
-    }
-}
-
 
 impl<'p> Python<'p> {
     /// Retrieve Python instance under the assumption that the GIL is already acquired at this point,

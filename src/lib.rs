@@ -6,9 +6,6 @@
 //! In Python, all objects are implicitly reference counted.
 //! In rust, we will use the `PyObject` type to represent a reference to a Python object.
 //!
-//! The method `clone_ref()` (from trait `PyClone`) can be used to create additional
-//! references to the same Python object.
-//!
 //! Because all Python objects potentially have multiple owners, the
 //! concept of Rust mutability does not apply to Python objects.
 //! As a result, this API will allow mutating Python objects even if they are not stored
@@ -157,7 +154,7 @@ pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use object::PyObject;
-pub use python::{Python, ToPyPointer, IntoPyPointer, PyClone,
+pub use python::{Python, ToPyPointer, IntoPyPointer,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
@@ -167,7 +164,7 @@ pub use class::*;
 
 /// Procedural macros
 pub mod py {
-    pub use pyo3cls::*;
+    pub use pyo3cls::{proto, class, methods};
 
     #[cfg(Py_3)]
     pub use pyo3cls::mod3init as modinit;
@@ -194,6 +191,7 @@ mod object;
 mod objects;
 mod objectprotocol;
 mod pythonrun;
+#[doc(hidden)]
 pub mod callback;
 pub mod typeob;
 #[doc(hidden)]

@@ -6,13 +6,14 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::{PyErr, PyResult, PyDowncastError, self};
-use python::{Python, ToPyPointer, PyDowncastFrom, PyClone};
+use python::{Python, ToPyPointer, PyDowncastFrom};
 use object::PyObject;
 use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
 use instance::PyObjectWithToken;
 
 
+/// Python object model helper methods
 pub trait ObjectProtocol {
 
     /// Determines whether this object has the given attribute.
@@ -135,9 +136,6 @@ pub trait ObjectProtocol {
 
     /// Returns reference count for python object.
     fn get_refcnt(&self) -> isize;
-
-    /// Clones PyObject. (utility function)
-    fn clone_ref(&self, ptr: &PyObject) -> PyObject;
 
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
@@ -367,10 +365,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
               &'a PyObjectRef: std::convert::From<&'a T>
     {
         FromPyObject::extract(self.into())
-    }
-
-    fn clone_ref(&self, ptr: &PyObject) -> PyObject {
-        ptr.clone_ref(self.py())
     }
 
     #[allow(non_snake_case)] // the Python keyword starts with uppercase

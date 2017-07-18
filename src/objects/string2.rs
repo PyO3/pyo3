@@ -16,19 +16,19 @@ use python::{Python, ToPyPointer};
 use objectprotocol::ObjectProtocol;
 use super::{PyObjectRef, PyStringData};
 
-/// Represents a Python string.
+/// Represents a Python `string`.
 pub struct PyString(PyObject);
 
 pyobject_convert!(PyString);
 pyobject_nativetype!(PyString, PyBaseString_Type, PyBaseString_Check);
 
-/// Represents a Python unicode string.
+/// Represents a Python `unicode string`.
 pub struct PyUnicode(PyObject);
 
 pyobject_convert!(PyUnicode);
 pyobject_nativetype!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
-/// Represents a Python byte string. Corresponds to `str` in Python 2
+/// Represents a Python `byte` string. Corresponds to `str` in Python 2
 pub struct PyBytes(PyObject);
 
 pyobject_convert!(PyBytes);

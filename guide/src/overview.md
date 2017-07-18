@@ -12,8 +12,8 @@ Supported Python versions:
 
 Supported Rust version:
 
-* Rust 1.17.0-nightly or later
-* On Windows, we require rustc 1.17.0-nightly
+* Rust 1.20.0-nightly or later
+* On Windows, we require rustc 1.20.0-nightly
 
 ## Usage
 
@@ -108,9 +108,6 @@ For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setupt
 In Python, all objects are implicitly reference counted.
 In Rust, we will use the [`PyObject`](https://pyo3.github.io/PyO3/pyo3/struct.PyObject.html) type
 to represent a reference to a Python object.
-
-The method [`clone_ref()`](https://pyo3.github.io/PyO3/pyo3/trait.PyClone.html#tymethod.clone_ref) (from trait [`PyClone`](https://pyo3.github.io/PyO3/pyo3/trait.PyClone.html)) can be used to create additional
-references to the same Python object.
 
 Because all Python objects potentially have multiple owners, the
 concept of Rust mutability does not apply to Python objects.
