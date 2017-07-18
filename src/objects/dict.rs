@@ -23,7 +23,7 @@ impl PyDict {
     /// Creates a new empty dictionary.
     ///
     /// May panic when running out of memory.
-    pub fn new<'p>(py: Python<'p>) -> &'p PyDict {
+    pub fn new(py: Python) -> &PyDict {
         unsafe {
             py.cast_from_ptr::<PyDict>(ffi::PyDict_New())
         }

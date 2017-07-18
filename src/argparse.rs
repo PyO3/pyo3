@@ -102,7 +102,7 @@ pub fn parse_args<'p>(py: Python<'p>,
 
 #[inline]
 #[doc(hidden)]
-pub unsafe fn get_kwargs<'p>(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&PyDict> {
+pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<&PyDict> {
     if ptr.is_null() {
         None
     } else {

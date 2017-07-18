@@ -40,7 +40,7 @@ impl PySliceIndices {
 impl PySlice {
 
     /// Construct a new slice with the given elements.
-    pub fn new<'p>(py: Python<'p>, start: isize, stop: isize, step: isize) -> &'p PySlice {
+    pub fn new(py: Python, start: isize, stop: isize, step: isize) -> &PySlice {
         unsafe {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
                                        ffi::PyLong_FromLong(stop as i64),

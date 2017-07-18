@@ -19,7 +19,7 @@ pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {
     #[inline(always)]
-    pub fn py<'p>(&'p self) -> Python<'p> {
+    pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -173,7 +173,7 @@ impl<T> Py<T> where T: PyTypeInfo,
 
     /// Create new instance of `T` and move under python management.
     /// Returns references to `T`
-    pub fn new_ref<'p, F>(py: Python<'p>, f: F) -> PyResult<&'p T>
+    pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
         where F: FnOnce(::PyToken) -> T,
               T: PyObjectAlloc<T> + PyDowncastFrom
     {
@@ -187,7 +187,7 @@ impl<T> Py<T> where T: PyTypeInfo,
 
     /// Create new instance of `T` and move under python management.
     /// Returns mutable references to `T`
-    pub fn new_mut<'p, F>(py: Python<'p>, f: F) -> PyResult<&'p mut T>
+    pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
         where F: FnOnce(::PyToken) -> T,
               T: PyObjectAlloc<T> + PyDowncastFrom
     {
@@ -229,7 +229,7 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo + PyNativeType {
     }
     #[inline]
     fn as_mut(&self, _py: Python) -> &mut T {
-        unsafe {std::mem::transmute(self as *const _ as *mut T)}
+        unsafe { &mut *(self as *const _ as *mut T) }
     }
 }
 
@@ -326,8 +326,8 @@ impl<'a, T> std::convert::From<&'a mut T> for PyObject
 
 impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
 {
-    fn downcast_into<'p, I>(py: Python<'p>, ob: I)
-                            -> Result<Self, PyDowncastError<'p>>
+    fn downcast_into<I>(py: Python, ob: I)
+                            -> Result<Self, PyDowncastError>
         where I: IntoPyPointer
     {
         unsafe{
@@ -341,8 +341,8 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
         }
     }
 
-    fn downcast_into_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
-                                  -> Result<Self, PyDowncastError<'p>>
+    fn downcast_into_from_ptr(py: Python, ptr: *mut ffi::PyObject)
+                                  -> Result<Self, PyDowncastError>
     {
         unsafe{
             if T::is_instance(ptr) {
@@ -354,7 +354,7 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
         }
     }
 
-    fn unchecked_downcast_into<'p, I>(ob: I) -> Self
+    fn unchecked_downcast_into<I>(ob: I) -> Self
         where I: IntoPyPointer
     {
         unsafe{

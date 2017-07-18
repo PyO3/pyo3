@@ -112,7 +112,7 @@ impl PySetterDef {
             dst.name = CString::new(self.name).expect(
                 "Method name must not contain NULL byte").into_raw();
         }
-        dst.set = Some(self.meth.clone());
+        dst.set = Some(self.meth);
     }
 }
 

@@ -54,15 +54,15 @@ pub trait PyMutDowncastFrom : Sized {
 pub trait PyDowncastInto : Sized {
 
     /// Cast Self to a concrete Python object type.
-    fn downcast_into<'p, I>(Python<'p>, I) -> Result<Self, PyDowncastError<'p>>
+    fn downcast_into<I>(Python, I) -> Result<Self, PyDowncastError>
         where I: ToPyPointer + IntoPyPointer;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
-    fn downcast_into_from_ptr<'p>(py: Python<'p>, ptr: *mut ffi::PyObject)
-                                  -> Result<Self, PyDowncastError<'p>>;
+    fn downcast_into_from_ptr(py: Python, ptr: *mut ffi::PyObject)
+                                  -> Result<Self, PyDowncastError>;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
-    fn unchecked_downcast_into<'p, I>(I) -> Self where I: IntoPyPointer;
+    fn unchecked_downcast_into<I>(I) -> Self where I: IntoPyPointer;
 }
 
 /// This trait allows retrieving the underlying FFI pointer from Python objects.
@@ -84,7 +84,7 @@ impl<'p, T> ToPyPointer for Option<&'p T> where T: ToPyPointer {
     #[inline]
     default fn as_ptr(&self) -> *mut ffi::PyObject {
         match *self {
-            Some(ref t) => t.as_ptr(),
+            Some(t) => t.as_ptr(),
             None => std::ptr::null_mut()
         }
     }
