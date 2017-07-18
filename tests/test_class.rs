@@ -1024,42 +1024,42 @@ impl PyObjectProtocol for InPlaceOperations {
 #[py::proto]
 impl PyNumberProtocol for InPlaceOperations {
     fn __iadd__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value + other;
+        self.value += other;
         Ok(())
     }
 
     fn __isub__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value - other;
+        self.value -= other;
         Ok(())
     }
 
     fn __imul__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value * other;
+        self.value *= other;
         Ok(())
     }
 
     fn __ilshift__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value << other;
+        self.value <<= other;
         Ok(())
     }
 
     fn __irshift__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value >> other;
+        self.value >>= other;
         Ok(())
     }
 
     fn __iand__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value & other;
+        self.value &= other;
         Ok(())
     }
 
     fn __ixor__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value ^ other;
+        self.value ^= other;
         Ok(())
     }
 
     fn __ior__(&mut self, other: u32) -> PyResult<()> {
-        self.value = self.value | other;
+        self.value |= other;
         Ok(())
     }
 }
