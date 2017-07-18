@@ -15,6 +15,9 @@ use callback::UnitCallbackConverter;
 
 
 /// Buffer protocol interface
+///
+/// more information on buffer protocol can be found
+/// https://docs.python.org/3/c-api/buffer.html
 #[allow(unused_variables)]
 pub trait PyBufferProtocol<'p> : PyTypeInfo + PyDowncastFrom
 {

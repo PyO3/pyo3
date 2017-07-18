@@ -1,10 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
-//! Python Iterator Interface
+//! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
-//!
-//! more information
-//! https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter
 
 use std::ptr;
 
@@ -16,7 +12,10 @@ use conversion::IntoPyObject;
 use callback::{CallbackConverter, PyObjectCallbackConverter};
 
 
-/// Iterator protocol
+/// Python Iterator Interface.
+///
+/// more information
+/// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p> : PyTypeInfo + PyDowncastFrom {
     fn __iter__(&'p mut self)
