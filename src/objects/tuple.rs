@@ -50,6 +50,25 @@ impl PyTuple {
         }
     }
 
+    /// Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
+    #[inline]
+    pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
+        unsafe {
+            let ptr = ffi::PyTuple_GetSlice(self.as_ptr(), low, high);
+            Py::from_owned_ptr_or_panic(ptr)
+        }
+    }
+
+    /// Take a slice of the tuple pointed to by p from low and return it as a new tuple.
+    #[inline]
+    pub fn split_from(&self, low: isize) -> Py<PyTuple> {
+        unsafe {
+            let ptr = ffi::PyTuple_GetSlice(
+                self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
+            Py::from_owned_ptr_or_panic(ptr)
+        }
+    }
+
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
