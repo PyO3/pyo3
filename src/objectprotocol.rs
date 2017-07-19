@@ -267,6 +267,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             let result = self.py().cast_from_borrowed_ptr_or_err(
                 ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
+            ffi::Py_DECREF(ptr);
             self.py().release(t);
             result
         })

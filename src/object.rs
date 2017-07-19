@@ -206,6 +206,7 @@ impl PyObject {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             let result = PyObject::from_borrowed_ptr_or_err(
                 py, ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
+            ffi::Py_DECREF(ptr);
             py.release(t);
             result
         })
