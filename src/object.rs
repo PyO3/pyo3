@@ -4,7 +4,7 @@ use std;
 
 use ffi;
 use pythonrun;
-use err::{PyErr, PyResult, PyDowncastError};
+use err::{PyErr, PyResult};
 use instance::{AsPyRef, PyObjectWithToken};
 use objects::{PyObjectRef, PyDict};
 use conversion::{ToPyObject, IntoPyObject, IntoPyTuple, FromPyObject};
@@ -150,12 +150,11 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    /// Fails with `PyDowncastError` if the object is not of the expected type.
     #[inline]
-    pub fn cast_as<D>(&self, py: Python) -> Result<&D, PyDowncastError>
+    pub fn cast_as<D>(&self, py: Python) -> Option<&D>
         where D: ::PyDowncastFrom
     {
-        <D as ::PyDowncastFrom>::downcast_from(self.as_ref(py))
+        <D as ::PyDowncastFrom>::try_downcast_from(self.as_ref(py))
     }
 
     /// Extracts some type from the Python object.
@@ -164,21 +163,6 @@ impl PyObject {
     pub fn extract<'p, D>(&'p self, py: Python) -> PyResult<D> where D: FromPyObject<'p>
     {
         FromPyObject::extract(self.as_ref(py))
-    }
-
-    /// Calls the object.
-    /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    #[inline]
-    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: IntoPyTuple
-    {
-        let t = args.into_tuple(py);
-        let result = unsafe {
-            PyObject::from_borrowed_ptr_or_err(
-                py, ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
-        };
-        py.release(t);
-        result
     }
 
     /// Retrieves an attribute value.
@@ -191,6 +175,21 @@ impl PyObject {
             PyObject::from_owned_ptr_or_err(
                 py, ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
         })
+    }
+
+    /// Calls the object.
+    /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
+    #[inline]
+    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
+        where A: IntoPyTuple
+    {
+        let t = args.into_tuple(py);
+        let result = unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
+        };
+        py.release(t);
+        result
     }
 
     /// Calls a method on the object.

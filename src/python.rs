@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use instance::{Py, PyToken};
+use instance::{Py, PyToken, PyObjectWithToken};
 use object::PyObject;
 use objects::{PyObjectRef, PyType, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
@@ -34,7 +34,30 @@ pub struct Python<'p>(PhantomData<&'p GILGuard>);
 pub trait PyDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_from(&PyObjectRef) -> Result<&Self, PyDowncastError>;
+    fn try_downcast_from(&PyObjectRef) -> Option<&Self>;
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn try_exact_downcast_from(ob: &PyObjectRef) -> Option<&Self> {
+        Self::try_downcast_from(ob)
+    }
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn downcast_from(ob: &PyObjectRef) -> Result<&Self, PyDowncastError> {
+        if let Some(ob) = Self::try_downcast_from(ob) {
+            Ok(ob)
+        } else {
+            Err(PyDowncastError(ob.py(), None))
+        }
+    }
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn exact_downcast_from(ob: &PyObjectRef) -> Result<&Self, PyDowncastError> {
+        if let Some(ob) = Self::try_exact_downcast_from(ob) {
+            Ok(ob)
+        } else {
+            Err(PyDowncastError(ob.py(), None))
+        }
+    }
 
     /// Cast from PyObject to a concrete Python object type.
     unsafe fn unchecked_downcast_from(&PyObjectRef) -> &Self;
@@ -47,7 +70,32 @@ pub trait PyDowncastFrom : Sized {
 pub trait PyMutDowncastFrom : Sized {
 
     /// Cast from PyObject to a concrete Python object type.
-    fn downcast_mut_from(&mut PyObjectRef) -> Result<&mut Self, PyDowncastError>;
+    fn try_mut_downcast_from(&mut PyObjectRef) -> Option<&mut Self>;
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn try_mut_exact_downcast_from(ob: &mut PyObjectRef) -> Option<&mut Self> {
+        Self::try_mut_downcast_from(ob)
+    }
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn mut_downcast_from(ob: &mut PyObjectRef) -> Result<&mut Self, PyDowncastError> {
+        if let Some(o) = Self::try_mut_downcast_from(ob) {
+            return Ok(o)
+        } else {
+            let py = unsafe { Python::assume_gil_acquired() };
+            Err(PyDowncastError(py, None))
+        }
+    }
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn mut_exact_downcast_from(ob: &mut PyObjectRef) -> Result<&mut Self, PyDowncastError> {
+        if let Some(ob) = Self::try_mut_exact_downcast_from(ob) {
+            Ok(ob)
+        } else {
+            let py = unsafe { Python::assume_gil_acquired() };
+            Err(PyDowncastError(py, None))
+        }
+    }
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.

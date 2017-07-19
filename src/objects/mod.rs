@@ -33,16 +33,14 @@ macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
         impl $crate::python::PyDowncastFrom for $name
         {
-            fn downcast_from(ob: &$crate::PyObjectRef)
-                             -> Result<&$name, $crate::PyDowncastError>
+            fn try_downcast_from(ob: &$crate::PyObjectRef) -> Option<&$name>
             {
-                use $crate::{ToPyPointer, PyObjectWithToken};
-
+                use $crate::ToPyPointer;
                 unsafe {
                     if $crate::ffi::$checkfunction(ob.as_ptr()) > 0 {
-                        Ok($crate::std::mem::transmute(ob))
+                        Some($crate::std::mem::transmute(ob))
                     } else {
-                        Err($crate::PyDowncastError(ob.py(), None))
+                        None
                     }
                 }
             }

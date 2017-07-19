@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::os::raw::c_int;
 
 use ffi;
-use err::{PyErr, PyResult, PyDowncastError, self};
+use err::{self, PyErr, PyResult};
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use object::PyObject;
 use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
@@ -122,10 +122,9 @@ pub trait ObjectProtocol {
     fn get_type(&self) -> &PyType;
 
     /// Casts the PyObject to a concrete Python object type.
-    /// Fails with `PyDowncastError` if the object is not of the expected type.
-    fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'a>>
+    fn cast_as<'a, D>(&'a self) -> Option<&'a D>
         where D: PyDowncastFrom,
-              &'a PyObjectRef: std::convert::From<&'a Self>;
+    &'a PyObjectRef: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
@@ -353,11 +352,11 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[inline]
-    fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError<'a>>
+    fn cast_as<'a, D>(&'a self) -> Option<&'a D>
         where D: PyDowncastFrom,
                  &'a PyObjectRef: std::convert::From<&'a Self>
     {
-        <D as PyDowncastFrom>::downcast_from(self.into())
+        <D as PyDowncastFrom>::try_downcast_from(self.into())
     }
 
     #[inline]

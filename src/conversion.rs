@@ -6,7 +6,6 @@ use err::PyResult;
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use object::PyObject;
 use objects::{PyObjectRef, PyTuple};
-use objectprotocol::ObjectProtocol;
 use typeob::PyTypeInfo;
 use instance::Py;
 
@@ -154,7 +153,7 @@ impl<'a, T> FromPyObject<'a> for &'a T
     #[inline]
     default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T>
     {
-        Ok(ob.cast_as()?)
+        Ok(PyDowncastFrom::downcast_from(ob)?)
     }
 }
 

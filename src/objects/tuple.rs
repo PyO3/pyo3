@@ -9,8 +9,7 @@ use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use objects::PyObjectRef;
-use objectprotocol::ObjectProtocol;
-use python::{Python, ToPyPointer, IntoPyPointer};
+use python::{Python, ToPyPointer, IntoPyPointer, PyDowncastFrom};
 use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject};
 use super::exc;
 
@@ -146,7 +145,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(obj: &'s PyObjectRef) -> PyResult<Self>
         {
-            let t = try!(obj.cast_as::<PyTuple>());
+            let t = PyTuple::downcast_from(obj)?;
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
@@ -224,7 +223,7 @@ impl IntoPyTuple for () {
 /// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
 /// Otherwise, returns an error.
 pyobject_extract!(py, obj to NoArgs => {
-    let t = try!(obj.cast_as::<PyTuple>());
+    let t = PyTuple::downcast_from(obj)?;
     if t.len() == 0 {
         Ok(NoArgs)
     } else {

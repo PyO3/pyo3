@@ -259,7 +259,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = 42i32;
-        assert!(v.to_object(py).cast_as::<PySequence>(py).is_err());
+        assert!(PySequence::downcast_from(v.to_object(py).as_ref(py)).is_err());
     }
 
     #[test]
@@ -267,7 +267,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "London Calling";
-        assert!(v.to_object(py).cast_as::<PySequence>(py).is_ok());
+        assert!(PySequence::downcast_from(v.to_object(py).as_ref(py)).is_ok());
     }
     #[test]
     fn test_seq_empty() {
