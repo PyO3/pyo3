@@ -250,7 +250,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     {
         let t = args.into_tuple(self.py());
         let result = unsafe {
-            self.py().cast_from_borrowed_ptr_or_err(
+            self.py().cast_from_owned_ptr_or_err(
                 ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
         };
         self.py().release(t);
@@ -265,7 +265,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let t = args.into_tuple(self.py());
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            let result = self.py().cast_from_borrowed_ptr_or_err(
+            let result = self.py().cast_from_owned_ptr_or_err(
                 ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
             ffi::Py_DECREF(ptr);
             self.py().release(t);
