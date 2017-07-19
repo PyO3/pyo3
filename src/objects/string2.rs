@@ -66,9 +66,9 @@ impl PyString {
     /// even if the bytes are not valid UTF-8.
     /// For unicode strings, returns the underlying representation used by Python.
     pub fn data(&self) -> PyStringData {
-        if let Ok(bytes) = self.cast_as::<PyBytes>() {
+        if let Some(bytes) = self.cast_as::<PyBytes>() {
             PyStringData::Utf8(bytes.data())
-        } else if let Ok(unicode) = self.cast_as::<PyUnicode>() {
+        } else if let Some(unicode) = self.cast_as::<PyUnicode>() {
             unicode.data()
         } else {
             panic!("PyString is neither `str` nor `unicode`")
