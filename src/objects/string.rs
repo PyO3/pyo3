@@ -1,6 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std;
 use std::{mem, str};

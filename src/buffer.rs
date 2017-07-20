@@ -494,6 +494,14 @@ impl PyBuffer {
             ))
         }
     }
+
+    pub fn release<'p>(self, _py: Python<'p>) {
+        unsafe {
+            let ptr = &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer;
+            ffi::PyBuffer_Release(ptr)
+        };
+        mem::forget(self);
+    }
 }
 
 fn slice_length_error(py: Python) -> PyResult<()> {

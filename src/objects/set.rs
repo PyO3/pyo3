@@ -80,7 +80,7 @@ impl PySet {
 }
 
 impl<T> ToPyObject for collections::HashSet<T>
-   where T: hash::Hash + Eq + ToPyObject
+    where T: hash::Hash + Eq + ToPyObject
 {
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
@@ -95,7 +95,7 @@ impl<T> ToPyObject for collections::HashSet<T>
 }
 
 impl<T> ToPyObject for collections::BTreeSet<T>
-   where T: hash::Hash + Eq + ToPyObject
+    where T: hash::Hash + Eq + ToPyObject
 {
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);

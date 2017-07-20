@@ -1,17 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use ffi;
+use buffer;
+use ffi::{self, Py_ssize_t};
+use err::{self, PyErr, PyResult};
 use object::PyObject;
 use instance::PyObjectWithToken;
-use python::{Python, ToPyPointer, PyDowncastFrom};
+use python::{ToPyPointer, PyDowncastFrom};
 use conversion::{FromPyObject, ToPyObject};
 use objects::{PyObjectRef, PyList, PyTuple};
-use ffi::Py_ssize_t;
-use err;
-use err::{PyErr, PyResult};
-// use buffer;
 use objectprotocol::ObjectProtocol;
 
 
@@ -105,11 +101,12 @@ impl PySequence {
     /// Assign object v to the ith element of o.
     /// Equivalent to Python statement `o[i] = v`
     #[inline]
-    pub fn set_item(&self, i: isize, v: &PyObjectRef) -> PyResult<()> {
+    pub fn set_item<I>(&self, i: isize, item: I) -> PyResult<()> where I: ToPyObject {
         unsafe {
-            err::error_on_minusone(
-                self.py(),
-                ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, v.as_ptr()))
+            item.with_borrowed_ptr(self.py(), |item| {
+                err::error_on_minusone(
+                    self.py(), ffi::PySequence_SetItem(self.as_ptr(), i as Py_ssize_t, item))
+            })
         }
     }
 
@@ -119,8 +116,7 @@ impl PySequence {
     pub fn del_item(&self, i: isize) -> PyResult<()> {
         unsafe { 
             err::error_on_minusone(
-                self.py(),
-                ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t))
+                self.py(), ffi::PySequence_DelItem(self.as_ptr(), i as Py_ssize_t))
         }
     }
 
@@ -192,17 +188,17 @@ impl PySequence {
 
     /// Return a fresh list based on the Sequence.
     #[inline]
-    pub fn list<'p>(&self, py: Python<'p>) -> PyResult<&'p PyList> {
+    pub fn list(&self) -> PyResult<&PyList> {
         unsafe {
-            py.cast_from_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
+            self.py().cast_from_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
         }
     }
 
     /// Return a fresh tuple based on the Sequence.
     #[inline]
-    pub fn tuple<'p>(&self, py: Python<'p>) -> PyResult<&'p PyTuple> {
+    pub fn tuple(&self) -> PyResult<&PyTuple> {
         unsafe {
-            py.cast_from_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
+            self.py().cast_from_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
         }
     }
 }
@@ -215,25 +211,24 @@ impl<'a, T> FromPyObject<'a> for Vec<T> where T: FromPyObject<'a>
     }
 }
 
-/*#[cfg(feature="nightly")]
 impl <'source, T> FromPyObject<'source> for Vec<T>
     where for<'a> T: FromPyObject<'a> + buffer::Element + Copy
 {
-    fn extract(py: Python, obj: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
         // first try buffer protocol
-        if let Ok(buf) = buffer::PyBuffer::get(py, obj) {
+        if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
             if buf.dimensions() == 1 {
-                if let Ok(v) = buf.to_vec::<T>(py) {
-                    buf.release_ref(py);
+                if let Ok(v) = buf.to_vec::<T>(obj.py()) {
+                    buf.release(obj.py());
                     return Ok(v);
                 }
             }
-            buf.release_ref(py);
+            buf.release(obj.py());
         }
         // fall back to sequence protocol
-        extract_sequence(py, obj)
+        extract_sequence(obj)
     }
-}*/
+}
 
 fn extract_sequence<'s, T>(obj: &'s PyObjectRef) -> PyResult<Vec<T>> where T: FromPyObject<'s>
 {
@@ -351,6 +346,39 @@ mod test {
     }
 
     #[test]
+    fn test_seq_set_item() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v: Vec<i32> = vec![1, 2];
+        let ob = v.to_object(py);
+        let seq = ob.cast_as::<PySequence>(py).unwrap();
+        assert_eq!(2, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+        assert!(seq.set_item(1, 10).is_ok());
+        assert_eq!(10, seq.get_item(1).unwrap().extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_seq_set_item_refcnt() {
+        let cnt;
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let v: Vec<i32> = vec![1, 2];
+            let ob = v.to_object(py);
+            let seq = ob.cast_as::<PySequence>(py).unwrap();
+            let none = py.None();
+            cnt = none.get_refcnt();
+            assert!(seq.set_item(1, none).is_ok());
+            assert!(seq.get_item(1).unwrap().is_none());
+        }
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            assert_eq!(cnt, py.None().get_refcnt());
+        }
+    }
+
+    #[test]
     fn test_seq_index() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -462,7 +490,7 @@ mod test {
         let v = vec!["foo", "bar"];
         let ob = v.to_object(py);
         let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.list(py).is_ok());
+        assert!(seq.list().is_ok());
     }
 
     #[test]
@@ -472,7 +500,7 @@ mod test {
         let v = "foo";
         let ob = v.to_object(py);
         let seq = PySequence::downcast_from(ob.as_ref(py)).unwrap();
-        assert!(seq.list(py).is_ok());
+        assert!(seq.list().is_ok());
     }
 
     #[test]
@@ -482,7 +510,7 @@ mod test {
         let v = ("foo", "bar");
         let ob = v.to_object(py);
         let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.tuple(py).is_ok());
+        assert!(seq.tuple().is_ok());
     }
 
     #[test]
@@ -492,7 +520,7 @@ mod test {
         let v = vec!["foo", "bar"];
         let ob = v.to_object(py);
         let seq = ob.cast_as::<PySequence>(py).unwrap();
-        assert!(seq.tuple(py).is_ok());
+        assert!(seq.tuple().is_ok());
     }
 
     #[test]

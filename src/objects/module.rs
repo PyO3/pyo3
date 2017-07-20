@@ -3,10 +3,10 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std;
-use ffi;
 use std::os::raw::c_char;
 use std::ffi::{CStr, CString};
 
+use ffi;
 use typeob::{PyTypeInfo, initialize_type};
 use conversion::{ToPyObject, IntoPyTuple};
 use object::PyObject;

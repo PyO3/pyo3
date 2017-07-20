@@ -1,6 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std::slice;
 
@@ -54,8 +52,8 @@ impl PyTuple {
     #[inline]
     pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
         unsafe {
-            let ptr = ffi::PyTuple_GetSlice(self.as_ptr(), low, high);
-            Py::from_owned_ptr_or_panic(ptr)
+            Py::from_owned_ptr_or_panic(
+                ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
         }
     }
 

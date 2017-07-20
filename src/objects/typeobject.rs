@@ -22,7 +22,7 @@ pyobject_nativetype!(PyType, PyType_Type, PyType_Check);
 impl PyType {
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
-    pub fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
+    pub unsafe fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
         self.as_ptr() as *mut ffi::PyTypeObject
     }
 
