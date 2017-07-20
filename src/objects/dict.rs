@@ -248,18 +248,18 @@ mod test {
 
     #[test]
     fn test_set_item_refcnt() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
         let cnt;
         {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+            let _pool = unsafe{::GILPool::new()};
             let dict = PyDict::new(py);
             let none = py.None();
             cnt = none.get_refcnt();
             dict.set_item(10, none).unwrap();
         }
         {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
             assert_eq!(cnt, py.None().get_refcnt());
         }
     }

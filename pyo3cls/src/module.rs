@@ -56,30 +56,30 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
 
-            pyo3::callback::cb_meth("py_module_init", |py| {
-                pyo3::ffi::PyEval_InitThreads();
+            pyo3::ffi::PyEval_InitThreads();
 
-                let module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
-                if module.is_null() {
-                    return module;
-                }
+            let module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
+            if module.is_null() {
+                return module;
+            }
 
-                let module = match py.cast_from_ptr_or_err::<pyo3::PyModule>(module) {
-                    Ok(m) => m,
-                    Err(e) => {
-                        pyo3::PyErr::from(e).restore(py);
-                        return std::ptr::null_mut();
-                    }
-                };
-                module.add("__doc__", #doc).expect("Failed to add doc for module");
-                match #fnname(py, module) {
-                    Ok(_) => module.into_ptr(),
-                    Err(e) => {
-                        e.restore(py);
-                        std::ptr::null_mut()
-                    }
+            let _pool = pyo3::GILPool::new();
+            let py = pyo3::Python::assume_gil_acquired();
+            let module = match py.cast_from_ptr_or_err::<pyo3::PyModule>(module) {
+                Ok(m) => m,
+                Err(e) => {
+                    pyo3::PyErr::from(e).restore(py);
+                    return std::ptr::null_mut();
                 }
-            })
+            };
+            module.add("__doc__", #doc).expect("Failed to add doc for module");
+            match #fnname(py, module) {
+                Ok(_) => module.into_ptr(),
+                Err(e) => {
+                    e.restore(py);
+                    std::ptr::null_mut()
+                }
+            }
         }
     }
 }
@@ -128,11 +128,10 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             pyo3::ffi::PyEval_InitThreads();
 
             let name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
-            let guard = pyo3::callback::AbortOnDrop("py_module_initializer");
+            let _pool = pyo3::GILPool::new();
             let py = pyo3::Python::assume_gil_acquired();
             let module = pyo3::ffi::Py_InitModule(name, std::ptr::null_mut());
             if module.is_null() {
-                std::mem::forget(guard);
                 return
             }
 
@@ -140,7 +139,6 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 Ok(m) => m,
                 Err(e) => {
                     pyo3::PyErr::from(e).restore(py);
-                    std::mem::forget(guard);
                     return
                 }
             };
@@ -148,7 +146,6 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             if let Err(e) = #fnname(py, module) {
                 e.restore(py)
             }
-            std::mem::forget(guard);
         }
     }
 }
@@ -323,18 +320,18 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(stringify!(#name), "()");
+            const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
-            _pyo3::callback::cb_meth(LOCATION, |py| {
-                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
+            let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-                let result: #output = {
-                    #body
-                };
-                _pyo3::callback::cb_convert(
-                    _pyo3::callback::PyObjectCallbackConverter, py, result)
-            })
+            let result: #output = {
+                #body
+            };
+            _pyo3::callback::cb_convert(
+                _pyo3::callback::PyObjectCallbackConverter, py, result)
         }
     }
 }

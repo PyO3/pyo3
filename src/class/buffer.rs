@@ -81,10 +81,12 @@ impl<T> PyBufferGetBufferProtocolImpl for T
                                      arg2: c_int) -> c_int
             where T: for<'p> PyBufferGetBufferProtocol<'p>
         {
-            const LOCATION: &'static str = concat!(stringify!(T), ".buffer_get::<PyBufferProtocol>()");
-            ::callback::cb_unary::<T, _, _, _>(LOCATION, slf, UnitCallbackConverter, |_, slf| {
-                slf.bf_getbuffer(arg1, arg2).into()
-            })
+            let _pool = ::GILPool::new();
+            let py = ::Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+
+            let result = slf.bf_getbuffer(arg1, arg2).into();
+            ::callback::cb_convert(UnitCallbackConverter, py, result)
         }
         Some(wrap::<T>)
     }

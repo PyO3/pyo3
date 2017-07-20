@@ -170,33 +170,34 @@ impl ReleasePool {
 
 static mut POOL: *mut ReleasePool = ::std::ptr::null_mut();
 
-pub struct Pool {
+#[doc(hidden)]
+pub struct GILPool {
     owned: usize,
     borrowed: usize,
     pointers: bool,
     no_send: marker::PhantomData<rc::Rc<()>>,
 }
 
-impl Pool {
+impl GILPool {
     #[inline]
-    pub unsafe fn new() -> Pool {
+    pub unsafe fn new() -> GILPool {
         let p: &'static mut ReleasePool = &mut *POOL;
-        Pool {owned: p.owned.len(),
-              borrowed: p.borrowed.len(),
-              pointers: true,
-              no_send: marker::PhantomData}
+        GILPool {owned: p.owned.len(),
+                 borrowed: p.borrowed.len(),
+                 pointers: true,
+                 no_send: marker::PhantomData}
     }
     #[inline]
-    pub unsafe fn new_no_pointers() -> Pool {
+    pub unsafe fn new_no_pointers() -> GILPool {
         let p: &'static mut ReleasePool = &mut *POOL;
-        Pool {owned: p.owned.len(),
-              borrowed: p.borrowed.len(),
-              pointers: false,
-              no_send: marker::PhantomData}
+        GILPool {owned: p.owned.len(),
+                 borrowed: p.borrowed.len(),
+                 pointers: false,
+                 no_send: marker::PhantomData}
     }
 }
 
-impl Drop for Pool {
+impl Drop for GILPool {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut ReleasePool = &mut *POOL;
@@ -259,7 +260,7 @@ mod test {
     use {ffi, pythonrun};
     use python::Python;
     use object::PyObject;
-    use super::{Pool, ReleasePool, POOL};
+    use super::{GILPool, ReleasePool, POOL};
 
     #[test]
     fn test_owned() {
@@ -310,7 +311,7 @@ mod test {
                 assert_eq!(p.owned.len(), 1);
 
                 {
-                    let _pool = Pool::new();
+                    let _pool = GILPool::new();
                     let empty = ffi::PyTuple_New(0);
                     let _ = pythonrun::register_owned(py, empty);
                     assert_eq!(p.owned.len(), 2);
@@ -372,7 +373,7 @@ mod test {
                 assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
 
                 {
-                    let _pool = Pool::new();
+                    let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
                     pythonrun::register_borrowed(py, ffi::Py_True());
                     assert_eq!(p.borrowed.len(), 2);

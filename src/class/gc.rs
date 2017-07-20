@@ -6,7 +6,6 @@
 use std::os::raw::{c_int, c_void};
 
 use ffi;
-use callback;
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use typeob::PyTypeInfo;
 
@@ -88,15 +87,15 @@ impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
                                             arg: *mut c_void) -> c_int
             where T: for<'p> PyGCTraverseProtocol<'p>
         {
-            const LOCATION: &'static str = concat!(stringify!(T), ".__traverse__()");
+            let _pool = ::GILPool::new();
+            let py = Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
 
-            callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
-                let visit = PyVisit { visit: visit, arg: arg, _py: py };
-                match slf.__traverse__(visit) {
-                    Ok(()) => 0,
-                    Err(PyTraverseError(code)) => code
-                }
-            })
+            let visit = PyVisit { visit: visit, arg: arg, _py: py };
+            match slf.__traverse__(visit) {
+                Ok(()) => 0,
+                Err(PyTraverseError(code)) => code
+            }
         }
 
         Some(tp_traverse::<T>)
@@ -123,12 +122,12 @@ impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p>
         unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
             where T: for<'p> PyGCClearProtocol<'p>
         {
-            const LOCATION: &'static str = concat!(stringify!(T), ".__clear__()");
+            let _pool = ::GILPool::new();
+            let py = Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
 
-            callback::cb_unary_unit::<T, _>(LOCATION, slf, |_, slf| {
-                slf.__clear__();
-                0
-            })
+            slf.__clear__();
+            0
         }
         Some(tp_clear::<T>)
     }

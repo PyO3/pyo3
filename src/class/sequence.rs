@@ -6,7 +6,7 @@
 use std::os::raw::c_int;
 
 use ffi;
-use python::PyDowncastFrom;
+use python::{Python, PyDowncastFrom};
 use err::{PyErr, PyResult};
 use objects::{exc, PyObjectRef};
 use objectprotocol::ObjectProtocol;
@@ -216,31 +216,32 @@ impl<T> PySequenceSetItemProtocolImpl for T
                                      value: *mut ffi::PyObject) -> c_int
             where T: for<'p> PySequenceSetItemProtocol<'p>
         {
-            const LOCATION: &'static str = "foo.__setitem__()";
-            ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
-                if value.is_null() {
-                    let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py,
-                        format!("Item deletion not supported by {:?}", stringify!(T)));
-                    e.restore(py);
-                    -1
-                } else {
-                    let value = py.cast_from_borrowed_ptr::<PyObjectRef>(value);
-                    let result = match value.extract() {
-                        Ok(value) => {
-                            slf.__setitem__(key as isize, value).into()
-                        },
-                        Err(e) => Err(e.into()),
-                    };
-                    match result {
-                        Ok(_) => 0,
-                        Err(e) => {
-                            e.restore(py);
-                            -1
-                        }
+            let _pool = ::GILPool::new();
+            let py = Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+
+            if value.is_null() {
+                let e = PyErr::new::<exc::NotImplementedError, _>(
+                    py,
+                    format!("Item deletion not supported by {:?}", stringify!(T)));
+                e.restore(py);
+                -1
+            } else {
+                let value = py.cast_from_borrowed_ptr::<PyObjectRef>(value);
+                let result = match value.extract() {
+                    Ok(value) => {
+                        slf.__setitem__(key as isize, value).into()
+                    },
+                    Err(e) => Err(e.into()),
+                };
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
                     }
                 }
-            })
+            }
         }
         Some(wrap::<T>)
     }
@@ -267,25 +268,25 @@ impl<T> PySequenceDelItemProtocolImpl for T
                                      value: *mut ffi::PyObject) -> c_int
             where T: for<'p> PySequenceDelItemProtocol<'p>
         {
-            const LOCATION: &'static str = "T.__detitem__()";
-            ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
-                if value.is_null() {
-                    let result = slf.__delitem__(key as isize).into();
-                    match result {
-                        Ok(_) => 0,
-                        Err(e) => {
-                            e.restore(py);
-                            -1
-                        }
+            let _pool = ::GILPool::new();
+            let py = Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+
+            if value.is_null() {
+                let result = slf.__delitem__(key as isize).into();
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
                     }
-                } else {
-                    let e = PyErr::new::<exc::NotImplementedError, _>(
-                        py, format!("Item assignment not supported by {:?}",
-                                            stringify!(T)));
-                    e.restore(py);
-                    -1
                 }
-            })
+            } else {
+                let e = PyErr::new::<exc::NotImplementedError, _>(
+                    py, format!("Item assignment not supported by {:?}", stringify!(T)));
+                e.restore(py);
+                -1
+            }
         }
         Some(wrap::<T>)
     }
@@ -302,34 +303,35 @@ impl<T> PySequenceDelItemProtocolImpl for T
             where T: for<'p> PySequenceSetItemProtocol<'p> +
                for<'p> PySequenceDelItemProtocol<'p>
         {
-            const LOCATION: &'static str = "T.__set/del_item__()";
-            ::callback::cb_unary_unit::<T, _>(LOCATION, slf, |py, slf| {
-                if value.is_null() {
-                    let result = slf.__delitem__(key as isize).into();
-                    match result {
-                        Ok(_) => 0,
-                        Err(e) => {
-                            e.restore(py);
-                            -1
-                        }
-                    }
-                } else {
-                    let value = py.cast_from_borrowed_ptr::<PyObjectRef>(value);
-                    let result = match value.extract() {
-                        Ok(value) => {
-                            slf.__setitem__(key as isize, value).into()
-                        },
-                        Err(e) => Err(e.into()),
-                    };
-                    match result {
-                        Ok(_) => 0,
-                        Err(e) => {
-                            e.restore(py);
-                            -1
-                        }
+            let _pool = ::GILPool::new();
+            let py = Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+
+            if value.is_null() {
+                let result = slf.__delitem__(key as isize).into();
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
                     }
                 }
-            })
+            } else {
+                let value = py.cast_from_borrowed_ptr::<PyObjectRef>(value);
+                let result = match value.extract() {
+                    Ok(value) => {
+                        slf.__setitem__(key as isize, value).into()
+                    },
+                    Err(e) => Err(e.into()),
+                };
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
+                    }
+                }
+            }
         }
         Some(wrap::<T>)
     }

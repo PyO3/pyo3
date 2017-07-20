@@ -11,7 +11,6 @@ use std::os::raw::c_int;
 
 use ::CompareOp;
 use ffi;
-use callback;
 use err::{PyErr, PyResult};
 use python::{Python, IntoPyPointer, PyDowncastFrom};
 use objects::{exc, PyObjectRef};
@@ -361,30 +360,28 @@ impl<T> PyObjectRichcmpProtocolImpl for T
                                      op: c_int) -> *mut ffi::PyObject
             where T: for<'p> PyObjectRichcmpProtocol<'p> + PyDowncastFrom
         {
-            const LOCATION: &'static str = concat!(stringify!(T), ".__richcmp__()");
+            let _pool = ::GILPool::new();
+            let py = Python::assume_gil_acquired();
+            let slf = py.cast_from_borrowed_ptr::<T>(slf);
+            let arg = py.cast_from_borrowed_ptr::<PyObjectRef>(arg);
 
-            callback::cb_meth(LOCATION, |py| {
-                let slf = py.cast_from_borrowed_ptr::<T>(slf);
-                let arg = py.cast_from_borrowed_ptr::<PyObjectRef>(arg);
-
-                let res = match extract_op(py, op) {
-                    Ok(op) => match arg.extract() {
-                        Ok(arg) =>
-                            slf.__richcmp__(arg, op).into(),
-                        Err(e) => Err(e.into()),
-                    },
-                    Err(e) => Err(e)
-                };
-                match res {
-                    Ok(val) => {
-                        val.into_object(py).into_ptr()
-                    }
-                    Err(e) => {
-                        e.restore(py);
-                        std::ptr::null_mut()
-                    }
+            let res = match extract_op(py, op) {
+                Ok(op) => match arg.extract() {
+                    Ok(arg) =>
+                        slf.__richcmp__(arg, op).into(),
+                    Err(e) => Err(e.into()),
+                },
+                Err(e) => Err(e)
+            };
+            match res {
+                Ok(val) => {
+                    val.into_object(py).into_ptr()
                 }
-            })
+                Err(e) => {
+                    e.restore(py);
+                    std::ptr::null_mut()
+                }
+            }
         }
         Some(wrap::<T>)
     }

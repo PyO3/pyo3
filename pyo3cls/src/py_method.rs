@@ -50,17 +50,17 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
         quote! {
             unsafe extern "C" fn wrap(slf: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
             {
-                const LOCATION: &'static str = concat!(
+                const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
-                _pyo3::callback::cb_meth(LOCATION, |py| {
-                    let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
+                let _pool = _pyo3::GILPool::new();
+                let py = _pyo3::Python::assume_gil_acquired();
+                let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
 
-                    let result: #output = {
-                        #cb
-                    };
-                    _pyo3::callback::cb_convert(
-                        _pyo3::callback::PyObjectCallbackConverter, py, result)
-                })
+                let result: #output = {
+                    #cb
+                };
+                _pyo3::callback::cb_convert(
+                    _pyo3::callback::PyObjectCallbackConverter, py, result)
             }
         }
     } else {
@@ -72,20 +72,20 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                 args: *mut _pyo3::ffi::PyObject,
                 kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
             {
-                const LOCATION: &'static str = concat!(
+                use pyo3::ToPyPointer;
+                const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
-                _pyo3::callback::cb_meth(LOCATION, |py| {
-                    use pyo3::ToPyPointer;
-                    let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
-                    let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-                    let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+                let _pool = _pyo3::GILPool::new();
+                let py = _pyo3::Python::assume_gil_acquired();
+                let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
+                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
+                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-                    let result: #output = {
-                        #body
-                    };
-                    _pyo3::callback::cb_convert(
-                        _pyo3::callback::PyObjectCallbackConverter, py, result)
-                })
+                let result: #output = {
+                    #body
+                };
+                _pyo3::callback::cb_convert(
+                    _pyo3::callback::PyObjectCallbackConverter, py, result)
             }
         }
     }
@@ -102,18 +102,18 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            _pyo3::callback::cb_meth(LOCATION, |py| {
-                let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
-                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
+            let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
+            let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-                let result = {
-                    #body
-                };
-                _pyo3::callback::cb_convert(
-                    _pyo3::callback::PyObjectCallbackConverter, py, result)
-            })
+            let result = {
+                #body
+            };
+            _pyo3::callback::cb_convert(
+                _pyo3::callback::PyObjectCallbackConverter, py, result)
         }
     }
 }
@@ -135,19 +135,18 @@ pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> T
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name), "()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let cls = _pyo3::PyType::from_type_ptr(py, cls);
+            let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
+            let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-            _pyo3::callback::cb_meth(LOCATION, |py| {
-                let cls = _pyo3::PyType::from_type_ptr(py, cls);
-                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
-
-                let result: #output = {
-                    #body
-                };
-                _pyo3::callback::cb_convert(
-                    _pyo3::callback::PyObjectCallbackConverter, py, result)
-            })
+            let result: #output = {
+                #body
+            };
+            _pyo3::callback::cb_convert(
+                _pyo3::callback::PyObjectCallbackConverter, py, result)
         }
     }
 }
@@ -168,19 +167,18 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name), "()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let cls = _pyo3::PyType::from_type_ptr(py, cls as *mut _pyo3::ffi::PyTypeObject);
+            let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
+            let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-            _pyo3::callback::cb_meth(LOCATION, |py| {
-                let cls = _pyo3::PyType::from_type_ptr(py, cls as *mut _pyo3::ffi::PyTypeObject);
-                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
-
-                let result: #output = {
-                    #body
-                };
-                _pyo3::callback::cb_convert(
-                    _pyo3::callback::PyObjectCallbackConverter, py, result)
-            })
+            let result: #output = {
+                #body
+            };
+            _pyo3::callback::cb_convert(
+                _pyo3::callback::PyObjectCallbackConverter, py, result)
         }
     }
 }
@@ -202,18 +200,17 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
                                   args: *mut _pyo3::ffi::PyObject,
                                   kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name), "()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
+            let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
 
-            _pyo3::callback::cb_meth(LOCATION, |py| {
-                let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-                let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
-
-                let result: #output = {
-                    #body
-                };
-                _pyo3::callback::cb_convert(
-                    _pyo3::callback::PyObjectCallbackConverter, py, result)
-            })
+            let result: #output = {
+                #body
+            };
+            _pyo3::callback::cb_convert(
+                _pyo3::callback::PyObjectCallbackConverter, py, result)
         }
     }
 }
@@ -225,12 +222,22 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _spec: &FnSpec) -> To
                                   _: *mut _pyo3::c_void)
                                   -> *mut _pyo3::ffi::PyObject
         {
-            const LOCATION: &'static str = concat!(
-                stringify!(#cls), ".getter_", stringify!(#name), "()");
-            _pyo3::callback::cb_unary::<#cls, _, _, _>(
-                LOCATION, slf, _pyo3::callback::PyObjectCallbackConverter, |py, slf| {
-                    slf.#name()
-                })
+            use std;
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
+
+            match slf.#name() {
+                Ok(val) => {
+                    val.into_object(py).into_ptr()
+                }
+                Err(e) => {
+                    e.restore(py);
+                    std::ptr::null_mut()
+                }
+            }
         }
     }
 }
@@ -248,24 +255,23 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
                                   value: *mut _pyo3::ffi::PyObject,
                                   _: *mut _pyo3::c_void) -> _pyo3::c_int
         {
-            const LOCATION: &'static str = concat!(
-                stringify!(#cls), ".setter", stringify!(#name), "()");
-            _pyo3::callback::cb_setter(LOCATION, |py| {
-                let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
-                let value = py.cast_from_borrowed_ptr(value);
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+            let _pool = _pyo3::GILPool::new();
+            let py = _pyo3::Python::assume_gil_acquired();
+            let slf = py.mut_cast_from_borrowed_ptr::<#cls>(slf);
+            let value = py.cast_from_borrowed_ptr(value);
 
-                let result = match <#val_ty as _pyo3::FromPyObject>::extract(value) {
-                    Ok(val) => slf.#name(val),
-                    Err(e) => Err(e)
-                };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+            let result = match <#val_ty as _pyo3::FromPyObject>::extract(value) {
+                Ok(val) => slf.#name(val),
+                Err(e) => Err(e)
+            };
+            match result {
+                Ok(_) => 0,
+                Err(e) => {
+                    e.restore(py);
+                    -1
                 }
-            })
+            }
         }
     }
 }
@@ -339,8 +345,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
         ];
 
         let mut output = [#(#placeholders),*];
-        match _pyo3::argparse::parse_args(
-            py, Some(LOCATION), PARAMS, &args,
+        match _pyo3::argparse::parse_args(py, Some(_LOCATION), PARAMS, &args,
             kwargs, #accept_args, #accept_kwargs, &mut output)
         {
             Ok(_) => {
