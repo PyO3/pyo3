@@ -94,17 +94,32 @@ impl PyDict {
         })
     }
 
+    /// List of dict keys.
+    /// This is equivalent to the python expression `list(dict.keys())`.
+    pub fn keys(&self) -> &PyList {
+        unsafe {
+            self.py().cast_from_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
+        }
+    }
+
+    /// List of dict values.
+    /// This is equivalent to the python expression `list(dict.values())`.
+    pub fn values(&self) -> &PyList {
+        unsafe {
+            self.py().cast_from_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
+        }
+    }
+
     /// List of dict items.
     /// This is equivalent to the python expression `list(dict.items())`.
-    pub fn items_list(&self) -> &PyList {
+    pub fn items(&self) -> &PyList {
         unsafe {
-            self.py().cast_from_ptr::<PyList>(
-                ffi::PyDict_Items(self.as_ptr()))
+            self.py().cast_from_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
         }
     }
 
     /// Returns the list of (key, value) pairs in this dictionary.
-    pub fn items(&self) -> Vec<(PyObject, PyObject)> {
+    pub fn items_vec(&self) -> Vec<(PyObject, PyObject)> {
         // Note that we don't provide an iterator because
         // PyDict_Next() is unsafe to use when the dictionary might be changed
         // by other python code.
@@ -232,6 +247,24 @@ mod test {
     }
 
     #[test]
+    fn test_set_item_refcnt() {
+        let cnt;
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let dict = PyDict::new(py);
+            let none = py.None();
+            cnt = none.get_refcnt();
+            dict.set_item(10, none).unwrap();
+        }
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            assert_eq!(cnt, py.None().get_refcnt());
+        }
+    }
+
+    #[test]
     fn test_set_item_does_not_update_original_object() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -271,28 +304,6 @@ mod test {
     }
 
     #[test]
-    fn test_items_list() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = PyDict::downcast_from(ob.as_ref(py)).unwrap();
-        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
-        let mut key_sum = 0;
-        let mut value_sum = 0;
-        for el in dict.items_list().iter() {
-            let tuple = el.cast_as::<PyTuple>().unwrap();
-            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
-            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
-        }
-        assert_eq!(7 + 8 + 9, key_sum);
-        assert_eq!(32 + 42 + 123, value_sum);
-    }
-
-    #[test]
     fn test_items() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -305,7 +316,65 @@ mod test {
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
-        for (key, value) in dict.items() {
+        for el in dict.items().iter() {
+            let tuple = el.cast_as::<PyTuple>().unwrap();
+            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
+            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
+        }
+        assert_eq!(7 + 8 + 9, key_sum);
+        assert_eq!(32 + 42 + 123, value_sum);
+    }
+
+    #[test]
+    fn test_keys() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let ob = v.to_object(py);
+        let dict = PyDict::downcast_from(ob.as_ref(py)).unwrap();
+        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+        let mut key_sum = 0;
+        for el in dict.keys().iter() {
+            key_sum += el.extract::<i32>().unwrap();
+        }
+        assert_eq!(7 + 8 + 9, key_sum);
+    }
+
+    #[test]
+    fn test_values() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let ob = v.to_object(py);
+        let dict = PyDict::downcast_from(ob.as_ref(py)).unwrap();
+        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+        let mut values_sum = 0;
+        for el in dict.values().iter() {
+            values_sum += el.extract::<i32>().unwrap();
+        }
+        assert_eq!(32 + 42 + 123, values_sum);
+    }
+
+    #[test]
+    fn test_items_vec() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let ob = v.to_object(py);
+        let dict = PyDict::downcast_from(ob.as_ref(py)).unwrap();
+        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+        let mut key_sum = 0;
+        let mut value_sum = 0;
+        for (key, value) in dict.items_vec() {
             key_sum += key.extract::<i32>(py).unwrap();
             value_sum += value.extract::<i32>(py).unwrap();
         }

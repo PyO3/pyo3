@@ -5,7 +5,6 @@
 //! Python argument parsing
 
 use ffi;
-use instance::AsPyRef;
 use python::{Python, PyDowncastFrom};
 use objects::{PyObjectRef, PyTuple, PyDict, PyString, exc};
 use err::{self, PyResult};
@@ -88,13 +87,13 @@ pub fn parse_args<'p>(py: Python<'p>,
     }
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
-        for (key, _value) in kwargs.unwrap().items() {
-            let key = PyString::downcast_from(key.as_ref(py))?.to_string()?;
+        for item in kwargs.unwrap().items().iter() {
+            let item = PyTuple::downcast_from(item)?;
+            let key = PyString::downcast_from(item.get_item(0))?.to_string()?;
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
                     py,
-                    format!("'{}' is an invalid keyword argument for this function",
-                            key)));
+                    format!("'{}' is an invalid keyword argument for this function", key)));
             }
         }
     }
