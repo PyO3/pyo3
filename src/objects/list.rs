@@ -50,8 +50,8 @@ impl PyList {
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyObjectRef {
         unsafe {
-            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            self.py().cast_from_borrowed_ptr(ptr)
+            self.py().cast_from_borrowed_ptr(
+                ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
@@ -60,35 +60,40 @@ impl PyList {
     /// Panics if the index is out of range.
     pub fn get_parked_item(&self, index: isize) -> PyObject {
         unsafe {
-            let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
-            PyObject::from_borrowed_ptr(self.py(), ptr)
+            PyObject::from_borrowed_ptr(
+                self.py(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
     /// Sets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()>
-        where I: ToPyObject
-    {
-        let item = item.to_object(self.py());
+    pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()> where I: ToPyObject {
         unsafe {
             err::error_on_minusone(
-                self.py(), ffi::PyList_SetItem(self.as_ptr(), index, item.into_ptr()))
+                self.py(), ffi::PyList_SetItem(self.as_ptr(), index,
+                                               item.to_object(self.py()).into_ptr()))
         }
+    }
+
+    /// Appends an item at the list.
+    pub fn append<I>(&self, item: I) -> PyResult<()> where I: ToPyObject
+    {
+        item.with_borrowed_ptr(self.py(), |item| unsafe {
+            err::error_on_minusone(
+                self.py(), ffi::PyList_Append(self.as_ptr(), item))
+        })
     }
 
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn insert_item<I>(&self, index: isize, item: I) -> PyResult<()>
-        where I: ToPyObject
+    pub fn insert<I>(&self, index: isize, item: I) -> PyResult<()> where I: ToPyObject
     {
-        let item = item.to_object(self.py());
-        unsafe {
+        item.with_borrowed_ptr(self.py(), |item| unsafe {
             err::error_on_minusone(
-                self.py(), ffi::PyList_Insert(self.as_ptr(), index, item.into_ptr()))
-        }
+                self.py(), ffi::PyList_Insert(self.as_ptr(), index, item))
+        })
     }
 
     #[inline]
@@ -227,7 +232,27 @@ mod test {
     }
 
     #[test]
-    fn test_insert_item() {
+    fn test_set_item_refcnt() {
+        let cnt;
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let v = vec![2];
+            let ob = v.to_object(py);
+            let list = PyList::downcast_from(ob.as_ref(py)).unwrap();
+            let none = py.None();
+            cnt = none.get_refcnt();
+            list.set_item(0, none).unwrap();
+        }
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            assert_eq!(cnt, py.None().get_refcnt());
+        }
+    }
+
+    #[test]
+    fn test_insert() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
@@ -236,10 +261,58 @@ mod test {
         let val = 42i32.to_object(py);
         assert_eq!(4, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        list.insert_item(0, val).unwrap();
+        list.insert(0, val).unwrap();
         assert_eq!(5, list.len());
         assert_eq!(42, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_insert_refcnt() {
+        let cnt;
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let list = PyList::empty(py);
+            let none = py.None();
+            cnt = none.get_refcnt();
+            list.insert(0, none).unwrap();
+        }
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            assert_eq!(cnt, py.None().get_refcnt());
+        }
+    }
+
+    #[test]
+    fn test_append() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2];
+        let ob = v.to_object(py);
+        let list = PyList::downcast_from(ob.as_ref(py)).unwrap();
+        list.append(3).unwrap();
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_append_refcnt() {
+        let cnt;
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let list = PyList::empty(py);
+            let none = py.None();
+            cnt = none.get_refcnt();
+            list.append(none).unwrap();
+        }
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            assert_eq!(cnt, py.None().get_refcnt());
+        }
     }
 
     #[test]
