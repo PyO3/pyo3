@@ -71,10 +71,11 @@ impl PyList {
     pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()>
         where I: ToPyObject
     {
-        item.with_borrowed_ptr(self.py(), |item| unsafe {
+        let item = item.to_object(self.py());
+        unsafe {
             err::error_on_minusone(
-                self.py(), ffi::PyList_SetItem(self.as_ptr(), index, item))
-        })
+                self.py(), ffi::PyList_SetItem(self.as_ptr(), index, item.into_ptr()))
+        }
     }
 
     /// Inserts an item at the specified index.
@@ -83,10 +84,11 @@ impl PyList {
     pub fn insert_item<I>(&self, index: isize, item: I) -> PyResult<()>
         where I: ToPyObject
     {
-        item.with_borrowed_ptr(self.py(), |item| unsafe {
+        let item = item.to_object(self.py());
+        unsafe {
             err::error_on_minusone(
-                self.py(), ffi::PyList_Insert(self.as_ptr(), index, item))
-        })
+                self.py(), ffi::PyList_Insert(self.as_ptr(), index, item.into_ptr()))
+        }
     }
 
     #[inline]

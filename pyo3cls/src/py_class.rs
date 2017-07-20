@@ -97,11 +97,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
-            impl std::convert::AsRef<PyObjectRef> for #cls {
-                fn as_ref(&self) -> &_pyo3::PyObjectRef {
-                    unsafe{&*(self.as_ptr() as *const _pyo3::PyObjectRef)}
-                }
-            }
             impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
             {
                 fn from(ob: &'a mut #cls) -> Self {
