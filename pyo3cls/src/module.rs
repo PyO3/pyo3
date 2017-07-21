@@ -135,13 +135,14 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 return
             }
 
-            let module = match py.cast_from_ptr_or_err::<pyo3::PyModule>(module) {
+            let module = match py.cast_from_borrowed_ptr_or_err::<pyo3::PyModule>(module) {
                 Ok(m) => m,
                 Err(e) => {
                     pyo3::PyErr::from(e).restore(py);
                     return
                 }
             };
+
             module.add("__doc__", #doc).expect("Failed to add doc for module");
             if let Err(e) = #fnname(py, module) {
                 e.restore(py)
