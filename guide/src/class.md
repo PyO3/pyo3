@@ -1,10 +1,11 @@
 # Python Class
 
 Python class generation is powered by unstable [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html) and
-[Specialization](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md) features, so you need to turn on `proc_macro` and `specialization` features:
+[Specialization](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md) and [Const fn](https://github.com/rust-lang/rfcs/blob/master/text/0911-const-fn.md) 
+features, so you need to turn on `proc_macro` and `specialization` features:
 
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(proc_macro, specialization, const_fn)]
 
 extern crate pyo3;
 ```

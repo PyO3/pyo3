@@ -18,16 +18,18 @@ use class::methods::PyMethodDefType;
 pub trait PyTypeInfo {
     /// Type of objects to store in PyObject struct
     type Type;
+
     /// Class name
     const NAME: &'static str;
+
     /// Class doc string
     const DESCRIPTION: &'static str = "\0";
 
-    /// Size of the PyObject structure
-    fn size() -> usize;
+    /// Size of the rust PyObject structure (PyObject + rust structure)
+    const SIZE: usize;
 
     /// `Type` instance offset inside PyObject structure
-    fn offset() -> isize;
+    const OFFSET: isize;
 
     /// PyTypeObject instance for this type
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
@@ -41,16 +43,9 @@ pub trait PyTypeInfo {
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;
     const NAME: &'static str = T::NAME;
-
-    #[inline]
-    default fn size() -> usize {
-        <T as PyTypeInfo>::size()
-    }
-
-    #[inline]
-    default fn offset() -> isize {
-        <T as PyTypeInfo>::offset()
-    }
+    const DESCRIPTION: &'static str = T::DESCRIPTION;
+    const SIZE: usize = T::SIZE;
+    const OFFSET: isize = T::OFFSET;
 
     #[inline]
     default unsafe fn type_object() -> &'static mut ffi::PyTypeObject {
@@ -81,20 +76,18 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 
     default unsafe fn alloc(py: Python, value: T) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
-        <T as PyTypeObject>::init_type(py);
+        T::init_type(py);
 
-        let obj = ffi::PyType_GenericAlloc(
-            <Self as PyTypeInfo>::type_object(), 0);
+        let obj = ffi::PyType_GenericAlloc(T::type_object(), 0);
 
-        let offset = <Self as PyTypeInfo>::offset();
-        let ptr = (obj as *mut u8).offset(offset) as *mut T;
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::write(ptr, value);
 
         Ok(obj)
     }
 
     default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(<Self as PyTypeInfo>::offset()) as *mut T;
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::drop_in_place(ptr);
 
         let ty = ffi::Py_TYPE(obj);
@@ -165,7 +158,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
 
     // type size
-    type_object.tp_basicsize = <T as PyTypeInfo>::size() as ffi::Py_ssize_t;
+    type_object.tp_basicsize = <T as PyTypeInfo>::SIZE as ffi::Py_ssize_t;
 
     // GC support
     <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);

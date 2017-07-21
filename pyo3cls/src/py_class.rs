@@ -106,9 +106,9 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl _pyo3::ToPyPointer for #cls {
                 #[inline]
                 fn as_ptr(&self) -> *mut ffi::PyObject {
-                    let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
                     unsafe {
-                        {self as *const _ as *mut u8}.offset(-offset) as *mut ffi::PyObject
+                        {self as *const _ as *mut u8}
+                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ffi::PyObject
                     }
                 }
             }
@@ -164,19 +164,12 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             const NAME: &'static str = #cls_name;
             const DESCRIPTION: &'static str = #doc;
 
-            #[inline]
-            fn size() -> usize {
-                Self::offset() as usize + std::mem::size_of::<#cls>()
-            }
-
-            #[inline]
-            fn offset() -> isize {
-                let align = std::mem::align_of::<#cls>();
-                let bs = <#base as _pyo3::typeob::PyTypeInfo>::size();
-
+            const SIZE: usize = Self::OFFSET as usize + std::mem::size_of::<#cls>();
+            const OFFSET: isize = {
                 // round base_size up to next multiple of align
-                ((bs + align - 1) / align * align) as isize
-            }
+                ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + std::mem::align_of::<#cls>() - 1) /
+                 std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()) as isize
+            };
 
             #[inline]
             unsafe fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
@@ -218,8 +211,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
 
                     if checked {
-                        let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                        let ptr = (ptr as *mut u8).offset(offset) as *mut #cls;
+                        let ptr = (ptr as *mut u8)
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
                         Some(ptr.as_ref().unwrap())
                     } else {
                         None
@@ -233,8 +226,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     let ptr = ob.as_ptr();
                     if (*ptr).ob_type == <#cls as _pyo3::typeob::PyTypeInfo>::type_object()
                     {
-                        let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                        let ptr = (ptr as *mut u8).offset(offset) as *mut #cls;
+                        let ptr = (ptr as *mut u8)
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
                         Some(ptr.as_ref().unwrap())
                     } else {
                         None
@@ -245,15 +238,15 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             #[inline]
             unsafe fn unchecked_downcast_from(ob: &_pyo3::PyObjectRef) -> &Self
             {
-                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
+                let ptr = (ob.as_ptr() as *mut u8)
+                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
                 &*ptr
             }
             #[inline]
             unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObjectRef) -> &mut Self
             {
-                let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                let ptr = (ob.as_ptr() as *mut u8).offset(offset) as *mut #cls;
+                let ptr = (ob.as_ptr() as *mut u8)
+                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
                 &mut *ptr
             }
         }
@@ -267,8 +260,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
 
                     if checked {
-                        let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                        let ptr = (ptr as *mut u8).offset(offset) as *mut #cls;
+                        let ptr = (ptr as *mut u8)
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
                         Some(ptr.as_mut().unwrap())
                     } else {
                         None
@@ -281,8 +274,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     let ptr = ob.as_ptr();
                     if (*ptr).ob_type == <#cls as _pyo3::typeob::PyTypeInfo>::type_object()
                     {
-                        let offset = <#cls as _pyo3::typeob::PyTypeInfo>::offset();
-                        let ptr = (ptr as *mut u8).offset(offset) as *mut #cls;
+                        let ptr = (ptr as *mut u8)
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
                         Some(ptr.as_mut().unwrap())
                     } else {
                         None

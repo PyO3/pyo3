@@ -1,4 +1,4 @@
-#![feature(proc_macro, specialization)]
+#![feature(proc_macro, specialization, const_fn)]
 #![allow(dead_code, unused_variables)]
 
 extern crate pyo3;

@@ -205,17 +205,15 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
 
     #[inline]
     default fn as_ref(&self, _py: Python) -> &T {
-        let offset = <T as PyTypeInfo>::offset();
         unsafe {
-            let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut T;
+            let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_ref().unwrap()
         }
     }
     #[inline]
     default fn as_mut(&self, _py: Python) -> &mut T {
-        let offset = <T as PyTypeInfo>::offset();
         unsafe {
-            let ptr = (self.as_ptr() as *mut u8).offset(offset) as *mut T;
+            let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_mut().unwrap()
         }
     }
