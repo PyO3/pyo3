@@ -10,7 +10,7 @@ use regex::Regex;
 use version_check::{supports_features, is_min_version, is_min_date};
 
 // Specifies the minimum nightly version needed to compile pyo3.
-const MIN_DATE: &'static str = "2017-07-09";
+const MIN_DATE: &'static str = "2017-07-20";
 const MIN_VERSION: &'static str = "1.20.0-nightly";
 
 #[derive(Debug)]
