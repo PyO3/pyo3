@@ -109,3 +109,5 @@ For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setupt
 
 
 **This is fork of rust-cpython project https://github.com/dgrunwald/rust-cpython**
+
+Motivation for fork https://github.com/PyO3/pyo3/issues/55
