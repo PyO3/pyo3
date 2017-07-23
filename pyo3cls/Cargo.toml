@@ -1,7 +1,13 @@
 [package]
 name = "pyo3cls"
 version = "0.1.0"
-authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
+description = "Proc macros for PyO3 package"
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3"]
+homepage = "https://github.com/pyo3/pyo3"
+repository = "https://github.com/pyo3/pyo3.git"
+documentation = "http://pyo3.github.io/PyO3/pyo3/"
+categories = ["api-bindings", "development-tools::ffi"]
+license = "APACHE-2"
 
 [lib]
 proc-macro = true
@@ -9,7 +15,6 @@ proc-macro = true
 [dependencies]
 quote="0.3"
 log="0.3"
-env_logger = "0.4"
 
 [dependencies.syn]
 version="0.11"
