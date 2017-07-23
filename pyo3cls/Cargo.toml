@@ -7,7 +7,7 @@ homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3.git"
 documentation = "http://pyo3.github.io/PyO3/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
-license = "APACHE-2"
+license = "Apache-2.0"
 
 [lib]
 proc-macro = true
