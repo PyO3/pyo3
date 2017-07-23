@@ -8,7 +8,7 @@
 
 ---
 
-PyO3 is licensed under the [APACHE-2.0 license](http://opensource.org/licenses/APACHE-2.0).
+PyO3 is licensed under the [Apache-2.0 license](http://opensource.org/licenses/APACHE-2.0).
 Python is licensed under the [Python License](https://docs.python.org/2/license.html).
 
 Supported Python versions:
@@ -110,4 +110,4 @@ For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setupt
 
 **This is fork of rust-cpython project https://github.com/dgrunwald/rust-cpython**
 
-Motivation for fork https://github.com/PyO3/pyo3/issues/55
+[Motivation for fork](https://github.com/PyO3/pyo3/issues/55)
