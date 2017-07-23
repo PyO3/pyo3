@@ -106,7 +106,7 @@ For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setupt
 ## Ownership and Lifetimes
 
 In Python, all objects are implicitly reference counted.
-In Rust, we will use the [`PyObject`](https://pyo3.github.io/PyO3/pyo3/struct.PyObject.html) type
+In Rust, we will use the [`PyObject`](https://pyo3.github.io/pyo3/pyo3/struct.PyObject.html) type
 to represent a reference to a Python object.
 
 Because all Python objects potentially have multiple owners, the
@@ -118,5 +118,23 @@ The Python interpreter uses a global interpreter lock (GIL) to ensure thread-saf
 This API uses a zero-sized [`struct Python<'p>`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) as a token to indicate
 that a function can assume that the GIL is held.
 
-You obtain a [`Python`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) instance by acquiring the GIL,
-and have to pass it into all operations that call into the Python runtime.
+You obtain a [`Python`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) instance 
+by acquiring the GIL, and have to pass it into some operations that call into the Python runtime.
+
+PyO3 library provides wrappers for python native objects. Ownership of python objects are
+disallowed because any access to python runtime has to be protected by GIL. 
+All apis are available through references. Lifetimes of python object's refereces are 
+bound to GIL lifetime.
+
+There are two types of pointers that could be stored on rust structs. 
+Both implements `Send` and `Sync` traits and maintain python object's reference count.
+
+* [`PyObject`](https://pyo3.github.io/pyo3/pyo3/struct.PyObject.html) is general purpose
+type. It does not maintain type of the referenced object. It provides helper methods 
+for extracing rust values and casting to specific python object type.
+    
+* [`Py<T>`](https://pyo3.github.io/pyo3/pyo3/struct.Py.html) represents a reference to a 
+concrete python object `T`. 
+
+To upgrade to a reference [`AsPyRef`](https://pyo3.github.io/pyo3/pyo3/trait.AsPyRef.html)
+trait can be used.
