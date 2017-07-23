@@ -58,25 +58,25 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
 
             pyo3::ffi::PyEval_InitThreads();
 
-            let module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
-            if module.is_null() {
-                return module;
+            let _module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
+            if _module.is_null() {
+                return _module;
             }
 
             let _pool = pyo3::GILPool::new();
-            let py = pyo3::Python::assume_gil_acquired();
-            let module = match py.cast_from_ptr_or_err::<pyo3::PyModule>(module) {
+            let _py = pyo3::Python::assume_gil_acquired();
+            let _module = match _py.cast_from_ptr_or_err::<pyo3::PyModule>(_module) {
                 Ok(m) => m,
                 Err(e) => {
-                    pyo3::PyErr::from(e).restore(py);
+                    pyo3::PyErr::from(e).restore(_py);
                     return std::ptr::null_mut();
                 }
             };
-            module.add("__doc__", #doc).expect("Failed to add doc for module");
-            match #fnname(py, module) {
-                Ok(_) => module.into_ptr(),
+            _module.add("__doc__", #doc).expect("Failed to add doc for module");
+            match #fnname(_py, _module) {
+                Ok(_) => _module.into_ptr(),
                 Err(e) => {
-                    e.restore(py);
+                    e.restore(_py);
                     std::ptr::null_mut()
                 }
             }
@@ -127,25 +127,25 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             pyo3::prepare_pyo3_library();
             pyo3::ffi::PyEval_InitThreads();
 
-            let name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
+            let _name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
             let _pool = pyo3::GILPool::new();
-            let py = pyo3::Python::assume_gil_acquired();
-            let module = pyo3::ffi::Py_InitModule(name, std::ptr::null_mut());
-            if module.is_null() {
+            let _py = pyo3::Python::assume_gil_acquired();
+            let _module = pyo3::ffi::Py_InitModule(_name, std::ptr::null_mut());
+            if _module.is_null() {
                 return
             }
 
-            let module = match py.cast_from_borrowed_ptr_or_err::<pyo3::PyModule>(module) {
+            let _module = match _py.cast_from_borrowed_ptr_or_err::<pyo3::PyModule>(_module) {
                 Ok(m) => m,
                 Err(e) => {
-                    pyo3::PyErr::from(e).restore(py);
+                    pyo3::PyErr::from(e).restore(_py);
                     return
                 }
             };
 
-            module.add("__doc__", #doc).expect("Failed to add doc for module");
-            if let Err(e) = #fnname(py, module) {
-                e.restore(py)
+            _module.add("__doc__", #doc).expect("Failed to add doc for module");
+            if let Err(e) = #fnname(_py, _module) {
+                e.restore(_py)
             }
         }
     }
@@ -270,9 +270,9 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
 
                         #wrapper
 
-                        let def = pyo3::class::PyMethodDef {
+                        let _def = pyo3::class::PyMethodDef {
                             ml_name: stringify!(#fnname),
-                            ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                            ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                             ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                             ml_doc: #doc,
                         };
@@ -280,7 +280,7 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                         unsafe {
                             let func = pyo3::PyObject::from_owned_ptr_or_panic(
                                 py, pyo3::ffi::PyCFunction_New(
-                                    Box::into_raw(Box::new(def.as_method_def())),
+                                    Box::into_raw(Box::new(_def.as_method_def())),
                                     std::ptr::null_mut()));
 
                             #m.add(stringify!(#fnname), func)?
@@ -306,8 +306,9 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
-    let names: Vec<syn::Ident> = spec.args.iter().map(
-        |item| if item.py {syn::Ident::from("py")} else {item.name.clone()}).collect();
+    let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
+        |item| if item.1.py {syn::Ident::from("_py")} else {
+            syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {{
         #name(#(#names),*)
     }};
@@ -317,22 +318,23 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
 
     quote! {
         #[allow(unused_variables, unused_imports)]
-        unsafe extern "C" fn wrap(_slf: *mut _pyo3::ffi::PyObject,
-                                  args: *mut _pyo3::ffi::PyObject,
-                                  kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+        unsafe extern "C" fn __wrap(
+            _slf: *mut _pyo3::ffi::PyObject,
+            _args: *mut _pyo3::ffi::PyObject,
+            _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             let _pool = _pyo3::GILPool::new();
-            let py = _pyo3::Python::assume_gil_acquired();
-            let args = py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(args);
-            let kwargs = _pyo3::argparse::get_kwargs(py, kwargs);
+            let _py = _pyo3::Python::assume_gil_acquired();
+            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-            let result: #output = {
+            let _result: #output = {
                 #body
             };
             _pyo3::callback::cb_convert(
-                _pyo3::callback::PyObjectCallbackConverter, py, result)
+                _pyo3::callback::PyObjectCallbackConverter, _py, _result)
         }
     }
 }

@@ -99,7 +99,7 @@ fn impl_proto_impl(ty: &Box<syn::Ty>,
 
                                         Some(_pyo3::class::PyMethodDef {
                                             ml_name: stringify!(#name),
-                                            ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(wrap),
+                                            ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                                             ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
                                             ml_doc: ""})
                                     }
