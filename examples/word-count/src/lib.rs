@@ -55,7 +55,7 @@ fn wc_parallel(lines: &[&str], search: &str) -> i32 {
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "search")]
-    fn search_py(py: Python, path: String, search: String) -> PyResult<i32> {
+    fn search(py: Python, path: String, search: String) -> PyResult<i32> {
         let mut file = File::open(path).map_err(|e| e.to_pyerr(py))?;
         let mut contents = String::new();
         file.read_to_string(&mut contents).map_err(|e| e.to_pyerr(py))?;
