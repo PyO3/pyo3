@@ -476,6 +476,18 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
+#[py::class(gc)]
+struct GCIntegration2 {
+    token: PyToken,
+}
+#[test]
+fn gc_integration2() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = Py::new_ref(py, |t| GCIntegration2{token: t}).unwrap();
+    py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
+}
+
 #[py::class]
 pub struct Len {
     l: usize,

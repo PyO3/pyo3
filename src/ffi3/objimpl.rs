@@ -6,19 +6,16 @@ use ffi3::object::*;
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
     pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
-    pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t)
-     -> *mut c_void;
+    pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
     pub fn PyObject_Free(ptr: *mut c_void) -> ();
 
     #[cfg(not(Py_LIMITED_API))]
     pub fn _Py_GetAllocatedBlocks() -> Py_ssize_t;
-    pub fn PyObject_Init(arg1: *mut PyObject, arg2: *mut PyTypeObject)
-     -> *mut PyObject;
+    pub fn PyObject_Init(arg1: *mut PyObject, arg2: *mut PyTypeObject) -> *mut PyObject;
     pub fn PyObject_InitVar(arg1: *mut PyVarObject, arg2: *mut PyTypeObject,
                             arg3: Py_ssize_t) -> *mut PyVarObject;
     pub fn _PyObject_New(arg1: *mut PyTypeObject) -> *mut PyObject;
-    pub fn _PyObject_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t)
-     -> *mut PyVarObject;
+    pub fn _PyObject_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
 
     pub fn PyGC_Collect() -> Py_ssize_t;
 }
@@ -28,12 +25,8 @@ use ffi3::object::*;
 #[cfg(not(Py_LIMITED_API))]
 pub struct PyObjectArenaAllocator {
     pub ctx: *mut c_void,
-    pub alloc: Option<extern "C" fn(ctx: *mut c_void,
-                                                   size: size_t)
-                                         -> *mut c_void>,
-    pub free: Option<extern "C" fn(ctx: *mut c_void,
-                                                  ptr: *mut c_void,
-                                                  size: size_t) -> ()>,
+    pub alloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
+    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t) -> ()>,
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -42,10 +35,8 @@ impl Default for PyObjectArenaAllocator {
 }
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator)
-     -> ();
-    pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator)
-     -> ();
+    pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator) -> ();
+    pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator) -> ();
 }
 
 /// Test if a type has a GC head
@@ -66,16 +57,14 @@ pub unsafe fn PyObject_IS_GC(o : *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t)
-     -> *mut PyVarObject;
+    pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t) -> *mut PyVarObject;
 
     #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
     #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
-    pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t)
-     -> *mut PyVarObject;
+    pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
     pub fn PyObject_GC_Track(arg1: *mut c_void) -> ();
     pub fn PyObject_GC_UnTrack(arg1: *mut c_void) -> ();
     pub fn PyObject_GC_Del(arg1: *mut c_void) -> ();
@@ -94,4 +83,3 @@ pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o : *mut PyObject) -> *mut *mut PyOb
     let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset as isize;
     (o as *mut u8).offset(weaklistoffset) as *mut *mut PyObject
 }
-

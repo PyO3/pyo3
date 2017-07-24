@@ -31,6 +31,9 @@ pub trait PyTypeInfo {
     /// `Type` instance offset inside PyObject structure
     const OFFSET: isize;
 
+    /// Type flags (ie PyType_GC, PyType_WeakRef)
+    const FLAGS: usize = 0;
+
     /// PyTypeObject instance for this type
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
@@ -39,6 +42,12 @@ pub trait PyTypeInfo {
 
 }
 
+/// type object supports python GC
+pub const PY_TYPE_FLAG_GC: usize = 1<<0;
+
+/// Type object supports python weak references
+pub const PY_TYPE_FLAG_WEAKREF: usize = 1<<1;
+
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;
@@ -46,6 +55,7 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     const DESCRIPTION: &'static str = T::DESCRIPTION;
     const SIZE: usize = T::SIZE;
     const OFFSET: isize = T::OFFSET;
+    const FLAGS: usize = T::FLAGS;
 
     #[inline]
     default unsafe fn type_object() -> &'static mut ffi::PyTypeObject {
@@ -224,7 +234,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     }
 
     // set type flags
-    py_class_flags(type_object);
+    py_class_flags::<T>(type_object);
 
     // register type object
     unsafe {
@@ -259,8 +269,10 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 }
 
 #[cfg(Py_3)]
-fn py_class_flags(type_object: &mut ffi::PyTypeObject) {
-    if type_object.tp_traverse != None || type_object.tp_clear != None {
+fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
+    if type_object.tp_traverse != None || type_object.tp_clear != None ||
+        T::FLAGS & PY_TYPE_FLAG_GC != 0
+    {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
@@ -268,8 +280,10 @@ fn py_class_flags(type_object: &mut ffi::PyTypeObject) {
 }
 
 #[cfg(not(Py_3))]
-fn py_class_flags(type_object: &mut ffi::PyTypeObject) {
-    if type_object.tp_traverse != None || type_object.tp_clear != None {
+fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
+    if type_object.tp_traverse != None || type_object.tp_clear != None ||
+        T::FLAGS & PY_TYPE_FLAG_GC != 0
+    {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;

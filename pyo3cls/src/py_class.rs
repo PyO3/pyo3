@@ -10,7 +10,7 @@ use utils;
 
 
 pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
-    let params = parse_attribute(attr);
+    let (params, flags) = parse_attribute(attr);
     let doc = utils::get_doc(&ast.attrs, true);
 
     let base = syn::Ident::from("_pyo3::PyObjectRef");
@@ -29,7 +29,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     }
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
-    let tokens = impl_class(&ast.ident, &base, token, doc, params);
+    let tokens = impl_class(&ast.ident, &base, token, doc, params, flags);
 
     quote! {
         #[allow(non_upper_case_globals, unused_attributes,
@@ -45,7 +45,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
 
 fn impl_class(cls: &syn::Ident, base: &syn::Ident,
               token: Option<syn::Ident>, doc: syn::Lit,
-              params: HashMap<&'static str, syn::Ident>) -> Tokens {
+              params: HashMap<&'static str, syn::Ident>, flags: Vec<syn::Ident>) -> Tokens {
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.as_str().to_string(),
         None => quote! { #cls }.as_str().to_string()
@@ -170,6 +170,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + std::mem::align_of::<#cls>() - 1) /
                  std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()) as isize
             };
+
+            const FLAGS: usize = #(#flags)|*;
 
             #[inline]
             unsafe fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
@@ -300,8 +302,9 @@ fn is_python_token(field: &syn::Field) -> bool {
     return false
 }
 
-fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
+fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>, Vec<syn::Ident>) {
     let mut params = HashMap::new();
+    let mut flags = vec![syn::Ident::from("0")];
 
     if let Ok(tts) = syn::parse_token_trees(&attr) {
         let mut elem = Vec::new();
@@ -330,11 +333,6 @@ fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
         }
 
         for elem in elems {
-            if elem.len() < 3 {
-                println!("Wrong format: {:?}", elem);
-                continue
-            }
-
             let key = match elem[0] {
                 syn::TokenTree::Token(syn::Token::Ident(ref ident)) => {
                     ident.as_ref().to_owned().to_lowercase()
@@ -344,6 +342,27 @@ fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
                     continue
                 }
             };
+
+            if elem.len() == 1 {
+                match key.as_ref() {
+                    "gc" => {
+                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_GC"));
+                        continue
+                    }
+                    "weakref" => {
+                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_WEAKREF"));
+                        continue
+                    }
+                    _ => {
+                        println!("Unsupported parameter: {:?}", key);
+                    }
+                }
+            }
+
+            if elem.len() < 3 {
+                println!("Wrong format: {:?}", elem);
+                continue
+            }
 
             match elem[1] {
                 syn::TokenTree::Token(syn::Token::Eq) => (),
@@ -382,12 +401,13 @@ fn parse_attribute(attr: String) -> HashMap<&'static str, syn::Ident> {
                 },
                 "base" => {
 
-                }
+                },
                 _ => {
                     println!("Unsupported parameter: {:?}", key);
                 }
             }
         }
     }
-    params
+
+    (params, flags)
 }

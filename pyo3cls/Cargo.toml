@@ -1,6 +1,6 @@
 [package]
 name = "pyo3cls"
-version = "0.1.0"
+version = "0.1.1"
 description = "Proc macros for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3"]
 homepage = "https://github.com/pyo3/pyo3"

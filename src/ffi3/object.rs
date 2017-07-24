@@ -157,14 +157,11 @@ mod bufferinfo {
 pub use self::bufferinfo::*;
 
 pub type objobjproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject)
-                         -> c_int;
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
 pub type visitproc =
-    unsafe extern "C" fn(object: *mut PyObject, arg: *mut c_void)
-                         -> c_int;
+    unsafe extern "C" fn(object: *mut PyObject, arg: *mut c_void) -> c_int;
 pub type traverseproc =
-    unsafe extern "C" fn(slf: *mut PyObject, visit: visitproc,
-                         arg: *mut c_void) -> c_int;
+    unsafe extern "C" fn(slf: *mut PyObject, visit: visitproc, arg: *mut c_void) -> c_int;
 
 pub type freefunc =
     unsafe extern "C" fn(arg1: *mut c_void);
@@ -206,8 +203,7 @@ pub type newfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject,
                          arg2: *mut PyObject, arg3: *mut PyObject) -> *mut PyObject;
 pub type allocfunc =
-    unsafe extern "C" fn(arg1: *mut PyTypeObject,
-                         arg2: Py_ssize_t) -> *mut PyObject;
+    unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 
 #[cfg(Py_LIMITED_API)]
 pub enum PyTypeObject { }
@@ -263,7 +259,6 @@ mod typeobject {
         #[inline] fn default() -> Self { unsafe { ::std::mem::zeroed() } }
     }
     macro_rules! as_expr { ($e:expr) => {$e} }
-
 
     macro_rules! py_number_methods_init {
         ($($tail:tt)*) => {
@@ -598,10 +593,9 @@ impl Default for PyType_Spec {
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
     pub fn PyType_FromSpecWithBases(arg1: *mut PyType_Spec, arg2: *mut PyObject)
-        -> *mut PyObject;
+                                    -> *mut PyObject;
 
-    pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int)
-        -> *mut c_void;
+    pub fn PyType_GetSlot(arg1: *mut PyTypeObject, arg2: c_int) -> *mut c_void;
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
@@ -727,9 +721,7 @@ pub const Py_TPFLAGS_BASE_EXC_SUBCLASS    : c_ulong = (1<<30);
 pub const Py_TPFLAGS_TYPE_SUBCLASS        : c_ulong = (1<<31);
 
 pub const Py_TPFLAGS_DEFAULT : c_ulong = (
-                 Py_TPFLAGS_HAVE_STACKLESS_EXTENSION |
-                 Py_TPFLAGS_HAVE_VERSION_TAG |
-                 0);
+    Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | Py_TPFLAGS_HAVE_VERSION_TAG | 0);
 
 pub const Py_TPFLAGS_HAVE_FINALIZE        : c_ulong = (1<<0);
 
