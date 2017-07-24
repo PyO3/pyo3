@@ -488,6 +488,18 @@ fn gc_integration2() {
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
+#[py::class(weakref)]
+struct WeakRefSupport {
+    token: PyToken,
+}
+#[test]
+fn weakref_support() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = Py::new_ref(py, |t| WeakRefSupport{token: t}).unwrap();
+    py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst");
+}
+
 #[py::class]
 pub struct Len {
     l: usize,

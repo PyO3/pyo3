@@ -4,6 +4,8 @@ Changes
 0.1.x (xx-xx-2017)
 ^^^^^^^^^^^^^^^^^^
 
+* Added weakref support #56
+
 * Allow to add gc support without implementing PyGCProtocol #57
 
 

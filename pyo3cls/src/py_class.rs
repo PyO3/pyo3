@@ -158,6 +158,19 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         }
     };
 
+    // insert space for weak ref
+    let mut has_weakref = false;
+    for f in flags.iter() {
+        if *f == syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_WEAKREF") {
+            has_weakref = true;
+        }
+    }
+    let weakref = if has_weakref {
+        syn::Ident::from("std::mem::size_of::<*const _pyo3::ffi::PyObject>()")
+    } else {
+        syn::Ident::from("0")
+    };
+
     quote! {
         impl _pyo3::typeob::PyTypeInfo for #cls {
             type Type = #cls;
@@ -167,7 +180,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             const SIZE: usize = Self::OFFSET as usize + std::mem::size_of::<#cls>();
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
-                ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + std::mem::align_of::<#cls>() - 1) /
+                ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + #weakref +
+                  std::mem::align_of::<#cls>() - 1) /
                  std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()) as isize
             };
 

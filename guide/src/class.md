@@ -44,6 +44,23 @@ are generated only if struct contains `PyToken` attribute.
 
 TODO - continue
 
+## py::class macro
+
+Python class generation is powered by [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html).
+To define python custom class, rust struct needs to be annotated with `#[py::class]` attribute.
+`py::class` macro accepts following parameters:
+
+* `name=XXX` - customize class name visible to python code. By default struct name is used as
+a class name.
+* `freelist=XXX` - `freelist` parameter add support of free allocation list to custom class.
+The performance improvement applies to types that are often created and deleted in a row,
+so that they can benefit from a freelist. `XXX` is a number of items for free list.
+* `gc` - adds support for python garbage collector. classes that build with `gc` parameter
+participate in python garbage collector. If custom class contains references to other
+python object that can be collector `PyGCProtocol` trait has to be implemented.
+* `weakref` - adds support for python weak references
+
+
 ## Constructor
 
 By default it is not possible to create instance of custom class from python code.

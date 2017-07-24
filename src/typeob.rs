@@ -170,6 +170,12 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     // type size
     type_object.tp_basicsize = <T as PyTypeInfo>::SIZE as ffi::Py_ssize_t;
 
+    // weakref support (check py3cls::py_class::impl_class)
+    if T::FLAGS & PY_TYPE_FLAG_WEAKREF != 0 {
+        type_object.tp_weaklistoffset = T::OFFSET -
+            (std::mem::size_of::<*const ffi::PyObject>() as isize);
+    }
+
     // GC support
     <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
 
