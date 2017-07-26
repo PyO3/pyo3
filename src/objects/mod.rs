@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+#[macro_use] mod exc_impl;
+
 pub use self::typeobject::PyType;
 pub use self::module::PyModule;
 pub use self::iterator::PyIterator;
@@ -13,6 +15,7 @@ pub use self::sequence::PySequence;
 pub use self::slice::{PySlice, PySliceIndices};
 pub use self::set::{PySet, PyFrozenSet};
 pub use self::stringdata::PyStringData;
+pub use self::exc_impl::PyNativeException;
 
 #[cfg(Py_3)]
 pub use self::string::{PyBytes, PyString};

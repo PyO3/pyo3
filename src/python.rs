@@ -233,7 +233,7 @@ impl<'p> Python<'p> {
     }
 
     /// Import the Python module with the specified name.
-    pub fn import(self, name : &str) -> PyResult<&'p PyModule> {
+    pub fn import(self, name: &str) -> PyResult<&'p PyModule> {
         PyModule::import(self, name)
     }
 

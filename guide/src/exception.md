@@ -114,7 +114,7 @@ impl std::convert::From<std::io::Error> for PyErr {
     }
 }
 
-fn connect(py: Python, s: String) -> PyResult<bool> {
+fn connect(s: String) -> PyResult<bool> {
     TcpListener::bind("127.0.0.1:80")?;
 
     Ok(true)
@@ -135,3 +135,28 @@ fn parse_int(py: Python, s: String) -> PyResult<usize> {
 ```
 
 The code snippet above will raise `ValueError` in Python if `String::parse()` return an error.
+
+
+## Using exceptions defined in python code
+
+It is possible to use exception defined in python code as native rust types. 
+`import_exception!` macro allows to import specific exception class and defined zst type
+for that exception.
+
+```rust
+use pyo3::{PyErr, PyResult, ToPyErr, exc};
+
+import_exception!(asyncio, CancelledError)
+
+fn cancel(fut: PyFuture) -> PyResult<()> {
+    if fut.cancelled() {
+       Err(CancelledError.into())
+    }
+
+    Ok(())
+}
+
+```
+
+[`exc`](https://pyo3.github.io/PyO3/pyo3/exc/index.html) defines exceptions for 
+several standard library modules.

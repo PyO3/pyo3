@@ -160,3 +160,21 @@ impl StopIteration {
         }
     }
 }
+
+/// Exceptions defined in `asyncio` module
+pub mod asyncio {
+    import_exception!(asyncio, CancelledError);
+    import_exception!(asyncio, InvalidStateError);
+    import_exception!(asyncio, TimeoutError);
+    import_exception!(asyncio, IncompleteReadError);
+    import_exception!(asyncio, LimitOverrunError);
+    import_exception!(asyncio, QueueEmpty);
+    import_exception!(asyncio, QueueFull);
+}
+
+/// Exceptions defined in `socket` module
+pub mod socket {
+    import_exception!(socket, herror);
+    import_exception!(socket, gaierror);
+    import_exception!(socket, timeout);
+}

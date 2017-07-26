@@ -14,42 +14,41 @@ use instance::Py;
 use typeob::PyTypeObject;
 use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple};
 
-/**
-Defines a new exception type.
-
-# Syntax
-`py_exception!(module, MyError)`
-
-* `module` is the name of the containing module.
-* `MyError` is the name of the new exception type.
-
-# Example
-```
-#[macro_use]
-extern crate pyo3;
-
-use pyo3::{Python, PyDict};
-
-py_exception!(mymodule, CustomError);
-
-fn main() {
-let gil = Python::acquire_gil();
-    let py = gil.python();
-    let ctx = PyDict::new(py);
-
-    ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
-
-    py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
-    py.run("assert CustomError('oops').args == ('oops',)", None, Some(ctx)).unwrap();
-}
-```
-*/
+/// Defines a new exception type.
+///
+/// # Syntax
+/// `py_exception!(module, MyError)`
+///
+/// * `module` is the name of the containing module.
+/// * `MyError` is the name of the new exception type.
+///
+/// # Example
+/// ```
+/// #[macro_use]
+/// extern crate pyo3;
+///
+/// use pyo3::{Python, PyDict};
+///
+/// py_exception!(mymodule, CustomError);
+///
+/// fn main() {
+///     let gil = Python::acquire_gil();
+///     let py = gil.python();
+///     let ctx = PyDict::new(py);
+///
+///     ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
+///
+///     py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"",
+///            None, Some(&ctx)).unwrap();
+///     py.run("assert CustomError('oops').args == ('oops',)", None, Some(ctx)).unwrap();
+/// }
+/// ```
 #[macro_export]
 macro_rules! py_exception {
     ($module: ident, $name: ident, $base: ty) => {
         pub struct $name;
 
-        impl std::convert::From<$name> for $crate::PyErr {
+        impl ::std::convert::From<$name> for $crate::PyErr {
             fn from(_err: $name) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, _>(())
             }
