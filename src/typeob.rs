@@ -145,7 +145,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
     #[inline]
     default fn type_object() -> Py<PyType> {
         <T as PyTypeObject>::init_type();
-        unsafe { PyType::new(T::type_object()) }
+        PyType::new::<T>()
     }
 }
 

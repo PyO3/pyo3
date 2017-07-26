@@ -10,7 +10,7 @@ use object::PyObject;
 use python::{Python, ToPyPointer};
 use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken};
-use typeob::PyTypeObject;
+use typeob::{PyTypeInfo, PyTypeObject};
 
 /// Represents a reference to a Python `type object`.
 pub struct PyType(PyObject);
@@ -21,9 +21,10 @@ pyobject_nativetype!(PyType, PyType_Type, PyType_Check);
 
 impl PyType {
     #[inline]
-    pub unsafe fn new(ptr: *mut ffi::PyTypeObject) -> Py<PyType>
-    {
-        Py::from_borrowed_ptr(ptr as *mut ffi::PyObject)
+    pub fn new<T: PyTypeInfo>() -> Py<PyType> {
+        unsafe {
+            Py::from_borrowed_ptr(T::type_object() as *const _ as *mut ffi::PyObject)
+        }
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.

@@ -113,13 +113,13 @@ impl PyModule {
             let ty = <T as PyTypeInfo>::type_object();
 
             if ((*ty).tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-                PyType::new(ty)
+                PyType::new::<T>()
             } else {
                 // automatically initialize the class
                 initialize_type::<T>(self.py(), Some(self.name()?))
                     .expect(
                         format!("An error occurred while initializing class {}", T::NAME).as_ref());
-                PyType::new(ty)
+                PyType::new::<T>()
             }
         };
 

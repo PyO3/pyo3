@@ -83,7 +83,10 @@ macro_rules! py_exception {
 
             #[inline]
             fn type_object() -> $crate::Py<$crate::PyType> {
-                unsafe { $crate::PyType::new($name::type_object()) }
+                unsafe {
+                    $crate::Py::from_borrowed_ptr(
+                        $name::type_object() as *const _ as *mut $crate::ffi::PyObject)
+                }
             }
         }
     };
@@ -137,7 +140,7 @@ impl PyErr {
 
     /// Gets whether an error is present in the Python interpreter's global state.
     #[inline]
-    pub fn occurred(_ : Python) -> bool {
+    pub fn occurred(_: Python) -> bool {
         unsafe { !ffi::PyErr_Occurred().is_null() }
     }
 
@@ -146,8 +149,7 @@ impl PyErr {
     ///
     /// `base` can be an existing exception type to subclass, or a tuple of classes
     /// `dict` specifies an optional dictionary of class variables and methods
-    pub fn new_type<'p>(_py: Python<'p>,
-                        name: &str, base: Option<&PyType>, dict: Option<PyObject>)
+    pub fn new_type<'p>(_: Python<'p>, name: &str, base: Option<&PyType>, dict: Option<PyObject>)
                         -> *mut ffi::PyTypeObject
     {
         let base: *mut ffi::PyObject = match base {
@@ -161,9 +163,10 @@ impl PyErr {
         };
 
         unsafe {
-            let null_terminated_name = CString::new(name).expect("Failed to initialize nul terminated exception name");
-            ffi::PyErr_NewException(null_terminated_name.as_ptr() as *mut c_char, base, dict)
-                as *mut ffi::PyTypeObject
+            let null_terminated_name = CString::new(name)
+                .expect("Failed to initialize nul terminated exception name");
+            ffi::PyErr_NewException(
+                null_terminated_name.as_ptr() as *mut c_char, base, dict) as *mut ffi::PyTypeObject
         }
     }
 
@@ -209,7 +212,8 @@ impl PyErr {
     /// Creates a new PyErr.
     ///
     /// `obj` must be an Python exception instance, the PyErr will use that instance.
-    /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new instance of that type.
+    /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new
+    /// instance of that type.
     /// Otherwise, a `TypeError` is created instead.
     pub fn from_instance<O>(py: Python, obj: O) -> PyErr where O: IntoPyObject {
         PyErr::from_instance_helper(py, obj.into_object(py))

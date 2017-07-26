@@ -35,7 +35,6 @@ macro_rules! py_expect_exception {
     }}
 }
 
-
 #[py::class]
 struct EmptyClass { }
 

@@ -158,10 +158,7 @@ macro_rules! pyobject_nativetype(
 
             #[inline]
             fn type_object() -> $crate::Py<$crate::PyType> {
-                unsafe {
-                    $crate::PyType::new(
-                        <$name as $crate::typeob::PyTypeInfo>::type_object())
-                }
+                $crate::PyType::new::<$name>()
             }
         }
 

@@ -12,7 +12,7 @@ use ffi;
 use object::PyObject;
 use python::{Python, ToPyPointer};
 use err::PyResult;
-use super::{PyTuple, PyType};
+use super::PyTuple;
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
@@ -27,7 +27,7 @@ macro_rules! exc_type(
             #[inline]
             fn type_object() -> $crate::Py<$crate::PyType> {
                 unsafe {
-                    PyType::new(ffi::$exc_name as *mut ffi::PyTypeObject)
+                    $crate::Py::from_borrowed_ptr(ffi::$exc_name)
                 }
             }
         }
