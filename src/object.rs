@@ -7,7 +7,7 @@ use pythonrun;
 use err::{PyErr, PyResult};
 use instance::{AsPyRef, PyObjectWithToken};
 use objects::{PyObjectRef, PyDict};
-use conversion::{ToPyObject, IntoPyObject, IntoPyTuple, FromPyObject};
+use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple, FromPyObject};
 use python::{Python, ToPyPointer, IntoPyPointer};
 
 
@@ -230,7 +230,9 @@ impl ToPyObject for PyObject
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
         unsafe {PyObject::from_borrowed_ptr(py, self.as_ptr())}
     }
+}
 
+impl ToBorrowedObject for PyObject {
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R

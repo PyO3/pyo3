@@ -6,7 +6,7 @@ use err::{self, PyErr, PyResult};
 use object::PyObject;
 use instance::PyObjectWithToken;
 use python::{ToPyPointer, PyDowncastFrom};
-use conversion::{FromPyObject, ToPyObject};
+use conversion::{FromPyObject, ToBorrowedObject};
 use objects::{PyObjectRef, PyList, PyTuple};
 use objectprotocol::ObjectProtocol;
 
@@ -101,7 +101,7 @@ impl PySequence {
     /// Assign object v to the ith element of o.
     /// Equivalent to Python statement `o[i] = v`
     #[inline]
-    pub fn set_item<I>(&self, i: isize, item: I) -> PyResult<()> where I: ToPyObject {
+    pub fn set_item<I>(&self, i: isize, item: I) -> PyResult<()> where I: ToBorrowedObject {
         unsafe {
             item.with_borrowed_ptr(self.py(), |item| {
                 err::error_on_minusone(
@@ -145,7 +145,7 @@ impl PySequence {
     /// Return the number of occurrences of value in o, that is, return the number of keys for
     /// which `o[key] == value`
     #[inline]
-    pub fn count<V>(&self, value: V) -> PyResult<usize> where V: ToPyObject
+    pub fn count<V>(&self, value: V) -> PyResult<usize> where V: ToBorrowedObject
     {
         let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
             ffi::PySequence_Count(self.as_ptr(), ptr)
@@ -157,9 +157,9 @@ impl PySequence {
         }
     }
 
-   /// Determine if o contains value. this is equivalent to the Python expression `value in o`
+    /// Determine if o contains value. this is equivalent to the Python expression `value in o`
     #[inline]
-    pub fn contains<V>(&self, value: V) -> PyResult<bool> where V: ToPyObject
+    pub fn contains<V>(&self, value: V) -> PyResult<bool> where V: ToBorrowedObject
     {
         let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
             ffi::PySequence_Contains(self.as_ptr(), ptr)
@@ -174,7 +174,7 @@ impl PySequence {
     /// Return the first index i for which o[i] == value.
     /// This is equivalent to the Python expression `o.index(value)`
     #[inline]
-    pub fn index<V>(&self, value: V) -> PyResult<usize> where V: ToPyObject
+    pub fn index<V>(&self, value: V) -> PyResult<usize> where V: ToBorrowedObject
     {
         let r = value.with_borrowed_ptr(self.py(), |ptr| unsafe {
             ffi::PySequence_Index(self.as_ptr(), ptr)

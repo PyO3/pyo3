@@ -8,7 +8,7 @@ use ffi;
 use object::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
-use conversion::ToPyObject;
+use conversion::{ToPyObject, ToBorrowedObject};
 use objects::{PyObjectRef, PyList};
 use err::{self, PyResult, PyErr};
 
@@ -52,7 +52,7 @@ impl PyDict {
 
     /// Determine if the dictionary contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
+    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PyDict_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
@@ -64,7 +64,7 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef> where K: ToPyObject {
+    pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             self.py().cast_from_borrowed_ptr_or_opt(
                 ffi::PyDict_GetItem(self.as_ptr(), key))
@@ -86,7 +86,7 @@ impl PyDict {
 
     /// Deletes an item.
     /// This is equivalent to the Python expression `del self[key]`.
-    pub fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToPyObject
+    pub fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToBorrowedObject
     {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             err::error_on_minusone(

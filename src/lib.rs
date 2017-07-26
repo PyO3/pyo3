@@ -150,7 +150,7 @@ pub mod ffi {
     pub use ffi3::*;
 }
 
-pub use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
+pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, ToPyErr};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use object::PyObject;
@@ -158,7 +158,8 @@ pub use python::{Python, ToPyPointer, IntoPyPointer,
                  PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
 pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
-pub use conversion::{FromPyObject, RefFromPyObject, ToPyObject, IntoPyObject, IntoPyTuple};
+pub use conversion::{FromPyObject, RefFromPyObject,
+                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};
 pub mod class;
 pub use class::*;
 

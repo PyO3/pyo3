@@ -394,10 +394,10 @@ impl PyBuffer {
 
     fn copy_to_slice_impl<T: Element+Copy>(&self, py: Python, target: &mut [T], fort: u8) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return slice_length_error(py);
+            return slice_length_error();
         }
         if !T::is_compatible_format(self.format()) || mem::size_of::<T>() != self.item_size() {
-            return incompatible_format_error(py);
+            return incompatible_format_error();
         }
         unsafe {
             err::error_on_minusone(py, ffi::PyBuffer_ToContiguous(
@@ -427,7 +427,7 @@ impl PyBuffer {
 
     fn to_vec_impl<T: Element+Copy>(&self, py: Python, fort: u8) -> PyResult<Vec<T>> {
         if !T::is_compatible_format(self.format()) || mem::size_of::<T>() != self.item_size() {
-            incompatible_format_error(py)?;
+            incompatible_format_error()?;
             unreachable!();
         }
         let item_count = self.item_count();
@@ -477,13 +477,13 @@ impl PyBuffer {
 
     fn copy_from_slice_impl<T: Element+Copy>(&self, py: Python, source: &[T], fort: u8) -> PyResult<()> {
         if self.readonly() {
-            return buffer_readonly_error(py);
+            return buffer_readonly_error();
         }
         if mem::size_of_val(source) != self.len_bytes() {
-            return slice_length_error(py);
+            return slice_length_error();
         }
         if !T::is_compatible_format(self.format()) || mem::size_of::<T>() != self.item_size() {
-            return incompatible_format_error(py);
+            return incompatible_format_error();
         }
         unsafe {
             err::error_on_minusone(py, ffi::PyBuffer_FromContiguous(
@@ -504,19 +504,16 @@ impl PyBuffer {
     }
 }
 
-fn slice_length_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(
-        py, "Slice length does not match buffer length."))
+fn slice_length_error() -> PyResult<()> {
+    Err(err::PyErr::new::<exc::BufferError, _>("Slice length does not match buffer length."))
 }
 
-fn incompatible_format_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(
-        py, "Slice type is incompatible with buffer format."))
+fn incompatible_format_error() -> PyResult<()> {
+    Err(err::PyErr::new::<exc::BufferError, _>("Slice type is incompatible with buffer format."))
 }
 
-fn buffer_readonly_error(py: Python) -> PyResult<()> {
-    Err(err::PyErr::new::<exc::BufferError, _>(
-        py, "Cannot write to read-only buffer."))
+fn buffer_readonly_error() -> PyResult<()> {
+    Err(err::PyErr::new::<exc::BufferError, _>("Cannot write to read-only buffer."))
 }
 
 impl Drop for PyBuffer {

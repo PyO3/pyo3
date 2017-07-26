@@ -9,10 +9,10 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use instance::{Py, PyToken, PyObjectWithToken, AsPyRef};
+use instance::{Py, PyToken, AsPyRef};
 use object::PyObject;
 use objects::{PyObjectRef, PyType, PyDict, PyModule};
-use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
+use err::{PyErr, PyResult, PyDowncastError};
 use pythonrun::{self, GILGuard};
 
 
@@ -46,7 +46,7 @@ pub trait PyDowncastFrom : Sized {
         if let Some(ob) = Self::try_downcast_from(ob) {
             Ok(ob)
         } else {
-            Err(PyDowncastError(ob.py(), None))
+            Err(PyDowncastError)
         }
     }
 
@@ -55,7 +55,7 @@ pub trait PyDowncastFrom : Sized {
         if let Some(ob) = Self::try_exact_downcast_from(ob) {
             Ok(ob)
         } else {
-            Err(PyDowncastError(ob.py(), None))
+            Err(PyDowncastError)
         }
     }
 
@@ -82,8 +82,7 @@ pub trait PyMutDowncastFrom : Sized {
         if let Some(o) = Self::try_mut_downcast_from(ob) {
             return Ok(o)
         } else {
-            let py = unsafe { Python::assume_gil_acquired() };
-            Err(PyDowncastError(py, None))
+            Err(PyDowncastError)
         }
     }
 
@@ -92,8 +91,7 @@ pub trait PyMutDowncastFrom : Sized {
         if let Some(ob) = Self::try_mut_exact_downcast_from(ob) {
             Ok(ob)
         } else {
-            let py = unsafe { Python::assume_gil_acquired() };
-            Err(PyDowncastError(py, None))
+            Err(PyDowncastError)
         }
     }
 }
@@ -107,7 +105,7 @@ pub trait PyDowncastInto : Sized {
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn downcast_into_from_ptr(py: Python, ptr: *mut ffi::PyObject)
-                                  -> Result<Self, PyDowncastError>;
+                              -> Result<Self, PyDowncastError>;
 
     /// Cast from ffi::PyObject to a concrete Python object type.
     fn unchecked_downcast_into<I>(I) -> Self where I: IntoPyPointer;
@@ -210,7 +208,7 @@ impl<'p> Python<'p> {
     /// If `locals` is `None`, it defaults to the value of `globals`.
     fn run_code(self, code: &str, start: c_int,
                 globals: Option<&PyDict>, locals: Option<&PyDict>) -> PyResult<&'p PyObjectRef> {
-        let code = CString::new(code).map_err(|e| e.to_pyerr(self))?;
+        let code = CString::new(code)?;
 
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
@@ -303,7 +301,7 @@ impl<'p> Python<'p> {
 impl<'p> Python<'p> {
 
     /// Register object in release pool, and try to downcast to specific type.
-    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError<'p>>
+    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError>
         where T: PyDowncastFrom
     {
         unsafe {

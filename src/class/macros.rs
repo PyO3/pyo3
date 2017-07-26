@@ -294,7 +294,7 @@ macro_rules! py_func_set{
 
             if value.is_null() {
                 let e = $crate::PyErr::new::<exc::NotImplementedError, _>(
-                    py, format!("Subscript deletion not supported by {:?}", stringify!(T)));
+                    format!("Subscript deletion not supported by {:?}", stringify!(T)));
                 e.restore(py);
                 -1
             } else {
@@ -356,8 +356,7 @@ macro_rules! py_func_del{
                 }
             } else {
                 let e = PyErr::new::<exc::NotImplementedError, _>(
-                    py, format!("Subscript assignment not supported by {:?}",
-                                stringify!(T)));
+                    format!("Subscript assignment not supported by {:?}", stringify!(T)));
                 e.restore(py);
                 -1
             }

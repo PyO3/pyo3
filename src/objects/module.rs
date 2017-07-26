@@ -14,7 +14,7 @@ use python::{Python, ToPyPointer};
 use objects::{PyObjectRef, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use instance::PyObjectWithToken;
-use err::{PyResult, PyErr, ToPyErr};
+use err::{PyResult, PyErr};
 
 
 /// Represents a Python `module` object.
@@ -27,7 +27,7 @@ pyobject_nativetype!(PyModule, PyModule_Type, PyModule_Check);
 impl PyModule {
     /// Create a new module object with the `__name__` attribute set to name.
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
+        let name = CString::new(name)?;
         unsafe {
             py.cast_from_ptr_or_err(
                 ffi::PyModule_New(name.as_ptr()))
@@ -36,7 +36,7 @@ impl PyModule {
 
     /// Import the Python module with the specified name.
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
-        let name = CString::new(name).map_err(|e| e.to_pyerr(py))?;
+        let name = CString::new(name)?;
         unsafe {
             py.cast_from_ptr_or_err(
                 ffi::PyImport_ImportModule(name.as_ptr()))
@@ -60,8 +60,7 @@ impl PyModule {
             match std::str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    self.py(),
-                    try!(exc::UnicodeDecodeError::new_utf8(self.py(), slice, e))))
+                    exc::UnicodeDecodeError::new_utf8(self.py(), slice, e)?))
             }
         }
     }

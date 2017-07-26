@@ -5,11 +5,11 @@
 use std::os::raw::c_int;
 use std::{any, ptr, isize};
 
-use python::{Python, IntoPyPointer};
-use objects::exc;
-use conversion::IntoPyObject;
+use err::PyResult;
 use ffi::{self, Py_hash_t};
-use err::{PyErr, PyResult};
+use python::{Python, IntoPyPointer};
+use objects::exc::OverflowError;
+use conversion::IntoPyObject;
 
 
 pub trait CallbackConverter<S> {
@@ -62,8 +62,7 @@ impl CallbackConverter<usize> for LenResultConverter {
         if val <= (isize::MAX as usize) {
             val as isize
         } else {
-            PyErr::new_lazy_init(
-                py.get_type::<exc::OverflowError>(), None).restore(py);
+            OverflowError::new(()).restore(py);
             -1
         }
     }

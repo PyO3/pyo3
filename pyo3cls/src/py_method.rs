@@ -358,7 +358,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
         ];
 
         let mut _output = [#(#placeholders),*];
-        match _pyo3::argparse::parse_args(_py, Some(_LOCATION), _PARAMS, &_args,
+        match _pyo3::argparse::parse_args(Some(_LOCATION), _PARAMS, &_args,
             _kwargs, #accept_args, #accept_kwargs, &mut _output)
         {
             Ok(_) => {

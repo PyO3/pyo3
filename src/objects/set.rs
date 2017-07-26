@@ -5,7 +5,7 @@ use std::{hash, collections};
 use ffi;
 use python::{Python, ToPyPointer};
 use object::PyObject;
-use conversion::ToPyObject;
+use conversion::{ToPyObject, ToBorrowedObject};
 use instance::{AsPyRef, Py, PyObjectWithToken};
 use err::{self, PyResult, PyErr};
 
@@ -129,7 +129,7 @@ impl PyFrozenSet {
 
     /// Determine if the set contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
+    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PySet_Contains(self.as_ptr(), key) {
                 1 => Ok(true),

@@ -101,18 +101,32 @@ impl PyTuple {
 }
 
 impl<'a> IntoPyTuple for &'a PyTuple {
+    fn to_tuple(&self, _py: Python) -> Py<PyTuple> {
+        let t: Py<PyTuple> = (*self).into();
+        t
+    }
     fn into_tuple(self, _py: Python) -> Py<PyTuple> {
         self.into()
     }
 }
 
 impl IntoPyTuple for Py<PyTuple> {
+    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
+        self.clone_ref(py)
+    }
     fn into_tuple(self, _py: Python) -> Py<PyTuple> {
         self
     }
 }
 
 impl<'a> IntoPyTuple for &'a str {
+    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
+        unsafe {
+            let ptr = ffi::PyTuple_New(1);
+            ffi::PyTuple_SetItem(ptr, 0, ToPyObject::to_object(self, py).into_ptr());
+            Py::from_owned_ptr_or_panic(ptr)
+        }
+    }
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         unsafe {
             let ptr = ffi::PyTuple_New(1);
@@ -122,11 +136,10 @@ impl<'a> IntoPyTuple for &'a str {
     }
 }
 
-fn wrong_tuple_length(py: Python, t: &PyTuple, expected_length: usize) -> PyErr {
+fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
     let msg = format!("Expected tuple of length {}, but got tuple of length {}.",
                       expected_length, t.len());
-    PyErr::new_lazy_init(
-        py.get_type::<exc::ValueError>(), Some(msg.into_object(py)))
+    exc::ValueError::new(msg)
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
@@ -149,7 +162,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl <$($T: IntoPyObject),+> IntoPyTuple for ($($T,)+) {
+    impl <$($T: ToPyObject + IntoPyObject),+> IntoPyTuple for ($($T,)+) {
+        fn to_tuple(&self, py: Python) -> Py<PyTuple> {
+            unsafe {
+                let ptr = ffi::PyTuple_New($length);
+                $(ffi::PyTuple_SetItem(ptr, $n, ToPyObject::to_object(&self.$n, py).into_ptr());)+;
+                Py::from_owned_ptr_or_panic(ptr)
+            }
+        }
         fn into_tuple(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
@@ -169,7 +189,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     $( try!(slice[$n].extract::<$T>(obj.py())), )+
                 ))
             } else {
-                Err(wrong_tuple_length(obj.py(), t, $length))
+                Err(wrong_tuple_length(t, $length))
             }
         }
     }
@@ -213,8 +233,8 @@ impl ToPyObject for NoArgs {
     }
 }
 
-impl IntoPyObject for NoArgs
-{
+impl IntoPyObject for NoArgs {
+
     fn into_object(self, py: Python) -> PyObject {
         PyTuple::empty(py).into()
     }
@@ -223,6 +243,10 @@ impl IntoPyObject for NoArgs
 /// Converts `NoArgs` to an empty Python tuple.
 impl IntoPyTuple for NoArgs {
 
+    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
+        PyTuple::empty(py)
+    }
+
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
     }
@@ -230,6 +254,10 @@ impl IntoPyTuple for NoArgs {
 
 /// Converts `()` to an empty Python tuple.
 impl IntoPyTuple for () {
+
+    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
+        PyTuple::empty(py)
+    }
 
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
@@ -244,7 +272,7 @@ pyobject_extract!(py, obj to NoArgs => {
     if t.len() == 0 {
         Ok(NoArgs)
     } else {
-        Err(wrong_tuple_length(obj.py(), t, 0))
+        Err(wrong_tuple_length(t, 0))
     }
 });
 

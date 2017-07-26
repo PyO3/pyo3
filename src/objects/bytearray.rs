@@ -98,7 +98,7 @@ mod test {
         assert_eq!(20, bytearray.len());
 
         let none = py.None();
-        if let Err(mut err) = PyByteArray::from(py, &none) {
+        if let Err(err) = PyByteArray::from(py, &none) {
             assert!(py.is_instance::<exc::TypeError, _>(&err.instance(py)).unwrap())
         } else {
             panic!("error");

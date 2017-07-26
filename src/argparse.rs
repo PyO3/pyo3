@@ -28,8 +28,7 @@ pub struct ParamDescription<'a> {
 /// * kwargs: Keyword arguments
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
-pub fn parse_args<'p>(py: Python<'p>,
-                      fname: Option<&str>, params: &[ParamDescription],
+pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
                       args: &'p PyTuple, kwargs: Option<&'p PyDict>,
                       accept_args: bool, accept_kwargs: bool,
                       output: &mut[Option<&'p PyObjectRef>]) -> PyResult<()>
@@ -40,7 +39,6 @@ pub fn parse_args<'p>(py: Python<'p>,
     let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
         return Err(err::PyErr::new::<exc::TypeError, _>(
-            py,
             format!("{}{} takes at most {} argument{} ({} given)",
                     fname.unwrap_or("function"),
                     if fname.is_some() { "()" } else { "" },
@@ -58,7 +56,6 @@ pub fn parse_args<'p>(py: Python<'p>,
                 used_keywords += 1;
                 if i < nargs {
                     return Err(err::PyErr::new::<exc::TypeError, _>(
-                        py,
                         format!("Argument given by name ('{}') and position ({})", p.name, i+1)));
                 }
             },
@@ -66,8 +63,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                 if p.kw_only {
                     if !p.is_optional {
                         return Err(err::PyErr::new::<exc::TypeError, _>(
-                            py, format!(
-                                "Required argument ('{}') is keyword only argument", p.name)));
+                            format!("Required argument ('{}') is keyword only argument", p.name)));
                     }
                     *out = None;
                 }
@@ -77,9 +73,7 @@ pub fn parse_args<'p>(py: Python<'p>,
                     *out = None;
                     if !p.is_optional {
                         return Err(err::PyErr::new::<exc::TypeError, _>(
-                            py,
-                            format!("Required argument ('{}') (pos {}) not found",
-                                    p.name, i+1)));
+                            format!("Required argument ('{}') (pos {}) not found", p.name, i+1)));
                     }
                 }
             }
@@ -92,7 +86,6 @@ pub fn parse_args<'p>(py: Python<'p>,
             let key = PyString::downcast_from(item.get_item(0))?.to_string()?;
             if !params.iter().any(|p| p.name == key) {
                 return Err(err::PyErr::new::<exc::TypeError, _>(
-                    py,
                     format!("'{}' is an invalid keyword argument for this function", key)));
             }
         }

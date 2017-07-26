@@ -17,8 +17,7 @@ pub struct PyIterator<'p>(&'p PyObjectRef);
 
 impl <'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
-    pub fn from_object<T>(py: Python<'p>, obj: T)
-                          -> Result<PyIterator<'p>, PyDowncastError<'p>>
+    pub fn from_object<T>(py: Python<'p>, obj: T) -> Result<PyIterator<'p>, PyDowncastError>
         where T: IntoPyPointer
     {
         unsafe {
@@ -27,7 +26,7 @@ impl <'p> PyIterator<'p> {
                 Ok(PyIterator(py.cast_from_ptr(ptr)))
             } else {
                 ffi::Py_DECREF(ptr);
-                Err(PyDowncastError(py, None))
+                Err(PyDowncastError)
             }
         }
     }

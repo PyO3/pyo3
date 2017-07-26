@@ -2,7 +2,7 @@
 use ffi;
 use object::PyObject;
 use python::{ToPyPointer, Python, PyDowncastFrom};
-use conversion::{ToPyObject, IntoPyObject};
+use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
 
 /// Represents a Python `bool`.
 pub struct PyBool(PyObject);
@@ -36,7 +36,9 @@ impl ToPyObject for bool {
                 py, if *self { ffi::Py_True() } else { ffi::Py_False() })
         }
     }
+}
 
+impl ToBorrowedObject for bool {
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R

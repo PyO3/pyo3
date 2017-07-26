@@ -9,7 +9,7 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use object::PyObject;
+use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
 use err::PyResult;
 use super::PyTuple;
@@ -18,8 +18,16 @@ macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
         pub struct $name;
 
-        // pyobject_newtype!($name);
-
+        impl std::convert::From<$name> for $crate::PyErr {
+            fn from(_err: $name) -> $crate::PyErr {
+                $crate::PyErr::new::<$name, _>(())
+            }
+        }
+        impl $name {
+            pub fn new<V: $crate::ToPyObject + 'static>(value: V) -> $crate::PyErr {
+                $crate::PyErr::new::<$name, V>(value)
+            }
+        }
         impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
             fn init_type() {}
@@ -116,12 +124,12 @@ exc_type!(WindowsError, PyExc_WindowsError);
 
 impl UnicodeDecodeError {
 
-    pub fn new(py: Python, encoding: &CStr, input: &[u8],
-               range: ops::Range<usize>, reason: &CStr) -> PyResult<PyObject> {
+    pub fn new_err<'p>(py: Python<'p>, encoding: &CStr, input: &[u8],
+                       range: ops::Range<usize>, reason: &CStr) -> PyResult<&'p PyObjectRef> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            PyObject::from_owned_ptr_or_err(
-                py, ffi::PyUnicodeDecodeError_Create(
+            py.cast_from_ptr_or_err(
+                ffi::PyUnicodeDecodeError_Create(
                     encoding.as_ptr(),
                     input.as_ptr(),
                     input.len() as ffi::Py_ssize_t,
@@ -131,11 +139,12 @@ impl UnicodeDecodeError {
         }
     }
 
-    pub fn new_utf8(py: Python, input: &[u8], err: std::str::Utf8Error)
-                        -> PyResult<PyObject>
+    pub fn new_utf8<'p>(py: Python<'p>, input: &[u8], err: std::str::Utf8Error)
+                        -> PyResult<&'p PyObjectRef>
     {
         let pos = err.valid_up_to();
-        UnicodeDecodeError::new(py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))
+        UnicodeDecodeError::new_err(
+            py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))
     }
 }
 

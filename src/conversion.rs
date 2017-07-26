@@ -16,13 +16,23 @@ pub trait ToPyObject {
     /// Converts self into a Python object.
     fn to_object(&self, py: Python) -> PyObject;
 
+}
+
+pub trait ToBorrowedObject: ToPyObject {
+
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
     ///
-    /// May be more efficient than `to_py_object` because it does not need
+    /// May be more efficient than `to_object` because it does not need
     /// to touch any reference counts when the input object already is a Python object.
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+        where F: FnOnce(*mut ffi::PyObject) -> R;
+}
+
+impl<T> ToBorrowedObject for T where T: ToPyObject {
+    #[inline]
+    default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
         let obj = self.to_object(py);
@@ -38,13 +48,15 @@ pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
     #[inline]
-    fn into_object(self, py: Python) -> PyObject
-        where Self: Sized;
+    fn into_object(self, py: Python) -> PyObject;
 }
 
 
 /// Conversion trait that allows various objects to be converted into `PyTuple` object.
 pub trait IntoPyTuple {
+
+    /// Converts self into a PyTuple object.
+    fn to_tuple(&self, py: Python) -> Py<PyTuple>;
 
     /// Converts self into a PyTuple object.
     fn into_tuple(self, py: Python) -> Py<PyTuple>;
@@ -104,12 +116,15 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
     fn to_object(&self, py: Python) -> PyObject {
         <T as ToPyObject>::to_object(*self, py)
     }
+}
+
+impl <'a, T: ?Sized> ToBorrowedObject for &'a T where T: ToBorrowedObject {
 
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
-        <T as ToPyObject>::with_borrowed_ptr(*self, py, f)
+        <T as ToBorrowedObject>::with_borrowed_ptr(*self, py, f)
     }
 }
 

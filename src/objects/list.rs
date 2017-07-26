@@ -8,7 +8,7 @@ use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::PyObjectRef;
 use python::{Python, ToPyPointer, IntoPyPointer};
-use conversion::{ToPyObject, IntoPyObject};
+use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
 
 /// Represents a Python `list`.
 pub struct PyList(PyObject);
@@ -77,7 +77,7 @@ impl PyList {
     }
 
     /// Appends an item at the list.
-    pub fn append<I>(&self, item: I) -> PyResult<()> where I: ToPyObject
+    pub fn append<I>(&self, item: I) -> PyResult<()> where I: ToBorrowedObject
     {
         item.with_borrowed_ptr(self.py(), |item| unsafe {
             err::error_on_minusone(
@@ -88,7 +88,7 @@ impl PyList {
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn insert<I>(&self, index: isize, item: I) -> PyResult<()> where I: ToPyObject
+    pub fn insert<I>(&self, index: isize, item: I) -> PyResult<()> where I: ToBorrowedObject
     {
         item.with_borrowed_ptr(self.py(), |item| unsafe {
             err::error_on_minusone(
@@ -148,7 +148,7 @@ impl <T> ToPyObject for Vec<T> where T: ToPyObject {
 
 }
 
-impl <T> IntoPyObject for Vec<T> where T: IntoPyObject {
+impl <T> IntoPyObject for Vec<T> where T: IntoPyObject + ToPyObject {
 
     fn into_object(self, py: Python) -> PyObject {
         unsafe {

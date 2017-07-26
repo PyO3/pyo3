@@ -20,7 +20,7 @@ impl class::PyBufferProtocol for TestClass {
 
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
-            return Err(PyErr::new::<exc::BufferError, _>(self.py(), "View is null"))
+            return Err(PyErr::new::<exc::BufferError, _>("View is null"))
         }
 
         unsafe {
@@ -28,7 +28,7 @@ impl class::PyBufferProtocol for TestClass {
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(PyErr::new::<exc::BufferError, _>(self.py(), "Object is not writable"))
+            return Err(PyErr::new::<exc::BufferError, _>("Object is not writable"))
         }
 
         let bytes = &self.vec;

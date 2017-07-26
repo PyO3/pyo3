@@ -50,7 +50,7 @@ macro_rules! int_fits_c_long(
             }
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.py()))
+                None => Err(exc::OverflowError.into())
             }
         });
     )
@@ -62,7 +62,7 @@ macro_rules! int_fits_larger_int(
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
-                (*self as $larger_type).to_object(py)
+                (*self as $larger_type).into_object(py)
             }
         }
         impl IntoPyObject for $rust_type {
@@ -74,7 +74,7 @@ macro_rules! int_fits_larger_int(
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.py()))
+                None => Err(exc::OverflowError.into())
             }
         });
     )
@@ -160,9 +160,6 @@ int_fits_larger_int!(usize, u64);
 // u64 has a manual implementation as it never fits into signed long
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
-fn overflow_error(py: Python) -> PyErr {
-    PyErr::new_lazy_init(py.get_type::<exc::OverflowError>(), None)
-}
 
 #[cfg(test)]
 mod test {

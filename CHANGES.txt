@@ -1,12 +1,14 @@
 Changes
 -------
 
-0.1.x (xx-xx-2017)
+0.2.x (xx-xx-2017)
 ^^^^^^^^^^^^^^^^^^
 
 * Added weakref support #56
 
 * Allow to add gc support without implementing PyGCProtocol #57
+
+* Refactor `PyErr` implementation. Drop `py` parameter from constructor.
 
 
 0.1.0 (07-23-2017)

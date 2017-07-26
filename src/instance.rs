@@ -325,8 +325,7 @@ impl<'a, T> std::convert::From<&'a mut T> for PyObject
 
 impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
 {
-    fn downcast_into<I>(py: Python, ob: I)
-                            -> Result<Self, PyDowncastError>
+    fn downcast_into<I>(_py: Python, ob: I) -> Result<Self, PyDowncastError>
         where I: IntoPyPointer
     {
         unsafe{
@@ -335,20 +334,20 @@ impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
                 Ok(Py::from_owned_ptr(ptr))
             } else {
                 ffi::Py_DECREF(ptr);
-                Err(PyDowncastError(py, None))
+                Err(PyDowncastError)
             }
         }
     }
 
-    fn downcast_into_from_ptr(py: Python, ptr: *mut ffi::PyObject)
-                                  -> Result<Self, PyDowncastError>
+    fn downcast_into_from_ptr(_py: Python, ptr: *mut ffi::PyObject)
+                              -> Result<Self, PyDowncastError>
     {
         unsafe{
             if T::is_instance(ptr) {
                 Ok(Py::from_owned_ptr(ptr))
             } else {
                 ffi::Py_DECREF(ptr);
-                Err(PyDowncastError(py, None))
+                Err(PyDowncastError)
             }
         }
     }

@@ -86,7 +86,7 @@ macro_rules! int_fits_c_long(
             }
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.py()))
+                None => Err(exc::OverflowError.into())
             }
         });
     )
@@ -110,7 +110,7 @@ macro_rules! int_fits_larger_int(
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
-                None => Err(overflow_error(obj.py()))
+                None => Err(exc::OverflowError.into())
             }
         });
     )
@@ -162,7 +162,7 @@ macro_rules! int_convert_u64_or_i64 (
                     } else if ffi::PyInt_Check(ptr) != 0 {
                         match cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
                             Some(v) => Ok(v),
-                            None => Err(overflow_error(obj.py()))
+                            None => Err(exc::OverflowError.into())
                         }
                     } else {
                         let num = PyObject::from_owned_ptr_or_err(
@@ -205,10 +205,6 @@ int_fits_larger_int!(usize, u64);
 
 // u64 has a manual implementation as it never fits into signed long
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
-
-fn overflow_error(py: Python) -> PyErr {
-    PyErr::new_lazy_init(py.get_type::<exc::OverflowError>(), None)
-}
 
 
 #[cfg(test)]

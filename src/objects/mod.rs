@@ -61,12 +61,11 @@ macro_rules! pyobject_downcast(
             /// Extracts `Self` from the source `PyObject`.
             fn extract(ob: &'a $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
-                use instance::PyObjectWithToken;
                 unsafe {
                     if $crate::ffi::$checkfunction(ob.as_ptr()) != 0 {
                         Ok($crate::std::mem::transmute(ob))
                     } else {
-                        Err($crate::PyDowncastError(ob.py(), None).into())
+                        Err($crate::PyDowncastError.into())
                     }
                 }
             }
@@ -168,7 +167,10 @@ macro_rules! pyobject_nativetype(
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }
+        }
 
+        impl $crate::ToBorrowedObject for $name
+        {
             #[inline]
             fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
                 where F: FnOnce(*mut $crate::ffi::PyObject) -> R

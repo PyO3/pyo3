@@ -64,6 +64,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
                     unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
+            }
+            impl _pyo3::ToBorrowedObject for #cls {
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
                     where F: FnOnce(*mut ffi::PyObject) -> R
@@ -76,6 +78,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
                     unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
+            }
+            impl<'a> _pyo3::ToBorrowedObject for &'a mut #cls {
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
                     where F: FnOnce(*mut ffi::PyObject) -> R

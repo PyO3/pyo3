@@ -656,7 +656,7 @@ impl PySequenceProtocol for Sequence {
 
     fn __getitem__(&self, key: isize) -> PyResult<isize> {
         if key == 5 {
-            return Err(PyErr::new::<exc::IndexError, NoArgs>(self.py(), NoArgs));
+            return Err(PyErr::new::<exc::IndexError, NoArgs>(NoArgs));
         }
         Ok(key)
     }

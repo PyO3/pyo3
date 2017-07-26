@@ -222,7 +222,6 @@ impl<T> PySequenceSetItemProtocolImpl for T
 
             if value.is_null() {
                 let e = PyErr::new::<exc::NotImplementedError, _>(
-                    py,
                     format!("Item deletion not supported by {:?}", stringify!(T)));
                 e.restore(py);
                 -1
@@ -283,7 +282,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                 }
             } else {
                 let e = PyErr::new::<exc::NotImplementedError, _>(
-                    py, format!("Item assignment not supported by {:?}", stringify!(T)));
+                    format!("Item assignment not supported by {:?}", stringify!(T)));
                 e.restore(py);
                 -1
             }

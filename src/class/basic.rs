@@ -365,7 +365,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
             let slf = py.cast_from_borrowed_ptr::<T>(slf);
             let arg = py.cast_from_borrowed_ptr::<PyObjectRef>(arg);
 
-            let res = match extract_op(py, op) {
+            let res = match extract_op(op) {
                 Ok(op) => match arg.extract() {
                     Ok(arg) =>
                         slf.__richcmp__(arg, op).into(),
@@ -388,7 +388,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
 }
 
 
-fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
+fn extract_op(op: c_int) -> PyResult<CompareOp> {
     match op {
         ffi::Py_LT => Ok(CompareOp::Lt),
         ffi::Py_LE => Ok(CompareOp::Le),
@@ -396,8 +396,7 @@ fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
         ffi::Py_NE => Ok(CompareOp::Ne),
         ffi::Py_GT => Ok(CompareOp::Gt),
         ffi::Py_GE => Ok(CompareOp::Ge),
-        _ => Err(PyErr::new_lazy_init(
-            py.get_type::<exc::ValueError>(),
-            Some("tp_richcompare called with invalid comparison operator".into_object(py))))
+        _ => Err(PyErr::new::<exc::ValueError, _>(
+            "tp_richcompare called with invalid comparison operator"))
     }
 }

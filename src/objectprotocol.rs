@@ -9,7 +9,7 @@ use err::{self, PyErr, PyResult};
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use object::PyObject;
 use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
-use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
+use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple, FromPyObject};
 use instance::PyObjectWithToken;
 
 
@@ -27,7 +27,7 @@ pub trait ObjectProtocol {
     /// Sets an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name = value'.
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
-        where N: ToPyObject, V: ToPyObject;
+        where N: ToBorrowedObject, V: ToBorrowedObject;
 
     /// Deletes an attribute.
     /// This is equivalent to the Python expression 'del self.attr_name'.
@@ -102,16 +102,16 @@ pub trait ObjectProtocol {
     fn len(&self) -> PyResult<usize>;
 
     /// This is equivalent to the Python expression: 'self[key]'
-    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToPyObject;
+    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToBorrowedObject;
 
     /// Sets an item value.
     /// This is equivalent to the Python expression 'self[key] = value'.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-        where K: ToPyObject, V: ToPyObject;
+        where K: ToBorrowedObject, V: ToBorrowedObject;
 
     /// Deletes an item.
     /// This is equivalent to the Python expression 'del self[key]'.
-    fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToPyObject;
+    fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToBorrowedObject;
 
     /// Takes an object and returns an iterator for it.
     /// This is typically a new iterator but if the argument
@@ -163,7 +163,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
     #[inline]
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
-        where N: ToPyObject, V: ToPyObject
+        where N: ToBorrowedObject, V: ToBorrowedObject
     {
         attr_name.with_borrowed_ptr(
             self.py(), move |attr_name|
@@ -203,7 +203,8 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
             } else if result < 0 {
                 return Err(PyErr::fetch(py));
             }
-            Err(PyErr::new::<::exc::TypeError, _>(py, "ObjectProtocol::compare(): All comparisons returned false"))
+            Err(::exc::TypeError::new(
+                "ObjectProtocol::compare(): All comparisons returned false"))
         }
 
         other.with_borrowed_ptr(self.py(), |other| unsafe {
@@ -308,7 +309,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[inline]
-    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToPyObject {
+    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             self.py().cast_from_ptr_or_err(
                 ffi::PyObject_GetItem(self.as_ptr(), key))
@@ -317,7 +318,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
     #[inline]
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-        where K: ToPyObject, V: ToPyObject
+        where K: ToBorrowedObject, V: ToBorrowedObject
     {
         key.with_borrowed_ptr(
             self.py(), move |key|
@@ -328,7 +329,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[inline]
-    fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToPyObject {
+   fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             err::error_on_minusone(
                 self.py(), ffi::PyObject_DelItem(self.as_ptr(), key))

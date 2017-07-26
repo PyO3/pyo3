@@ -40,7 +40,7 @@ impl<'p> PyMappingProtocol<'p> for Test
                 return Ok("int".into_object(self.py()))
             }
         }
-        Err(PyErr::new::<exc::ValueError, _>(self.py(), "error"))
+        Err(PyErr::new::<exc::ValueError, _>("error"))
     }
 }
 
