@@ -395,11 +395,12 @@ impl PyErr {
         }
     }
 
-    pub fn clone_ref(&mut self, py: Python) -> PyErr {
-        &self.normalize(py);
+    pub fn clone_ref(&self, py: Python) -> PyErr {
         let v = match self.pvalue {
-            PyErrValue::Value(ref instance) => PyErrValue::Value(instance.clone_ref(py)),
-            _ => PyErrValue::None,
+            PyErrValue::None => PyErrValue::None,
+            PyErrValue::Value(ref ob) => PyErrValue::Value(ob.clone_ref(py)),
+            PyErrValue::ToArgs(ref ob) => PyErrValue::Value(ob.arguments(py)),
+            PyErrValue::ToObject(ref ob) => PyErrValue::Value(ob.to_object(py)),
         };
 
         let t = if let Some(ref val) = self.ptraceback { Some(val.clone_ref(py))} else { None };

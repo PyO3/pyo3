@@ -56,9 +56,6 @@ pub trait IntoPyObject {
 pub trait IntoPyTuple {
 
     /// Converts self into a PyTuple object.
-    fn to_tuple(&self, py: Python) -> Py<PyTuple>;
-
-    /// Converts self into a PyTuple object.
     fn into_tuple(self, py: Python) -> Py<PyTuple>;
 
 }

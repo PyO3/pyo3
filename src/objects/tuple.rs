@@ -101,32 +101,18 @@ impl PyTuple {
 }
 
 impl<'a> IntoPyTuple for &'a PyTuple {
-    fn to_tuple(&self, _py: Python) -> Py<PyTuple> {
-        let t: Py<PyTuple> = (*self).into();
-        t
-    }
     fn into_tuple(self, _py: Python) -> Py<PyTuple> {
         self.into()
     }
 }
 
 impl IntoPyTuple for Py<PyTuple> {
-    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
-        self.clone_ref(py)
-    }
     fn into_tuple(self, _py: Python) -> Py<PyTuple> {
         self
     }
 }
 
 impl<'a> IntoPyTuple for &'a str {
-    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
-        unsafe {
-            let ptr = ffi::PyTuple_New(1);
-            ffi::PyTuple_SetItem(ptr, 0, ToPyObject::to_object(self, py).into_ptr());
-            Py::from_owned_ptr_or_panic(ptr)
-        }
-    }
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         unsafe {
             let ptr = ffi::PyTuple_New(1);
@@ -162,14 +148,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl <$($T: ToPyObject + IntoPyObject),+> IntoPyTuple for ($($T,)+) {
-        fn to_tuple(&self, py: Python) -> Py<PyTuple> {
-            unsafe {
-                let ptr = ffi::PyTuple_New($length);
-                $(ffi::PyTuple_SetItem(ptr, $n, ToPyObject::to_object(&self.$n, py).into_ptr());)+;
-                Py::from_owned_ptr_or_panic(ptr)
-            }
-        }
+    impl <$($T: IntoPyObject),+> IntoPyTuple for ($($T,)+) {
         fn into_tuple(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
@@ -243,10 +222,6 @@ impl IntoPyObject for NoArgs {
 /// Converts `NoArgs` to an empty Python tuple.
 impl IntoPyTuple for NoArgs {
 
-    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
-        PyTuple::empty(py)
-    }
-
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
     }
@@ -254,10 +229,6 @@ impl IntoPyTuple for NoArgs {
 
 /// Converts `()` to an empty Python tuple.
 impl IntoPyTuple for () {
-
-    fn to_tuple(&self, py: Python) -> Py<PyTuple> {
-        PyTuple::empty(py)
-    }
 
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
