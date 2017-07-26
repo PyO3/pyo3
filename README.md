@@ -34,7 +34,7 @@ Example program displaying the value of `sys.version`:
 ```rust
 extern crate pyo3;
 
-use pyo3::{Python, PyDict, PyResult};
+use pyo3::{Python, PyDict, PyResult, ObjectProtocol};
 
 fn main() {
     let gil = Python::acquire_gil();
