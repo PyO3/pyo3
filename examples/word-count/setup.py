@@ -29,7 +29,7 @@ class PyTest(TestCommand):
 
 setup_requires = ['setuptools-rust>=0.6.0']
 install_requires = []
-tests_require = install_requires + ['pytest']
+tests_require = install_requires + ['pytest', 'pytest-benchmark']
 
 setup(
     name='word-count',

@@ -7,12 +7,8 @@ extern crate rayon;
 use std::fs::File;
 use std::io::prelude::*;
 
-use rayon::iter::{ParallelIterator, IntoParallelIterator};
+use rayon::prelude::*;
 use pyo3::{py, PyResult, Python, PyModule, ToPyErr};
-
-fn lines(corpus: &str) -> Vec<&str> {
-    corpus.lines().collect()
-}
 
 fn matches(word: &str, search: &str) -> bool {
     let mut search = search.chars();
@@ -39,14 +35,14 @@ fn wc_line(line: &str, search: &str) -> i32 {
     total
 }
 
-// fn wc_sequential(lines: &[&str], search: &str) -> i32 {
-//     lines.into_iter()
-//          .map(|line| wc_line(line, search))
-//          .fold(0, |sum, line| sum + line)
-// }
+fn wc_sequential(lines: &str, search: &str) -> i32 {
+    lines.lines()
+         .map(|line| wc_line(line, search))
+         .fold(0, |sum, line| sum + line)
+}
 
-fn wc_parallel(lines: &[&str], search: &str) -> i32 {
-    lines.into_par_iter()
+fn wc_parallel(lines: &str, search: &str) -> i32 {
+    lines.par_lines()
          .map(|line| wc_line(line, search))
          .sum()
 }
@@ -60,8 +56,16 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
         let mut contents = String::new();
         file.read_to_string(&mut contents).map_err(|e| e.to_pyerr(py))?;
 
-        let count = py.allow_threads(move || wc_parallel(&lines(&contents), &search));
+        let count = py.allow_threads(move || wc_parallel(&contents, &search));
         Ok(count)
+    }
+
+    #[pyfn(m, "search_sequential")]
+    fn search_sequential(py: Python, path: String, search: String) -> PyResult<i32> {
+        let mut file = File::open(path).map_err(|e| e.to_pyerr(py))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).map_err(|e| e.to_pyerr(py))?;
+        Ok(wc_sequential(&contents, &search))
     }
 
     Ok(())
