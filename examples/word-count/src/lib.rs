@@ -39,11 +39,11 @@ fn wc_line(line: &str, search: &str) -> i32 {
     total
 }
 
-// fn wc_sequential(lines: &[&str], search: &str) -> i32 {
-//     lines.into_iter()
-//          .map(|line| wc_line(line, search))
-//          .fold(0, |sum, line| sum + line)
-// }
+fn wc_sequential(lines: &[&str], search: &str) -> i32 {
+    lines.into_iter()
+         .map(|line| wc_line(line, search))
+         .fold(0, |sum, line| sum + line)
+}
 
 fn wc_parallel(lines: &[&str], search: &str) -> i32 {
     lines.into_par_iter()
@@ -62,6 +62,14 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
         let count = py.allow_threads(move || wc_parallel(&lines(&contents), &search));
         Ok(count)
+    }
+
+    #[pyfn(m, "search_sequential")]
+    fn search_sequential(py: Python, path: String, search: String) -> PyResult<i32> {
+        let mut file = File::open(path).map_err(|e| e.to_pyerr(py))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).map_err(|e| e.to_pyerr(py))?;
+        Ok(wc_sequential(&lines(&contents), &search))
     }
 
     Ok(())
