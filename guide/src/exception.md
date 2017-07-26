@@ -44,7 +44,7 @@ use pyo3::{Python, PyErr, exc};
 fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    PyErr::new_lazy_init(py.get_type::<exc::TypeError>(), None).restore(py);
+    PyErr::new::<exc::TypeError, _>("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
 }
@@ -92,11 +92,13 @@ This is an alias for the type `Result<T, PyErr>`.
 A [`PyErr`](https://pyo3.github.io/PyO3/pyo3/struct.PyErr.html) represents a Python exception.
 Errors within the `PyO3` library are also exposed as Python exceptions.
 
-The [`ToPyErr`](https://pyo3.github.io/PyO3/pyo3/trait.ToPyErr.html) trait provides a way to convert Rust errors to Python exceptions.
+To handle rust errors, `std::convert::From<T>` and [`ToPyErr`](https://pyo3.github.io/PyO3/pyo3/trait.ToPyErr.html) 
+traits need to be implemented for `PyErr`. The [`ToPyErr`](https://pyo3.github.io/PyO3/pyo3/trait.ToPyErr.html) trait provides 
+a way to convert Rust errors arguments to Python exception arguments.
 
 ```rust
 pub trait ToPyErr {
-    fn to_pyerr(&self, _: Python) -> PyErr;
+    fn arguments(&self, _: Python) -> PyObject;
 }
 ```
 
@@ -104,11 +106,27 @@ It's implemented for most of the standard library's error types so that you use 
 transform errors to Python exceptions as well as taking advantage of `try!` macro or `?` operator.
 
 ```rust
-use pyo3::{PyResult, ToPyErr};
+use std;
+use std::net::TcpListener;
+use pyo3::{PyErr, PyResult, ToPyErr, exc};
 
-fn parse_int(py: Python, s: String) -> PyResult<usize> {
-    Ok(s.parse::<usize>().map_err(|e| e.to_pyerr(py))?)
+impl std::convert::From<std::io::Error> for PyErr {
+    fn from(err: std::io::Error) -> PyErr {
+        PyErr::from_value::<exc::OSError>(PyErrValue::ToErr(Box::new(err)))
+    }
+}
+
+impl ToPyErr for std::io::Error {
+    fn arguments(&self, py: Python) -> PyObject {
+        (self.raw_os_error().unwrap_or(0), self.description()).to_object(py)
+    }
+}
+
+fn connect(py: Python, s: String) -> PyResult<bool> {
+    TcpListener::bind("127.0.0.1:80")?;
+
+    Ok(true)
 }
 ```
 
-The code snippet above will raise `ValueError` in Python if `String::parse()` return an error.
+The code snippet above will raise `OSError` in Python if `TcpListener::bind()` return an error.

@@ -9,33 +9,35 @@ use std::{self, mem, ops};
 use std::ffi::CStr;
 
 use ffi;
-use objects::PyObjectRef;
+use instance::Py;
+use err::{PyErr, PyResult};
 use python::{Python, ToPyPointer};
-use err::PyResult;
-use super::PyTuple;
+use objects::{PyTuple, PyType, PyObjectRef};
+use typeob::PyTypeObject;
+use conversion::ToPyObject;
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
         pub struct $name;
 
-        impl std::convert::From<$name> for $crate::PyErr {
-            fn from(_err: $name) -> $crate::PyErr {
-                $crate::PyErr::new::<$name, _>(())
+        impl std::convert::From<$name> for PyErr {
+            fn from(_err: $name) -> PyErr {
+                PyErr::new::<$name, _>(())
             }
         }
         impl $name {
-            pub fn new<V: $crate::ToPyObject + 'static>(value: V) -> $crate::PyErr {
-                $crate::PyErr::new::<$name, V>(value)
+            pub fn new<V: ToPyObject + 'static>(args: V) -> PyErr {
+                PyErr::new::<$name, V>(args)
             }
         }
-        impl $crate::typeob::PyTypeObject for $name {
+        impl PyTypeObject for $name {
             #[inline(always)]
             fn init_type() {}
 
             #[inline]
-            fn type_object() -> $crate::Py<$crate::PyType> {
+            fn type_object() -> Py<PyType> {
                 unsafe {
-                    $crate::Py::from_borrowed_ptr(ffi::$exc_name)
+                    Py::from_borrowed_ptr(ffi::$exc_name)
                 }
             }
         }
