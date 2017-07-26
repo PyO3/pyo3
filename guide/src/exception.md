@@ -92,18 +92,16 @@ This is an alias for the type `Result<T, PyErr>`.
 A [`PyErr`](https://pyo3.github.io/PyO3/pyo3/struct.PyErr.html) represents a Python exception.
 Errors within the `PyO3` library are also exposed as Python exceptions.
 
-To handle rust errors, `std::convert::From<T>` and [`ToPyErr`](https://pyo3.github.io/PyO3/pyo3/trait.ToPyErr.html) 
-traits need to be implemented for `PyErr`. The [`ToPyErr`](https://pyo3.github.io/PyO3/pyo3/trait.ToPyErr.html) trait provides 
-a way to convert Rust errors arguments to Python exception arguments.
+PyO3 library handles python exception in two stages. During first stage `PyErr` instance get
+created. At this stage python gil is not required. During second stage, actual python
+exception instance get crated and set to python interpreter.
 
-```rust
-pub trait ToPyErr {
-    fn arguments(&self, _: Python) -> PyObject;
-}
-```
-
-It's implemented for most of the standard library's error types so that you use [`Result::map_err()`](https://doc.rust-lang.org/std/result/enum.Result.html#method.map_err) to
-transform errors to Python exceptions as well as taking advantage of `try!` macro or `?` operator.
+In simple case, for custom errors support implementation of `std::convert::From<T>` trait
+for this custom error is enough. `PyErr::new` accepts arguments in form
+of `ToPyObject + 'static`. In case if `'static` constraint can not be satisfied or
+more complex arguments are required [`PyErrArgument`](https://pyo3.github.io/PyO3/pyo3/trait.PyErrArguments.html)
+trait can be implemented. In that case actual exception arguments creation get delayed
+until `Python` object is available.
 
 ```rust
 use std;
@@ -112,13 +110,7 @@ use pyo3::{PyErr, PyResult, ToPyErr, exc};
 
 impl std::convert::From<std::io::Error> for PyErr {
     fn from(err: std::io::Error) -> PyErr {
-        PyErr::from_value::<exc::OSError>(PyErrValue::ToErr(Box::new(err)))
-    }
-}
-
-impl ToPyErr for std::io::Error {
-    fn arguments(&self, py: Python) -> PyObject {
-        (self.raw_os_error().unwrap_or(0), self.description()).to_object(py)
+        exc::OSError.into()
     }
 }
 
@@ -130,3 +122,16 @@ fn connect(py: Python, s: String) -> PyResult<bool> {
 ```
 
 The code snippet above will raise `OSError` in Python if `TcpListener::bind()` return an error.
+
+`std::convert::From<T>` trait is implemented for most of the standard library's error
+types so `try!` macro or `?` operator can be used.
+
+```rust
+use pyo3::{PyResult, ToPyErr};
+
+fn parse_int(py: Python, s: String) -> PyResult<usize> {
+    Ok(s.parse::<usize>()?)
+}
+```
+
+The code snippet above will raise `ValueError` in Python if `String::parse()` return an error.

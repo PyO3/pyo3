@@ -103,7 +103,7 @@ macro_rules! py_exception {
 pub enum PyErrValue {
     None,
     Value(PyObject),
-    ToErr(Box<ToPyErr>),
+    ToErr(Box<PyErrArguments>),
     ToObject(Box<ToPyObject>),
     ToTuple(Box<IntoPyTuple>),
 }
@@ -112,32 +112,30 @@ pub enum PyErrValue {
 pub struct PyErr {
     /// The type of the exception. This should be either a `PyClass` or a `PyType`.
     pub ptype: Py<PyType>,
+
     /// The value of the exception.
     ///
-    /// This can be either an instance of `ptype`,
+    /// This can be either an instance of `PyObject`,
     /// a tuple of arguments to be passed to `ptype`'s constructor,
     /// or a single argument to be passed to `ptype`'s constructor.
     /// Call `PyErr::instance()` to get the exception instance in all cases.
     pub pvalue: PyErrValue,
+
     /// The `PyTraceBack` object associated with the error.
     pub ptraceback: Option<PyObject>,
 }
 
-
 /// Represents the result of a Python call.
 pub type PyResult<T> = Result<T, PyErr>;
-
 
 /// Marker type that indicates an error while downcasting
 pub struct PyDowncastError;
 
-
-/// Conversion trait that allows various errors to be converted into `PyErr`
-pub trait ToPyErr {
+/// Helper conversion trait that allows to use custom arguments for exception constructor.
+pub trait PyErrArguments {
     /// Arguments for exception
     fn arguments(&self, Python) -> PyObject;
 }
-
 
 impl PyErr {
     /// Creates a new PyErr of type `T`.
@@ -425,7 +423,7 @@ impl std::fmt::Debug for PyErr {
 /// Converts `PyDowncastError` to Python `TypeError`.
 impl std::convert::From<PyDowncastError> for PyErr {
     fn from(_err: PyDowncastError) -> PyErr {
-        PyErr::new::<exc::TypeError, _>(())
+        exc::TypeError.into()
     }
 }
 
@@ -445,17 +443,15 @@ impl std::convert::From<PyErr> for std::io::Error {
 
 macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
-        impl $crate::ToPyErr for $err {
-            fn arguments(&self, py: $crate::Python) -> PyObject {
+        impl PyErrArguments for $err {
+            fn arguments(&self, py: Python) -> PyObject {
                 self.description().to_object(py)
             }
         }
 
-        impl $crate::std::convert::From<$err> for $crate::PyErr {
-            fn from(err: $err) -> $crate::PyErr {
-                $crate::PyErr::from_value::<$pyexc>(
-                    $crate::err::PyErrValue::ToErr(Box::new(err))
-                )
+        impl std::convert::From<$err> for PyErr {
+            fn from(err: $err) -> PyErr {
+                PyErr::from_value::<$pyexc>(PyErrValue::ToErr(Box::new(err)))
             }
         }
     }
@@ -498,7 +494,7 @@ impl std::convert::From<io::Error> for PyErr {
 
 
 /// Extract `errno` and `errdesc` from from `io::Error`
-impl ToPyErr for io::Error {
+impl PyErrArguments for io::Error {
     fn arguments(&self, py: Python) -> PyObject {
         (self.raw_os_error().unwrap_or(0), self.description()).to_object(py)
     }
@@ -511,7 +507,7 @@ impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerE
     }
 }
 
-impl<W: Send + std::fmt::Debug> ToPyErr for std::io::IntoInnerError<W> {
+impl<W: Send + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
     fn arguments(&self, py: Python) -> PyObject {
         self.description().to_object(py)
     }

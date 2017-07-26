@@ -150,7 +150,7 @@ pub mod ffi {
     pub use ffi3::*;
 }
 
-pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, ToPyErr};
+pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use object::PyObject;
