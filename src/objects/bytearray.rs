@@ -99,7 +99,7 @@ mod test {
 
         let none = py.None();
         if let Err(err) = PyByteArray::from(py, &none) {
-            assert!(py.is_instance::<exc::TypeError, _>(&err.instance(py)).unwrap())
+            assert!(err.is_instance::<exc::TypeError>(py));
         } else {
             panic!("error");
         }

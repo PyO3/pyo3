@@ -283,6 +283,14 @@ impl IntoPyObject for PyObject
     }
 }
 
+impl<'a> IntoPyObject for &'a PyObject
+{
+    #[inline]
+    fn into_object(self, py: Python) -> PyObject {
+        unsafe {PyObject::from_borrowed_ptr(py, self.as_ptr())}
+    }
+}
+
 impl<'a> FromPyObject<'a> for PyObject
 {
     #[inline]

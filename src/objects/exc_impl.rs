@@ -122,7 +122,7 @@ mod test {
 
         let d = PyDict::new(py);
         d.set_item("socket", py.import("socket").unwrap()).unwrap();
-        d.set_item("exc", err.instance(py)).unwrap();
+        d.set_item("exc", err).unwrap();
 
         py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap();
     }

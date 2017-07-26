@@ -12,7 +12,7 @@ use object::PyObject;
 use objects::{PyObjectRef, PyType, exc};
 use instance::Py;
 use typeob::PyTypeObject;
-use conversion::{ToPyObject, ToBorrowedObject};
+use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
 
 /// Defines a new exception type.
 ///
@@ -360,7 +360,7 @@ impl PyErr {
     /// Retrieves the exception instance for this error.
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    pub fn instance(mut self, py: Python) -> PyObject {
+    fn instance(mut self, py: Python) -> PyObject {
         &self.normalize(py);
         match self.pvalue {
             PyErrValue::Value(ref instance) => instance.clone_ref(py),
@@ -422,6 +422,29 @@ impl PyErr {
 impl std::fmt::Debug for PyErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         f.write_str(format!("PyErr {{ type: {:?} }}", self.ptype).as_str())
+    }
+}
+
+impl IntoPyObject for PyErr {
+
+    fn into_object(self, py: Python) -> PyObject {
+        self.instance(py)
+    }
+}
+
+impl ToPyObject for PyErr {
+
+    fn to_object(&self, py: Python) -> PyObject {
+        let err = self.clone_ref(py);
+        err.instance(py)
+    }
+}
+
+impl<'a> IntoPyObject for &'a PyErr {
+
+    fn into_object(self, py: Python) -> PyObject {
+        let err = self.clone_ref(py);
+        err.instance(py)
     }
 }
 
