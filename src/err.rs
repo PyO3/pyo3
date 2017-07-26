@@ -12,7 +12,7 @@ use object::PyObject;
 use objects::{PyObjectRef, PyType, exc};
 use instance::Py;
 use typeob::PyTypeObject;
-use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple};
+use conversion::{ToPyObject, ToBorrowedObject};
 
 /// Defines a new exception type.
 ///
@@ -102,9 +102,8 @@ macro_rules! py_exception {
 pub enum PyErrValue {
     None,
     Value(PyObject),
-    ToErr(Box<PyErrArguments>),
+    ToArgs(Box<PyErrArguments>),
     ToObject(Box<ToPyObject>),
-    ToTuple(Box<IntoPyTuple>),
 }
 
 /// Represents a Python exception that was raised.
@@ -163,16 +162,14 @@ impl PyErr {
 
     /// Construct a new error, with the usual lazy initialization of Python exceptions.
     /// `exc` is the exception type; usually one of the standard exceptions
-    /// like `exc::RuntimeError::type_info()`.
+    /// like `exc::RuntimeError`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
-    ///
-    /// Panics if `T` is not a python class derived from `BaseException`.
     pub fn from_type<A>(exc: Py<PyType>, args: A) -> PyErr
-        where A: IntoPyTuple + 'static
+        where A: ToPyObject + 'static
     {
         PyErr {
             ptype: exc,
-            pvalue: PyErrValue::ToTuple(Box::new(args)),
+            pvalue: PyErrValue::ToObject(Box::new(args)),
             ptraceback: None,
         }
     }
@@ -315,6 +312,16 @@ impl PyErr {
         })
     }
 
+    /// Return true if the current exception is instance of `T`
+    pub fn is_instance<T>(&self, _py: Python) -> bool
+        where T: PyTypeObject
+    {
+        unsafe {
+            ffi::PyErr_GivenExceptionMatches(
+                self.ptype.as_ptr(), T::type_object().as_ptr()) != 0
+        }
+    }
+
     /// Normalizes the error. This ensures that the exception value is an instance of the exception type.
     pub fn normalize(&mut self, py: Python) {
         // The normalization helper function involves temporarily moving out of the &mut self,
@@ -333,9 +340,8 @@ impl PyErr {
         let mut pvalue = match pvalue {
             PyErrValue::None => std::ptr::null_mut(),
             PyErrValue::Value(ob) => ob.into_ptr(),
-            PyErrValue::ToErr(ob) => ob.arguments(py).into_ptr(),
+            PyErrValue::ToArgs(ob) => ob.arguments(py).into_ptr(),
             PyErrValue::ToObject(ob) => ob.to_object(py).into_ptr(),
-            PyErrValue::ToTuple(ob) => ob.to_tuple(py).into_ptr(),
         };
 
         let mut ptype = ptype.into_ptr();
@@ -371,9 +377,8 @@ impl PyErr {
         let pvalue = match pvalue {
             PyErrValue::None => std::ptr::null_mut(),
             PyErrValue::Value(ob) => ob.into_ptr(),
-            PyErrValue::ToErr(ob) => ob.arguments(py).into_ptr(),
+            PyErrValue::ToArgs(ob) => ob.arguments(py).into_ptr(),
             PyErrValue::ToObject(ob) => ob.to_object(py).into_ptr(),
-            PyErrValue::ToTuple(ob) => ob.to_tuple(py).into_ptr(),
         };
         unsafe {
             ffi::PyErr_Restore(ptype.into_ptr(), pvalue, ptraceback.into_ptr())
@@ -450,7 +455,7 @@ macro_rules! impl_to_pyerr {
 
         impl std::convert::From<$err> for PyErr {
             fn from(err: $err) -> PyErr {
-                PyErr::from_value::<$pyexc>(PyErrValue::ToErr(Box::new(err)))
+                PyErr::from_value::<$pyexc>(PyErrValue::ToArgs(Box::new(err)))
             }
         }
     }
@@ -462,23 +467,26 @@ impl std::convert::From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         match err.kind() {
             io::ErrorKind::BrokenPipe =>
-                PyErr::from_value::<exc::BrokenPipeError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::BrokenPipeError>(PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::ConnectionRefused =>
-                PyErr::from_value::<exc::ConnectionRefusedError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::ConnectionRefusedError>(
+                    PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::ConnectionAborted =>
-                PyErr::from_value::<exc::ConnectionAbortedError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::ConnectionAbortedError>(
+                    PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::ConnectionReset =>
-                PyErr::from_value::<exc::ConnectionResetError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::ConnectionResetError>(
+                    PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::Interrupted =>
-                PyErr::from_value::<exc::InterruptedError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::InterruptedError>(PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::NotFound =>
-                PyErr::from_value::<exc::FileNotFoundError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::FileNotFoundError>(PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::WouldBlock =>
-                PyErr::from_value::<exc::BlockingIOError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::BlockingIOError>(PyErrValue::ToArgs(Box::new(err))),
             io::ErrorKind::TimedOut =>
-                PyErr::from_value::<exc::TimeoutError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::TimeoutError>(PyErrValue::ToArgs(Box::new(err))),
             _ =>
-                PyErr::from_value::<exc::OSError>(PyErrValue::ToErr(Box::new(err))),
+                PyErr::from_value::<exc::OSError>(PyErrValue::ToArgs(Box::new(err))),
         }
     }
 }
@@ -487,7 +495,7 @@ impl std::convert::From<io::Error> for PyErr {
 /// Create `OSError` from `io::Error`
 impl std::convert::From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
-        PyErr::from_value::<exc::OSError>(PyErrValue::ToErr(Box::new(err)))
+        PyErr::from_value::<exc::OSError>(PyErrValue::ToArgs(Box::new(err)))
     }
 }
 
@@ -502,7 +510,7 @@ impl PyErrArguments for io::Error {
 impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>> for PyErr
 {
     fn from(err: std::io::IntoInnerError<W>) -> PyErr {
-        PyErr::from_value::<exc::OSError>(PyErrValue::ToErr(Box::new(err)))
+        PyErr::from_value::<exc::OSError>(PyErrValue::ToArgs(Box::new(err)))
     }
 }
 

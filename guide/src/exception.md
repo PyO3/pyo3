@@ -56,6 +56,23 @@ If you already have a Python exception instance, you can simply call [`PyErr::fr
 PyErr::from_instance(py, err).restore(py);
 ```
 
+If rust type exists for exception, then it is possible to use `new` method.
+For example each standard exception defined in `exc` module
+has corresponding rust type, exceptions defined by `py_exception!` and `import_exception!` macro
+have rust type as well.
+
+```rust
+
+fn my_func(arg: PyObject) -> PyResult<()> {
+    if check_for_error() {
+        Err(exc::ValueError::new("argument is wrong"))
+    } else {
+        Ok(())
+    }
+}
+
+```
+
 ## Check exception type
 
 Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check object type,

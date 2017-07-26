@@ -92,7 +92,7 @@
 //!     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
 //!     // Python objects to Rust values; and the Rust return value back into a Python object.
 //!     #[pyfn(m, "run_rust_func")]
-//!     fn run(py: Python, name: &PyString) -> PyResult<()> {
+//!     fn run(name: &PyString) -> PyResult<()> {
 //!         println!("Rust says: Hello {} of Python!", name);
 //!         Ok(())
 //!     }

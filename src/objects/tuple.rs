@@ -264,7 +264,6 @@ impl IntoPyTuple for () {
     }
 }
 
-
 /// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
 /// Otherwise, returns an error.
 pyobject_extract!(py, obj to NoArgs => {
