@@ -144,9 +144,9 @@ The code snippet above will raise `OSError` in Python if `TcpListener::bind()` r
 types so `try!` macro or `?` operator can be used.
 
 ```rust
-use pyo3::{PyResult, ToPyErr};
+use pyo3::*;
 
-fn parse_int(py: Python, s: String) -> PyResult<usize> {
+fn parse_int(s: String) -> PyResult<usize> {
     Ok(s.parse::<usize>()?)
 }
 ```
@@ -161,7 +161,7 @@ It is possible to use exception defined in python code as native rust types.
 for that exception.
 
 ```rust
-use pyo3::{PyErr, PyResult, ToPyErr, exc};
+use pyo3::{PyErr, PyResult, exc};
 
 import_exception!(asyncio, CancelledError)
 

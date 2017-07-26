@@ -81,8 +81,8 @@ pub trait PyNativeException {
     /// Name of exception
     const NAME: &'static str;
 
-    fn new<S: PyTypeObject, T: ToPyObject + 'static>(args: T) -> PyErr {
-        PyErr::new::<S, T>(args)
+    fn new<T: ToPyObject + 'static>(args: T) -> PyErr where Self: PyTypeObject + Sized {
+        PyErr::new::<Self, T>(args)
     }
 
     fn type_object_ptr() -> *mut ffi::PyTypeObject {
