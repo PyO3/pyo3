@@ -9,7 +9,7 @@ use std::os::raw::c_int;
 
 use ffi;
 use typeob::{PyTypeInfo, PyTypeObject, PyObjectAlloc};
-use instance::{Py, PyToken, PyObjectWithToken};
+use instance::{Py, PyToken, PyObjectWithToken, AsPyRef};
 use object::PyObject;
 use objects::{PyObjectRef, PyType, PyDict, PyModule};
 use err::{PyErr, PyResult, PyDowncastError, ToPyErr};
@@ -231,7 +231,7 @@ impl<'p> Python<'p> {
 
     /// Gets the Python type object for type `T`.
     pub fn get_type<T>(self) -> &'p PyType where T: PyTypeObject {
-        T::type_object(self)
+        unsafe{ self.cast_from_borrowed_ptr(T::type_object().into_ptr()) }
     }
 
     /// Import the Python module with the specified name.
@@ -241,7 +241,7 @@ impl<'p> Python<'p> {
 
     /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
     pub fn is_instance<T: PyTypeObject, V: ToPyPointer>(self, obj: &V) -> PyResult<bool> {
-        T::type_object(self).is_instance(obj)
+        T::type_object().as_ref(self).is_instance(obj)
     }
 
     /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
@@ -249,7 +249,7 @@ impl<'p> Python<'p> {
         where T: PyTypeObject,
               U: PyTypeObject
     {
-        T::type_object(self).is_subclass::<U>()
+        T::type_object().as_ref(self).is_subclass::<U>()
     }
 
     /// Gets the Python builtin value `None`.

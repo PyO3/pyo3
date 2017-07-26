@@ -101,6 +101,14 @@ impl PyBytes {
         }
     }
 
+    /// Creates a new Python byte string object from raw pointer.
+    ///
+    /// Panics if out of memory.
+    pub unsafe fn from_ptr(_py: Python, ptr: *const u8, len: usize) -> Py<PyBytes> {
+        Py::from_owned_ptr_or_panic(
+            ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize))
+    }
+
     /// Gets the Python string data as byte slice.
     pub fn data(&self) -> &[u8] {
         unsafe {

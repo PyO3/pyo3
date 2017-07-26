@@ -56,16 +56,19 @@ macro_rules! py_exception {
                 $crate::PyErr::new::<$name, T>(py, args)
             }
             #[inline(always)]
-            fn type_object(py: $crate::Python) -> *mut $crate::ffi::PyTypeObject {
+            fn type_object() -> *mut $crate::ffi::PyTypeObject {
                 #[allow(non_upper_case_globals)]
                 static mut type_object: *mut $crate::ffi::PyTypeObject =
                     0 as *mut $crate::ffi::PyTypeObject;
 
                 unsafe {
                     if type_object.is_null() {
+                        let gil = $crate::Python::acquire_gil();
+                        let py = gil.python();
+
                         type_object = $crate::PyErr::new_type(
                             py, concat!(stringify!($module), ".", stringify!($name)),
-                            Some(py.get_type::<$base>()), None).as_type_ptr();
+                            Some(py.get_type::<$base>()), None);
                     }
                     type_object
                 }
@@ -74,13 +77,13 @@ macro_rules! py_exception {
 
         impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
-            fn init_type(py: $crate::Python) {
-                let _ = $name::type_object(py);
+            fn init_type() {
+                let _ = $name::type_object();
             }
 
             #[inline]
-            fn type_object<'p>(py: $crate::Python<'p>) -> &'p $crate::PyType {
-                unsafe { $crate::PyType::from_type_ptr(py, $name::type_object(py)) }
+            fn type_object() -> $crate::Py<$crate::PyType> {
+                unsafe { $crate::PyType::new($name::type_object()) }
             }
         }
     };
@@ -143,9 +146,9 @@ impl PyErr {
     ///
     /// `base` can be an existing exception type to subclass, or a tuple of classes
     /// `dict` specifies an optional dictionary of class variables and methods
-    pub fn new_type<'p>(py: Python<'p>,
+    pub fn new_type<'p>(_py: Python<'p>,
                         name: &str, base: Option<&PyType>, dict: Option<PyObject>)
-                        -> &'p PyType
+                        -> *mut ffi::PyTypeObject
     {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
@@ -159,10 +162,8 @@ impl PyErr {
 
         unsafe {
             let null_terminated_name = CString::new(name).expect("Failed to initialize nul terminated exception name");
-            let ptr = ffi::PyErr_NewException(
-                null_terminated_name.as_ptr() as *mut c_char, base, dict)
-                as *mut ffi::PyTypeObject;
-            PyType::from_type_ptr(py, ptr)
+            ffi::PyErr_NewException(null_terminated_name.as_ptr() as *mut c_char, base, dict)
+                as *mut ffi::PyTypeObject
         }
     }
 

@@ -154,11 +154,14 @@ macro_rules! pyobject_nativetype(
 
         impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
-            fn init_type(_py: $crate::Python) {}
+            fn init_type() {}
 
             #[inline]
-            fn type_object(py: $crate::Python) -> &$crate::PyType {
-                unsafe { $crate::PyType::from_type_ptr(py, &mut $crate::ffi::$typeobject) }
+            fn type_object() -> $crate::Py<$crate::PyType> {
+                unsafe {
+                    $crate::PyType::new(
+                        <$name as $crate::typeob::PyTypeInfo>::type_object())
+                }
             }
         }
 

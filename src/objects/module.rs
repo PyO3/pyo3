@@ -109,16 +109,18 @@ impl PyModule {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()> where T: PyTypeInfo
     {
-        let mut ty = unsafe{<T as PyTypeInfo>::type_object()};
+        let ty = unsafe {
+            let ty = <T as PyTypeInfo>::type_object();
 
-        let ty = if (ty.tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-            unsafe { PyType::from_type_ptr(self.py(), ty) }
-        } else {
-            // automatically initialize the class
-            initialize_type::<T>(self.py(), Some(self.name()?), ty)
-                .expect(
-                    format!("An error occurred while initializing class {}", T::NAME).as_ref());
-            unsafe { PyType::from_type_ptr(self.py(), ty) }
+            if ((*ty).tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
+                PyType::new(ty)
+            } else {
+                // automatically initialize the class
+                initialize_type::<T>(self.py(), Some(self.name()?))
+                    .expect(
+                        format!("An error occurred while initializing class {}", T::NAME).as_ref());
+                PyType::new(ty)
+            }
         };
 
         self.setattr(T::NAME, ty)

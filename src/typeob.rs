@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 use {ffi, class, pythonrun};
 use err::{PyErr, PyResult};
+use instance::Py;
 use python::Python;
 use objects::PyType;
 use class::methods::PyMethodDefType;
@@ -84,9 +85,9 @@ pub trait PyObjectAlloc<T> {
 
 impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 
-    default unsafe fn alloc(py: Python, value: T) -> PyResult<*mut ffi::PyObject> {
+    default unsafe fn alloc(_py: Python, value: T) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
-        T::init_type(py);
+        T::init_type();
 
         let obj = ffi::PyType_GenericAlloc(T::type_object(), 0);
 
@@ -118,39 +119,39 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 pub trait PyTypeObject {
 
     /// Initialize type object
-    fn init_type(py: Python);
+    fn init_type();
 
     /// Retrieves the type object for this Python object type.
-    fn type_object(py: Python) -> &PyType;
+    fn type_object() -> Py<PyType>;
 
 }
 
 impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 
     #[inline]
-    default fn init_type(py: Python) {
-        let mut ty = unsafe { <T as PyTypeInfo>::type_object() };
+    default fn init_type() {
+        unsafe {
+            if ((*<T>::type_object()).tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
+                // automatically initialize the class on-demand
+                let gil = Python::acquire_gil();
+                let py = gil.python();
 
-        if (ty.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
-            // automatically initialize the class on-demand
-            initialize_type::<T>(py, None, ty).expect(
-                format!("An error occurred while initializing class {}", T::NAME).as_ref());
+                initialize_type::<T>(py, None).expect(
+                    format!("An error occurred while initializing class {}", T::NAME).as_ref());
+            }
         }
     }
 
     #[inline]
-    default fn type_object(py: Python) -> &PyType {
-        <T as PyTypeObject>::init_type(py);
-
-        unsafe { PyType::from_type_ptr(py, <T as PyTypeInfo>::type_object()) }
+    default fn type_object() -> Py<PyType> {
+        <T as PyTypeObject>::init_type();
+        unsafe { PyType::new(T::type_object()) }
     }
 }
 
 
 /// Register new type in python object system.
-pub fn initialize_type<'p, T>(py: Python<'p>,
-                              module_name: Option<&str>,
-                              type_object: &mut ffi::PyTypeObject) -> PyResult<&'p PyType>
+pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyResult<()>
     where T: PyObjectAlloc<T> + PyTypeInfo
 {
     // type name
@@ -161,6 +162,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     let name = name.expect(
         "Module name/type name must not contain NUL byte").into_raw();
 
+    let type_object: &mut ffi::PyTypeObject = unsafe{&mut *T::type_object()};
     type_object.tp_name = name;
     type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
 
@@ -172,8 +174,8 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
 
     // weakref support (check py3cls::py_class::impl_class)
     if T::FLAGS & PY_TYPE_FLAG_WEAKREF != 0 {
-        type_object.tp_weaklistoffset = T::OFFSET -
-            (std::mem::size_of::<*const ffi::PyObject>() as isize);
+        type_object.tp_weaklistoffset =
+            (T::SIZE - std::mem::size_of::<*const ffi::PyObject>()) as isize;
     }
 
     // GC support
@@ -245,7 +247,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>,
     // register type object
     unsafe {
         if ffi::PyType_Ready(type_object) == 0 {
-            Ok(PyType::from_type_ptr(py, type_object))
+            Ok(())
         } else {
             Err(PyErr::fetch(py))
         }

@@ -206,7 +206,6 @@ impl Drop for GILPool {
     }
 }
 
-
 pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
 {
     let pool: &'static mut ReleasePool = &mut *POOL;

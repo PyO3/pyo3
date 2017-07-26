@@ -143,8 +143,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                                 FREELIST = Box::into_raw(Box::new(
                                     _pyo3::freelist::FreeList::with_capacity(#freelist)));
 
-                                <#cls as _pyo3::typeob::PyTypeObject>::init_type(
-                                    _pyo3::Python::assume_gil_acquired());
+                                <#cls as _pyo3::typeob::PyTypeObject>::init_type();
                             }
                             &mut *FREELIST
                         }
@@ -177,11 +176,10 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             const NAME: &'static str = #cls_name;
             const DESCRIPTION: &'static str = #doc;
 
-            const SIZE: usize = Self::OFFSET as usize + std::mem::size_of::<#cls>();
+            const SIZE: usize = Self::OFFSET as usize + std::mem::size_of::<#cls>() + #weakref;
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
-                ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + #weakref +
-                  std::mem::align_of::<#cls>() - 1) /
+                ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + std::mem::align_of::<#cls>()-1) /
                  std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()) as isize
             };
 
@@ -202,14 +200,17 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
         impl _pyo3::typeob::PyTypeObject for #cls {
             #[inline(always)]
-            fn init_type(py: Python) {
+            fn init_type() {
                 static START: std::sync::Once = std::sync::ONCE_INIT;
                 START.call_once(|| {
-                    let mut ty = unsafe{<#cls as _pyo3::typeob::PyTypeInfo>::type_object()};
+                    let ty = unsafe{<#cls as _pyo3::typeob::PyTypeInfo>::type_object()};
 
                     if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) == 0 {
+                        let gil = _pyo3::Python::acquire_gil();
+                        let py = gil.python();
+
                         // automatically initialize the class on-demand
-                        _pyo3::typeob::initialize_type::<#cls>(py, None, ty).expect(
+                        _pyo3::typeob::initialize_type::<#cls>(py, None).expect(
                             format!("An error occurred while initializing class {}",
                                     <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }

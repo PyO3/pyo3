@@ -22,11 +22,13 @@ macro_rules! exc_type(
 
         impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
-            fn init_type(_py: Python) {}
+            fn init_type() {}
 
             #[inline]
-            fn type_object(py: $crate::python::Python) -> &$crate::PyType {
-                unsafe { PyType::from_type_ptr(py, ffi::$exc_name as *mut ffi::PyTypeObject) }
+            fn type_object() -> $crate::Py<$crate::PyType> {
+                unsafe {
+                    PyType::new(ffi::$exc_name as *mut ffi::PyTypeObject)
+                }
             }
         }
     );

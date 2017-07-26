@@ -9,7 +9,7 @@ use ffi;
 use object::PyObject;
 use python::{Python, ToPyPointer};
 use err::{PyErr, PyResult};
-use instance::PyObjectWithToken;
+use instance::{Py, PyObjectWithToken};
 use typeob::PyTypeObject;
 
 /// Represents a reference to a Python `type object`.
@@ -20,6 +20,12 @@ pyobject_nativetype!(PyType, PyType_Type, PyType_Check);
 
 
 impl PyType {
+    #[inline]
+    pub unsafe fn new(ptr: *mut ffi::PyTypeObject) -> Py<PyType>
+    {
+        Py::from_borrowed_ptr(ptr as *mut ffi::PyObject)
+    }
+
     /// Retrieves the underlying FFI pointer associated with this Python object.
     #[inline]
     pub unsafe fn as_type_ptr(&self) -> *mut ffi::PyTypeObject {
@@ -47,7 +53,7 @@ impl PyType {
         where T: PyTypeObject
     {
         let result = unsafe {
-            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object(self.py()).as_ptr())
+            ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object().as_ptr())
         };
         if result == -1 {
             Err(PyErr::fetch(self.py()))
