@@ -59,6 +59,8 @@ so that they can benefit from a freelist. `XXX` is a number of items for free li
 participate in python garbage collector. If custom class contains references to other
 python object that can be collector `PyGCProtocol` trait has to be implemented.
 * `weakref` - adds support for python weak references
+* `base=xxx.YYY` - use custom base class. It is not possible to call constructor
+of base class at the moment. `xxx.YYY`, `xxx` - module name, `YYY` class name.
 
 
 ## Constructor

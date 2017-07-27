@@ -4,13 +4,13 @@ use std;
 use std::collections::HashMap;
 
 use syn;
-use quote::Tokens;
+use quote::{Tokens, ToTokens};
 
 use utils;
 
 
 pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
-    let (params, flags) = parse_attribute(attr);
+    let (params, flags, base_cls) = parse_attribute(attr);
     let doc = utils::get_doc(&ast.attrs, true);
 
     let base = syn::Ident::from("_pyo3::PyObjectRef");
@@ -29,7 +29,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     }
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
-    let tokens = impl_class(&ast.ident, &base, token, doc, params, flags);
+    let tokens = impl_class(&ast.ident, &base, token, doc, params, flags, base_cls);
 
     quote! {
         #[allow(non_upper_case_globals, unused_attributes,
@@ -45,7 +45,8 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
 
 fn impl_class(cls: &syn::Ident, base: &syn::Ident,
               token: Option<syn::Ident>, doc: syn::Lit,
-              params: HashMap<&'static str, syn::Ident>, flags: Vec<syn::Ident>) -> Tokens {
+              params: HashMap<&'static str, syn::Ident>,
+              flags: Vec<syn::Ident>, base_cls: Option<(String, String)>) -> Tokens {
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.as_str().to_string(),
         None => quote! { #cls }.as_str().to_string()
@@ -112,7 +113,8 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 fn as_ptr(&self) -> *mut ffi::PyObject {
                     unsafe {
                         {self as *const _ as *mut u8}
-                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ffi::PyObject
+                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::offset())
+                            as *mut ffi::PyObject
                     }
                 }
             }
@@ -174,20 +176,84 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         syn::Ident::from("0")
     };
 
+    // base class
+    let offset_code = if let Some((m, cls_name)) = base_cls {
+        quote! {
+            #[inline]
+            unsafe fn base_type_object() -> &'static mut ffi::PyTypeObject {
+                static mut TYPE_OBJECT: *mut ffi::PyTypeObject = 0 as *mut ffi::PyTypeObject;
+
+                if TYPE_OBJECT.is_null() {
+                    // load module
+                    let gil = _pyo3::Python::acquire_gil();
+                    let py = gil.python();
+
+                    let imp = py.import(#m)
+                        .expect(format!(
+                            "Can not import module: {}", #m).as_ref());
+                    let cls = imp.get(#cls_name)
+                        .expect(format!(
+                            "Can not load exception class: {}.{}", #m, #cls_name).as_ref());
+                    TYPE_OBJECT = cls.into_ptr() as *mut ffi::PyTypeObject;
+                }
+                &mut *TYPE_OBJECT
+            }
+            #[inline]
+            fn offset() -> isize {
+                static mut OFFSET: isize = 0;
+                unsafe {
+                    if OFFSET == 0 {
+                        // round base_size up to next multiple of align
+                        OFFSET = (
+                            ((Self::base_type_object().tp_basicsize as usize) +
+                             std::mem::align_of::<#cls>()-1) /
+                                std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>())
+                            as isize
+                    }
+                    OFFSET
+                }
+            }
+        }
+    } else {
+        quote! {
+            #[inline]
+            fn offset() -> isize {
+                static mut OFFSET: isize = 0;
+                unsafe {
+                    if OFFSET == 0 {
+                        // round base_size up to next multiple of align
+                        OFFSET = (
+                            (<#base as _pyo3::typeob::PyTypeInfo>::size() +
+                             std::mem::align_of::<#cls>()-1) /
+                                std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>())
+                            as isize
+                    }
+                    OFFSET
+                }
+            }
+        }
+    };
+
     quote! {
         impl _pyo3::typeob::PyTypeInfo for #cls {
             type Type = #cls;
             const NAME: &'static str = #cls_name;
             const DESCRIPTION: &'static str = #doc;
-
-            const SIZE: usize = Self::OFFSET as usize + std::mem::size_of::<#cls>() + #weakref;
-            const OFFSET: isize = {
-                // round base_size up to next multiple of align
-                ((<#base as _pyo3::typeob::PyTypeInfo>::SIZE + std::mem::align_of::<#cls>()-1) /
-                 std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()) as isize
-            };
-
             const FLAGS: usize = #(#flags)|*;
+
+            #[inline]
+            fn size() -> usize {
+                static mut SIZE: usize = 0;
+
+                unsafe {
+                    if SIZE == 0 {
+                        SIZE = Self::offset() as usize + std::mem::size_of::<#cls>() + #weakref;
+                    }
+                    SIZE
+                }
+            }
+
+            #offset_code
 
             #[inline]
             unsafe fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
@@ -233,7 +299,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
                     if checked {
                         let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::offset()) as *mut #cls;
                         Some(ptr.as_ref().unwrap())
                     } else {
                         None
@@ -248,7 +314,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     if (*ptr).ob_type == <#cls as _pyo3::typeob::PyTypeInfo>::type_object()
                     {
                         let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::offset()) as *mut #cls;
                         Some(ptr.as_ref().unwrap())
                     } else {
                         None
@@ -260,14 +326,14 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             unsafe fn unchecked_downcast_from(ob: &_pyo3::PyObjectRef) -> &Self
             {
                 let ptr = (ob.as_ptr() as *mut u8)
-                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
+                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::offset()) as *mut #cls;
                 &*ptr
             }
             #[inline]
             unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObjectRef) -> &mut Self
             {
                 let ptr = (ob.as_ptr() as *mut u8)
-                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
+                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::offset()) as *mut #cls;
                 &mut *ptr
             }
         }
@@ -282,7 +348,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
                     if checked {
                         let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::offset()) as *mut #cls;
                         Some(ptr.as_mut().unwrap())
                     } else {
                         None
@@ -296,7 +362,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     if (*ptr).ob_type == <#cls as _pyo3::typeob::PyTypeInfo>::type_object()
                     {
                         let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
+                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::offset()) as *mut #cls;
                         Some(ptr.as_mut().unwrap())
                     } else {
                         None
@@ -321,9 +387,11 @@ fn is_python_token(field: &syn::Field) -> bool {
     return false
 }
 
-fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>, Vec<syn::Ident>) {
+fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
+                                     Vec<syn::Ident>, Option<(String, String)>) {
     let mut params = HashMap::new();
     let mut flags = vec![syn::Ident::from("0")];
+    let mut base = None;
 
     if let Ok(tts) = syn::parse_token_trees(&attr) {
         let mut elem = Vec::new();
@@ -419,7 +487,17 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>, Vec<syn:
                     }
                 },
                 "base" => {
-
+                    let mut m = String::new();
+                    for el in elem[2..elem.len()-1].iter() {
+                        let mut t = Tokens::new();
+                        el.to_tokens(&mut t);
+                        m += t.as_str().trim();
+                    }
+                    m = m.trim_matches('.').to_owned();
+                    let mut t = Tokens::new();
+                    elem[elem.len()-1].to_tokens(&mut t);
+                    let cls = t.as_str().trim().to_owned();
+                    base = Some((m, cls));
                 },
                 _ => {
                     println!("Unsupported parameter: {:?}", key);
@@ -428,5 +506,5 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>, Vec<syn:
         }
     }
 
-    (params, flags)
+    (params, flags, base)
 }

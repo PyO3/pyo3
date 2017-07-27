@@ -140,8 +140,23 @@ macro_rules! pyobject_nativetype(
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
             const NAME: &'static str = stringify!($name);
-            const SIZE: usize = $crate::std::mem::size_of::<$crate::ffi::PyObject>();
-            const OFFSET: isize = 0;
+
+            #[inline]
+            fn size() -> usize {
+                static mut SIZE: usize = 0;
+
+                unsafe {
+                    if SIZE == 0 {
+                        SIZE = $crate::std::mem::size_of::<$crate::ffi::PyObject>();
+                    }
+                    SIZE
+                }
+            }
+
+            #[inline]
+            fn offset() -> isize {
+                0
+            }
 
             #[inline]
             unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
