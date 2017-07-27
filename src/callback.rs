@@ -3,7 +3,7 @@
 //! Utilities for a Python callable object that invokes a Rust function.
 
 use std::os::raw::c_int;
-use std::{any, ptr, isize};
+use std::{ptr, isize};
 
 use err::PyResult;
 use ffi::{self, Py_hash_t};
@@ -148,12 +148,5 @@ pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
             e.restore(py);
             C::error_value()
         }
-    }
-}
-
-
-pub fn handle_panic(_py: Python, _panic: &any::Any) {
-    unsafe {
-        ffi::PyErr_SetString(ffi::PyExc_SystemError, "Rust panic\0".as_ptr() as *const i8);
     }
 }

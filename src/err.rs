@@ -58,22 +58,21 @@ macro_rules! py_exception {
             pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, T>(args)
             }
-            #[inline(always)]
+            #[inline]
             fn type_object() -> *mut $crate::ffi::PyTypeObject {
-                #[allow(non_upper_case_globals)]
-                static mut type_object: *mut $crate::ffi::PyTypeObject =
+                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject =
                     0 as *mut $crate::ffi::PyTypeObject;
 
                 unsafe {
-                    if type_object.is_null() {
+                    if TYPE_OBJECT.is_null() {
                         let gil = $crate::Python::acquire_gil();
                         let py = gil.python();
 
-                        type_object = $crate::PyErr::new_type(
+                        TYPE_OBJECT = $crate::PyErr::new_type(
                             py, concat!(stringify!($module), ".", stringify!($name)),
                             Some(py.get_type::<$base>()), None);
                     }
-                    type_object
+                    TYPE_OBJECT
                 }
             }
         }
@@ -188,76 +187,6 @@ impl PyErr {
         }
     }
 
-    /// Gets whether an error is present in the Python interpreter's global state.
-    #[inline]
-    pub fn occurred(_: Python) -> bool {
-        unsafe { !ffi::PyErr_Occurred().is_null() }
-    }
-
-    /// Creates a new exception type with the given name, which must be of the form
-    /// `<module>.<ExceptionName>`, as required by `PyErr_NewException`.
-    ///
-    /// `base` can be an existing exception type to subclass, or a tuple of classes
-    /// `dict` specifies an optional dictionary of class variables and methods
-    pub fn new_type<'p>(_: Python<'p>, name: &str, base: Option<&PyType>, dict: Option<PyObject>)
-                        -> *mut ffi::PyTypeObject
-    {
-        let base: *mut ffi::PyObject = match base {
-            None => std::ptr::null_mut(),
-            Some(obj) => obj.as_ptr()
-        };
-
-        let dict: *mut ffi::PyObject = match dict {
-            None => std::ptr::null_mut(),
-            Some(obj) => obj.as_ptr(),
-        };
-
-        unsafe {
-            let null_terminated_name = CString::new(name)
-                .expect("Failed to initialize nul terminated exception name");
-            ffi::PyErr_NewException(
-                null_terminated_name.as_ptr() as *mut c_char, base, dict) as *mut ffi::PyTypeObject
-        }
-    }
-
-    /// Retrieves the current error from the Python interpreter's global state.
-    /// The error is cleared from the Python interpreter.
-    /// If no error is set, returns a `SystemError`.
-    pub fn fetch(_: Python) -> PyErr {
-        unsafe {
-            let mut ptype      : *mut ffi::PyObject = std::ptr::null_mut();
-            let mut pvalue     : *mut ffi::PyObject = std::ptr::null_mut();
-            let mut ptraceback : *mut ffi::PyObject = std::ptr::null_mut();
-            ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
-            PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback)
-        }
-    }
-
-    unsafe fn new_from_ffi_tuple(ptype: *mut ffi::PyObject,
-                                 pvalue: *mut ffi::PyObject,
-                                 ptraceback: *mut ffi::PyObject) -> PyErr {
-        // Note: must not panic to ensure all owned pointers get acquired correctly,
-        // and because we mustn't panic in normalize().
-
-        let pvalue = if let Some(obj) =
-            PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), pvalue)
-        {
-            PyErrValue::Value(obj)
-        } else {
-            PyErrValue::None
-        };
-
-        PyErr {
-            ptype: if ptype.is_null() {
-                <exc::SystemError as PyTypeObject>::type_object()
-            } else {
-                Py::from_owned_ptr(ptype)
-            },
-            pvalue: pvalue,
-            ptraceback: PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), ptraceback),
-        }
-    }
-
     /// Creates a new PyErr.
     ///
     /// `obj` must be an Python exception instance, the PyErr will use that instance.
@@ -286,6 +215,76 @@ impl PyErr {
                     Box::new("exceptions must derive from BaseException")),
                 ptraceback: None,
             }
+        }
+    }
+
+    /// Gets whether an error is present in the Python interpreter's global state.
+    #[inline]
+    pub fn occurred(_: Python) -> bool {
+        unsafe { !ffi::PyErr_Occurred().is_null() }
+    }
+
+    /// Retrieves the current error from the Python interpreter's global state.
+    /// The error is cleared from the Python interpreter.
+    /// If no error is set, returns a `SystemError`.
+    pub fn fetch(_: Python) -> PyErr {
+        unsafe {
+            let mut ptype      : *mut ffi::PyObject = std::ptr::null_mut();
+            let mut pvalue     : *mut ffi::PyObject = std::ptr::null_mut();
+            let mut ptraceback : *mut ffi::PyObject = std::ptr::null_mut();
+            ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
+            PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback)
+        }
+    }
+
+    /// Creates a new exception type with the given name, which must be of the form
+    /// `<module>.<ExceptionName>`, as required by `PyErr_NewException`.
+    ///
+    /// `base` can be an existing exception type to subclass, or a tuple of classes
+    /// `dict` specifies an optional dictionary of class variables and methods
+    pub fn new_type<'p>(_: Python<'p>, name: &str, base: Option<&PyType>, dict: Option<PyObject>)
+                        -> *mut ffi::PyTypeObject
+    {
+        let base: *mut ffi::PyObject = match base {
+            None => std::ptr::null_mut(),
+            Some(obj) => obj.as_ptr()
+        };
+
+        let dict: *mut ffi::PyObject = match dict {
+            None => std::ptr::null_mut(),
+            Some(obj) => obj.as_ptr(),
+        };
+
+        unsafe {
+            let null_terminated_name = CString::new(name)
+                .expect("Failed to initialize nul terminated exception name");
+            ffi::PyErr_NewException(
+                null_terminated_name.as_ptr() as *mut c_char, base, dict) as *mut ffi::PyTypeObject
+        }
+    }
+
+    unsafe fn new_from_ffi_tuple(ptype: *mut ffi::PyObject,
+                                 pvalue: *mut ffi::PyObject,
+                                 ptraceback: *mut ffi::PyObject) -> PyErr {
+        // Note: must not panic to ensure all owned pointers get acquired correctly,
+        // and because we mustn't panic in normalize().
+
+        let pvalue = if let Some(obj) =
+            PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), pvalue)
+        {
+            PyErrValue::Value(obj)
+        } else {
+            PyErrValue::None
+        };
+
+        PyErr {
+            ptype: if ptype.is_null() {
+                <exc::SystemError as PyTypeObject>::type_object()
+            } else {
+                Py::from_owned_ptr(ptype)
+            },
+            pvalue: pvalue,
+            ptraceback: PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), ptraceback),
         }
     }
 
@@ -322,7 +321,8 @@ impl PyErr {
         }
     }
 
-    /// Normalizes the error. This ensures that the exception value is an instance of the exception type.
+    /// Normalizes the error. This ensures that the exception value is an instance
+    /// of the exception type.
     pub fn normalize(&mut self, py: Python) {
         // The normalization helper function involves temporarily moving out of the &mut self,
         // which requires some unsafe trickery:
@@ -350,11 +350,6 @@ impl PyErr {
             ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
             PyErr::new_from_ffi_tuple(ptype, pvalue, ptraceback)
         }
-    }
-
-    /// Retrieves the exception type.
-    pub fn get_type(&self, py: Python) -> Py<PyType> {
-        self.ptype.clone_ref(py)
     }
 
     /// Retrieves the exception instance for this error.
@@ -409,13 +404,6 @@ impl PyErr {
             pvalue: v,
             ptraceback: t,
         }
-    }
-
-    pub fn release(self, py: Python) {
-        #[allow(unused_variables)]
-        let PyErr { ptype, pvalue, ptraceback } = self;
-        py.release(ptype);
-        py.release(ptraceback);
     }
 }
 

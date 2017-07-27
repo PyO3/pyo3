@@ -5,9 +5,9 @@
 //! Python argument parsing
 
 use ffi;
+use err::PyResult;
 use python::{Python, PyDowncastFrom};
 use objects::{PyObjectRef, PyTuple, PyDict, PyString, exc};
-use err::{self, PyResult};
 
 #[derive(Debug)]
 /// Description of a python parameter; used for `parse_args()`.
@@ -33,12 +33,10 @@ pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
                       accept_args: bool, accept_kwargs: bool,
                       output: &mut[Option<&'p PyObjectRef>]) -> PyResult<()>
 {
-
-
     let nargs = args.len();
     let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
-        return Err(err::PyErr::new::<exc::TypeError, _>(
+        return Err(exc::TypeError::new(
             format!("{}{} takes at most {} argument{} ({} given)",
                     fname.unwrap_or("function"),
                     if fname.is_some() { "()" } else { "" },
@@ -55,14 +53,14 @@ pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
                 *out = Some(kwarg);
                 used_keywords += 1;
                 if i < nargs {
-                    return Err(err::PyErr::new::<exc::TypeError, _>(
+                    return Err(exc::TypeError::new(
                         format!("Argument given by name ('{}') and position ({})", p.name, i+1)));
                 }
             },
             None => {
                 if p.kw_only {
                     if !p.is_optional {
-                        return Err(err::PyErr::new::<exc::TypeError, _>(
+                        return Err(exc::TypeError::new(
                             format!("Required argument ('{}') is keyword only argument", p.name)));
                     }
                     *out = None;
@@ -72,7 +70,7 @@ pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
                 } else {
                     *out = None;
                     if !p.is_optional {
-                        return Err(err::PyErr::new::<exc::TypeError, _>(
+                        return Err(exc::TypeError::new(
                             format!("Required argument ('{}') (pos {}) not found", p.name, i+1)));
                     }
                 }
@@ -85,7 +83,7 @@ pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
             let item = PyTuple::downcast_from(item)?;
             let key = PyString::downcast_from(item.get_item(0))?.to_string()?;
             if !params.iter().any(|p| p.name == key) {
-                return Err(err::PyErr::new::<exc::TypeError, _>(
+                return Err(exc::TypeError::new(
                     format!("'{}' is an invalid keyword argument for this function", key)));
             }
         }

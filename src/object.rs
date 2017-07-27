@@ -15,7 +15,7 @@ use python::{Python, ToPyPointer, IntoPyPointer};
 #[derive(Debug)]
 pub struct PyObject(*mut ffi::PyObject);
 
-// `PyObject` is thread-safe, because any python related operations require a Python<'p> token.
+// `PyObject` is thread-safe, any python related operations require a Python<'p> token.
 unsafe impl Send for PyObject {}
 unsafe impl Sync for PyObject {}
 
