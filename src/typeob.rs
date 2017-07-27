@@ -59,6 +59,9 @@ pub const PY_TYPE_FLAG_GC: usize = 1<<0;
 /// Type object supports python weak references
 pub const PY_TYPE_FLAG_WEAKREF: usize = 1<<1;
 
+/// Type object can be used as the base type of another type
+pub const PY_TYPE_FLAG_BASETYPE: usize = 1<<2;
+
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;
@@ -307,6 +310,9 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
     }
+    if T::FLAGS & PY_TYPE_FLAG_BASETYPE !=  0 {
+        type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
+    }
 }
 
 #[cfg(not(Py_3))]
@@ -320,6 +326,9 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
     if !type_object.tp_as_buffer.is_null() {
         type_object.tp_flags = type_object.tp_flags | ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
+    }
+    if T::FLAGS & PY_TYPE_FLAG_BASETYPE !=  0 {
+        type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
 }
 

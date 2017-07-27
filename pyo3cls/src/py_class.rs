@@ -440,6 +440,10 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
                         flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_WEAKREF"));
                         continue
                     }
+                    "subclass" => {
+                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_BASETYPE"));
+                        continue
+                    }
                     _ => {
                         println!("Unsupported parameter: {:?}", key);
                     }

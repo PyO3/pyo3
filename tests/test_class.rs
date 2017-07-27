@@ -1239,3 +1239,18 @@ fn meth_args() {
     py_run!(py, inst, "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]");
     // py_expect_exception!(py, inst, "inst.get_kwarg(100)", TypeError);
 }
+
+#[py::class(subclass)]
+struct SubclassAble {}
+
+#[test]
+fn subclass() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = PyDict::new(py);
+    d.set_item("SubclassAble", py.get_type::<SubclassAble>()).unwrap();
+    py.run("class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)", None, Some(d))
+      .map_err(|e| e.print(py))
+      .unwrap();
+}
