@@ -98,6 +98,18 @@ Some rules of `new` method
   Usually, `T` will be `MyType`.
 
 
+## Inheritance
+
+By default `PyObject` is used as default base class. To override default base class
+`base` parameter to `py::class` needs to be used. Value is full path to base class.
+
+```rust
+#[py::class(base=asyncio.protocols.AbstractEventLoop)]
+class MyEventLoop {
+    ...
+}
+```
+
 ## Object properties
 
 Instance's `__dict__` attributes is not supported by pyo3 library. But it is
