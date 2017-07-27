@@ -318,6 +318,16 @@ impl<'p> Python<'p> {
         <T as PyDowncastFrom>::unchecked_downcast_from(p)
     }
 
+    /// Register `ffi::PyObject` pointer in release pool
+    pub unsafe fn from_borrowed_ptr(self, ptr: *mut ffi::PyObject) -> &'p PyObjectRef
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            pythonrun::register_borrowed(self, ptr)
+        }
+    }
+
     /// Register `ffi::PyObject` pointer in release pool,
     /// and do unchecked downcast to specific type.
     pub unsafe fn cast_from_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T

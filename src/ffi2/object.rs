@@ -830,6 +830,11 @@ pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
     1
 }
 
+#[inline]
+pub fn PySuper_Check(_arg1: *mut PyObject) -> c_int {
+    0
+}
+
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     fn _PyTrash_thread_deposit_object(o: *mut PyObject);
     fn _PyTrash_thread_destroy_chain();

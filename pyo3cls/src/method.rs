@@ -23,6 +23,7 @@ pub enum FnType {
     Setter(Option<String>),
     Fn,
     FnNew,
+    FnInit,
     FnCall,
     FnClass,
     FnStatic,
@@ -288,6 +289,9 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                     "new" | "__new__" => {
                         res = Some(FnType::FnNew)
                     },
+                    "init" | "__init__" => {
+                        res = Some(FnType::FnInit)
+                    },
                     "call" | "__call__" => {
                         res = Some(FnType::FnCall)
                     },
@@ -320,6 +324,9 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                 match name.as_ref() {
                     "new" => {
                         res = Some(FnType::FnNew)
+                    },
+                    "init" => {
+                        res = Some(FnType::FnInit)
                     },
                     "call" => {
                         res = Some(FnType::FnCall)

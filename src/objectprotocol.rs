@@ -8,7 +8,7 @@ use ffi;
 use err::{self, PyErr, PyResult};
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use object::PyObject;
-use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
+use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType, PySuper};
 use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple, FromPyObject};
 use instance::PyObjectWithToken;
 
@@ -120,6 +120,10 @@ pub trait ObjectProtocol {
 
     /// Gets the Python type object for this object's type.
     fn get_type(&self) -> &PyType;
+
+    /// Gets the Python super object for this object.
+    /// This is equivalent to the Python expression: 'super()'
+    fn get_super(&self) -> &PySuper;
 
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Option<&'a D>
@@ -259,7 +263,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
     #[inline]
     fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>)
-                          -> PyResult<&PyObjectRef>
+                      -> PyResult<&PyObjectRef>
         where A: IntoPyTuple
     {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
@@ -345,11 +349,14 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    #[inline]
     fn get_type(&self) -> &PyType {
         unsafe {
             PyType::from_type_ptr(self.py(), (*self.as_ptr()).ob_type)
         }
+    }
+
+    fn get_super(&self) -> &PySuper {
+        PySuper::new(self)
     }
 
     #[inline]

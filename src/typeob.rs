@@ -6,6 +6,7 @@ use std;
 use std::mem;
 use std::ffi::{CStr, CString};
 use std::collections::HashMap;
+use std::os::raw::c_void;
 
 use {ffi, class, pythonrun};
 use err::{PyErr, PyResult};
@@ -122,17 +123,11 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
         let ptr = (obj as *mut u8).offset(T::offset()) as *mut T;
         std::ptr::drop_in_place(ptr);
 
-        let ty = ffi::Py_TYPE(obj);
-        if ffi::PyType_IS_GC(ty) != 0 {
-            ffi::PyObject_GC_Del(obj as *mut ::c_void);
-        } else {
-            ffi::PyObject_Free(obj as *mut ::c_void);
+        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+            return
         }
-        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-        // so we need to call DECREF here:
-        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-            ffi::Py_DECREF(ty as *mut ffi::PyObject);
-        }
+
+        (*ffi::Py_TYPE(obj)).tp_free.unwrap()(obj as *mut c_void);
     }
 }
 
@@ -244,14 +239,24 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
     }
 
     // normal methods
-    let (new, call, mut methods) = py_class_method_defs::<T>()?;
+    let (new, init, call, mut methods) = py_class_method_defs::<T>()?;
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
         type_object.tp_methods = methods.as_mut_ptr();
         mem::forget(methods);
     }
+
+    match (new, init) {
+        (None, Some(_)) => {
+            panic!("{}.__new__ method is required if __init__ method defined", T::NAME);
+        }
+        _ => ()
+    }
+
     // __new__ method
     type_object.tp_new = new;
+    // __init__ method
+    type_object.tp_init = init;
     // __call__ method
     type_object.tp_call = call;
 
@@ -333,12 +338,14 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
 }
 
 fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
+                                          Option<ffi::initproc>,
                                           Option<ffi::PyCFunctionWithKeywords>,
                                           Vec<ffi::PyMethodDef>)>
 {
     let mut defs = Vec::new();
     let mut call = None;
     let mut new = None;
+    let mut init = None;
 
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
         match *def {
@@ -352,6 +359,13 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
                     call = Some(meth)
                 } else {
                     panic!("Method type is not supoorted by tp_call slot")
+                }
+            }
+            PyMethodDefType::Init(ref def) => {
+                if let class::methods::PyMethodType::PyInitFunc(meth) = def.ml_meth {
+                    init = Some(meth)
+                } else {
+                    panic!("Method type is not supoorted by tp_init slot")
                 }
             }
             PyMethodDefType::Method(ref def) => {
@@ -385,7 +399,7 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
 
     py_class_async_methods::<T>(&mut defs);
 
-    Ok((new, call, defs))
+    Ok((new, init, call, defs))
 }
 
 #[cfg(Py_3)]

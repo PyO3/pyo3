@@ -3,6 +3,7 @@
 #[macro_use] mod exc_impl;
 
 pub use self::typeobject::PyType;
+pub use self::superobj::PySuper;
 pub use self::module::PyModule;
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
@@ -265,6 +266,7 @@ mod slice;
 mod stringdata;
 mod stringutils;
 mod set;
+mod superobj;
 pub mod exc;
 
 #[cfg(Py_3)]

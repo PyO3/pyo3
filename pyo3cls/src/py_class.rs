@@ -189,9 +189,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     let py = gil.python();
 
                     let imp = py.import(#m)
+                        .map_err(|e| e.print(py))
                         .expect(format!(
                             "Can not import module: {}", #m).as_ref());
                     let cls = imp.get(#cls_name)
+                        .map_err(|e| e.print(py))
                         .expect(format!(
                             "Can not load exception class: {}.{}", #m, #cls_name).as_ref());
                     TYPE_OBJECT = cls.into_ptr() as *mut ffi::PyTypeObject;

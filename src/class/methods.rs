@@ -12,6 +12,8 @@ static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 pub enum PyMethodDefType {
     /// Represents class `__new__` method
     New(PyMethodDef),
+    /// Represents class `__init__` method
+    Init(PyMethodDef),
     /// Represents class `__call__` method
     Call(PyMethodDef),
     /// Represents class method
@@ -32,6 +34,7 @@ pub enum PyMethodType {
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
     PyNoArgsFunction(ffi::PyNoArgsFunction),
     PyNewFunc(ffi::newfunc),
+    PyInitFunc(ffi::initproc),
 }
 
 #[derive(Copy, Clone)]
@@ -81,6 +84,10 @@ impl PyMethodDef {
             PyMethodType::PyNewFunc(meth) =>
                 unsafe {
                     std::mem::transmute::<ffi::newfunc, ffi::PyCFunction>(meth)
+                },
+            PyMethodType::PyInitFunc(meth) =>
+                unsafe {
+                    std::mem::transmute::<ffi::initproc, ffi::PyCFunction>(meth)
                 },
         };
 

@@ -28,7 +28,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 };
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyVarObject {
     pub ob_base: PyObject,
     pub ob_size: Py_ssize_t,
@@ -387,7 +387,7 @@ mod typeobject {
     };
 
     #[repr(C)]
-    #[derive(Copy, Clone)]
+    #[derive(Debug, Copy, Clone)]
     pub struct PyTypeObject {
         pub ob_base: object::PyVarObject,
         pub tp_name: *const c_char,
@@ -820,4 +820,9 @@ pub const Py_GE : c_int = 5;
 #[inline]
 pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
     1
+}
+
+#[inline]
+pub fn PySuper_Check(_arg1: *mut PyObject) -> c_int {
+    0
 }

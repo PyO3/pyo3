@@ -20,6 +20,8 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
             impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
         FnType::FnNew =>
             impl_py_method_def_new(name, doc, &impl_wrap_type(cls, name, &spec)),
+        FnType::FnInit =>
+            impl_py_method_def_init(name, doc, &impl_wrap_init(cls, name, &spec)),
         FnType::FnCall =>
             impl_py_method_def_call(name, doc, &impl_wrap(cls, name, &spec, false)),
         FnType::FnClass =>
@@ -151,6 +153,39 @@ pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> T
             };
             _pyo3::callback::cb_convert(
                 _pyo3::callback::PyObjectCallbackConverter, _py, _result)
+        }
+    }
+}
+
+/// Generate function wrapper for ffi::initproc
+fn impl_wrap_init(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+    let cb = impl_call(cls, name, &spec);
+    let body = impl_arg_params(&spec, cb);
+
+    quote! {
+        #[allow(unused_mut)]
+        unsafe extern "C" fn __wrap(
+            _slf: *mut _pyo3::ffi::PyObject,
+            _args: *mut _pyo3::ffi::PyObject,
+            _kwargs: *mut _pyo3::ffi::PyObject) -> _pyo3::c_int
+        {
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
+            let _pool = _pyo3::GILPool::new();
+            let _py = _pyo3::Python::assume_gil_acquired();
+            let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
+            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
+
+            let _result: PyResult<()> = {
+                #body
+            };
+            match _result {
+                Ok(_) => 0,
+                Err(e) => {
+                    e.restore(_py);
+                    -1
+                }
+            }
         }
     }
 }
@@ -571,6 +606,22 @@ pub fn impl_py_method_def_new(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens
             _pyo3::class::PyMethodDef {
                 ml_name: stringify!(#name),
                 ml_meth: _pyo3::class::PyMethodType::PyNewFunc(__wrap),
+                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
+                ml_doc: #doc,
+            }
+        })
+    }
+}
+
+pub fn impl_py_method_def_init(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+{
+    quote! {
+        _pyo3::class::PyMethodDefType::Init({
+            #wrapper
+
+            _pyo3::class::PyMethodDef {
+                ml_name: stringify!(#name),
+                ml_meth: _pyo3::class::PyMethodType::PyInitFunc(__wrap),
                 ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
                 ml_doc: #doc,
             }
