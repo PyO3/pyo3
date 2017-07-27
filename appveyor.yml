@@ -10,6 +10,9 @@ install:
   - rustc -V
   - cargo -V
   - python --version
+build_script:
+  - set PATH=C:\Python27-x64;%PATH%&& cargo build --verbose --features python2
+  - set PATH=C:\Python34-x64;%PATH%&& cargo build --verbose --features python3
 test_script:
   - set PATH=C:\Python27-x64;%PATH%&& cargo test --verbose --features python2
   - set PATH=C:\Python34-x64;%PATH%&& cargo test --verbose --features python3
