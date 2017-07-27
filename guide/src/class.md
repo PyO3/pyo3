@@ -1,7 +1,7 @@
 # Python Class
 
 Python class generation is powered by unstable [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html) and
-[Specialization](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md) and [Const fn](https://github.com/rust-lang/rfcs/blob/master/text/0911-const-fn.md) 
+[Specialization](https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md) and [Const fn](https://github.com/rust-lang/rfcs/blob/master/text/0911-const-fn.md)
 features, so you need to turn on `proc_macro` and `specialization` features:
 
 ```rust
@@ -61,6 +61,7 @@ python object that can be collector `PyGCProtocol` trait has to be implemented.
 * `weakref` - adds support for python weak references
 * `base=xxx.YYY` - use custom base class. It is not possible to call constructor
 of base class at the moment. `xxx.YYY`, `xxx` - module name, `YYY` class name.
+* `subclass` - adds subclass support so that Python classes can inherit from this class
 
 
 ## Constructor
@@ -277,7 +278,7 @@ impl MyClass {
 
 By default pyo3 library uses function signature to determine which arguments are required.
 Then it scans incoming `args` parameter and then incoming `kwargs` parameter. If it can not
-find all required parameters, it raises `TypeError` exception. 
+find all required parameters, it raises `TypeError` exception.
 It is possible to override default bahavior with `#[args(...)]` attribute. `args` attribute
 accept comma separated list of parameters in form `attr_name="default value"`. Each parameter
 has to match method parameter by name.
@@ -291,15 +292,15 @@ Each parameter could one of following type:
  * kwargs="\*\*": "kwargs" is kwyword arguments, coresponds to python's `def meth(**kwargs)`.
    Type of `kwargs` parameter has to be `Option<&PyDict>`.
  * arg="Value": arguments with default value. coresponds to python's `def meth(arg=Value)`.
-   if `arg` argument is defined after var arguments it is treated as keyword argument. 
-   Note that `Value` has to be valid rust code, pyo3 just inserts it into generated 
+   if `arg` argument is defined after var arguments it is treated as keyword argument.
+   Note that `Value` has to be valid rust code, pyo3 just inserts it into generated
    code unmodified.
- 
+
 Example:
 ```rust
 #[py::methods]
 impl MyClass {
- 
+
      #[args(arg1=true, args="*", arg2=10, kwargs="**")]
      fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, kwargs: Option<&PyTuple>) -> PyResult<i32> {
         Ok(1)
@@ -310,10 +311,10 @@ impl MyClass {
 
 ## Class customizations
 
-Python object model defines several protocols for different object behavior, 
+Python object model defines several protocols for different object behavior,
 like sequence, mapping or number protocols. pyo3 library defines separate trait for each
 of them. To provide specific python object behavior you need to implement specific trait
-for your struct. Important note, each protocol implementation block has to be annotated 
+for your struct. Important note, each protocol implementation block has to be annotated
 with `#[py::proto]` attribute.
 
 ### Basic object customization
@@ -330,49 +331,49 @@ To customize object attribute access define following methods:
 
 Each methods coresponds to python's `self.attr`, `self.attr = value` and `del self.attr` code.
 
-#### String Conversions 
+#### String Conversions
 
   * `fn __repr__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
   * `fn __str__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
-  
+
     Possible return types for `__str__` and `__repr__` are `PyResult<String>` or `PyResult<PyString>`.
     In Python 2.7, Unicode strings returned by `__str__` and `__repr__` will be converted to byte strings
     by the Python runtime, which results in an exception if the string contains non-ASCII characters.
-    
+
   * `fn __bytes__(&self) -> PyResult<PyBytes>`
-  
+
     On Python 3.x, provides the conversion to `bytes`.
     On Python 2.7, `__bytes__` is allowed but has no effect.
-    
+
   * `fn __unicode__(&self) -> PyResult<PyUnicode>`
-  
+
     On Python 2.7, provides the conversion to `unicode`.
     On Python 3.x, `__unicode__` is allowed but has no effect.
-    
+
   * `fn __format__(&self, format_spec: &str) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
-  
+
     Special method that is used by the `format()` builtin and the `str.format()` method.
     Possible return types are `PyResult<String>` or `PyResult<PyString>`.
 
 #### Comparison operators
 
   * `fn __richcmp__(&self, other: impl FromPyObject, op: CompareOp) -> PyResult<impl ToPyObject>`
-  
+
     Overloads Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`).
     The `op` argument indicates the comparison operation being performed.
     The return type will normally be `PyResult<bool>`, but any Python object can be returned.
     If `other` is not of the type specified in the signature, the generated code will
     automatically `return NotImplemented`.
-    
+
   * `fn __hash__(&self) -> PyResult<impl PrimInt>`
-  
+
     Objects that compare equal must have the same hash value.
     The return type must be `PyResult<T>` where `T` is one of Rust's primitive integer types.
 
 #### Other methods
 
   * `fn __bool__(&self) -> PyResult<bool>`
-  
+
     Determines the "truthyness" of the object.
     This method works for both python 3 and python 2,
     even on Python 2.7 where the Python spelling was `__nonzero__`.
@@ -400,7 +401,7 @@ use pyo3::{py, PyObject, PyGCProtocol, PyVisit, PyTraverseError};
 struct ClassWithGCSupport {
     obj: Option<PyObject>,
 }
-    
+
 #[py::proto]
 impl PyGCProtocol for ClassWithGCSupport {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
@@ -409,7 +410,7 @@ impl PyGCProtocol for ClassWithGCSupport {
         }
         Ok(())
     }
-    
+
     fn __clear__(&mut self) {
         if let Some(obj) = self.obj.take() {
           // Release reference, this decrements ref counter.
@@ -421,18 +422,18 @@ impl PyGCProtocol for ClassWithGCSupport {
 
 Special protocol trait implementation has to be annotated with `#[py::proto]` attribute.
 
-It is also possible to enable gc for custom class using `gc` parameter for `py::class` annotation. 
+It is also possible to enable gc for custom class using `gc` parameter for `py::class` annotation.
 i.e. `#[py::class(gc)]`. In that case instances of custom class participate in python garbage
 collector, and it is possible to track them with `gc` module methods.
 
 ### Iterator Types
 
-Iterators can be defined using the 
-[`PyIterProtocol`](https://pyo3.github.io/pyo3/pyo3/class/iter/trait.PyIterProtocol.html) trait. 
+Iterators can be defined using the
+[`PyIterProtocol`](https://pyo3.github.io/pyo3/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
   * `fn __iter__(&mut self) -> PyResult<impl IntoPyObject>`
   * `fn __next__(&mut self) -> PyResult<Option<impl IntoPyObject>>`
-  
+
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 
 Example:

@@ -10,6 +10,8 @@ Changes
 
 * Refactor `PyErr` implementation. Drop `py` parameter from constructor.
 
+* Added subclass support #64
+
 
 0.1.0 (07-23-2017)
 ^^^^^^^^^^^^^^^^^^
