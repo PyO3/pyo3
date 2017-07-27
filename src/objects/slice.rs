@@ -43,9 +43,9 @@ impl PySlice {
     /// Construct a new slice with the given elements.
     pub fn new(py: Python, start: isize, stop: isize, step: isize) -> &PySlice {
         unsafe {
-            let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as i64),
-                                       ffi::PyLong_FromLong(stop as i64),
-                                       ffi::PyLong_FromLong(step as i64));
+            let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as c_long),
+                                       ffi::PyLong_FromLong(stop as c_long),
+                                       ffi::PyLong_FromLong(step as c_long));
             py.cast_from_ptr(ptr)
         }
     }
