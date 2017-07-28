@@ -6,7 +6,6 @@ use std;
 use std::mem;
 use std::ffi::{CStr, CString};
 use std::collections::HashMap;
-use std::os::raw::c_void;
 
 use {ffi, class, pythonrun};
 use err::{PyErr, PyResult};
@@ -105,6 +104,7 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
         Ok(obj)
     }
 
+    #[cfg(Py_3)]
     default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
         let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::drop_in_place(ptr);
@@ -113,7 +113,37 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
             return
         }
 
-        (*ffi::Py_TYPE(obj)).tp_free.unwrap()(obj as *mut c_void);
+        let ty = ffi::Py_TYPE(obj);
+        if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del(obj as *mut ::c_void);
+        } else {
+            ffi::PyObject_Free(obj as *mut ::c_void);
+        }
+
+        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+        // so we need to call DECREF here:
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+        }
+    }
+
+    #[cfg(not(Py_3))]
+    default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
+        std::ptr::drop_in_place(ptr);
+
+        let ty = ffi::Py_TYPE(obj);
+        if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del(obj as *mut ::c_void);
+        } else {
+            ffi::PyObject_Free(obj as *mut ::c_void);
+        }
+
+        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+        // so we need to call DECREF here:
+        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+        }
     }
 }
 
