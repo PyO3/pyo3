@@ -8,7 +8,7 @@ use ffi;
 use object::PyObject;
 use instance::PyObjectWithToken;
 use python::{Python, ToPyPointer};
-use conversion::{ToPyObject, ToBorrowedObject};
+use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject};
 use objects::{PyObjectRef, PyList};
 use err::{self, PyResult, PyErr};
 
@@ -191,12 +191,38 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     }
 }
 
+impl <K, V> IntoPyObject for collections::HashMap<K, V>
+    where K: hash::Hash+cmp::Eq+ToPyObject,
+          V: ToPyObject
+{
+    fn into_object(self, py: Python) -> PyObject {
+        let dict = PyDict::new(py);
+        for (key, value) in self {
+            dict.set_item(key, value).expect("Failed to set_item on dict");
+        };
+        dict.into()
+    }
+}
+
+impl <K, V> IntoPyObject for collections::BTreeMap<K, V>
+    where K: cmp::Eq+ToPyObject,
+          V: ToPyObject
+{
+    fn into_object(self, py: Python) -> PyObject {
+        let dict = PyDict::new(py);
+        for (key, value) in self {
+            dict.set_item(key, value).expect("Failed to set_item on dict");
+        };
+        dict.into()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::{BTreeMap, HashMap};
     use python::Python;
     use instance::AsPyRef;
-    use conversion::ToPyObject;
+    use conversion::{ToPyObject, IntoPyObject};
     use objects::{PyDict, PyTuple};
     use {PyDowncastFrom, ObjectProtocol};
 
@@ -454,6 +480,36 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
+        let py_map = PyDict::downcast_from(m.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 1);
+        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+    }
+
+    #[test]
+    fn test_hashmap_into_python() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let mut map = HashMap::<i32, i32>::new();
+        map.insert(1, 1);
+
+        let m = map.into_object(py);
+        let py_map = PyDict::downcast_from(m.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 1);
+        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+    }
+
+    #[test]
+    fn test_btreemap_into_python() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let mut map = BTreeMap::<i32, i32>::new();
+        map.insert(1, 1);
+
+        let m = map.into_object(py);
         let py_map = PyDict::downcast_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
