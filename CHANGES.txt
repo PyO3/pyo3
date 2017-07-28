@@ -12,6 +12,8 @@ Changes
 
 * Added subclass support #64
 
+* Added `self.__dict__` supoort #68
+
 
 0.1.0 (07-23-2017)
 ^^^^^^^^^^^^^^^^^^
