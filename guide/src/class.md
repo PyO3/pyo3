@@ -59,8 +59,8 @@ so that they can benefit from a freelist. `XXX` is a number of items for free li
 participate in python garbage collector. If custom class contains references to other
 python object that can be collector `PyGCProtocol` trait has to be implemented.
 * `weakref` - adds support for python weak references
-* `base=xxx.YYY` - use custom base class. It is not possible to call constructor
-of base class at the moment. `xxx.YYY`, `xxx` - module name, `YYY` class name.
+* `base=BaseType` - use custom base class. BaseType is type which is 
+implements `PyTypeInfo` trait.
 * `subclass` - adds subclass support so that Python classes can inherit from this class
 
 
@@ -105,11 +105,25 @@ By default `PyObject` is used as default base class. To override default base cl
 `base` parameter to `py::class` needs to be used. Value is full path to base class.
 
 ```rust
-#[py::class(base=asyncio.protocols.AbstractEventLoop)]
-class MyEventLoop {
-    ...
+
+#[py::class]
+struct BaseClass {
+   pub fn method(&self) -> PyResult<() {
+      Ok(())
+   }
+}
+
+#[py::class(base=BaseClass)]
+struct MyEventLoop {
+    fn method2(&self) -> PyResult<()> {
+       self.get_super().method()
+    }
 }
 ```
+
+`ObjectProtocol` trait provide `get_super()` method. It returns reference to instance of
+parent class.
+
 
 ## Object properties
 

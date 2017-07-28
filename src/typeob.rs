@@ -27,24 +27,17 @@ pub trait PyTypeInfo {
     /// Class doc string
     const DESCRIPTION: &'static str = "\0";
 
-    /// Type flags (ie PyType_GC, PyType_WeakRef)
-    const FLAGS: usize = 0;
-
     /// Size of the rust PyObject structure (PyObject + rust structure)
-    fn size() -> usize;
+    const SIZE: usize;
 
     /// `Type` instance offset inside PyObject structure
-    fn offset() -> isize;
+    const OFFSET: isize;
+
+    /// Type flags (ie PY_TYPE_FLAG_GC, PY_TYPE_FLAG_WEAKREF)
+    const FLAGS: usize = 0;
 
     /// Base class
-    unsafe fn base_type_object() -> &'static mut ffi::PyTypeObject {
-        static mut TYPE_OBJECT: *mut ffi::PyTypeObject = std::ptr::null_mut();
-
-        if TYPE_OBJECT.is_null() {
-            TYPE_OBJECT = &mut ffi::PyBaseObject_Type;
-        }
-        &mut *TYPE_OBJECT
-    }
+    type BaseType: PyTypeInfo;
 
     /// PyTypeObject instance for this type
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
@@ -66,19 +59,12 @@ pub const PY_TYPE_FLAG_BASETYPE: usize = 1<<2;
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;
+    type BaseType = T::BaseType;
     const NAME: &'static str = T::NAME;
     const DESCRIPTION: &'static str = T::DESCRIPTION;
+    const SIZE: usize = T::SIZE;
+    const OFFSET: isize = T::OFFSET;
     const FLAGS: usize = T::FLAGS;
-
-    #[inline]
-    default fn size() -> usize {
-        <T as PyTypeInfo>::size()
-    }
-
-    #[inline]
-    default fn offset() -> isize {
-        <T as PyTypeInfo>::offset()
-    }
 
     #[inline]
     default unsafe fn type_object() -> &'static mut ffi::PyTypeObject {
@@ -113,14 +99,14 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 
         let obj = ffi::PyType_GenericAlloc(T::type_object(), 0);
 
-        let ptr = (obj as *mut u8).offset(T::offset()) as *mut T;
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::write(ptr, value);
 
         Ok(obj)
     }
 
     default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(T::offset()) as *mut T;
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::drop_in_place(ptr);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
@@ -179,20 +165,23 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
         "Module name/type name must not contain NUL byte").into_raw();
 
     let type_object: &mut ffi::PyTypeObject = unsafe{&mut *T::type_object()};
+    let base_type_object: &mut ffi::PyTypeObject = unsafe{
+        &mut *<T::BaseType as PyTypeInfo>::type_object()};
+
     type_object.tp_name = name;
     type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
-    type_object.tp_base = unsafe{<T as PyTypeInfo>::base_type_object()};
+    type_object.tp_base = base_type_object;
 
     // dealloc
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
 
     // type size
-    type_object.tp_basicsize = <T as PyTypeInfo>::size() as ffi::Py_ssize_t;
+    type_object.tp_basicsize = <T as PyTypeInfo>::SIZE as ffi::Py_ssize_t;
 
     // weakref support (check py3cls::py_class::impl_class)
     if T::FLAGS & PY_TYPE_FLAG_WEAKREF != 0 {
         type_object.tp_weaklistoffset =
-            (T::size() - std::mem::size_of::<*const ffi::PyObject>()) as isize;
+            (T::SIZE - std::mem::size_of::<*const ffi::PyObject>()) as isize;
     }
 
     // GC support

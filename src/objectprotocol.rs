@@ -8,9 +8,10 @@ use ffi;
 use err::{self, PyErr, PyResult};
 use python::{Python, ToPyPointer, PyDowncastFrom};
 use object::PyObject;
-use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType, PySuper};
+use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
 use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple, FromPyObject};
 use instance::PyObjectWithToken;
+use typeob::PyTypeInfo;
 
 
 /// Python object model helper methods
@@ -123,7 +124,8 @@ pub trait ObjectProtocol {
 
     /// Gets the Python super object for this object.
     /// This is equivalent to the Python expression: 'super()'
-    fn get_super(&self) -> &PySuper;
+    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType
+        where Self: PyTypeInfo, <Self as PyTypeInfo>::BaseType: PyDowncastFrom;
 
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Option<&'a D>
@@ -355,8 +357,10 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    fn get_super(&self) -> &PySuper {
-        PySuper::new(self)
+    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType
+        where Self: PyTypeInfo, <Self as PyTypeInfo>::BaseType: PyDowncastFrom
+    {
+        unsafe { self.py().cast_from_borrowed_ptr(self.as_ptr()) }
     }
 
     #[inline]

@@ -81,14 +81,14 @@ impl<T> PyObjectAlloc<T> for T where T: PyObjectWithFreeList {
             ffi::PyType_GenericAlloc(<T as PyTypeInfo>::type_object(), 0)
         };
 
-        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::offset()) as *mut T;
+        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::OFFSET) as *mut T;
         std::ptr::write(ptr, value);
 
         Ok(obj)
     }
 
     unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::offset()) as *mut T;
+        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::OFFSET) as *mut T;
         std::ptr::drop_in_place(ptr);
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {

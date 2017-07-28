@@ -3,7 +3,6 @@
 #[macro_use] mod exc_impl;
 
 pub use self::typeobject::PyType;
-pub use self::superobj::PySuper;
 pub use self::module::PyModule;
 pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
@@ -140,24 +139,11 @@ macro_rules! pyobject_nativetype(
 
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
+            type BaseType = $crate::PyObjectRef;
+
             const NAME: &'static str = stringify!($name);
-
-            #[inline]
-            fn size() -> usize {
-                static mut SIZE: usize = 0;
-
-                unsafe {
-                    if SIZE == 0 {
-                        SIZE = $crate::std::mem::size_of::<$crate::ffi::PyObject>();
-                    }
-                    SIZE
-                }
-            }
-
-            #[inline]
-            fn offset() -> isize {
-                0
-            }
+            const SIZE: usize = $crate::std::mem::size_of::<$crate::ffi::PyObject>();
+            const OFFSET: isize = 0;
 
             #[inline]
             unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
@@ -266,7 +252,6 @@ mod slice;
 mod stringdata;
 mod stringutils;
 mod set;
-mod superobj;
 pub mod exc;
 
 #[cfg(Py_3)]
