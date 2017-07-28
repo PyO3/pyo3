@@ -55,6 +55,9 @@ pub const PY_TYPE_FLAG_WEAKREF: usize = 1<<1;
 /// Type object can be used as the base type of another type
 pub const PY_TYPE_FLAG_BASETYPE: usize = 1<<2;
 
+/// The instances of this type have a dictionary containing instance variables
+pub const PY_TYPE_FLAG_DICT: usize = 1<<3;
+
 
 impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     type Type = T::Type;
@@ -208,10 +211,17 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
     // type size
     type_object.tp_basicsize = <T as PyTypeInfo>::SIZE as ffi::Py_ssize_t;
 
+    let mut offset = T::SIZE;
     // weakref support (check py3cls::py_class::impl_class)
     if T::FLAGS & PY_TYPE_FLAG_WEAKREF != 0 {
-        type_object.tp_weaklistoffset =
-            (T::SIZE - std::mem::size_of::<*const ffi::PyObject>()) as isize;
+        offset -= std::mem::size_of::<*const ffi::PyObject>();
+        type_object.tp_weaklistoffset = offset as isize;
+    }
+
+    // __dict__ support
+    if T::FLAGS & PY_TYPE_FLAG_DICT != 0 {
+        offset -= std::mem::size_of::<*const ffi::PyObject>();
+        type_object.tp_dictoffset = offset as isize;
     }
 
     // GC support

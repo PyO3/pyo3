@@ -59,9 +59,10 @@ so that they can benefit from a freelist. `XXX` is a number of items for free li
 participate in python garbage collector. If custom class contains references to other
 python object that can be collector `PyGCProtocol` trait has to be implemented.
 * `weakref` - adds support for python weak references
-* `base=BaseType` - use custom base class. BaseType is type which is 
+* `base=BaseType` - use custom base class. BaseType is type which is
 implements `PyTypeInfo` trait.
 * `subclass` - adds subclass support so that Python classes can inherit from this class
+* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables
 
 
 ## Constructor
@@ -127,8 +128,7 @@ parent class.
 
 ## Object properties
 
-Instance's `__dict__` attributes is not supported by pyo3 library. But it is
-possible to specify instance get/set descriptors. Descriptor methods can be defined in
+Descriptor methods can be defined in
 `#[methods]` `impl` block only and has to be annotated with `#[getter]` or `[setter]`
 attributes. i.e.
 

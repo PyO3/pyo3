@@ -162,12 +162,20 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
     // insert space for weak ref
     let mut has_weakref = false;
+    let mut has_dict = false;
     for f in flags.iter() {
         if *f == syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_WEAKREF") {
             has_weakref = true;
+        } else if *f == syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_DICT") {
+            has_dict = true;
         }
     }
     let weakref = if has_weakref {
+        syn::Ident::from("std::mem::size_of::<*const _pyo3::ffi::PyObject>()")
+    } else {
+        syn::Ident::from("0")
+    };
+    let dict = if has_dict {
         syn::Ident::from("std::mem::size_of::<*const _pyo3::ffi::PyObject>()")
     } else {
         syn::Ident::from("0")
@@ -184,7 +192,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
             const SIZE: usize = {
                 Self::OFFSET as usize +
-                    std::mem::size_of::<#cls>() + #weakref
+                    std::mem::size_of::<#cls>() + #weakref + #dict
             };
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
@@ -382,6 +390,10 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
                     }
                     "subclass" => {
                         flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_BASETYPE"));
+                        continue
+                    }
+                    "dict" => {
+                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_DICT"));
                         continue
                     }
                     _ => {
