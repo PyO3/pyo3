@@ -9,7 +9,6 @@ use std::os::raw::c_int;
 
 use ffi;
 use err::PyResult;
-use python::PyDowncastFrom;
 use objects::{PyType, PyObjectRef};
 use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use typeob::PyTypeInfo;
@@ -19,7 +18,7 @@ use conversion::{IntoPyObject, FromPyObject};
 
 /// Descriptor interface
 #[allow(unused_variables)]
-pub trait PyDescrProtocol<'p>: PyTypeInfo + PyDowncastFrom {
+pub trait PyDescrProtocol<'p>: PyTypeInfo {
 
     fn __get__(&'p self, instance: &'p PyObjectRef, owner: Option<&'p PyType>)
                -> Self::Result where Self: PyDescrGetProtocol<'p> { unimplemented!() }

@@ -10,7 +10,6 @@
 
 use ffi;
 use err::PyResult;
-use python::PyDowncastFrom;
 use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
@@ -20,7 +19,7 @@ use class::methods::PyMethodDef;
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
-pub trait PyAsyncProtocol<'p>: PyTypeInfo + PyDowncastFrom {
+pub trait PyAsyncProtocol<'p>: PyTypeInfo {
 
     fn __await__(&'p self)
                  -> Self::Result where Self: PyAsyncAwaitProtocol<'p> { unimplemented!() }

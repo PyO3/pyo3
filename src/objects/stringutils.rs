@@ -2,11 +2,11 @@
 use std::borrow::Cow;
 
 use err::PyResult;
+use python::Python;
 use object::PyObject;
 use objects::{PyObjectRef, PyString};
 use objectprotocol::ObjectProtocol;
-use python::{Python, PyDowncastFrom};
-use conversion::{ToPyObject, IntoPyObject, RefFromPyObject};
+use conversion::{ToPyObject, IntoPyObject, RefFromPyObject, PyTryFrom};
 
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.
@@ -59,14 +59,14 @@ impl<'source> ::FromPyObject<'source> for Cow<'source, str>
 {
     fn extract(ob: &'source PyObjectRef) -> PyResult<Self>
     {
-        PyString::downcast_from(ob)?.to_string()
+        PyString::try_from(ob)?.to_string()
     }
 }
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 pyobject_extract!(py, obj to String => {
-    PyString::downcast_from(obj)?.to_string().map(Cow::into_owned)
+    PyString::try_from(obj)?.to_string().map(Cow::into_owned)
 });
 
 impl RefFromPyObject for str {

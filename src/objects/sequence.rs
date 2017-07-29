@@ -1,12 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std;
+
 use buffer;
 use ffi::{self, Py_ssize_t};
-use err::{self, PyErr, PyResult};
+use err::{self, PyErr, PyResult, PyDowncastError};
 use object::PyObject;
 use instance::PyObjectWithToken;
-use python::{ToPyPointer, PyDowncastFrom};
-use conversion::{FromPyObject, ToBorrowedObject};
+use python::ToPyPointer;
+use conversion::{FromPyObject, ToBorrowedObject, PyTryFrom};
 use objects::{PyObjectRef, PyList, PyTuple};
 use objectprotocol::ObjectProtocol;
 
@@ -34,8 +36,9 @@ impl PySequence {
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
-            self.py().cast_from_ptr_or_err::<PySequence>(
-                ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))
+            let ptr = self.py().cast_from_ptr_or_err::<PyObjectRef>(
+                ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))?;
+            Ok(std::mem::transmute(ptr))
         }
     }
 
@@ -45,8 +48,9 @@ impl PySequence {
     #[inline]
     pub fn repeat(&self, count: isize) -> PyResult<&PySequence> {
         unsafe {
-            self.py().cast_from_ptr_or_err::<PySequence>(
-                ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))
+            let ptr = self.py().cast_from_ptr_or_err::<PyObjectRef>(
+                ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))?;
+            Ok(std::mem::transmute(ptr))
         }
     }
 
@@ -232,7 +236,7 @@ impl <'source, T> FromPyObject<'source> for Vec<T>
 
 fn extract_sequence<'s, T>(obj: &'s PyObjectRef) -> PyResult<Vec<T>> where T: FromPyObject<'s>
 {
-    let seq = PySequence::downcast_from(obj)?;
+    let seq = PySequence::try_from(obj)?;
     let mut v = Vec::new();
     for item in try!(seq.iter()) {
         let item = try!(item);
@@ -241,12 +245,48 @@ fn extract_sequence<'s, T>(obj: &'s PyObjectRef) -> PyResult<Vec<T>> where T: Fr
     Ok(v)
 }
 
+impl PyTryFrom for PySequence
+{
+    type Error = PyDowncastError;
+
+    fn try_from(value: &PyObjectRef) -> Result<&PySequence, Self::Error> {
+        unsafe {
+            if ffi::PySequence_Check(value.as_ptr()) != 0 {
+                let ptr = value as *const _ as *mut u8 as *mut PySequence;
+                Ok(&*ptr)
+            } else {
+                Err(PyDowncastError)
+            }
+        }
+    }
+
+    fn try_from_exact(value: &PyObjectRef) -> Result<&PySequence, Self::Error> {
+        PySequence::try_from(value)
+    }
+
+    fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, Self::Error> {
+        unsafe {
+            if ffi::PySequence_Check(value.as_ptr()) != 0 {
+                let ptr = value as *const _ as *mut u8 as *mut PySequence;
+                Ok(&mut *ptr)
+            } else {
+                Err(PyDowncastError)
+            }
+        }
+    }
+
+    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut PySequence, Self::Error> {
+        PySequence::try_from_mut(value)
+    }
+}
+
+
 #[cfg(test)]
 mod test {
     use instance::AsPyRef;
-    use python::{Python, PyDowncastFrom};
-    use conversion::ToPyObject;
-    use objects::{PySequence};
+    use python::Python;
+    use conversion::{PyTryFrom, ToPyObject};
+    use objects::PySequence;
     use objectprotocol::ObjectProtocol;
 
     #[test]
@@ -254,7 +294,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = 42i32;
-        assert!(PySequence::downcast_from(v.to_object(py).as_ref(py)).is_err());
+        assert!(PySequence::try_from(v.to_object(py).as_ref(py)).is_err());
     }
 
     #[test]
@@ -262,7 +302,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "London Calling";
-        assert!(PySequence::downcast_from(v.to_object(py).as_ref(py)).is_ok());
+        assert!(PySequence::try_from(v.to_object(py).as_ref(py)).is_ok());
     }
     #[test]
     fn test_seq_empty() {
@@ -499,7 +539,7 @@ mod test {
         let py = gil.python();
         let v = "foo";
         let ob = v.to_object(py);
-        let seq = PySequence::downcast_from(ob.as_ref(py)).unwrap();
+        let seq = PySequence::try_from(ob.as_ref(py)).unwrap();
         assert!(seq.list().is_ok());
     }
 

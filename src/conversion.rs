@@ -1,9 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! This module contains some conversion traits
+
 use ffi;
-use err::PyResult;
-use python::{Python, ToPyPointer, PyDowncastFrom};
+use err::{PyResult, PyDowncastError};
+use python::{Python, ToPyPointer};
 use object::PyObject;
 use objects::{PyObjectRef, PyTuple};
 use typeob::PyTypeInfo;
@@ -115,15 +116,6 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
     }
 }
 
-impl <'a, T: ?Sized> ToBorrowedObject for &'a T where T: ToBorrowedObject {
-
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
-    {
-        <T as ToBorrowedObject>::with_borrowed_ptr(*self, py, f)
-    }
-}
 
 /// `Option::Some<T>` is converted like `T`.
 /// `Option::None` is converted to Python `None`.
@@ -157,15 +149,29 @@ impl IntoPyObject for () {
         py.None()
     }
 }
+impl<'a, T> IntoPyObject for &'a T where T: ToPyPointer
+{
+    #[inline]
+    fn into_object<'p>(self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+impl<'a, T> IntoPyObject for &'a mut T where T: ToPyPointer
+{
+    #[inline]
+    fn into_object<'p>(self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
 
 /// Extract reference to instance from `PyObject`
 impl<'a, T> FromPyObject<'a> for &'a T
-    where T: PyTypeInfo + PyDowncastFrom
+    where T: PyTypeInfo
 {
     #[inline]
     default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T>
     {
-        Ok(PyDowncastFrom::downcast_from(ob)?)
+        Ok(T::try_from(ob)?)
     }
 }
 
@@ -179,6 +185,131 @@ impl<'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'sour
             match T::extract(obj) {
                 Ok(v) => Ok(Some(v)),
                 Err(e) => Err(e)
+            }
+        }
+    }
+}
+
+
+/// Trait implemented by Python object types that allow a checked downcast.
+/// This trait is similar to `std::convert::TryInto`
+pub trait PyTryInto<T>: Sized {
+    /// The type returned in the event of a conversion error.
+    type Error;
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn try_into(&self) -> Result<&T, Self::Error>;
+
+    /// Cast from PyObject to a concrete Python object type. With exact type check.
+    fn try_into_exact(&self) -> Result<&T, Self::Error>;
+
+    /// Cast from PyObject to a concrete Python object type.
+    fn try_into_mut(&self) -> Result<&mut T, Self::Error>;
+
+    /// Cast from PyObject to a concrete Python object type. With exact type check.
+    fn try_into_mut_exact(&self) -> Result<&mut T, Self::Error>;
+}
+
+/// Trait implemented by Python object types that allow a checked downcast.
+/// This trait is similar to `std::convert::TryFrom`
+pub trait PyTryFrom: Sized {
+    /// The type returned in the event of a conversion error.
+    type Error;
+
+    /// Cast from a concrete Python object type to PyObject.
+    fn try_from(value: &PyObjectRef) -> Result<&Self, Self::Error>;
+
+    /// Cast from a concrete Python object type to PyObject. With exact type check.
+    fn try_from_exact(value: &PyObjectRef) -> Result<&Self, Self::Error>;
+
+    /// Cast from a concrete Python object type to PyObject.
+    fn try_from_mut(value: &PyObjectRef) -> Result<&mut Self, Self::Error>;
+
+    /// Cast from a concrete Python object type to PyObject. With exact type check.
+    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut Self, Self::Error>;
+}
+
+// TryFrom implies TryInto
+impl<U> PyTryInto<U> for PyObjectRef where U: PyTryFrom
+{
+    type Error = U::Error;
+
+    fn try_into(&self) -> Result<&U, U::Error> {
+        U::try_from(self)
+    }
+    fn try_into_exact(&self) -> Result<&U, U::Error> {
+        U::try_from_exact(self)
+    }
+    fn try_into_mut(&self) -> Result<&mut U, U::Error> {
+        U::try_from_mut(self)
+    }
+    fn try_into_mut_exact(&self) -> Result<&mut U, U::Error> {
+        U::try_from_mut_exact(self)
+    }
+}
+
+
+impl<T> PyTryFrom for T
+    where T: PyTypeInfo
+{
+    type Error = PyDowncastError;
+
+    fn try_from(value: &PyObjectRef) -> Result<&T, Self::Error> {
+        unsafe {
+            if T::is_instance(value.as_ptr()) {
+                let ptr = if T::OFFSET == 0 {
+                    value as *const _ as *mut u8 as *mut T
+                } else {
+                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
+                };
+                Ok(&*ptr)
+            } else {
+                Err(PyDowncastError)
+            }
+        }
+    }
+
+    fn try_from_exact(value: &PyObjectRef) -> Result<&T, Self::Error> {
+        unsafe {
+            if T::is_exact_instance(value.as_ptr()) {
+                let ptr = if T::OFFSET == 0 {
+                    value as *const _ as *mut u8 as *mut T
+                } else {
+                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
+                };
+                Ok(&*ptr)
+            } else {
+                Err(PyDowncastError)
+            }
+        }
+    }
+
+    fn try_from_mut(value: &PyObjectRef) -> Result<&mut T, Self::Error> {
+        unsafe {
+            if T::is_instance(value.as_ptr()) {
+                let ptr = if T::OFFSET == 0 {
+                    value as *const _ as *mut u8 as *mut T
+                } else {
+                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
+                };
+                Ok(&mut *ptr)
+            } else {
+                Err(PyDowncastError)
+            }
+        }
+    }
+
+    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut T, Self::Error> {
+        unsafe {
+            if T::is_exact_instance(value.as_ptr()) {
+                let ptr = if T::OFFSET == 0 {
+                    value as *const _ as *mut u8 as *mut T
+                } else {
+                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
+                };
+                Ok(&mut *ptr)
+            } else {
+                Err(PyDowncastError)
             }
         }
     }

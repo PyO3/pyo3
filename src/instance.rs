@@ -6,12 +6,12 @@ use std::marker::PhantomData;
 
 use ffi;
 use pythonrun;
-use err::{PyResult, PyErr, PyDowncastError};
+use err::{PyResult, PyErr};
 use object::PyObject;
 use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
-use python::{Python, IntoPyPointer, ToPyPointer, PyDowncastInto, PyDowncastFrom};
+use python::{Python, IntoPyPointer, ToPyPointer};
 use typeob::{PyTypeInfo, PyObjectAlloc};
 
 
@@ -175,7 +175,7 @@ impl<T> Py<T> where T: PyTypeInfo,
     /// Returns references to `T`
     pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
         where F: FnOnce(::PyToken) -> T,
-              T: PyObjectAlloc<T> + PyDowncastFrom
+              T: PyObjectAlloc<T>
     {
         let ob = f(PyToken(PhantomData));
 
@@ -189,7 +189,7 @@ impl<T> Py<T> where T: PyTypeInfo,
     /// Returns mutable references to `T`
     pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
         where F: FnOnce(::PyToken) -> T,
-              T: PyObjectAlloc<T> + PyDowncastFrom
+              T: PyObjectAlloc<T>
     {
         let ob = f(PyToken(PhantomData));
 
@@ -322,45 +322,6 @@ impl<'a, T> std::convert::From<&'a mut T> for PyObject
         unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
     }
 }
-
-impl<T> PyDowncastInto for Py<T> where T: PyTypeInfo
-{
-    fn downcast_into<I>(_py: Python, ob: I) -> Result<Self, PyDowncastError>
-        where I: IntoPyPointer
-    {
-        unsafe{
-            let ptr = ob.into_ptr();
-            if T::is_instance(ptr) {
-                Ok(Py::from_owned_ptr(ptr))
-            } else {
-                ffi::Py_DECREF(ptr);
-                Err(PyDowncastError)
-            }
-        }
-    }
-
-    fn downcast_into_from_ptr(_py: Python, ptr: *mut ffi::PyObject)
-                              -> Result<Self, PyDowncastError>
-    {
-        unsafe{
-            if T::is_instance(ptr) {
-                Ok(Py::from_owned_ptr(ptr))
-            } else {
-                ffi::Py_DECREF(ptr);
-                Err(PyDowncastError)
-            }
-        }
-    }
-
-    fn unchecked_downcast_into<I>(ob: I) -> Self
-        where I: IntoPyPointer
-    {
-        unsafe{
-            Py::from_owned_ptr(ob.into_ptr())
-        }
-    }
-}
-
 
 impl<'a, T> FromPyObject<'a> for Py<T> where T: ToPyPointer + FromPyObject<'a>
 {

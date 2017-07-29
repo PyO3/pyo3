@@ -85,20 +85,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                     f(self.as_ptr())
                 }
             }
-            impl<'a> _pyo3::IntoPyObject for &'a #cls
-            {
-                #[inline]
-                fn into_object<'p>(self, py: _pyo3::Python) -> _pyo3::PyObject {
-                    unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-                }
-            }
-            impl<'a> _pyo3::IntoPyObject for &'a mut #cls
-            {
-                #[inline]
-                fn into_object<'p>(self, py: _pyo3::Python) -> _pyo3::PyObject {
-                    unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-                }
-            }
             impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
             {
                 fn from(ob: &'a mut #cls) -> Self {
@@ -110,8 +96,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 fn as_ptr(&self) -> *mut ffi::PyObject {
                     unsafe {
                         {self as *const _ as *mut u8}
-                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET)
-                            as *mut ffi::PyObject
+                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ffi::PyObject
                     }
                 }
             }
@@ -208,12 +193,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                 static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
                 &mut TYPE_OBJECT
             }
-
-            #[inline]
-            fn is_instance(ptr: *mut _pyo3::ffi::PyObject) -> bool {
-                unsafe {_pyo3::ffi::PyObject_TypeCheck(
-                    ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0}
-            }
         }
 
         impl _pyo3::typeob::PyTypeObject for #cls {
@@ -233,89 +212,6 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                                     <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }
                 });
-            }
-        }
-
-        impl _pyo3::PyDowncastFrom for #cls
-        {
-            fn try_downcast_from(ob: &_pyo3::PyObjectRef) -> Option<&#cls>
-            {
-                unsafe {
-                    let ptr = ob.as_ptr();
-                    let checked = ffi::PyObject_TypeCheck(
-                        ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
-
-                    if checked {
-                        let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
-                        Some(ptr.as_ref().unwrap())
-                    } else {
-                        None
-                    }
-                }
-            }
-
-            fn try_exact_downcast_from(ob: &_pyo3::PyObjectRef) -> Option<&#cls>
-            {
-                unsafe {
-                    let ptr = ob.as_ptr();
-                    if (*ptr).ob_type == <#cls as _pyo3::typeob::PyTypeInfo>::type_object()
-                    {
-                        let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
-                        Some(ptr.as_ref().unwrap())
-                    } else {
-                        None
-                    }
-                }
-            }
-
-            #[inline]
-            unsafe fn unchecked_downcast_from(ob: &_pyo3::PyObjectRef) -> &Self
-            {
-                let ptr = (ob.as_ptr() as *mut u8)
-                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
-                &*ptr
-            }
-            #[inline]
-            unsafe fn unchecked_mut_downcast_from(ob: &_pyo3::PyObjectRef) -> &mut Self
-            {
-                let ptr = (ob.as_ptr() as *mut u8)
-                    .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
-                &mut *ptr
-            }
-        }
-        impl _pyo3::PyMutDowncastFrom for #cls
-        {
-            fn try_mut_downcast_from(ob: &mut _pyo3::PyObjectRef) -> Option<&mut #cls>
-            {
-                unsafe {
-                    let ptr = ob.as_ptr();
-                    let checked = ffi::PyObject_TypeCheck(
-                        ptr, <#cls as _pyo3::typeob::PyTypeInfo>::type_object()) != 0;
-
-                    if checked {
-                        let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
-                        Some(ptr.as_mut().unwrap())
-                    } else {
-                        None
-                    }
-                }
-            }
-            fn try_mut_exact_downcast_from(ob: &mut _pyo3::PyObjectRef) -> Option<&mut #cls>
-            {
-                unsafe {
-                    let ptr = ob.as_ptr();
-                    if (*ptr).ob_type == <#cls as _pyo3::typeob::PyTypeInfo>::type_object()
-                    {
-                        let ptr = (ptr as *mut u8)
-                            .offset(<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut #cls;
-                        Some(ptr.as_mut().unwrap())
-                    } else {
-                        None
-                    }
-                }
             }
         }
 

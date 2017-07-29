@@ -8,7 +8,7 @@ macro_rules! py_unary_func {
     };
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $ret_type:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
@@ -26,7 +26,7 @@ macro_rules! py_unary_func {
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject)
                                      -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             use $crate::ObjectProtocol;
             let _pool = $crate::GILPool::new();
@@ -46,7 +46,7 @@ macro_rules! py_len_func {
     ($trait:ident, $class:ident :: $f:ident, $conv:expr) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject)
                                      -> $crate::ffi::Py_ssize_t
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             let _pool = $crate::GILPool::new();
             let py = Python::assume_gil_acquired();
@@ -69,7 +69,7 @@ macro_rules! py_binary_func{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject) -> $return
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             use $crate::ObjectProtocol;
             let _pool = $crate::GILPool::new();
@@ -94,7 +94,7 @@ macro_rules! py_binary_num_func{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(lhs: *mut ffi::PyObject,
                                      rhs: *mut ffi::PyObject) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             use $crate::ObjectProtocol;
             let _pool = $crate::GILPool::new();
@@ -122,7 +122,7 @@ macro_rules! py_binary_self_func{
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             use $crate::ObjectProtocol;
 
@@ -158,7 +158,7 @@ macro_rules! py_ssizearg_func {
         #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: $crate::ffi::Py_ssize_t) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
@@ -180,7 +180,7 @@ macro_rules! py_ternary_func{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
                                      arg1: *mut $crate::ffi::PyObject,
                                      arg2: *mut $crate::ffi::PyObject) -> $return_type
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             use $crate::ObjectProtocol;
 
@@ -211,7 +211,7 @@ macro_rules! py_ternary_num_func{
         unsafe extern "C" fn wrap<T>(arg1: *mut $crate::ffi::PyObject,
                                      arg2: *mut $crate::ffi::PyObject,
                                      arg3: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
-            where T: for<'p> $trait<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p>
         {
             use $crate::ObjectProtocol;
 
@@ -374,7 +374,7 @@ macro_rules! py_func_set_del{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject,
                                      name: *mut $crate::ffi::PyObject,
                                      value: *mut $crate::ffi::PyObject) -> $crate::c_int
-            where T: for<'p> $trait<'p> + for<'p> $trait2<'p> + $crate::PyDowncastFrom
+            where T: for<'p> $trait<'p> + for<'p> $trait2<'p>
         {
             use $crate::ObjectProtocol;
 

@@ -9,11 +9,11 @@ use callback::PyObjectCallbackConverter;
 use typeob::PyTypeInfo;
 use class::methods::PyMethodDef;
 use class::basic::PyObjectProtocolImpl;
-use {IntoPyObject, FromPyObject, PyDowncastFrom};
+use {IntoPyObject, FromPyObject};
 
 /// Number interface
 #[allow(unused_variables)]
-pub trait PyNumberProtocol<'p>: PyTypeInfo + PyDowncastFrom {
+pub trait PyNumberProtocol<'p>: PyTypeInfo {
 
     fn __add__(lhs: Self::Left, rhs: Self::Right)
                -> Self::Result where Self: PyNumberAddProtocol<'p> { unimplemented!() }

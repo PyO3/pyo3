@@ -4,10 +4,10 @@ use std;
 
 use ffi;
 use pythonrun;
-use err::{PyErr, PyResult};
+use err::{PyErr, PyResult, PyDowncastError};
 use instance::{AsPyRef, PyObjectWithToken};
 use objects::{PyObjectRef, PyDict};
-use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple, FromPyObject};
+use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple, FromPyObject, PyTryFrom};
 use python::{Python, ToPyPointer, IntoPyPointer};
 
 
@@ -151,10 +151,10 @@ impl PyObject {
 
     /// Casts the PyObject to a concrete Python object type.
     #[inline]
-    pub fn cast_as<D>(&self, py: Python) -> Option<&D>
-        where D: ::PyDowncastFrom
+    pub fn cast_as<D>(&self, py: Python) -> Result<&D, <D as PyTryFrom>::Error>
+        where D: PyTryFrom<Error=PyDowncastError>
     {
-        <D as ::PyDowncastFrom>::try_downcast_from(self.as_ref(py))
+        D::try_from(self.as_ref(py))
     }
 
     /// Extracts some type from the Python object.
@@ -280,14 +280,6 @@ impl IntoPyObject for PyObject
     #[inline]
     fn into_object(self, _py: Python) -> PyObject {
         self
-    }
-}
-
-impl<'a> IntoPyObject for &'a PyObject
-{
-    #[inline]
-    fn into_object(self, py: Python) -> PyObject {
-        unsafe {PyObject::from_borrowed_ptr(py, self.as_ptr())}
     }
 }
 

@@ -34,31 +34,6 @@ pub use self::num2::{PyInt, PyLong};
 
 macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
-        impl $crate::python::PyDowncastFrom for $name
-        {
-            fn try_downcast_from(ob: &$crate::PyObjectRef) -> Option<&$name>
-            {
-                use $crate::ToPyPointer;
-                unsafe {
-                    if $crate::ffi::$checkfunction(ob.as_ptr()) > 0 {
-                        Some($crate::std::mem::transmute(ob))
-                    } else {
-                        None
-                    }
-                }
-            }
-
-            unsafe fn unchecked_downcast_from(ob: &$crate::PyObjectRef) -> &Self
-            {
-                $crate::std::mem::transmute(ob)
-            }
-            unsafe fn unchecked_mut_downcast_from(ob: &$crate::PyObjectRef) -> &mut Self
-            {
-                #[allow(mutable_transmutes)]
-                $crate::std::mem::transmute(ob)
-            }
-        }
-
         impl<'a> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
@@ -108,24 +83,6 @@ macro_rules! pyobject_nativetype(
                 self.0.as_ptr()
             }
         }
-        impl $crate::python::IntoPyPointer for $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
-                let ptr = self.0.as_ptr();
-                unsafe { $crate::ffi::Py_INCREF(ptr); }
-                ptr
-            }
-        }
-        impl<'a> $crate::python::IntoPyPointer for &'a $name {
-            /// Gets the underlying FFI pointer, returns a borrowed pointer.
-            #[inline]
-            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
-                let ptr = self.0.as_ptr();
-                unsafe { $crate::ffi::Py_INCREF(ptr); }
-                ptr
-            }
-        }
         impl PartialEq for $name {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
@@ -149,7 +106,7 @@ macro_rules! pyobject_nativetype(
             unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
                 &mut $crate::ffi::$typeobject
             }
-            #[inline]
+
             fn is_instance(ptr: *mut $crate::ffi::PyObject) -> bool {
                 #[allow(unused_unsafe)]
                 unsafe { $crate::ffi::$checkfunction(ptr) > 0 }
@@ -181,14 +138,6 @@ macro_rules! pyobject_nativetype(
                 where F: FnOnce(*mut $crate::ffi::PyObject) -> R
             {
                 f(self.0.as_ptr())
-            }
-        }
-
-        impl<'a> $crate::IntoPyObject for &'a $name
-        {
-            #[inline]
-            fn into_object(self, py: $crate::Python) -> $crate::PyObject {
-                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 

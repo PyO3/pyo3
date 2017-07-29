@@ -12,7 +12,7 @@ use std::os::raw::c_int;
 use ::CompareOp;
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, IntoPyPointer, PyDowncastFrom};
+use python::{Python, IntoPyPointer};
 use objects::{exc, PyObjectRef};
 use typeob::PyTypeInfo;
 use conversion::{FromPyObject, IntoPyObject};
@@ -23,7 +23,7 @@ use class::methods::PyMethodDef;
 
 /// Basic python class customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'p>: PyTypeInfo + PyDowncastFrom + Sized + 'static {
+pub trait PyObjectProtocol<'p>: PyTypeInfo {
 
     fn __getattr__(&'p self, name: Self::Name)
                    -> Self::Result where Self: PyObjectGetAttrProtocol<'p> {unimplemented!()}
@@ -351,14 +351,14 @@ impl<'p, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol<'p>
     }
 }
 impl<T> PyObjectRichcmpProtocolImpl for T
-    where T: for<'p> PyObjectRichcmpProtocol<'p> + PyDowncastFrom
+    where T: for<'p> PyObjectRichcmpProtocol<'p>
 {
     #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject,
                                      arg: *mut ffi::PyObject,
                                      op: c_int) -> *mut ffi::PyObject
-            where T: for<'p> PyObjectRichcmpProtocol<'p> + PyDowncastFrom
+            where T: for<'p> PyObjectRichcmpProtocol<'p>
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();

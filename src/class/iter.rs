@@ -6,7 +6,7 @@ use std::ptr;
 
 use ffi;
 use err::PyResult;
-use python::{Python, PyDowncastFrom, IntoPyPointer};
+use python::{Python, IntoPyPointer};
 use typeob::PyTypeInfo;
 use conversion::IntoPyObject;
 use callback::{CallbackConverter, PyObjectCallbackConverter};
@@ -17,7 +17,7 @@ use callback::{CallbackConverter, PyObjectCallbackConverter};
 /// more information
 /// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter
 #[allow(unused_variables)]
-pub trait PyIterProtocol<'p> : PyTypeInfo + PyDowncastFrom {
+pub trait PyIterProtocol<'p> : PyTypeInfo {
     fn __iter__(&'p mut self)
                 -> Self::Result where Self: PyIterIterProtocol<'p> { unimplemented!() }
 

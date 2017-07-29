@@ -144,8 +144,8 @@ impl PyFrozenSet {
 mod test {
     use std::collections::{HashSet};
     use super::{PySet, PyFrozenSet};
-    use python::{Python, PyDowncastFrom};
-    use conversion::ToPyObject;
+    use python::Python;
+    use conversion::{ToPyObject, PyTryFrom};
     use objectprotocol::ObjectProtocol;
     use instance::AsPyRef;
 
@@ -165,11 +165,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = PySet::downcast_from(ob.as_ref(py)).unwrap();
+        let set = PySet::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = PySet::downcast_from(ob.as_ref(py)).unwrap();
+        let set2 = PySet::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(1, set2.len());
     }
 

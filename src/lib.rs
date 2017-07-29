@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro, const_fn)]
+#![feature(specialization, proc_macro, const_fn, try_from)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -154,11 +154,10 @@ pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use object::PyObject;
-pub use python::{Python, ToPyPointer, IntoPyPointer,
-                 PyMutDowncastFrom, PyDowncastFrom, PyDowncastInto};
+pub use python::{Python, ToPyPointer, IntoPyPointer};
 pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
-pub use conversion::{FromPyObject, RefFromPyObject,
+pub use conversion::{FromPyObject, RefFromPyObject, PyTryFrom, PyTryInto,
                      ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};
 pub mod class;
 pub use class::*;

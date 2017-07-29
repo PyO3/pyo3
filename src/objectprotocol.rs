@@ -5,11 +5,11 @@ use std::cmp::Ordering;
 use std::os::raw::c_int;
 
 use ffi;
-use err::{self, PyErr, PyResult};
-use python::{Python, ToPyPointer, PyDowncastFrom};
+use err::{self, PyErr, PyResult, PyDowncastError};
+use python::{Python, ToPyPointer};
 use object::PyObject;
 use objects::{PyObjectRef, PyDict, PyString, PyIterator, PyType};
-use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple, FromPyObject};
+use conversion::{ToPyObject, ToBorrowedObject, IntoPyTuple, FromPyObject, PyTryFrom};
 use instance::PyObjectWithToken;
 use typeob::PyTypeInfo;
 
@@ -124,12 +124,11 @@ pub trait ObjectProtocol {
 
     /// Gets the Python super object for this object.
     /// This is equivalent to the Python expression: 'super()'
-    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType
-        where Self: PyTypeInfo, <Self as PyTypeInfo>::BaseType: PyDowncastFrom;
+    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
 
     /// Casts the PyObject to a concrete Python object type.
-    fn cast_as<'a, D>(&'a self) -> Option<&'a D>
-        where D: PyDowncastFrom,
+    fn cast_as<'a, D>(&'a self) -> Result<&'a D, <D as PyTryFrom>::Error>
+        where D: PyTryFrom<Error=PyDowncastError>,
               &'a PyObjectRef: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
@@ -357,18 +356,17 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType
-        where Self: PyTypeInfo, <Self as PyTypeInfo>::BaseType: PyDowncastFrom
+    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo
     {
         unsafe { self.py().cast_from_borrowed_ptr(self.as_ptr()) }
     }
 
     #[inline]
-    fn cast_as<'a, D>(&'a self) -> Option<&'a D>
-        where D: PyDowncastFrom,
-                 &'a PyObjectRef: std::convert::From<&'a Self>
+    fn cast_as<'a, D>(&'a self) -> Result<&'a D, <D as PyTryFrom>::Error>
+        where D: PyTryFrom<Error=PyDowncastError>,
+              &'a PyObjectRef: std::convert::From<&'a Self>
     {
-        <D as PyDowncastFrom>::try_downcast_from(self.into())
+        D::try_from(self.into())
     }
 
     #[inline]
@@ -393,8 +391,8 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 #[cfg(test)]
 mod test {
     use instance::AsPyRef;
-    use python::{Python, PyDowncastFrom};
-    use conversion::ToPyObject;
+    use python::Python;
+    use conversion::{ToPyObject, PyTryFrom};
     use objects::PyString;
 
     #[test]
@@ -402,7 +400,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "Hello\n".to_object(py);
-        let s = PyString::downcast_from(v.as_ref(py)).unwrap();
+        let s = PyString::try_from(v.as_ref(py)).unwrap();
         assert_eq!(format!("{:?}", s), "'Hello\\n'");
     }
 
@@ -411,7 +409,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "Hello\n".to_object(py);
-        let s = PyString::downcast_from(v.as_ref(py)).unwrap();
+        let s = PyString::try_from(v.as_ref(py)).unwrap();
         assert_eq!(format!("{}", s), "Hello\n");
     }
 }

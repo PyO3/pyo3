@@ -6,7 +6,7 @@
 use std::os::raw::c_int;
 
 use ffi;
-use python::{Python, PyDowncastFrom};
+use python::Python;
 use err::{PyErr, PyResult};
 use objects::{exc, PyObjectRef};
 use objectprotocol::ObjectProtocol;
@@ -17,7 +17,7 @@ use conversion::{IntoPyObject, FromPyObject};
 
 /// Sequece interface
 #[allow(unused_variables)]
-pub trait PySequenceProtocol<'p>: PyTypeInfo + PyDowncastFrom
+pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized
 {
     fn __len__(&'p self) -> Self::Result
         where Self: PySequenceLenProtocol<'p> { unimplemented!() }

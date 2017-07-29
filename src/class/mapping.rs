@@ -5,7 +5,7 @@
 
 use ffi;
 use err::{PyErr, PyResult};
-use python::{Python, PyDowncastFrom};
+use python::Python;
 use objects::exc;
 use callback::{PyObjectCallbackConverter, LenResultConverter};
 use conversion::{IntoPyObject, FromPyObject};
@@ -15,7 +15,7 @@ use class::methods::PyMethodDef;
 
 /// Mapping interface
 #[allow(unused_variables)]
-pub trait PyMappingProtocol<'p>: PyTypeInfo + PyDowncastFrom + Sized + 'static {
+pub trait PyMappingProtocol<'p>: PyTypeInfo {
 
     fn __len__(&'p self)
                -> Self::Result where Self: PyMappingLenProtocol<'p> {unimplemented!()}

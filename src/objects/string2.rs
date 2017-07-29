@@ -66,9 +66,9 @@ impl PyString {
     /// even if the bytes are not valid UTF-8.
     /// For unicode strings, returns the underlying representation used by Python.
     pub fn data(&self) -> PyStringData {
-        if let Some(bytes) = self.cast_as::<PyBytes>() {
+        if let Ok(bytes) = self.cast_as::<PyBytes>() {
             PyStringData::Utf8(bytes.data())
-        } else if let Some(unicode) = self.cast_as::<PyUnicode>() {
+        } else if let Ok(unicode) = self.cast_as::<PyUnicode>() {
             unicode.data()
         } else {
             panic!("PyString is neither `str` nor `unicode`")
@@ -175,7 +175,7 @@ impl PyUnicode {
 impl std::convert::From<Py<PyBytes>> for Py<PyString> {
     #[inline]
     fn from(ob: Py<PyBytes>) -> Py<PyString> {
-        <Py<PyString> as ::PyDowncastInto>::unchecked_downcast_into(ob)
+        unsafe{std::mem::transmute(ob)}
     }
 }
 
@@ -183,7 +183,7 @@ impl std::convert::From<Py<PyBytes>> for Py<PyString> {
 impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
     #[inline]
     fn from(ob: Py<PyUnicode>) -> Py<PyString> {
-        <Py<PyString> as ::PyDowncastInto>::unchecked_downcast_into(ob)
+        unsafe{std::mem::transmute(ob)}
     }
 }
 

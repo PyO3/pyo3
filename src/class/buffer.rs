@@ -10,7 +10,6 @@ use std::os::raw::c_int;
 use ffi;
 use err::PyResult;
 use typeob::PyTypeInfo;
-use python::PyDowncastFrom;
 use callback::UnitCallbackConverter;
 
 
@@ -19,7 +18,7 @@ use callback::UnitCallbackConverter;
 /// more information on buffer protocol can be found
 /// https://docs.python.org/3/c-api/buffer.html
 #[allow(unused_variables)]
-pub trait PyBufferProtocol<'p> : PyTypeInfo + PyDowncastFrom
+pub trait PyBufferProtocol<'p> : PyTypeInfo
 {
     fn bf_getbuffer(&'p self,
                     view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result

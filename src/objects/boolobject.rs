@@ -1,8 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use ffi;
 use object::PyObject;
-use python::{ToPyPointer, Python, PyDowncastFrom};
-use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
+use python::{Python, ToPyPointer};
+use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject, PyTryFrom};
 
 /// Represents a Python `bool`.
 pub struct PyBool(PyObject);
@@ -59,7 +59,7 @@ impl IntoPyObject for bool {
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 pyobject_extract!(py, obj to bool => {
-    Ok(PyBool::downcast_from(obj)?.is_true())
+    Ok(PyBool::try_from(obj)?.is_true())
 });
 
 

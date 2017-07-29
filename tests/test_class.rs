@@ -110,7 +110,7 @@ fn empty_class_with_new() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClassWithNew>();
-    assert!(typeobj.call(NoArgs, None).unwrap().cast_as::<EmptyClassWithNew>().is_some());
+    assert!(typeobj.call(NoArgs, None).unwrap().cast_as::<EmptyClassWithNew>().is_ok());
 }
 
 #[py::class]

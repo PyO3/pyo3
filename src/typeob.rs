@@ -41,10 +41,20 @@ pub trait PyTypeInfo {
     /// PyTypeObject instance for this type
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
-    /// Check `*mut ffi::PyObject` if it is the same type
-    fn is_instance(ptr: *mut ffi::PyObject) -> bool;
+    /// Check if `*mut ffi::PyObject` is instance of this type
+    fn is_instance(ptr: *mut ffi::PyObject) -> bool {
+        unsafe {ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0}
+    }
 
+    /// Check if `*mut ffi::PyObject` is exact instance of this type
+    fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
+        unsafe {
+            (*ptr).ob_type == Self::type_object()
+        }
+    }
 }
+
+
 
 /// type object supports python GC
 pub const PY_TYPE_FLAG_GC: usize = 1<<0;
@@ -78,6 +88,11 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
         <T as PyTypeInfo>::is_instance(ptr)
     }
 
+    #[inline]
+    default fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
+        <T as PyTypeInfo>::is_exact_instance(ptr)
+    }
+
 }
 
 /// A Python object allocator that is usable as a base type for #[class]
@@ -100,6 +115,7 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
         T::init_type();
 
         let obj = ffi::PyType_GenericAlloc(T::type_object(), 0);
+        println!("ALLOC {:?} {:?}", obj, ffi::Py_REFCNT(obj));
 
         let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::write(ptr, value);

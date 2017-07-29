@@ -3,10 +3,10 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 //! Python argument parsing
-
 use ffi;
 use err::PyResult;
-use python::{Python, PyDowncastFrom};
+use python::Python;
+use conversion::PyTryFrom;
 use objects::{PyObjectRef, PyTuple, PyDict, PyString, exc};
 
 #[derive(Debug)]
@@ -80,8 +80,8 @@ pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
         for item in kwargs.unwrap().items().iter() {
-            let item = PyTuple::downcast_from(item)?;
-            let key = PyString::downcast_from(item.get_item(0))?.to_string()?;
+            let item = PyTuple::try_from(item)?;
+            let key = PyString::try_from(item.get_item(0))?.to_string()?;
             if !params.iter().any(|p| p.name == key) {
                 return Err(exc::TypeError::new(
                     format!("'{}' is an invalid keyword argument for this function", key)));

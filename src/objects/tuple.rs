@@ -7,8 +7,8 @@ use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use objects::PyObjectRef;
-use python::{Python, ToPyPointer, IntoPyPointer, PyDowncastFrom};
-use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject};
+use python::{Python, ToPyPointer, IntoPyPointer};
+use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject, PyTryFrom};
 use super::exc;
 
 /// Represents a Python `tuple` object.
@@ -161,7 +161,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(obj: &'s PyObjectRef) -> PyResult<Self>
         {
-            let t = PyTuple::downcast_from(obj)?;
+            let t = PyTuple::try_from(obj)?;
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
@@ -238,7 +238,7 @@ impl IntoPyTuple for () {
 /// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
 /// Otherwise, returns an error.
 pyobject_extract!(py, obj to NoArgs => {
-    let t = PyTuple::downcast_from(obj)?;
+    let t = PyTuple::try_from(obj)?;
     if t.len() == 0 {
         Ok(NoArgs)
     } else {
@@ -251,8 +251,8 @@ pyobject_extract!(py, obj to NoArgs => {
 mod test {
     use PyTuple;
     use instance::AsPyRef;
-    use python::{Python, PyDowncastFrom};
-    use conversion::ToPyObject;
+    use python::Python;
+    use conversion::{ToPyObject, PyTryFrom};
     use objects::PyObjectRef;
     use objectprotocol::ObjectProtocol;
 
@@ -272,7 +272,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = PyTuple::downcast_from(ob.as_ref(py)).unwrap();
+        let tuple = PyTuple::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
         let ob: &PyObjectRef = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());

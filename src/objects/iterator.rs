@@ -61,8 +61,8 @@ impl <'p> Iterator for PyIterator<'p> {
 #[cfg(test)]
 mod tests {
     use instance::AsPyRef;
-    use python::{Python, PyDowncastFrom};
-    use conversion::ToPyObject;
+    use python::Python;
+    use conversion::{PyTryFrom, ToPyObject};
     use objects::PyObjectRef;
     use objectprotocol::ObjectProtocol;
 
@@ -71,7 +71,7 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj = vec![10, 20].to_object(py);
-        let inst = PyObjectRef::downcast_from(obj.as_ref(py)).unwrap();
+        let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
         let mut it = inst.iter().unwrap();
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
