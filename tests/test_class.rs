@@ -1280,3 +1280,21 @@ fn weakref_dunder_dict_support() {
     let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport{token: t}).unwrap();
     py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
 }
+
+#[py::class]
+struct GetterSetter {
+    #[prop(get, set)]
+    num: i32,
+    token: PyToken
+}
+
+#[test]
+fn getter_setter_autogen() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let inst = py.init(|t| GetterSetter{num: 10, token: t}).unwrap();
+
+    py_run!(py, inst, "assert inst.num == 10");
+    py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+}

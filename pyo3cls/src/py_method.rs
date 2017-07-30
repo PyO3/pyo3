@@ -29,7 +29,7 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
         FnType::FnStatic =>
             impl_py_method_def_static(name, doc, &impl_wrap_static(cls, name, &spec)),
         FnType::Getter(ref getter) =>
-            impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name, &spec)),
+            impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name)),
         FnType::Setter(ref setter) =>
             impl_py_setter_def(name, doc, setter, &impl_wrap_setter(cls, name, &spec)),
     }
@@ -259,7 +259,7 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _spec: &FnSpec) -> Tokens {
+pub(crate) fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident) -> Tokens {
     quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut _pyo3::ffi::PyObject, _: *mut _pyo3::c_void) -> *mut _pyo3::ffi::PyObject
@@ -285,7 +285,7 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _spec: &FnSpec) -> To
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub(crate) fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     if spec.args.len() < 1 {
         println!("Not enough arguments for setter {}::{}", quote!{#cls}, name);
     }
@@ -678,8 +678,8 @@ pub fn impl_py_method_def_call(name: &syn::Ident, doc: syn::Lit, wrapper: &Token
     }
 }
 
-fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Option<String>, wrapper: &Tokens)
-                      -> Tokens
+pub(crate) fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Option<String>, wrapper: &Tokens)
+    -> Tokens
 {
     let n = if let &Some(ref name) = setter {
         name.to_string()
@@ -705,8 +705,8 @@ fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Option<String>,
     }
 }
 
-fn impl_py_getter_def(name: &syn::Ident, doc: syn::Lit, getter: &Option<String>, wrapper: &Tokens)
-                      -> Tokens
+pub(crate) fn impl_py_getter_def(name: &syn::Ident, doc: syn::Lit, getter: &Option<String>, wrapper: &Tokens)
+    -> Tokens
 {
     let n = if let &Some(ref name) = getter {
         name.to_string()
