@@ -44,7 +44,7 @@ impl <'p> Iterator for PyIterator<'p> {
         let py = self.0.py();
 
         match unsafe {
-            py.cast_from_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) }
+            py.cast_from_borrowed_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) }
         {
             Some(obj) => Some(Ok(obj)),
             None => {
