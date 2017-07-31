@@ -78,7 +78,7 @@ features = ["extension-module"]
 #![feature(proc_macro, specialization)]
 
 extern crate pyo3;
-use pyo3::{py, PyResult, Python, PyModule};
+use pyo3::prelude::*;
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file

@@ -198,6 +198,7 @@ pub mod typeob;
 pub mod argparse;
 pub mod buffer;
 pub mod freelist;
+pub mod prelude;
 
 // re-export for simplicity
 #[doc(hidden)]

@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use rayon::prelude::*;
-use pyo3::{py, PyResult, Python, PyModule};
+use pyo3::prelude::*;
 
 fn matches(word: &str, search: &str) -> bool {
     let mut search = search.chars();

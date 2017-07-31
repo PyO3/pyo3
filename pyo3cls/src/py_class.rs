@@ -66,7 +66,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl _pyo3::ToBorrowedObject for #cls {
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
-                    where F: FnOnce(*mut ffi::PyObject) -> R
+                    where F: FnOnce(*mut _pyo3::ffi::PyObject) -> R
                 {
                     f(self.as_ptr())
                 }
@@ -80,7 +80,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             impl<'a> _pyo3::ToBorrowedObject for &'a mut #cls {
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
-                    where F: FnOnce(*mut ffi::PyObject) -> R
+                    where F: FnOnce(*mut _pyo3::ffi::PyObject) -> R
                 {
                     f(self.as_ptr())
                 }
@@ -93,10 +93,10 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
             }
             impl _pyo3::ToPyPointer for #cls {
                 #[inline]
-                fn as_ptr(&self) -> *mut ffi::PyObject {
+                fn as_ptr(&self) -> *mut _pyo3::ffi::PyObject {
                     unsafe {
                         {self as *const _ as *mut u8}
-                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ffi::PyObject
+                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut _pyo3::ffi::PyObject
                     }
                 }
             }

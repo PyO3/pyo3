@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use rayon::prelude::*;
-use pyo3::*;
+use pyo3::prelude::*;
 
 #[py::class]
 struct Words {
