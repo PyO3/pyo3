@@ -239,8 +239,7 @@ fn extract_sequence<'s, T>(obj: &'s PyObjectRef) -> PyResult<Vec<T>> where T: Fr
     let seq = PySequence::try_from(obj)?;
     let mut v = Vec::with_capacity(seq.len().unwrap_or(0) as usize);
     for item in seq.iter()? {
-        let item = try!(item);
-        v.push(item.extract::<T>()?);
+        v.push(item?.extract::<T>()?);
     }
     Ok(v)
 }

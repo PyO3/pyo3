@@ -4,7 +4,7 @@
 
 use ffi;
 use objects::PyObjectRef;
-use python::{Python, ToPyPointer, IntoPyPointer};
+use python::{Python, ToPyPointer};
 use instance::PyObjectWithToken;
 use err::{PyErr, PyResult, PyDowncastError};
 
@@ -17,22 +17,22 @@ pub struct PyIterator<'p>(&'p PyObjectRef);
 
 impl <'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
-    pub fn from_object<T>(py: Python<'p>, obj: T) -> Result<PyIterator<'p>, PyDowncastError>
-        where T: IntoPyPointer
+    pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
+        where T: ToPyPointer
     {
         unsafe {
-            let ptr = obj.into_ptr();
+            let ptr = ffi::PyObject_GetIter(obj.as_ptr());
+
             if ffi::PyIter_Check(ptr) != 0 {
-                Ok(PyIterator(py.cast_from_ptr(ptr)))
+                Ok(PyIterator(py.cast_from_borrowed_ptr(ptr)))
             } else {
-                ffi::Py_DECREF(ptr);
                 Err(PyDowncastError)
             }
         }
     }
 }
 
-impl <'p> Iterator for PyIterator<'p> {
+impl<'p> Iterator for PyIterator<'p> {
     type Item = PyResult<&'p PyObjectRef>;
 
     /// Retrieves the next item from an iterator.
@@ -58,12 +58,20 @@ impl <'p> Iterator for PyIterator<'p> {
     }
 }
 
+/// Dropping a `PyIterator` instance decrements the reference count on the object by 1.
+impl<'p> Drop for PyIterator<'p> {
+
+    fn drop(&mut self) {
+        unsafe { ffi::Py_DECREF(self.0.as_ptr()) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use instance::AsPyRef;
     use python::Python;
     use conversion::{PyTryFrom, ToPyObject};
-    use objects::PyObjectRef;
+    use objects::{PyObjectRef, PyList};
     use objectprotocol::ObjectProtocol;
 
     #[test]
@@ -76,5 +84,55 @@ mod tests {
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
         assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn iter_refcnt() {
+        let obj;
+        let count;
+        {
+            let gil_guard = Python::acquire_gil();
+            let py = gil_guard.python();
+            obj = vec![10, 20].to_object(py);
+            count = obj.get_refcnt();
+        }
+
+        {
+            let gil_guard = Python::acquire_gil();
+            let py = gil_guard.python();
+            let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
+            let mut it = inst.iter().unwrap();
+
+            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+        }
+        assert_eq!(count, obj.get_refcnt());
+    }
+
+    #[test]
+    fn iter_item_refcnt() {
+        let obj;
+        let none;
+        let count;
+        {
+            let gil_guard = Python::acquire_gil();
+            let py = gil_guard.python();
+            let l = PyList::empty(py);
+            none = py.None();
+            l.append(10).unwrap();
+            l.append(&none).unwrap();
+            count = none.get_refcnt();
+            obj = l.to_object(py);
+        }
+
+        {
+            let gil_guard = Python::acquire_gil();
+            let py = gil_guard.python();
+            let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
+            let mut it = inst.iter().unwrap();
+
+            assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
+            assert!(it.next().unwrap().unwrap().is_none());
+        }
+        assert_eq!(count, none.get_refcnt());
     }
 }

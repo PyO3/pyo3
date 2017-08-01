@@ -343,11 +343,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
     #[inline]
     fn iter<'p>(&'p self) -> PyResult<PyIterator<'p>> {
-        unsafe {
-            let ptr = PyObject::from_owned_ptr_or_err(
-                self.py(), ffi::PyObject_GetIter(self.as_ptr()))?;
-            PyIterator::from_object(self.py(), ptr).map_err(|e| e.into())
-        }
+       Ok(PyIterator::from_object(self.py(), self)?)
     }
 
     fn get_type(&self) -> &PyType {
