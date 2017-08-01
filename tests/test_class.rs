@@ -244,7 +244,7 @@ impl Drop for ClassWithDrop {
 
             let _empty1 = PyTuple::empty(py);
             let _empty2: PyObject = PyTuple::empty(py).into();
-            let _empty3: &PyObjectRef = py.cast_from_ptr(ffi::PyTuple_New(0));
+            let _empty3: &PyObjectRef = py.from_owned_ptr(ffi::PyTuple_New(0));
         }
     }
 }

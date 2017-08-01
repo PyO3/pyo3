@@ -25,14 +25,14 @@ impl PyList {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            py.cast_from_ptr::<PyList>(ptr)
+            py.from_owned_ptr::<PyList>(ptr)
         }
     }
 
     /// Construct a new empty list.
     pub fn empty(py: Python) -> &PyList {
         unsafe {
-            py.cast_from_ptr::<PyList>(ffi::PyList_New(0))
+            py.from_owned_ptr::<PyList>(ffi::PyList_New(0))
         }
     }
 
@@ -50,7 +50,7 @@ impl PyList {
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyObjectRef {
         unsafe {
-            self.py().cast_from_borrowed_ptr(
+            self.py().from_borrowed_ptr(
                 ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }

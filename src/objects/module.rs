@@ -29,7 +29,7 @@ impl PyModule {
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name)?;
         unsafe {
-            py.cast_from_ptr_or_err(
+            py.from_owned_ptr_or_err(
                 ffi::PyModule_New(name.as_ptr()))
         }
     }
@@ -38,7 +38,7 @@ impl PyModule {
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name)?;
         unsafe {
-            py.cast_from_ptr_or_err(
+            py.from_owned_ptr_or_err(
                 ffi::PyImport_ImportModule(name.as_ptr()))
         }
     }
@@ -47,7 +47,7 @@ impl PyModule {
     /// this object is the same as the `__dict__` attribute of the module object.
     pub fn dict(&self) -> &PyDict {
         unsafe {
-            self.py().cast_from_ptr::<PyDict>(
+            self.py().from_owned_ptr::<PyDict>(
                 ffi::PyModule_GetDict(self.as_ptr()))
         }
     }

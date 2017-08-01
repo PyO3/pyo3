@@ -24,7 +24,8 @@ impl <'p> PyIterator<'p> {
             let ptr = ffi::PyObject_GetIter(obj.as_ptr());
 
             if ffi::PyIter_Check(ptr) != 0 {
-                Ok(PyIterator(py.cast_from_borrowed_ptr(ptr)))
+                // this is not right, but this cause of segfault check #71
+                Ok(PyIterator(py.from_borrowed_ptr(ptr)))
             } else {
                 Err(PyDowncastError)
             }
@@ -44,7 +45,7 @@ impl<'p> Iterator for PyIterator<'p> {
         let py = self.0.py();
 
         match unsafe {
-            py.cast_from_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) }
+            py.from_owned_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) }
         {
             Some(obj) => Some(Ok(obj)),
             None => {

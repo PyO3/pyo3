@@ -218,7 +218,7 @@ impl<T> PySequenceSetItemProtocolImpl for T
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
-            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             if value.is_null() {
                 let e = PyErr::new::<exc::NotImplementedError, _>(
@@ -226,7 +226,7 @@ impl<T> PySequenceSetItemProtocolImpl for T
                 e.restore(py);
                 -1
             } else {
-                let value = py.cast_from_borrowed_ptr::<PyObjectRef>(value);
+                let value = py.from_borrowed_ptr::<PyObjectRef>(value);
                 let result = match value.extract() {
                     Ok(value) => {
                         slf.__setitem__(key as isize, value).into()
@@ -269,7 +269,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
-            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             if value.is_null() {
                 let result = slf.__delitem__(key as isize).into();
@@ -304,7 +304,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
-            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             if value.is_null() {
                 let result = slf.__delitem__(key as isize).into();
@@ -316,7 +316,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                     }
                 }
             } else {
-                let value = py.cast_from_borrowed_ptr::<PyObjectRef>(value);
+                let value = py.from_borrowed_ptr::<PyObjectRef>(value);
                 let result = match value.extract() {
                     Ok(value) => {
                         slf.__setitem__(key as isize, value).into()

@@ -57,7 +57,7 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                     stringify!(#cls), ".", stringify!(#name), "()");
                 let _pool = _pyo3::GILPool::new();
                 let _py = _pyo3::Python::assume_gil_acquired();
-                let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
+                let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
 
                 let _result: #output = {
                     #cb
@@ -80,8 +80,8 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                     stringify!(#cls), ".", stringify!(#name), "()");
                 let _pool = _pyo3::GILPool::new();
                 let _py = _pyo3::Python::assume_gil_acquired();
-                let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
-                let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+                let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+                let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
                 let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
                 let _result: #output = {
@@ -109,8 +109,8 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
-            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
             let _result = {
@@ -145,7 +145,7 @@ pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> T
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
             let _cls = _pyo3::PyType::from_type_ptr(_py, _cls);
-            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
             let _result: #output = {
@@ -172,8 +172,8 @@ fn impl_wrap_init(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Token
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
-            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
             let _result: PyResult<()> = {
@@ -212,7 +212,7 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
             let _cls = _pyo3::PyType::from_type_ptr(_py, _cls as *mut _pyo3::ffi::PyTypeObject);
-            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
             let _result: #output = {
@@ -246,7 +246,7 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
             let _result: #output = {
@@ -269,7 +269,7 @@ fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident, _spec: &FnSpec) -> To
 
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
 
             match _slf.#name() {
                 Ok(val) => {
@@ -300,8 +300,8 @@ fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tok
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _slf = _py.mut_cast_from_borrowed_ptr::<#cls>(_slf);
-            let _value = _py.cast_from_borrowed_ptr(_value);
+            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _value = _py.from_borrowed_ptr(_value);
 
             let _result = match <#val_ty as _pyo3::FromPyObject>::extract(_value) {
                 Ok(_val) => _slf.#name(_val),

@@ -181,7 +181,7 @@ impl<T> Py<T> where T: PyTypeInfo,
 
         unsafe {
             let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
-            Ok(py.cast_from_ptr(ob))
+            Ok(py.from_owned_ptr(ob))
         }
     }
 
@@ -195,7 +195,7 @@ impl<T> Py<T> where T: PyTypeInfo,
 
         unsafe {
             let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
-            Ok(py.mut_cast_from_ptr(ob))
+            Ok(py.mut_from_owned_ptr(ob))
         }
     }
 

@@ -362,8 +362,8 @@ impl<T> PyObjectRichcmpProtocolImpl for T
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
-            let slf = py.cast_from_borrowed_ptr::<T>(slf);
-            let arg = py.cast_from_borrowed_ptr::<PyObjectRef>(arg);
+            let slf = py.from_borrowed_ptr::<T>(slf);
+            let arg = py.from_borrowed_ptr::<PyObjectRef>(arg);
 
             let res = match extract_op(op) {
                 Ok(op) => match arg.extract() {

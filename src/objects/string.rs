@@ -47,7 +47,7 @@ impl PyString {
                            -> PyResult<&'p PyString>
     {
         unsafe {
-            src.py().cast_from_ptr_or_err::<PyString>(
+            src.py().from_owned_ptr_or_err::<PyString>(
                 ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const i8,

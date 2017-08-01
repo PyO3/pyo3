@@ -23,7 +23,7 @@ impl PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         unsafe {
-            py.cast_from_ptr::<PyByteArray>(
+            py.from_owned_ptr::<PyByteArray>(
                 ffi::PyByteArray_FromStringAndSize(ptr, len))
         }
     }
@@ -34,7 +34,7 @@ impl PyByteArray {
         where I: ToPyPointer
     {
         unsafe {
-            py.cast_from_ptr_or_err(
+            py.from_owned_ptr_or_err(
                 ffi::PyByteArray_FromObject(src.as_ptr()))
         }
     }

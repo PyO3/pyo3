@@ -75,7 +75,7 @@ impl PyTuple {
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
-            self.py().cast_from_borrowed_ptr(
+            self.py().from_borrowed_ptr(
                 ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }

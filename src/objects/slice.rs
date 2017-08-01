@@ -46,7 +46,7 @@ impl PySlice {
             let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as c_long),
                                        ffi::PyLong_FromLong(stop as c_long),
                                        ffi::PyLong_FromLong(step as c_long));
-            py.cast_from_ptr(ptr)
+            py.from_owned_ptr(ptr)
         }
     }
 

@@ -161,7 +161,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef> where N: ToPyObject
     {
         attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
-            self.py().cast_from_ptr_or_err(
+            self.py().from_owned_ptr_or_err(
                 ffi::PyObject_GetAttr(self.as_ptr(), attr_name))
         })
     }
@@ -231,14 +231,14 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     #[inline]
     fn repr(&self) -> PyResult<&PyString> {
         unsafe {
-            self.py().cast_from_ptr_or_err(ffi::PyObject_Repr(self.as_ptr()))
+            self.py().from_owned_ptr_or_err(ffi::PyObject_Repr(self.as_ptr()))
         }
     }
 
     #[inline]
     fn str(&self) -> PyResult<&PyString> {
         unsafe {
-            self.py().cast_from_ptr_or_err(ffi::PyObject_Str(self.as_ptr()))
+            self.py().from_owned_ptr_or_err(ffi::PyObject_Str(self.as_ptr()))
         }
     }
 
@@ -255,7 +255,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     {
         let t = args.into_tuple(self.py());
         let result = unsafe {
-            self.py().cast_from_ptr_or_err(
+            self.py().from_owned_ptr_or_err(
                 ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
         };
         self.py().release(t);
@@ -270,7 +270,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let t = args.into_tuple(self.py());
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            let result = self.py().cast_from_ptr_or_err(
+            let result = self.py().from_owned_ptr_or_err(
                 ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
             ffi::Py_DECREF(ptr);
             self.py().release(t);
@@ -316,7 +316,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     #[inline]
     fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
-            self.py().cast_from_ptr_or_err(
+            self.py().from_owned_ptr_or_err(
                 ffi::PyObject_GetItem(self.as_ptr(), key))
         })
     }
@@ -354,7 +354,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
     fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo
     {
-        unsafe { self.py().cast_from_borrowed_ptr(self.as_ptr()) }
+        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 
     #[inline]

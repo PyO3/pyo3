@@ -89,7 +89,7 @@ impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
-            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let visit = PyVisit { visit: visit, arg: arg, _py: py };
             match slf.__traverse__(visit) {
@@ -124,7 +124,7 @@ impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p>
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
-            let slf = py.mut_cast_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             slf.__clear__();
             0

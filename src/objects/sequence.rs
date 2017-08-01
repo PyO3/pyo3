@@ -36,7 +36,7 @@ impl PySequence {
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = self.py().cast_from_ptr_or_err::<PyObjectRef>(
+            let ptr = self.py().from_owned_ptr_or_err::<PyObjectRef>(
                 ffi::PySequence_Concat(self.as_ptr(), other.as_ptr()))?;
             Ok(std::mem::transmute(ptr))
         }
@@ -48,7 +48,7 @@ impl PySequence {
     #[inline]
     pub fn repeat(&self, count: isize) -> PyResult<&PySequence> {
         unsafe {
-            let ptr = self.py().cast_from_ptr_or_err::<PyObjectRef>(
+            let ptr = self.py().from_owned_ptr_or_err::<PyObjectRef>(
                 ffi::PySequence_Repeat(self.as_ptr(), count as Py_ssize_t))?;
             Ok(std::mem::transmute(ptr))
         }
@@ -86,7 +86,7 @@ impl PySequence {
     #[inline]
     pub fn get_item(&self, index: isize) -> PyResult<&PyObjectRef> {
         unsafe {
-            self.py().cast_from_ptr_or_err(
+            self.py().from_owned_ptr_or_err(
                 ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
@@ -96,7 +96,7 @@ impl PySequence {
     #[inline]
     pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyObjectRef> {
         unsafe {
-            self.py().cast_from_ptr_or_err(
+            self.py().from_owned_ptr_or_err(
                 ffi::PySequence_GetSlice(
                     self.as_ptr(), begin as Py_ssize_t, end as Py_ssize_t))
         }
@@ -194,7 +194,7 @@ impl PySequence {
     #[inline]
     pub fn list(&self) -> PyResult<&PyList> {
         unsafe {
-            self.py().cast_from_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
+            self.py().from_owned_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
         }
     }
 
@@ -202,7 +202,7 @@ impl PySequence {
     #[inline]
     pub fn tuple(&self) -> PyResult<&PyTuple> {
         unsafe {
-            self.py().cast_from_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
+            self.py().from_owned_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
         }
     }
 }

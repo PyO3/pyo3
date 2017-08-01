@@ -25,7 +25,7 @@ impl PyDict {
     /// May panic when running out of memory.
     pub fn new(py: Python) -> &PyDict {
         unsafe {
-            py.cast_from_ptr::<PyDict>(ffi::PyDict_New())
+            py.from_owned_ptr::<PyDict>(ffi::PyDict_New())
         }
     }
 
@@ -33,7 +33,7 @@ impl PyDict {
     /// Corresponds to `dict(self)` in Python.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
-            self.py().cast_from_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
+            self.py().from_owned_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
         }
     }
 
@@ -66,7 +66,7 @@ impl PyDict {
     /// Returns None if the item is not present, or if an error occurs.
     pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
-            self.py().cast_from_borrowed_ptr_or_opt(
+            self.py().from_borrowed_ptr_or_opt(
                 ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }
@@ -98,7 +98,7 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.keys())`.
     pub fn keys(&self) -> &PyList {
         unsafe {
-            self.py().cast_from_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
+            self.py().from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
         }
     }
 
@@ -106,7 +106,7 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.values())`.
     pub fn values(&self) -> &PyList {
         unsafe {
-            self.py().cast_from_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
+            self.py().from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
         }
     }
 
@@ -114,7 +114,7 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.items())`.
     pub fn items(&self) -> &PyList {
         unsafe {
-            self.py().cast_from_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
+            self.py().from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
         }
     }
 
@@ -157,7 +157,7 @@ impl<'a> Iterator for PyDictIterator<'a> {
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.dict.py();
-                Some((py.cast_from_borrowed_ptr(key), py.cast_from_borrowed_ptr(value)))
+                Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
             } else {
                 None
             }

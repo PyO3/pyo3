@@ -130,7 +130,7 @@ impl UnicodeDecodeError {
                        range: ops::Range<usize>, reason: &CStr) -> PyResult<&'p PyObjectRef> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            py.cast_from_ptr_or_err(
+            py.from_owned_ptr_or_err(
                 ffi::PyUnicodeDecodeError_Create(
                     encoding.as_ptr(),
                     input.as_ptr(),

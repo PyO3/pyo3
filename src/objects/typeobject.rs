@@ -39,7 +39,7 @@ impl PyType {
     #[inline]
     pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> &PyType
     {
-        py.cast_from_borrowed_ptr::<PyType>(p as *mut ffi::PyObject)
+        py.from_borrowed_ptr::<PyType>(p as *mut ffi::PyObject)
     }
 
     /// Gets the name of the PyType.

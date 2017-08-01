@@ -65,7 +65,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
 
             let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
-            let _module = match _py.cast_from_ptr_or_err::<pyo3::PyModule>(_module) {
+            let _module = match _py.from_owned_ptr_or_err::<pyo3::PyModule>(_module) {
                 Ok(m) => m,
                 Err(e) => {
                     pyo3::PyErr::from(e).restore(_py);
@@ -135,7 +135,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
                 return
             }
 
-            let _module = match _py.cast_from_borrowed_ptr_or_err::<pyo3::PyModule>(_module) {
+            let _module = match _py.from_borrowed_ptr_or_err::<pyo3::PyModule>(_module) {
                 Ok(m) => m,
                 Err(e) => {
                     pyo3::PyErr::from(e).restore(_py);
@@ -327,7 +327,7 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
 
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _args = _py.cast_from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
             let _result: #output = {
