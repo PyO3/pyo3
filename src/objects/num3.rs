@@ -43,7 +43,7 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-        pyobject_extract!(py, obj to $rust_type => {
+        pyobject_extract!(obj to $rust_type => {
             let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
             if val == -1 && PyErr::occurred(obj.py()) {
                 return Err(PyErr::fetch(obj.py()));
@@ -70,7 +70,7 @@ macro_rules! int_fits_larger_int(
                 (self as $larger_type).into_object(py)
             }
         }
-        pyobject_extract!(py, obj to $rust_type => {
+        pyobject_extract!(obj to $rust_type => {
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),

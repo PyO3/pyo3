@@ -48,7 +48,7 @@ impl IntoPyObject for f64 {
     }
 }
 
-pyobject_extract!(py, obj to f64 => {
+pyobject_extract!(obj to f64 => {
     let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
     if v == -1.0 && PyErr::occurred(obj.py()) {
         Err(PyErr::fetch(obj.py()))
@@ -68,8 +68,8 @@ impl IntoPyObject for f32 {
     }
 }
 
-pyobject_extract!(py, obj to f32 => {
-    Ok(try!(obj.extract::<f64>()) as f32)
+pyobject_extract!(obj to f32 => {
+    Ok(obj.extract::<f64>()? as f32)
 });
 
 

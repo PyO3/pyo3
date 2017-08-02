@@ -58,7 +58,7 @@ impl IntoPyObject for bool {
 /// Converts a Python `bool` to a rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-pyobject_extract!(py, obj to bool => {
+pyobject_extract!(obj to bool => {
     Ok(PyBool::try_from(obj)?.is_true())
 });
 

@@ -43,7 +43,7 @@ pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
 impl PyInt {
     /// Creates a new Python 2.7 `int` object.
     ///
-    /// Note: you might want to call `val.to_py_object(py)` instead
+    /// Note: you might want to call `val.to_object(py)` instead
     /// to avoid truncation if the value does not fit into a `c_long`,
     /// and to make your code compatible with Python 3.x.
     pub fn new(_py: Python, val: c_long) -> Py<PyInt> {
@@ -57,7 +57,7 @@ impl PyInt {
     /// Warning: `PyInt::value()` is only supported for Python 2.7 `int` objects,
     /// but not for `long` objects.
     /// In almost all cases, you can avoid the distinction between these types
-    /// by simply calling `obj.extract::<i32>(py)`.
+    /// by simply calling `obj.extract::<i32>()`.
     pub fn value(&self) -> c_long {
         unsafe { ffi::PyInt_AS_LONG(self.0.as_ptr()) }
     }
@@ -79,7 +79,7 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-        pyobject_extract!(py, obj to $rust_type => {
+        pyobject_extract!(obj to $rust_type => {
             let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
             if val == -1 && PyErr::occurred(obj.py()) {
                 return Err(PyErr::fetch(obj.py()));
@@ -106,7 +106,7 @@ macro_rules! int_fits_larger_int(
                 (self as $larger_type).into_object(py)
             }
         }
-        pyobject_extract!(py, obj to $rust_type => {
+        pyobject_extract!(obj to $rust_type => {
             let val = try!(obj.extract::<$larger_type>());
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),

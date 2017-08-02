@@ -166,13 +166,26 @@ macro_rules! pyobject_nativetype(
 );
 
 macro_rules! pyobject_extract(
-    ($py:ident, $obj:ident to $t:ty => $body: block) => {
+    ($obj:ident to $t:ty => $body: block) => {
         impl<'source> $crate::FromPyObject<'source> for $t
         {
             fn extract($obj: &'source $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
                 #[allow(unused_imports)]
                 use objectprotocol::ObjectProtocol;
+
+                $body
+            }
+        }
+
+        impl<'source> $crate::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
+        {
+            type Error = $crate::PyErr;
+
+            fn try_from($obj: &$crate::PyObjectRef) -> Result<Self, $crate::PyErr>
+            {
+                #[allow(unused_imports)]
+                use $crate::ObjectProtocol;
 
                 $body
             }

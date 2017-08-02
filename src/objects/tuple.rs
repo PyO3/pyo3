@@ -237,7 +237,7 @@ impl IntoPyTuple for () {
 
 /// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
 /// Otherwise, returns an error.
-pyobject_extract!(py, obj to NoArgs => {
+pyobject_extract!(obj to NoArgs => {
     let t = PyTuple::try_from(obj)?;
     if t.len() == 0 {
         Ok(NoArgs)
