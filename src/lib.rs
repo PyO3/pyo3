@@ -155,7 +155,7 @@ pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use object::PyObject;
 pub use noargs::NoArgs;
-pub use python::{Python, ToPyPointer, IntoPyPointer};
+pub use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
 pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
 pub use conversion::{FromPyObject, RefFromPyObject, PyTryFrom, PyTryInto,
