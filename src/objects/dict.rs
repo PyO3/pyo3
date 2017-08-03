@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use std;
 use std::{mem, collections, hash, cmp};
 
 use ffi;
@@ -38,14 +37,12 @@ impl PyDict {
     }
 
     /// Empty an existing dictionary of all key-value pairs.
-    #[inline]
     pub fn clear(&self) {
         unsafe { ffi::PyDict_Clear(self.as_ptr()) }
     }
 
     /// Return the number of items in the dictionary.
     /// This is equivalent to len(p) on a dictionary.
-    #[inline]
     pub fn len(&self) -> usize {
         unsafe { ffi::PyDict_Size(self.as_ptr()) as usize }
     }
@@ -118,25 +115,9 @@ impl PyDict {
         }
     }
 
-    /// Returns the list of (key, value) pairs in this dictionary.
-    pub fn items_vec(&self) -> Vec<(PyObject, PyObject)> {
-        let mut vec = Vec::with_capacity(self.len());
-        unsafe {
-            let mut pos = 0;
-            let mut key: *mut ffi::PyObject = mem::uninitialized();
-            let mut value: *mut ffi::PyObject = mem::uninitialized();
-            while ffi::PyDict_Next(self.as_ptr(), &mut pos, &mut key, &mut value) != 0 {
-                vec.push((PyObject::from_borrowed_ptr(self.py(), key),
-                          PyObject::from_borrowed_ptr(self.py(), value)));
-            }
-        }
-        vec
-    }
-
     /// Returns a iterator of (key, value) pairs in this dictionary
     /// Note that it's unsafe to use when the dictionary might be changed
     /// by other python code.
-    #[inline]
     pub fn iter(&self) -> PyDictIterator {
         PyDictIterator { dict: self, pos: 0 }
     }
@@ -165,9 +146,19 @@ impl<'a> Iterator for PyDictIterator<'a> {
     }
 }
 
-impl <K, V> ToPyObject for collections::HashMap<K, V>
+impl<'a> std::iter::IntoIterator for &'a PyDict {
+    type Item = (&'a PyObjectRef, &'a PyObjectRef);
+    type IntoIter = PyDictIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl <K, V, H> ToPyObject for collections::HashMap<K, V, H>
     where K: hash::Hash+cmp::Eq+ToPyObject,
-          V: ToPyObject
+          V: ToPyObject,
+          H: hash::BuildHasher
 {
     fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
@@ -191,9 +182,10 @@ impl <K, V> ToPyObject for collections::BTreeMap<K, V>
     }
 }
 
-impl <K, V> IntoPyObject for collections::HashMap<K, V>
+impl <K, V, H> IntoPyObject for collections::HashMap<K, V, H>
     where K: hash::Hash+cmp::Eq+ToPyObject,
-          V: ToPyObject
+          V: ToPyObject,
+          H: hash::BuildHasher
 {
     fn into_object(self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
@@ -416,28 +408,7 @@ mod test {
     }
 
     #[test]
-    fn test_items_vec() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v = HashMap::new();
-        v.insert(7, 32);
-        v.insert(8, 42);
-        v.insert(9, 123);
-        let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
-        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
-        let mut key_sum = 0;
-        let mut value_sum = 0;
-        for (key, value) in dict.items_vec() {
-            key_sum += key.extract::<i32>(py).unwrap();
-            value_sum += value.extract::<i32>(py).unwrap();
-        }
-        assert_eq!(7 + 8 + 9, key_sum);
-        assert_eq!(32 + 42 + 123, value_sum);
-    }
-
-    #[test]
-    fn test_dict_iter() {
+    fn test_iter() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let mut v = HashMap::new();
@@ -449,6 +420,26 @@ mod test {
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict.iter() {
+            key_sum += key.extract::<i32>().unwrap();
+            value_sum += value.extract::<i32>().unwrap();
+        }
+        assert_eq!(7 + 8 + 9, key_sum);
+        assert_eq!(32 + 42 + 123, value_sum);
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        v.insert(7, 32);
+        v.insert(8, 42);
+        v.insert(9, 123);
+        let ob = v.to_object(py);
+        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let mut key_sum = 0;
+        let mut value_sum = 0;
+        for (key, value) in dict {
             key_sum += key.extract::<i32>().unwrap();
             value_sum += value.extract::<i32>().unwrap();
         }
