@@ -109,14 +109,6 @@ impl PyObject {
         }
     }
 
-    /// Transmutes a slice of owned FFI pointers to `&[PyObject]`.
-    /// Undefined behavior if any pointer in the slice is NULL or invalid.
-    #[inline]
-    pub unsafe fn borrow_from_owned_ptr_slice(ptr: &[*mut ffi::PyObject])
-                                                  -> &[PyObject] {
-        std::mem::transmute(ptr)
-    }
-
     /// Gets the reference count of the ffi::PyObject pointer.
     #[inline]
     pub fn get_refcnt(&self) -> isize {

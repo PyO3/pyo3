@@ -1,10 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use std;
 use std::slice;
 
 use ffi::{self, Py_ssize_t};
 use err::{PyErr, PyResult};
-use instance::{Py, PyObjectWithToken};
+use instance::{Py, PyObjectWithToken, AsPyRef};
 use object::PyObject;
 use objects::PyObjectRef;
 use python::{Python, ToPyPointer, IntoPyPointer};
@@ -87,7 +88,7 @@ impl PyTuple {
         // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            PyObject::borrow_from_owned_ptr_slice(
+            std::mem::transmute(
                 slice::from_raw_parts(
                     (*ptr).ob_item.as_ptr(), self.len()
                 ))
@@ -95,8 +96,39 @@ impl PyTuple {
     }
 
     #[inline]
-    pub fn iter(&self) -> slice::Iter<PyObject> {
-        self.as_slice().iter()
+    pub fn iter(&self) -> PyTupleIterator {
+        PyTupleIterator{ py: self.py(), slice: self.as_slice(), index: 0 }
+    }
+}
+
+/// Used by `PyTuple::iter()`.
+pub struct PyTupleIterator<'a> {
+    py: Python<'a>,
+    slice: &'a [PyObject],
+    index: usize,
+}
+
+impl<'a> Iterator for PyTupleIterator<'a> {
+    type Item = &'a PyObjectRef;
+
+    #[inline]
+    fn next(&mut self) -> Option<&'a PyObjectRef> {
+        if self.index < self.slice.len() {
+            let item = self.slice[self.index].as_ref(self.py);
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> std::iter::IntoIterator for &'a PyTuple {
+    type Item = &'a PyObjectRef;
+    type IntoIter = PyTupleIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -276,5 +308,33 @@ mod test {
         assert_eq!(3, tuple.len());
         let ob: &PyObjectRef = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
+    }
+
+    #[test]
+    fn test_iter() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let ob = (1, 2, 3).to_object(py);
+        let tuple = PyTuple::try_from(ob.as_ref(py)).unwrap();
+        assert_eq!(3, tuple.len());
+        let mut iter = tuple.iter();
+        assert_eq!(1, iter.next().unwrap().extract().unwrap());
+        assert_eq!(2, iter.next().unwrap().extract().unwrap());
+        assert_eq!(3, iter.next().unwrap().extract().unwrap());
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let ob = (1, 2, 3).to_object(py);
+        let tuple = PyTuple::try_from(ob.as_ref(py)).unwrap();
+        assert_eq!(3, tuple.len());
+
+        let mut i = 0;
+        for item in tuple {
+            i += 1;
+            assert_eq!(i, item.extract().unwrap());
+        }
     }
 }
