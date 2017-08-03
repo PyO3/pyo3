@@ -2,6 +2,8 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use std;
+
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
@@ -37,7 +39,6 @@ impl PyList {
     }
 
     /// Gets the length of the list.
-    #[inline]
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
@@ -96,7 +97,7 @@ impl PyList {
         })
     }
 
-    #[inline]
+    /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyListIterator {
         PyListIterator { list: self, index: 0 }
     }
@@ -121,9 +122,15 @@ impl<'a> Iterator for PyListIterator<'a> {
             None
         }
     }
+}
 
-    // Note: we cannot implement size_hint because the length of the list
-    // might change during the iteration.
+impl<'a> std::iter::IntoIterator for &'a PyList {
+    type Item = &'a PyObjectRef;
+    type IntoIter = PyListIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 impl <T> ToPyObject for [T] where T: ToPyObject {
@@ -328,6 +335,20 @@ mod test {
             idx += 1;
         }
         assert_eq!(idx, v.len());
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![1, 2, 3, 4];
+        let ob = v.to_object(py);
+        let list = PyList::try_from(ob.as_ref(py)).unwrap();
+        let mut i = 0;
+        for el in list {
+            i += 1;
+            assert_eq!(i, el.extract::<i32>().unwrap());
+        }
     }
 
     #[test]

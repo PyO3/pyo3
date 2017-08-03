@@ -95,7 +95,6 @@ pub trait ObjectProtocol {
 
     /// Returns whether the object is considered to be None.
     /// This is equivalent to the Python expression: 'is None'
-    #[inline]
     fn is_none(&self) -> bool;
 
     /// Returns the length of the sequence or mapping.
@@ -133,7 +132,6 @@ pub trait ObjectProtocol {
 
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
-    #[inline]
     fn extract<'a, D>(&'a self) -> PyResult<D>
         where D: FromPyObject<'a>,
               &'a PyObjectRef: std::convert::From<&'a Self>;
@@ -150,14 +148,12 @@ pub trait ObjectProtocol {
 
 impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
 
-    #[inline]
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool> where N: ToPyObject {
         attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
             Ok(ffi::PyObject_HasAttr(self.as_ptr(), attr_name) != 0)
         })
     }
 
-    #[inline]
     fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef> where N: ToPyObject
     {
         attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
@@ -166,7 +162,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         })
     }
 
-    #[inline]
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
         where N: ToBorrowedObject, V: ToBorrowedObject
     {
@@ -178,7 +173,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
             }))
     }
 
-    #[inline]
     fn delattr<N>(&self, attr_name: N) -> PyResult<()> where N: ToPyObject {
         attr_name.with_borrowed_ptr(self.py(), |attr_name| unsafe {
             err::error_on_minusone(self.py(),
@@ -228,28 +222,24 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    #[inline]
     fn repr(&self) -> PyResult<&PyString> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PyObject_Repr(self.as_ptr()))
         }
     }
 
-    #[inline]
     fn str(&self) -> PyResult<&PyString> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PyObject_Str(self.as_ptr()))
         }
     }
 
-    #[inline]
     fn is_callable(&self) -> bool {
         unsafe {
             ffi::PyCallable_Check(self.as_ptr()) != 0
         }
     }
 
-    #[inline]
     fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
         where A: IntoPyTuple
     {
@@ -262,7 +252,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         result
     }
 
-    #[inline]
     fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>)
                       -> PyResult<&PyObjectRef>
         where A: IntoPyTuple
@@ -278,7 +267,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         })
     }
 
-    #[inline]
     fn hash(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
         if v == -1 {
@@ -288,7 +276,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    #[inline]
     fn is_true(&self) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         if v == -1 {
@@ -298,12 +285,10 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    #[inline]
     fn is_none(&self) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
-    #[inline]
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
         if v == -1 {
@@ -313,7 +298,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    #[inline]
     fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             self.py().from_owned_ptr_or_err(
@@ -321,7 +305,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         })
     }
 
-    #[inline]
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
         where K: ToBorrowedObject, V: ToBorrowedObject
     {
@@ -333,15 +316,13 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
             }))
     }
 
-    #[inline]
-   fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToBorrowedObject {
+    fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToBorrowedObject {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             err::error_on_minusone(
                 self.py(), ffi::PyObject_DelItem(self.as_ptr(), key))
         })
     }
 
-    #[inline]
     fn iter<'p>(&'p self) -> PyResult<PyIterator<'p>> {
        Ok(PyIterator::from_object(self.py(), self)?)
     }
@@ -357,7 +338,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 
-    #[inline]
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, <D as PyTryFrom>::Error>
         where D: PyTryFrom<Error=PyDowncastError>,
               &'a PyObjectRef: std::convert::From<&'a Self>
@@ -365,7 +345,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         D::try_from(self.into())
     }
 
-    #[inline]
     fn extract<'a, D>(&'a self) -> PyResult<D>
         where D: FromPyObject<'a>,
               &'a PyObjectRef: std::convert::From<&'a T>
@@ -374,7 +353,6 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     }
 
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
-    #[inline]
     fn None(&self) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(self.py(), ffi::Py_None()) }
     }

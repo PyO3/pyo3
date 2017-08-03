@@ -41,7 +41,6 @@ impl PyTuple {
     }
 
     /// Gets the length of the tuple.
-    #[inline]
     pub fn len(&self) -> usize {
         unsafe {
             // non-negative Py_ssize_t should always fit into Rust uint
@@ -50,7 +49,6 @@ impl PyTuple {
     }
 
     /// Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
-    #[inline]
     pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
         unsafe {
             Py::from_owned_ptr_or_panic(
@@ -59,7 +57,6 @@ impl PyTuple {
     }
 
     /// Take a slice of the tuple pointed to by p from low and return it as a new tuple.
-    #[inline]
     pub fn split_from(&self, low: isize) -> Py<PyTuple> {
         unsafe {
             let ptr = ffi::PyTuple_GetSlice(
@@ -81,7 +78,6 @@ impl PyTuple {
         }
     }
 
-    #[inline]
     pub fn as_slice(&self) -> &[PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
@@ -95,7 +91,7 @@ impl PyTuple {
         }
     }
 
-    #[inline]
+    /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyTupleIterator {
         PyTupleIterator{ py: self.py(), slice: self.as_slice(), index: 0 }
     }
