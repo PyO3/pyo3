@@ -387,6 +387,17 @@ impl<'p> Python<'p> {
         self.unchecked_mut_downcast(p)
     }
 
+    /// Release PyObject reference.
+    #[inline]
+    pub fn release<T>(self, ob: T) where T: IntoPyPointer {
+        unsafe {
+            let ptr = ob.into_ptr();
+            if !ptr.is_null() {
+                ffi::Py_DECREF(ptr);
+            }
+        }
+    }
+
     /// Release `ffi::PyObject` pointer.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
