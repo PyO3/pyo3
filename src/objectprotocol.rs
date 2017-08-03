@@ -131,9 +131,8 @@ pub trait ObjectProtocol {
     /// Gets the Python type object for this object's type.
     fn get_type(&self) -> &PyType;
 
-    /// Gets the Python super object for this object.
-    /// This is equivalent to the Python expression: 'super()'
-    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
+    /// Gets the Python base object for this object.
+    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
 
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, <D as PyTryFrom>::Error>
@@ -349,7 +348,7 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         }
     }
 
-    fn get_super(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo
+    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo
     {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
