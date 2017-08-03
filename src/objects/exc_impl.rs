@@ -39,9 +39,17 @@ macro_rules! import_exception {
         #[allow(non_camel_case_types)]
         pub struct $name;
 
-        impl ::std::convert::From<$name> for $crate::PyErr {
+        impl $crate::std::convert::From<$name> for $crate::PyErr {
             fn from(_err: $name) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, _>(())
+            }
+        }
+
+        impl $name {
+            pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr
+                where Self: $crate::typeob::PyTypeObject + Sized
+            {
+                $crate::PyErr::new::<Self, T>(args)
             }
         }
 
@@ -52,58 +60,35 @@ macro_rules! import_exception {
 
         impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
-            fn init_type() {
-                use $crate::PyNativeException;
-                let _ = <$name as PyNativeException>::type_object_ptr();
-            }
+            fn init_type() {}
 
             #[inline]
             fn type_object() -> $crate::Py<$crate::PyType> {
-                use $crate::PyNativeException;
+                use $crate::IntoPyPointer;
+                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject =
+                    $crate::std::ptr::null_mut();
+
                 unsafe {
+                    if TYPE_OBJECT.is_null() {
+                        let gil = $crate::Python::acquire_gil();
+                        let py = gil.python();
+
+                        let imp = py.import(stringify!($module))
+                            .expect(concat!(
+                                "Can not import module: ", stringify!($module)));
+                        let cls = imp.get(stringify!($name))
+                            .expect(concat!(
+                                "Can not load exception class: {}.{}", stringify!($module),
+                                ".", stringify!($name)));
+                        TYPE_OBJECT = cls.into_ptr() as *mut $crate::ffi::PyTypeObject;
+                    }
+
                     $crate::Py::from_borrowed_ptr(
-                        <$name as PyNativeException>::type_object_ptr()
-                            as *const _ as *mut $crate::ffi::PyObject)
+                        TYPE_OBJECT as *const _ as *mut $crate::ffi::PyObject)
                 }
             }
         }
     };
-}
-
-#[doc(hidden)]
-/// Description of exception defined in python code.
-/// `import_exception!` defines this trait for new exception type.
-pub trait PyNativeException {
-
-    /// Module name, where exception is defined
-    const MOD: &'static str;
-
-    /// Name of exception
-    const NAME: &'static str;
-
-    fn new<T: ToPyObject + 'static>(args: T) -> PyErr where Self: PyTypeObject + Sized {
-        PyErr::new::<Self, T>(args)
-    }
-
-    fn type_object_ptr() -> *mut ffi::PyTypeObject {
-        static mut TYPE_OBJECT: *mut ffi::PyTypeObject = std::ptr::null_mut();
-
-        unsafe {
-            if TYPE_OBJECT.is_null() {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
-
-                let imp = py.import(Self::MOD)
-                    .expect(format!(
-                        "Can not import module: {}", Self::MOD).as_ref());
-                let cls = imp.get(Self::NAME)
-                    .expect(format!(
-                        "Can not load exception class: {}.{}", Self::MOD, Self::NAME).as_ref());
-                TYPE_OBJECT = cls.into_ptr() as *mut ffi::PyTypeObject;
-            }
-            TYPE_OBJECT
-        }
-    }
 }
 
 #[cfg(test)]
