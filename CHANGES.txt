@@ -16,6 +16,7 @@ Changes
 
 * Added `pyo3::prelude` module #70
 
+* Better `Iterator` support for PyTuple, PyList, PyDict #75
 
 
 0.1.0 (07-23-2017)
