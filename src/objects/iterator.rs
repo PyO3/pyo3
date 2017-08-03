@@ -71,6 +71,7 @@ impl<'p> Drop for PyIterator<'p> {
 mod tests {
     use instance::AsPyRef;
     use python::Python;
+    use pythonrun::GILPool;
     use conversion::{PyTryFrom, ToPyObject};
     use objects::{PyObjectRef, PyList};
     use objectprotocol::ObjectProtocol;
@@ -111,12 +112,14 @@ mod tests {
 
     #[test]
     fn iter_item_refcnt() {
+        let gil_guard = Python::acquire_gil();
+        let py = gil_guard.python();
+
         let obj;
         let none;
         let count;
         {
-            let gil_guard = Python::acquire_gil();
-            let py = gil_guard.python();
+            let _pool = GILPool::new();
             let l = PyList::empty(py);
             none = py.None();
             l.append(10).unwrap();
@@ -126,8 +129,7 @@ mod tests {
         }
 
         {
-            let gil_guard = Python::acquire_gil();
-            let py = gil_guard.python();
+            let _pool = GILPool::new();
             let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
             let mut it = inst.iter().unwrap();
 

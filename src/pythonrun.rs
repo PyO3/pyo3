@@ -180,16 +180,16 @@ pub struct GILPool {
 
 impl GILPool {
     #[inline]
-    pub unsafe fn new() -> GILPool {
-        let p: &'static mut ReleasePool = &mut *POOL;
+    pub fn new() -> GILPool {
+        let p: &'static mut ReleasePool = unsafe { &mut *POOL };
         GILPool {owned: p.owned.len(),
                  borrowed: p.borrowed.len(),
                  pointers: true,
                  no_send: marker::PhantomData}
     }
     #[inline]
-    pub unsafe fn new_no_pointers() -> GILPool {
-        let p: &'static mut ReleasePool = &mut *POOL;
+    pub fn new_no_pointers() -> GILPool {
+        let p: &'static mut ReleasePool = unsafe { &mut *POOL };
         GILPool {owned: p.owned.len(),
                  borrowed: p.borrowed.len(),
                  pointers: false,

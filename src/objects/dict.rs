@@ -299,7 +299,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = unsafe{::GILPool::new()};
+            let _pool = ::GILPool::new();
             let dict = PyDict::new(py);
             let none = py.None();
             cnt = none.get_refcnt();

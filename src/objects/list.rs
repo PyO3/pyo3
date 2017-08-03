@@ -240,10 +240,12 @@ mod test {
 
     #[test]
     fn test_set_item_refcnt() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
         let cnt;
         {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+            let _pool = ::GILPool::new();
             let v = vec![2];
             let ob = v.to_object(py);
             let list = PyList::try_from(ob.as_ref(py)).unwrap();
@@ -251,11 +253,8 @@ mod test {
             cnt = none.get_refcnt();
             list.set_item(0, none).unwrap();
         }
-        {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            assert_eq!(cnt, py.None().get_refcnt());
-        }
+
+        assert_eq!(cnt, py.None().get_refcnt());
     }
 
     #[test]
@@ -276,20 +275,19 @@ mod test {
 
     #[test]
     fn test_insert_refcnt() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
         let cnt;
         {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+            let _pool = ::GILPool::new();
             let list = PyList::empty(py);
             let none = py.None();
             cnt = none.get_refcnt();
             list.insert(0, none).unwrap();
         }
-        {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            assert_eq!(cnt, py.None().get_refcnt());
-        }
+
+        assert_eq!(cnt, py.None().get_refcnt());
     }
 
     #[test]
