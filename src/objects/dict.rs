@@ -252,6 +252,43 @@ impl <K, V> IntoPyDictPointer for collections::BTreeMap<K, V>
     }
 }
 
+impl<K: ToPyObject, V: ToPyObject> IntoPyDictPointer for (K, V) {
+    default fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
+        let dict = PyDict::new(py);
+        dict.set_item(self.0, self.1).expect("Failed to set_item on dict");
+        dict.into_ptr()
+    }
+}
+
+macro_rules! dict_conversion ({$length:expr,$(($refN:ident, $n:tt, $T1:ident, $T2:ident)),+} => {
+    impl<$($T1: ToPyObject, $T2: ToPyObject),+> IntoPyDictPointer for ($(($T1,$T2),)+) {
+        fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
+            let dict = PyDict::new(py);
+            $(dict.set_item(self.$n.0, self.$n.1).expect("Failed to set_item on dict");)+;
+            dict.into_ptr()
+        }
+    }
+});
+
+dict_conversion!(1, (ref0, 0, A1, A2));
+dict_conversion!(2, (ref0, 0, A1, A2), (ref1, 1, B1, B2));
+dict_conversion!(3, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2));
+dict_conversion!(4, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
+                 (ref3, 3, D1, D2));
+dict_conversion!(5, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
+                 (ref3, 3, D1, D2), (ref4, 4, E1, E2));
+dict_conversion!(6, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
+                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2));
+dict_conversion!(7, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
+                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2), (ref6, 6, G1, G2));
+dict_conversion!(8, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
+                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2), (ref6, 6, G1, G2),
+                 (ref7, 7, H1, H2));
+dict_conversion!(9, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
+                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2), (ref6, 6, G1, G2),
+                 (ref7, 7, H1, H2), (ref8, 8, I1, I2));
+
+
 #[cfg(test)]
 mod test {
     use std::collections::{BTreeMap, HashMap};
@@ -502,7 +539,7 @@ mod test {
         let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
-        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
     }
 
     #[test]
@@ -517,7 +554,7 @@ mod test {
         let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
-        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
     }
 
     #[test]
@@ -532,7 +569,7 @@ mod test {
         let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
-        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
     }
 
     #[test]
@@ -548,7 +585,7 @@ mod test {
         let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
-        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
     }
 
     #[test]
@@ -563,7 +600,7 @@ mod test {
         let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
-        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
     }
 
     #[test]
@@ -579,6 +616,40 @@ mod test {
         let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+    }
+
+    #[test]
+    fn test_tuple_into_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let m = ((1, 1),).into_dict_ptr(py);
+        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 1);
         assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+
+        let m = ((1, 1), (2, 3)).into_dict_ptr(py);
+        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 2);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(2).unwrap().extract::<i32>().unwrap() == 3);
+    }
+
+    #[test]
+    fn test_simple_tuple_into_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let m = (1, 1).into_dict_ptr(py);
+        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
     }
 }

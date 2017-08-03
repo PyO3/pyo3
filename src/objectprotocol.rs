@@ -83,8 +83,15 @@ pub trait ObjectProtocol {
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
-    fn call_method<A, K>(&self, name: &str, args: A, kwargs: K)
-                      -> PyResult<&PyObjectRef>
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let obj = SomePyObject::new();
+    /// let args = (arg1, arg2, arg3);
+    /// let kwargs = ((key1, value1), (key2, value2));
+    /// let pid = obj.call_mwthod("do_something", args, kwargs);
+    /// ```
+    fn call_method<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
         where A: IntoPyTuple,
               K: IntoPyDictPointer;
 
