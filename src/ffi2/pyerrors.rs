@@ -26,13 +26,13 @@ use ffi2::unicodeobject::Py_UNICODE;
 
 #[inline]
 pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
-    (PyClass_Check((x)) != 0 || (PyType_Check((x)) != 0 &&
+    (PyClass_Check(x) != 0 || (PyType_Check(x) != 0 &&
       PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)) as c_int
 }
 
 #[inline]
 pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
-    (PyInstance_Check((x)) != 0 ||
+    (PyInstance_Check(x) != 0 ||
      PyType_FastSubclass((*x).ob_type, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0) as c_int
 }
 

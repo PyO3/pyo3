@@ -35,7 +35,7 @@ use ffi3::methodobject::PyMethodDef;
     pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef) -> c_int;
 }
 
-pub const Py_CLEANUP_SUPPORTED: i32 = 0x20000;
+pub const Py_CLEANUP_SUPPORTED: i32 = 0x2_0000;
 
 pub const PYTHON_API_VERSION: i32 = 1013;
 pub const PYTHON_ABI_VERSION: i32 = 3;

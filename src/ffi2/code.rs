@@ -46,8 +46,8 @@ pub const CO_NOFREE : c_int = 0x0040;
 pub const CO_FUTURE_DIVISION : c_int = 0x2000;
 pub const CO_FUTURE_ABSOLUTE_IMPORT : c_int = 0x4000; /* do absolute imports by default */
 pub const CO_FUTURE_WITH_STATEMENT : c_int = 0x8000;
-pub const CO_FUTURE_PRINT_FUNCTION : c_int = 0x10000;
-pub const CO_FUTURE_UNICODE_LITERALS : c_int = 0x20000;
+pub const CO_FUTURE_PRINT_FUNCTION : c_int = 0x1_0000;
+pub const CO_FUTURE_UNICODE_LITERALS : c_int = 0x2_0000;
 
 pub const CO_MAXBLOCKS : usize = 20;
 

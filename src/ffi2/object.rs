@@ -666,52 +666,52 @@ pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
 // Flag bits for printing:
 pub const Py_PRINT_RAW : c_int = 1;       // No string quotes etc.
 
-/// PyBufferProcs contains bf_getcharbuffer
+// PyBufferProcs contains bf_getcharbuffer
 pub const Py_TPFLAGS_HAVE_GETCHARBUFFER : c_long = (1<<0);
 
-/// PySequenceMethods contains sq_contains
+// PySequenceMethods contains sq_contains
 pub const Py_TPFLAGS_HAVE_SEQUENCE_IN : c_long = (1<<1);
 
-/// PySequenceMethods and PyNumberMethods contain in-place operators
+// PySequenceMethods and PyNumberMethods contain in-place operators
 pub const Py_TPFLAGS_HAVE_INPLACEOPS : c_long = (1<<3);
 
-/// PyNumberMethods do their own coercion
+// PyNumberMethods do their own coercion
 pub const Py_TPFLAGS_CHECKTYPES : c_long = (1<<4);
 
-/// tp_richcompare is defined
+// tp_richcompare is defined
 pub const Py_TPFLAGS_HAVE_RICHCOMPARE : c_long = (1<<5);
 
-/// Objects which are weakly referencable if their tp_weaklistoffset is >0
+// Objects which are weakly referencable if their tp_weaklistoffset is >0
 pub const Py_TPFLAGS_HAVE_WEAKREFS : c_long = (1<<6);
 
-/// tp_iter is defined
+// tp_iter is defined
 pub const Py_TPFLAGS_HAVE_ITER : c_long = (1<<7);
 
-/// New members introduced by Python 2.2 exist
+// New members introduced by Python 2.2 exist
 pub const Py_TPFLAGS_HAVE_CLASS : c_long = (1<<8);
 
-/// Set if the type object is dynamically allocated
+// Set if the type object is dynamically allocated
 pub const Py_TPFLAGS_HEAPTYPE : c_long = (1<<9);
 
-/// Set if the type allows subclassing
+// Set if the type allows subclassing
 pub const Py_TPFLAGS_BASETYPE : c_long = (1<<10);
 
-/// Set if the type is 'ready' -- fully initialized
+// Set if the type is 'ready' -- fully initialized
 pub const Py_TPFLAGS_READY : c_long = (1<<12);
 
-/// Set while the type is being 'readied', to prevent recursive ready calls
+// Set while the type is being 'readied', to prevent recursive ready calls
 pub const Py_TPFLAGS_READYING : c_long = (1<<13);
 
-/// Objects support garbage collection (see objimp.h)
+// Objects support garbage collection (see objimp.h)
 pub const Py_TPFLAGS_HAVE_GC : c_long = (1<<14);
 
 // Two bits are preserved for Stackless Python, next after this is 17.
 const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION : c_long = 0;
 
-/// Objects support nb_index in PyNumberMethods
+// Objects support nb_index in PyNumberMethods
 pub const Py_TPFLAGS_HAVE_INDEX : c_long = (1<<17);
 
-/// Objects support type attribute cache
+// Objects support type attribute cache
 pub const Py_TPFLAGS_HAVE_VERSION_TAG  : c_long = (1<<18);
 pub const Py_TPFLAGS_VALID_VERSION_TAG : c_long = (1<<19);
 

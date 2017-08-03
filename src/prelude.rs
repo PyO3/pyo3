@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! The PyO3 Prelude
+//! The `PyO3` Prelude
 //!
 //! The purpose of this module is to alleviate imports of many common pyo3 traits
 //! by adding a glob import to the top of pyo3 heavy modules:

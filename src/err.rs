@@ -97,7 +97,7 @@ macro_rules! py_exception {
     }
 }
 
-/// Represents a PyErr value
+/// Represents a `PyErr` value
 pub enum PyErrValue {
     None,
     Value(PyObject),

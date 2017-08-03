@@ -15,7 +15,7 @@ use callback::{CallbackConverter, PyObjectCallbackConverter};
 /// Python Iterator Interface.
 ///
 /// more information
-/// https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter
+/// `https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter`
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p> : PyTypeInfo {
     fn __iter__(&'p mut self)

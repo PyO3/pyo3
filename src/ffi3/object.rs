@@ -720,10 +720,10 @@ pub const Py_TPFLAGS_DICT_SUBCLASS        : c_ulong = (1<<29);
 pub const Py_TPFLAGS_BASE_EXC_SUBCLASS    : c_ulong = (1<<30);
 pub const Py_TPFLAGS_TYPE_SUBCLASS        : c_ulong = (1<<31);
 
-pub const Py_TPFLAGS_DEFAULT : c_ulong = (
-    Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | Py_TPFLAGS_HAVE_VERSION_TAG | 0);
+pub const Py_TPFLAGS_DEFAULT : c_ulong =
+    Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | Py_TPFLAGS_HAVE_VERSION_TAG;
 
-pub const Py_TPFLAGS_HAVE_FINALIZE        : c_ulong = (1<<0);
+pub const Py_TPFLAGS_HAVE_FINALIZE        : c_ulong = 1;
 
 #[inline(always)]
 #[cfg(Py_LIMITED_API)]

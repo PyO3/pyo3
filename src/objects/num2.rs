@@ -20,7 +20,7 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 /// Note that in Python 2.x, `int` and `long` are different types.
 ///
 /// You can usually avoid directly working with this type
-/// by using [ToPyObject](trait.ToPyObject.html)
+/// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 pub struct PyInt(PyObject);
@@ -32,7 +32,7 @@ pyobject_nativetype!(PyInt, PyInt_Type, PyInt_Check);
 /// Both `PyInt` and `PyLong` refer to the same type on Python 3.x.
 ///
 /// You can usually avoid directly working with this type
-/// by using [ToPyObject](trait.ToPyObject.html)
+/// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 pub struct PyLong(PyObject);
