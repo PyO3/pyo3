@@ -10,7 +10,7 @@ use ffi;
 use typeob::{PyTypeInfo, initialize_type};
 use conversion::{ToPyObject, IntoPyTuple};
 use object::PyObject;
-use python::{Python, ToPyPointer};
+use python::{Python, ToPyPointer, IntoPyDictPointer};
 use objects::{PyObjectRef, PyDict, PyType, exc};
 use objectprotocol::ObjectProtocol;
 use instance::PyObjectWithToken;
@@ -81,8 +81,9 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-        where A: IntoPyTuple
+    pub fn call<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
+        where A: IntoPyTuple,
+              K: IntoPyDictPointer
     {
         self.getattr(name)?.call(args, kwargs)
     }

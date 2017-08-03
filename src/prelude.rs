@@ -15,6 +15,7 @@ pub use class::*;
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;
 pub use object::PyObject;
+pub use noargs::NoArgs;
 pub use python::{Python, ToPyPointer, IntoPyPointer};
 pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
 pub use pythonrun::GILGuard;

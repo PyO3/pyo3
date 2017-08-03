@@ -67,7 +67,7 @@ pub trait AsPyRef<T>: Sized {
         let py = gil.python();
 
         let result = f(py, self.as_ref(py));
-        py.release(self);
+        py.xdecref(self.into_ptr());
         result
     }
 
@@ -78,7 +78,7 @@ pub trait AsPyRef<T>: Sized {
         let py = gil.python();
 
         let result = f(py, self.as_mut(py));
-        py.release(self);
+        py.xdecref(self.into_ptr());
         result
     }
 }

@@ -18,6 +18,8 @@ Changes
 
 * Better `Iterator` support for PyTuple, PyList, PyDict #75
 
+* Introduce IntoPyDictPointer similar to IntoPyTuple #69
+
 
 0.1.0 (07-23-2017)
 ^^^^^^^^^^^^^^^^^^

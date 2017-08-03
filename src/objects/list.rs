@@ -304,20 +304,18 @@ mod test {
 
     #[test]
     fn test_append_refcnt() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
         let cnt;
         {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
+            let _pool = ::GILPool::new();
             let list = PyList::empty(py);
             let none = py.None();
             cnt = none.get_refcnt();
             list.append(none).unwrap();
         }
-        {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            assert_eq!(cnt, py.None().get_refcnt());
-        }
+        assert_eq!(cnt, py.None().get_refcnt());
     }
 
     #[test]

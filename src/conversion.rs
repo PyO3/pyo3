@@ -4,7 +4,7 @@
 
 use ffi;
 use err::{PyResult, PyDowncastError};
-use python::{Python, ToPyPointer};
+use python::{Python, ToPyPointer, IntoPyPointer};
 use object::PyObject;
 use objects::{PyObjectRef, PyTuple};
 use typeob::PyTypeInfo;
@@ -36,9 +36,9 @@ impl<T> ToBorrowedObject for T where T: ToPyObject {
     default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R
     {
-        let obj = self.to_object(py);
-        let result = f(obj.as_ptr());
-        py.release(obj);
+        let ptr = self.to_object(py).into_ptr();
+        let result = f(ptr);
+        py.xdecref(ptr);
         result
     }
 }
@@ -60,7 +60,6 @@ pub trait IntoPyTuple {
     fn into_tuple(self, py: Python) -> Py<PyTuple>;
 
 }
-
 
 /// `FromPyObject` is implemented by various types that can be extracted from
 /// a Python object reference.
@@ -144,11 +143,13 @@ impl ToPyObject for () {
         py.None()
     }
 }
+
 impl IntoPyObject for () {
     fn into_object(self, py: Python) -> PyObject {
         py.None()
     }
 }
+
 impl<'a, T> IntoPyObject for &'a T where T: ToPyPointer
 {
     #[inline]
@@ -156,6 +157,7 @@ impl<'a, T> IntoPyObject for &'a T where T: ToPyPointer
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
+
 impl<'a, T> IntoPyObject for &'a mut T where T: ToPyPointer
 {
     #[inline]

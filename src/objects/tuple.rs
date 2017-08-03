@@ -217,63 +217,6 @@ tuple_conversion!(8, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
 tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
   (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H), (ref8, 8, I));
 
-// Empty tuple:
-
-/// An empty struct that represents the empty argument list.
-/// Corresponds to the empty tuple `()` in Python.
-///
-/// # Example
-/// ```
-/// let gil = pyo3::Python::acquire_gil();
-/// let py = gil.python();
-/// let os = py.import("os").unwrap();
-/// let pid = os.call("get_pid", pyo3::NoArgs, None);
-/// ```
-#[derive(Copy, Clone, Debug)]
-pub struct NoArgs;
-
-/// Converts `NoArgs` to an empty Python tuple.
-impl ToPyObject for NoArgs {
-
-    fn to_object(&self, py: Python) -> PyObject {
-        PyTuple::empty(py).into()
-    }
-}
-
-impl IntoPyObject for NoArgs {
-
-    fn into_object(self, py: Python) -> PyObject {
-        PyTuple::empty(py).into()
-    }
-}
-
-/// Converts `NoArgs` to an empty Python tuple.
-impl IntoPyTuple for NoArgs {
-
-    fn into_tuple(self, py: Python) -> Py<PyTuple> {
-        PyTuple::empty(py)
-    }
-}
-
-/// Converts `()` to an empty Python tuple.
-impl IntoPyTuple for () {
-
-    fn into_tuple(self, py: Python) -> Py<PyTuple> {
-        PyTuple::empty(py)
-    }
-}
-
-/// Returns `Ok(NoArgs)` if the input is an empty Python tuple.
-/// Otherwise, returns an error.
-pyobject_extract!(obj to NoArgs => {
-    let t = PyTuple::try_from(obj)?;
-    if t.len() == 0 {
-        Ok(NoArgs)
-    } else {
-        Err(wrong_tuple_length(t, 0))
-    }
-});
-
 
 #[cfg(test)]
 mod test {

@@ -6,9 +6,10 @@ use ffi;
 use pythonrun;
 use err::{PyErr, PyResult, PyDowncastError};
 use instance::{AsPyRef, PyObjectWithToken};
-use objects::{PyObjectRef, PyDict};
-use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple, FromPyObject, PyTryFrom};
-use python::{Python, ToPyPointer, IntoPyPointer};
+use objects::PyObjectRef;
+use conversion::{ToPyObject, ToBorrowedObject,
+                 IntoPyObject, IntoPyTuple, FromPyObject, PyTryFrom};
+use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
 
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
@@ -86,7 +87,6 @@ impl PyObject {
     /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns `Err(PyErr)` if the pointer is `null`.
-    #[inline]
     pub fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
     {
         if ptr.is_null() {
@@ -99,7 +99,6 @@ impl PyObject {
     /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns `None` if the pointer is `null`.
-    #[inline]
     pub fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
     {
         if ptr.is_null() {
@@ -110,7 +109,6 @@ impl PyObject {
     }
 
     /// Gets the reference count of the ffi::PyObject pointer.
-    #[inline]
     pub fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.0) }
     }
@@ -124,14 +122,12 @@ impl PyObject {
 
     /// Returns whether the object is considered to be None.
     /// This is equivalent to the Python expression: 'is None'
-    #[inline]
     pub fn is_none(&self) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
     /// Returns whether the object is considered to be true.
     /// This is equivalent to the Python expression: 'not not self'
-    #[inline]
     pub fn is_true(&self, py: Python) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         if v == -1 {
@@ -142,7 +138,6 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    #[inline]
     pub fn cast_as<D>(&self, py: Python) -> Result<&D, <D as PyTryFrom>::Error>
         where D: PyTryFrom<Error=PyDowncastError>
     {
@@ -151,7 +146,6 @@ impl PyObject {
 
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
-    #[inline]
     pub fn extract<'p, D>(&'p self, py: Python) -> PyResult<D> where D: FromPyObject<'p>
     {
         FromPyObject::extract(self.as_ref(py))
@@ -159,7 +153,6 @@ impl PyObject {
 
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression 'self.attr_name'.
-    #[inline]
     pub fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject>
         where N: ToPyObject
     {
@@ -171,34 +164,37 @@ impl PyObject {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    #[inline]
-    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: IntoPyTuple
+    pub fn call<A, K>(&self, py: Python, args: A, kwargs: K) -> PyResult<PyObject>
+        where A: IntoPyTuple,
+              K: IntoPyDictPointer
     {
-        let t = args.into_tuple(py);
+        let args = args.into_tuple(py).into_ptr();
+        let kwargs = kwargs.into_dict_ptr(py);
         let result = unsafe {
             PyObject::from_owned_ptr_or_err(
-                py, ffi::PyObject_Call(self.as_ptr(), t.as_ptr(), kwargs.as_ptr()))
+                py, ffi::PyObject_Call(self.as_ptr(), args, kwargs))
         };
-        py.release(t);
+        py.xdecref(args);
+        py.xdecref(kwargs);
         result
     }
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
-    #[inline]
-    pub fn call_method<A>(&self, py: Python,
-                          name: &str, args: A,
-                          kwargs: Option<&PyDict>) -> PyResult<PyObject>
-        where A: IntoPyTuple
+    pub fn call_method<A, K>(&self, py: Python,
+                             name: &str, args: A, kwargs: K) -> PyResult<PyObject>
+        where A: IntoPyTuple,
+              K: IntoPyDictPointer
     {
         name.with_borrowed_ptr(py, |name| unsafe {
-            let t = args.into_tuple(py);
+            let args = args.into_tuple(py).into_ptr();
+            let kwargs = kwargs.into_dict_ptr(py);
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             let result = PyObject::from_owned_ptr_or_err(
-                py, ffi::PyObject_Call(ptr, t.as_ptr(), kwargs.as_ptr()));
+                py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);
-            py.release(t);
+            py.xdecref(args);
+            py.xdecref(kwargs);
             result
         })
     }

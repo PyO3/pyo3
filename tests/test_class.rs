@@ -44,7 +44,7 @@ fn empty_class() {
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClass>();
     // By default, don't allow creating instances from python.
-    assert!(typeobj.call(NoArgs, None).is_err());
+    assert!(typeobj.call(NoArgs, NoArgs).is_err());
 
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
@@ -110,7 +110,7 @@ fn empty_class_with_new() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClassWithNew>();
-    assert!(typeobj.call(NoArgs, None).unwrap().cast_as::<EmptyClassWithNew>().is_ok());
+    assert!(typeobj.call(NoArgs, NoArgs).unwrap().cast_as::<EmptyClassWithNew>().is_ok());
 }
 
 #[py::class]
@@ -132,7 +132,7 @@ fn new_with_one_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<NewWithOneArg>();
-    let wrp = typeobj.call((42,), None).unwrap();
+    let wrp = typeobj.call((42,), NoArgs).unwrap();
     let obj = wrp.cast_as::<NewWithOneArg>().unwrap();
     assert_eq!(obj._data, 42);
 }
@@ -161,7 +161,7 @@ fn new_with_two_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<NewWithTwoArgs>();
-    let wrp = typeobj.call((10, 20), None).unwrap();
+    let wrp = typeobj.call((10, 20), NoArgs).unwrap();
     let obj = wrp.cast_as::<NewWithTwoArgs>().unwrap();
     assert_eq!(obj._data1, 10);
     assert_eq!(obj._data2, 20);

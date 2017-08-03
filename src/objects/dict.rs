@@ -5,8 +5,8 @@ use std::{mem, collections, hash, cmp};
 
 use ffi;
 use object::PyObject;
-use instance::PyObjectWithToken;
-use python::{Python, ToPyPointer};
+use instance::{Py, PyObjectWithToken};
+use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
 use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject};
 use objects::{PyObjectRef, PyList};
 use err::{self, PyResult, PyErr};
@@ -155,6 +155,20 @@ impl<'a> std::iter::IntoIterator for &'a PyDict {
     }
 }
 
+impl<'a> IntoPyDictPointer for &'a PyDict {
+    #[must_use]
+    fn into_dict_ptr(self, _py: Python) -> *mut ffi::PyObject {
+        self.into_ptr()
+    }
+}
+
+impl IntoPyDictPointer for Py<PyDict> {
+    #[must_use]
+    fn into_dict_ptr(self, _py: Python) -> *mut ffi::PyObject {
+        self.into_ptr()
+    }
+}
+
 impl <K, V, H> ToPyObject for collections::HashMap<K, V, H>
     where K: hash::Hash+cmp::Eq+ToPyObject,
           V: ToPyObject,
@@ -209,14 +223,43 @@ impl <K, V> IntoPyObject for collections::BTreeMap<K, V>
     }
 }
 
+impl <K, V, H> IntoPyDictPointer for collections::HashMap<K, V, H>
+    where K: hash::Hash+cmp::Eq+ToPyObject,
+          V: ToPyObject,
+          H: hash::BuildHasher
+{
+    #[must_use]
+    fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
+        let dict = PyDict::new(py);
+        for (key, value) in self {
+            dict.set_item(key, value).expect("Failed to set_item on dict");
+        };
+        dict.into_ptr()
+    }
+}
+
+impl <K, V> IntoPyDictPointer for collections::BTreeMap<K, V>
+    where K: cmp::Eq+ToPyObject,
+          V: ToPyObject
+{
+    #[must_use]
+    fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
+        let dict = PyDict::new(py);
+        for (key, value) in self {
+            dict.set_item(key, value).expect("Failed to set_item on dict");
+        };
+        dict.into_ptr()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::{BTreeMap, HashMap};
-    use python::Python;
+    use python::{Python, IntoPyDictPointer};
     use instance::AsPyRef;
     use conversion::{PyTryFrom, ToPyObject, IntoPyObject};
     use objects::{PyDict, PyTuple};
-    use ObjectProtocol;
+    use {PyObject, ObjectProtocol};
 
     #[test]
     fn test_new() {
@@ -493,7 +536,23 @@ mod test {
     }
 
     #[test]
-    fn test_btreemap_into_python() {
+    fn test_hashmap_into_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let mut map = HashMap::<i32, i32>::new();
+        map.insert(1, 1);
+
+        let m = map.into_dict_ptr(py);
+        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 1);
+        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+    }
+
+    #[test]
+    fn test_btreemap_into_object() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -502,6 +561,22 @@ mod test {
 
         let m = map.into_object(py);
         let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 1);
+        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+    }
+
+    #[test]
+    fn test_btreemap_into_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let mut map = BTreeMap::<i32, i32>::new();
+        map.insert(1, 1);
+
+        let m = map.into_dict_ptr(py);
+        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
