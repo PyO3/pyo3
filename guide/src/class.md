@@ -117,13 +117,13 @@ struct BaseClass {
 #[py::class(base=BaseClass)]
 struct MyEventLoop {
     fn method2(&self) -> PyResult<()> {
-       self.get_super().method()
+       self.get_base().method()
     }
 }
 ```
 
-`ObjectProtocol` trait provide `get_super()` method. It returns reference to instance of
-parent class.
+`ObjectProtocol` trait provides `get_base()` method. It returns reference to instance of
+base class.
 
 
 ## Object properties

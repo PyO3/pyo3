@@ -1,6 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 //! This module contains the standard python exception types.
 
@@ -25,9 +23,17 @@ macro_rules! exc_type(
                 PyErr::new::<$name, _>(())
             }
         }
+        impl<T> std::convert::Into<$crate::PyResult<T>> for $name {
+            fn into(self) -> $crate::PyResult<T> {
+                PyErr::new::<$name, _>(()).into()
+            }
+        }
         impl $name {
             pub fn new<V: ToPyObject + 'static>(args: V) -> PyErr {
                 PyErr::new::<$name, V>(args)
+            }
+            pub fn into<R, V: ToPyObject + 'static>(args: V) -> PyResult<R> {
+                PyErr::new::<$name, V>(args).into()
             }
         }
         impl PyTypeObject for $name {

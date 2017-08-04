@@ -54,9 +54,18 @@ macro_rules! py_exception {
             }
         }
 
+        impl<T> std::convert::Into<$crate::PyResult<T>> for $name {
+            fn into(self) -> $crate::PyResult<T> {
+                $crate::PyErr::new::<$name, _>(()).into()
+            }
+        }
+
         impl $name {
             pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, T>(args)
+            }
+            pub fn into<R, T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyResult<R> {
+                $crate::PyErr::new::<$name, T>(args).into()
             }
             #[inline]
             fn type_object() -> *mut $crate::ffi::PyTypeObject {
@@ -454,6 +463,13 @@ impl std::convert::From<PyErr> for std::io::Error {
     fn from(err: PyErr) -> Self {
         std::io::Error::new(
             std::io::ErrorKind::Other, format!("Python exception: {:?}", err))
+    }
+}
+
+/// Convert `PyErr` to `PyResult<T>`
+impl<T> std::convert::Into<PyResult<T>> for PyErr {
+    fn into(self) -> PyResult<T> {
+        Err(self)
     }
 }
 

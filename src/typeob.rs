@@ -115,8 +115,6 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
         T::init_type();
 
         let obj = ffi::PyType_GenericAlloc(T::type_object(), 0);
-        println!("ALLOC {:?} {:?}", obj, ffi::Py_REFCNT(obj));
-
         let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
         std::ptr::write(ptr, value);
 

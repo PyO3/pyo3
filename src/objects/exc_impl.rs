@@ -39,11 +39,22 @@ macro_rules! import_exception {
             }
         }
 
+        impl<T> ::std::convert::Into<$crate::PyResult<T>> for $name {
+            fn into(self) -> $crate::PyResult<T> {
+                $crate::PyErr::new::<$name, _>(()).into()
+            }
+        }
+
         impl $name {
             pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr
                 where Self: $crate::typeob::PyTypeObject + Sized
             {
                 $crate::PyErr::new::<Self, T>(args)
+            }
+            pub fn into<R, T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyResult<R>
+                where Self: $crate::typeob::PyTypeObject + Sized
+            {
+                $crate::PyErr::new::<Self, T>(args).into()
             }
         }
 
