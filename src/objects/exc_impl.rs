@@ -1,12 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use ffi;
-use err::PyErr;
-use typeob::PyTypeObject;
-use conversion::ToPyObject;
-use python::{Python, IntoPyPointer};
-
 /// Defines rust type for exception defined in Python code.
 ///
 /// # Syntax
@@ -17,8 +10,9 @@ use python::{Python, IntoPyPointer};
 ///
 /// # Example
 /// ```
-/// #[macro_use]
-/// extern crate pyo3;
+/// #![feature(const_fn)]
+///
+/// #[macro_use] extern crate pyo3;
 ///
 /// use pyo3::{Python, PyDict};
 ///
@@ -39,7 +33,7 @@ macro_rules! import_exception {
         #[allow(non_camel_case_types)]
         pub struct $name;
 
-        impl $crate::std::convert::From<$name> for $crate::PyErr {
+        impl ::std::convert::From<$name> for $crate::PyErr {
             fn from(_err: $name) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, _>(())
             }
@@ -53,11 +47,6 @@ macro_rules! import_exception {
             }
         }
 
-        impl $crate::PyNativeException for $name {
-            const MOD: &'static str = stringify!($module);
-            const NAME: &'static str = stringify!($name);
-        }
-
         impl $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
             fn init_type() {}
@@ -65,8 +54,7 @@ macro_rules! import_exception {
             #[inline]
             fn type_object() -> $crate::Py<$crate::PyType> {
                 use $crate::IntoPyPointer;
-                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject =
-                    $crate::std::ptr::null_mut();
+                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
 
                 unsafe {
                     if TYPE_OBJECT.is_null() {

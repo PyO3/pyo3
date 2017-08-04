@@ -15,7 +15,6 @@ pub use self::sequence::PySequence;
 pub use self::slice::{PySlice, PySliceIndices};
 pub use self::set::{PySet, PyFrozenSet};
 pub use self::stringdata::PyStringData;
-pub use self::exc_impl::PyNativeException;
 
 #[cfg(Py_3)]
 pub use self::string::{PyBytes, PyString};
