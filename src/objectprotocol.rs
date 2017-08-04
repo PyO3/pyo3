@@ -8,7 +8,7 @@ use ffi;
 use err::{self, PyErr, PyResult, PyDowncastError};
 use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
 use object::PyObject;
-use objects::{PyObjectRef, PyString, PyIterator, PyType};
+use objects::{PyObjectRef, PyString, PyIterator, PyType, PyTuple};
 use conversion::{ToPyObject, ToBorrowedObject,
                  IntoPyTuple, FromPyObject, PyTryFrom};
 use instance::PyObjectWithToken;
@@ -81,6 +81,14 @@ pub trait ObjectProtocol {
         where A: IntoPyTuple,
               K: IntoPyDictPointer;
 
+    /// Calls the object.
+    /// This is equivalent to the Python expression: 'self()'
+    fn call0(&self) -> PyResult<&PyObjectRef>;
+
+    /// Calls the object.
+    /// This is equivalent to the Python expression: 'self(*args)'
+    fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef> where A: IntoPyTuple;
+
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     ///
@@ -94,6 +102,14 @@ pub trait ObjectProtocol {
     fn call_method<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
         where A: IntoPyTuple,
               K: IntoPyDictPointer;
+
+    /// Calls a method on the object.
+    /// This is equivalent to the Python expression: 'self.name()'
+    fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef>;
+
+    /// Calls a method on the object with positional arguments only .
+    /// This is equivalent to the Python expression: 'self.name(*args)'
+    fn call_method1<A: IntoPyTuple>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>;
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: 'hash(self)'
@@ -264,6 +280,29 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
         result
     }
 
+    fn call0(&self) -> PyResult<&PyObjectRef>
+    {
+        let args = PyTuple::empty(self.py()).into_ptr();
+        let result = unsafe {
+            self.py().from_owned_ptr_or_err(
+                ffi::PyObject_Call(self.as_ptr(), args, std::ptr::null_mut()))
+        };
+        self.py().xdecref(args);
+        result
+    }
+
+    fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
+        where A: IntoPyTuple
+    {
+        let args = args.into_tuple(self.py()).into_ptr();
+        let result = unsafe {
+            self.py().from_owned_ptr_or_err(
+                ffi::PyObject_Call(self.as_ptr(), args, std::ptr::null_mut()))
+        };
+        self.py().xdecref(args);
+        result
+    }
+
     fn call_method<A, K>(&self, name: &str, args: A, kwargs: K)
                       -> PyResult<&PyObjectRef>
         where A: IntoPyTuple,
@@ -278,6 +317,32 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
             ffi::Py_DECREF(ptr);
             self.py().xdecref(args);
             self.py().xdecref(kw_ptr);
+            result
+        })
+    }
+
+    fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef>
+    {
+        name.with_borrowed_ptr(self.py(), |name| unsafe {
+            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            let args = PyTuple::empty(self.py()).into_ptr();
+            let result = self.py().from_owned_ptr_or_err(
+                ffi::PyObject_Call(ptr, args, std::ptr::null_mut()));
+            ffi::Py_DECREF(ptr);
+            self.py().xdecref(args);
+            result
+        })
+    }
+
+    fn call_method1<A: IntoPyTuple>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>
+    {
+        name.with_borrowed_ptr(self.py(), |name| unsafe {
+            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            let args = args.into_tuple(self.py()).into_ptr();
+            let result = self.py().from_owned_ptr_or_err(
+                ffi::PyObject_Call(ptr, args, std::ptr::null_mut()));
+            ffi::Py_DECREF(ptr);
+            self.py().xdecref(args);
             result
         })
     }
