@@ -7,19 +7,26 @@ use syn;
 use quote::{Tokens, ToTokens};
 
 use utils;
+use method::{FnType, FnSpec, FnArg};
+use py_method::{impl_wrap_getter, impl_wrap_setter, impl_py_getter_def, impl_py_setter_def};
 
 
 pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     let (params, flags, base) = parse_attribute(attr);
     let doc = utils::get_doc(&ast.attrs, true);
     let mut token: Option<syn::Ident> = None;
-
+    let mut descriptors = Vec::new();
     match ast.body {
         syn::Body::Struct(syn::VariantData::Struct(ref mut fields)) => {
-            for field in fields.iter() {
+            for field in fields.iter_mut() {
                 if is_python_token(field) {
                     token = field.ident.clone();
                     break
+                } else {
+                    let field_descs = parse_descriptors(field);
+                    if !field_descs.is_empty() {
+                        descriptors.push((field.clone(), field_descs));
+                    }
                 }
             }
         },
@@ -27,7 +34,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     }
 
     let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
-    let tokens = impl_class(&ast.ident, &base, token, doc, params, flags);
+    let tokens = impl_class(&ast.ident, &base, token, doc, params, flags, descriptors);
 
     quote! {
         #[allow(non_upper_case_globals, unused_attributes,
@@ -41,9 +48,53 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
     }
 }
 
+fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
+    let mut descs = Vec::new();
+    let mut new_attrs = Vec::new();
+    for attr in item.attrs.iter() {
+        match attr.value {
+            syn::MetaItem::List(ref name, ref metas) => {
+                match name.as_ref() {
+                    "prop" => {
+                        for meta in metas.iter() {
+                            match *meta {
+                                syn::NestedMetaItem::MetaItem(ref metaitem) => {
+                                    match metaitem.name() {
+                                        "get" => {
+                                            descs.push(FnType::Getter(None));
+                                        }
+                                        "set" => {
+                                            descs.push(FnType::Setter(None));
+                                        }
+                                        _ => {
+                                            panic!("Only getter and setter supported");
+                                        }
+                                    }
+                                }
+                                _ => ()
+                            }
+                        }
+                    }
+                    _ => {
+                        new_attrs.push(attr.clone());
+                    }
+                }
+            }
+            _ => {
+                new_attrs.push(attr.clone());
+            }
+        }
+    }
+    item.attrs.clear();
+    item.attrs.extend(new_attrs);
+    descs
+}
+
 fn impl_class(cls: &syn::Ident, base: &syn::Ident,
               token: Option<syn::Ident>, doc: syn::Lit,
-              params: HashMap<&'static str, syn::Ident>, flags: Vec<syn::Ident>) -> Tokens {
+              params: HashMap<&'static str, syn::Ident>,
+              flags: Vec<syn::Ident>,
+              descriptors: Vec<(syn::Field, Vec<FnType>)>) -> Tokens {
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.as_str().to_string(),
         None => quote! { #cls }.as_str().to_string()
@@ -145,6 +196,17 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         }
     };
 
+    let extra = if !descriptors.is_empty() {
+        let ty = syn::parse::ty(cls.as_ref()).expect("no name");
+        let desc_impls = impl_descriptors(&ty, descriptors);
+        Some(quote! {
+            #desc_impls
+            #extra
+        })
+    } else {
+        extra
+    };
+
     // insert space for weak ref
     let mut has_weakref = false;
     let mut has_dict = false;
@@ -216,6 +278,103 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
         }
 
         #extra
+    }
+}
+
+fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> Tokens {
+    let methods: Vec<Tokens> = descriptors.iter().flat_map(|&(ref field, ref fns)| {
+        fns.iter().map(|desc| {
+            let name = field.ident.clone().unwrap();
+            let field_ty = &field.ty;
+            match *desc {
+                FnType::Getter(_) => {
+                    quote! {
+                        impl #cls {
+                            fn #name(&self) -> _pyo3::PyResult<#field_ty> {
+                                Ok(self.#name)
+                            }
+                        }
+                    }
+                }
+                FnType::Setter(_) => {
+                    let setter_name = syn::Ident::from(format!("set_{}", name));
+                    quote! {
+                        impl #cls {
+                            fn #setter_name(&mut self, value: #field_ty) -> _pyo3::PyResult<()> {
+                                self.#name = value;
+                                Ok(())
+                            }
+                        }
+                    }
+                },
+                _ => unreachable!()
+            }
+        }).collect::<Vec<Tokens>>()
+    }).collect();
+
+    let py_methods: Vec<Tokens> = descriptors.iter().flat_map(|&(ref field, ref fns)| {
+        fns.iter().map(|desc| {
+            let name = field.ident.clone().unwrap();
+            // FIXME better doc?
+            let doc = syn::Lit::from(name.as_ref());
+            let field_ty = &field.ty;
+            match *desc {
+                FnType::Getter(ref getter) => {
+                    impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&Box::new(cls.clone()), &name))
+                }
+                FnType::Setter(ref setter) => {
+                    let mode = syn::BindingMode::ByValue(syn::Mutability::Immutable);
+                    let setter_name = syn::Ident::from(format!("set_{}", name));
+                    let spec = FnSpec {
+                        tp: FnType::Setter(None),
+                        attrs: Vec::new(),
+                        args: vec![FnArg {
+                            name: &name,
+                            mode: &mode,
+                            ty: field_ty,
+                            optional: None,
+                            py: true,
+                            reference: false
+                        }],
+                        output: syn::parse::ty("PyResult<()>").expect("error parse PyResult<()>")
+                    };
+                    impl_py_setter_def(&name, doc, setter, &impl_wrap_setter(&Box::new(cls.clone()), &setter_name, &spec))
+                },
+                _ => unreachable!()
+            }
+        }).collect::<Vec<Tokens>>()
+    }).collect();
+
+    let tokens = quote! {
+        #(#methods)*
+
+        impl _pyo3::class::methods::PyMethodsProtocolImpl for #cls {
+            fn py_methods() -> &'static [_pyo3::class::PyMethodDefType] {
+                static METHODS: &'static [_pyo3::class::PyMethodDefType] = &[
+                    #(#py_methods),*
+                ];
+                METHODS
+            }
+        }
+    };
+
+    let n = match cls {
+        &syn::Ty::Path(_, ref p) => {
+            p.segments.last().as_ref().unwrap().ident.as_ref()
+        }
+        _ => "CLS_METHODS"
+    };
+
+    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_DESCRIPTORS_{}", n));
+    quote! {
+        #[feature(specialization)]
+        #[allow(non_upper_case_globals, unused_attributes,
+                unused_qualifications, unused_variables, unused_imports)]
+        const #dummy_const: () = {
+            extern crate pyo3 as _pyo3;
+
+            #tokens
+        };
     }
 }
 

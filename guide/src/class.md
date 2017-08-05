@@ -189,6 +189,18 @@ impl MyClass {
 
 In this case property `number` is defined. And it is available from python code as `self.number`.
 
+For simple cases you can also define getters and setters in your Rust struct field definition, for example:
+
+```rust
+#[py:class]
+struct MyClass {
+  #[prop(get, set)]
+  num: i32
+}
+```
+
+Then it is available from Python code as `self.num`.
+
 ## Instance methods
 
 To define python compatible method, `impl` block for struct has to be annotated
