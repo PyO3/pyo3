@@ -162,6 +162,7 @@ impl MyClass {
      #[setter]
      fn set_num(&mut self, value: i32) -> PyResult<()> {
         self.num = value
+        Ok(())
      }
 }
 ```
@@ -183,6 +184,7 @@ impl MyClass {
      #[setter(number)]
      fn set_num(&mut self, value: i32) -> PyResult<()> {
         self.num = value
+        Ok(())
      }
 }
 ```
