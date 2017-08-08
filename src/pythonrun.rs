@@ -291,6 +291,8 @@ mod test {
     #[test]
     fn test_owned_nested() {
         pythonrun::prepare_pyo3_library();
+        let gil = Python::acquire_gil();
+        let py = gil.python();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -298,8 +300,7 @@ mod test {
             let cnt;
             let empty;
             {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
+                let _pool = GILPool::new();
                 assert_eq!(p.owned.len(), 0);
 
                 // empty tuple is singleton
@@ -318,7 +319,6 @@ mod test {
                 assert_eq!(p.owned.len(), 1);
             }
             {
-                let _gil = Python::acquire_gil();
                 assert_eq!(p.owned.len(), 0);
                 assert_eq!(cnt, ffi::Py_REFCNT(empty));
             }

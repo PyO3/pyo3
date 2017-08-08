@@ -348,7 +348,7 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
     let tokens = quote! {
         #(#methods)*
 
-        impl _pyo3::class::methods::PyMethodsProtocolImpl for #cls {
+        impl _pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
             fn py_methods() -> &'static [_pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [_pyo3::class::PyMethodDefType] = &[
                     #(#py_methods),*

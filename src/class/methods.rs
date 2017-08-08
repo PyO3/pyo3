@@ -9,6 +9,7 @@ static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 /// `PyMethodDefType` represents different types of python callable objects.
 /// It is used by `#[py::methods]` and `#[py::proto]` annotations.
+#[derive(Debug)]
 pub enum PyMethodDefType {
     /// Represents class `__new__` method
     New(PyMethodDef),
@@ -28,7 +29,7 @@ pub enum PyMethodDefType {
     Setter(PySetterDef),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
@@ -37,7 +38,7 @@ pub enum PyMethodType {
     PyInitFunc(ffi::initproc),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyMethodDef {
     pub ml_name: &'static str,
     pub ml_meth: PyMethodType,
@@ -45,14 +46,14 @@ pub struct PyMethodDef {
     pub ml_doc: &'static str,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct PyGetterDef {
     pub name: &'static str,
     pub meth: ffi::getter,
     pub doc: &'static str,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct PySetterDef {
     pub name: &'static str,
     pub meth: ffi::setter,
@@ -129,6 +130,17 @@ pub trait PyMethodsProtocolImpl {
 }
 
 impl<T> PyMethodsProtocolImpl for T {
+    default fn py_methods() -> &'static [PyMethodDefType] {
+        NO_PY_METHODS
+    }
+}
+
+#[doc(hidden)]
+pub trait PyPropMethodsProtocolImpl {
+    fn py_methods() -> &'static [PyMethodDefType];
+}
+
+impl<T> PyPropMethodsProtocolImpl for T {
     default fn py_methods() -> &'static [PyMethodDefType] {
         NO_PY_METHODS
     }

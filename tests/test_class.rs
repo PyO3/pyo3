@@ -1288,6 +1288,14 @@ struct GetterSetter {
     token: PyToken
 }
 
+#[py::methods]
+impl GetterSetter {
+
+    fn get_num2(&self) -> PyResult<i32> {
+        Ok(self.num)
+    }
+}
+
 #[test]
 fn getter_setter_autogen() {
     let gil = Python::acquire_gil();

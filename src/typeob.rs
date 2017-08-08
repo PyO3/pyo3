@@ -390,6 +390,8 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
     let mut new = None;
     let mut init = None;
 
+    //<T as class::methods::PyPropMethodsProtocolImpl>::py_methods()
+
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
         match *def {
             PyMethodDefType::New(ref def) => {
@@ -458,7 +460,9 @@ fn py_class_async_methods<T>(_defs: &mut Vec<ffi::PyMethodDef>) {}
 fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();
 
-    for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
+    for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods()
+        .iter().chain(<T as class::methods::PyPropMethodsProtocolImpl>::py_methods().iter())
+    {
         match *def {
             PyMethodDefType::Getter(ref getter) => {
                 let name = getter.name.to_string();
