@@ -141,6 +141,7 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
             _args: *mut _pyo3::ffi::PyObject,
             _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
+            use std::ptr;
             use pyo3::typeob::PyTypeInfo;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
@@ -158,14 +159,14 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
                     match _result {
                         Ok(_) => _obj.into_ptr(),
                         Err(e) => {
-                            //e.restore(_py);
-                            std::ptr::null_mut()
+                            e.restore(_py);
+                            ptr::null_mut()
                         }
                     }
                 }
                 Err(e) => {
-                    //e.restore(_py);
-                    std::ptr::null_mut()
+                    e.restore(_py);
+                    ptr::null_mut()
                 }
             }
         }
