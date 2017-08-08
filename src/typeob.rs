@@ -9,8 +9,8 @@ use std::collections::HashMap;
 
 use {ffi, class, pythonrun};
 use err::{PyErr, PyResult};
-use instance::Py;
-use python::Python;
+use instance::{Py, PyObjectWithToken, PyToken};
+use python::{Python, IntoPyPointer};
 use objects::PyType;
 use class::methods::PyMethodDefType;
 
@@ -55,7 +55,6 @@ pub trait PyTypeInfo {
 }
 
 
-
 /// type object supports python GC
 pub const PY_TYPE_FLAG_GC: usize = 1<<0;
 
@@ -92,7 +91,93 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     default fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
         <T as PyTypeInfo>::is_exact_instance(ptr)
     }
+}
 
+#[allow(dead_code)]
+pub struct PyRawObject {
+    ptr: *mut ffi::PyObject,
+    tp_ptr: *mut ffi::PyTypeObject,
+    curr_ptr: *mut ffi::PyTypeObject,
+    initialized: usize,
+}
+
+impl PyRawObject {
+    #[must_use]
+    pub unsafe fn new(py: Python,
+                      tp_ptr: *mut ffi::PyTypeObject,
+                      curr_ptr: *mut ffi::PyTypeObject) -> PyResult<PyRawObject> {
+        let alloc = (*curr_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+        let ptr = alloc(curr_ptr, 0);
+
+        if !ptr.is_null() {
+            Ok(PyRawObject {
+                ptr: ptr,
+                tp_ptr: tp_ptr,
+                curr_ptr: curr_ptr,
+                initialized: 0,
+            })
+        } else {
+            PyErr::fetch(py).into()
+        }
+    }
+
+    /// Initialize memory using value.
+    /// `PyRawObject` is used by class `__new__` method.
+    /// ```
+    /// #[py::class]
+    /// struct MyClass {
+    ///    token: PyToken
+    /// }
+    ///
+    /// #[py::methods]
+    /// impl MyClass {
+    ///    #[new]
+    ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+    ///        obj.init(|token| MyClass{token| token})
+    ///        MyClass::BaseType::__new__(obj)
+    ///    }
+    /// }
+    /// ```
+    pub fn init<T, F>(&self, f: F) -> PyResult<()>
+        where F: FnOnce(PyToken) -> T,
+              T: PyTypeInfo
+    {
+        let value = f(PyToken::new());
+
+        unsafe {
+            let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
+            std::ptr::write(ptr, value);
+        }
+        Ok(())
+    }
+
+    /// Type object
+    pub fn type_object(&self) -> &PyType {
+        unsafe {PyType::from_type_ptr(self.py(), self.curr_ptr)}
+    }
+
+    /// Return reference to object.
+    pub fn as_ref<T: PyTypeInfo>(&self) -> &T {
+        // TODO: check is object initialized
+        unsafe {
+            let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
+            ptr.as_ref().unwrap()
+        }
+    }
+}
+
+impl IntoPyPointer for PyRawObject {
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        // TODO: panic if not all types initialized
+        return self.ptr
+    }
+}
+
+impl PyObjectWithToken for PyRawObject {
+    #[inline(always)]
+    fn py(&self) -> Python {
+        unsafe { Python::assume_gil_acquired() }
+    }
 }
 
 /// A Python object allocator that is usable as a base type for #[class]
@@ -212,8 +297,8 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
         "Module name/type name must not contain NUL byte").into_raw();
 
     let type_object: &mut ffi::PyTypeObject = unsafe{&mut *T::type_object()};
-    let base_type_object: &mut ffi::PyTypeObject = unsafe{
-        &mut *<T::BaseType as PyTypeInfo>::type_object()};
+    let base_type_object: &mut ffi::PyTypeObject = unsafe {
+        &mut *<T::BaseType as PyTypeInfo>::type_object() };
 
     type_object.tp_name = name;
     type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
@@ -322,7 +407,7 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
         if ffi::PyType_Ready(type_object) == 0 {
             Ok(())
         } else {
-            Err(PyErr::fetch(py))
+            PyErr::fetch(py).into()
         }
     }
 }

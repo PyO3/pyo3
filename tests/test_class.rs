@@ -100,8 +100,8 @@ struct EmptyClassWithNew {
 #[py::methods]
 impl EmptyClassWithNew {
     #[__new__]
-    fn __new__(cls: &PyType) -> PyResult<Py<EmptyClassWithNew>> {
-        Ok(Py::new(cls.py(), |t| EmptyClassWithNew{token: t})?.into())
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| EmptyClassWithNew{token: t})
     }
 }
 
@@ -122,8 +122,8 @@ struct NewWithOneArg {
 #[py::methods]
 impl NewWithOneArg {
     #[new]
-    fn __new__(cls: &PyType, arg: i32) -> PyResult<&mut NewWithOneArg> {
-        cls.py().init_mut(|t| NewWithOneArg{_data: arg, token: t})
+    fn __new__(obj: &PyRawObject, arg: i32) -> PyResult<()> {
+        obj.init(|t| NewWithOneArg{_data: arg, token: t})
     }
 }
 
@@ -148,11 +148,9 @@ struct NewWithTwoArgs {
 #[py::methods]
 impl NewWithTwoArgs {
     #[new]
-    fn __new__(cls: &PyType, arg1: i32, arg2: i32) -> PyResult<Py<NewWithTwoArgs>>
+    fn __new__(obj: &PyRawObject, arg1: i32, arg2: i32) -> PyResult<()>
     {
-        Py::new(
-            cls.py(),
-            |t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
+        obj.init(|t| NewWithTwoArgs{_data1: arg1, _data2: arg2, token: t})
     }
 }
 
@@ -161,7 +159,7 @@ fn new_with_two_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<NewWithTwoArgs>();
-    let wrp = typeobj.call((10, 20), NoArgs).unwrap();
+    let wrp = typeobj.call((10, 20), NoArgs).map_err(|e| e.print(py)).unwrap();
     let obj = wrp.cast_as::<NewWithTwoArgs>().unwrap();
     assert_eq!(obj._data1, 10);
     assert_eq!(obj._data2, 20);
@@ -339,8 +337,8 @@ struct ClassMethod {token: PyToken}
 #[py::methods]
 impl ClassMethod {
     #[new]
-    fn __new__(cls: &PyType) -> PyResult<Py<ClassMethod>> {
-        cls.py().init(|t| ClassMethod{token: t})
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| ClassMethod{token: t})
     }
 
     #[classmethod]
@@ -390,8 +388,8 @@ struct StaticMethod {
 #[py::methods]
 impl StaticMethod {
     #[new]
-    fn __new__(cls: &PyType) -> PyResult<&StaticMethod> {
-        Ok(cls.py().init_mut(|t| StaticMethod{token: t})?.into())
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| StaticMethod{token: t})
     }
 
     #[staticmethod]
@@ -1185,7 +1183,6 @@ impl ClassWithProperties {
     }
 }
 
-
 #[test]
 fn class_with_properties() {
     let gil = Python::acquire_gil();
@@ -1305,4 +1302,43 @@ fn getter_setter_autogen() {
 
     py_run!(py, inst, "assert inst.num == 10");
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+}
+
+#[py::class]
+struct BaseClass {
+    #[prop(get)]
+    val1: usize
+}
+
+#[py::methods]
+impl BaseClass {
+    #[new]
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| BaseClass{val1: 10})
+    }
+}
+
+#[py::class(base=BaseClass)]
+struct SubClass {
+    #[prop(get)]
+    val2: usize
+}
+
+#[py::methods]
+impl SubClass {
+    #[new]
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| SubClass{val2: 5})?;
+        BaseClass::__new__(obj)
+    }
+}
+
+#[test]
+fn inheritance_with_new_methods() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typebase = py.get_type::<BaseClass>();
+    let typeobj = py.get_type::<SubClass>();
+    let inst = typeobj.call(NoArgs, NoArgs).unwrap();
+    py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
 }

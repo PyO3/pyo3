@@ -76,8 +76,8 @@ attribute. Only python `__new__` method can be specified, `__init__` is not avai
 impl MyClass {
 
      #[new]
-     fn __new__(cls: &PyType, ...) -> PyResult<Py<MyClass>> {
-         cls.py().init(|token| {
+     fn __new__(obj: &PyRawObject, ...) -> PyResult<()> {
+         obj.init(|token| {
              MyClass {
                  num: 10,
                  debug: False,
@@ -92,9 +92,10 @@ Some rules of `new` method
 
 * If no method marked with `#[new]` is declared, object instances can only be created
   from Rust, but not from Python.
-* The first parameter is the type object of the class to create.
-  This may be the type object of a derived class declared in Python.
-* The first parameter implicitly has type `&PyType`.
+* The first parameter is the raw object, custom `new` method must initialize object
+  with value of struct using `init` method. Type of the object may be the type object of 
+  a derived class declared in Python.
+* The first parameter implicitly has type `&PyRawObject`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
 * The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject`.
   Usually, `T` will be `MyType`.
@@ -103,22 +104,45 @@ Some rules of `new` method
 ## Inheritance
 
 By default `PyObject` is used as default base class. To override default base class
-`base` parameter to `py::class` needs to be used. Value is full path to base class.
+`base` parameter for `py::class` needs to be used. Value is full path to base class.
+`__new__` method accepts `PyRawObject` object. `obj` instance must be initialized
+with value of custom class struct. Subclass must call parent's `__new__` method.
 
 ```rust
 
 #[py::class]
 struct BaseClass {
+   val1: usize
+}
+
+#[py::class]
+impl BaseClass {
+   #[new]
+   fn __new__(obj: &PyRawObject) -> PyResult<()> {
+       obj.init(|t| BaseClass{val1: 10})
+   }
+   
    pub fn method(&self) -> PyResult<() {
       Ok(())
    }
 }
 
 #[py::class(base=BaseClass)]
-struct MyEventLoop {
-    fn method2(&self) -> PyResult<()> {
+struct SubClass {
+   val2: usize
+}
+
+#[py::class]
+impl SubClass {
+   #[new]
+   fn __new__(obj: &PyRawObject) -> PyResult<()> {
+       obj.init(|t| SubClass{val2: 10})
+       BaseClass::__new__(obj)
+   }
+   
+   fn method2(&self) -> PyResult<()> {
        self.get_base().method()
-    }
+   }
 }
 ```
 

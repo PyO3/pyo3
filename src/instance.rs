@@ -18,6 +18,11 @@ use typeob::{PyTypeInfo, PyObjectAlloc};
 pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {
+
+    pub(crate) fn new() -> PyToken {
+        PyToken(PhantomData)
+    }
+
     #[inline(always)]
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }

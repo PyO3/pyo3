@@ -499,7 +499,7 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
                 },
                 "base" => {
                     let mut m = String::new();
-                    for el in elem[2..elem.len()-1].iter() {
+                    for el in elem[2..elem.len()].iter() {
                         let mut t = Tokens::new();
                         el.to_tokens(&mut t);
                         m += t.as_str().trim();

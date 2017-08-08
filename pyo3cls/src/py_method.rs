@@ -19,7 +19,7 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
         FnType::Fn =>
             impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
         FnType::FnNew =>
-            impl_py_method_def_new(name, doc, &impl_wrap_type(cls, name, &spec)),
+            impl_py_method_def_new(name, doc, &impl_wrap_new(cls, name, &spec)),
         FnType::FnInit =>
             impl_py_method_def_init(name, doc, &impl_wrap_init(cls, name, &spec)),
         FnType::FnCall =>
@@ -123,12 +123,12 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {{
-        #cls::#name(&_cls, #(#names),*)
+        #cls::#name(&_obj, #(#names),*)
     }};
 
     let body = impl_arg_params(spec, cb);
@@ -141,18 +141,33 @@ pub fn impl_wrap_type(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> T
             _args: *mut _pyo3::ffi::PyObject,
             _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
+            use pyo3::typeob::PyTypeInfo;
+
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = _pyo3::GILPool::new();
             let _py = _pyo3::Python::assume_gil_acquired();
-            let _cls = _pyo3::PyType::from_type_ptr(_py, _cls);
-            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
-            let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
+            match _pyo3::typeob::PyRawObject::new(_py, #cls::type_object(), _cls) {
+                Ok(_obj) => {
+                    let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
+                    let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-            let _result: #output = {
-                #body
-            };
-            _pyo3::callback::cb_convert(
-                _pyo3::callback::PyObjectCallbackConverter, _py, _result)
+                    let _result: #output = {
+                        #body
+                    };
+
+                    match _result {
+                        Ok(_) => _obj.into_ptr(),
+                        Err(e) => {
+                            //e.restore(_py);
+                            std::ptr::null_mut()
+                        }
+                    }
+                }
+                Err(e) => {
+                    //e.restore(_py);
+                    std::ptr::null_mut()
+                }
+            }
         }
     }
 }
