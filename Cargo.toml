@@ -13,6 +13,10 @@ license = "Apache-2.0"
 exclude = [".gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
 build = "build.rs"
 
+[badges]
+travis-ci = { repository = "PyO3/pyo3", branch = "master" }
+appveyor = { repository = "PyO3/pyo3" }
+
 [dependencies]
 log = "0.3"
 libc = "0.2"
