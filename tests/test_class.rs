@@ -1145,7 +1145,7 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let mut c = py.init_mut(|t| ContextManager{exit_called: false, token: t}).unwrap();
+    let c = py.init_mut(|t| ContextManager{exit_called: false, token: t}).unwrap();
     py_run!(py, c, "with c as x:\n  assert x == 42");
     assert!(c.exit_called);
 
@@ -1401,10 +1401,10 @@ fn inheritance_with_new_methods_with_drop() {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call(NoArgs, NoArgs).unwrap();
 
-        let mut obj = SubClassWithDrop::try_from_mut(inst).unwrap();
+        let obj = SubClassWithDrop::try_from_mut(inst).unwrap();
         obj.data = Some(drop_called1.clone());
 
-        let mut base = obj.get_mut_base();
+        let base = obj.get_mut_base();
         base.data = Some(drop_called2.clone());
     }
 

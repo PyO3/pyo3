@@ -139,7 +139,7 @@ impl PyRawObject {
                 ptr: ptr,
                 tp_ptr: tp_ptr,
                 curr_ptr: curr_ptr,
-                initialized: 0,
+                // initialized: 0,
             })
         } else {
             PyErr::fetch(py).into()
@@ -156,7 +156,7 @@ impl PyRawObject {
                 ptr: ptr,
                 tp_ptr: tp_ptr,
                 curr_ptr: curr_ptr,
-                initialized: 0,
+                // initialized: 0,
             })
         } else {
             PyErr::fetch(py).into()
