@@ -1,8 +1,10 @@
 Changes
 -------
 
-0.2.x (xx-xx-2017)
+0.2.x (08-12-2017)
 ^^^^^^^^^^^^^^^^^^
+
+* Added inheritance support #15
 
 * Added weakref support #56
 

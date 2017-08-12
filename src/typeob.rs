@@ -93,12 +93,37 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
     }
 }
 
+/// Special object that is used for python object creation.
+/// `pyo3` library automatically creates this object for class `__new__` method.
+/// Behavior is undefined if constructor of custom class does not initialze
+/// instance of `PyRawObject` with rust value with `init` method.
+/// Calling of `__new__` method of base class is developer's responsibility.
+///
+/// Example of custom class implementation with `__new__` method:
+/// ```rust
+/// #[py::class]
+/// struct MyClass {
+///    token: PyToken
+/// }
+///
+/// #[py::methods]
+/// impl MyClass {
+///    #[new]
+///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+///        obj.init(|token| MyClass{token| token})
+///        MyClass::BaseType::__new__(obj)
+///    }
+/// }
+/// ```
 #[allow(dead_code)]
 pub struct PyRawObject {
     ptr: *mut ffi::PyObject,
+    /// Type object of class which __new__ method get called
     tp_ptr: *mut ffi::PyTypeObject,
+    /// Type object of top most class in inheritance chain,
+    /// it might be python class.
     curr_ptr: *mut ffi::PyTypeObject,
-    initialized: usize,
+    // initialized: usize,
 }
 
 impl PyRawObject {
@@ -138,23 +163,6 @@ impl PyRawObject {
         }
     }
 
-    /// Initialize memory using value.
-    /// `PyRawObject` is used by class `__new__` method.
-    /// ```
-    /// #[py::class]
-    /// struct MyClass {
-    ///    token: PyToken
-    /// }
-    ///
-    /// #[py::methods]
-    /// impl MyClass {
-    ///    #[new]
-    ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-    ///        obj.init(|token| MyClass{token| token})
-    ///        MyClass::BaseType::__new__(obj)
-    ///    }
-    /// }
-    /// ```
     pub fn init<T, F>(&self, f: F) -> PyResult<()>
         where F: FnOnce(PyToken) -> T,
               T: PyTypeInfo
@@ -186,7 +194,7 @@ impl PyRawObject {
 impl IntoPyPointer for PyRawObject {
     fn into_ptr(self) -> *mut ffi::PyObject {
         // TODO: panic if not all types initialized
-        return self.ptr
+        self.ptr
     }
 }
 
