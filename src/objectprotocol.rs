@@ -150,6 +150,9 @@ pub trait ObjectProtocol {
     /// Gets the Python base object for this object.
     fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
 
+    /// Gets the Python base object for this object.
+    fn get_mut_base(&self) -> &mut <Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
+
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, <D as PyTryFrom>::Error>
         where D: PyTryFrom<Error=PyDowncastError>,
@@ -416,6 +419,11 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo
     {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
+    }
+
+    fn get_mut_base(&self) -> &mut <Self as PyTypeInfo>::BaseType where Self: PyTypeInfo
+    {
+        unsafe { self.py().mut_from_borrowed_ptr(self.as_ptr()) }
     }
 
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, <D as PyTryFrom>::Error>

@@ -73,7 +73,7 @@ impl<T> FreeList<T> {
 
 impl<T> PyObjectAlloc<T> for T where T: PyObjectWithFreeList {
 
-    unsafe fn alloc(_py: Python, value: T) -> PyResult<*mut ffi::PyObject> {
+    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         let obj = if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().pop() {
             ffi::PyObject_Init(obj, <T as PyTypeInfo>::type_object());
             obj
@@ -81,54 +81,59 @@ impl<T> PyObjectAlloc<T> for T where T: PyObjectWithFreeList {
             ffi::PyType_GenericAlloc(<T as PyTypeInfo>::type_object(), 0)
         };
 
-        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::OFFSET) as *mut T;
-        std::ptr::write(ptr, value);
-
         Ok(obj)
     }
 
     #[cfg(Py_3)]
-    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::OFFSET) as *mut T;
-        std::ptr::drop_in_place(ptr);
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+        Self::drop(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
             return
         }
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            let ty = ffi::Py_TYPE(obj);
-            if ffi::PyType_IS_GC(ty) != 0 {
-                ffi::PyObject_GC_Del(obj as *mut ::c_void);
-            } else {
-                ffi::PyObject_Free(obj as *mut ::c_void);
-            }
+            match (*T::type_object()).tp_free {
+                Some(free) => free(obj as *mut ::c_void),
+                None => {
+                    let ty = ffi::Py_TYPE(obj);
+                    if ffi::PyType_IS_GC(ty) != 0 {
+                        ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                    } else {
+                        ffi::PyObject_Free(obj as *mut ::c_void);
+                    }
 
-            // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-            // so we need to call DECREF here:
-            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                    // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+                    // so we need to call DECREF here:
+                    if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                        ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                    }
+                }
             }
         }
     }
 
     #[cfg(not(Py_3))]
-    unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(<T as PyTypeInfo>::OFFSET) as *mut T;
-        std::ptr::drop_in_place(ptr);
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+        Self::drop(py, obj);
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            let ty = ffi::Py_TYPE(obj);
-            if ffi::PyType_IS_GC(ty) != 0 {
-                ffi::PyObject_GC_Del(obj as *mut ::c_void);
-            } else {
-                ffi::PyObject_Free(obj as *mut ::c_void);
-            }
+            match (*T::type_object()).tp_free {
+                Some(free) => free(obj as *mut ::c_void),
+                None => {
+                    let ty = ffi::Py_TYPE(obj);
+                    if ffi::PyType_IS_GC(ty) != 0 {
+                        ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                    } else {
+                        ffi::PyObject_Free(obj as *mut ::c_void);
+                    }
 
-            // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-            // so we need to call DECREF here:
-            if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                    // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+                    // so we need to call DECREF here:
+                    if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                        ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                    }
+                }
             }
         }
     }

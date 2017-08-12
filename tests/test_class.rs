@@ -1307,7 +1307,7 @@ fn getter_setter_autogen() {
 #[py::class]
 struct BaseClass {
     #[prop(get)]
-    val1: usize
+    val1: usize,
 }
 
 #[py::methods]
@@ -1321,7 +1321,7 @@ impl BaseClass {
 #[py::class(base=BaseClass)]
 struct SubClass {
     #[prop(get)]
-    val2: usize
+    val2: usize,
 }
 
 #[py::methods]
@@ -1341,4 +1341,73 @@ fn inheritance_with_new_methods() {
     let typeobj = py.get_type::<SubClass>();
     let inst = typeobj.call(NoArgs, NoArgs).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
+}
+
+
+#[py::class]
+struct BaseClassWithDrop {
+    token: PyToken,
+    data: Option<Arc<AtomicBool>>,
+}
+
+#[py::methods]
+impl BaseClassWithDrop {
+    #[new]
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| BaseClassWithDrop{token: t, data: None})
+    }
+}
+
+impl Drop for BaseClassWithDrop {
+    fn drop(&mut self) {
+        if let Some(ref mut data) = self.data {
+            data.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+#[py::class(base=BaseClassWithDrop)]
+struct SubClassWithDrop {
+    token: PyToken,
+    data: Option<Arc<AtomicBool>>,
+}
+
+#[py::methods]
+impl SubClassWithDrop {
+    #[new]
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|t| SubClassWithDrop{token: t, data: None})?;
+        BaseClassWithDrop::__new__(obj)
+    }
+}
+
+impl Drop for SubClassWithDrop {
+    fn drop(&mut self) {
+        if let Some(ref mut data) = self.data {
+            data.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+#[test]
+fn inheritance_with_new_methods_with_drop() {
+    let drop_called1 = Arc::new(AtomicBool::new(false));
+    let drop_called2 = Arc::new(AtomicBool::new(false));
+
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let typebase = py.get_type::<BaseClassWithDrop>();
+        let typeobj = py.get_type::<SubClassWithDrop>();
+        let inst = typeobj.call(NoArgs, NoArgs).unwrap();
+
+        let mut obj = SubClassWithDrop::try_from_mut(inst).unwrap();
+        obj.data = Some(drop_called1.clone());
+
+        let mut base = obj.get_mut_base();
+        base.data = Some(drop_called2.clone());
+    }
+
+    assert!(drop_called1.load(Ordering::Relaxed));
+    assert!(drop_called2.load(Ordering::Relaxed));
 }

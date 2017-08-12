@@ -121,6 +121,23 @@ impl PyRawObject {
         }
     }
 
+    #[must_use]
+    pub unsafe fn new_with_ptr(py: Python,
+                               ptr: *mut ffi::PyObject,
+                               tp_ptr: *mut ffi::PyTypeObject,
+                               curr_ptr: *mut ffi::PyTypeObject) -> PyResult<PyRawObject> {
+        if !ptr.is_null() {
+            Ok(PyRawObject {
+                ptr: ptr,
+                tp_ptr: tp_ptr,
+                curr_ptr: curr_ptr,
+                initialized: 0,
+            })
+        } else {
+            PyErr::fetch(py).into()
+        }
+    }
+
     /// Initialize memory using value.
     /// `PyRawObject` is used by class `__new__` method.
     /// ```
@@ -184,67 +201,88 @@ impl PyObjectWithToken for PyRawObject {
 pub trait PyObjectAlloc<T> {
 
     /// Allocates a new object (usually by calling ty->tp_alloc),
-    /// and initializes it using value.
-    unsafe fn alloc(py: Python, value: T) -> PyResult<*mut ffi::PyObject>;
+    unsafe fn alloc(py: Python) -> PyResult<*mut ffi::PyObject>;
 
     /// Calls the rust destructor for the object and frees the memory
     /// (usually by calling ptr->ob_type->tp_free).
     /// This function is used as tp_dealloc implementation.
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
+
+    /// Calls the rust destructor for the object.
+    unsafe fn drop(_py: Python, _obj: *mut ffi::PyObject) {}
 }
 
 impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 
-    default unsafe fn alloc(_py: Python, value: T) -> PyResult<*mut ffi::PyObject> {
+    #[allow(unconditional_recursion)]
+    /// Calls the rust destructor for the object.
+    default unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
+        if T::OFFSET != 0 {
+            let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
+            std::ptr::drop_in_place(ptr);
+
+            T::BaseType::drop(py, obj);
+        }
+    }
+
+    default unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
         T::init_type();
 
-        let obj = ffi::PyType_GenericAlloc(T::type_object(), 0);
-        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
-        std::ptr::write(ptr, value);
+        let tp_ptr = T::type_object();
+        let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+        let obj = alloc(tp_ptr, 0);
 
         Ok(obj)
     }
 
     #[cfg(Py_3)]
-    default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
-        std::ptr::drop_in_place(ptr);
+    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+        Self::drop(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
             return
         }
 
-        let ty = ffi::Py_TYPE(obj);
-        if ffi::PyType_IS_GC(ty) != 0 {
-            ffi::PyObject_GC_Del(obj as *mut ::c_void);
-        } else {
-            ffi::PyObject_Free(obj as *mut ::c_void);
-        }
+        match (*T::type_object()).tp_free {
+            Some(free) => free(obj as *mut ::c_void),
+            None => {
+                let ty = ffi::Py_TYPE(obj);
+                if ffi::PyType_IS_GC(ty) != 0 {
+                    ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                } else {
+                    ffi::PyObject_Free(obj as *mut ::c_void);
+                }
 
-        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-        // so we need to call DECREF here:
-        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+                // so we need to call DECREF here:
+                if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                }
+            }
         }
     }
 
     #[cfg(not(Py_3))]
-    default unsafe fn dealloc(_py: Python, obj: *mut ffi::PyObject) {
-        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
-        std::ptr::drop_in_place(ptr);
+    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+        Self::drop(py, obj);
 
-        let ty = ffi::Py_TYPE(obj);
-        if ffi::PyType_IS_GC(ty) != 0 {
-            ffi::PyObject_GC_Del(obj as *mut ::c_void);
-        } else {
-            ffi::PyObject_Free(obj as *mut ::c_void);
-        }
+        match (*T::type_object()).tp_free {
+            Some(free) => free(obj as *mut ::c_void),
+            None => {
+                let ty = ffi::Py_TYPE(obj);
+                if ffi::PyType_IS_GC(ty) != 0 {
+                    ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                } else {
+                    ffi::PyObject_Free(obj as *mut ::c_void);
+                }
 
-        // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-        // so we need to call DECREF here:
-        if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-            ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
+                // so we need to call DECREF here:
+                if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
+                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
+                }
+            }
         }
     }
 }
@@ -258,6 +296,21 @@ pub trait PyTypeObject {
     /// Retrieves the type object for this Python object type.
     fn type_object() -> Py<PyType>;
 
+    /// Create PyRawObject which can be initialized with rust value
+    #[must_use]
+    fn create(py: Python) -> PyResult<PyRawObject>
+        where Self: Sized + PyObjectAlloc<Self> + PyTypeInfo
+    {
+        <Self as PyTypeObject>::init_type();
+
+        unsafe {
+            let ptr = <Self as PyObjectAlloc<Self>>::alloc(py)?;
+            PyRawObject::new_with_ptr(
+                py, ptr,
+                <Self as PyTypeInfo>::type_object(),
+                <Self as PyTypeInfo>::type_object())
+        }
+    }
 }
 
 impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {

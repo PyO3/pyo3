@@ -12,7 +12,7 @@ use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 use python::{Python, IntoPyPointer, ToPyPointer};
-use typeob::{PyTypeInfo, PyObjectAlloc};
+use typeob::{PyTypeInfo, PyTypeObject};
 
 
 pub struct PyToken(PhantomData<Rc<()>>);
@@ -165,13 +165,13 @@ impl<T> Py<T> where T: PyTypeInfo,
     /// Returns `Py<T>`.
     pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
         where F: FnOnce(::PyToken) -> T,
-              T: PyObjectAlloc<T>
+              T: PyTypeObject + PyTypeInfo
     {
-        let ob = f(PyToken(PhantomData));
+        let ob = <T as PyTypeObject>::create(py)?;
+        ob.init(f)?;
 
         let ob = unsafe {
-            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
-            Py::from_owned_ptr(ob)
+            Py::from_owned_ptr(ob.into_ptr())
         };
         Ok(ob)
     }
@@ -180,13 +180,13 @@ impl<T> Py<T> where T: PyTypeInfo,
     /// Returns references to `T`
     pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
         where F: FnOnce(::PyToken) -> T,
-              T: PyObjectAlloc<T>
+              T: PyTypeObject + PyTypeInfo
     {
-        let ob = f(PyToken(PhantomData));
+        let ob = <T as PyTypeObject>::create(py)?;
+        ob.init(f)?;
 
         unsafe {
-            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
-            Ok(py.from_owned_ptr(ob))
+            Ok(py.from_owned_ptr(ob.into_ptr()))
         }
     }
 
@@ -194,13 +194,13 @@ impl<T> Py<T> where T: PyTypeInfo,
     /// Returns mutable references to `T`
     pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
         where F: FnOnce(::PyToken) -> T,
-              T: PyObjectAlloc<T>
+              T: PyTypeObject + PyTypeInfo
     {
-        let ob = f(PyToken(PhantomData));
+        let ob = <T as PyTypeObject>::create(py)?;
+        ob.init(f)?;
 
         unsafe {
-            let ob = try!(<T as PyObjectAlloc<T>>::alloc(py, ob));
-            Ok(py.mut_from_owned_ptr(ob))
+            Ok(py.mut_from_owned_ptr(ob.into_ptr()))
         }
     }
 

@@ -88,6 +88,21 @@ impl PyModule {
         self.getattr(name)?.call(args, kwargs)
     }
 
+    /// Calls a function in the module.
+    /// This is equivalent to the Python expression: `getattr(module, name)()`
+    pub fn call0(&self, name: &str) -> PyResult<&PyObjectRef>
+    {
+        self.getattr(name)?.call0()
+    }
+
+    /// Calls a function in the module.
+    /// This is equivalent to the Python expression: `getattr(module, name)(*args)`
+    pub fn call1<A>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>
+        where A: IntoPyTuple
+    {
+        self.getattr(name)?.call1(args)
+    }
+
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
     pub fn get(&self, name: &str) -> PyResult<&PyObjectRef>

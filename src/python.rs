@@ -350,6 +350,20 @@ impl<'p> Python<'p> {
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
+    /// Panics if the pointer is `null`.
+    /// do unchecked downcast to specific type.
+    pub unsafe fn mut_from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p mut T
+        where T: PyTypeInfo
+    {
+        if ptr.is_null() {
+            ::err::panic_after_error();
+        } else {
+            let p = pythonrun::register_borrowed(self, ptr);
+            self.unchecked_mut_downcast(p)
+        }
+    }
+
+    /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
@@ -375,16 +389,6 @@ impl<'p> Python<'p> {
             let p = pythonrun::register_borrowed(self, ptr);
             Some(self.unchecked_downcast(p))
         }
-    }
-
-    /// Register borrowed `ffi::PyObject` pointer in release pool.
-    /// Panics if the pointer is `null`.
-    /// do unchecked downcast to specific `T`, returns mutable reference.
-    pub unsafe fn mut_from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p mut T
-        where T: PyTypeInfo
-    {
-        let p = pythonrun::register_borrowed(self, ptr);
-        self.unchecked_mut_downcast(p)
     }
 
     /// Release PyObject reference.

@@ -269,9 +269,10 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         let py = gil.python();
 
                         // automatically initialize the class on-demand
-                        _pyo3::typeob::initialize_type::<#cls>(py, None).expect(
-                            format!("An error occurred while initializing class {}",
-                                    <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
+                        _pyo3::typeob::initialize_type::<#cls>(py, None)
+                            .map_err(|e| e.print(py))
+                            .expect(format!("An error occurred while initializing class {}",
+                                            <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }
                 });
             }

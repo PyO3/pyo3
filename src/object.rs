@@ -6,7 +6,7 @@ use ffi;
 use pythonrun;
 use err::{PyErr, PyResult, PyDowncastError};
 use instance::{AsPyRef, PyObjectWithToken};
-use objects::PyObjectRef;
+use objects::{PyTuple, PyObjectRef};
 use conversion::{ToPyObject, ToBorrowedObject,
                  IntoPyObject, IntoPyTuple, FromPyObject, PyTryFrom};
 use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
@@ -179,6 +179,33 @@ impl PyObject {
         result
     }
 
+    /// Calls the object without arguments.
+    /// This is equivalent to the Python expression: 'self()'
+    pub fn call0(&self, py: Python) -> PyResult<PyObject>
+    {
+        let args = PyTuple::empty(py).into_ptr();
+        let result = unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Call(self.as_ptr(), args, std::ptr::null_mut()))
+        };
+        py.xdecref(args);
+        result
+    }
+
+    /// Calls the object.
+    /// This is equivalent to the Python expression: 'self(*args)'
+    pub fn call1<A>(&self, py: Python, args: A) -> PyResult<PyObject>
+        where A: IntoPyTuple
+    {
+        let args = args.into_tuple(py).into_ptr();
+        let result = unsafe {
+            PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Call(self.as_ptr(), args, std::ptr::null_mut()))
+        };
+        py.xdecref(args);
+        result
+    }
+
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
     pub fn call_method<A, K>(&self, py: Python,
@@ -195,6 +222,37 @@ impl PyObject {
             ffi::Py_DECREF(ptr);
             py.xdecref(args);
             py.xdecref(kwargs);
+            result
+        })
+    }
+
+    /// Calls a method on the object.
+    /// This is equivalent to the Python expression: 'self.name()'
+    pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject>
+    {
+        name.with_borrowed_ptr(py, |name| unsafe {
+            let args = PyTuple::empty(py).into_ptr();
+            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            let result = PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Call(ptr, args, std::ptr::null_mut()));
+            ffi::Py_DECREF(ptr);
+            py.xdecref(args);
+            result
+        })
+    }
+
+    /// Calls a method on the object.
+    /// This is equivalent to the Python expression: 'self.name(*args)'
+    pub fn call_method1<A>(&self, py: Python, name: &str, args: A) -> PyResult<PyObject>
+        where A: IntoPyTuple
+    {
+        name.with_borrowed_ptr(py, |name| unsafe {
+            let args = args.into_tuple(py).into_ptr();
+            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            let result = PyObject::from_owned_ptr_or_err(
+                py, ffi::PyObject_Call(ptr, args, std::ptr::null_mut()));
+            ffi::Py_DECREF(ptr);
+            py.xdecref(args);
             result
         })
     }

@@ -105,7 +105,7 @@ mod test {
         let err: PyErr = gaierror.into();
 
         let d = PyDict::new(py);
-        d.set_item("socket", py.import("socket").unwrap()).unwrap();
+        d.set_item("socket", py.import("socket").map_err(|e| e.print(py)).unwrap()).unwrap();
         d.set_item("exc", err).unwrap();
 
         py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap();
