@@ -26,7 +26,7 @@ To use `pyo3`, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.1"
+pyo3 = "0.2"
 ```
 
 Example program displaying the value of `sys.version`:

@@ -17,7 +17,7 @@ name = "rust2py"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.1", features = ["extension-module"] }
+pyo3 = { version = "0.2", features = ["extension-module"] }
 ```
 
 Now you can write your module, for example
