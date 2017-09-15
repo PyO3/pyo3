@@ -177,7 +177,7 @@ macro_rules! pyobject_extract(
             }
         }
 
-        impl<'source> $crate::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
+        impl<'source> $crate::TryFrom<&'source $crate::PyObjectRef> for $t
         {
             type Error = $crate::PyErr;
 

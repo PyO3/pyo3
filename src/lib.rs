@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro, const_fn, try_from)]
+#![feature(specialization, proc_macro, const_fn)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -184,6 +184,11 @@ macro_rules! cstr(
         }
     );
 );
+
+pub trait TryFrom<T>: Sized {
+    type Error;
+    fn try_from(value: T) -> Result<Self, Self::Error>;
+}
 
 mod python;
 mod err;
