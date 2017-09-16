@@ -48,10 +48,10 @@ pub struct PyMethodDef {
 }
 
 pub const PyMethodDef_INIT : PyMethodDef = PyMethodDef {
-    ml_name: ::std::ptr::null(),
+    ml_name: 0usize as *mut _,
     ml_meth: None,
     ml_flags: 0,
-    ml_doc: ::std::ptr::null(),
+    ml_doc: 0usize as *mut _,
 };
 
 impl Default for PyMethodDef {
