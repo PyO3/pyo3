@@ -65,7 +65,7 @@ macro_rules! import_exception {
             #[inline]
             fn type_object() -> $crate::Py<$crate::PyType> {
                 use $crate::IntoPyPointer;
-                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
+                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = 0usize as *mut _;
 
                 unsafe {
                     if TYPE_OBJECT.is_null() {

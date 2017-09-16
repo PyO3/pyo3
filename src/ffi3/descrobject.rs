@@ -1,4 +1,3 @@
-use std::ptr;
 use std::os::raw::{c_void, c_char, c_int};
 use ffi3::object::{PyObject, PyTypeObject};
 use ffi3::structmember::PyMemberDef;
@@ -21,11 +20,11 @@ pub struct PyGetSetDef {
 }
 
 pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
-    name: ptr::null_mut(),
+    name: 0usize as *mut _,
     get: None,
     set: None,
-    doc: ptr::null_mut(),
-    closure: ptr::null_mut(),
+    doc: 0usize as *mut _,
+    closure: 0usize as *mut _,
 };
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {

@@ -168,7 +168,7 @@ impl ReleasePool {
     }
 }
 
-static mut POOL: *mut ReleasePool = ::std::ptr::null_mut();
+static mut POOL: *mut ReleasePool = 0usize as *mut _;
 
 #[doc(hidden)]
 pub struct GILPool {

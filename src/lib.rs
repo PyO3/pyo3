@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro, const_fn, try_from)]
+#![feature(specialization, proc_macro)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -28,28 +28,6 @@
 //!
 //! # Example
 //!
-//! ```rust
-//! extern crate pyo3;
-//!
-//! use pyo3::{Python, PyDict, PyResult, ObjectProtocol};
-//!
-//! fn main() {
-//!     let gil = Python::acquire_gil();
-//!     hello(gil.python()).unwrap();
-//! }
-//!
-//! fn hello(py: Python) -> PyResult<()> {
-//!     let sys = py.import("sys")?;
-//!     let version: String = sys.get("version")?.extract()?;
-//!
-//!     let locals = PyDict::new(py);
-//!     locals.set_item("os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(locals))?.extract()?;
-//!
-//!     println!("Hello {}, I'm Python {}", user, version);
-//!     Ok(())
-//! }
-//! ```
 //!
 //! # Python extension
 //!
@@ -184,6 +162,11 @@ macro_rules! cstr(
         }
     );
 );
+
+pub trait TryFrom<T>: Sized {
+    type Error;
+    fn try_from(value: T) -> Result<Self, Self::Error>;
+}
 
 mod python;
 mod err;

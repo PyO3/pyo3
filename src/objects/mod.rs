@@ -30,6 +30,14 @@ pub use self::num3::PyLong as PyInt;
 #[cfg(not(Py_3))]
 pub use self::num2::{PyInt, PyLong};
 
+pub const PY_OBJECT_SIZE: usize = 16;
+
+#[test]
+fn pyobject_size() {
+    use std::mem::size_of;
+    use ffi::PyObject;
+    assert_eq!(size_of::<PyObject>(), PY_OBJECT_SIZE);
+}
 
 macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
@@ -98,7 +106,7 @@ macro_rules! pyobject_nativetype(
             type BaseType = $crate::PyObjectRef;
 
             const NAME: &'static str = stringify!($name);
-            const SIZE: usize = $crate::std::mem::size_of::<$crate::ffi::PyObject>();
+            const SIZE: usize = $crate::objects::PY_OBJECT_SIZE;
             const OFFSET: isize = 0;
 
             #[inline]
@@ -177,7 +185,7 @@ macro_rules! pyobject_extract(
             }
         }
 
-        impl<'source> $crate::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
+        impl<'source> $crate::TryFrom<&'source $crate::PyObjectRef> for $t
         {
             type Error = $crate::PyErr;
 

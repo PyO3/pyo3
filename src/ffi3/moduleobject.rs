@@ -44,7 +44,7 @@ pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
     m_init: None,
     m_index: 0,
-    m_copy: ::std::ptr::null_mut()
+    m_copy: 0usize as *mut _,
 };
 
 #[repr(C)]
@@ -73,11 +73,11 @@ pub struct PyModuleDef {
 
 pub const PyModuleDef_INIT: PyModuleDef = PyModuleDef {
     m_base: PyModuleDef_HEAD_INIT,
-    m_name: ::std::ptr::null(),
-    m_doc: ::std::ptr::null(),
+    m_name: 0usize as *const _,
+    m_doc: 0usize as *const _,
     m_size: 0,
-    m_methods: ::std::ptr::null_mut(),
-    m_slots: ::std::ptr::null_mut(),
+    m_methods: 0usize as *mut _,
+    m_slots: 0usize as *mut _,
     m_traverse: None,
     m_clear: None,
     m_free: None
