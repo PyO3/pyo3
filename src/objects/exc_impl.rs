@@ -10,7 +10,7 @@
 ///
 /// # Example
 /// ```
-/// #![feature(const_fn)]
+/// #![feature(const_fn, const_ptr_null_mut)]
 ///
 /// #[macro_use] extern crate pyo3;
 ///
