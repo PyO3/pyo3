@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro, const_fn, try_from)]
+#![feature(specialization, proc_macro, const_fn, const_unsafe_cell_new, const_size_of, const_ptr_null, const_ptr_null_mut, try_from)]
 
 //! Rust bindings to the Python interpreter.
 //!
