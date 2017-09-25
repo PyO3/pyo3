@@ -20,7 +20,7 @@ appveyor = { repository = "PyO3/pyo3" }
 [dependencies]
 log = "0.3"
 libc = "0.2"
-spin = { git = "https://github.com/messense/spin-rs.git", branch = "master" }
+spin = "0.4.6"
 num-traits = "0.1"
 pyo3cls = { path = "pyo3cls" }
 
