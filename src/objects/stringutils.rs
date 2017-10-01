@@ -66,7 +66,7 @@ impl<'source> ::FromPyObject<'source> for Cow<'source, str>
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 pyobject_extract!(obj to String => {
-    PyString::try_from(obj)?.to_string().map(Cow::into_owned)
+    <PyString as PyTryFrom>::try_from(obj)?.to_string().map(Cow::into_owned)
 });
 
 impl RefFromPyObject for str {

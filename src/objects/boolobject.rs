@@ -59,7 +59,7 @@ impl IntoPyObject for bool {
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 pyobject_extract!(obj to bool => {
-    Ok(PyBool::try_from(obj)?.is_true())
+    Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
 });
 
 
