@@ -17,8 +17,8 @@ Supported Python versions:
 
 Supported Rust version:
 
-* Rust 1.20.0-nightly or later
-* On Windows, we require rustc 1.20.0-nightly
+* Rust 1.22.0-nightly 2017-09-30 or later
+* On Windows, we require rustc 1.22.0-nightly 2017-09-30
 
 ## Usage
 
