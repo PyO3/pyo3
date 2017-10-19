@@ -57,7 +57,7 @@ fn hello(py: Python) -> PyResult<()> {
 Example library with python bindings:
 
 The following two files will build with `cargo build`, and will generate a python-compatible library.
-For MacOS, "-C link-arg=-undefined -C link-arg=dynamic_lookup" is required to build the library. Setup.py includes this by default. See examples/word-count.
+For MacOS, "-C link-arg=-undefined -C link-arg=dynamic_lookup" is required to build the library. setuptools-rust includes this by default. See [examples/word-count](examples/word-count) and the associated setup.py.
 Also on macOS, you will need to rename the output from \*.dylib to \*.so.
 On Windows, you will need to rename the output from \*.dll to \*.pyd.
 
