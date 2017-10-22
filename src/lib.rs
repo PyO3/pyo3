@@ -121,9 +121,11 @@
 //! ```bash
 //! cp ./target/debug/libhello.so ./hello.so
 //! ```
+//!
 //! (Note: on macOS you will have to rename `libhello.dynlib` to `libhello.so`. 
 //! To build on macOS, use "-C link-arg=-undefined -C link-arg=dynamic_lookup" is required to build the library. 
-//! Setup.py includes this by default. See examples/word-count. Also on macOS,)
+//! `setuptools-rust` includes this by default.
+//! See [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count).)
 //!
 //! The extension module can then be imported into Python:
 //!
