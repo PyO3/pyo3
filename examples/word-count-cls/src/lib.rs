@@ -22,8 +22,8 @@ struct Words {
 impl Words {
 
     #[new]
-    fn __new__(_cls: &PyType, py: Python, path: String) -> PyResult<PyObject> {
-        Ok(py.init(|t| Words {path: path, token: t})?.into())
+    fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
+        obj.init(|t| Words {path: path, token: t})
     }
 
     fn search(&self, py: Python, search: String) -> PyResult<i32> {

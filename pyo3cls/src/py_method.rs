@@ -128,7 +128,7 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {{
-        #cls::#name(_obj.as_ref(), #(#names),*)
+        #cls::#name(&_obj, #(#names),*)
     }};
 
     let body = impl_arg_params(spec, cb);
