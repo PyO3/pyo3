@@ -26,6 +26,7 @@ test: build
 	cargo test $(CARGO_FLAGS)
 	pip install setuptools-rust pytest pytest-benchmark
 	cd examples/word-count && python setup.py install && pytest -v tests
+	cd examples/word-count-cls && python setup.py install && pytest -v tests
 
 clippy:
 	if $$CLIPPY; then cargo clippy $(CARGO_FLAGS); fi
