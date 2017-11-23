@@ -3,7 +3,6 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std::{mem, str, char};
-use std::ascii::AsciiExt;
 use std::borrow::Cow;
 
 use python::Python;

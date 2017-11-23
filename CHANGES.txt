@@ -1,6 +1,11 @@
 Changes
 -------
 
+master
+^^^^^^^^^^^^^^^^^
+
+* Rustup to 1.23.0-nightly 2017-11-07, Remove use of now unneeded 'AsciiExt' trait
+
 0.2.2 (09-26-2017)
 ^^^^^^^^^^^^^^^^^^
 
