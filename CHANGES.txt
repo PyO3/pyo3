@@ -6,7 +6,9 @@ Changes
 
 * Proper `c_char` usage #93
 
-* Rustup to 1.23.0-nightly 2017-11-07, Remove use of now unneeded 'AsciiExt' trait
+* Remove use of now unneeded 'AsciiExt' trait
+
+* Rustup to 1.23.0-nightly 2017-11-07
 
 
 0.2.2 (09-26-2017)
