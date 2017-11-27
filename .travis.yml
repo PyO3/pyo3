@@ -60,7 +60,6 @@ after_success:
     echo "Uploaded documentation"
     fi
 
-  - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
       tar xzf master.tar.gz &&
