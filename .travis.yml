@@ -5,11 +5,24 @@ python:
   - "3.6"
 
 env:
-  # - RUST_VERSION=1.17.0
   - RUST_VERSION=nightly
+
+  global:
+    - RUSTFLAGS="-C link-dead-code"
 
 sudo: required
 dist: trusty
+
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
+      - libiberty-dev
 
 # Add clippy
 before_script:
@@ -45,4 +58,22 @@ after_success:
     git clone https://github.com/davisp/ghp-import.git &&
     ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
     echo "Uploaded documentation"
+    fi
+
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+      tar xzf master.tar.gz &&
+      cd kcov-master &&
+      mkdir build &&
+      cd build &&
+      cmake .. &&
+      make &&
+      make install DESTDIR=../../kcov-build &&
+      cd ../.. &&
+      rm -rf kcov-master &&
+      for file in target/debug/pyo3-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+      for file in target/debug/test_*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+      bash <(curl -s https://codecov.io/bash) &&
+      echo "Uploaded code coverage"
     fi
