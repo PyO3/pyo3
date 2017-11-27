@@ -50,8 +50,8 @@ impl PyString {
             src.py().from_owned_ptr_or_err::<PyString>(
                 ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
-                    encoding.as_ptr() as *const i8,
-                    errors.as_ptr() as *const i8))
+                    encoding.as_ptr() as *const c_char,
+                    errors.as_ptr() as *const  c_char))
         }
     }
 

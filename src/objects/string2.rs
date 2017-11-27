@@ -5,7 +5,6 @@
 use std;
 use std::str;
 use std::borrow::Cow;
-use std::ascii::AsciiExt;
 use std::os::raw::c_char;
 
 use ffi;
@@ -55,7 +54,9 @@ impl PyString {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
                 src.py(), ffi::PyUnicode_FromEncodedObject(
-                    src.as_ptr(), encoding.as_ptr() as *const i8, errors.as_ptr() as *const i8))?
+                    src.as_ptr(),
+                    encoding.as_ptr() as *const c_char,
+                    errors.as_ptr() as *const c_char))?
             )
         }
     }
@@ -141,8 +142,8 @@ impl PyUnicode {
             Ok(Py::from_owned_ptr_or_err(
                 src.py(), ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
-                    encoding.as_ptr() as *const i8,
-                    errors.as_ptr() as *const i8))?)
+                    encoding.as_ptr() as *const c_char,
+                    errors.as_ptr() as *const c_char))?)
         }
     }
 
