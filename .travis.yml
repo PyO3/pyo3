@@ -37,8 +37,9 @@ install:
   - curl -sL https://static.rust-lang.org/rustup.sh -o ~/rust-installer/rustup.sh
   - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y
   - export PATH="$HOME/rust/bin:$PATH"
+  - python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"
   - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-  - find $PYTHON_LIB
+  # - find $PYTHON_LIB
   - export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
   - rustc -V
