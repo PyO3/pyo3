@@ -1,6 +1,9 @@
 Changes
 -------
 
+* Mark method that work with raw pointers as unsafe #95
+
+
 0.2.3 (11-27-2017)
 ^^^^^^^^^^^^^^^^^^
 
