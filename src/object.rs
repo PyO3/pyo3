@@ -48,28 +48,25 @@ impl PyObject {
     /// Construct `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
-    pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
+    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject)
+                                        -> PyResult<PyObject>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(unsafe{
-                PyObject::from_owned_ptr(py, ptr)
-            })
+            Ok(PyObject::from_owned_ptr(py, ptr))
         }
     }
 
     /// Construct `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
     /// Returns `None` if the pointer is `null`.
-    pub fn from_owned_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
+    pub unsafe fn from_owned_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
     {
         if ptr.is_null() {
             None
         } else {
-            Some(unsafe{
-                PyObject::from_owned_ptr(py, ptr)
-            })
+            Some(PyObject::from_owned_ptr(py, ptr))
         }
     }
 
@@ -87,24 +84,26 @@ impl PyObject {
     /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns `Err(PyErr)` if the pointer is `null`.
-    pub fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject>
+    pub unsafe fn from_borrowed_ptr_or_err(py: Python, ptr: *mut ffi::PyObject)
+                                           -> PyResult<PyObject>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(unsafe{PyObject::from_borrowed_ptr(py, ptr)})
+            Ok(PyObject::from_borrowed_ptr(py, ptr))
         }
     }
 
     /// Creates a `PyObject` instance for the given Python FFI pointer.
     /// Calls Py_INCREF() on the ptr.
     /// Returns `None` if the pointer is `null`.
-    pub fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject>
+    pub unsafe fn from_borrowed_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject)
+                                           -> Option<PyObject>
     {
         if ptr.is_null() {
             None
         } else {
-            Some(unsafe{PyObject::from_borrowed_ptr(py, ptr)})
+            Some(PyObject::from_borrowed_ptr(py, ptr))
         }
     }
 

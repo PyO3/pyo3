@@ -2,7 +2,11 @@ target
 Cargo.lock
 /doc
 /gh-pages
+build/
+__pycache__/
+.cache
 
 *.so
 *.out
+*.egg-info
 extensions/stamps/

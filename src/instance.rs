@@ -112,12 +112,12 @@ impl<T> Py<T> {
     /// Panics if the pointer is `null`.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T>
+    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T>
     {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
-            unsafe{ Py::from_owned_ptr(ptr) }
+            Py::from_owned_ptr(ptr)
         }
     }
 
@@ -125,12 +125,12 @@ impl<T> Py<T> {
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
-    pub fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>>
+    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>>
     {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
-            Ok(unsafe{ Py::from_owned_ptr(ptr) })
+            Ok(Py::from_owned_ptr(ptr))
         }
     }
 
