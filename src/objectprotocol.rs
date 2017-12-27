@@ -97,7 +97,7 @@ pub trait ObjectProtocol {
     /// let obj = SomePyObject::new();
     /// let args = (arg1, arg2, arg3);
     /// let kwargs = ((key1, value1), (key2, value2));
-    /// let pid = obj.call_mwthod("do_something", args, kwargs);
+    /// let pid = obj.call_method("do_something", args, kwargs);
     /// ```
     fn call_method<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
         where A: IntoPyTuple,

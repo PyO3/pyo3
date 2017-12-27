@@ -126,7 +126,7 @@ by acquiring the GIL, and have to pass it into some operations that call into th
 
 PyO3 library provides wrappers for python native objects. Ownership of python objects are
 disallowed because any access to python runtime has to be protected by GIL. 
-All apis are available through references. Lifetimes of python object's refereces are 
+All apis are available through references. Lifetimes of python object's references are 
 bound to GIL lifetime.
 
 There are two types of pointers that could be stored on rust structs. 
