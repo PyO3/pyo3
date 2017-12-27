@@ -357,7 +357,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
         }
         if let Some(minor) = some_minor {
             if minor < PY3_MIN_MINOR {
-                return Err(format!("Python 3 min version is 3.{}", minor))
+                return Err(format!("Python 3 required version is 3.{}, current version is 3.{}", PY3_MIN_MINOR, minor))
             }
             for i in 5..(minor+1) {
                 println!("cargo:rustc-cfg=Py_3_{}", i);
