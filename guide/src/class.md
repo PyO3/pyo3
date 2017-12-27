@@ -72,7 +72,7 @@ To declare constructor, you need to define class method and annotate it with `#[
 attribute. Only python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
-#[py::method]
+#[py::methods]
 impl MyClass {
 
      #[new]
@@ -115,7 +115,7 @@ struct BaseClass {
    val1: usize
 }
 
-#[py::class]
+#[py::methods]
 impl BaseClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -132,7 +132,7 @@ struct SubClass {
    val2: usize
 }
 
-#[py::class]
+#[py::methods]
 impl SubClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -153,7 +153,7 @@ base class.
 ## Object properties
 
 Descriptor methods can be defined in
-`#[methods]` `impl` block only and has to be annotated with `#[getter]` or `[setter]`
+`#[py::methods]` `impl` block only and has to be annotated with `#[getter]` or `[setter]`
 attributes. i.e.
 
 ```rust
@@ -252,7 +252,7 @@ impl MyClass {
 Calls to this methods protected by `GIL`, `&self` or `&mut self` can be used.
 The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject`.
 
-`Python` parameter can be spefieid as part of method signature, in this case `py` argument
+`Python` parameter can be specified as part of method signature, in this case `py` argument
 get injected by method wrapper. i.e
 
 ```rust
@@ -311,7 +311,7 @@ impl MyClass {
 ## Callable object
 
 To specify custom `__call__` method for custom class, call method needs to be annotated
-with `#[call]` attribute. Arguments of the method are speficied same as for instance method.
+with `#[call]` attribute. Arguments of the method are specified same as for instance method.
 
 ```rust
 #[py::methods]
@@ -331,19 +331,19 @@ impl MyClass {
 By default pyo3 library uses function signature to determine which arguments are required.
 Then it scans incoming `args` parameter and then incoming `kwargs` parameter. If it can not
 find all required parameters, it raises `TypeError` exception.
-It is possible to override default bahavior with `#[args(...)]` attribute. `args` attribute
+It is possible to override default behavior with `#[args(...)]` attribute. `args` attribute
 accept comma separated list of parameters in form `attr_name="default value"`. Each parameter
 has to match method parameter by name.
 
 Each parameter could one of following type:
 
- * "\*": var arguments separator, each parameter defined after "*" is keyword only paramters.
-   coresponds to python's `def meth(*, arg1.., arg2=..)`
- * args="\*": "args" is var args, coresponds to python's `def meth(*args)`. Type of `args`
+ * "\*": var arguments separator, each parameter defined after "*" is keyword only parameters.
+   corresponds to python's `def meth(*, arg1.., arg2=..)`
+ * args="\*": "args" is var args, corresponds to python's `def meth(*args)`. Type of `args`
    parameter has to be `&PyTuple`.
- * kwargs="\*\*": "kwargs" is kwyword arguments, coresponds to python's `def meth(**kwargs)`.
+ * kwargs="\*\*": "kwargs" is kwyword arguments, corresponds to python's `def meth(**kwargs)`.
    Type of `kwargs` parameter has to be `Option<&PyDict>`.
- * arg="Value": arguments with default value. coresponds to python's `def meth(arg=Value)`.
+ * arg="Value": arguments with default value. corresponds to python's `def meth(arg=Value)`.
    if `arg` argument is defined after var arguments it is treated as keyword argument.
    Note that `Value` has to be valid rust code, pyo3 just inserts it into generated
    code unmodified.
