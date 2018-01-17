@@ -328,13 +328,14 @@ impl<'a, T> std::convert::From<&'a mut T> for PyObject
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Py<T> where T: ToPyPointer + FromPyObject<'a>
+impl<'a, T> FromPyObject<'a> for Py<T>
+    where T: ToPyPointer, &'a T: 'a + FromPyObject<'a>
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyObjectRef) -> PyResult<Self>
     {
         unsafe {
-            ob.extract::<T>().map(|val| Py::from_borrowed_ptr(val.as_ptr()))
+            ob.extract::<&T>().map(|val| Py::from_borrowed_ptr(val.as_ptr()))
         }
     }
 }
