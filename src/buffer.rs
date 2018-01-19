@@ -89,16 +89,13 @@ fn native_element_type_from_type_char(type_char: u8) -> ElementType {
 fn standard_element_type_from_type_char(type_char: u8) -> ElementType {
     use self::ElementType::*;
     match type_char {
-        b'c' => UnsignedInteger { bytes: 1 },
+        b'c' | b'B' => UnsignedInteger { bytes: 1 },
         b'b' => SignedInteger   { bytes: 1 },
-        b'B' => UnsignedInteger { bytes: 1 },
         b'?' => Bool,
         b'h' => SignedInteger   { bytes: 2 },
         b'H' => UnsignedInteger { bytes: 2 },
-        b'i' => SignedInteger   { bytes: 4 },
-        b'I' => UnsignedInteger { bytes: 4 },
-        b'l' => SignedInteger   { bytes: 4 },
-        b'L' => UnsignedInteger { bytes: 4 },
+        b'i' | b'l' => SignedInteger   { bytes: 4 },
+        b'I' | b'L' => UnsignedInteger { bytes: 4 },
         b'q' => SignedInteger   { bytes: 8 },
         b'Q' => UnsignedInteger { bytes: 8 },
         b'e' => Float { bytes: 2 },
@@ -495,7 +492,7 @@ impl PyBuffer {
         }
     }
 
-    pub fn release<'p>(self, _py: Python<'p>) {
+    pub fn release(self, _py: Python) {
         unsafe {
             let ptr = &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer;
             ffi::PyBuffer_Release(ptr)

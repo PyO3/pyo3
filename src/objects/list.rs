@@ -46,6 +46,11 @@ impl PyList {
         }
     }
 
+    /// Check if list is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.

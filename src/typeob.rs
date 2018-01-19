@@ -42,11 +42,13 @@ pub trait PyTypeInfo {
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
+    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
     fn is_instance(ptr: *mut ffi::PyObject) -> bool {
         unsafe {ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0}
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
+    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
     fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
         unsafe {
             (*ptr).ob_type == Self::type_object()
@@ -56,7 +58,7 @@ pub trait PyTypeInfo {
 
 
 /// type object supports python GC
-pub const PY_TYPE_FLAG_GC: usize = 1<<0;
+pub const PY_TYPE_FLAG_GC: usize = 1;
 
 /// Type object supports python weak references
 pub const PY_TYPE_FLAG_WEAKREF: usize = 1<<1;
@@ -182,6 +184,7 @@ impl PyRawObject {
     }
 
     /// Return reference to object.
+    #[cfg_attr(feature = "cargo-clippy", allow(should_implement_trait))]
     pub fn as_ref<T: PyTypeInfo>(&self) -> &T {
         // TODO: check is object initialized
         unsafe {
@@ -199,6 +202,7 @@ impl IntoPyPointer for PyRawObject {
 }
 
 impl PyObjectWithToken for PyRawObject {
+    #[cfg_attr(feature = "cargo-clippy", allow(inline_always))]
     #[inline(always)]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
@@ -435,11 +439,8 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
         mem::forget(methods);
     }
 
-    match (new, init) {
-        (None, Some(_)) => {
-            panic!("{}.__new__ method is required if __init__ method defined", T::NAME);
-        }
-        _ => ()
+    if let (None, Some(_)) = (new, init) {
+        panic!("{}.__new__ method is required if __init__ method defined", T::NAME);
     }
 
     // __new__ method
@@ -459,8 +460,9 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
 
     // set type flags
     py_class_flags::<T>(type_object);
-    if type_object.tp_base != unsafe{std::mem::transmute(&ffi::PyBaseObject_Type)} {
-        type_object.tp_flags = type_object.tp_flags | ffi::Py_TPFLAGS_HEAPTYPE
+    if type_object.tp_base !=
+        unsafe{&ffi::PyBaseObject_Type as *const ffi::PyTypeObject as *mut ffi::PyTypeObject} {
+        type_object.tp_flags |= ffi::Py_TPFLAGS_HEAPTYPE
     }
 
     // register type object
@@ -526,6 +528,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
 fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
                                           Option<ffi::initproc>,
                                           Option<ffi::PyCFunctionWithKeywords>,
@@ -559,12 +562,8 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
                     panic!("Method type is not supoorted by tp_init slot")
                 }
             }
-            PyMethodDefType::Method(ref def) => {
-                defs.push(def.as_method_def());
-            }
-            PyMethodDefType::Class(ref def) => {
-                defs.push(def.as_method_def());
-            }
+            PyMethodDefType::Method(ref def) |
+            PyMethodDefType::Class(ref def) |
             PyMethodDefType::Static(ref def) => {
                 defs.push(def.as_method_def());
             }

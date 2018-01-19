@@ -24,6 +24,7 @@ impl PyToken {
     }
 
     #[inline(always)]
+    #[cfg_attr(feature = "cargo-clippy", allow(inline_always))]
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
@@ -45,6 +46,7 @@ pub trait AsPyRef<T>: Sized {
     fn as_ref(&self, py: Python) -> &T;
 
     /// Return mutable reference to object.
+    #[cfg_attr(feature = "cargo-clippy", allow(mut_from_ref))]
     fn as_mut(&self, py: Python) -> &mut T;
 
     /// Acquire python gil and call closure with object reference.

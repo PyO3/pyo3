@@ -231,7 +231,7 @@ impl<T> PySequenceSetItemProtocolImpl for T
                     Ok(value) => {
                         slf.__setitem__(key as isize, value).into()
                     },
-                    Err(e) => Err(e.into()),
+                    Err(e) => Err(e),
                 };
                 match result {
                     Ok(_) => 0,
@@ -321,7 +321,7 @@ impl<T> PySequenceDelItemProtocolImpl for T
                     Ok(value) => {
                         slf.__setitem__(key as isize, value).into()
                     },
-                    Err(e) => Err(e.into()),
+                    Err(e) => Err(e),
                 };
                 match result {
                     Ok(_) => 0,

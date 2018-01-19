@@ -36,6 +36,7 @@ macro_rules! pyobject_downcast(
         impl<'a> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
+            #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
             fn extract(ob: &'a $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
                 unsafe {
@@ -65,6 +66,7 @@ macro_rules! pyobject_nativetype(
         impl $crate::PyNativeType for $name {}
 
         impl $crate::std::convert::AsRef<$crate::PyObjectRef> for $name {
+            #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
             fn as_ref(&self) -> &$crate::PyObjectRef {
                 unsafe{$crate::std::mem::transmute(self)}
             }
@@ -106,6 +108,7 @@ macro_rules! pyobject_nativetype(
                 &mut $crate::ffi::$typeobject
             }
 
+            #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
             fn is_instance(ptr: *mut $crate::ffi::PyObject) -> bool {
                 #[allow(unused_unsafe)]
                 unsafe { $crate::ffi::$checkfunction(ptr) > 0 }

@@ -2,8 +2,8 @@
 
 //! Python Description Interface
 //!
-//! more information
-//! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors
+//! [Python information](
+//! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
 use std::os::raw::c_int;
 

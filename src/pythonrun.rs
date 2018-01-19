@@ -179,14 +179,21 @@ pub struct GILPool {
     no_send: marker::PhantomData<rc::Rc<()>>,
 }
 
-impl GILPool {
+impl Default for GILPool {
     #[inline]
-    pub fn new() -> GILPool {
+    fn default() -> GILPool {
         let p: &'static mut ReleasePool = unsafe { &mut *POOL };
         GILPool {owned: p.owned.len(),
                  borrowed: p.borrowed.len(),
                  pointers: true,
                  no_send: marker::PhantomData}
+    }
+}
+
+impl GILPool {
+    #[inline]
+    pub fn new() -> GILPool {
+        GILPool::default()
     }
     #[inline]
     pub fn new_no_pointers() -> GILPool {

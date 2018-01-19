@@ -365,7 +365,7 @@ impl PyErr {
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
     fn instance(mut self, py: Python) -> PyObject {
-        &self.normalize(py);
+        self.normalize(py);
         match self.pvalue {
             PyErrValue::Value(ref instance) => instance.clone_ref(py),
             _ => py.None(),

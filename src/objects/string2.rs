@@ -193,7 +193,7 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 mod test {
     use python::Python;
     use instance::AsPyRef;
-    use conversion::{ToPyObject, RefFromPyObject};
+    use conversion::{ToPyObject, FromPyObject};
 
     #[test]
     fn test_non_bmp() {
@@ -210,13 +210,8 @@ mod test {
         let py = gil.python();
         let s = "Hello Python";
         let py_string = s.to_object(py);
-        let mut called = false;
-        RefFromPyObject::with_extracted(py_string.as_ref(py),
-            |s2: &str| {
-                assert_eq!(s, s2);
-                called = true;
-            }).unwrap();
-        assert!(called);
+
+        let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+        assert_eq!(s, s2);
     }
 }
-

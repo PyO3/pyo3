@@ -123,7 +123,8 @@
 //! ```
 //!
 //! (Note: on macOS you will have to rename `libhello.dynlib` to `libhello.so`. 
-//! To build on macOS, use "-C link-arg=-undefined -C link-arg=dynamic_lookup" is required to build the library. 
+//! To build on macOS, use `-C link-arg=-undefined -C link-arg=dynamic_lookup`
+//! is required to build the library.
 //! `setuptools-rust` includes this by default.
 //! See [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count).)
 //!

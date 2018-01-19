@@ -133,14 +133,14 @@ impl IntoPyObject for () {
 impl<'a, T> IntoPyObject for &'a T where T: ToPyPointer
 {
     #[inline]
-    fn into_object<'p>(self, py: Python) -> PyObject {
+    fn into_object(self, py: Python) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
 impl<'a, T> IntoPyObject for &'a mut T where T: ToPyPointer {
     #[inline]
-    fn into_object<'p>(self, py: Python) -> PyObject {
+    fn into_object(self, py: Python) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }

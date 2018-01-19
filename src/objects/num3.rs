@@ -30,6 +30,7 @@ pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
+            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn to_object(&self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(*self as c_long))
@@ -37,6 +38,7 @@ macro_rules! int_fits_c_long(
             }
         }
         impl IntoPyObject for $rust_type {
+            #[cfg_attr(feature = "cargo-clippy", allow(cast_lossless))]
             fn into_object(self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(self as c_long))
@@ -81,6 +83,8 @@ macro_rules! int_fits_larger_int(
 );
 
 
+
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 fn err_if_invalid_value<T: PartialEq>
     (py: Python, invalid_value: T, actual_value: T) -> PyResult<T>
 {

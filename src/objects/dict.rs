@@ -47,6 +47,11 @@ impl PyDict {
         unsafe { ffi::PyDict_Size(self.as_ptr()) as usize }
     }
 
+    /// Check if dict is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Determine if the dictionary contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToBorrowedObject {

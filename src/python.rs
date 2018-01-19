@@ -276,6 +276,7 @@ impl<'p> Python<'p> {
     }
 
     /// Register `ffi::PyObject` pointer in release pool
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyObjectRef
     {
         if ptr.is_null() {
@@ -287,6 +288,7 @@ impl<'p> Python<'p> {
 
     /// Register `ffi::PyObject` pointer in release pool,
     /// and do unchecked downcast to specific type.
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
         where T: PyTypeInfo
     {
@@ -314,6 +316,7 @@ impl<'p> Python<'p> {
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
         where T: PyTypeInfo
     {
@@ -328,6 +331,7 @@ impl<'p> Python<'p> {
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
         where T: PyTypeInfo
     {
@@ -342,6 +346,7 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Panics if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
         where T: PyTypeInfo
     {
@@ -366,6 +371,7 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
         where T: PyTypeInfo
     {
@@ -380,6 +386,7 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific `T`.
+    #[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
         where T: PyTypeInfo
     {
@@ -412,6 +419,7 @@ impl<'p> Python<'p> {
     /// Release `ffi::PyObject` pointer.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
+        #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
     pub fn xdecref(self, ptr: *mut ffi::PyObject) {
         if !ptr.is_null() {
             unsafe {ffi::Py_DECREF(ptr)};

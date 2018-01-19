@@ -2,9 +2,8 @@
 
 //! Basic Python Object customization
 //!
-//! Python c-api information is available:
-//! https://docs.python.org/3/reference/datamodel.html#basic-customization
-//!
+//! Check [python c-api information](https://docs.python.org/3/reference/datamodel.html#basic-customization)
+//! for more information.
 
 use std;
 use std::os::raw::c_int;
@@ -369,7 +368,7 @@ impl<T> PyObjectRichcmpProtocolImpl for T
                 Ok(op) => match arg.extract() {
                     Ok(arg) =>
                         slf.__richcmp__(arg, op).into(),
-                    Err(e) => Err(e.into()),
+                    Err(e) => Err(e),
                 },
                 Err(e) => Err(e)
             };

@@ -1,7 +1,7 @@
 use std::os::raw::{c_char, c_int};
 use ffi3::object::PyObject;
 
-pub const PY_STDIOTEXTMODE : &'static str = "b";
+pub const PY_STDIOTEXTMODE : &str = "b";
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyFile_FromFd(arg1: c_int, arg2: *const c_char,

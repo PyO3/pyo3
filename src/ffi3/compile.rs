@@ -13,23 +13,23 @@ pub struct PyFutureFeatures {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_NESTED_SCOPES    : &'static str = "nested_scopes";
+pub const FUTURE_NESTED_SCOPES    : &str = "nested_scopes";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_GENERATORS       : &'static str = "generators";
+pub const FUTURE_GENERATORS       : &str = "generators";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_DIVISION         : &'static str = "division";
+pub const FUTURE_DIVISION         : &str = "division";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_ABSOLUTE_IMPORT  : &'static str = "absolute_import";
+pub const FUTURE_ABSOLUTE_IMPORT  : &str = "absolute_import";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_WITH_STATEMENT   : &'static str = "with_statement";
+pub const FUTURE_WITH_STATEMENT   : &str = "with_statement";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_PRINT_FUNCTION   : &'static str = "print_function";
+pub const FUTURE_PRINT_FUNCTION   : &str = "print_function";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_UNICODE_LITERALS : &'static str = "unicode_literals";
+pub const FUTURE_UNICODE_LITERALS : &str = "unicode_literals";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_BARRY_AS_BDFL    : &'static str = "barry_as_FLUFL";
+pub const FUTURE_BARRY_AS_BDFL    : &str = "barry_as_FLUFL";
 #[cfg(not(Py_LIMITED_API))]
-pub const FUTURE_GENERATOR_STOP   : &'static str = "generator_stop";
+pub const FUTURE_GENERATOR_STOP   : &str = "generator_stop";
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {

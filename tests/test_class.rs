@@ -218,8 +218,8 @@ fn data_is_dropped() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let inst = py.init(|t| DataIsDropped{
-            member1: TestDropCall { drop_called: drop_called1.clone() },
-            member2: TestDropCall { drop_called: drop_called2.clone() },
+            member1: TestDropCall { drop_called: Arc::clone(&drop_called1) },
+            member2: TestDropCall { drop_called: Arc::clone(&drop_called2) },
             token: t
         }).unwrap();
         assert!(!drop_called1.load(Ordering::Relaxed));
@@ -460,8 +460,8 @@ fn gc_integration() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let inst = Py::new_ref(py, |t| GCIntegration{
-            self_ref: RefCell::new(py.None().into()),
-            dropped: TestDropCall { drop_called: drop_called.clone() },
+            self_ref: RefCell::new(py.None()),
+            dropped: TestDropCall { drop_called: Arc::clone(&drop_called) },
             token: t}).unwrap();
 
         *inst.self_ref.borrow_mut() = inst.into();
@@ -1402,10 +1402,10 @@ fn inheritance_with_new_methods_with_drop() {
         let inst = typeobj.call(NoArgs, NoArgs).unwrap();
 
         let obj = SubClassWithDrop::try_from_mut(inst).unwrap();
-        obj.data = Some(drop_called1.clone());
+        obj.data = Some(Arc::clone(&drop_called1));
 
         let base = obj.get_mut_base();
-        base.data = Some(drop_called2.clone());
+        base.data = Some(Arc::clone(&drop_called2));
     }
 
     assert!(drop_called1.load(Ordering::Relaxed));

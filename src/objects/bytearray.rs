@@ -30,7 +30,7 @@ impl PyByteArray {
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
-    pub fn from<I>(py: Python, src: I) -> PyResult<&PyByteArray>
+    pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
         where I: ToPyPointer
     {
         unsafe {
@@ -48,7 +48,13 @@ impl PyByteArray {
         }
     }
 
+    /// Check if bytearray is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Gets the Python bytearray data as byte slice.
+    #[cfg_attr(feature = "cargo-clippy", allow(mut_from_ref))]
     pub fn data(&self) -> &mut [u8] {
         unsafe {
             let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;
@@ -89,7 +95,7 @@ mod test {
         assert_eq!(src, bytearray.data());
 
         let ba: PyObject = bytearray.into();
-        let bytearray = PyByteArray::from(py, ba).unwrap();
+        let bytearray = PyByteArray::from(py, &ba).unwrap();
 
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.data());

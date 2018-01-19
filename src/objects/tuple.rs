@@ -48,6 +48,11 @@ impl PyTuple {
         }
     }
 
+    /// Check if tuple is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
     pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
         unsafe {
