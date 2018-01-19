@@ -48,7 +48,6 @@ impl<T> ToBorrowedObject for T where T: ToPyObject {
 pub trait IntoPyObject {
 
     /// Converts self into a Python object. (Consumes self)
-    #[inline]
     fn into_object(self, py: Python) -> PyObject;
 }
 
@@ -86,25 +85,6 @@ pub trait FromPyObject<'source> : Sized {
     fn extract(ob: &'source PyObjectRef) -> PyResult<Self>;
 }
 
-pub trait RefFromPyObject {
-    fn with_extracted<F, R>(ob: &PyObjectRef, f: F) -> PyResult<R>
-        where F: FnOnce(&Self) -> R;
-}
-
-impl <T: ?Sized> RefFromPyObject for T
-    where for<'a> &'a T: FromPyObject<'a> + Sized
-{
-    #[inline]
-    fn with_extracted<F, R>(obj: &PyObjectRef, f: F) -> PyResult<R>
-        where F: FnOnce(&Self) -> R
-    {
-        match FromPyObject::extract(obj) {
-            Ok(val) => Ok(f(val)),
-            Err(e) => Err(e)
-        }
-    }
-}
-
 /// Identity conversion: allows using existing `PyObject` instances where
 /// `T: ToPyObject` is expected.
 impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
@@ -114,7 +94,6 @@ impl <'a, T: ?Sized> ToPyObject for &'a T where T: ToPyObject {
         <T as ToPyObject>::to_object(*self, py)
     }
 }
-
 
 /// `Option::Some<T>` is converted like `T`.
 /// `Option::None` is converted to Python `None`.
@@ -127,6 +106,7 @@ impl <T> ToPyObject for Option<T> where T: ToPyObject {
         }
     }
 }
+
 impl<T> IntoPyObject for Option<T> where T: IntoPyObject {
 
     fn into_object(self, py: Python) -> PyObject {
@@ -158,8 +138,7 @@ impl<'a, T> IntoPyObject for &'a T where T: ToPyPointer
     }
 }
 
-impl<'a, T> IntoPyObject for &'a mut T where T: ToPyPointer
-{
+impl<'a, T> IntoPyObject for &'a mut T where T: ToPyPointer {
     #[inline]
     fn into_object<'p>(self, py: Python) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
@@ -171,16 +150,24 @@ impl<'a, T> FromPyObject<'a> for &'a T
     where T: PyTypeInfo
 {
     #[inline]
-    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T>
-    {
+    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T> {
         Ok(T::try_from(ob)?)
     }
 }
 
-impl<'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'source>
+/// Extract mutable reference to instance from `PyObject`
+impl<'a, T> FromPyObject<'a> for &'a mut T
+    where T: PyTypeInfo
 {
-    fn extract(obj: &'source PyObjectRef) -> PyResult<Self>
-    {
+    #[inline]
+    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a mut T> {
+        Ok(T::try_from_mut(ob)?)
+    }
+}
+
+impl<'a, T> FromPyObject<'a> for Option<T> where T: FromPyObject<'a>
+{
+    fn extract(obj: &'a PyObjectRef) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {
@@ -191,7 +178,6 @@ impl<'source, T> FromPyObject<'source> for Option<T> where T: FromPyObject<'sour
         }
     }
 }
-
 
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryInto`
@@ -232,8 +218,8 @@ pub trait PyTryFrom: Sized {
 }
 
 // TryFrom implies TryInto
-impl<U> PyTryInto<U> for PyObjectRef where U: PyTryFrom
-{
+impl<U> PyTryInto<U> for PyObjectRef where U: PyTryFrom {
+
     type Error = U::Error;
 
     fn try_into(&self) -> Result<&U, U::Error> {
@@ -251,9 +237,8 @@ impl<U> PyTryInto<U> for PyObjectRef where U: PyTryFrom
 }
 
 
-impl<T> PyTryFrom for T
-    where T: PyTypeInfo
-{
+impl<T> PyTryFrom for T where T: PyTypeInfo {
+
     type Error = PyDowncastError;
 
     fn try_from(value: &PyObjectRef) -> Result<&T, Self::Error> {

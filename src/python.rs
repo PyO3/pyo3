@@ -391,6 +391,13 @@ impl<'p> Python<'p> {
         }
     }
 
+    #[doc(hidden)]
+    /// Pass value owneship to `Python` object and get reference back.
+    /// Value get cleaned up on the GIL release.
+    pub fn register_any<T: 'static>(self, ob: T) -> &'p T {
+        unsafe { pythonrun::register_any(ob) }
+    }
+
     /// Release PyObject reference.
     #[inline]
     pub fn release<T>(self, ob: T) where T: IntoPyPointer {

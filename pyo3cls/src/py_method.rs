@@ -462,119 +462,52 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
                 syn::Ident::from("None").to_tokens(&mut default);
             }
 
-            if arg.reference {
-                quote! {
+            quote! {
+                match
                     match _iter.next().unwrap().as_ref() {
-                        Some(obj) => {
-                            if obj.is_none() {
-                                let #arg_name = #default;
-                                #body
-                            } else {
-                                match _pyo3::RefFromPyObject::with_extracted(
-                                    obj, |#name| {
-                                        let #arg_name = Some(#name);
-                                        #body
-                                    })
-                                {
-                                    Ok(v) => v,
-                                    Err(e) => Err(e)
-                                }
-                            }
-                        },
-                        None => {
-                            let #arg_name = #default;
-                            #body
-                        }
-                    }
-                }
-            } else {
-                quote! {
-                    match
-                        match _iter.next().unwrap().as_ref() {
-                            Some(_obj) => {
-                                if _obj.is_none() {
-                                    Ok(#default)
-                                } else {
-                                    match _obj.extract() {
-                                        Ok(_obj) => Ok(Some(_obj)),
-                                        Err(e) => Err(e)
-                                    }
-                                }
-                            },
-                            None => Ok(#default) }
-                    {
-                        Ok(#arg_name) => #body,
-                        Err(e) => Err(e)
-                    }
-                }
-            }
-        } else if let Some(default) = spec.default_value(name) {
-            if arg.reference {
-                quote! {
-                    match _iter.next().unwrap().as_ref() {
-                        Some(_obj) => {
-                            if _obj.is_none() {
-                                let #arg_name = #default;
-                                #body
-                            } else {
-                                match _pyo3::RefFromPyObject::with_extracted(
-                                    _obj, |#arg_name| {
-                                        #body
-                                    })
-                                {
-                                    Ok(v) => v,
-                                    Err(e) => Err(e)
-                                }
-                            }
-                        },
-                        None => {
-                            let #arg_name = #default;
-                            #body
-                        }
-                    }
-                }
-            } else {
-                quote! {
-                    match match _iter.next().unwrap().as_ref() {
                         Some(_obj) => {
                             if _obj.is_none() {
                                 Ok(#default)
                             } else {
                                 match _obj.extract() {
-                                    Ok(_obj) => Ok(_obj),
-                                    Err(e) => Err(e),
+                                    Ok(_obj) => Ok(Some(_obj)),
+                                    Err(e) => Err(e)
                                 }
                             }
                         },
-                        None => Ok(#default)
-                    } {
-                        Ok(#arg_name) => #body,
-                        Err(e) => Err(e)
-                    }
+                        None => Ok(#default) }
+                {
+                    Ok(#arg_name) => #body,
+                    Err(e) => Err(e)
+                }
+            }
+        } else if let Some(default) = spec.default_value(name) {
+            quote! {
+                match match _iter.next().unwrap().as_ref() {
+                    Some(_obj) => {
+                        if _obj.is_none() {
+                            Ok(#default)
+                        } else {
+                            match _obj.extract() {
+                                Ok(_obj) => Ok(_obj),
+                                Err(e) => Err(e),
+                            }
+                        }
+                    },
+                    None => Ok(#default)
+                } {
+                    Ok(#arg_name) => #body,
+                    Err(e) => Err(e)
                 }
             }
         }
         else {
-            if arg.reference {
-                quote! {
-                    match _pyo3::RefFromPyObject::with_extracted(
-                        _iter.next().unwrap().as_ref().unwrap(), |#arg_name| {
-                            #body
-                        })
-                    {
-                        Ok(v) => v,
-                        Err(e) => Err(e)
+            quote! {
+                match _iter.next().unwrap().as_ref().unwrap().extract() {
+                    Ok(#arg_name) => {
+                        #body
                     }
-                }
-            } else {
-                quote! {
-                    match _iter.next().unwrap().as_ref().unwrap().extract()
-                    {
-                        Ok(#arg_name) => {
-                            #body
-                        }
-                        Err(e) => Err(e)
-                    }
+                    Err(e) => Err(e)
                 }
             }
         }

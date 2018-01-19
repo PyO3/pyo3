@@ -21,5 +21,5 @@ pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
 pub use pythonrun::GILGuard;
 pub use typeob::PyRawObject;
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
-pub use conversion::{FromPyObject, RefFromPyObject, PyTryFrom, PyTryInto,
+pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
                      ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};

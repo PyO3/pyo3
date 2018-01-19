@@ -1,8 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-//
-// based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
-use std::{sync, rc, marker, mem};
+use std::{any, sync, rc, marker, mem};
 use spin;
 
 use ffi;
@@ -113,16 +110,18 @@ struct ReleasePool {
     owned: Vec<*mut ffi::PyObject>,
     borrowed: Vec<*mut ffi::PyObject>,
     pointers: *mut Vec<*mut ffi::PyObject>,
+    obj: Vec<Box<any::Any>>,
     p: spin::Mutex<*mut Vec<*mut ffi::PyObject>>,
 }
 
 impl ReleasePool {
     fn new() -> ReleasePool {
         ReleasePool {
-            owned: Vec::with_capacity(250),
-            borrowed: Vec::with_capacity(250),
-            pointers: Box::into_raw(Box::new(Vec::with_capacity(250))),
-            p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(250)))),
+            owned: Vec::with_capacity(256),
+            borrowed: Vec::with_capacity(256),
+            pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
+            obj: Vec::with_capacity(8),
+            p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
         }
     }
 
@@ -165,6 +164,8 @@ impl ReleasePool {
         if pointers {
             self.release_pointers();
         }
+
+        self.obj.clear();
     }
 }
 
@@ -204,6 +205,14 @@ impl Drop for GILPool {
             pool.drain(self.owned, self.borrowed, self.pointers);
         }
     }
+}
+
+pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T
+{
+    let pool: &'static mut ReleasePool = &mut *POOL;
+
+    pool.obj.push(Box::new(obj));
+    pool.obj.last().unwrap().as_ref().downcast_ref::<T>().unwrap()
 }
 
 pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
