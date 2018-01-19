@@ -419,7 +419,7 @@ impl<'p> Python<'p> {
     /// Release `ffi::PyObject` pointer.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-        #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
+    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
     pub fn xdecref(self, ptr: *mut ffi::PyObject) {
         if !ptr.is_null() {
             unsafe {ffi::Py_DECREF(ptr)};

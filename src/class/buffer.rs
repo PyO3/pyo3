@@ -48,10 +48,12 @@ impl<T> PyBufferProtocolImpl for T {
 impl<'p, T> PyBufferProtocolImpl for T where T: PyBufferProtocol<'p>
 {
     #[inline]
+    #[cfg_attr(feature = "cargo-clippy", allow(needless_update))]
     fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
         Some(ffi::PyBufferProcs{
             bf_getbuffer: Self::cb_bf_getbuffer(),
             bf_releasebuffer: None,
+            .. ffi::PyBufferProcs_INIT
         })
     }
 }

@@ -2,6 +2,7 @@ Changes
 -------
 
 0.2.4 (2018-01-19)
+^^^^^^^^^^^^^^^^^^
 
 * Allow to get mutable ref from PyObject #106
 
