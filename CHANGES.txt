@@ -1,6 +1,12 @@
 Changes
 -------
 
+0.2.5 (2018-xx-xx)
+^^^^^^^^^^^^^^^^^^
+
+* Embedded CPython 3.7b1 crashes on initialization #110
+
+
 0.2.4 (2018-01-19)
 ^^^^^^^^^^^^^^^^^^
 
