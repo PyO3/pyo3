@@ -39,7 +39,7 @@ pub trait PyObjectWithToken: Sized {
 pub trait PyNativeType: PyObjectWithToken {}
 
 
-/// Trait implements objet reference extraction from python managed pointer.
+/// Trait implements object reference extraction from python managed pointer.
 pub trait AsPyRef<T>: Sized {
 
     /// Return reference to object.

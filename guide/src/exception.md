@@ -21,7 +21,7 @@ use pyo3::{Python, PyDict};
 py_exception!(mymodule, CustomError);
 
 fn main() {
-let gil = Python::acquire_gil();
+    let gil = Python::acquire_gil();
     let py = gil.python();
     let ctx = PyDict::new(py);
 

@@ -80,7 +80,7 @@ impl MyClass {
          obj.init(|token| {
              MyClass {
                  num: 10,
-                 debug: False,
+                 debug: false,
                  token: token
              }
          })
