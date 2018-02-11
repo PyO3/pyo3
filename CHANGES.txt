@@ -6,6 +6,8 @@ Changes
 
 * Embedded CPython 3.7b1 crashes on initialization #110
 
+* Generated extension functions are weakly typed #108
+
 
 0.2.4 (2018-01-19)
 ^^^^^^^^^^^^^^^^^^
