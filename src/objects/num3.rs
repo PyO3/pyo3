@@ -46,10 +46,17 @@ macro_rules! int_fits_c_long(
             }
         }
         pyobject_extract!(obj to $rust_type => {
-            let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
-            if val == -1 && PyErr::occurred(obj.py()) {
-                return Err(PyErr::fetch(obj.py()));
-            }
+            let ptr = obj.as_ptr();
+            let val = unsafe {
+                let num = ffi::PyNumber_Index(ptr);
+                if num.is_null() {
+                    Err(PyErr::fetch(obj.py()))
+                } else {
+                    let val = err_if_invalid_value(obj.py(), -1, ffi::PyLong_AsLong(num));
+                    ffi::Py_DECREF(num);
+                    val
+                }
+            }?;
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
                 None => Err(exc::OverflowError.into())
@@ -96,7 +103,7 @@ fn err_if_invalid_value<T: PartialEq>
 }
 
 macro_rules! int_convert_u64_or_i64 (
-    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => (
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
@@ -118,15 +125,13 @@ macro_rules! int_convert_u64_or_i64 (
             {
                 let ptr = ob.as_ptr();
                 unsafe {
-                    if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(ob.py(), !0, $pylong_as_ull_or_ull(ptr))
+                    let num = ffi::PyNumber_Index(ptr);
+                    if num.is_null() {
+                        Err(PyErr::fetch(ob.py()))
                     } else {
-                        let num = ffi::PyNumber_Long(ptr);
-                        if num.is_null() {
-                            Err(PyErr::fetch(ob.py()))
-                        } else {
-                            err_if_invalid_value(ob.py(), !0, $pylong_as_ull_or_ull(num))
-                        }
+                        let result = err_if_invalid_value(ob.py(), !0, $pylong_as_ll_or_ull(num));
+                        ffi::Py_DECREF(num);
+                        result
                     }
                 }
             }
