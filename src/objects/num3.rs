@@ -46,10 +46,17 @@ macro_rules! int_fits_c_long(
             }
         }
         pyobject_extract!(obj to $rust_type => {
-            let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
-            if val == -1 && PyErr::occurred(obj.py()) {
-                return Err(PyErr::fetch(obj.py()));
-            }
+            let ptr = obj.as_ptr();
+            let val = unsafe {
+                let num = ffi::PyNumber_Index(ptr);
+                if num.is_null() {
+                    Err(PyErr::fetch(obj.py()))
+                } else {
+                    let val = err_if_invalid_value(obj.py(), -1, ffi::PyLong_AsLong(num));
+                    ffi::Py_DECREF(num);
+                    val
+                }
+            }?;
             match cast::<c_long, $rust_type>(val) {
                 Some(v) => Ok(v),
                 None => Err(exc::OverflowError.into())
@@ -96,7 +103,7 @@ fn err_if_invalid_value<T: PartialEq>
 }
 
 macro_rules! int_convert_u64_or_i64 (
-    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => (
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
@@ -118,15 +125,13 @@ macro_rules! int_convert_u64_or_i64 (
             {
                 let ptr = ob.as_ptr();
                 unsafe {
-                    if ffi::PyLong_Check(ptr) != 0 {
-                        err_if_invalid_value(ob.py(), !0, $pylong_as_ull_or_ull(ptr))
+                    let num = ffi::PyNumber_Index(ptr);
+                    if num.is_null() {
+                        Err(PyErr::fetch(ob.py()))
                     } else {
-                        let num = ffi::PyNumber_Long(ptr);
-                        if num.is_null() {
-                            Err(PyErr::fetch(ob.py()))
-                        } else {
-                            err_if_invalid_value(ob.py(), !0, $pylong_as_ull_or_ull(num))
-                        }
+                        let result = err_if_invalid_value(ob.py(), !0, $pylong_as_ll_or_ull(num));
+                        ffi::Py_DECREF(num);
+                        result
                     }
                 }
             }
@@ -171,29 +176,55 @@ mod test {
     use python::Python;
     use conversion::ToPyObject;
 
-    macro_rules! num_to_py_object_and_back (
-        ($func_name:ident, $t1:ty, $t2:ty) => (
-            #[test]
-            fn $func_name() {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
-                let val = 123 as $t1;
-                let obj = val.to_object(py);
-                assert_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+    macro_rules! test_common (
+        ($test_mod_name:ident, $t:ty) => (
+            mod $test_mod_name {
+                use super::*;
+                use objects::exc;
+
+                #[test]
+                fn from_py_string_type_error() {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+
+                    let obj = ("123").to_object(py);
+                    let err = obj.extract::<$t>(py).unwrap_err();
+                    assert!(err.is_instance::<exc::TypeError>(py));
+                }
+
+                #[test]
+                fn from_py_float_type_error() {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+
+                    let obj = (12.3).to_object(py);
+                    let err = obj.extract::<$t>(py).unwrap_err();
+                    assert!(err.is_instance::<exc::TypeError>(py));
+                }
+
+                #[test]
+                fn to_py_object_and_back() {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+
+                    let val = 123 as $t;
+                    let obj = val.to_object(py);
+                    assert_eq!(obj.extract::<$t>(py).unwrap(), val as $t);
+                }
             }
         )
     );
 
-    num_to_py_object_and_back!(to_from_i8,   i8,  i8);
-    num_to_py_object_and_back!(to_from_u8,   u8,  u8);
-    num_to_py_object_and_back!(to_from_i16, i16, i16);
-    num_to_py_object_and_back!(to_from_u16, u16, u16);
-    num_to_py_object_and_back!(to_from_i32, i32, i32);
-    num_to_py_object_and_back!(to_from_u32, u32, u32);
-    num_to_py_object_and_back!(to_from_i64, i64, i64);
-    num_to_py_object_and_back!(to_from_u64, u64, u64);
-    num_to_py_object_and_back!(to_from_isize, isize, isize);
-    num_to_py_object_and_back!(to_from_usize, usize, usize);
+    test_common!(i8, i8);
+    test_common!(u8, u8);
+    test_common!(i16, i16);
+    test_common!(u16, u16);
+    test_common!(i32, i32);
+    test_common!(u32, u32);
+    test_common!(i64, i64);
+    test_common!(u64, u64);
+    test_common!(isize, isize);
+    test_common!(usize, usize);
 
     #[test]
     fn test_u32_max() {

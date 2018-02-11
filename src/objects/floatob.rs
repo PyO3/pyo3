@@ -98,9 +98,5 @@ mod test {
 
     num_to_py_object_and_back!(to_from_f64, f64, f64);
     num_to_py_object_and_back!(to_from_f32, f32, f32);
-    num_to_py_object_and_back!(float_to_i32, f64, i32);
-    num_to_py_object_and_back!(float_to_u32, f64, u32);
-    num_to_py_object_and_back!(float_to_i64, f64, i64);
-    num_to_py_object_and_back!(float_to_u64, f64, u64);
     num_to_py_object_and_back!(int_to_float, i32, f64);
 }
