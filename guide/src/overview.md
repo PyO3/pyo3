@@ -66,7 +66,7 @@ name = "rust2py"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.1"
+version = "0.2"
 features = ["extension-module"]
 ```
 
