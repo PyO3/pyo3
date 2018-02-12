@@ -16,7 +16,7 @@ use ffi2::object::*;
     pub fn _PyObject_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     pub fn _PyObject_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t)
                             -> *mut PyVarObject;
-     
+
     // GC Support
     pub fn PyGC_Collect() -> Py_ssize_t;
     pub fn _PyObject_GC_Resize(arg1: *mut PyVarObject, arg2: Py_ssize_t)
@@ -32,6 +32,7 @@ use ffi2::object::*;
 
 /// Test if a type has a GC head
 #[inline(always)]
+#[allow(unused_parens)]
 pub unsafe fn PyType_IS_GC(t : *mut PyTypeObject) -> c_int {
     PyType_HasFeature((t), Py_TPFLAGS_HAVE_GC)
 }
@@ -48,6 +49,7 @@ pub unsafe fn PyObject_IS_GC(o : *mut PyObject) -> c_int {
 
 /* Test if a type supports weak references */
 #[inline(always)]
+#[allow(unused_parens)]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t : *mut PyTypeObject) -> c_int {
     (PyType_HasFeature((t), Py_TPFLAGS_HAVE_WEAKREFS) != 0
      && ((*t).tp_weaklistoffset > 0)) as c_int
