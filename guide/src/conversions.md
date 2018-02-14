@@ -100,8 +100,8 @@ TODO
 
 [ToPyObject]: https://pyo3.github.io/pyo3/pyo3/trait.ToPyObject.html
 [IntoPyObject]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyObject.html
-[PyObject]: https://pyo3.github.io/PyO3/pyo3/struct.PyObject.html
+[PyObject]: https://pyo3.github.io/pyo3/pyo3/struct.PyObject.html
 [IntoPyTuple]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyTuple.html
-[PyTuple]: https://pyo3.github.io/PyO3/pyo3/struct.PyTuple.html
+[PyTuple]: https://pyo3.github.io/pyo3/pyo3/struct.PyTuple.html
 [ObjectProtocol]: https://pyo3.github.io/pyo3/pyo3/trait.ObjectProtocol.html
 [IntoPyDictPointer]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyDictPointer.html

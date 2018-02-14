@@ -118,10 +118,10 @@ As a result, this API will **allow mutating Python objects even if they are not 
 in a mutable Rust variable**.
 
 The Python interpreter uses a global interpreter lock (GIL) to ensure thread-safety.
-This API uses a zero-sized [`struct Python<'p>`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) as a token to indicate
+This API uses a zero-sized [`struct Python<'p>`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html) as a token to indicate
 that a function can assume that the GIL is held.
 
-You obtain a [`Python`](https://pyo3.github.io/PyO3/pyo3/struct.Python.html) instance 
+You obtain a [`Python`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html) instance
 by acquiring the GIL, and have to pass it into some operations that call into the Python runtime.
 
 PyO3 library provides wrappers for python native objects. Ownership of python objects are
