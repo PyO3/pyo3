@@ -49,9 +49,7 @@ install:
 script:
   - make test
   # - make clippy
-
-# Upload docs
-after_success:
+  # upload docs
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
     cargo doc --no-deps &&
@@ -62,6 +60,8 @@ after_success:
     ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
     echo "Uploaded documentation"
     fi
+
+after_success:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
       wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
