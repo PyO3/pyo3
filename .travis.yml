@@ -41,6 +41,9 @@ install:
   - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
   # - find $PYTHON_LIB
   - export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
+  # delete any possible empty components
+  # https://github.com/google/pulldown-cmark/issues/122#issuecomment-364948741
+  - LIBRARY_PATH=$(echo $LIBRARY_PATH | sed -E -e 's/^:*//' -e 's/:*$//' -e 's/:+/:/g')
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
   - rustc -V
 script:
@@ -59,7 +62,7 @@ after_success:
     ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
     echo "Uploaded documentation"
     fi
-
+  - |
     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
       wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
       tar xzf master.tar.gz &&
