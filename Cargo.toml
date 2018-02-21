@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.2.4"
+version = "0.2.5"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors"]
 readme = "README.md"
@@ -19,7 +19,7 @@ appveyor = { repository = "PyO3/pyo3" }
 codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 
 [dependencies]
-log = "0.4"
+log = "0.5"
 libc = "0.2"
 spin = "0.4.6"
 num-traits = "0.1"

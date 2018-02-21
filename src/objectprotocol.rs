@@ -315,6 +315,9 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            if ptr.is_null() {
+                return Err(PyErr::fetch(self.py()))
+            }
             let args = args.into_tuple(self.py()).into_ptr();
             let kw_ptr = kwargs.into_dict_ptr(self.py());
             let result = self.py().from_owned_ptr_or_err(
@@ -330,6 +333,9 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            if ptr.is_null() {
+                return Err(PyErr::fetch(self.py()))
+            }
             let args = PyTuple::empty(self.py()).into_ptr();
             let result = self.py().from_owned_ptr_or_err(
                 ffi::PyObject_Call(ptr, args, std::ptr::null_mut()));
@@ -343,6 +349,9 @@ impl<T> ObjectProtocol for T where T: PyObjectWithToken + ToPyPointer {
     {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            if ptr.is_null() {
+                return Err(PyErr::fetch(self.py()))
+            }
             let args = args.into_tuple(self.py()).into_ptr();
             let result = self.py().from_owned_ptr_or_err(
                 ffi::PyObject_Call(ptr, args, std::ptr::null_mut()));
@@ -458,6 +467,7 @@ mod test {
     use python::Python;
     use conversion::{ToPyObject, PyTryFrom};
     use objects::PyString;
+    use super::*;
 
     #[test]
     fn test_debug_string() {
@@ -475,5 +485,16 @@ mod test {
         let v = "Hello\n".to_object(py);
         let s = PyString::try_from(v.as_ref(py)).unwrap();
         assert_eq!(format!("{}", s), "Hello\n");
+    }
+
+    #[test]
+    fn test_call_for_non_existing_method() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let a = py.eval("42", None, None).unwrap();
+        a.call_method0("__str__").unwrap();  // ok
+        assert!(a.call_method("nonexistent_method", (1,), ()).is_err());
+        assert!(a.call_method0("nonexistent_method").is_err());
+        assert!(a.call_method1("nonexistent_method", (1,)).is_err());
     }
 }
