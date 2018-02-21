@@ -56,6 +56,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
 
+            #[cfg(py_sys_config = "WITH_THREAD")]
             pyo3::ffi::PyEval_InitThreads();
 
             let _module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
