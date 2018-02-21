@@ -1,5 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+/// Stringify a dotted path.
+#[macro_export]
+macro_rules! dot_stringify {
+    ($e:ident) => (
+        stringify!($e)
+    );
+    ($e:ident. $($es:ident).+) => (
+        concat!(stringify!($e), ".", dot_stringify!($($es).*))
+    );
+}
+
 /// Defines rust type for exception defined in Python code.
 ///
 /// # Syntax
@@ -27,9 +38,8 @@
 ///     py.run("import socket; assert gaierror is socket.gaierror", None, Some(ctx)).unwrap();
 /// }
 /// ```
-#[macro_export]
 macro_rules! import_exception {
-    ($module: ident, $name: ident) => {
+    ($($module:ident).+ , $name: ident) => {
         #[allow(non_camel_case_types)]
         pub struct $name;
 
@@ -73,12 +83,12 @@ macro_rules! import_exception {
                         let gil = $crate::Python::acquire_gil();
                         let py = gil.python();
 
-                        let imp = py.import(stringify!($module))
+                        let imp = py.import(dot_stringify!($($module).*))
                             .expect(concat!(
-                                "Can not import module: ", stringify!($module)));
+                                "Can not import module: ", dot_stringify!($($module).*)));
                         let cls = imp.get(stringify!($name))
                             .expect(concat!(
-                                "Can not load exception class: {}.{}", stringify!($module),
+                                "Can not load exception class: {}.{}", dot_stringify!($($module).*),
                                 ".", stringify!($name)));
                         TYPE_OBJECT = cls.into_ptr() as *mut $crate::ffi::PyTypeObject;
                     }
@@ -97,6 +107,7 @@ mod test {
     use objects::PyDict;
 
     import_exception!(socket, gaierror);
+    import_exception!(email.errors, MessageError);
 
     #[test]
     fn test_check_exception() {
@@ -110,5 +121,19 @@ mod test {
         d.set_item("exc", err).unwrap();
 
         py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap();
+    }
+
+    #[test]
+    fn test_check_exception_nested() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let err: PyErr = MessageError.into();
+
+        let d = PyDict::new(py);
+        d.set_item("email", py.import("email").map_err(|e| e.print(py)).unwrap()).unwrap();
+        d.set_item("exc", err).unwrap();
+
+        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap();
     }
 }
