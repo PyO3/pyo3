@@ -1,5 +1,4 @@
 #![feature(specialization, proc_macro, try_from, fn_must_use)]
-#![feature(const_fn, const_unsafe_cell_new, const_size_of, const_ptr_null, const_ptr_null_mut)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -130,7 +129,7 @@
 //!
 //! The extension module can then be imported into Python:
 //!
-//! ```python
+//! ```python,ignore
 //! >>> import hello
 //! >>> hello.run_rust_func("test")
 //! Rust says: Hello Python!

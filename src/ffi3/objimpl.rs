@@ -43,7 +43,7 @@ impl Default for PyObjectArenaAllocator {
 #[inline(always)]
 #[allow(unused_parens)]
 pub unsafe fn PyType_IS_GC(t : *mut PyTypeObject) -> c_int {
-    PyType_HasFeature((t), Py_TPFLAGS_HAVE_GC)
+    PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
 }
 
 /// Test if an object has a GC head
