@@ -102,7 +102,7 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
 /// Calling of `__new__` method of base class is developer's responsibility.
 ///
 /// Example of custom class implementation with `__new__` method:
-/// ```rust
+/// ```rust,ignore
 /// #[py::class]
 /// struct MyClass {
 ///    token: PyToken

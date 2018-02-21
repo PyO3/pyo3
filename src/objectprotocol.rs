@@ -41,7 +41,7 @@ pub trait ObjectProtocol {
     /// On Python 2, this is equivalent to the Python expression 'cmp(self, other)'.
     ///
     /// On Python 3, this is equivalent to:
-    /// ```
+    /// ```python,ignore
     /// if self == other:
     ///     return Equal
     /// elif a < b:
