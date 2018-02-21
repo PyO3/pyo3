@@ -38,6 +38,7 @@ macro_rules! dot_stringify {
 ///     py.run("import socket; assert gaierror is socket.gaierror", None, Some(ctx)).unwrap();
 /// }
 /// ```
+#[macro_export]
 macro_rules! import_exception {
     ($($module:ident).+ , $name: ident) => {
         #[allow(non_camel_case_types)]
