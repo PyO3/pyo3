@@ -12,6 +12,8 @@ Changes
 
 * call_method*() crashes when the method does not exist #113
 
+* Allow importing exceptions from nested modules #116
+
 
 0.2.4 (2018-01-19)
 ^^^^^^^^^^^^^^^^^^
