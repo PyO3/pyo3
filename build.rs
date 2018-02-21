@@ -453,7 +453,14 @@ fn main() {
         Err(_) => PythonVersion{major: 3, minor: None}
     };
     let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
-    let config_map = get_config_vars(&python_interpreter_path).unwrap();
+    let mut config_map = get_config_vars(&python_interpreter_path).unwrap();
+
+    // WITH_THREAD is always on for 3.7
+    let (interpreter_version, _, _) = find_interpreter_and_get_config(&version).unwrap();
+    if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {
+        config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
+    }
+
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {
             Some(line) => println!("{}", line),

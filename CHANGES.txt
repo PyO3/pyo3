@@ -4,6 +4,8 @@ Changes
 0.2.5 (2018-02-21)
 ^^^^^^^^^^^^^^^^^^
 
+* CPython 3.7 support
+
 * Embedded CPython 3.7b1 crashes on initialization #110
 
 * Generated extension functions are weakly typed #108

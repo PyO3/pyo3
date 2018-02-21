@@ -39,12 +39,11 @@ pub fn prepare_freethreaded_python() {
         if ffi::Py_IsInitialized() != 0 {
             // If Python is already initialized, we expect Python threading to also be initialized,
             // as we can't make the existing Python main thread acquire the GIL.
-            #[cfg(py_sys_config = "WITH_THREAD")]
             assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
         } else {
             // If Python isn't initialized yet, we expect that Python threading
             // isn't initialized either.
-            #[cfg(py_sys_config = "WITH_THREAD")]
+            #[cfg(not(Py_3_7))]
             assert_eq!(ffi::PyEval_ThreadsInitialized(), 0);
             // Initialize Python.
             // We use Py_InitializeEx() with initsigs=0 to disable Python signal handling.
@@ -52,7 +51,6 @@ pub fn prepare_freethreaded_python() {
             // Note that the 'main thread' notion in Python isn't documented properly;
             // and running Python without one is not officially supported.
             ffi::Py_InitializeEx(0);
-            #[cfg(py_sys_config = "WITH_THREAD")]
             ffi::PyEval_InitThreads();
             // PyEval_InitThreads() will acquire the GIL,
             // but we don't want to hold it at this point
