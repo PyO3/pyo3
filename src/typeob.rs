@@ -112,7 +112,7 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(|token| MyClass{token| token})
+///        obj.init(|token| MyClass{token: token});
 ///        MyClass::BaseType::__new__(obj)
 ///    }
 /// }
