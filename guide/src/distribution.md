@@ -49,6 +49,6 @@ hello_rust-1.0-cp27-cp27mu-linux_x86_64.whl      hello_rust-1.0-cp36-cp36m-linux
 hello_rust-1.0-cp27-cp27mu-manylinux1_x86_64.whl hello_rust-1.0-cp36-cp36m-manylinux1_x86_64.whl
 ```
 
-The `*-manylinux1_x86_64.whl` files are the `manylinux1` wheels that you can upload to PyPi.
+The `*-manylinux1_x86_64.whl` files are the `manylinux1` wheels that you can upload to PyPI.
 
 [setuptools-rust]: https://github.com/PyO3/setuptools-rust

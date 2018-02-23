@@ -67,7 +67,7 @@ fn main() {
 [`IntoPyDictPointer`][IntoPyDictPointer] trait. `HashMap` or `BTreeMap` could be used as
 keyword arguments. rust tuple with up to 10 elements where each element is tuple with size 2
 could be used as kwargs as well. Or `NoArgs` object can be used to indicate that 
-no keywords areguments are provided.
+no keywords arguments are provided.
 
 ```rust,ignore
 extern crate pyo3;

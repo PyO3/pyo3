@@ -2,7 +2,7 @@
 
 ## Define a new exception
 
-You can use the `py_exception!` macro to define a new excetpion type:
+You can use the `py_exception!` macro to define a new exception type:
 
 ```rust
 py_exception!(module, MyError);
@@ -93,7 +93,7 @@ fn main() {
 }
 ```
 
-[`Python::is_instance()`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html#method.is_instance) calls the underlaying [`PyType::is_instance`](https://pyo3.github.io/pyo3/pyo3/struct.PyType.html#method.is_instance) method to do the actual work.
+[`Python::is_instance()`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html#method.is_instance) calls the underlying [`PyType::is_instance`](https://pyo3.github.io/pyo3/pyo3/struct.PyType.html#method.is_instance) method to do the actual work.
 
 To check the type of an exception, you can simply do:
 
@@ -110,7 +110,7 @@ A [`PyErr`](https://pyo3.github.io/pyo3/pyo3/struct.PyErr.html) represents a Pyt
 Errors within the `PyO3` library are also exposed as Python exceptions.
 
 PyO3 library handles python exception in two stages. During first stage `PyErr` instance get
-created. At this stage python gil is not required. During second stage, actual python
+created. At this stage python GIL is not required. During second stage, actual python
 exception instance get crated and set to python interpreter.
 
 In simple case, for custom errors support implementation of `std::convert::From<T>` trait

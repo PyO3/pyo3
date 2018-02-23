@@ -265,7 +265,7 @@ impl MyClass {
 }
 ```
 
-From python prespective `method2`, in above example, does not accept any arguments.
+From python perspective `method2`, in above example, does not accept any arguments.
 
 ## Class methods
 
@@ -341,7 +341,7 @@ Each parameter could one of following type:
    corresponds to python's `def meth(*, arg1.., arg2=..)`
  * args="\*": "args" is var args, corresponds to python's `def meth(*args)`. Type of `args`
    parameter has to be `&PyTuple`.
- * kwargs="\*\*": "kwargs" is kwyword arguments, corresponds to python's `def meth(**kwargs)`.
+ * kwargs="\*\*": "kwargs" is keyword arguments, corresponds to python's `def meth(**kwargs)`.
    Type of `kwargs` parameter has to be `Option<&PyDict>`.
  * arg="Value": arguments with default value. corresponds to python's `def meth(arg=Value)`.
    if `arg` argument is defined after var arguments it is treated as keyword argument.
@@ -353,10 +353,10 @@ Example:
 #[py::methods]
 impl MyClass {
 
-     #[args(arg1=true, args="*", arg2=10, kwargs="**")]
-     fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, kwargs: Option<&PyTuple>) -> PyResult<i32> {
+    #[args(arg1=true, args="*", arg2=10, kwargs="**")]
+    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, kwargs: Option<&PyTuple>) -> PyResult<i32> {
         Ok(1)
-     }
+    }
 }
 ```
 
@@ -381,7 +381,7 @@ To customize object attribute access define following methods:
   * `fn __setattr__(&mut self, name: FromPyObject, value: FromPyObject) -> PyResult<()>`
   * `fn __delattr__(&mut self, name: FromPyObject) -> PyResult<()>`
 
-Each methods coresponds to python's `self.attr`, `self.attr = value` and `del self.attr` code.
+Each methods corresponds to python's `self.attr`, `self.attr = value` and `del self.attr` code.
 
 #### String Conversions
 
