@@ -96,7 +96,7 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-// logic implemented as a normal rust function
+// logic implemented as a normal Rust function
 fn sum_as_string(a:i64, b:i64) -> String {
     format!("{}", a + b).to_string()
 }
@@ -125,19 +125,19 @@ You obtain a [`Python`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html) ins
 by acquiring the GIL, and have to pass it into some operations that call into the Python runtime.
 
 PyO3 library provides wrappers for python native objects. Ownership of python objects are
-disallowed because any access to python runtime has to be protected by GIL. 
-All apis are available through references. Lifetimes of python object's references are 
+disallowed because any access to python runtime has to be protected by GIL.
+All APIs are available through references. Lifetimes of python object's references are
 bound to GIL lifetime.
 
-There are two types of pointers that could be stored on rust structs. 
+There are two types of pointers that could be stored on Rust structs.
 Both implements `Send` and `Sync` traits and maintain python object's reference count.
 
 * [`PyObject`](https://pyo3.github.io/pyo3/pyo3/struct.PyObject.html) is general purpose
-type. It does not maintain type of the referenced object. It provides helper methods 
-for extracing rust values and casting to specific python object type.
-    
-* [`Py<T>`](https://pyo3.github.io/pyo3/pyo3/struct.Py.html) represents a reference to a 
-concrete python object `T`. 
+type. It does not maintain type of the referenced object. It provides helper methods
+for extracting Rust values and casting to specific python object type.
+
+* [`Py<T>`](https://pyo3.github.io/pyo3/pyo3/struct.Py.html) represents a reference to a
+concrete python object `T`.
 
 To upgrade to a reference [`AsPyRef`](https://pyo3.github.io/pyo3/pyo3/trait.AsPyRef.html)
 trait can be used.
