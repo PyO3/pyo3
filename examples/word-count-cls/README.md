@@ -11,5 +11,5 @@ python setup.py install
 ```python
 from word_count_cls import WordCounter
 
-WordCounter("path/to/file).search('word')
+WordCounter('path/to/file').search('word')
 ```
