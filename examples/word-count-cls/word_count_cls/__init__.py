@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from ._word_count import Words
+from ._word_count import WordCounter
 
-__all__ = ['Words', 'search_py']
+__all__ = ['WordCounter', 'search_py']
 
 
 def search_py(path, needle):
