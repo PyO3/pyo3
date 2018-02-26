@@ -13,17 +13,17 @@ use rayon::prelude::*;
 use pyo3::prelude::*;
 
 #[py::class]
-struct Words {
+struct WordCounter {
     path: String,
     token: PyToken,
 }
 
 #[py::methods]
-impl Words {
+impl WordCounter {
 
     #[new]
     fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
-        obj.init(|t| Words {path: path, token: t})
+        obj.init(|t| WordCounter {path: path, token: t})
     }
 
     fn search(&self, py: Python, search: String) -> PyResult<i32> {
@@ -85,7 +85,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
 
 #[py::modinit(_word_count)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<Words>()?;
+    m.add_class::<WordCounter>()?;
 
     Ok(())
 }

@@ -41,12 +41,12 @@ Namespaces are one honking great idea -- let's do more of those!\n''' * 1000
 
 
 def test_word_count_rust_parallel(benchmark):
-    count = benchmark(word_count_cls.Words(path).search, 'is')
+    count = benchmark(word_count_cls.WordCounter(path).search, 'is')
     assert count == 10000
 
 
 def test_word_count_rust_sequential(benchmark):
-    count = benchmark(word_count_cls.Words(path).search_sequential, 'is')
+    count = benchmark(word_count_cls.WordCounter(path).search_sequential, 'is')
     assert count == 10000
 
 
