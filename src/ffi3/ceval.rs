@@ -1,6 +1,7 @@
 use std::os::raw::{c_void, c_char, c_int};
 use ffi3::object::PyObject;
 use ffi3::pystate::PyThreadState;
+#[cfg(Py_3_6)]
 use ffi3::code::FreeFunc;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {

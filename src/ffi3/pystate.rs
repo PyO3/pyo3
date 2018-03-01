@@ -1,6 +1,7 @@
 use std::os::raw::{c_int, c_long};
 use ffi3::object::PyObject;
 use ffi3::moduleobject::PyModuleDef;
+#[cfg(Py_3_6)]
 use ffi3::ceval::_PyFrameEvalFunction;
 
 #[cfg(Py_3_6)]
