@@ -1,8 +1,10 @@
 use std::os::raw::{c_char, c_int};
 use libc::wchar_t;
 use ffi3::object::PyObject;
+use ffi3::pyport::Py_ssize_t;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    pub fn Py_DecodeLocale(arg1: *const c_char, arg2: Py_ssize_t) -> *mut wchar_t;
     pub fn PySys_GetObject(arg1: *const c_char) -> *mut PyObject;
     pub fn PySys_SetObject(arg1: *const c_char, arg2: *mut PyObject)
      -> c_int;

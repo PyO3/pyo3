@@ -1,12 +1,25 @@
 use std::os::raw::{c_int, c_long};
 use ffi3::object::PyObject;
 use ffi3::moduleobject::PyModuleDef;
+use ffi3::ceval::_PyFrameEvalFunction;
 
 #[cfg(Py_3_6)]
 pub const MAX_CO_EXTRA_USERS: c_int = 255;
 
-pub enum PyInterpreterState { }
-pub enum PyThreadState { }
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyInterpreterState {
+    pub ob_base: PyObject,
+    #[cfg(Py_3_6)]
+    pub eval_frame: _PyFrameEvalFunction,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct PyThreadState { 
+    pub ob_base: PyObject,
+    pub interp: *mut PyInterpreterState,
+}
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;

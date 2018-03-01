@@ -25,7 +25,7 @@ use ffi3::pyarena::PyArena;
 #[derive(Copy, Clone)]
 #[cfg(not(Py_LIMITED_API))]
 pub struct PyCompilerFlags {
-    cf_flags : c_int
+    pub cf_flags : c_int
 }
 
 #[cfg(not(Py_LIMITED_API))]

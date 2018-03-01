@@ -64,8 +64,17 @@ pub const CO_FUTURE_GENERATOR_STOP : c_int = 0x8_0000;
 
 pub const CO_MAXBLOCKS: usize = 20;
 
+#[cfg(Py_3_6)]
+pub type FreeFunc = extern "C" fn(*mut c_void) -> c_void;
+
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
+    #[cfg(Py_3_6)]
+    pub fn _PyCode_GetExtra(code: *mut PyObject, index: Py_ssize_t,
+                            extra: *const *mut c_void) -> c_int;
+    #[cfg(Py_3_6)]
+    pub fn _PyCode_SetExtra(code: *mut PyObject, index: Py_ssize_t,
+                            extra: *mut c_void) -> c_int;
 
     pub fn PyCode_New(arg1: c_int, arg2: c_int,
                       arg3: c_int, arg4: c_int,
