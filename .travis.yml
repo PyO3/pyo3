@@ -13,6 +13,7 @@ env:
   global:
     - RUST_VERSION=nightly
     - RUSTFLAGS="-C link-dead-code"
+    - RUST_BACKTRACE=1
 
 sudo: required
 dist: trusty
