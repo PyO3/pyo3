@@ -118,10 +118,23 @@ mod test {
         let err: PyErr = gaierror.into();
 
         let d = PyDict::new(py);
-        d.set_item("socket", py.import("socket").map_err(|e| e.print(py)).unwrap()).unwrap();
-        d.set_item("exc", err).unwrap();
+        let socket_module = py.import("socket").unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        d.set_item("socket", socket_module).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        d.set_item("exc", err).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
 
-        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap();
+        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap_or_else(|e| {
+            e.print(py);
+            panic!();
+        });
     }
 
     #[test]
@@ -132,9 +145,22 @@ mod test {
         let err: PyErr = MessageError.into();
 
         let d = PyDict::new(py);
-        d.set_item("email", py.import("email").map_err(|e| e.print(py)).unwrap()).unwrap();
-        d.set_item("exc", err).unwrap();
+        let email_module = py.import("email").unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        d.set_item("email", email_module).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        d.set_item("exc", err).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
 
-        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap();
+        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
     }
 }
