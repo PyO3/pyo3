@@ -18,6 +18,7 @@ install:
   - set PATH=%PATH%;%CD%/rust-nightly-%TARGET%/bin
   - rustc -V
   - cargo -V
+  - set RUST_BACKTRACE=1
 
 build_script:
   - cargo build --verbose --features %FEATURES%
