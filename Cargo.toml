@@ -24,10 +24,15 @@ libc = "0.2"
 spin = "0.4.6"
 num-traits = "0.2"
 pyo3cls = { version = "^0.2.1" }
+regex = "0.2"
+version_check = "0.1"
 
 [build-dependencies]
 regex = "0.2"
 version_check = "0.1"
+
+[[example]]
+name = "debug_build"
 
 [features]
 default = []
@@ -39,7 +44,7 @@ python2 = []
 python3 = []
 
 # Enable additional features that require nightly rust
-#nightly = []
+nightly = []
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,

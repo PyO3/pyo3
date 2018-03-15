@@ -10,3 +10,5 @@ __pycache__/
 *.out
 *.egg-info
 extensions/stamps/
+
+cmake-build-debug/

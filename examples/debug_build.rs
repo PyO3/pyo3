@@ -239,24 +239,31 @@ fn get_rustc_link_lib(_: &PythonVersion, interpreter_path: &str, ld_version: &st
 
     let link_library_name: String;
 
-    if file_stem.starts_with("pypy") {
-        link_library_name = "pypy".to_string();
-    } else if file_stem.starts_with("python") {
-        link_library_name = "python".to_string();
-    } else {
-        unreachable!()
-    }
-
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
-    match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
-        "static" => Ok(format!("cargo:rustc-link-lib=static={}{}",
-                               file_stem, ld_version)),
-        "shared" => Ok(format!("cargo:rustc-link-lib={}{}",
-                               file_stem, ld_version)),
-        "framework" => Ok(format!("cargo:rustc-link-lib={}{}",
-                                  file_stem, ld_version)),
-        other => Err(format!("unknown linkmodel {}", other))
+    if file_stem.starts_with("pypy") {
+        if file_stem == "pypy" {
+            link_library_name = "pypy".to_string();
+        } else if file_stem == "pypy3" {
+            link_library_name = "pypy3".to_string();
+        } else {
+            return Err(format!("unknown interpreter {}", file_stem));
+        }
+        match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
+            "static" => Ok(format!("cargo:rustc-link-lib=static={}", link_library_name)),
+            "shared" => Ok(format!("cargo:rustc-link-lib={}",  link_library_name)),
+            "framework" => Ok(format!("cargo:rustc-link-lib={}", link_library_name)),
+            other => Err(format!("unknown linkmodel {}", other))
+        }
+    } else if file_stem.starts_with("python") {
+        match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
+            "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version)),
+            "shared" => Ok(format!("cargo:rustc-link-lib=python{}",  ld_version)),
+            "framework" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
+            other => Err(format!("unknown linkmodel {}", other))
+        }
+    } else {
+        return Err(format!("unknown interpreter {}", file_stem));
     }
 }
 
