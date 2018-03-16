@@ -112,6 +112,8 @@ mod test {
 
     #[test]
     fn test_check_exception() {
+        use objectprotocol::ObjectProtocol;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -122,14 +124,17 @@ mod test {
             e.print(py);
             panic!()
         });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
         d.set_item("socket", socket_module).unwrap_or_else(|e| {
             e.print(py);
             panic!()
         });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
         d.set_item("exc", err).unwrap_or_else(|e| {
             e.print(py);
             panic!()
         });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
 
         py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap_or_else(|e| {
             e.print(py);
@@ -139,6 +144,8 @@ mod test {
 
     #[test]
     fn test_check_exception_nested() {
+        use objectprotocol::ObjectProtocol;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -149,14 +156,17 @@ mod test {
             e.print(py);
             panic!()
         });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
         d.set_item("email", email_module).unwrap_or_else(|e| {
             e.print(py);
             panic!()
         });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
         d.set_item("exc", err).unwrap_or_else(|e| {
             e.print(py);
             panic!()
         });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
 
         py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap_or_else(|e| {
             e.print(py);
