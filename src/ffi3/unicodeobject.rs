@@ -44,6 +44,7 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
     pub fn PyUnicode_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
      -> *mut PyObject;
 
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromStringAndSize")]
     pub fn PyUnicode_FromStringAndSize(u: *const c_char,
                                        size: Py_ssize_t) -> *mut PyObject;
     pub fn PyUnicode_FromString(u: *const c_char) -> *mut PyObject;
@@ -97,6 +98,7 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
     pub fn PyUnicode_FromOrdinal(ordinal: c_int) -> *mut PyObject;
     pub fn PyUnicode_ClearFreeList() -> c_int;
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8AndSize")]
     pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject,
                                    size: *mut Py_ssize_t)
      -> *mut c_char;

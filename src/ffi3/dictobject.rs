@@ -43,9 +43,12 @@ pub unsafe fn PyDictViewSet_Check(op : *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDict_GetItem")]
     pub fn PyDict_GetItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     pub fn PyDict_GetItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDict_SetItem")]
     pub fn PyDict_SetItem(mp: *mut PyObject, key: *mut PyObject, item: *mut PyObject) -> c_int;
     pub fn PyDict_DelItem(mp: *mut PyObject, key: *mut PyObject) -> c_int;
     pub fn PyDict_Clear(mp: *mut PyObject) -> ();
@@ -53,7 +56,9 @@ pub unsafe fn PyDictViewSet_Check(op : *mut PyObject) -> c_int {
                        key: *mut *mut PyObject, value: *mut *mut PyObject) -> c_int;
     pub fn PyDict_Keys(mp: *mut PyObject) -> *mut PyObject;
     pub fn PyDict_Values(mp: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDict_Items")]
     pub fn PyDict_Items(mp: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDict_Size")]
     pub fn PyDict_Size(mp: *mut PyObject) -> Py_ssize_t;
     pub fn PyDict_Copy(mp: *mut PyObject) -> *mut PyObject;
     pub fn PyDict_Contains(mp: *mut PyObject, key: *mut PyObject) -> c_int;

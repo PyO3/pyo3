@@ -139,7 +139,9 @@ impl UnicodeDecodeError {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
             py.from_owned_ptr_or_err(
-                ffi::PyUnicodeDecodeError_Create(
+                ffi::PyObject_CallFunction(
+                    ffi::PyExc_UnicodeDecodeError,
+                    cstr!("sy#nns").as_ptr(),
                     encoding.as_ptr(),
                     input.as_ptr(),
                     input.len() as ffi::Py_ssize_t,

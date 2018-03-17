@@ -167,7 +167,9 @@ pub unsafe fn Py_CompileStringFlags(string: *const c_char, p: *const c_char, s: 
                                    start: c_int)
      -> *mut symtable;
 
+    #[cfg_attr(PyPy,link_name="\u{1}_PyPyErr_Print")]
     pub fn PyErr_Print() -> ();
+    #[cfg_attr(PyPy,link_name="\u{1}_PyPyErr_PrintEx")]
     pub fn PyErr_PrintEx(arg1: c_int) -> ();
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject,
                          arg3: *mut PyObject) -> ();
