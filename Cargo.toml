@@ -31,9 +31,6 @@ version_check = "0.1"
 regex = "0.2"
 version_check = "0.1"
 
-[[example]]
-name = "debug_build"
-
 [features]
 default = []
 
