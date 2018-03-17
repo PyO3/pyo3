@@ -1,8 +1,3 @@
-#![feature(asm)]
-#![feature(core_intrinsics)]
-
-use std::intrinsics::breakpoint;
-
 extern crate regex;
 extern crate version_check;
 
@@ -239,24 +234,31 @@ fn get_rustc_link_lib(_: &PythonVersion, interpreter_path: &str, ld_version: &st
 
     let link_library_name: String;
 
-    if file_stem.starts_with("pypy") {
-        link_library_name = "pypy".to_string();
-    } else if file_stem.starts_with("python") {
-        link_library_name = "python".to_string();
-    } else {
-        unreachable!()
-    }
-
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
-    match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
-        "static" => Ok(format!("cargo:rustc-link-lib=static={}{}",
-                               file_stem, ld_version)),
-        "shared" => Ok(format!("cargo:rustc-link-lib={}{}",
-                               file_stem, ld_version)),
-        "framework" => Ok(format!("cargo:rustc-link-lib={}{}",
-                                  file_stem, ld_version)),
-        other => Err(format!("unknown linkmodel {}", other))
+    if file_stem.starts_with("pypy") {
+        if file_stem == "pypy" {
+            link_library_name = "pypy".to_string();
+        } else if file_stem == "pypy3" {
+            link_library_name = "pypy3-c".to_string();
+        } else {
+            return Err(format!("unknown interpreter {}", file_stem));
+        }
+        match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
+            "static" => Ok(format!("cargo:rustc-link-lib={}", link_library_name)),
+            "shared" => Ok(format!("cargo:rustc-link-lib={}",  link_library_name)),
+            "framework" => Ok(format!("cargo:rustc-link-lib={}", link_library_name)),
+            other => Err(format!("unknown linkmodel {}", other))
+        }
+    } else if file_stem.starts_with("python") {
+        match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
+            "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version)),
+            "shared" => Ok(format!("cargo:rustc-link-lib=python{}",  ld_version)),
+            "framework" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
+            other => Err(format!("unknown linkmodel {}", other))
+        }
+    } else {
+        return Err(format!("unknown interpreter {}", file_stem));
     }
 }
 
@@ -358,7 +360,7 @@ print(sys.exec_prefix);";
     let out = try!(run_python_script(interpreter, script));
     let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
     let interpreter_version = try!(get_interpreter_version(&lines[0]));
-    let is_pypy = check_pypy(interpreter);
+    check_pypy(interpreter);
     Ok((interpreter_version, lines))
 }
 
@@ -370,12 +372,14 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
     let (interpreter_version, interpreter_path, lines) = try!(
         find_interpreter_and_get_config(expected_version));
 
+    // TODO: on pypy get this from somewhere else
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
     let ld_version: &str = &lines[3];
     let exec_prefix: &str = &lines[4];
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
+
     if !is_extension_module || cfg!(target_os="windows") {
         println!("{}", get_rustc_link_lib(&interpreter_version, &interpreter_path,
                                           ld_version, enable_shared == "1").unwrap());
@@ -491,6 +495,8 @@ fn main() {
     };
     let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
     let mut config_map = get_config_vars(&python_interpreter_path).unwrap();
+
+    config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
 
     // WITH_THREAD is always on for 3.7
     let (interpreter_version, _, _) = find_interpreter_and_get_config(&version).unwrap();
