@@ -120,10 +120,12 @@ mod test {
         let err: PyErr = gaierror.into();
 
         let d = PyDict::new(py);
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
         let socket_module = py.import("socket").unwrap_or_else(|e| {
             e.print(py);
             panic!()
         });
+        println!("socket_module={:?}, type(socket_module)={:?}", socket_module, socket_module.get_type());
         println!("d={:?}, type(d)={:?}", d, d.get_type());
         d.set_item("socket", socket_module).unwrap_or_else(|e| {
             e.print(py);
@@ -152,10 +154,12 @@ mod test {
         let err: PyErr = MessageError.into();
 
         let d = PyDict::new(py);
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
         let email_module = py.import("email").unwrap_or_else(|e| {
             e.print(py);
             panic!()
         });
+        println!("email_module={:?}, type(email_module)={:?}", email_module, email_module.get_type());
         println!("d={:?}, type(d)={:?}", d, d.get_type());
         d.set_item("email", email_module).unwrap_or_else(|e| {
             e.print(py);
