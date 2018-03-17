@@ -42,6 +42,7 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef,
                             apiver: c_int) -> *mut PyObject;
 
@@ -62,6 +63,7 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
 
 #[cfg(py_sys_config="Py_TRACE_REFS")]
 #[inline]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_Create2")]
 pub unsafe fn PyModule_Create2(module: *mut PyModuleDef,
                                apiver: c_int) -> *mut PyObject {
     PyModule_Create2TraceRefs(module, apiver)

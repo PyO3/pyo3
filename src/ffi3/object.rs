@@ -4,6 +4,7 @@ use ffi3::pyport::{Py_ssize_t, Py_hash_t};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
+#[cfg(not(PyPy))]
 pub struct PyObject {
     #[cfg(py_sys_config="Py_TRACE_REFS")]
     _ob_next: *mut PyObject,
@@ -13,7 +14,17 @@ pub struct PyObject {
     pub ob_type: *mut PyTypeObject,
 }
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+#[cfg(PyPy)]
+pub struct PyObject {
+    pub ob_refcnt: Py_ssize_t,
+    pub ob_pypy_link: Py_ssize_t,
+    pub ob_type: *mut PyTypeObject,
+}
+
 #[cfg(py_sys_config="Py_TRACE_REFS")]
+#[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: ::std::ptr::null_mut(),
     _ob_prev: ::std::ptr::null_mut(),
@@ -22,8 +33,27 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 };
 
 #[cfg(not(py_sys_config="Py_TRACE_REFS"))]
+#[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
+    ob_type: ::std::ptr::null_mut()
+};
+
+#[cfg(py_sys_config="Py_TRACE_REFS")]
+#[cfg(PyPy)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    _ob_next: ::std::ptr::null_mut(),
+    _ob_prev: ::std::ptr::null_mut(),
+    ob_refcnt: 1,
+    ob_pypy_link: 0,
+    ob_type: ::std::ptr::null_mut()
+};
+
+#[cfg(not(py_sys_config="Py_TRACE_REFS"))]
+#[cfg(PyPy)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    ob_refcnt: 1,
+    ob_pypy_link: 0,
     ob_type: ::std::ptr::null_mut()
 };
 
@@ -653,6 +683,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
                                   arg3: *mut PyObject) -> c_int;
     pub fn PyObject_HasAttrString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
     pub fn PyObject_GetAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject,
                             arg3: *mut PyObject) -> c_int;
     pub fn PyObject_HasAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
@@ -743,6 +774,7 @@ pub unsafe fn PyType_FastSubclass(t : *mut PyTypeObject, f : c_ulong) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}__PyPy_Dealloc")]
     pub fn _Py_Dealloc(arg1: *mut PyObject) -> ();
 }
 
@@ -795,6 +827,7 @@ pub unsafe fn Py_XDECREF(op : *mut PyObject) {
     pub fn Py_IncRef(o: *mut PyObject);
     pub fn Py_DecRef(o: *mut PyObject);
 
+    #[cfg_attr(PyPy, link_name="\u{1}__PyPy_NoneStruct")]
     static mut _Py_NoneStruct: PyObject;
     static mut _Py_NotImplementedStruct: PyObject;
 }

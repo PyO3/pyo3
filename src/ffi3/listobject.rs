@@ -20,7 +20,9 @@ pub unsafe fn PyList_CheckExact(op : *mut PyObject) -> c_int {
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Size")]
     pub fn PyList_Size(arg1: *mut PyObject) -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_GetItem")]
     pub fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
     pub fn PyList_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
     pub fn PyList_Insert(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;

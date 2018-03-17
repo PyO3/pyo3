@@ -18,6 +18,7 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
                          kw: *mut PyObject) -> *mut PyObject;
     pub fn PyObject_CallObject(callable_object: *mut PyObject,
                                args: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "\u{1}_PyPyObject_CallFunction")]
     pub fn PyObject_CallFunction(callable_object: *mut PyObject,
                                  format: *const c_char, ...)
      -> *mut PyObject;

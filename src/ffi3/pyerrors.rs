@@ -9,8 +9,10 @@ use ffi3::object::*;
                            string: *const c_char) -> ();
     pub fn PyErr_Occurred() -> *mut PyObject;
     pub fn PyErr_Clear() -> ();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Fetch")]
     pub fn PyErr_Fetch(arg1: *mut *mut PyObject, arg2: *mut *mut PyObject,
                        arg3: *mut *mut PyObject) -> ();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Restore")]
     pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject,
                          arg3: *mut PyObject) -> ();
     pub fn PyErr_GetExcInfo(arg1: *mut *mut PyObject,
@@ -84,12 +86,15 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub static mut PyExc_IndentationError: *mut PyObject;
     pub static mut PyExc_TabError: *mut PyObject;
     pub static mut PyExc_ReferenceError: *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyExc_SystemError")]
     pub static mut PyExc_SystemError: *mut PyObject;
     pub static mut PyExc_SystemExit: *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyExc_TypeError")]
     pub static mut PyExc_TypeError: *mut PyObject;
     pub static mut PyExc_UnboundLocalError: *mut PyObject;
     pub static mut PyExc_UnicodeError: *mut PyObject;
     pub static mut PyExc_UnicodeEncodeError: *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyExc_UnicodeDecodeError")]
     pub static mut PyExc_UnicodeDecodeError: *mut PyObject;
     pub static mut PyExc_UnicodeTranslateError: *mut PyObject;
     pub static mut PyExc_ValueError: *mut PyObject;

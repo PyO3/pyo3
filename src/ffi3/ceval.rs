@@ -61,6 +61,7 @@ pub type _PyFrameEvalFunction = extern "C" fn(*mut ::ffi3::PyFrameObject, c_int)
 #[cfg(py_sys_config = "WITH_THREAD")]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyEval_ThreadsInitialized() -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_InitThreads")]
     pub fn PyEval_InitThreads() -> ();
     pub fn PyEval_AcquireLock() -> ();
     pub fn PyEval_ReleaseLock() -> ();
