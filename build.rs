@@ -10,8 +10,6 @@ use regex::Regex;
 use version_check::{is_min_date, is_min_version, supports_features};
 use std::path::{Path, PathBuf};
 
-#[feature(match_default_bindings)]
-
 // Specifies the minimum nightly version needed to compile pyo3.
 const MIN_DATE: &'static str = "2017-11-07";
 const MIN_VERSION: &'static str = "1.23.0-nightly";
@@ -89,13 +87,14 @@ impl InterpreterConfig {
             version: cpython_version,
             path: interpreter,
             libpath: lines[1].to_string(),
-            enable_shared: lines[2].parse().unwrap(),
+            enable_shared: lines[2] == "1",
             ld_version: lines[3].to_string(),
             exec_prefix: lines[4].to_string(),
             is_pypy: false,
         })
     }
 
+    // TODO: implement me nicely!
     fn from_pypy(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
         Ok(InterpreterConfig {
             version: PythonVersion {
@@ -160,9 +159,7 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
 /// sysconfig.get_config_vars.
 #[cfg(not(target_os = "windows"))]
 fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>, String> {
-    let mut script = "import sysconfig; \
-                      config = sysconfig.get_config_vars();"
-        .to_owned();
+    let mut script = "import sysconfig; config = sysconfig.get_config_vars();".to_owned();
 
     for k in SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()) {
         script.push_str(&format!(
@@ -178,8 +175,7 @@ fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>, Str
     let split_stdout: Vec<&str> = out.trim_right().split(NEWLINE_SEQUENCE).collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
         return Err(format!(
-            "python stdout len didn't return expected number of lines:
-{}",
+            "python stdout len didn't return expected number of lines: {}",
             split_stdout.len()
         ).to_string());
     }
@@ -210,7 +206,7 @@ fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>, Str
 }
 
 #[cfg(target_os = "windows")]
-fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
+fn get_config_vars(_: &PathBuf) -> Result<HashMap<String, String>, String> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -279,6 +275,16 @@ fn run_python_script(interpreter_path: &PathBuf, script: &str) -> Result<String,
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "windows"))]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
+    if interpreter_config.is_pypy {
+        let link_library_name = match interpreter_config.version.major {
+            2 => "pypy-c",
+            3 => "pypy3-c",
+            _ => unreachable!(),
+        };
+        // All modern PyPy versions with cpyext are compiled as shared libraries.
+        return Ok(format!("cargo:rustc-link-lib={}", link_library_name));
+    }
+
     if interpreter_config.enable_shared {
         Ok(format!(
             "cargo:rustc-link-lib=python{}",
@@ -298,6 +304,7 @@ fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, 
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
+            _ => unreachable!(),
         };
         // All modern PyPy versions with cpyext are compiled as shared libraries.
         return Ok(format!("cargo:rustc-link-lib={}", link_library_name));
@@ -416,9 +423,6 @@ fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterConfi
         }
     }
 
-    // check default python
-    let system_python = "python";
-
     let mut possible_python_paths = vec![
         "python".to_string(),
         format!("python{}", expected_version.major),
@@ -455,7 +459,7 @@ fn emit_cargo_vars_from_configuration(
     }
 
     if !is_extension_module || cfg!(target_os = "windows") {
-        println!("{:?}", get_rustc_link_lib(&interpreter_config));
+        println!("{}", get_rustc_link_lib(&interpreter_config).unwrap());
 
         if interpreter_config.libpath != "None" {
             println!(
@@ -651,6 +655,7 @@ fn main() {
     );
 }
 
+// TODO: move this somewhere these test could be ran
 #[cfg(test)]
 mod test {
     use std::env;
@@ -672,9 +677,11 @@ mod test {
             is_pypy: false,
         };
 
-        assert_eq!(
-            find_interpreter(&python_version_major_only).unwrap(),
-            expected_config
-        )
+        let interpreter = find_interpreter(&python_version_major_only).unwrap();
+
+        println!("{}", interpreter);
+
+        assert_eq!(interpreter.version, expected_config.version);
+        assert_eq!(interpreter.path, expected_config.path);
     }
 }
