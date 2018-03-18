@@ -8,11 +8,28 @@ use std::fmt;
 
 use regex::Regex;
 use version_check::{supports_features, is_min_version, is_min_date};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+#[feature(match_default_bindings)]
 
 // Specifies the minimum nightly version needed to compile pyo3.
 const MIN_DATE: &'static str = "2017-11-07";
 const MIN_VERSION: &'static str = "1.23.0-nightly";
+
+fn canonicalize_executable<P>(exe_name: P) -> Option<PathBuf>
+    where P: AsRef<Path>,
+{
+    env::var_os("PATH").and_then(|paths| {
+        env::split_paths(&paths).filter_map(|dir| {
+            let full_path = dir.join(&exe_name);
+            if full_path.is_file() {
+                Some(full_path)
+            } else {
+                None
+            }
+        }).next()
+    })
+}
 
 #[derive(Debug)]
 struct PythonVersion {
@@ -38,6 +55,60 @@ impl fmt::Display for PythonVersion {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+struct InterpreterConfig<'a> {
+    version: &'a PythonVersion,
+    path: &'a Path,
+    libpath: String,
+    enable_shared: bool,
+    ld_version: String,
+    exec_prefix: String,
+    is_pypy: bool,
+}
+
+impl<'a> InterpreterConfig<'a> {
+    fn from_cpython(interpreter: &'a Path) -> Result<InterpreterConfig, String> {
+        let script = "import sys; import sysconfig;\
+         print(sys.version_info[0:2]); \
+         print(sysconfig.get_config_var('LIBDIR')); \
+         print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
+         print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
+         print(sys.exec_prefix);";
+
+        let out = try!(run_python_script(interpreter.to_str(), script));
+
+        let lines: Vec<String> =
+            out.lines()
+                .map(|line: &str| line.to_owned())
+                .collect();
+
+        let cpython_version = try!(parse_interpreter_version(&lines[0]));
+
+        Ok(InterpreterConfig {
+            version: &cpython_version,
+            path: interpreter,
+            libpath: lines[1],
+            enable_shared: lines[2].parse().unwrap(),
+            ld_version: lines[3],
+            exec_prefix: lines[4],
+            is_pypy: false,
+        })
+    }
+
+    fn from_pypy(interpreter: &'a Path) -> Result<InterpreterConfig, String> {
+        Ok(InterpreterConfig {
+            version: &PythonVersion { major: 3, minor: Some(5) },
+            path: interpreter,
+            libpath: "/Users/omerba/anaconda/lib".to_string(),
+            enable_shared: true,
+            ld_version: "3.5".to_string(),
+            exec_prefix: "/Users/omerba/anaconda".to_string(),
+            is_pypy: true,
+        })
+    }
+}
+
 
 const PY3_MIN_MINOR: u8 = 5;
 
@@ -216,8 +287,17 @@ fn get_rustc_link_lib(_: &PythonVersion, interpreter_path: &str, ld_version: &st
 }
 
 #[cfg(target_os = "windows")]
-fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String>
+fn get_rustc_link_lib(interpreter_config: InterpreterConfig) -> Result<String, String>
 {
+    if interpreter_config.is_pypy {
+        let link_library_name = match interpreter_config.version.major {
+            2 => "pypy-c",
+            3 => "pypy3-c"
+        };
+        // All modern PyPy versions with cpyext are compiled as shared libraries.
+        return Ok(format!("cargo:rustc-link-lib={}", link_library_name));
+    }
+
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
     Ok(format!("cargo:rustc-link-lib=pythonXY:python{}{}", version.major,
                match version.minor {
@@ -227,38 +307,24 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 }
 
 #[cfg(target_os = "macos")]
-fn get_rustc_link_lib(_: &PythonVersion, interpreter_path: &str, ld_version: &str, _: bool) -> Result<String, String>
+fn get_rustc_link_lib(interpreter_config: InterpreterConfig) -> Result<String, String>
 {
-    let path = Path::new(interpreter_path);
-    let file_stem = path.file_stem().unwrap().to_str().unwrap();
-
-    let link_library_name: String;
+    if interpreter_config.is_pypy {
+        let link_library_name = match interpreter_config.version.major {
+            2 => "pypy-c",
+            3 => "pypy3-c"
+        };
+        // All modern PyPy versions with cpyext are compiled as shared libraries.
+        return Ok(format!("cargo:rustc-link-lib={}", link_library_name));
+    }
 
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
-    if file_stem.starts_with("pypy") {
-        if file_stem == "pypy" {
-            link_library_name = "pypy".to_string();
-        } else if file_stem == "pypy3" {
-            link_library_name = "pypy3-c".to_string();
-        } else {
-            return Err(format!("unknown interpreter {}", file_stem));
-        }
-        match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
-            "static" => Ok(format!("cargo:rustc-link-lib={}", link_library_name)),
-            "shared" => Ok(format!("cargo:rustc-link-lib={}",  link_library_name)),
-            "framework" => Ok(format!("cargo:rustc-link-lib={}", link_library_name)),
-            other => Err(format!("unknown linkmodel {}", other))
-        }
-    } else if file_stem.starts_with("python") {
-        match get_macos_linkmodel(interpreter_path).unwrap().as_ref() {
-            "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version)),
-            "shared" => Ok(format!("cargo:rustc-link-lib=python{}",  ld_version)),
-            "framework" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
-            other => Err(format!("unknown linkmodel {}", other))
-        }
-    } else {
-        return Err(format!("unknown interpreter {}", file_stem));
+    match get_macos_linkmodel(interpreter_config.path).unwrap().as_ref() {
+        "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", interpreter_config.ld_version)),
+        "shared" => Ok(format!("cargo:rustc-link-lib=python{}", interpreter_config.ld_version)),
+        "framework" => Ok(format!("cargo:rustc-link-lib=python{}", interpreter_config.ld_version)),
+        other => Err(format!("unknown linkmodel {}", other))
     }
 }
 
@@ -273,7 +339,7 @@ fn get_macos_linkmodel(interpreter_path: &str) -> Result<String, String>
 
 
 /// Parse string as interpreter version.
-fn get_interpreter_version(line: &str) -> Result<PythonVersion, String>
+fn parse_interpreter_version(line: &str) -> Result<PythonVersion, String>
 {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
     match version_re.captures(&line) {
@@ -308,91 +374,74 @@ fn check_pypy(interpreter_path: &str) -> bool {
 /// Else tries to execute the interpreter as "python", "python{major version}",
 /// "python{major version}.{minor version}" in order until one
 /// is of the version we are expecting.
-fn find_interpreter_and_get_config(expected_version: &PythonVersion)
-                                   -> Result<(PythonVersion, String, Vec<String>), String>
+fn find_interpreter(expected_version: &PythonVersion)
+                    -> Result<InterpreterConfig, String>
 {
-    if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        let interpreter_path = sys_executable.to_str()
+    // To use PyPy, a valid pypy executable must be passed to PYTHON_SYS_EXECUTABLE
+    if let Some(interpreter_from_env) = env::var_os("PYTHON_SYS_EXECUTABLE") {
+        let interpreter_path_or_executable = interpreter_from_env.to_str()
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
 
-        let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
+        let interpreter_path = canonicalize_executable(interpreter_path_or_executable);
 
-        if expected_version == &interpreter_version {
-            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
-        } else {
-            return Err(format!("Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
+        if interpreter_path.is_some() {
+            let interpreter_config: InterpreterConfig = try!(InterpreterConfig::from_pypy(&Path::new(interpreter_path.expect())));
+
+            if expected_version == interpreter_config.version {
+                return Ok(interpreter_config);
+            } else {
+                return Err(format!("Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
                                 \tmin version {} != found {}",
-                               interpreter_path, expected_version, interpreter_version));
+                                   interpreter_path_or_executable, expected_version, interpreter_config.version));
+            }
+        } else {
+            Err(format!("Could not find interpreter passed in PYTHON_SYS_EXECUTABLE={}\n", interpreter_path_or_executable));
         }
     }
+
     // check default python
-    let interpreter_path = "python";
-    let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
-    if expected_version == &interpreter_version {
-        return Ok((interpreter_version, interpreter_path.to_owned(), lines));
-    }
+    let system_python = "python";
 
-    let major_interpreter_path = &format!("python{}", expected_version.major);
-    let (interpreter_version, lines) = try!(get_config_from_interpreter(major_interpreter_path));
-    if expected_version == &interpreter_version {
-        return Ok((interpreter_version, major_interpreter_path.to_owned(), lines));
-    }
-
+    let mut possible_python_paths = vec!["python".to_string(), &format!("python{}", expected_version.major)];
     if let Some(minor) = expected_version.minor {
-        let minor_interpreter_path = &format!("python{}.{}", expected_version.major, minor);
-        let (interpreter_version, lines) = try!(get_config_from_interpreter(
-            minor_interpreter_path));
-        if expected_version == &interpreter_version {
-            return Ok((interpreter_version, minor_interpreter_path.to_owned(), lines));
+        possible_python_paths.push(
+            &format!("python{}.{}", expected_version.major, minor)
+        )
+    }
+
+    for possible_path in possible_python_paths {
+        let interpreter_path = canonicalize_executable(system_python);
+        if interpreter_path.is_some() {
+            let interpreter_config = try!(InterpreterConfig::from_cpython(interpreter_path));
+            if expected_version == interpreter_config.version {
+                return Ok(interpreter_config);
+            }
         }
     }
 
     Err(format!("No python interpreter found"))
 }
 
-/// Extract compilation vars from the specified interpreter.
-fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<String>), String> {
-    let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
-print(sysconfig.get_config_var('LIBDIR')); \
-print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
-print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
-print(sys.exec_prefix);";
-    let out = try!(run_python_script(interpreter, script));
-    let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
-    let interpreter_version = try!(get_interpreter_version(&lines[0]));
-    check_pypy(interpreter);
-    Ok((interpreter_version, lines))
-}
-
 /// Deduce configuration from the 'python' in the current PATH and print
 /// cargo vars to stdout.
 ///
 /// Note that if the python doesn't satisfy expected_version, this will error.
-fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, String), String> {
-    let (interpreter_version, interpreter_path, lines) = try!(
-        find_interpreter_and_get_config(expected_version));
-
-    // TODO: on pypy get this from somewhere else
-    let libpath: &str = &lines[1];
-    let enable_shared: &str = &lines[2];
-    let ld_version: &str = &lines[3];
-    let exec_prefix: &str = &lines[4];
-
+fn emit_cargo_vars_from_configuration(interpreter_config: InterpreterConfig) -> Result<(String, String), String> {
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
 
     if !is_extension_module || cfg!(target_os="windows") {
-        println!("{}", get_rustc_link_lib(&interpreter_version, &interpreter_path,
-                                          ld_version, enable_shared == "1").unwrap());
-        if libpath != "None" {
-            println!("cargo:rustc-link-search=native={}", libpath);
+        println!("{:?}", get_rustc_link_lib(interpreter_config));
+
+        if interpreter_config.libpath != "None" {
+            println!("cargo:rustc-link-search=native={}", interpreter_config.libpath);
         } else if cfg!(target_os="windows") {
-            println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
+            println!("cargo:rustc-link-search=native={}\\libs", interpreter_config.exec_prefix);
         }
     }
 
     let mut flags = String::new();
 
-    if let PythonVersion { major: 3, minor: some_minor } = interpreter_version {
+    if let &PythonVersion { major: 3, minor: some_minor } = interpreter_config.version {
         if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
@@ -410,7 +459,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
         println!("cargo:rustc-cfg=Py_2");
         flags += format!("CFG_Py_2,").as_ref();
     }
-    return Ok((interpreter_path, flags));
+    return Ok((interpreter_config, flags));
 }
 
 /// Determine the python version we're supposed to be building
@@ -424,6 +473,7 @@ fn version_from_env() -> Result<PythonVersion, String> {
     // so if the user passes e.g. the python-3 feature and the python-3-5
     // feature, python-3-5 takes priority.
     let mut vars = env::vars().collect::<Vec<_>>();
+
     vars.sort_by(|a, b| b.cmp(a));
     for (key, _) in vars {
         match re.captures(&key) {
@@ -493,13 +543,15 @@ fn main() {
         Ok(v) => v,
         Err(_) => PythonVersion { major: 3, minor: None }
     };
-    let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
+
+    let interpreter_configuration: InterpreterConfig = try!(find_interpreter(&version));
+    let (python_interpreter_path, flags) = emit_cargo_vars_from_configuration(interpreter_configuration).unwrap();
     let mut config_map = get_config_vars(&python_interpreter_path).unwrap();
 
     config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
 
     // WITH_THREAD is always on for 3.7
-    let (interpreter_version, _, _) = find_interpreter_and_get_config(&version).unwrap();
+    let (interpreter_version, _, _) = find_interpreter(&version).unwrap();
     if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
     }
@@ -538,3 +590,27 @@ fn main() {
     println!("cargo:python_flags={}",
              if flags.len() > 0 { &flags[..flags.len() - 1] } else { "" });
 }
+
+
+#[cfg(test)]
+mod test {
+    use std::env;
+    use {find_interpreter, PythonVersion, InterpreterConfig};
+
+    #[test]
+    fn test_correctly_detects_cpython() {
+        let python_version_major_only = PythonVersion { major: 3, minor: None };
+        let expected_config = InterpreterConfig {
+            version: python_version_major_only,
+            path: ("bla"),
+            libpath: String::from("bla"),
+            enable_shared: false,
+            ld_version: String::from("bla"),
+            exec_prefix: String::from("bla"),
+            is_pypy: false,
+        };
+
+        assert_eq!(find_interpreter(&python_version_major_only).unwrap(), expected_config)
+    }
+}
+
