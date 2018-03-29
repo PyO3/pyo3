@@ -474,7 +474,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "Hello\n".to_object(py);
-        let s = PyString::try_from(v.as_ref(py)).unwrap();
+        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
         assert_eq!(format!("{:?}", s), "'Hello\\n'");
     }
 
@@ -483,7 +483,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "Hello\n".to_object(py);
-        let s = PyString::try_from(v.as_ref(py)).unwrap();
+        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
         assert_eq!(format!("{}", s), "Hello\n");
     }
 

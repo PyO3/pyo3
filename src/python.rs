@@ -263,7 +263,7 @@ impl<'p> Python<'p> {
     {
         unsafe {
             let p = pythonrun::register_owned(self, obj.into_ptr());
-            T::try_from(p)
+            <T as PyTryFrom>::try_from(p)
         }
     }
 

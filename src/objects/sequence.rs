@@ -237,7 +237,7 @@ impl <'source, T> FromPyObject<'source> for Vec<T>
 
 fn extract_sequence<'s, T>(obj: &'s PyObjectRef) -> PyResult<Vec<T>> where T: FromPyObject<'s>
 {
-    let seq = PySequence::try_from(obj)?;
+    let seq = <PySequence as PyTryFrom>::try_from(obj)?;
     let mut v = Vec::with_capacity(seq.len().unwrap_or(0) as usize);
     for item in seq.iter()? {
         v.push(item?.extract::<T>()?);
@@ -261,7 +261,7 @@ impl PyTryFrom for PySequence
     }
 
     fn try_from_exact(value: &PyObjectRef) -> Result<&PySequence, Self::Error> {
-        PySequence::try_from(value)
+        <PySequence as PyTryFrom>::try_from(value)
     }
 
     fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, Self::Error> {
@@ -294,7 +294,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = 42i32;
-        assert!(PySequence::try_from(v.to_object(py).as_ref(py)).is_err());
+        assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_err());
     }
 
     #[test]
@@ -302,7 +302,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "London Calling";
-        assert!(PySequence::try_from(v.to_object(py).as_ref(py)).is_ok());
+        assert!(<PySequence as PyTryFrom>::try_from(v.to_object(py).as_ref(py)).is_ok());
     }
     #[test]
     fn test_seq_empty() {
@@ -539,7 +539,7 @@ mod test {
         let py = gil.python();
         let v = "foo";
         let ob = v.to_object(py);
-        let seq = PySequence::try_from(ob.as_ref(py)).unwrap();
+        let seq = <PySequence as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(seq.list().is_ok());
     }
 

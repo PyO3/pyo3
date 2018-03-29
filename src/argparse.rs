@@ -80,8 +80,8 @@ pub fn parse_args<'p>(fname: Option<&str>, params: &[ParamDescription],
     if !accept_kwargs && used_keywords != nkeywords {
         // check for extraneous keyword arguments
         for item in kwargs.unwrap().items().iter() {
-            let item = PyTuple::try_from(item)?;
-            let key = PyString::try_from(item.get_item(0))?.to_string()?;
+            let item = <PyTuple as PyTryFrom>::try_from(item)?;
+            let key = <PyString as PyTryFrom>::try_from(item.get_item(0))?.to_string()?;
             if !params.iter().any(|p| p.name == key) {
                 return Err(exc::TypeError::new(
                     format!("'{}' is an invalid keyword argument for this function", key)));

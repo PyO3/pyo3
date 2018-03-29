@@ -151,7 +151,7 @@ impl<'a, T> FromPyObject<'a> for &'a T
 {
     #[inline]
     default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T> {
-        Ok(T::try_from(ob)?)
+        Ok(<T as PyTryFrom>::try_from(ob)?)
     }
 }
 
