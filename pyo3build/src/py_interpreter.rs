@@ -550,12 +550,16 @@ mod test {
             minor: None,
         };
         let expected_config = InterpreterConfig {
-            version: python_version_major_only,
-            path: (PathBuf::from("bla")),
-            libpath: String::from("bla"),
+            version: PythonVersion {
+                major: 3,
+                minor: Some(6)
+            },
+            // We can't reliably test this unless we make some assumptions
+            path: (PathBuf::from("/Users/omerba/anaconda/bin/python")),
+            libpath: String::from("some_lib_path"),
             enable_shared: false,
-            ld_version: String::from("bla"),
-            exec_prefix: String::from("bla"),
+            ld_version: String::from("3.6m"),
+            exec_prefix: String::from("some_exec_prefix"),
             is_pypy: false,
         };
 
@@ -565,5 +569,18 @@ mod test {
 
         assert_eq!(interpreter.version, expected_config.version);
         assert_eq!(interpreter.path, expected_config.path);
+    }
+
+    #[test]
+    fn test_correctly_detects_python_from_envvar() {
+        env::set_var("PYTHON_SYS_EXECUTABLE", "/Users/omerba/anaconda/envs/python-rust-bindings/bin/pypy3");
+        let python_version_major_only = PythonVersion {
+            major: 3,
+            minor: None,
+        };
+        let interpreter = find_interpreter(&python_version_major_only).unwrap();
+        env::set_var("PYTHON_SYS_EXECUTABLE", "");
+
+        assert_eq!(interpreter.is_pypy, true);
     }
 }
