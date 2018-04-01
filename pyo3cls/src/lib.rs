@@ -5,24 +5,14 @@
 
 extern crate proc_macro;
 extern crate syn;
-#[macro_use] extern crate quote;
-#[macro_use] extern crate log;
+extern crate quote;
+extern crate pyo3_derive_backend;
 
 use std::str::FromStr;
 use proc_macro::TokenStream;
 
 use quote::{Tokens, ToTokens};
-
-mod py_class;
-mod py_impl;
-mod py_proto;
-mod py_method;
-mod args;
-mod defs;
-mod func;
-mod method;
-mod module;
-mod utils;
+use pyo3_derive_backend::*;
 
 
 #[proc_macro_attribute]
