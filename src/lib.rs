@@ -140,6 +140,9 @@ extern crate spin;
 extern crate pyo3cls;
 #[macro_use] extern crate log;
 
+#[macro_use]
+extern crate pretty_assertions;
+
 #[cfg(not(Py_3))]
 mod ffi2;
 

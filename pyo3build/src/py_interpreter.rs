@@ -1,17 +1,86 @@
-use std::fmt;
-use std::process::Command;
 use std::env;
+use std::fmt;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 extern crate regex;
+
 use self::regex::Regex;
 
 use std::collections::HashMap;
 use std::string::String;
 
+// Code copied from python wheel package
+const GET_ABI_TAG: &'static str = "
+from sysconfig import get_config_var
+import platform
+import sys
+
+def get_impl_ver():
+    impl_ver = get_config_var('py_version_nodot')
+    if not impl_ver or get_abbr_impl() == 'pp':
+        impl_ver = ''.join(map(str, get_impl_version_info()))
+    return impl_ver
+
+def get_flag(var, fallback, expected=True, warn=True):
+    val = get_config_var(var)
+    if val is None:
+        if warn:
+            warnings.warn('Config variable {0} is unset, Python ABI tag may '
+                          'be incorrect'.format(var), RuntimeWarning, 2)
+        return fallback()
+    return val == expected
+
+
+def get_abbr_impl():
+    impl = platform.python_implementation()
+    if impl == 'PyPy':
+        return 'pp'
+    elif impl == 'Jython':
+        return 'jy'
+    elif impl == 'IronPython':
+        return 'ip'
+    elif impl == 'CPython':
+        return 'cp'
+
+    raise LookupError('Unknown Python implementation: ' + impl)
+
+def get_abi_tag():
+    soabi = get_config_var('SOABI')
+    impl = get_abbr_impl()
+    if not soabi and impl in ('cp', 'pp') and hasattr(sys, 'maxunicode'):
+        d = ''
+        m = ''
+        u = ''
+        if get_flag('Py_DEBUG',
+                    lambda: hasattr(sys, 'gettotalrefcount'),
+                    warn=(impl == 'cp')):
+            d = 'd'
+        if get_flag('WITH_PYMALLOC',
+                    lambda: impl == 'cp',
+                    warn=(impl == 'cp')):
+            m = 'm'
+        if get_flag('Py_UNICODE_SIZE',
+                    lambda: sys.maxunicode == 0x10ffff,
+                    expected=4,
+                    warn=(impl == 'cp' and
+                          sys.version_info < (3, 3))) \
+                and sys.version_info < (3, 3):
+            u = 'u'
+        abi = '%s%s%s%s%s' % (impl, get_impl_ver(), d, m, u)
+    elif soabi and soabi.startswith('cpython-'):
+        abi = 'cp' + soabi.split('-')[1]
+    elif soabi:
+        abi = soabi.replace('.', '_').replace('-', '_')
+    else:
+        abi = None
+    return abi
+
+print(get_abi_tag())
+";
 
 // TODO: I'm not sure this works in windows
-fn canonicalize_executable<P>(exe_name: P) -> Option<PathBuf>
+pub fn canonicalize_executable<P>(exe_name: P) -> Option<PathBuf>
     where
         P: AsRef<Path>,
 {
@@ -31,9 +100,9 @@ fn canonicalize_executable<P>(exe_name: P) -> Option<PathBuf>
 
 #[derive(Debug, Copy, Clone)]
 pub struct PythonVersion {
-    major: u8,
+    pub major: u8,
     // minor == None means any minor version will do
-    minor: Option<u8>,
+    pub minor: Option<u8>,
 }
 
 impl PartialEq for PythonVersion {
@@ -54,18 +123,34 @@ impl fmt::Display for PythonVersion {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct InterpreterConfig {
-    version: PythonVersion,
-    path: PathBuf,
-    libpath: String,
-    enable_shared: bool,
-    ld_version: String,
-    exec_prefix: String,
-    is_pypy: bool,
+    pub version: PythonVersion,
+    pub path: PathBuf,
+    pub libpath: String,
+    pub enable_shared: bool,
+    pub ld_version: String,
+    pub exec_prefix: String,
+    pub abi_version: String,
+    pub is_pypy: bool,
 }
 
 impl InterpreterConfig {
+    fn new(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
+        let script = "import sys; print('__pypy__' in sys.builtin_module_names)";
+        let is_pypy: bool = run_python_script(&interpreter, script)
+            .unwrap()
+            .to_lowercase()
+            .trim_right()
+            .parse()
+            .unwrap();
+
+        if is_pypy {
+            return InterpreterConfig::from_pypy(interpreter);
+        } else {
+            return InterpreterConfig::from_cpython(interpreter);
+        }
+    }
     fn from_cpython(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
         let script = "import sys; import sysconfig;\
          print(sys.version_info[0:2]); \
@@ -75,17 +160,21 @@ impl InterpreterConfig {
          print(sys.exec_prefix);";
 
         let out = try!(run_python_script(&interpreter, script));
-
         let lines: Vec<&str> = out.lines().collect();
 
-        let cpython_version = try!(parse_interpreter_version(&lines[0]));
+        let abi_tag = try!(run_python_script(&interpreter, GET_ABI_TAG))
+            .trim_right()
+            .to_string();
+
+        let interpreter_version = try!(parse_interpreter_version(&lines[0]));
 
         Ok(InterpreterConfig {
-            version: cpython_version,
+            version: interpreter_version,
             path: interpreter,
             libpath: lines[1].to_string(),
             enable_shared: lines[2] == "1",
             ld_version: lines[3].to_string(),
+            abi_version: abi_tag,
             exec_prefix: lines[4].to_string(),
             is_pypy: false,
         })
@@ -93,6 +182,15 @@ impl InterpreterConfig {
 
     // TODO: implement me nicely!
     fn from_pypy(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
+        let script = "import sysconfig; import os;\
+        print(os.path.join(sysconfig.get_path('data'), 'lib'))
+        print(sys.exec_prefix);
+        ";
+
+        let abi_tag = try!(run_python_script(&interpreter, GET_ABI_TAG))
+            .trim_right()
+            .to_string();
+
         Ok(InterpreterConfig {
             version: PythonVersion {
                 major: 3,
@@ -103,22 +201,41 @@ impl InterpreterConfig {
             enable_shared: true,
             ld_version: "3.5".to_string(),
             exec_prefix: "/Users/omerba/anaconda".to_string(),
+            abi_version: abi_tag,
             is_pypy: true,
         })
     }
 }
 
-const PY3_MIN_MINOR: u8 = 5;
-
 const CFG_KEY: &'static str = "py_sys_config";
 
-// windows' python writes out lines with the windows crlf sequence;
-// posix platforms and mac os should write out lines with just lf.
-#[cfg(target_os = "windows")]
-static NEWLINE_SEQUENCE: &'static str = "\r\n";
+static SYSCONFIG_VALUES: [&'static str; 1] = [
+    // cfg doesn't support flags with values, just bools - so flags
+    // below are translated into bools as {varname}_{val}
+    //
+    // for example, Py_UNICODE_SIZE_2 or Py_UNICODE_SIZE_4
+    "Py_UNICODE_SIZE", // note - not present on python 3.3+, which is always wide
+];
 
-#[cfg(not(target_os = "windows"))]
-static NEWLINE_SEQUENCE: &'static str = "\n";
+
+pub fn is_value(key: &str) -> bool {
+    SYSCONFIG_VALUES.iter().find(|x| **x == key).is_some()
+}
+
+pub fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
+    if is_value(key) {
+        // is a value; suffix the key name with the value
+        Some(format!("cargo:rustc-cfg={}=\"{}_{}\"\n", CFG_KEY, key, val))
+    } else if val != "0" {
+        // is a flag that isn't zero
+        Some(format!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, key))
+    } else {
+        // is a flag that is zero
+        None
+    }
+}
+
+const PY3_MIN_MINOR: u8 = 5;
 
 // A list of python interpreter compile-time preprocessor defines that
 // we will pick up and pass to rustc via --cfg=py_sys_config={varname};
@@ -143,14 +260,6 @@ static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "COUNT_ALLOCS",
 ];
 
-static SYSCONFIG_VALUES: [&'static str; 1] = [
-    // cfg doesn't support flags with values, just bools - so flags
-    // below are translated into bools as {varname}_{val}
-    //
-    // for example, Py_UNICODE_SIZE_2 or Py_UNICODE_SIZE_4
-    "Py_UNICODE_SIZE", // note - not present on python 3.3+, which is always wide
-];
-
 /// Examine python's compile flags to pass to cfg by launching
 /// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
@@ -169,7 +278,7 @@ pub fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>,
 
     let out = try!(run_python_script(python_path, &script));
 
-    let split_stdout: Vec<&str> = out.trim_right().split(NEWLINE_SEQUENCE).collect();
+    let split_stdout: Vec<&str> = out.trim_right().lines().collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
         return Err(format!(
             "python stdout len didn't return expected number of lines: {}",
@@ -231,22 +340,6 @@ pub fn get_config_vars(_: &PathBuf) -> Result<HashMap<String, String>, String> {
     Ok(map)
 }
 
-fn is_value(key: &str) -> bool {
-    SYSCONFIG_VALUES.iter().find(|x| **x == key).is_some()
-}
-
-fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
-    if is_value(key) {
-        // is a value; suffix the key name with the value
-        Some(format!("cargo:rustc-cfg={}=\"{}_{}\"\n", CFG_KEY, key, val))
-    } else if val != "0" {
-        // is a flag that isn't zero
-        Some(format!("cargo:rustc-cfg={}=\"{}\"", CFG_KEY, key))
-    } else {
-        // is a flag that is zero
-        None
-    }
-}
 
 /// Run a python script using the specified interpreter binary.
 fn run_python_script(interpreter_path: &PathBuf, script: &str) -> Result<String, String> {
@@ -371,17 +464,6 @@ fn parse_interpreter_version(line: &str) -> Result<PythonVersion, String> {
     }
 }
 
-fn check_pypy(interpreter_path: &PathBuf) -> bool {
-    let script = "import sys; print('__pypy__' in sys.builtin_module_names)";
-    let is_pypy: bool = run_python_script(interpreter_path, script)
-        .unwrap()
-        .to_lowercase()
-        .trim_right()
-        .parse()
-        .unwrap();
-    return is_pypy;
-}
-
 /// Locate a suitable python interpreter and extract config from it.
 /// If the environment variable `PYTHON_SYS_EXECUTABLE`, use the provided
 /// path a Python executable, and raises an error if the version doesn't match.
@@ -401,13 +483,7 @@ pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterC
                 interpreter_path_or_executable
             ));
 
-        let interpreter_config: InterpreterConfig;
-
-        if check_pypy(&interpreter_path) {
-            interpreter_config = try!(InterpreterConfig::from_pypy(interpreter_path));
-        } else {
-            interpreter_config = try!(InterpreterConfig::from_cpython(interpreter_path));
-        }
+        let interpreter_config = try!(InterpreterConfig::new(interpreter_path));
 
         if expected_version == &interpreter_config.version {
             return Ok(interpreter_config);
@@ -431,8 +507,7 @@ pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterC
     for possible_path in possible_python_paths {
         let interpreter_path = canonicalize_executable(&possible_path);
         if interpreter_path.is_some() {
-            let interpreter_config =
-                try!(InterpreterConfig::from_cpython(interpreter_path.unwrap()));
+            let interpreter_config = try!(InterpreterConfig::new(interpreter_path.unwrap()));
             if expected_version == &interpreter_config.version {
                 return Ok(interpreter_config);
             }
@@ -506,7 +581,7 @@ pub fn emit_cargo_vars_from_configuration(
 ///
 /// The environment variable can choose to omit a minor
 /// version if the user doesn't care.
-fn version_from_env() -> Result<PythonVersion, String> {
+pub fn version_from_env() -> Result<PythonVersion, String> {
     let re = Regex::new(r"CARGO_FEATURE_PYTHON(\d+)(_(\d+))?").unwrap();
     // sort env::vars so we get more explicit version specifiers first
     // so if the user passes e.g. the python-3 feature and the python-3-5
@@ -539,8 +614,9 @@ fn version_from_env() -> Result<PythonVersion, String> {
 // TODO: move this somewhere these test could be ran
 #[cfg(test)]
 mod test {
+    use py_interpreter::canonicalize_executable;
+    use py_interpreter::{find_interpreter, run_python_script, InterpreterConfig, PythonVersion};
     use std::env;
-    use py_interpreter::{PythonVersion, InterpreterConfig, run_python_script, find_interpreter};
     use std::path::PathBuf;
 
     #[test]
@@ -552,14 +628,15 @@ mod test {
         let expected_config = InterpreterConfig {
             version: PythonVersion {
                 major: 3,
-                minor: Some(6)
+                minor: Some(6),
             },
             // We can't reliably test this unless we make some assumptions
             path: (PathBuf::from("/Users/omerba/anaconda/bin/python")),
-            libpath: String::from("some_lib_path"),
-            enable_shared: false,
+            libpath: String::from("/Users/omerba/anaconda/lib"),
+            enable_shared: true,
             ld_version: String::from("3.6m"),
-            exec_prefix: String::from("some_exec_prefix"),
+            exec_prefix: String::from("/Users/omerba/anaconda"),
+            abi_version: String::from("cp36m"),
             is_pypy: false,
         };
 
@@ -567,20 +644,42 @@ mod test {
 
         println!("{:?}", interpreter);
 
-        assert_eq!(interpreter.version, expected_config.version);
-        assert_eq!(interpreter.path, expected_config.path);
+        assert_eq!(interpreter, expected_config);
     }
 
     #[test]
     fn test_correctly_detects_python_from_envvar() {
-        env::set_var("PYTHON_SYS_EXECUTABLE", "/Users/omerba/anaconda/envs/python-rust-bindings/bin/pypy3");
+        let test_path =
+            canonicalize_executable("pypy3").expect("pypy3 not found in PATH, cannot test");
+
+        env::set_var(
+            "PYTHON_SYS_EXECUTABLE",
+            test_path.into_os_string().into_string().unwrap(),
+        );
+
         let python_version_major_only = PythonVersion {
             major: 3,
             minor: None,
         };
+
         let interpreter = find_interpreter(&python_version_major_only).unwrap();
         env::set_var("PYTHON_SYS_EXECUTABLE", "");
 
-        assert_eq!(interpreter.is_pypy, true);
+        let expected_config = InterpreterConfig {
+            version: PythonVersion {
+                major: 3,
+                minor: Some(5),
+            },
+            // We can't reliably test this unless we make some assumptions
+            path: (PathBuf::from("/Users/omerba/anaconda/bin/pypy3")),
+            libpath: String::from("/Users/omerba/anaconda/lib"),
+            enable_shared: true,
+            ld_version: String::from("3.5"),
+            exec_prefix: String::from("/Users/omerba/anaconda"),
+            abi_version: String::from("pypy3_510"),
+            is_pypy: true,
+        };
+
+        assert_eq!(interpreter, expected_config);
     }
 }
