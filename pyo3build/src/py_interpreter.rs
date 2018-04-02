@@ -180,27 +180,29 @@ impl InterpreterConfig {
         })
     }
 
-    // TODO: implement me nicely!
     fn from_pypy(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
-        let script = "import sysconfig; import os;\
-        print(os.path.join(sysconfig.get_path('data'), 'lib'))
+        let script = "import sysconfig; import sys; import os;\
+        print(sys.version_info[0:2]); \
+        print(os.path.join(sysconfig.get_path('data'), 'lib')); \
         print(sys.exec_prefix);
         ";
+
+        let out = try!(run_python_script(&interpreter, script));
+        let lines: Vec<&str> = out.lines().collect();
 
         let abi_tag = try!(run_python_script(&interpreter, GET_ABI_TAG))
             .trim_right()
             .to_string();
 
+        let interpreter_version = try!(parse_interpreter_version(&lines[0]));
+
         Ok(InterpreterConfig {
-            version: PythonVersion {
-                major: 3,
-                minor: Some(5),
-            },
+            version: interpreter_version,
             path: interpreter,
-            libpath: "/Users/omerba/anaconda/lib".to_string(),
+            libpath: lines[1].to_string(),
             enable_shared: true,
             ld_version: "3.5".to_string(),
-            exec_prefix: "/Users/omerba/anaconda".to_string(),
+            exec_prefix: lines[2].to_string(),
             abi_version: abi_tag,
             is_pypy: true,
         })
@@ -611,7 +613,7 @@ pub fn version_from_env() -> Result<PythonVersion, String> {
     )
 }
 
-// TODO: move this somewhere these test could be ran
+
 #[cfg(test)]
 mod test {
     use py_interpreter::canonicalize_executable;
