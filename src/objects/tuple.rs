@@ -194,7 +194,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(obj: &'s PyObjectRef) -> PyResult<Self>
         {
-            let t = PyTuple::try_from(obj)?;
+            let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
@@ -248,7 +248,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = PyTuple::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
         let ob: &PyObjectRef = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
@@ -259,7 +259,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = PyTuple::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
@@ -272,7 +272,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = PyTuple::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
 
         let mut i = 0;

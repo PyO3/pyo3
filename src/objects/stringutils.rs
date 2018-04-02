@@ -57,7 +57,7 @@ impl<'a> IntoPyObject for &'a String {
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> ::FromPyObject<'source> for Cow<'source, str> {
     fn extract(ob: &'source PyObjectRef) -> PyResult<Self> {
-        PyString::try_from(ob)?.to_string()
+        <PyString as PyTryFrom>::try_from(ob)?.to_string()
     }
 }
 

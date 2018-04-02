@@ -81,7 +81,7 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj = vec![10, 20].to_object(py);
-        let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
+        let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
         let mut it = inst.iter().unwrap();
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
@@ -102,7 +102,7 @@ mod tests {
         {
             let gil_guard = Python::acquire_gil();
             let py = gil_guard.python();
-            let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
+            let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
@@ -130,7 +130,7 @@ mod tests {
 
         {
             let _pool = GILPool::new();
-            let inst = PyObjectRef::try_from(obj.as_ref(py)).unwrap();
+            let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());

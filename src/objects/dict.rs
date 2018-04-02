@@ -331,11 +331,11 @@ mod test {
         let py = gil.python();
         let mut v = HashMap::new();
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(0, dict.len());
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict2 = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict2 = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(1, dict2.len());
     }
 
@@ -346,7 +346,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(true, dict.contains(7i32).unwrap());
         assert_eq!(false, dict.contains(8i32).unwrap());
     }
@@ -358,7 +358,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
         assert_eq!(None, dict.get_item(8i32));
     }
@@ -370,7 +370,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(42i32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
@@ -402,7 +402,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
@@ -416,7 +416,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.del_item(7i32).is_ok());
         assert_eq!(0, dict.len());
         assert_eq!(None, dict.get_item(7i32));
@@ -429,7 +429,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.del_item(7i32).is_ok()); // change
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
@@ -443,7 +443,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
@@ -465,7 +465,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         for el in dict.keys().iter() {
@@ -483,7 +483,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut values_sum = 0;
         for el in dict.values().iter() {
@@ -501,7 +501,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict.iter() {
@@ -521,7 +521,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict {
@@ -541,7 +541,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -556,7 +556,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -571,7 +571,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.into_object(py);
-        let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -587,7 +587,7 @@ mod test {
 
         let m = map.into_dict_ptr(py);
         let ob = unsafe{PyObject::from_owned_ptr(py, m)};
-        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -602,7 +602,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.into_object(py);
-        let py_map = PyDict::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -618,7 +618,7 @@ mod test {
 
         let m = map.into_dict_ptr(py);
         let ob = unsafe{PyObject::from_owned_ptr(py, m)};
-        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -631,14 +631,14 @@ mod test {
 
         let m = ((1, 1),).into_dict_ptr(py);
         let ob = unsafe{PyObject::from_owned_ptr(py, m)};
-        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
 
         let m = ((1, 1), (2, 3)).into_dict_ptr(py);
         let ob = unsafe{PyObject::from_owned_ptr(py, m)};
-        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 2);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -652,7 +652,7 @@ mod test {
 
         let m = (1, 1).into_dict_ptr(py);
         let ob = unsafe{PyObject::from_owned_ptr(py, m)};
-        let py_map = PyDict::try_from(ob.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
