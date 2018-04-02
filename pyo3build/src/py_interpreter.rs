@@ -620,6 +620,7 @@ mod test {
     use py_interpreter::{find_interpreter, run_python_script, InterpreterConfig, PythonVersion};
     use std::env;
     use std::path::PathBuf;
+    use py_interpreter::GET_ABI_TAG;
 
     #[test]
     fn test_correctly_detects_cpython() {
@@ -632,12 +633,11 @@ mod test {
                 major: 3,
                 minor: Some(6),
             },
-            // We can't reliably test this unless we make some assumptions
-            path: (PathBuf::from("/Users/omerba/anaconda/bin/python")),
-            libpath: String::from("/Users/omerba/anaconda/lib"),
+            path: (canonicalize_executable("python").unwrap()),
+            libpath: String::from("some_path"),
             enable_shared: true,
             ld_version: String::from("3.6m"),
-            exec_prefix: String::from("/Users/omerba/anaconda"),
+            exec_prefix: String::from("some_path"),
             abi_version: String::from("cp36m"),
             is_pypy: false,
         };
@@ -646,7 +646,11 @@ mod test {
 
         println!("{:?}", interpreter);
 
-        assert_eq!(interpreter, expected_config);
+        assert_eq!(interpreter.version, expected_config.version);
+        assert_eq!(interpreter.enable_shared, expected_config.enable_shared);
+        assert_eq!(interpreter.ld_version, expected_config.ld_version);
+        assert_eq!(interpreter.abi_version, expected_config.abi_version);
+        assert_eq!(interpreter.is_pypy, expected_config.is_pypy);
     }
 
     #[test]
@@ -656,7 +660,7 @@ mod test {
 
         env::set_var(
             "PYTHON_SYS_EXECUTABLE",
-            test_path.into_os_string().into_string().unwrap(),
+            test_path.clone().into_os_string().into_string().unwrap()
         );
 
         let python_version_major_only = PythonVersion {
@@ -667,21 +671,31 @@ mod test {
         let interpreter = find_interpreter(&python_version_major_only).unwrap();
         env::set_var("PYTHON_SYS_EXECUTABLE", "");
 
+        let abi_tag = run_python_script(&test_path, GET_ABI_TAG)
+            .unwrap()
+            .trim_right()
+            .to_string();
+
+
         let expected_config = InterpreterConfig {
             version: PythonVersion {
                 major: 3,
                 minor: Some(5),
             },
             // We can't reliably test this unless we make some assumptions
-            path: (PathBuf::from("/Users/omerba/anaconda/bin/pypy3")),
-            libpath: String::from("/Users/omerba/anaconda/lib"),
+            path: (canonicalize_executable("python").unwrap()),
+            libpath: String::from("some_path"),
             enable_shared: true,
             ld_version: String::from("3.5"),
-            exec_prefix: String::from("/Users/omerba/anaconda"),
-            abi_version: String::from("pypy3_510"),
+            exec_prefix: String::from("some_path"),
+            abi_version: String::from(abi_tag),
             is_pypy: true,
         };
 
-        assert_eq!(interpreter, expected_config);
+        assert_eq!(interpreter.version, expected_config.version);
+        assert_eq!(interpreter.enable_shared, expected_config.enable_shared);
+        assert_eq!(interpreter.ld_version, expected_config.ld_version);
+        assert_eq!(interpreter.abi_version, expected_config.abi_version);
+        assert_eq!(interpreter.is_pypy, expected_config.is_pypy);
     }
 }
