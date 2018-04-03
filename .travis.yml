@@ -35,7 +35,6 @@ before_script:
     if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
         ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
     fi
-  - mkdir ~/.cargo/bin
   - export PATH=$PATH:~/.cargo/bin
 
 install:
@@ -61,7 +60,7 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
     cargo doc --no-deps &&
     echo "<meta http-equiv=refresh content=0;url=os_balloon/index.html>" > target/doc/index.html &&
-    curl -sL https://github.com/rust-lang-nursery/mdBook/releases/download/v0.1.5/mdbook-v0.1.5-x86_64-unknown-linux-gnu.tar.gz | tar xvz -C $HOME/.cargo/bin &&
+    curl -sL https://github.com/rust-lang-nursery/mdBook/releases/download/v0.1.5/mdbook-v0.1.5-x86_64-unknown-linux-gnu.tar.gz | tar xvz -C $HOME/rust/bin &&
     cd guide && mdbook build -d ../target/doc/guide && cd .. &&
     git clone https://github.com/davisp/ghp-import.git &&
     ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
