@@ -25,6 +25,7 @@ fn main() {
         Err(_) => PythonVersion {
             major: 3,
             minor: None,
+            kind: None
         },
     };
 

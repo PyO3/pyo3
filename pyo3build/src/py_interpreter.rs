@@ -629,6 +629,7 @@ pub fn version_from_env() -> Result<PythonVersion, String> {
     let re = Regex::new(r"CARGO_FEATURE_PYTHON(\d+)(_(\d+))?").unwrap();
 
     let interpreter_kind;
+
     if cfg!(feature="pypy") {
         interpreter_kind = "pypy".to_string()
     } else {

@@ -141,7 +141,7 @@ impl UnicodeDecodeError {
             py.from_owned_ptr_or_err(
                 ffi::PyObject_CallFunction(
                     ffi::PyExc_UnicodeDecodeError,
-                    cstr!("sy#nns").as_ptr(),
+                    cstr!("sy#nns").as_ptr() as *mut i8,
                     encoding.as_ptr(),
                     input.as_ptr(),
                     input.len() as ffi::Py_ssize_t,
