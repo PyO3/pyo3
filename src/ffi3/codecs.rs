@@ -14,9 +14,11 @@ extern "C" {
                           errors: *const c_char) -> *mut PyObject;
     pub fn PyCodec_Encoder(encoding: *const c_char) -> *mut PyObject;
     pub fn PyCodec_Decoder(encoding: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCodec_IncrementalEncoder")]
     pub fn PyCodec_IncrementalEncoder(encoding: *const c_char,
                                       errors: *const c_char)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCodec_IncrementalDecoder")]
     pub fn PyCodec_IncrementalDecoder(encoding: *const c_char,
                                       errors: *const c_char)
      -> *mut PyObject;
@@ -39,4 +41,3 @@ extern "C" {
     pub fn PyCodec_BackslashReplaceErrors(exc: *mut PyObject)
      -> *mut PyObject;
 }
-

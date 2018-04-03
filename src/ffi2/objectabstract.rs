@@ -5,15 +5,13 @@ use ffi2::pyport::Py_ssize_t;
 use ffi2::object::*;
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelAttr")]
 #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelAttrString")]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttr")]
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttrString")]
     PyObject_SetAttrString(o, attr_name, ptr::null_mut())
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelAttr")]
 pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_int {
     PyObject_SetAttr(o, attr_name, ptr::null_mut())
 }
@@ -63,7 +61,6 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetItem")]
     pub fn PyObject_SetItem(o: *mut PyObject, key: *mut PyObject,
                             v: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelItem")]
     pub fn PyObject_DelItemString(o: *mut PyObject, key: *mut c_char)
      -> c_int;
     pub fn PyObject_DelItem(o: *mut PyObject, key: *mut PyObject)
@@ -294,10 +291,10 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
     pub fn PyMapping_Size(o: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Length")]
     pub fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_HasKey")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_HasKeyString")]
     pub fn PyMapping_HasKeyString(o: *mut PyObject, key: *mut c_char)
      -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_HasKey")]
     pub fn PyMapping_HasKey(o: *mut PyObject, key: *mut PyObject)
      -> c_int;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_GetItemString")]

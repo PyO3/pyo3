@@ -55,7 +55,6 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
     pub fn PyLong_AsLongAndOverflow(pylong: *mut PyObject,
                                     overflow: *mut c_int)
      -> c_long;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyLong_AsLongLong")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyLong_AsLongLongAndOverflow")]
     pub fn PyLong_AsLongLongAndOverflow(pylong: *mut PyObject,
                                         overflow: *mut c_int)
@@ -64,6 +63,7 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
     pub fn PyLong_AsSsize_t(pylong: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyLong_AsUnsignedLong")]
     pub fn PyLong_AsUnsignedLong(pylong: *mut PyObject) -> c_ulong;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyLong_AsLongLong")]
     pub fn PyLong_AsLongLong(pylong: *mut PyObject) -> c_longlong;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyLong_AsUnsignedLongLong")]
     pub fn PyLong_AsUnsignedLongLong(pylong: *mut PyObject)

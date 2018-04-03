@@ -4,10 +4,12 @@ use ffi3::object::*;
 use ffi3::methodobject::PyMethodDef;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_Type")]
     pub static mut PyModule_Type: PyTypeObject;
 }
 
 #[inline(always)]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_Check")]
 pub unsafe fn PyModule_Check(op : *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyModule_Type)
 }
@@ -20,6 +22,7 @@ pub unsafe fn PyModule_CheckExact(op : *mut PyObject) -> c_int {
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_GetDict")]
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;

@@ -29,22 +29,29 @@ pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
 };
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyClassMethodDescr_Type")]
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyGetSetDescr_Type")]
     pub static mut PyGetSetDescr_Type: PyTypeObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMemberDescr_Type")]
     pub static mut PyMemberDescr_Type: PyTypeObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethodDescr_Type")]
     pub static mut PyMethodDescr_Type: PyTypeObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyWrapperDescr_Type")]
     pub static mut PyWrapperDescr_Type: PyTypeObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
 
     pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDescr_NewClassMethod")]
     pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject,
                                   arg2: *mut PyMethodDef) -> *mut PyObject;
     pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
     pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyDictProxy_New")]
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyProperty_Type")]
     pub static mut PyProperty_Type: PyTypeObject;
 }
-
-

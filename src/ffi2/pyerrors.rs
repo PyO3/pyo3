@@ -170,11 +170,11 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub fn PyErr_NoMemory() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_SetFromErrno")]
     pub fn PyErr_SetFromErrno(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_SetFromErrnoWithFilename")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_SetFromErrnoWithFilenameObject")]
     pub fn PyErr_SetFromErrnoWithFilenameObject(arg1: *mut PyObject,
                                                 arg2: *mut PyObject)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_SetFromErrnoWithFilename")]
     pub fn PyErr_SetFromErrnoWithFilename(arg1: *mut PyObject,
                                           arg2: *const c_char)
      -> *mut PyObject;

@@ -4,8 +4,10 @@ use ffi3::pyport::Py_ssize_t;
 use ffi3::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Malloc")]
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
     pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Realloc")]
     pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Free")]
     pub fn PyObject_Free(ptr: *mut c_void) -> ();

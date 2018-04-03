@@ -43,7 +43,6 @@ pub enum Struct_symtable { }
     pub fn PyRun_AnyFileExFlags(arg1: *mut FILE, arg2: *const c_char,
                                 arg3: c_int,
                                 arg4: *mut PyCompilerFlags) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_SimpleString")]
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char,
                                    arg2: *mut PyCompilerFlags)
      -> c_int;
@@ -81,12 +80,10 @@ pub enum Struct_symtable { }
                                          arg3: c_int,
                                          arg4: c_int)
      -> *mut Struct__node;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_String")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(arg1: *const c_char, arg2: c_int,
                              arg3: *mut PyObject, arg4: *mut PyObject,
                              arg5: *mut PyCompilerFlags) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_File")]
     pub fn PyRun_FileExFlags(arg1: *mut FILE, arg2: *const c_char,
                              arg3: c_int, arg4: *mut PyObject,
                              arg5: *mut PyObject, arg6: c_int,

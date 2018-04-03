@@ -3,6 +3,7 @@ use ffi3::pyport::Py_ssize_t;
 use ffi3::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Type")]
     pub static mut PyList_Type: PyTypeObject;
     pub static mut PyListIter_Type: PyTypeObject;
     pub static mut PyListRevIter_Type: PyTypeObject;
@@ -19,19 +20,28 @@ pub unsafe fn PyList_CheckExact(op : *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_New")]
     pub fn PyList_New(size: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Size")]
     pub fn PyList_Size(arg1: *mut PyObject) -> Py_ssize_t;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_GetItem")]
     pub fn PyList_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_SetItem")]
     pub fn PyList_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Insert")]
     pub fn PyList_Insert(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Append")]
     pub fn PyList_Append(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_GetSlice")]
     pub fn PyList_GetSlice(arg1: *mut PyObject, arg2: Py_ssize_t,
                            arg3: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_SetSlice")]
     pub fn PyList_SetSlice(arg1: *mut PyObject, arg2: Py_ssize_t,
                            arg3: Py_ssize_t, arg4: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Sort")]
     pub fn PyList_Sort(arg1: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_Reverse")]
     pub fn PyList_Reverse(arg1: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyList_AsTuple")]
     pub fn PyList_AsTuple(arg1: *mut PyObject) -> *mut PyObject;
 }

@@ -25,7 +25,6 @@ pub struct PyWeakReference {
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_Check")]
 #[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_CheckRef")]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyWeakref_RefType)

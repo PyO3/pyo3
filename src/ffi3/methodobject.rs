@@ -3,10 +3,12 @@ use std::{mem, ptr};
 use ffi3::object::{PyObject, PyTypeObject, Py_TYPE};
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 
 #[inline(always)]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_Check")]
 pub unsafe fn PyCFunction_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
 }
@@ -30,6 +32,7 @@ pub type PyNoArgsFunction =
     unsafe extern "C" fn(slf: *mut PyObject) -> *mut PyObject;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
@@ -60,6 +63,7 @@ impl Default for PyMethodDef {
 
 #[inline(always)]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_NewEx")]
     PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }
 
@@ -95,4 +99,3 @@ pub const METHOD_FASTCALL : c_int = 0x0080;
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyCFunction_ClearFreeList() -> c_int;
 }
-

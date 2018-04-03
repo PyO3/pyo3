@@ -3,7 +3,6 @@ use ffi2::pyport::Py_ssize_t;
 use ffi2::object::PyObject;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Warn")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_WarnEx")]
     pub fn PyErr_WarnEx(category: *mut PyObject, msg: *const c_char,
                         stacklevel: Py_ssize_t) -> c_int;
@@ -16,6 +15,7 @@ use ffi2::object::PyObject;
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Warn")]
 pub unsafe fn PyErr_Warn(category: *mut PyObject, msg: *const c_char) -> c_int {
     PyErr_WarnEx(category, msg, 1)
 }

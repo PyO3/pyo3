@@ -3,6 +3,7 @@ use ffi3::pyport::Py_ssize_t;
 use ffi3::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}__PyPy_EllipsisObject")]
     static mut _Py_EllipsisObject: PyObject;
 }
 
@@ -12,25 +13,29 @@ pub unsafe fn Py_Ellipsis() -> *mut PyObject {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySlice_Type")]
     pub static mut PySlice_Type: PyTypeObject;
     pub static mut PyEllipsis_Type: PyTypeObject;
 }
 
 #[inline(always)]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPySlice_Check")]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
      (Py_TYPE(op) == &mut PySlice_Type) as c_int
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySlice_New")]
     pub fn PySlice_New(start: *mut PyObject, stop: *mut PyObject,
                        step: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySlice_GetIndices")]
     pub fn PySlice_GetIndices(r: *mut PyObject, length: Py_ssize_t,
                               start: *mut Py_ssize_t, stop: *mut Py_ssize_t,
                               step: *mut Py_ssize_t) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySlice_GetIndicesEx")]
     pub fn PySlice_GetIndicesEx(r: *mut PyObject, length: Py_ssize_t,
                                 start: *mut Py_ssize_t, stop: *mut Py_ssize_t,
                                 step: *mut Py_ssize_t,
                                 slicelength: *mut Py_ssize_t)
      -> c_int;
 }
-

@@ -2,10 +2,12 @@ use std::os::raw::{c_char, c_int, c_double};
 use ffi3::object::PyObject;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyOS_string_to_double")]
     pub fn PyOS_string_to_double(str: *const c_char,
                                  endptr: *mut *mut c_char,
                                  overflow_exception: *mut PyObject)
      -> c_double;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyOS_double_to_string")]
     pub fn PyOS_double_to_string(val: c_double,
                                  format_code: c_char,
                                  precision: c_int,
@@ -23,4 +25,3 @@ pub const Py_DTSF_ALT       : c_int = 0x04; /* "alternate" formatting. it's form
 pub const Py_DTST_FINITE: c_int = 0;
 pub const Py_DTST_INFINITE: c_int = 1;
 pub const Py_DTST_NAN: c_int = 2;
-

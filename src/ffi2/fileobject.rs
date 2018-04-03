@@ -8,7 +8,6 @@ use ffi2::object::*;
 
 #[inline(always)]
 pub unsafe fn PyFile_Check(op : *mut PyObject) -> c_int {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Type")]
     PyObject_TypeCheck(op, &mut PyFile_Type)
 }
 

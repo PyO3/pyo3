@@ -5,7 +5,9 @@ use ffi3::pyport::Py_ssize_t;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn Py_DecodeLocale(arg1: *const c_char, arg2: Py_ssize_t) -> *mut wchar_t;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySys_GetObject")]
     pub fn PySys_GetObject(arg1: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySys_SetObject")]
     pub fn PySys_SetObject(arg1: *const c_char, arg2: *mut PyObject)
      -> c_int;
     pub fn PySys_SetArgv(arg1: c_int, arg2: *mut *mut wchar_t) -> ();
