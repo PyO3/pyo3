@@ -5,6 +5,7 @@ mod exc_impl;
 
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
+pub use self::datetime::{PyDate};
 pub use self::dict::PyDict;
 pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
@@ -185,6 +186,7 @@ pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject
 
 mod boolobject;
 mod bytearray;
+mod datetime;
 mod dict;
 pub mod exc;
 mod floatob;
