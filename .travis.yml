@@ -55,7 +55,8 @@ install:
 script:
   - make test
   # - make clippy
-  # upload docs
+
+after_success:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
     cargo doc --no-deps &&
@@ -67,7 +68,6 @@ script:
     echo "Uploaded documentation"
     fi
 
-after_success:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
       wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
