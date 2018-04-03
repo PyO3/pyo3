@@ -620,6 +620,7 @@ impl Default for PyType_Spec {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyType_FromSpec")]
     pub fn PyType_FromSpec(arg1: *mut PyType_Spec) -> *mut PyObject;
 
     pub fn PyType_FromSpecWithBases(arg1: *mut PyType_Spec, arg2: *mut PyObject)
@@ -660,6 +661,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyType_GenericAlloc")]
     pub fn PyType_GenericAlloc(t: *mut PyTypeObject, nitems: Py_ssize_t) -> *mut PyObject;
     pub fn PyType_GenericNew(t: *mut PyTypeObject, args: *mut PyObject,
                              kwds: *mut PyObject) -> *mut PyObject;
@@ -707,6 +709,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyObject_CallFinalizer(arg1: *mut PyObject) -> ();
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallFinalizerFromDealloc")]
     pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
     pub fn PyObject_Dir(arg1: *mut PyObject) -> *mut PyObject;
@@ -782,6 +785,7 @@ pub unsafe fn PyType_FastSubclass(t : *mut PyTypeObject, f : c_ulong) -> c_int {
 #[inline(always)]
 pub unsafe fn Py_INCREF(op : *mut PyObject) {
     if cfg!(py_sys_config="Py_REF_DEBUG") {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_IncRef")]
         Py_IncRef(op)
     } else {
         (*op).ob_refcnt += 1
@@ -791,6 +795,7 @@ pub unsafe fn Py_INCREF(op : *mut PyObject) {
 #[inline(always)]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
     if cfg!(py_sys_config="Py_REF_DEBUG") {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_DecRef")]
         Py_DecRef(op)
     } else {
         (*op).ob_refcnt -= 1;

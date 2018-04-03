@@ -25,6 +25,7 @@ pub unsafe fn PyTuple_CheckExact(op : *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_New")]
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
     pub fn PyTuple_Size(arg1: *mut PyObject) -> Py_ssize_t;
     pub fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
@@ -32,6 +33,7 @@ pub unsafe fn PyTuple_CheckExact(op : *mut PyObject) -> c_int {
                            arg3: *mut PyObject) -> c_int;
     pub fn PyTuple_GetSlice(arg1: *mut PyObject, arg2: Py_ssize_t,
                             arg3: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_Pack")]
     pub fn PyTuple_Pack(arg1: Py_ssize_t, ...) -> *mut PyObject;
     pub fn PyTuple_ClearFreeList() -> c_int;
 }

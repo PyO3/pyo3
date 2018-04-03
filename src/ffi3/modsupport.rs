@@ -5,27 +5,37 @@ use ffi3::moduleobject::PyModuleDef;
 use ffi3::methodobject::PyMethodDef;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyArg_Parse")]
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyArg_ParseTuple")]
     pub fn PyArg_ParseTuple(arg1: *mut PyObject,
                             arg2: *const c_char, ...) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyArg_ParseTupleAndKeywords")]
     pub fn PyArg_ParseTupleAndKeywords(arg1: *mut PyObject,
                                        arg2: *mut PyObject,
                                        arg3: *const c_char,
                                        arg4: *mut *mut c_char, ...) -> c_int;
     pub fn PyArg_ValidateKeywordArguments(arg1: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyArg_UnpackTuple")]
     pub fn PyArg_UnpackTuple(arg1: *mut PyObject, arg2: *const c_char,
                              arg3: Py_ssize_t, arg4: Py_ssize_t, ...) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_BuildValue")]
     pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}__PyPy_BuildValue_SizeT")]
     //pub fn _Py_BuildValue_SizeT(arg1: *const c_char, ...)
     // -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_VaBuildValue")]
     //pub fn Py_VaBuildValue(arg1: *const c_char, arg2: va_list)
     // -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_AddObject")]
     pub fn PyModule_AddObject(arg1: *mut PyObject,
                               arg2: *const c_char,
                               arg3: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_AddIntConstant")]
     pub fn PyModule_AddIntConstant(arg1: *mut PyObject,
                                    arg2: *const c_char,
                                    arg3: c_long) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_AddStringConstant")]
     pub fn PyModule_AddStringConstant(arg1: *mut PyObject,
                                       arg2: *const c_char,
                                       arg3: *const c_char) -> c_int;

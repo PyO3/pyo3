@@ -25,8 +25,11 @@ pub unsafe fn PyModule_CheckExact(op : *mut PyObject) -> c_int {
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;
     pub fn PyModule_GetFilename(arg1: *mut PyObject) -> *const c_char;
     pub fn PyModule_GetFilenameObject(arg1: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_GetDef")]
     pub fn PyModule_GetDef(arg1: *mut PyObject) -> *mut PyModuleDef;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModule_GetState")]
     pub fn PyModule_GetState(arg1: *mut PyObject) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyModuleDef_Init")]
     pub fn PyModuleDef_Init(arg1: *mut PyModuleDef) -> *mut PyObject;
     pub static mut PyModuleDef_Type: PyTypeObject;
 }

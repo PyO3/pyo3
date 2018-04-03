@@ -18,17 +18,21 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
                          kw: *mut PyObject) -> *mut PyObject;
     pub fn PyObject_CallObject(callable_object: *mut PyObject,
                                args: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallFunction")]
     #[cfg_attr(PyPy, link_name = "\u{1}_PyPyObject_CallFunction")]
     pub fn PyObject_CallFunction(callable_object: *mut PyObject,
                                  format: *const c_char, ...)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallMethod")]
     pub fn PyObject_CallMethod(o: *mut PyObject,
                                method: *const c_char,
                                format: *const c_char, ...)
      -> *mut PyObject;
 
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallFunctionObjArgs")]
     pub fn PyObject_CallFunctionObjArgs(callable: *mut PyObject, ...)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallMethodObjArgs")]
     pub fn PyObject_CallMethodObjArgs(o: *mut PyObject,
                                       method: *mut PyObject, ...)
      -> *mut PyObject;
@@ -59,11 +63,14 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
                                  buffer: *mut *const c_char,
                                  buffer_len: *mut Py_ssize_t)
      -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CheckReadBuffer")]
     pub fn PyObject_CheckReadBuffer(obj: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_AsReadBuffer")]
     pub fn PyObject_AsReadBuffer(obj: *mut PyObject,
                                  buffer: *mut *const c_void,
                                  buffer_len: *mut Py_ssize_t)
      -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_AsWriteBuffer")]
     pub fn PyObject_AsWriteBuffer(obj: *mut PyObject,
                                   buffer: *mut *mut c_void,
                                   buffer_len: *mut Py_ssize_t)
@@ -79,13 +86,17 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetBuffer")]
     pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer,
                               flags: c_int) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_GetPointer")]
     pub fn PyBuffer_GetPointer(view: *mut Py_buffer, indices: *mut Py_ssize_t)
      -> *mut c_void;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(buf: *mut c_void,
                                  view: *mut Py_buffer, len: Py_ssize_t,
                                  order: c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(view: *mut Py_buffer,
                                    buf: *mut c_void, len: Py_ssize_t,
                                    order: c_char) -> c_int;
@@ -102,6 +113,7 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
                              buf: *mut c_void, len: Py_ssize_t,
                              readonly: c_int, flags: c_int)
      -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_Release")]
     pub fn PyBuffer_Release(view: *mut Py_buffer) -> ();
 }
 
@@ -288,4 +300,3 @@ pub unsafe fn PyMapping_DelItem(o : *mut PyObject, key : *mut PyObject) -> c_int
     pub fn PyObject_IsSubclass(object: *mut PyObject,
                                typeorclass: *mut PyObject) -> c_int;
 }
-

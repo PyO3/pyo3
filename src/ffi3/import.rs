@@ -29,6 +29,7 @@ use ffi3::object::PyObject;
      -> *mut PyObject;
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModuleLevel")]
     pub fn PyImport_ImportModuleLevel(name: *const c_char,
                                       globals: *mut PyObject,
                                       locals: *mut PyObject,
@@ -65,4 +66,3 @@ pub unsafe fn PyImport_ImportModuleEx(name: *const c_char,
                                   initfunc: Option<extern "C" fn() -> *mut PyObject>)
      -> c_int;
 }
-

@@ -20,6 +20,7 @@ use ffi3::object::*;
                             arg3: *mut *mut PyObject) -> ();
     pub fn PyErr_SetExcInfo(arg1: *mut PyObject, arg2: *mut PyObject,
                             arg3: *mut PyObject) -> ();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_FatalError")]
     pub fn Py_FatalError(message: *const c_char) -> !;
     pub fn PyErr_GivenExceptionMatches(arg1: *mut PyObject,
                                        arg2: *mut PyObject) -> c_int;
@@ -144,6 +145,7 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
         arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyErr_SetFromErrnoWithFilename(
         exc: *mut PyObject, filename: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Format")]
     pub fn PyErr_Format(
         exception: *mut PyObject, format: *const c_char, ...) -> *mut PyObject;
     #[cfg(Py_3_6)]
@@ -155,8 +157,10 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub fn PyErr_BadInternalCall() -> ();
     pub fn _PyErr_BadInternalCall(filename: *const c_char,
                                   lineno: c_int) -> ();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_NewException")]
     pub fn PyErr_NewException(name: *const c_char,
                               base: *mut PyObject, dict: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_NewExceptionWithDoc")]
     pub fn PyErr_NewExceptionWithDoc(name: *const c_char,
                                      doc: *const c_char,
                                      base: *mut PyObject, dict: *mut PyObject)

@@ -12,7 +12,9 @@ use ffi3::pyport::Py_ssize_t;
     pub fn PySys_SetArgvEx(arg1: c_int, arg2: *mut *mut wchar_t,
                            arg3: c_int) -> ();
     pub fn PySys_SetPath(arg1: *const wchar_t) -> ();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySys_WriteStdout")]
     pub fn PySys_WriteStdout(format: *const c_char, ...) -> ();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPySys_WriteStderr")]
     pub fn PySys_WriteStderr(format: *const c_char, ...) -> ();
     pub fn PySys_FormatStdout(format: *const c_char, ...) -> ();
     pub fn PySys_FormatStderr(format: *const c_char, ...) -> ();
@@ -23,4 +25,3 @@ use ffi3::pyport::Py_ssize_t;
     pub fn PySys_AddXOption(arg1: *const wchar_t) -> ();
     pub fn PySys_GetXOptions() -> *mut PyObject;
 }
-

@@ -17,9 +17,11 @@ pub unsafe fn PyEval_CallObject(func: *mut PyObject, arg: *mut PyObject) -> *mut
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_CallFunction")]
     pub fn PyEval_CallFunction(obj: *mut PyObject,
                                format: *const c_char, ...)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_CallMethod")]
     pub fn PyEval_CallMethod(obj: *mut PyObject,
                              methodname: *const c_char,
                              format: *const c_char, ...)
@@ -69,4 +71,3 @@ pub type _PyFrameEvalFunction = extern "C" fn(*mut ::ffi3::PyFrameObject, c_int)
     pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState) -> ();
     pub fn PyEval_ReInitThreads() -> ();
 }
-

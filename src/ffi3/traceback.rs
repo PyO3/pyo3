@@ -4,6 +4,7 @@ use ffi3::object::*;
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyTraceBack_Here(arg1: *mut ::ffi3::PyFrameObject) -> c_int;
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTraceBack_Type")]
     pub static mut PyTraceBack_Type: PyTypeObject;
 }
 
@@ -11,4 +12,3 @@ use ffi3::object::*;
 pub unsafe fn PyTraceBack_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTraceBack_Type) as c_int
 }
-

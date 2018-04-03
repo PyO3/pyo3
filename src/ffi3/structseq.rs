@@ -19,6 +19,7 @@ pub struct PyStructSequence_Desc {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyStructSequence_New")]
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc)
      -> *mut PyTypeObject;
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;
@@ -27,4 +28,3 @@ pub struct PyStructSequence_Desc {
     pub fn PyStructSequence_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t)
      -> *mut PyObject;
 }
-

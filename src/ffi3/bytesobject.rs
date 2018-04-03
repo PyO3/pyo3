@@ -22,6 +22,8 @@ pub unsafe fn PyBytes_CheckExact(op : *mut PyObject) -> c_int {
                                      arg2: Py_ssize_t) -> *mut PyObject;
     pub fn PyBytes_FromString(arg1: *const c_char) -> *mut PyObject;
     pub fn PyBytes_FromObject(arg1: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBytes_FromFormat")]
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBytes_FromFormatV")]
     //pub fn PyBytes_FromFormatV(arg1: *const c_char, arg2: va_list)
     // -> *mut PyObject;
     pub fn PyBytes_FromFormat(arg1: *const c_char, ...)
@@ -41,4 +43,3 @@ pub unsafe fn PyBytes_CheckExact(op : *mut PyObject) -> c_int {
                                    s: *mut *mut c_char,
                                    len: *mut Py_ssize_t) -> c_int;
 }
-

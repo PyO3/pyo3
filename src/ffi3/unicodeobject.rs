@@ -66,7 +66,9 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
     pub fn PyUnicode_AsUnicodeAndSize(unicode: *mut PyObject,
                                       size: *mut Py_ssize_t)
      -> *mut Py_UNICODE;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_GetLength")]
     pub fn PyUnicode_GetLength(unicode: *mut PyObject) -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_GetSize")]
     pub fn PyUnicode_GetSize(unicode: *mut PyObject) -> Py_ssize_t;
     pub fn PyUnicode_ReadChar(unicode: *mut PyObject, index: Py_ssize_t)
      -> Py_UCS4;
@@ -81,6 +83,8 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
                                        errors: *const c_char)
      -> *mut PyObject;
     pub fn PyUnicode_FromObject(obj: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromFormat")]
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromFormatV")]
     //pub fn PyUnicode_FromFormatV(format: *const c_char,
     //                             vargs: va_list) -> *mut PyObject;
     pub fn PyUnicode_FromFormat(format: *const c_char, ...)
@@ -89,10 +93,12 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
     pub fn PyUnicode_InternImmortal(arg1: *mut *mut PyObject) -> ();
     pub fn PyUnicode_InternFromString(u: *const c_char)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromWideChar")]
     pub fn PyUnicode_FromWideChar(w: *const wchar_t, size: Py_ssize_t)
      -> *mut PyObject;
     pub fn PyUnicode_AsWideChar(unicode: *mut PyObject, w: *mut wchar_t,
                                 size: Py_ssize_t) -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsWideCharString")]
     pub fn PyUnicode_AsWideCharString(unicode: *mut PyObject,
                                       size: *mut Py_ssize_t) -> *mut wchar_t;
     pub fn PyUnicode_FromOrdinal(ordinal: c_int) -> *mut PyObject;
@@ -328,4 +334,3 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UCS4 = 0xFFFD;
     #[cfg(not(Py_LIMITED_API))]
     pub fn PyUnicode_AsUnicodeCopy(unicode: *mut PyObject) -> *mut Py_UNICODE;
 }
-
