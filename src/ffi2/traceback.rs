@@ -19,7 +19,9 @@ pub struct PyTracebackObject {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTraceBack_Here")]
     pub fn PyTraceBack_Here(arg1: *mut PyFrameObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTraceBack_Print")]
     pub fn PyTraceBack_Print(arg1: *mut PyObject, arg2: *mut PyObject)
      -> c_int;
      
@@ -28,6 +30,7 @@ pub struct PyTracebackObject {
 }
 
 #[inline(always)]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyTraceBack_Check")]
 pub unsafe fn PyTraceBack_Check(op : *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTraceBack_Type) as c_int
 }

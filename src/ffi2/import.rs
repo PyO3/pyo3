@@ -21,6 +21,8 @@ pub struct PyImport_Struct_frozen {
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_Import")]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModule")]
 pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
                                       globals: *mut PyObject,
                                       locals: *mut PyObject,
@@ -31,6 +33,7 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyImport_ImportModule(name: *const c_char)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModuleNoBlock")]
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char)
      -> *mut PyObject;
     pub fn PyImport_ImportModuleLevel(name: *mut c_char,
@@ -40,16 +43,21 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
                                       level: c_int) -> *mut PyObject;
 
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_AddModule")]
     pub fn PyImport_AddModule(name: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ExecCodeModule")]
     pub fn PyImport_ExecCodeModule(name: *mut c_char,
                                    co: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ExecCodeModuleEx")]
     pub fn PyImport_ExecCodeModuleEx(name: *mut c_char,
                                      co: *mut PyObject,
                                      pathname: *mut c_char)
      -> *mut PyObject;
     pub fn PyImport_GetMagicNumber() -> c_long;
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_GetModuleDict")]
     pub fn PyImport_GetModuleDict() -> *mut PyObject;
     pub fn PyImport_ImportFrozenModule(name: *mut c_char)
      -> c_int;
@@ -66,7 +74,9 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
     
     /*for internal use only:
     pub fn PyImport_Cleanup();
+    #[cfg_attr(PyPy, link_name="\u{1}__PyPyImport_AcquireLock")]
     pub fn _PyImport_AcquireLock();
+    #[cfg_attr(PyPy, link_name="\u{1}__PyPyImport_ReleaseLock")]
     pub fn _PyImport_ReleaseLock() -> c_int;
     pub fn _PyImport_FindModule(arg1: *const c_char,
                                 arg2: *mut PyObject,
@@ -83,4 +93,3 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
                                     arg2: *mut c_char)
      -> *mut PyObject;*/
 }
-

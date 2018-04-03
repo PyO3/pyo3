@@ -27,12 +27,14 @@ pub enum Struct_symtable { }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn Py_SetProgramName(arg1: *mut c_char);
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_GetProgramName")]
     pub fn Py_GetProgramName() -> *mut c_char;
     pub fn Py_SetPythonHome(arg1: *mut c_char);
     pub fn Py_GetPythonHome() -> *mut c_char;
     pub fn Py_Initialize();
     pub fn Py_InitializeEx(arg1: c_int);
     pub fn Py_Finalize();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_IsInitialized")]
     pub fn Py_IsInitialized() -> c_int;
     pub fn Py_NewInterpreter() -> *mut PyThreadState;
     pub fn Py_EndInterpreter(arg1: *mut PyThreadState);
@@ -41,6 +43,7 @@ pub enum Struct_symtable { }
     pub fn PyRun_AnyFileExFlags(arg1: *mut FILE, arg2: *const c_char,
                                 arg3: c_int,
                                 arg4: *mut PyCompilerFlags) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_SimpleString")]
     pub fn PyRun_SimpleStringFlags(arg1: *const c_char,
                                    arg2: *mut PyCompilerFlags)
      -> c_int;
@@ -78,13 +81,17 @@ pub enum Struct_symtable { }
                                          arg3: c_int,
                                          arg4: c_int)
      -> *mut Struct__node;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_String")]
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(arg1: *const c_char, arg2: c_int,
                              arg3: *mut PyObject, arg4: *mut PyObject,
                              arg5: *mut PyCompilerFlags) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRun_File")]
     pub fn PyRun_FileExFlags(arg1: *mut FILE, arg2: *const c_char,
                              arg3: c_int, arg4: *mut PyObject,
                              arg5: *mut PyObject, arg6: c_int,
                              arg7: *mut PyCompilerFlags) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_CompileStringFlags")]
     pub fn Py_CompileStringFlags(arg1: *const c_char,
                                  arg2: *const c_char,
                                  arg3: c_int,
@@ -92,10 +99,14 @@ pub enum Struct_symtable { }
     pub fn Py_SymtableString(arg1: *const c_char,
                              arg2: *const c_char, arg3: c_int)
      -> *mut Struct_symtable;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Print")]
     pub fn PyErr_Print();
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_PrintEx")]
     pub fn PyErr_PrintEx(arg1: c_int);
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Display")]
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject,
                          arg3: *mut PyObject);
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_AtExit")]
     pub fn Py_AtExit(func: Option<unsafe extern "C" fn()>)
      -> c_int;
     pub fn Py_Exit(arg1: c_int);
@@ -107,6 +118,7 @@ pub enum Struct_symtable { }
     pub fn Py_GetPrefix() -> *mut c_char;
     pub fn Py_GetExecPrefix() -> *mut c_char;
     pub fn Py_GetPath() -> *mut c_char;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_GetVersion")]
     pub fn Py_GetVersion() -> *const c_char;
     pub fn Py_GetPlatform() -> *const c_char;
     pub fn Py_GetCopyright() -> *const c_char;
@@ -118,4 +130,3 @@ pub enum Struct_symtable { }
     fn _Py_hgidentifier() -> *const c_char;
     fn _Py_hgversion() -> *const c_char;
 }
-

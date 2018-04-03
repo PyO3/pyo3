@@ -3,6 +3,7 @@ use ffi2::object::PyObject;
 use ffi2::code::PyCodeObject;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_EvalCode")]
     pub fn PyEval_EvalCode(arg1: *mut PyCodeObject, arg2: *mut PyObject,
                            arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyEval_EvalCodeEx(co: *mut PyCodeObject, globals: *mut PyObject,

@@ -50,6 +50,7 @@ pub struct PyMethodObject {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyClass_Type")]
     pub static mut PyClass_Type: PyTypeObject;
     pub static mut PyInstance_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_Type")]
@@ -69,6 +70,7 @@ pub unsafe fn PyInstance_Check(op : *mut PyObject) -> c_int {
 }
 
 #[inline(always)]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_Check")]
 pub unsafe fn PyMethod_Check(op : *mut PyObject) -> c_int {
     let u : *mut PyTypeObject = &mut PyMethod_Type;
     (Py_TYPE(op) == u) as c_int
@@ -81,9 +83,12 @@ pub unsafe fn PyMethod_Check(op : *mut PyObject) -> c_int {
                           arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyInstance_NewRaw(arg1: *mut PyObject, arg2: *mut PyObject)
                              -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_New")]
     pub fn PyMethod_New(arg1: *mut PyObject, arg2: *mut PyObject,
                         arg3: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_Function")]
     pub fn PyMethod_Function(arg1: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_Self")]
     pub fn PyMethod_Self(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyMethod_Class(arg1: *mut PyObject) -> *mut PyObject;
     fn _PyInstance_Lookup(pinst: *mut PyObject, name: *mut PyObject)

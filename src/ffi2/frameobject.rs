@@ -67,6 +67,7 @@ pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
 //}
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyFrame_New")]
     pub fn PyFrame_New(tstate: *mut PyThreadState, code: *mut PyCodeObject,
         globals: *mut PyObject, locals: *mut PyObject) -> *mut PyFrameObject;
 
@@ -79,4 +80,3 @@ pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
     pub fn PyFrame_ClearFreeList() -> c_int;
     pub fn PyFrame_GetLineNumber(f: *mut PyFrameObject) -> c_int;
 }
-
