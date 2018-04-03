@@ -33,7 +33,7 @@ fn main() {
 
     let flags = emit_cargo_vars_from_configuration(&interpreter_configuration).unwrap();
 
-    let mut config_map = get_config_vars(&interpreter_configuration.path).unwrap();
+    let mut config_map = get_config_vars(&interpreter_configuration).unwrap();
 
     config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
 

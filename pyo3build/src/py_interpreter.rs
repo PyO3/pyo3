@@ -133,7 +133,7 @@ pub struct InterpreterConfig {
     pub enable_shared: bool,
     pub ld_version: String,
     pub exec_prefix: String,
-    pub abi_version: String
+    pub abi_version: String,
 }
 
 impl InterpreterConfig {
@@ -167,29 +167,40 @@ impl InterpreterConfig {
             .trim_right()
             .to_string();
 
-        let (major, minor )= try!(parse_interpreter_version(&lines[0]));
+        let (major, minor) = try!(parse_interpreter_version(&lines[0]));
 
         Ok(InterpreterConfig {
             version: PythonVersion {
                 major,
                 minor: Some(minor),
-                kind: Some("cpython".to_string())
+                kind: Some("cpython".to_string()),
             },
             path: interpreter,
             libpath: lines[1].to_string(),
             enable_shared: lines[2] == "1",
             ld_version: lines[3].to_string(),
             abi_version: abi_tag,
-            exec_prefix: lines[4].to_string()
+            exec_prefix: lines[4].to_string(),
         })
     }
     fn from_pypy(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
-        let script = "import sysconfig; import sys; import os;\
-        print(sys.version_info[0:2]); \
-        print(os.path.join(sysconfig.get_path('data'), 'lib')); \
-        print(sys.exec_prefix);
-        ";
+        let script = "\
+import sysconfig
+import sys
+import os
 
+def get_pypy_link_lib():
+    data_dir = os.path.join(sysconfig.get_path('data'))
+    for r, dirs, files in os.walk(data_dir):
+        for f in files:
+            if 'libpypy-c' in f or 'libpypy3-c' in f:
+                return os.path.dirname(os.path.join(r, f))
+    raise Exception('cannot locate libpypy')
+
+print(sys.version_info[0:2])
+print(get_pypy_link_lib())
+print(sys.exec_prefix)
+";
         let out = try!(run_python_script(&interpreter, script));
         let lines: Vec<&str> = out.lines().collect();
 
@@ -197,21 +208,31 @@ impl InterpreterConfig {
             .trim_right()
             .to_string();
 
-        let (major, minor )= try!(parse_interpreter_version(&lines[0]));
+        let (major, minor) = try!(parse_interpreter_version(&lines[0]));
 
         Ok(InterpreterConfig {
             version: PythonVersion {
                 major,
                 minor: Some(minor),
-                kind: Some("pypy".to_string())
+                kind: Some("pypy".to_string()),
             },
             path: interpreter,
             libpath: lines[1].to_string(),
             enable_shared: true,
-            ld_version: "3.5".to_string(),
+            ld_version: format!("{}.{}", major, minor).to_string(),
             exec_prefix: lines[2].to_string(),
-            abi_version: abi_tag
+            abi_version: abi_tag,
         })
+    }
+
+    fn is_pypy(&self) -> bool {
+        match self.version.kind {
+            Some(ref kind) => match kind.as_ref() {
+                "pypy" => true,
+                _ => false
+            },
+            None => false
+        }
     }
 }
 
@@ -272,7 +293,7 @@ static SYSCONFIG_FLAGS: [&'static str; 7] = [
 /// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
 #[cfg(not(target_os = "windows"))]
-pub fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>, String> {
+pub fn get_config_vars(interpreter_config: &InterpreterConfig) -> Result<HashMap<String, String>, String> {
     let mut script = "import sysconfig; config = sysconfig.get_config_vars();".to_owned();
 
     for k in SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()) {
@@ -284,7 +305,7 @@ pub fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>,
         script.push_str(";");
     }
 
-    let out = try!(run_python_script(python_path, &script));
+    let out = try!(run_python_script(&interpreter_config.path, &script));
 
     let split_stdout: Vec<&str> = out.trim_right().lines().collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
@@ -305,6 +326,11 @@ pub fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>,
         },
     );
 
+    if interpreter_config.is_pypy() {
+        all_vars.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
+        all_vars.insert("Py_UNICODE_WIDE".to_owned(), "4".to_owned());
+    };
+
     let debug = if let Some(val) = all_vars.get("Py_DEBUG") {
         val == "1"
     } else {
@@ -320,7 +346,7 @@ pub fn get_config_vars(python_path: &PathBuf) -> Result<HashMap<String, String>,
 }
 
 #[cfg(target_os = "windows")]
-pub fn get_config_vars(_: &PathBuf) -> Result<HashMap<String, String>, String> {
+pub fn get_config_vars(_: &InterpreterConfig) -> Result<HashMap<String, String>, String> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -373,15 +399,7 @@ fn run_python_script(interpreter_path: &PathBuf, script: &str) -> Result<String,
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "windows"))]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
-    let is_pypy = match interpreter_config.version.kind {
-        Some(ref kind) => match kind.as_ref() {
-            "pypy" => true,
-            _ => false
-        },
-        None => false
-    };
-
-    if is_pypy {
+    if interpreter_config.is_pypy() {
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
@@ -406,15 +424,7 @@ fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, 
 
 #[cfg(target_os = "windows")]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
-    let is_pypy = match interpreter_config.version.kind {
-        Some(ref kind) => match kind.as_ref() {
-            "pypy" => true,
-            _ => false
-        },
-        None => false
-    };
-
-    if is_pypy {
+    if interpreter_config.is_pypy() {
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
@@ -437,15 +447,7 @@ fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, 
 
 #[cfg(target_os = "macos")]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
-    let is_pypy = match interpreter_config.version.kind {
-        Some(ref kind) => match kind.as_ref() {
-            "pypy" => true,
-            _ => false
-        },
-        None => false
-    };
-
-    if is_pypy {
+    if interpreter_config.is_pypy() {
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
@@ -525,7 +527,7 @@ pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterC
         }
     }
 
-    let interpreter_binary_name : &str = match expected_version.kind {
+    let interpreter_binary_name: &str = match expected_version.kind {
         Some(ref kind) => match kind.as_ref() {
             "pypy" => "pypy",
             "cpython" => "python",
@@ -587,17 +589,11 @@ pub fn emit_cargo_vars_from_configuration(
     if let PythonVersion {
         major: 3,
         minor: some_minor,
-        kind: ref some_kind,
+        kind: ref _some_kind,
     } = interpreter_config.version
         {
             if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
                 println!("cargo:rustc-cfg=Py_LIMITED_API");
-            }
-
-            if let Some(kind) = some_kind {
-                if kind == "pypy" {
-                    println!("cargo:rustc-cfg=PyPy")
-                }
             }
 
             if let Some(minor) = some_minor {
@@ -617,6 +613,11 @@ pub fn emit_cargo_vars_from_configuration(
         println!("cargo:rustc-cfg=Py_2");
         flags += format!("CFG_Py_2,").as_ref();
     }
+
+    if interpreter_config.is_pypy() {
+        println!("cargo:rustc-cfg=PyPy");
+    };
+
     return Ok(flags);
 }
 
@@ -678,13 +679,13 @@ mod test {
         let python_version_major_only = PythonVersion {
             major: 3,
             minor: None,
-            kind: None
+            kind: None,
         };
         let expected_config = InterpreterConfig {
             version: PythonVersion {
                 major: 3,
                 minor: Some(6),
-                kind: Some("cpython".to_string())
+                kind: Some("cpython".to_string()),
             },
             path: (canonicalize_executable("python").unwrap()),
             libpath: String::from("some_path"),
@@ -711,13 +712,13 @@ mod test {
 
         env::set_var(
             "PYTHON_SYS_EXECUTABLE",
-            test_path.clone().into_os_string().into_string().unwrap()
+            test_path.clone().into_os_string().into_string().unwrap(),
         );
 
         let python_version_major_only = PythonVersion {
             major: 3,
             minor: None,
-            kind: None
+            kind: None,
         };
 
         let interpreter = find_interpreter(&python_version_major_only).unwrap();
@@ -733,7 +734,7 @@ mod test {
             version: PythonVersion {
                 major: 3,
                 minor: Some(5),
-                kind: Some("pypy".to_string())
+                kind: Some("pypy".to_string()),
             },
             // We can't reliably test this unless we make some assumptions
             path: (canonicalize_executable("python").unwrap()),

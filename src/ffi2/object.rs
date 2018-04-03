@@ -6,28 +6,58 @@ use ffi2::pyport::{Py_ssize_t, Py_hash_t};
 use ffi2::methodobject::PyMethodDef;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
+#[cfg(not(PyPy))]
 pub struct PyObject {
-    #[cfg(py_sys_config="Py_TRACE_REFS")]
-    pub _ob_next: *mut PyObject,
-    #[cfg(py_sys_config="Py_TRACE_REFS")]
-    pub _ob_prev: *mut PyObject,
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
+    _ob_next: *mut PyObject,
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
+    _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
 }
 
-#[cfg(py_sys_config="Py_TRACE_REFS")]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+#[cfg(PyPy)]
+pub struct PyObject {
+    pub ob_refcnt: Py_ssize_t,
+    pub ob_pypy_link: Py_ssize_t,
+    pub ob_type: *mut PyTypeObject,
+}
+
+#[cfg(py_sys_config = "Py_TRACE_REFS")]
+#[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     _ob_next: ::std::ptr::null_mut(),
     _ob_prev: ::std::ptr::null_mut(),
     ob_refcnt: 1,
-    ob_type: ::std::ptr::null_mut()
+    ob_type: ::std::ptr::null_mut(),
 };
 
-#[cfg(not(py_sys_config="Py_TRACE_REFS"))]
+#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+#[cfg(not(PyPy))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
-    ob_type: ::std::ptr::null_mut()
+    ob_type: ::std::ptr::null_mut(),
+};
+
+#[cfg(py_sys_config = "Py_TRACE_REFS")]
+#[cfg(PyPy)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    _ob_next: ::std::ptr::null_mut(),
+    _ob_prev: ::std::ptr::null_mut(),
+    ob_refcnt: 1,
+    ob_pypy_link: 0,
+    ob_type: ::std::ptr::null_mut(),
+};
+
+#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+#[cfg(PyPy)]
+pub const PyObject_HEAD_INIT: PyObject = PyObject {
+    ob_refcnt: 1,
+    ob_pypy_link: 0,
+    ob_type: ::std::ptr::null_mut(),
 };
 
 #[repr(C)]
@@ -38,74 +68,74 @@ pub struct PyVarObject {
 }
 
 #[inline(always)]
-pub unsafe fn Py_REFCNT(ob : *mut PyObject) -> Py_ssize_t {
+pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     (*ob).ob_refcnt
 }
 
 #[inline(always)]
-pub unsafe fn Py_TYPE(ob : *mut PyObject) -> *mut PyTypeObject {
+pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     (*ob).ob_type
 }
 
 #[inline(always)]
-pub unsafe fn Py_SIZE(ob : *mut PyObject) -> Py_ssize_t {
+pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     (*(ob as *mut PyVarObject)).ob_size
 }
 
 pub type unaryfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type binaryfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 pub type ternaryfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject,
-                          arg3: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                     arg3: *mut PyObject) -> *mut PyObject;
 pub type inquiry =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject) -> c_int;
 pub type lenfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> Py_ssize_t;
+unsafe extern "C" fn(arg1: *mut PyObject) -> Py_ssize_t;
 pub type coercion =
-    unsafe extern "C" fn (arg1: *mut *mut PyObject,
-                          arg2: *mut *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut *mut PyObject,
+                     arg2: *mut *mut PyObject) -> c_int;
 pub type ssizeargfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
 pub type ssizessizeargfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: Py_ssize_t,
-                          arg3: Py_ssize_t) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                     arg3: Py_ssize_t) -> *mut PyObject;
 pub type intobjargproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: c_int, arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int, arg3: *mut PyObject) -> c_int;
 pub type intintobjargproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: c_int,
-                          arg3: c_int, arg4: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int,
+                     arg3: c_int, arg4: *mut PyObject) -> c_int;
 pub type ssizeobjargproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: Py_ssize_t,
-                          arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                     arg3: *mut PyObject) -> c_int;
 pub type ssizessizeobjargproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: Py_ssize_t,
-                          arg3: Py_ssize_t, arg4: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                     arg3: Py_ssize_t, arg4: *mut PyObject) -> c_int;
 pub type objobjargproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject,
-                          arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                     arg3: *mut PyObject) -> c_int;
 pub type getreadbufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: c_int,
-                          arg3: *mut *mut c_void) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int,
+                     arg3: *mut *mut c_void) -> c_int;
 pub type getwritebufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: c_int,
-                          arg3: *mut *mut c_void) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int,
+                     arg3: *mut *mut c_void) -> c_int;
 pub type getsegcountproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut c_int) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_int) -> c_int;
 pub type getcharbufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: c_int, arg3: *mut *mut c_char) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int, arg3: *mut *mut c_char) -> c_int;
 pub type readbufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: Py_ssize_t,
-                          arg3: *mut *mut c_void) -> Py_ssize_t;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                     arg3: *mut *mut c_void) -> Py_ssize_t;
 pub type writebufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: Py_ssize_t,
-                          arg3: *mut *mut c_void) -> Py_ssize_t;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                     arg3: *mut *mut c_void) -> Py_ssize_t;
 pub type segcountproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> Py_ssize_t;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> Py_ssize_t;
 pub type charbufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: Py_ssize_t,
-                          arg3: *mut *mut c_char) -> Py_ssize_t;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t,
+                     arg3: *mut *mut c_char) -> Py_ssize_t;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -125,46 +155,46 @@ pub struct Py_buffer {
 }
 
 pub type getbufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut Py_buffer,
-                          arg3: c_int) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut Py_buffer,
+                     arg3: c_int) -> c_int;
 pub type releasebufferproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut Py_buffer);
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut Py_buffer);
 
 // flags:
-pub const PyBUF_SIMPLE : c_int = 0;
-pub const PyBUF_WRITABLE : c_int = 0x0001;
-pub const PyBUF_FORMAT : c_int = 0x0004;
-pub const PyBUF_ND : c_int = 0x0008;
-pub const PyBUF_STRIDES : c_int = (0x0010 | PyBUF_ND);
-pub const PyBUF_C_CONTIGUOUS : c_int = (0x0020 | PyBUF_STRIDES);
-pub const PyBUF_F_CONTIGUOUS : c_int = (0x0040 | PyBUF_STRIDES);
-pub const PyBUF_ANY_CONTIGUOUS : c_int = (0x0080 | PyBUF_STRIDES);
-pub const PyBUF_INDIRECT : c_int = (0x0100 | PyBUF_STRIDES);
+pub const PyBUF_SIMPLE: c_int = 0;
+pub const PyBUF_WRITABLE: c_int = 0x0001;
+pub const PyBUF_FORMAT: c_int = 0x0004;
+pub const PyBUF_ND: c_int = 0x0008;
+pub const PyBUF_STRIDES: c_int = (0x0010 | PyBUF_ND);
+pub const PyBUF_C_CONTIGUOUS: c_int = (0x0020 | PyBUF_STRIDES);
+pub const PyBUF_F_CONTIGUOUS: c_int = (0x0040 | PyBUF_STRIDES);
+pub const PyBUF_ANY_CONTIGUOUS: c_int = (0x0080 | PyBUF_STRIDES);
+pub const PyBUF_INDIRECT: c_int = (0x0100 | PyBUF_STRIDES);
 
-pub const PyBUF_CONTIG : c_int = (PyBUF_ND | PyBUF_WRITABLE);
-pub const PyBUF_CONTIG_RO : c_int = (PyBUF_ND);
+pub const PyBUF_CONTIG: c_int = (PyBUF_ND | PyBUF_WRITABLE);
+pub const PyBUF_CONTIG_RO: c_int = (PyBUF_ND);
 
-pub const PyBUF_STRIDED : c_int = (PyBUF_STRIDES | PyBUF_WRITABLE);
-pub const PyBUF_STRIDED_RO : c_int = (PyBUF_STRIDES);
+pub const PyBUF_STRIDED: c_int = (PyBUF_STRIDES | PyBUF_WRITABLE);
+pub const PyBUF_STRIDED_RO: c_int = (PyBUF_STRIDES);
 
-pub const PyBUF_RECORDS : c_int = (PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT);
-pub const PyBUF_RECORDS_RO : c_int = (PyBUF_STRIDES | PyBUF_FORMAT);
+pub const PyBUF_RECORDS: c_int = (PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT);
+pub const PyBUF_RECORDS_RO: c_int = (PyBUF_STRIDES | PyBUF_FORMAT);
 
-pub const PyBUF_FULL : c_int = (PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT);
-pub const PyBUF_FULL_RO : c_int = (PyBUF_INDIRECT | PyBUF_FORMAT);
+pub const PyBUF_FULL: c_int = (PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT);
+pub const PyBUF_FULL_RO: c_int = (PyBUF_INDIRECT | PyBUF_FORMAT);
 
 // buffertype:
-pub const PyBUF_READ : c_int = 0x100;
-pub const PyBUF_WRITE : c_int = 0x200;
-pub const PyBUF_SHADOW : c_int = 0x400;
+pub const PyBUF_READ: c_int = 0x100;
+pub const PyBUF_WRITE: c_int = 0x200;
+pub const PyBUF_SHADOW: c_int = 0x400;
 
 
 pub type objobjproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
 pub type visitproc =
-    unsafe extern "C" fn (object: *mut PyObject, arg: *mut c_void) -> c_int;
+unsafe extern "C" fn(object: *mut PyObject, arg: *mut c_void) -> c_int;
 pub type traverseproc =
-    unsafe extern "C" fn (slf: *mut PyObject, visit: visitproc, arg: *mut c_void) -> c_int;
+unsafe extern "C" fn(slf: *mut PyObject, visit: visitproc, arg: *mut c_void) -> c_int;
 
 
 #[repr(C)]
@@ -212,10 +242,11 @@ pub struct PyNumberMethods {
 }
 
 impl Clone for PyNumberMethods {
-    #[inline] fn clone(&self) -> PyNumberMethods { *self }
+    #[inline]
+    fn clone(&self) -> PyNumberMethods { *self }
 }
 
-pub const PyNumberMethods_INIT : PyNumberMethods = PyNumberMethods {
+pub const PyNumberMethods_INIT: PyNumberMethods = PyNumberMethods {
     nb_add: None,
     nb_subtract: None,
     nb_multiply: None,
@@ -273,10 +304,11 @@ pub struct PySequenceMethods {
 }
 
 impl Clone for PySequenceMethods {
-    #[inline] fn clone(&self) -> PySequenceMethods { *self }
+    #[inline]
+    fn clone(&self) -> PySequenceMethods { *self }
 }
 
-pub const PySequenceMethods_INIT : PySequenceMethods = PySequenceMethods {
+pub const PySequenceMethods_INIT: PySequenceMethods = PySequenceMethods {
     sq_length: None,
     sq_concat: None,
     sq_repeat: None,
@@ -298,10 +330,11 @@ pub struct PyMappingMethods {
 }
 
 impl Clone for PyMappingMethods {
-    #[inline] fn clone(&self) -> PyMappingMethods { *self }
+    #[inline]
+    fn clone(&self) -> PyMappingMethods { *self }
 }
 
-pub const PyMappingMethods_INIT : PyMappingMethods = PyMappingMethods {
+pub const PyMappingMethods_INIT: PyMappingMethods = PyMappingMethods {
     mp_length: None,
     mp_subscript: None,
     mp_ass_subscript: None,
@@ -319,10 +352,11 @@ pub struct PyBufferProcs {
 }
 
 impl Clone for PyBufferProcs {
-    #[inline] fn clone(&self) -> PyBufferProcs { *self }
+    #[inline]
+    fn clone(&self) -> PyBufferProcs { *self }
 }
 
-pub const PyBufferProcs_INIT : PyBufferProcs = PyBufferProcs {
+pub const PyBufferProcs_INIT: PyBufferProcs = PyBufferProcs {
     bf_getreadbuffer: None,
     bf_getwritebuffer: None,
     bf_getsegcount: None,
@@ -332,48 +366,48 @@ pub const PyBufferProcs_INIT : PyBufferProcs = PyBufferProcs {
 };
 
 pub type freefunc =
-    unsafe extern "C" fn(arg1: *mut c_void);
+unsafe extern "C" fn(arg1: *mut c_void);
 pub type destructor =
-    unsafe extern "C" fn(arg1: *mut PyObject);
+unsafe extern "C" fn(arg1: *mut PyObject);
 pub type printfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut FILE, arg3: c_int) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut FILE, arg3: c_int) -> c_int;
 pub type getattrfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut c_char) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char) -> *mut PyObject;
 pub type getattrofunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 pub type setattrfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut c_char,
-                          arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_char,
+                     arg3: *mut PyObject) -> c_int;
 pub type setattrofunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject,
-                          arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                     arg3: *mut PyObject) -> c_int;
 pub type cmpfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
 pub type reprfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type hashfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> Py_hash_t;
+unsafe extern "C" fn(arg1: *mut PyObject) -> Py_hash_t;
 pub type richcmpfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject,
-                          arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject,
+                     arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
 pub type getiterfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type iternextfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type descrgetfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject,
-                          arg3: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                     arg3: *mut PyObject) -> *mut PyObject;
 pub type descrsetfunc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject,
-                          arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                     arg3: *mut PyObject) -> c_int;
 pub type initproc =
-    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyObject,
-                          arg3: *mut PyObject) -> c_int;
+unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject,
+                     arg3: *mut PyObject) -> c_int;
 pub type newfunc =
-    unsafe extern "C" fn (arg1: *mut PyTypeObject,
-                          arg2: *mut PyObject, arg3: *mut PyObject) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyTypeObject,
+                     arg2: *mut PyObject, arg3: *mut PyObject) -> *mut PyObject;
 pub type allocfunc =
-    unsafe extern "C" fn (arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
+unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 
 #[repr(C)]
 #[derive(Copy)]
@@ -430,11 +464,12 @@ pub struct PyTypeObject {
 }
 
 impl Clone for PyTypeObject {
-    #[inline] fn clone(&self) -> PyTypeObject { *self }
+    #[inline]
+    fn clone(&self) -> PyTypeObject { *self }
 }
 
-#[cfg(py_sys_config="Py_TRACE_REFS")]
-pub const PyTypeObject_INIT : PyTypeObject = PyTypeObject {
+#[cfg(py_sys_config = "Py_TRACE_REFS")]
+pub const PyTypeObject_INIT: PyTypeObject = PyTypeObject {
     _ob_next: ::std::ptr::null_mut(),
     _ob_prev: ::std::ptr::null_mut(),
     ob_refcnt: 1,
@@ -488,8 +523,8 @@ pub const PyTypeObject_INIT : PyTypeObject = PyTypeObject {
     tp_version_tag: 0,
 };
 
-#[cfg(not(py_sys_config="Py_TRACE_REFS"))]
-pub const PyTypeObject_INIT : PyTypeObject = PyTypeObject {
+#[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+pub const PyTypeObject_INIT: PyTypeObject = PyTypeObject {
     ob_refcnt: 1,
     ob_type: ::std::ptr::null_mut(),
     ob_size: 0,
@@ -554,7 +589,8 @@ pub struct PyHeapTypeObject {
 }
 
 impl Clone for PyHeapTypeObject {
-    #[inline] fn clone(&self) -> PyHeapTypeObject { *self }
+    #[inline]
+    fn clone(&self) -> PyHeapTypeObject { *self }
 }
 
 // access macro to the members which are floating "behind" the object
@@ -564,7 +600,8 @@ pub unsafe fn PyHeapType_GET_MEMBERS(etype: *mut PyHeapTypeObject) -> *mut ffi2:
     (etype as *mut u8).offset(basicsize as isize) as *mut ffi2::structmember::PyMemberDef
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
 }
 
@@ -573,7 +610,8 @@ pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_
     (Py_TYPE(ob) == tp || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyType_Type: PyTypeObject;
     pub static mut PyBaseObject_Type: PyTypeObject;
     pub static mut PySuper_Type: PyTypeObject;
@@ -589,7 +627,8 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == (&mut PyType_Type as *mut _)) as c_int
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub fn PyType_Ready(t: *mut PyTypeObject) -> c_int;
     pub fn PyType_GenericAlloc(t: *mut PyTypeObject, nitems: Py_ssize_t) -> *mut PyObject;
     pub fn PyType_GenericNew(t: *mut PyTypeObject, args: *mut PyObject,
@@ -614,8 +653,9 @@ pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
     PyObject_Str(o)
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg(py_sys_config="Py_USING_UNICODE")]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    #[cfg(py_sys_config = "Py_USING_UNICODE")]
     pub fn PyObject_Unicode(o: *mut PyObject) -> *mut PyObject;
 
     pub fn PyObject_Compare(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
@@ -664,99 +704,99 @@ pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
 }
 
 // Flag bits for printing:
-pub const Py_PRINT_RAW : c_int = 1;       // No string quotes etc.
+pub const Py_PRINT_RAW: c_int = 1;       // No string quotes etc.
 
 // PyBufferProcs contains bf_getcharbuffer
-pub const Py_TPFLAGS_HAVE_GETCHARBUFFER : c_long = (1<<0);
+pub const Py_TPFLAGS_HAVE_GETCHARBUFFER: c_long = (1 << 0);
 
 // PySequenceMethods contains sq_contains
-pub const Py_TPFLAGS_HAVE_SEQUENCE_IN : c_long = (1<<1);
+pub const Py_TPFLAGS_HAVE_SEQUENCE_IN: c_long = (1 << 1);
 
 // PySequenceMethods and PyNumberMethods contain in-place operators
-pub const Py_TPFLAGS_HAVE_INPLACEOPS : c_long = (1<<3);
+pub const Py_TPFLAGS_HAVE_INPLACEOPS: c_long = (1 << 3);
 
 // PyNumberMethods do their own coercion
-pub const Py_TPFLAGS_CHECKTYPES : c_long = (1<<4);
+pub const Py_TPFLAGS_CHECKTYPES: c_long = (1 << 4);
 
 // tp_richcompare is defined
-pub const Py_TPFLAGS_HAVE_RICHCOMPARE : c_long = (1<<5);
+pub const Py_TPFLAGS_HAVE_RICHCOMPARE: c_long = (1 << 5);
 
 // Objects which are weakly referencable if their tp_weaklistoffset is >0
-pub const Py_TPFLAGS_HAVE_WEAKREFS : c_long = (1<<6);
+pub const Py_TPFLAGS_HAVE_WEAKREFS: c_long = (1 << 6);
 
 // tp_iter is defined
-pub const Py_TPFLAGS_HAVE_ITER : c_long = (1<<7);
+pub const Py_TPFLAGS_HAVE_ITER: c_long = (1 << 7);
 
 // New members introduced by Python 2.2 exist
-pub const Py_TPFLAGS_HAVE_CLASS : c_long = (1<<8);
+pub const Py_TPFLAGS_HAVE_CLASS: c_long = (1 << 8);
 
 // Set if the type object is dynamically allocated
-pub const Py_TPFLAGS_HEAPTYPE : c_long = (1<<9);
+pub const Py_TPFLAGS_HEAPTYPE: c_long = (1 << 9);
 
 // Set if the type allows subclassing
-pub const Py_TPFLAGS_BASETYPE : c_long = (1<<10);
+pub const Py_TPFLAGS_BASETYPE: c_long = (1 << 10);
 
 // Set if the type is 'ready' -- fully initialized
-pub const Py_TPFLAGS_READY : c_long = (1<<12);
+pub const Py_TPFLAGS_READY: c_long = (1 << 12);
 
 // Set while the type is being 'readied', to prevent recursive ready calls
-pub const Py_TPFLAGS_READYING : c_long = (1<<13);
+pub const Py_TPFLAGS_READYING: c_long = (1 << 13);
 
 // Objects support garbage collection (see objimp.h)
-pub const Py_TPFLAGS_HAVE_GC : c_long = (1<<14);
+pub const Py_TPFLAGS_HAVE_GC: c_long = (1 << 14);
 
 // Two bits are preserved for Stackless Python, next after this is 17.
-const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION : c_long = 0;
+const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION: c_long = 0;
 
 // Objects support nb_index in PyNumberMethods
-pub const Py_TPFLAGS_HAVE_INDEX : c_long = (1<<17);
+pub const Py_TPFLAGS_HAVE_INDEX: c_long = (1 << 17);
 
 // Objects support type attribute cache
-pub const Py_TPFLAGS_HAVE_VERSION_TAG  : c_long = (1<<18);
-pub const Py_TPFLAGS_VALID_VERSION_TAG : c_long = (1<<19);
+pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_long = (1 << 18);
+pub const Py_TPFLAGS_VALID_VERSION_TAG: c_long = (1 << 19);
 
 /* Type is abstract and cannot be instantiated */
-pub const Py_TPFLAGS_IS_ABSTRACT : c_long = (1<<20);
+pub const Py_TPFLAGS_IS_ABSTRACT: c_long = (1 << 20);
 
 /* Has the new buffer protocol */
-pub const Py_TPFLAGS_HAVE_NEWBUFFER : c_long = (1<<21);
+pub const Py_TPFLAGS_HAVE_NEWBUFFER: c_long = (1 << 21);
 
 /* These flags are used to determine if a type is a subclass. */
-pub const Py_TPFLAGS_INT_SUBCLASS         : c_long = (1<<23);
-pub const Py_TPFLAGS_LONG_SUBCLASS        : c_long = (1<<24);
-pub const Py_TPFLAGS_LIST_SUBCLASS        : c_long = (1<<25);
-pub const Py_TPFLAGS_TUPLE_SUBCLASS       : c_long = (1<<26);
-pub const Py_TPFLAGS_STRING_SUBCLASS      : c_long = (1<<27);
-pub const Py_TPFLAGS_UNICODE_SUBCLASS     : c_long = (1<<28);
-pub const Py_TPFLAGS_DICT_SUBCLASS        : c_long = (1<<29);
-pub const Py_TPFLAGS_BASE_EXC_SUBCLASS    : c_long = (1<<30);
-pub const Py_TPFLAGS_TYPE_SUBCLASS        : c_long = (1<<31);
+pub const Py_TPFLAGS_INT_SUBCLASS: c_long = (1 << 23);
+pub const Py_TPFLAGS_LONG_SUBCLASS: c_long = (1 << 24);
+pub const Py_TPFLAGS_LIST_SUBCLASS: c_long = (1 << 25);
+pub const Py_TPFLAGS_TUPLE_SUBCLASS: c_long = (1 << 26);
+pub const Py_TPFLAGS_STRING_SUBCLASS: c_long = (1 << 27);
+pub const Py_TPFLAGS_UNICODE_SUBCLASS: c_long = (1 << 28);
+pub const Py_TPFLAGS_DICT_SUBCLASS: c_long = (1 << 29);
+pub const Py_TPFLAGS_BASE_EXC_SUBCLASS: c_long = (1 << 30);
+pub const Py_TPFLAGS_TYPE_SUBCLASS: c_long = (1 << 31);
 
-pub const Py_TPFLAGS_DEFAULT : c_long = (
-                 Py_TPFLAGS_HAVE_GETCHARBUFFER |
-                 Py_TPFLAGS_HAVE_SEQUENCE_IN |
-                 Py_TPFLAGS_HAVE_INPLACEOPS |
-                 Py_TPFLAGS_HAVE_RICHCOMPARE |
-                 Py_TPFLAGS_HAVE_WEAKREFS |
-                 Py_TPFLAGS_HAVE_ITER |
-                 Py_TPFLAGS_HAVE_CLASS |
-                 Py_TPFLAGS_HAVE_STACKLESS_EXTENSION |
-                 Py_TPFLAGS_HAVE_INDEX |
-                 0);
+pub const Py_TPFLAGS_DEFAULT: c_long = (
+    Py_TPFLAGS_HAVE_GETCHARBUFFER |
+        Py_TPFLAGS_HAVE_SEQUENCE_IN |
+        Py_TPFLAGS_HAVE_INPLACEOPS |
+        Py_TPFLAGS_HAVE_RICHCOMPARE |
+        Py_TPFLAGS_HAVE_WEAKREFS |
+        Py_TPFLAGS_HAVE_ITER |
+        Py_TPFLAGS_HAVE_CLASS |
+        Py_TPFLAGS_HAVE_STACKLESS_EXTENSION |
+        Py_TPFLAGS_HAVE_INDEX |
+        0);
 
 #[inline(always)]
-pub unsafe fn PyType_HasFeature(t : *mut PyTypeObject, f : c_long) -> c_int {
+pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_long) -> c_int {
     (((*t).tp_flags & f) != 0) as c_int
 }
 
 #[inline(always)]
-pub unsafe fn PyType_FastSubclass(t : *mut PyTypeObject, f : c_long) -> c_int {
+pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_long) -> c_int {
     PyType_HasFeature(t, f)
 }
 
 // Reference counting macros.
 #[inline(always)]
-pub unsafe fn Py_INCREF(op : *mut PyObject) {
+pub unsafe fn Py_INCREF(op: *mut PyObject) {
     if cfg!(py_sys_config="Py_REF_DEBUG") {
         Py_IncRef(op)
     } else {
@@ -786,20 +826,21 @@ pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
 }
 
 #[inline(always)]
-pub unsafe fn Py_XINCREF(op : *mut PyObject) {
+pub unsafe fn Py_XINCREF(op: *mut PyObject) {
     if !op.is_null() {
         Py_INCREF(op)
     }
 }
 
 #[inline(always)]
-pub unsafe fn Py_XDECREF(op : *mut PyObject) {
+pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     if !op.is_null() {
         Py_DECREF(op)
     }
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub fn Py_IncRef(o: *mut PyObject);
     pub fn Py_DecRef(o: *mut PyObject);
 
@@ -818,12 +859,12 @@ pub unsafe fn Py_NotImplemented() -> *mut PyObject {
 }
 
 /* Rich comparison opcodes */
-pub const Py_LT : c_int = 0;
-pub const Py_LE : c_int = 1;
-pub const Py_EQ : c_int = 2;
-pub const Py_NE : c_int = 3;
-pub const Py_GT : c_int = 4;
-pub const Py_GE : c_int = 5;
+pub const Py_LT: c_int = 0;
+pub const Py_LE: c_int = 1;
+pub const Py_EQ: c_int = 2;
+pub const Py_NE: c_int = 3;
+pub const Py_GT: c_int = 4;
+pub const Py_GE: c_int = 5;
 
 #[inline]
 pub fn PyObject_Check(_arg1: *mut PyObject) -> c_int {
@@ -835,15 +876,16 @@ pub fn PySuper_Check(_arg1: *mut PyObject) -> c_int {
     0
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     fn _PyTrash_thread_deposit_object(o: *mut PyObject);
     fn _PyTrash_thread_destroy_chain();
 }
 
-pub const PyTrash_UNWIND_LEVEL : c_int = 50;
+pub const PyTrash_UNWIND_LEVEL: c_int = 50;
 
 #[inline(always)]
-pub unsafe fn Py_TRASHCAN<F : FnOnce() -> ()>(op: *mut PyObject, body: F) {
+pub unsafe fn Py_TRASHCAN<F: FnOnce() -> ()>(op: *mut PyObject, body: F) {
     let tstate = ffi2::pystate::PyThreadState_GET();
     if tstate.is_null() || (*tstate).trash_delete_nesting < PyTrash_UNWIND_LEVEL {
         if !tstate.is_null() {
