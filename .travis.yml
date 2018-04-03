@@ -35,6 +35,7 @@ before_script:
     if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
         ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
     fi
+  - mkdir ~/.cargo/bin
   - export PATH=$PATH:~/.cargo/bin
 
 install:
