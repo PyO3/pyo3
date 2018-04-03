@@ -31,7 +31,6 @@ pub unsafe fn PyAnySet_CheckExact(ob : *mut PyObject) -> c_int {
 #[inline]
 pub unsafe fn PyAnySet_Check(ob : *mut PyObject) -> c_int {
     (PyAnySet_CheckExact(ob) != 0 ||
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyType_IsSubtype")]
       PyType_IsSubtype(Py_TYPE(ob), &mut PySet_Type) != 0 ||
       PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
 }
