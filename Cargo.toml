@@ -46,6 +46,9 @@ python2 = []
 # Use this feature when building python3 binding.
 python3 = []
 
+# Use this feature when building pypy binding.
+pypy = []
+
 # Enable additional features that require nightly rust
 nightly = []
 

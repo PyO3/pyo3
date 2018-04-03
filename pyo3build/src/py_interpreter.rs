@@ -98,11 +98,13 @@ pub fn canonicalize_executable<P>(exe_name: P) -> Option<PathBuf>
     })
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct PythonVersion {
     pub major: u8,
     // minor == None means any minor version will do
     pub minor: Option<u8>,
+    // kind = "pypy" or "cpython" are supported, default to cpython
+    pub kind: Option<String>,
 }
 
 impl PartialEq for PythonVersion {
@@ -166,10 +168,14 @@ impl InterpreterConfig {
             .trim_right()
             .to_string();
 
-        let interpreter_version = try!(parse_interpreter_version(&lines[0]));
+        let (major, minor )= try!(parse_interpreter_version(&lines[0]));
 
         Ok(InterpreterConfig {
-            version: interpreter_version,
+            version: PythonVersion {
+                major,
+                minor: Some(minor),
+                kind: Some("cpython".to_string())
+            },
             path: interpreter,
             libpath: lines[1].to_string(),
             enable_shared: lines[2] == "1",
@@ -179,7 +185,6 @@ impl InterpreterConfig {
             is_pypy: false,
         })
     }
-
     fn from_pypy(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
         let script = "import sysconfig; import sys; import os;\
         print(sys.version_info[0:2]); \
@@ -194,10 +199,14 @@ impl InterpreterConfig {
             .trim_right()
             .to_string();
 
-        let interpreter_version = try!(parse_interpreter_version(&lines[0]));
+        let (major, minor )= try!(parse_interpreter_version(&lines[0]));
 
         Ok(InterpreterConfig {
-            version: interpreter_version,
+            version: PythonVersion {
+                major,
+                minor: Some(minor),
+                kind: Some("pypy".to_string())
+            },
             path: interpreter,
             libpath: lines[1].to_string(),
             enable_shared: true,
@@ -455,13 +464,11 @@ fn get_macos_linkmodel(interpreter_path: &PathBuf) -> Result<String, String> {
 }
 
 /// Parse string as interpreter version.
-fn parse_interpreter_version(line: &str) -> Result<PythonVersion, String> {
+fn parse_interpreter_version(line: &str) -> Result<(u8, u8), String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
     match version_re.captures(&line) {
-        Some(cap) => Ok(PythonVersion {
-            major: cap.get(1).unwrap().as_str().parse().unwrap(),
-            minor: Some(cap.get(2).unwrap().as_str().parse().unwrap()),
-        }),
+        Some(cap) => Ok((cap.get(1).unwrap().as_str().parse().unwrap(),
+                         cap.get(2).unwrap().as_str().parse().unwrap())),
         None => Err(format!("Unexpected response to version query {}", line)),
     }
 }
@@ -473,7 +480,6 @@ fn parse_interpreter_version(line: &str) -> Result<PythonVersion, String> {
 /// "python{major version}.{minor version}" in order until one
 /// is of the version we are expecting.
 pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterConfig, String> {
-    // To use PyPy, a valid pypy executable must be passed to PYTHON_SYS_EXECUTABLE
     if let Some(interpreter_from_env) = env::var_os("PYTHON_SYS_EXECUTABLE") {
         let interpreter_path_or_executable = interpreter_from_env
             .to_str()
@@ -498,12 +504,21 @@ pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterC
         }
     }
 
+    let interpreter_binary_name : &str = match expected_version.kind {
+        Some(ref kind) => match kind.as_ref() {
+            "pypy" => "pypy",
+            "cpython" => "python",
+            other => return Err(format!("Unsupported interpreter {}", other))
+        },
+        None => "python"
+    };
+
     let mut possible_python_paths = vec![
-        "python".to_string(),
-        format!("python{}", expected_version.major),
+        interpreter_binary_name.to_string(),
+        format!("{}{}", &interpreter_binary_name, expected_version.major),
     ];
     if let Some(minor) = expected_version.minor {
-        possible_python_paths.push(format!("python{}.{}", expected_version.major, minor))
+        possible_python_paths.push(format!("{}{}.{}", &interpreter_binary_name, expected_version.major, minor))
     }
 
     for possible_path in possible_python_paths {
@@ -528,9 +543,7 @@ pub fn emit_cargo_vars_from_configuration(
 ) -> Result<String, String> {
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
 
-    if interpreter_config.is_pypy {
-        println!("cargo:rustc-cfg=PyPy");
-    }
+    println!("cargo:rustc-cfg={}", interpreter_config.abi_version);
 
     if !is_extension_module || cfg!(target_os = "windows") {
         println!("{}", get_rustc_link_lib(&interpreter_config).unwrap());
@@ -553,11 +566,19 @@ pub fn emit_cargo_vars_from_configuration(
     if let PythonVersion {
         major: 3,
         minor: some_minor,
+        kind: ref some_kind,
     } = interpreter_config.version
         {
             if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
                 println!("cargo:rustc-cfg=Py_LIMITED_API");
             }
+
+            if let Some(kind) = some_kind {
+                if kind == "pypy" {
+                    println!("cargo:rustc-cfg=PyPy")
+                }
+            }
+
             if let Some(minor) = some_minor {
                 if minor < PY3_MIN_MINOR {
                     return Err(format!(
@@ -585,6 +606,14 @@ pub fn emit_cargo_vars_from_configuration(
 /// version if the user doesn't care.
 pub fn version_from_env() -> Result<PythonVersion, String> {
     let re = Regex::new(r"CARGO_FEATURE_PYTHON(\d+)(_(\d+))?").unwrap();
+
+    let interpreter_kind;
+    if cfg!(feature="pypy") {
+        interpreter_kind = "pypy".to_string()
+    } else {
+        interpreter_kind = "cpython".to_string()
+    }
+
     // sort env::vars so we get more explicit version specifiers first
     // so if the user passes e.g. the python-3 feature and the python-3-5
     // feature, python-3-5 takes priority.
@@ -595,6 +624,7 @@ pub fn version_from_env() -> Result<PythonVersion, String> {
         match re.captures(&key) {
             Some(cap) => {
                 return Ok(PythonVersion {
+                    kind: Some(interpreter_kind),
                     major: cap.get(1).unwrap().as_str().parse().unwrap(),
                     minor: match cap.get(3) {
                         Some(s) => Some(s.as_str().parse().unwrap()),
@@ -627,11 +657,13 @@ mod test {
         let python_version_major_only = PythonVersion {
             major: 3,
             minor: None,
+            kind: None
         };
         let expected_config = InterpreterConfig {
             version: PythonVersion {
                 major: 3,
                 minor: Some(6),
+                kind: Some("cpython".to_string())
             },
             path: (canonicalize_executable("python").unwrap()),
             libpath: String::from("some_path"),
@@ -666,6 +698,7 @@ mod test {
         let python_version_major_only = PythonVersion {
             major: 3,
             minor: None,
+            kind: None
         };
 
         let interpreter = find_interpreter(&python_version_major_only).unwrap();
@@ -681,6 +714,7 @@ mod test {
             version: PythonVersion {
                 major: 3,
                 minor: Some(5),
+                kind: Some("pypy".to_string())
             },
             // We can't reliably test this unless we make some assumptions
             path: (canonicalize_executable("python").unwrap()),
