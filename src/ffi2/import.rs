@@ -21,8 +21,6 @@ pub struct PyImport_Struct_frozen {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_Import")]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModule")]
 pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
                                       globals: *mut PyObject,
                                       locals: *mut PyObject,
@@ -31,6 +29,7 @@ pub unsafe fn PyImport_ImportModuleEx(name: *mut c_char,
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char)
      -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModuleNoBlock")]

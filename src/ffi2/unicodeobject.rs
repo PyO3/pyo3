@@ -76,10 +76,10 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromUnicode")]
     fn PyUnicodeUCS4_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromString")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromStringAndSize")]
     fn PyUnicodeUCS4_FromStringAndSize(u: *const c_char,
                                        size: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromString")]
     fn PyUnicodeUCS4_FromString(u: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUnicode")]
     fn PyUnicodeUCS4_AsUnicode(unicode: *mut PyObject) -> *mut Py_UNICODE;
@@ -150,7 +150,6 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
                                         length: Py_ssize_t,
                                         errors: *const c_char,
                                         consumed: *mut Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8String")]
     fn PyUnicodeUCS4_AsUTF8String(unicode: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_EncodeUTF8")]
@@ -306,10 +305,10 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromUnicode")]
     fn PyUnicodeUCS2_FromUnicode(u: *const Py_UNICODE, size: Py_ssize_t)
                                  -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromString")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromStringAndSize")]
     fn PyUnicodeUCS2_FromStringAndSize(u: *const c_char,
                                        size: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromString")]
     fn PyUnicodeUCS2_FromString(u: *const c_char)
                                 -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUnicode")]
@@ -384,7 +383,6 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
                                         errors: *const c_char,
                                         consumed: *mut Py_ssize_t)
                                         -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8String")]
     fn PyUnicodeUCS2_AsUTF8String(unicode: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_EncodeUTF8")]
@@ -547,7 +545,6 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
 
 #[inline(always)]
 #[cfg(py_sys_config="Py_UNICODE_SIZE_4")]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromString")]
 #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_FromStringAndSize")]
 pub unsafe fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) -> *mut PyObject {
     PyUnicodeUCS4_FromStringAndSize(u, size)
@@ -561,7 +558,6 @@ pub unsafe fn PyUnicode_FromStringAndSize(u: *const c_char, size: Py_ssize_t) ->
 
 #[inline(always)]
 #[cfg(py_sys_config="Py_UNICODE_SIZE_4")]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8")]
 #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_AsUTF8String")]
 pub unsafe fn PyUnicode_AsUTF8String(u: *mut PyObject) -> *mut PyObject {
     PyUnicodeUCS4_AsUTF8String(u)

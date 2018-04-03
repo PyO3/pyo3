@@ -12,7 +12,6 @@ use ffi2::object::*;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyFrozenSet_Check")]
 #[cfg_attr(PyPy, link_name="\u{1}_PyPyFrozenSet_CheckExact")]
 pub unsafe fn PyFrozenSet_CheckExact(ob : *mut PyObject) -> c_int {
     let f : *mut PyTypeObject = &mut PyFrozenSet_Type;
@@ -20,7 +19,6 @@ pub unsafe fn PyFrozenSet_CheckExact(ob : *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyAnySet_Check")]
 #[cfg_attr(PyPy, link_name="\u{1}_PyPyAnySet_CheckExact")]
 pub unsafe fn PyAnySet_CheckExact(ob : *mut PyObject) -> c_int {
     let s : *mut PyTypeObject = &mut PySet_Type;
@@ -29,6 +27,7 @@ pub unsafe fn PyAnySet_CheckExact(ob : *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyAnySet_Check")]
 pub unsafe fn PyAnySet_Check(ob : *mut PyObject) -> c_int {
     (PyAnySet_CheckExact(ob) != 0 ||
       PyType_IsSubtype(Py_TYPE(ob), &mut PySet_Type) != 0 ||
@@ -43,6 +42,7 @@ pub unsafe fn PySet_Check(ob : *mut PyObject) -> c_int {
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyFrozenSet_Check")]
 pub unsafe fn PyFrozenSet_Check(ob : *mut PyObject) -> c_int {
     let f : *mut PyTypeObject = &mut PyFrozenSet_Type;
     (Py_TYPE(ob) == f || PyType_IsSubtype(Py_TYPE(ob), f) != 0) as c_int

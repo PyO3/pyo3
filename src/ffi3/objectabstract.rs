@@ -4,7 +4,7 @@ use ffi3::pyport::Py_ssize_t;
 use ffi3::object::*;
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelAttr")]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelAttrString")]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttr")]
     PyObject_SetAttrString(o, attr_name, ptr::null_mut())

@@ -11,13 +11,13 @@ use ffi3::object::*;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyFrozenSet_Check")]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyFrozenSet_CheckExact")]
 pub unsafe fn PyFrozenSet_CheckExact(ob : *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyAnySet_Check")]
+#[cfg_attr(PyPy, link_name="\u{1}_PyPyAnySet_CheckExact")]
 pub unsafe fn PyAnySet_CheckExact(ob : *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PySet_Type || Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
 }
