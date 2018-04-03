@@ -328,7 +328,8 @@ pub fn get_config_vars(interpreter_config: &InterpreterConfig) -> Result<HashMap
 
     if interpreter_config.is_pypy() {
         all_vars.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
-        all_vars.insert("Py_UNICODE_WIDE".to_owned(), "4".to_owned());
+        all_vars.insert("Py_UNICODE_SIZE".to_owned(), "4".to_owned());
+        all_vars.insert("Py_UNICODE_WIDE".to_owned(), "1".to_owned());
     };
 
     let debug = if let Some(val) = all_vars.get("Py_DEBUG") {

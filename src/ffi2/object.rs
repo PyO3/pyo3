@@ -678,22 +678,22 @@ extern "C" {
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_RichCompareBool")]
     pub fn PyObject_RichCompareBool(arg1: *mut PyObject, arg2: *mut PyObject,
                                     arg3: c_int) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetAttr")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetAttrString")]
     pub fn PyObject_GetAttrString(arg1: *mut PyObject,
                                   arg2: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttr")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttrString")]
     pub fn PyObject_SetAttrString(arg1: *mut PyObject,
                                   arg2: *const c_char,
                                   arg3: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_HasAttr")]
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_HasAttrString")]
     pub fn PyObject_HasAttrString(arg1: *mut PyObject,
                                   arg2: *const c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetAttr")]
     pub fn PyObject_GetAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject,
                             arg3: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_HasAttr")]
     pub fn PyObject_HasAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name="\u{1}__PyPyObject_GetDictPtr")]
     fn _PyObject_GetDictPtr(arg1: *mut PyObject) -> *mut *mut PyObject;

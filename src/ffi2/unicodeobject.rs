@@ -89,7 +89,6 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
     fn PyUnicodeUCS4_FromObject(obj: *mut PyObject) -> *mut PyObject;
     fn PyUnicodeUCS4_FromFormatV(arg1: *const c_char, ...) -> *mut PyObject;
     fn PyUnicodeUCS4_FromFormat(arg1: *const c_char, ...) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_Format")]
     fn _PyUnicode_FormatAdvanced(obj: *mut PyObject,
                                      format_spec: *mut Py_UNICODE,
                                      format_spec_len: Py_ssize_t) -> *mut PyObject;
@@ -238,6 +237,7 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
     fn PyUnicodeUCS4_Compare(left: *mut PyObject, right: *mut PyObject) -> c_int;
     fn PyUnicodeUCS4_RichCompare(left: *mut PyObject,
                                  right: *mut PyObject, op: c_int) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_Format")]
     fn PyUnicodeUCS4_Format(format: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
     fn PyUnicodeUCS4_Contains(container: *mut PyObject, element: *mut PyObject) -> c_int;
     fn _PyUnicode_XStrip(_self: *mut PyUnicodeObject,

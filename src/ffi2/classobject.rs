@@ -52,6 +52,8 @@ pub struct PyMethodObject {
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyClass_Type")]
     pub static mut PyClass_Type: PyTypeObject;
+    // TODO: check why this symbol isn't exported by libpypy
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyClass_Type")]
     pub static mut PyInstance_Type: PyTypeObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_Type")]
     pub static mut PyMethod_Type: PyTypeObject;

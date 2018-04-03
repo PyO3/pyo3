@@ -50,12 +50,16 @@ pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_FromString")]
     pub fn PyString_FromString(v: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_FromStringAndSize")]
     pub fn PyString_FromStringAndSize(v: *const c_char,
                                       len: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_FromFormat")]
     pub fn PyString_FromFormat(format: *const c_char, ...) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_Size")]
     pub fn PyString_Size(string: *mut PyObject) -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_AsString")]
     pub fn PyString_AsString(string: *mut PyObject) -> *mut c_char;
     pub fn PyString_AsStringAndSize(obj: *mut PyObject,
                                     s: *mut *mut c_char,
@@ -70,12 +74,14 @@ pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
     pub fn PyString_Decode(s: *const c_char, size: Py_ssize_t,
                            encoding: *const c_char,
                            errors: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_AsDecodedObject")]
     pub fn PyString_AsDecodedObject(str: *mut PyObject,
                                     encoding: *const c_char,
                                     errors: *const c_char) -> *mut PyObject;
     pub fn PyString_Encode(s: *const c_char, size: Py_ssize_t,
                            encoding: *const c_char,
                            errors: *const c_char) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_AsEncodedObject")]
     pub fn PyString_AsEncodedObject(str: *mut PyObject,
                                     encoding: *const c_char,
                                     errors: *const c_char) -> *mut PyObject;
