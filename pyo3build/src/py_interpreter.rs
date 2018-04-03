@@ -133,8 +133,7 @@ pub struct InterpreterConfig {
     pub enable_shared: bool,
     pub ld_version: String,
     pub exec_prefix: String,
-    pub abi_version: String,
-    pub is_pypy: bool,
+    pub abi_version: String
 }
 
 impl InterpreterConfig {
@@ -181,8 +180,7 @@ impl InterpreterConfig {
             enable_shared: lines[2] == "1",
             ld_version: lines[3].to_string(),
             abi_version: abi_tag,
-            exec_prefix: lines[4].to_string(),
-            is_pypy: false,
+            exec_prefix: lines[4].to_string()
         })
     }
     fn from_pypy(interpreter: PathBuf) -> Result<InterpreterConfig, String> {
@@ -212,8 +210,7 @@ impl InterpreterConfig {
             enable_shared: true,
             ld_version: "3.5".to_string(),
             exec_prefix: lines[2].to_string(),
-            abi_version: abi_tag,
-            is_pypy: true,
+            abi_version: abi_tag
         })
     }
 }
@@ -376,7 +373,15 @@ fn run_python_script(interpreter_path: &PathBuf, script: &str) -> Result<String,
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "windows"))]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
-    if interpreter_config.is_pypy {
+    let is_pypy = match interpreter_config.version.kind {
+        Some(ref kind) => match kind.as_ref() {
+            "pypy" => true,
+            _ => false
+        },
+        None => false
+    };
+
+    if is_pypy {
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
@@ -401,7 +406,15 @@ fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, 
 
 #[cfg(target_os = "windows")]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
-    if interpreter_config.is_pypy {
+    let is_pypy = match interpreter_config.version.kind {
+        Some(ref kind) => match kind.as_ref() {
+            "pypy" => true,
+            _ => false
+        },
+        None => false
+    };
+
+    if is_pypy {
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
@@ -424,7 +437,15 @@ fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, 
 
 #[cfg(target_os = "macos")]
 fn get_rustc_link_lib(interpreter_config: &InterpreterConfig) -> Result<String, String> {
-    if interpreter_config.is_pypy {
+    let is_pypy = match interpreter_config.version.kind {
+        Some(ref kind) => match kind.as_ref() {
+            "pypy" => true,
+            _ => false
+        },
+        None => false
+    };
+
+    if is_pypy {
         let link_library_name = match interpreter_config.version.major {
             2 => "pypy-c",
             3 => "pypy3-c",
@@ -649,7 +670,6 @@ mod test {
     use py_interpreter::canonicalize_executable;
     use py_interpreter::{find_interpreter, run_python_script, InterpreterConfig, PythonVersion};
     use std::env;
-    use std::path::PathBuf;
     use py_interpreter::GET_ABI_TAG;
 
     #[test]
@@ -671,7 +691,6 @@ mod test {
             ld_version: String::from("3.6m"),
             exec_prefix: String::from("some_path"),
             abi_version: String::from("cp36m"),
-            is_pypy: false,
         };
 
         let interpreter = find_interpreter(&python_version_major_only).unwrap();
@@ -682,7 +701,6 @@ mod test {
         assert_eq!(interpreter.enable_shared, expected_config.enable_shared);
         assert_eq!(interpreter.ld_version, expected_config.ld_version);
         assert_eq!(interpreter.abi_version, expected_config.abi_version);
-        assert_eq!(interpreter.is_pypy, expected_config.is_pypy);
     }
 
     #[test]
@@ -723,13 +741,11 @@ mod test {
             ld_version: String::from("3.5"),
             exec_prefix: String::from("some_path"),
             abi_version: String::from(abi_tag),
-            is_pypy: true,
         };
 
         assert_eq!(interpreter.version, expected_config.version);
         assert_eq!(interpreter.enable_shared, expected_config.enable_shared);
         assert_eq!(interpreter.ld_version, expected_config.ld_version);
         assert_eq!(interpreter.abi_version, expected_config.abi_version);
-        assert_eq!(interpreter.is_pypy, expected_config.is_pypy);
     }
 }
