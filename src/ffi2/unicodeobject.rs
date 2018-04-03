@@ -277,7 +277,6 @@ pub const Py_UNICODE_REPLACEMENT_CHARACTER : Py_UNICODE = 0xFFFD;
     fn PyUnicodeUCS4_RichCompare(left: *mut PyObject,
                                  right: *mut PyObject, op: c_int) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_Format")]
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyUnicode_Format")]
     fn PyUnicodeUCS4_Format(format: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
     fn PyUnicodeUCS4_Contains(container: *mut PyObject, element: *mut PyObject) -> c_int;
     fn _PyUnicode_XStrip(_self: *mut PyUnicodeObject,
