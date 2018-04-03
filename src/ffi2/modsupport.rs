@@ -40,6 +40,7 @@ use ffi2::methodobject::PyMethodDef;
                                       value: *const c_char) -> c_int;
     
     #[cfg(all(target_pointer_width = "64", not(py_sys_config = "Py_TRACE_REFS")))]
+    #[cfg_attr(PyPy, link_name="\u{1}__Py_InitPyPyModule")]
     fn Py_InitModule4_64(name: *const c_char,
                          methods: *mut PyMethodDef,
                          doc: *const c_char, _self: *mut PyObject,
