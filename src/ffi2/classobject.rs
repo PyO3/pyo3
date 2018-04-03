@@ -52,6 +52,7 @@ pub struct PyMethodObject {
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyClass_Type: PyTypeObject;
     pub static mut PyInstance_Type: PyTypeObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMethod_Type")]
     pub static mut PyMethod_Type: PyTypeObject;
 }
 
@@ -106,4 +107,3 @@ pub unsafe fn PyMethod_GET_SELF(meth : *mut PyObject) -> *mut PyObject {
 pub unsafe fn PyMethod_GET_CLASS(meth : *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_class
 }
-

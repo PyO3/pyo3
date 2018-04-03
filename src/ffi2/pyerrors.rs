@@ -116,13 +116,16 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub fn PyErr_SetFromErrnoWithFilename(arg1: *mut PyObject,
                                           arg2: *const c_char)
      -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_Format")]
     pub fn PyErr_Format(arg1: *mut PyObject, arg2: *const c_char, ...)
      -> *mut PyObject;
     pub fn PyErr_BadInternalCall();
     pub fn _PyErr_BadInternalCall(filename: *mut c_char,
                                   lineno: c_int);
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_NewException")]
     pub fn PyErr_NewException(name: *mut c_char, base: *mut PyObject,
                               dict: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyErr_NewExceptionWithDoc")]
     pub fn PyErr_NewExceptionWithDoc(name: *mut c_char,
                                      doc: *mut c_char,
                                      base: *mut PyObject, dict: *mut PyObject)
@@ -213,4 +216,3 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
                                              arg2: *const c_char)
      -> c_int;
 }
-

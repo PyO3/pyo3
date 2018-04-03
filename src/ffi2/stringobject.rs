@@ -53,6 +53,7 @@ pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
     pub fn PyString_FromString(v: *const c_char) -> *mut PyObject;
     pub fn PyString_FromStringAndSize(v: *const c_char,
                                       len: Py_ssize_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyString_FromFormat")]
     pub fn PyString_FromFormat(format: *const c_char, ...) -> *mut PyObject;
     pub fn PyString_Size(string: *mut PyObject) -> Py_ssize_t;
     pub fn PyString_AsString(string: *mut PyObject) -> *mut c_char;
@@ -129,4 +130,3 @@ pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
                                    format_spec_len: Py_ssize_t)
      -> *mut PyObject;*/
 }
-

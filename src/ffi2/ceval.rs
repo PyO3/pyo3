@@ -9,8 +9,10 @@ use ffi2::pythonrun::PyCompilerFlags;
     pub fn PyEval_CallObjectWithKeywords(callable: *mut PyObject,
                                          args: *mut PyObject,
                                          kwds: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_CallFunction")]
     pub fn PyEval_CallFunction(obj: *mut PyObject,
                                format: *const c_char, ...) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_CallMethod")]
     pub fn PyEval_CallMethod(obj: *mut PyObject,
                              methodname: *const c_char,
                              format: *const c_char, ...) -> *mut PyObject;
@@ -52,4 +54,3 @@ use ffi2::pythonrun::PyCompilerFlags;
     pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState);
     pub fn PyEval_ReInitThreads();
 }
-

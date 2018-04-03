@@ -47,11 +47,13 @@ pub unsafe fn PyComplex_CheckExact(op : *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyComplex_FromCComplex")]
     pub fn PyComplex_FromCComplex(v: Py_complex) -> *mut PyObject;
     pub fn PyComplex_FromDoubles(real: c_double,
                                  imag: c_double) -> *mut PyObject;
     pub fn PyComplex_RealAsDouble(op: *mut PyObject) -> c_double;
     pub fn PyComplex_ImagAsDouble(op: *mut PyObject) -> c_double;
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyComplex_AsCComplex")]
     pub fn PyComplex_AsCComplex(op: *mut PyObject) -> Py_complex;
     
 
@@ -60,4 +62,3 @@ pub unsafe fn PyComplex_CheckExact(op : *mut PyObject) -> c_int {
     //                                 format_spec_len: Py_ssize_t)
     // -> *mut PyObject;
 }
-

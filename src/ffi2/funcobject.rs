@@ -2,6 +2,7 @@ use std::os::raw::c_int;
 use ffi2::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+    #[cfg_attr(PyPy, link_name="\u{1}_PyPyFunction_Type")]
     pub static mut PyFunction_Type: PyTypeObject;
 }
 
@@ -31,4 +32,3 @@ pub unsafe fn PyFunction_Check(op : *mut PyObject) -> c_int {
     pub fn PyClassMethod_New(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyStaticMethod_New(arg1: *mut PyObject) -> *mut PyObject;
 }
-
