@@ -1,3 +1,0 @@
-[build]
-rustflags = ["-Clink-args=-Wl,-rpath,/Users/omerba/anaconda/lib/",
-             "-Clink-arg=-undefined", "-Clink-arg=dynamic_lookup"]
