@@ -112,29 +112,69 @@ mod test {
 
     #[test]
     fn test_check_exception() {
+        use objectprotocol::ObjectProtocol;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let err: PyErr = gaierror.into();
 
         let d = PyDict::new(py);
-        d.set_item("socket", py.import("socket").map_err(|e| e.print(py)).unwrap()).unwrap();
-        d.set_item("exc", err).unwrap();
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
+        let socket_module = py.import("socket").unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        println!("socket_module={:?}, type(socket_module)={:?}", socket_module, socket_module.get_type());
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
+        d.set_item("socket", socket_module).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
+        d.set_item("exc", err).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
 
-        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap();
+        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap_or_else(|e| {
+            e.print(py);
+            panic!();
+        });
     }
 
     #[test]
     fn test_check_exception_nested() {
+        use objectprotocol::ObjectProtocol;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let err: PyErr = MessageError.into();
 
         let d = PyDict::new(py);
-        d.set_item("email", py.import("email").map_err(|e| e.print(py)).unwrap()).unwrap();
-        d.set_item("exc", err).unwrap();
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
+        let email_module = py.import("email").unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        println!("email_module={:?}, type(email_module)={:?}", email_module, email_module.get_type());
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
+        d.set_item("email", email_module).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
+        d.set_item("exc", err).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
+        println!("d={:?}, type(d)={:?}", d, d.get_type());
 
-        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap();
+        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap_or_else(|e| {
+            e.print(py);
+            panic!()
+        });
     }
 }
