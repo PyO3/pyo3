@@ -5,12 +5,12 @@ use ffi3::object::*;
 use ffi3::pycapsule::PyCapsule_Import;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    pub static mut PyDateTime_Date: PyTypeObject;
-    pub static mut PyDateTime_Time: PyTypeObject;
-    pub static mut PyDateTime_DateTime: PyTypeObject;
+    pub static mut PyDateTime_DateType: PyTypeObject;
+    pub static mut PyDateTime_TimeType: PyTypeObject;
+    pub static mut PyDateTime_DateTimeType: PyTypeObject;
 
-    pub static mut PyDateTime_Delta: PyTypeObject;
-    pub static mut PyDateTime_TZInfo: PyTypeObject;
+    pub static mut PyDateTime_DeltaType: PyTypeObject;
+    pub static mut PyDateTime_TZInfoType: PyTypeObject;
 }
 
 
@@ -101,6 +101,11 @@ pub struct PyDateTime_CAPI {
 
 unsafe impl Sync for PyDateTime_CAPI {}
 
+lazy_static! {
+    pub static ref PyDateTimeAPI: PyDateTime_CAPI = unsafe { PyDateTime_IMPORT() };
+}
+
+
 #[inline(always)]
 pub unsafe fn PyDateTime_IMPORT() -> PyDateTime_CAPI {
     // PyDateTime_CAPSULE_NAME is a macro in C
@@ -113,5 +118,15 @@ pub unsafe fn PyDateTime_IMPORT() -> PyDateTime_CAPI {
 
 #[inline(always)]
 pub unsafe fn PyDate_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, &mut PyDateTime_Date) as c_int
+    PyObject_TypeCheck(op, PyDateTimeAPI.DateType) as c_int
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_Check(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, PyDateTimeAPI.DateTimeType) as c_int
+}
+
+#[inline(always)]
+pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, PyDateTimeAPI.TZInfoType) as c_int
 }
