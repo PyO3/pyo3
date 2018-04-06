@@ -227,22 +227,21 @@ fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
                         };
 
                         let opt = method::check_arg_ty_and_optional(&name, ty);
-                        arguments.push(method::FnArg {name: ident,
-                                                      mode: mode,
-                                                      ty: ty,
-                                                      optional: opt,
-                                                      py: py,
-                                                      reference: method::is_ref(&name, ty)});
+                        arguments.push(method::FnArg {
+                            name: ident,
+                            mode: mode,
+                            ty: ty,
+                            optional: opt,
+                            py: py,
+                            reference: method::is_ref(&name, ty),
+                        });
                     }
                     &syn::FnArg::Ignored(_) =>
                         panic!("ignored argument: {:?}", name),
                 }
             }
 
-            let ty = match decl.output {
-                syn::FunctionRetTy::Default => syn::Ty::Infer,
-                syn::FunctionRetTy::Ty(ref ty) => ty.clone()
-            };
+            let ty = method::get_return_info(&decl.output);
 
             let spec = method::FnSpec {
                 tp: method::FnType::Fn,
@@ -309,11 +308,11 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {{
-        #name(#(#names),*)
+        #name(#(#names),*).return_type_into_py_result()
     }};
 
     let body = py_method::impl_arg_params(spec, cb);
-    let output = &spec.output;
+    let body_to_result = py_method::body_to_result(&body, spec);
 
     quote! {
         #[allow(unused_variables, unused_imports)]
@@ -329,9 +328,7 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
             let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-            let _result: #output = {
-                #body
-            };
+            #body_to_result
             _pyo3::callback::cb_convert(
                 _pyo3::callback::PyObjectCallbackConverter, _py, _result)
         }

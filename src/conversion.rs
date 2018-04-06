@@ -301,3 +301,31 @@ impl<T> PyTryFrom for T where T: PyTypeInfo {
         }
     }
 }
+
+
+/// This trait wraps a T: IntoPyObject into PyResult<T> while PyResult<T> remains PyResult<T>.
+///
+/// This is necessaty because proc macros run before typechecking and can't decide
+/// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
+/// the codegen is currently built on the assumption that all functions return a PyResult.
+pub trait ReturnTypeIntoPyResult {
+    type Inner: ToPyObject;
+
+    fn return_type_into_py_result(self) -> PyResult<Self::Inner>;
+}
+
+impl<T: ToPyObject> ReturnTypeIntoPyResult for T {
+    type Inner = T;
+
+    default fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
+        Ok(self)
+    }
+}
+
+impl<T: ToPyObject> ReturnTypeIntoPyResult for PyResult<T> {
+    type Inner = T;
+
+    fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
+        self
+    }
+}

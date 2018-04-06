@@ -165,7 +165,8 @@ pub use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
 pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
 pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
-                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};
+                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple,
+                     ReturnTypeIntoPyResult};
 pub mod class;
 pub use class::*;
 

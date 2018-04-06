@@ -337,7 +337,7 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
                             py: true,
                             reference: false
                         }],
-                        output: syn::parse::ty("PyResult<()>").expect("error parse PyResult<()>")
+                        output: syn::parse::ty("PyResult<()>").expect("error parse PyResult<()>"),
                     };
                     impl_py_setter_def(&name, doc, setter, &impl_wrap_setter(&Box::new(cls.clone()), &setter_name, &spec))
                 },

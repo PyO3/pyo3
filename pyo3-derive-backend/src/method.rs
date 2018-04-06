@@ -1,13 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use syn;
-use quote::{Tokens, Ident};
-
 use args::{Argument, parse_arguments};
+use quote::{Ident, Tokens};
+use syn;
 use utils::for_err_msg;
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct FnArg<'a> {
     pub name: &'a syn::Ident,
     pub mode: &'a syn::BindingMode,
@@ -29,6 +28,7 @@ pub enum FnType {
     FnStatic,
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
     pub attrs: Vec<Argument>,
@@ -36,8 +36,14 @@ pub struct FnSpec<'a> {
     pub output: syn::Ty,
 }
 
-impl<'a> FnSpec<'a> {
+pub fn get_return_info(output: &syn::FunctionRetTy) -> syn::Ty {
+    match output {
+        syn::FunctionRetTy::Default => syn::Ty::Tup(vec![]),
+        syn::FunctionRetTy::Ty(ref ty) => ty.clone()
+    }
+}
 
+impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
     pub fn parse(name: &'a syn::Ident,
                  sig: &'a syn::MethodSig,
@@ -96,10 +102,7 @@ impl<'a> FnSpec<'a> {
             }
         }
 
-        let ty = match sig.decl.output {
-            syn::FunctionRetTy::Default => syn::Ty::Infer,
-            syn::FunctionRetTy::Ty(ref ty) => ty.clone()
-        };
+        let ty = get_return_info(&sig.decl.output);
 
         FnSpec {
             tp: fn_type,

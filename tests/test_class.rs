@@ -396,6 +396,11 @@ impl StaticMethod {
     fn method(py: Python) -> PyResult<&'static str> {
         Ok("StaticMethod.method()!")
     }
+
+    #[staticmethod]
+    fn no_parameters() -> PyResult<&'static str> {
+        Ok("StaticMethod.no_parameters()!")
+    }
 }
 
 #[test]
@@ -408,6 +413,7 @@ fn static_method() {
     d.set_item("C", py.get_type::<StaticMethod>()).unwrap();
     py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(d)).unwrap();
     py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(d)).unwrap();
+    py.run("assert C.no_parameters() == 'StaticMethod.no_parameters()!'", None, Some(d)).unwrap();
 }
 
 #[py::class]
