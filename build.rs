@@ -1,12 +1,9 @@
 extern crate pyo3_build_utils;
 
 use pyo3_build_utils::rustc_version::check_rustc_version;
-use pyo3_build_utils::py_interpreter::{find_interpreter, emit_cargo_vars_from_configuration, get_config_vars};
-use pyo3_build_utils::py_interpreter::PythonVersion;
-use pyo3_build_utils::py_interpreter::InterpreterConfig;
-use pyo3_build_utils::py_interpreter::version_from_env;
-use pyo3_build_utils::py_interpreter::cfg_line_for_var;
-use pyo3_build_utils::py_interpreter::is_value;
+use pyo3_build_utils::py_interpreter::{find_interpreter, emit_cargo_vars_from_configuration,
+                                       get_config_vars, PythonVersion, InterpreterConfig,
+                                       version_from_env, cfg_line_for_var, is_value};
 
 fn main() {
     check_rustc_version();
