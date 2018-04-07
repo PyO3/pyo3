@@ -38,8 +38,8 @@ pub struct FnSpec<'a> {
 
 pub fn get_return_info(output: &syn::FunctionRetTy) -> syn::Ty {
     match output {
-        syn::FunctionRetTy::Default => syn::Ty::Tup(vec![]),
-        syn::FunctionRetTy::Ty(ref ty) => ty.clone()
+        &syn::FunctionRetTy::Default => syn::Ty::Tup(vec![]),
+        &syn::FunctionRetTy::Ty(ref ty) => ty.clone()
     }
 }
 
