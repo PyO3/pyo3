@@ -3,12 +3,12 @@ use std::os::raw::{c_char, c_int};
 use ffi2::object::{PyObject, PyTypeObject, Py_TYPE};
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_Type")]
+    #[cfg_attr(PyPy, link_name="PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_Check")]
+#[cfg_attr(PyPy, link_name="PyPyCFunction_Check")]
 pub unsafe fn PyCFunction_Check(op : *mut PyObject) -> c_int {
     let u : *mut PyTypeObject = &mut PyCFunction_Type;
     (Py_TYPE(op) == u) as c_int
@@ -28,7 +28,7 @@ pub type PyNoArgsFunction =
 
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_GetFunction")]
+    #[cfg_attr(PyPy, link_name="PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
@@ -102,10 +102,10 @@ struct PyCFunctionObject {
 */
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPy_FindMethod")]
+    #[cfg_attr(PyPy, link_name="PyPy_FindMethod")]
     pub fn Py_FindMethod(methods: *mut PyMethodDef, slf: *mut PyObject,
                          name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyCFunction_NewEx")]
+    #[cfg_attr(PyPy, link_name="PyPyCFunction_NewEx")]
     pub fn PyCFunction_NewEx(ml: *mut PyMethodDef, slf: *mut PyObject,
                              module: *mut PyObject) -> *mut PyObject;
     pub fn Py_FindMethodInChain(chain: *mut PyMethodChain, slf: *mut PyObject,

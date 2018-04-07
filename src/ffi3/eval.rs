@@ -2,7 +2,7 @@ use std::os::raw::c_int;
 use ffi3::object::PyObject;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyEval_EvalCode")]
+    #[cfg_attr(PyPy, link_name="PyPyEval_EvalCode")]
     pub fn PyEval_EvalCode(arg1: *mut PyObject, arg2: *mut PyObject,
                            arg3: *mut PyObject) -> *mut PyObject;
     pub fn PyEval_EvalCodeEx(co: *mut PyObject, globals: *mut PyObject,

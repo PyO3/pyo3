@@ -18,36 +18,36 @@ struct PyByteArrayObject {
 }*/
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_Type")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_Type")]
     pub static mut PyByteArray_Type: PyTypeObject;
     pub static mut PyByteArrayIter_Type: PyTypeObject;
 }
 
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_Check")]
+#[cfg_attr(PyPy, link_name="PyPyByteArray_Check")]
 pub unsafe fn PyByteArray_Check(op : *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyByteArray_Type)
 }
 
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_CheckExact")]
+#[cfg_attr(PyPy, link_name="PyPyByteArray_CheckExact")]
 pub unsafe fn PyByteArray_CheckExact(op : *mut PyObject) -> c_int {
     let u : *mut PyTypeObject = &mut PyByteArray_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_FromObject")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_FromObject")]
     pub fn PyByteArray_FromObject(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_Concat")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_Concat")]
     pub fn PyByteArray_Concat(a: *mut PyObject, b: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_FromStringAndSize")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_FromStringAndSize")]
     pub fn PyByteArray_FromStringAndSize(string: *const c_char,
                                          len: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_Size")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_Size")]
     pub fn PyByteArray_Size(bytearray: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_AsString")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_AsString")]
     pub fn PyByteArray_AsString(bytearray: *mut PyObject) -> *mut c_char;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyByteArray_Resize")]
+    #[cfg_attr(PyPy, link_name="PyPyByteArray_Resize")]
     pub fn PyByteArray_Resize(bytearray: *mut PyObject, len: Py_ssize_t)
      -> c_int;
 }

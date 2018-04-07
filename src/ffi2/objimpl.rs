@@ -4,9 +4,9 @@ use ffi2::pyport::Py_ssize_t;
 use ffi2::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Malloc")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_Malloc")]
     pub fn PyObject_Malloc(arg1: size_t) -> *mut c_void;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Realloc")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_Realloc")]
     pub fn PyObject_Realloc(arg1: *mut c_void, arg2: size_t)
                             -> *mut c_void;
     pub fn PyObject_Free(arg1: *mut c_void);

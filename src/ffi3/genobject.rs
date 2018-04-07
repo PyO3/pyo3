@@ -23,13 +23,13 @@ pub struct PyGenObject {
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyGen_Check")]
+#[cfg_attr(PyPy, link_name="PyPyGen_Check")]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
      PyObject_TypeCheck(op, &mut PyGen_Type)
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyGen_CheckExact")]
+#[cfg_attr(PyPy, link_name="PyPyGen_CheckExact")]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
      (Py_TYPE(op) == &mut PyGen_Type) as c_int
 }
@@ -44,7 +44,7 @@ pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyCoro_Check")]
+#[cfg_attr(PyPy, link_name="PyPyCoro_Check")]
 pub unsafe fn PyCoro_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCoro_Type)
 }

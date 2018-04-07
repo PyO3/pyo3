@@ -7,7 +7,7 @@ pub use ffi2::stringobject::PyString_GET_SIZE as PyBytes_GET_SIZE;
 pub use ffi2::object::Py_TPFLAGS_STRING_SUBCLASS as Py_TPFLAGS_BYTES_SUBCLASS;
 pub use ffi2::stringobject::PyString_FromStringAndSize as PyBytes_FromStringAndSize;
 pub use ffi2::stringobject::PyString_FromString as PyBytes_FromString;
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyString_FromFormat")]
+#[cfg_attr(PyPy, link_name="PyPyString_FromFormat")]
 pub use ffi2::stringobject::PyString_FromFormat as PyBytes_FromFormat;
 pub use ffi2::stringobject::PyString_Size as PyBytes_Size;
 pub use ffi2::stringobject::PyString_AsString as PyBytes_AsString;

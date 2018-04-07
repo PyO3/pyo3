@@ -4,10 +4,10 @@ use ffi3::object::PyObject;
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyImport_GetMagicNumber() -> c_long;
     pub fn PyImport_GetMagicTag() -> *const c_char;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ExecCodeModule")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ExecCodeModule")]
     pub fn PyImport_ExecCodeModule(name: *const c_char,
                                    co: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ExecCodeModuleEx")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ExecCodeModuleEx")]
     pub fn PyImport_ExecCodeModuleEx(name: *const c_char,
                                      co: *mut PyObject,
                                      pathname: *const c_char)
@@ -24,23 +24,23 @@ use ffi3::object::PyObject;
                                          pathname: *mut PyObject,
                                          cpathname: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_GetModuleDict")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_GetModuleDict")]
     pub fn PyImport_GetModuleDict() -> *mut PyObject;
     pub fn PyImport_AddModuleObject(name: *mut PyObject) -> *mut PyObject;
     pub fn PyImport_AddModule(name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModule")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModuleNoBlock")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ImportModuleNoBlock")]
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModuleLevel")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ImportModuleLevel")]
     pub fn PyImport_ImportModuleLevel(name: *const c_char,
                                       globals: *mut PyObject,
                                       locals: *mut PyObject,
                                       fromlist: *mut PyObject,
                                       level: c_int) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ImportModuleLevelObject")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ImportModuleLevelObject")]
     pub fn PyImport_ImportModuleLevelObject(name: *mut PyObject,
                                             globals: *mut PyObject,
                                             locals: *mut PyObject,
@@ -61,7 +61,7 @@ pub unsafe fn PyImport_ImportModuleEx(name: *const c_char,
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyImport_ReloadModule")]
+    #[cfg_attr(PyPy, link_name="PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
     pub fn PyImport_Cleanup() -> ();
     pub fn PyImport_ImportFrozenModuleObject(name: *mut PyObject)

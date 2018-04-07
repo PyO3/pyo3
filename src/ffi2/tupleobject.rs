@@ -16,7 +16,7 @@ pub struct PyTupleObject {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_Type")]
+    #[cfg_attr(PyPy, link_name="PyPyTuple_Type")]
     pub static mut PyTuple_Type: PyTypeObject;
 }
 
@@ -51,19 +51,19 @@ pub unsafe fn PyTuple_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObjec
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_Size")]
+    #[cfg_attr(PyPy, link_name="PyPyTuple_Size")]
     pub fn PyTuple_Size(p: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_GetItem")]
+    #[cfg_attr(PyPy, link_name="PyPyTuple_GetItem")]
     pub fn PyTuple_GetItem(p: *mut PyObject, pos: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_SetItem")]
+    #[cfg_attr(PyPy, link_name="PyPyTuple_SetItem")]
     pub fn PyTuple_SetItem(p: *mut PyObject, pos: Py_ssize_t,
                            o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_GetSlice")]
+    #[cfg_attr(PyPy, link_name="PyPyTuple_GetSlice")]
     pub fn PyTuple_GetSlice(p: *mut PyObject, low: Py_ssize_t,
                             high: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}__PyPyTuple_Resize")]
+    #[cfg_attr(PyPy, link_name="_PyPyTuple_Resize")]
     pub fn _PyTuple_Resize(p: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyTuple_Pack")]
+    #[cfg_attr(PyPy, link_name="PyPyTuple_Pack")]
     pub fn PyTuple_Pack(n: Py_ssize_t, ...) -> *mut PyObject;
     //pub fn _PyTuple_MaybeUntrack(arg1: *mut PyObject);
     pub fn PyTuple_ClearFreeList() -> c_int;

@@ -25,19 +25,19 @@ pub struct PyWeakReference {
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_CheckRef")]
+#[cfg_attr(PyPy, link_name="PyPyWeakref_CheckRef")]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyWeakref_RefType)
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_CheckRefExact")]
+#[cfg_attr(PyPy, link_name="PyPyWeakref_CheckRefExact")]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut _PyWeakref_RefType) as c_int
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_CheckProxy")]
+#[cfg_attr(PyPy, link_name="PyPyWeakref_CheckProxy")]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
     ((Py_TYPE(op) == &mut _PyWeakref_ProxyType) ||
          (Py_TYPE(op) == &mut _PyWeakref_CallableProxyType)) as c_int
@@ -49,13 +49,13 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_NewRef")]
+    #[cfg_attr(PyPy, link_name="PyPyWeakref_NewRef")]
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_NewProxy")]
+    #[cfg_attr(PyPy, link_name="PyPyWeakref_NewProxy")]
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_GetObject")]
+    #[cfg_attr(PyPy, link_name="PyPyWeakref_GetObject")]
     pub fn PyWeakref_GetObject(_ref: *mut PyObject) -> *mut PyObject;
     
     pub fn _PyWeakref_GetWeakrefCount(head: *mut PyWeakReference) -> Py_ssize_t;
@@ -63,7 +63,7 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyWeakref_GET_OBJECT")]
+#[cfg_attr(PyPy, link_name="PyPyWeakref_GET_OBJECT")]
 pub unsafe fn PyWeakref_GET_OBJECT(_ref: *mut PyObject) -> *mut PyObject {
     let obj = (*(_ref as *mut PyWeakReference)).wr_object;
     if Py_REFCNT(obj) > 0 { obj } else { Py_None() }

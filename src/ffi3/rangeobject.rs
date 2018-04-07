@@ -2,7 +2,7 @@ use std::os::raw::c_int;
 use ffi3::object::*;
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyRange_Type")]
+    #[cfg_attr(PyPy, link_name="PyPyRange_Type")]
     pub static mut PyRange_Type: PyTypeObject;
     pub static mut PyRangeIter_Type: PyTypeObject;
     pub static mut PyLongRangeIter_Type: PyTypeObject;

@@ -4,9 +4,9 @@ use ffi3::pyport::Py_ssize_t;
 use ffi3::object::*;
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_DelAttrString")]
+#[cfg_attr(PyPy, link_name="PyPyObject_DelAttrString")]
 pub unsafe fn PyObject_DelAttrString(o: *mut PyObject, attr_name: *const c_char) -> c_int {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetAttr")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_SetAttr")]
     PyObject_SetAttrString(o, attr_name, ptr::null_mut())
 }
 
@@ -16,33 +16,33 @@ pub unsafe fn PyObject_DelAttr(o: *mut PyObject, attr_name: *mut PyObject) -> c_
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Call")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_Call")]
     pub fn PyObject_Call(callable_object: *mut PyObject, args: *mut PyObject,
                          kw: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallObject")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_CallObject")]
     pub fn PyObject_CallObject(callable_object: *mut PyObject,
                                args: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallFunction")]
-    #[cfg_attr(PyPy, link_name = "\u{1}_PyPyObject_CallFunction")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_CallFunction")]
+    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunction")]
     pub fn PyObject_CallFunction(callable_object: *mut PyObject,
                                  format: *const c_char, ...)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallMethod")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_CallMethod")]
     pub fn PyObject_CallMethod(o: *mut PyObject,
                                method: *const c_char,
                                format: *const c_char, ...)
      -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallFunctionObjArgs")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_CallFunctionObjArgs")]
     pub fn PyObject_CallFunctionObjArgs(callable: *mut PyObject, ...)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CallMethodObjArgs")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_CallMethodObjArgs")]
     pub fn PyObject_CallMethodObjArgs(o: *mut PyObject,
                                       method: *mut PyObject, ...)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Type")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_Type")]
     pub fn PyObject_Type(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Size")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_Size")]
     pub fn PyObject_Size(o: *mut PyObject) -> Py_ssize_t;
 }
 
@@ -53,14 +53,14 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg(not(Py_LIMITED_API))]
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_LengthHint")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_LengthHint")]
     pub fn PyObject_LengthHint(o: *mut PyObject, arg1: Py_ssize_t)
      -> Py_ssize_t;
 
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetItem")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_GetItem")]
     pub fn PyObject_GetItem(o: *mut PyObject, key: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_SetItem")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_SetItem")]
     pub fn PyObject_SetItem(o: *mut PyObject, key: *mut PyObject,
                             v: *mut PyObject) -> c_int;
     pub fn PyObject_DelItemString(o: *mut PyObject,
@@ -68,19 +68,19 @@ pub unsafe fn PyObject_Length(o: *mut PyObject) -> Py_ssize_t {
      -> c_int;
     pub fn PyObject_DelItem(o: *mut PyObject, key: *mut PyObject)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_AsCharBuffer")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_AsCharBuffer")]
     pub fn PyObject_AsCharBuffer(obj: *mut PyObject,
                                  buffer: *mut *const c_char,
                                  buffer_len: *mut Py_ssize_t)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_CheckReadBuffer")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_CheckReadBuffer")]
     pub fn PyObject_CheckReadBuffer(obj: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_AsReadBuffer")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_AsReadBuffer")]
     pub fn PyObject_AsReadBuffer(obj: *mut PyObject,
                                  buffer: *mut *const c_void,
                                  buffer_len: *mut Py_ssize_t)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_AsWriteBuffer")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_AsWriteBuffer")]
     pub fn PyObject_AsWriteBuffer(obj: *mut PyObject,
                                   buffer: *mut *mut c_void,
                                   buffer_len: *mut Py_ssize_t)
@@ -96,23 +96,23 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
 
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetBuffer")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_GetBuffer")]
     pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer,
                               flags: c_int) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_GetPointer")]
+    #[cfg_attr(PyPy, link_name="PyPyBuffer_GetPointer")]
     pub fn PyBuffer_GetPointer(view: *mut Py_buffer, indices: *mut Py_ssize_t)
      -> *mut c_void;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_ToContiguous")]
+    #[cfg_attr(PyPy, link_name="PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(buf: *mut c_void,
                                  view: *mut Py_buffer, len: Py_ssize_t,
                                  order: c_char) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_FromContiguous")]
+    #[cfg_attr(PyPy, link_name="PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(view: *mut Py_buffer,
                                    buf: *mut c_void, len: Py_ssize_t,
                                    order: c_char) -> c_int;
     pub fn PyObject_CopyData(dest: *mut PyObject, src: *mut PyObject)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_IsContiguous")]
+    #[cfg_attr(PyPy, link_name="PyPyBuffer_IsContiguous")]
     pub fn PyBuffer_IsContiguous(view: *const Py_buffer, fort: c_char)
      -> c_int;
     pub fn PyBuffer_FillContiguousStrides(ndims: c_int,
@@ -120,26 +120,26 @@ pub unsafe fn PyObject_CheckBuffer(o: *mut PyObject) -> c_int {
                                           strides: *mut Py_ssize_t,
                                           itemsize: c_int,
                                           fort: c_char) -> ();
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_FillInfo")]
+    #[cfg_attr(PyPy, link_name="PyPyBuffer_FillInfo")]
     pub fn PyBuffer_FillInfo(view: *mut Py_buffer, o: *mut PyObject,
                              buf: *mut c_void, len: Py_ssize_t,
                              readonly: c_int, flags: c_int)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyBuffer_Release")]
+    #[cfg_attr(PyPy, link_name="PyPyBuffer_Release")]
     pub fn PyBuffer_Release(view: *mut Py_buffer) -> ();
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_Format")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_Format")]
     pub fn PyObject_Format(obj: *mut PyObject, format_spec: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_GetIter")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_GetIter")]
     pub fn PyObject_GetIter(arg1: *mut PyObject) -> *mut PyObject;
 }
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyIter_Check")]
+#[cfg_attr(PyPy, link_name="PyPyIter_Check")]
 pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     (match (*(*o).ob_type).tp_iternext {
         Some(tp_iternext) => tp_iternext as *const c_void != ::ffi3::object::_PyObject_NextNotImplemented as *const c_void,
@@ -148,171 +148,171 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyIter_Next")]
+    #[cfg_attr(PyPy, link_name="PyPyIter_Next")]
     pub fn PyIter_Next(arg1: *mut PyObject) -> *mut PyObject;
     
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Check")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Check")]
     pub fn PyNumber_Check(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Add")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Add")]
     pub fn PyNumber_Add(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Subtract")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Subtract")]
     pub fn PyNumber_Subtract(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Multiply")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Multiply")]
     pub fn PyNumber_Multiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_MatrixMultiply")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_MatrixMultiply")]
     pub fn PyNumber_MatrixMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_FloorDivide")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_FloorDivide")]
     pub fn PyNumber_FloorDivide(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_TrueDivide")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_TrueDivide")]
     pub fn PyNumber_TrueDivide(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Remainder")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Remainder")]
     pub fn PyNumber_Remainder(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Divmod")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Divmod")]
     pub fn PyNumber_Divmod(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Power")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Power")]
     pub fn PyNumber_Power(o1: *mut PyObject, o2: *mut PyObject,
                           o3: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Negative")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Negative")]
     pub fn PyNumber_Negative(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Positive")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Positive")]
     pub fn PyNumber_Positive(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Absolute")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Absolute")]
     pub fn PyNumber_Absolute(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Invert")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Invert")]
     pub fn PyNumber_Invert(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Lshift")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Lshift")]
     pub fn PyNumber_Lshift(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Rshift")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Rshift")]
     pub fn PyNumber_Rshift(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_And")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_And")]
     pub fn PyNumber_And(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Xor")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Xor")]
     pub fn PyNumber_Xor(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Or")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Or")]
     pub fn PyNumber_Or(o1: *mut PyObject, o2: *mut PyObject) -> *mut PyObject;
 }
 
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyIndex_Check")]
+#[cfg_attr(PyPy, link_name="PyPyIndex_Check")]
 pub unsafe fn PyIndex_Check(o: *mut PyObject) -> c_int {
     let tp_as_number = (*(*o).ob_type).tp_as_number;
     (!tp_as_number.is_null() && (*tp_as_number).nb_index.is_some()) as c_int
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Index")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Index")]
     pub fn PyNumber_Index(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_AsSsize_t")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_AsSsize_t")]
     pub fn PyNumber_AsSsize_t(o: *mut PyObject, exc: *mut PyObject)
      -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Long")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Long")]
     pub fn PyNumber_Long(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_Float")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_Float")]
     pub fn PyNumber_Float(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceAdd")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceAdd")]
     pub fn PyNumber_InPlaceAdd(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceSubtract")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceSubtract")]
     pub fn PyNumber_InPlaceSubtract(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceMultiply")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceMultiply")]
     pub fn PyNumber_InPlaceMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceMatrixMultiply")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceMatrixMultiply")]
     pub fn PyNumber_InPlaceMatrixMultiply(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceFloorDivide")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceFloorDivide")]
     pub fn PyNumber_InPlaceFloorDivide(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceTrueDivide")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceTrueDivide")]
     pub fn PyNumber_InPlaceTrueDivide(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceRemainder")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceRemainder")]
     pub fn PyNumber_InPlaceRemainder(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlacePower")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlacePower")]
     pub fn PyNumber_InPlacePower(o1: *mut PyObject, o2: *mut PyObject,
                                  o3: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceLshift")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceLshift")]
     pub fn PyNumber_InPlaceLshift(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceRshift")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceRshift")]
     pub fn PyNumber_InPlaceRshift(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceAnd")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceAnd")]
     pub fn PyNumber_InPlaceAnd(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceXor")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceXor")]
     pub fn PyNumber_InPlaceXor(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyNumber_InPlaceOr")]
+    #[cfg_attr(PyPy, link_name="PyPyNumber_InPlaceOr")]
     pub fn PyNumber_InPlaceOr(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
     pub fn PyNumber_ToBase(n: *mut PyObject, base: c_int)
      -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Check")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Check")]
     pub fn PySequence_Check(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Size")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Size")]
     pub fn PySequence_Size(o: *mut PyObject) -> Py_ssize_t;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Length")]
+#[cfg_attr(PyPy, link_name="PyPySequence_Length")]
 pub unsafe fn PySequence_Length(o: *mut PyObject) -> Py_ssize_t {
     PySequence_Size(o)
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Concat")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Concat")]
     pub fn PySequence_Concat(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Repeat")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Repeat")]
     pub fn PySequence_Repeat(o: *mut PyObject, count: Py_ssize_t)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_GetItem")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_GetItem")]
     pub fn PySequence_GetItem(o: *mut PyObject, i: Py_ssize_t)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_GetSlice")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_GetSlice")]
     pub fn PySequence_GetSlice(o: *mut PyObject, i1: Py_ssize_t,
                                i2: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_SetItem")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_SetItem")]
     pub fn PySequence_SetItem(o: *mut PyObject, i: Py_ssize_t,
                               v: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_DelItem")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_DelItem")]
     pub fn PySequence_DelItem(o: *mut PyObject, i: Py_ssize_t)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_SetSlice")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_SetSlice")]
     pub fn PySequence_SetSlice(o: *mut PyObject, i1: Py_ssize_t,
                                i2: Py_ssize_t, v: *mut PyObject)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_DelSlice")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_DelSlice")]
     pub fn PySequence_DelSlice(o: *mut PyObject, i1: Py_ssize_t,
                                i2: Py_ssize_t) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Tuple")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Tuple")]
     pub fn PySequence_Tuple(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_List")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_List")]
     pub fn PySequence_List(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Fast")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Fast")]
     pub fn PySequence_Fast(o: *mut PyObject, m: *const c_char)
      -> *mut PyObject;
     // TODO: PySequence_Fast macros
     pub fn PySequence_Count(o: *mut PyObject, value: *mut PyObject)
      -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Contains")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Contains")]
     pub fn PySequence_Contains(seq: *mut PyObject, ob: *mut PyObject)
      -> c_int;
 }
@@ -323,23 +323,23 @@ pub unsafe fn PySequence_In(o: *mut PyObject, value: *mut PyObject) -> c_int {
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_Index")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_Index")]
     pub fn PySequence_Index(o: *mut PyObject, value: *mut PyObject)
      -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_InPlaceConcat")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_InPlaceConcat")]
     pub fn PySequence_InPlaceConcat(o1: *mut PyObject, o2: *mut PyObject)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPySequence_InPlaceRepeat")]
+    #[cfg_attr(PyPy, link_name="PyPySequence_InPlaceRepeat")]
     pub fn PySequence_InPlaceRepeat(o: *mut PyObject, count: Py_ssize_t)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Check")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_Check")]
     pub fn PyMapping_Check(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Size")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_Size")]
     pub fn PyMapping_Size(o: *mut PyObject) -> Py_ssize_t;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Length")]
+#[cfg_attr(PyPy, link_name="PyPyMapping_Length")]
 pub unsafe fn PyMapping_Length(o: *mut PyObject) -> Py_ssize_t {
     PyMapping_Size(o)
 }
@@ -355,30 +355,30 @@ pub unsafe fn PyMapping_DelItem(o : *mut PyObject, key : *mut PyObject) -> c_int
 }
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_HasKeyString")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_HasKeyString")]
     pub fn PyMapping_HasKeyString(o: *mut PyObject,
                                   key: *const c_char)
      -> c_int;
     pub fn PyMapping_HasKey(o: *mut PyObject, key: *mut PyObject)
      -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Keys")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_Keys")]
     pub fn PyMapping_Keys(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Values")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_Values")]
     pub fn PyMapping_Values(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_Items")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_Items")]
     pub fn PyMapping_Items(o: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_GetItemString")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_GetItemString")]
     pub fn PyMapping_GetItemString(o: *mut PyObject,
                                    key: *const c_char)
      -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyMapping_SetItemString")]
+    #[cfg_attr(PyPy, link_name="PyPyMapping_SetItemString")]
     pub fn PyMapping_SetItemString(o: *mut PyObject,
                                    key: *const c_char,
                                    value: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_IsInstance")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_IsInstance")]
     pub fn PyObject_IsInstance(object: *mut PyObject,
                                typeorclass: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name="\u{1}_PyPyObject_IsSubclass")]
+    #[cfg_attr(PyPy, link_name="PyPyObject_IsSubclass")]
     pub fn PyObject_IsSubclass(object: *mut PyObject,
                                typeorclass: *mut PyObject) -> c_int;
 }
