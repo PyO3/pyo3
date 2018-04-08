@@ -54,6 +54,29 @@ impl PyDateTime {
     }
 }
 
+// datetime.time
+pub struct PyTime(PyObject);
+pyobject_convert!(PyTime);
+pyobject_nativetype!(PyTime, PyDateTime_TimeType, PyTime_Check);
+
+impl PyTime {
+    pub fn new(py: Python, hour: u32, minute: u32, second: u32,
+               microsecond: u32, tzinfo: &PyObject) -> PyResult<Py<PyTime>> {
+        let h = hour as c_int;
+        let m = minute as c_int;
+        let s = second as c_int;
+        let u = microsecond as c_int;
+        let tzi = tzinfo.as_ptr();
+
+        unsafe {
+            let ptr = PyDateTimeAPI.Time_FromTime.unwrap()(
+                h, m, s, u, tzi, PyDateTimeAPI.TimeType
+                );
+            Py::from_owned_ptr_or_err(py, ptr)
+        }
+    }
+}
+
 // datetime.tzinfo bindings
 pub struct PyTzInfo(PyObject);
 pyobject_convert!(PyTzInfo);
