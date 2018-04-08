@@ -309,12 +309,12 @@ impl<T> PyTryFrom for T where T: PyTypeInfo {
 /// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
 /// the codegen is currently built on the assumption that all functions return a PyResult.
 pub trait ReturnTypeIntoPyResult {
-    type Inner: ToPyObject;
+    type Inner;
 
     fn return_type_into_py_result(self) -> PyResult<Self::Inner>;
 }
 
-impl<T: ToPyObject> ReturnTypeIntoPyResult for T {
+impl<T: IntoPyObject> ReturnTypeIntoPyResult for T {
     type Inner = T;
 
     default fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
@@ -322,7 +322,7 @@ impl<T: ToPyObject> ReturnTypeIntoPyResult for T {
     }
 }
 
-impl<T: ToPyObject> ReturnTypeIntoPyResult for PyResult<T> {
+impl<T: IntoPyObject> ReturnTypeIntoPyResult for PyResult<T> {
     type Inner = T;
 
     fn return_type_into_py_result(self) -> PyResult<Self::Inner> {

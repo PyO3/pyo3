@@ -19,7 +19,7 @@ pub fn build_py_methods(ast: &mut syn::Item) -> Tokens {
     }
 }
 
-fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
+pub fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
 
     // get method names in impl block
     let mut methods = Vec::new();
