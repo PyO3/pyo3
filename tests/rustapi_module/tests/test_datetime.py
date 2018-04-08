@@ -4,6 +4,9 @@ import datetime as pdt
 
 import pytest
 
+from hypothesis import given
+from hypothesis.strategies import dates
+
 # Constants
 UTC = pdt.timezone.utc
 MAX_DAYS = pdt.timedelta.max // pdt.timedelta(days=1)
@@ -14,6 +17,12 @@ MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
 
+# Helper functions
+def get_timestamp(dt):
+    return int(dt.timestamp())
+
+
+# Tests
 def test_date():
     assert rdt.make_date(2017, 9, 1) == pdt.date(2017, 9, 1)
 
@@ -21,6 +30,12 @@ def test_date():
 def test_invalid_date_fails():
     with pytest.raises(ValueError):
         rdt.make_date(2017, 2, 30)
+
+
+@given(d=dates())
+def test_date_from_timestamp(d):
+    ts = get_timestamp(pdt.datetime.combine(d, pdt.time(0)))
+    assert rdt.date_from_timestamp(ts) == pdt.date.fromtimestamp(ts)
 
 
 @pytest.mark.parametrize('args, kwargs', [

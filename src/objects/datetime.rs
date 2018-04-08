@@ -23,6 +23,14 @@ impl PyDate {
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
+
+    pub fn from_timestamp(py: Python, args: &PyObject) -> PyResult<Py<PyDate>> {
+        unsafe {
+            let ptr = PyDateTimeAPI.Date_FromTimestamp.unwrap()
+                (PyDateTimeAPI.DateType, args.as_ptr());
+            Py::from_owned_ptr_or_err(py, ptr)
+        }
+    }
 }
 
 

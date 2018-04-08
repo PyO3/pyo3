@@ -16,6 +16,13 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
         PyDate::new(py, year, month, day)
     }
 
+    #[pyfn(m, "date_from_timestamp")]
+    fn date_from_timestamp(py: Python, ts: i64) -> PyResult<Py<PyDate>> {
+        let timestamp = ts.to_object(py);
+        let args = PyTuple::new(py, &[timestamp]);
+        PyDate::from_timestamp(py, &args.to_object(py))
+    }
+
     #[pyfn(m, "make_time")]
     fn make_time(py: Python, hour: u32, minute: u32, second: u32,
                  microsecond: u32, tzinfo: Option<&PyTzInfo>) -> PyResult<Py<PyTime>> {
