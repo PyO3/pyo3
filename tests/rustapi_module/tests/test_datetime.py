@@ -5,7 +5,7 @@ import datetime as pdt
 import pytest
 
 from hypothesis import given
-from hypothesis.strategies import dates
+from hypothesis.strategies import dates, datetimes
 
 # Constants
 UTC = pdt.timezone.utc
@@ -19,7 +19,7 @@ MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
 # Helper functions
 def get_timestamp(dt):
-    return int(dt.timestamp())
+    return dt.timestamp()
 
 
 # Tests
@@ -35,7 +35,7 @@ def test_invalid_date_fails():
 @given(d=dates())
 def test_date_from_timestamp(d):
     ts = get_timestamp(pdt.datetime.combine(d, pdt.time(0)))
-    assert rdt.date_from_timestamp(ts) == pdt.date.fromtimestamp(ts)
+    assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
 
 
 @pytest.mark.parametrize('args, kwargs', [
@@ -109,6 +109,20 @@ def test_invalid_datetime_fails():
 def test_datetime_typeerror():
     with pytest.raises(TypeError):
         rdt.make_datetime('2011', 1, 1, 0, 0, 0, 0)
+
+
+@given(dt=datetimes())
+def test_datetime_from_timestamp(dt):
+    ts = get_timestamp(dt)
+    assert rdt.datetime_from_timestamp(ts) == pdt.datetime.fromtimestamp(ts)
+
+
+def test_datetime_from_timestamp_tzinfo():
+    d1 = rdt.datetime_from_timestamp(0, tz=UTC)
+    d2 = rdt.datetime_from_timestamp(0, tz=UTC)
+
+    assert d1 == d2
+    assert d1.tzinfo is d2.tzinfo
 
 
 @pytest.mark.parametrize('args', [

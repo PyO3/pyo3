@@ -4,6 +4,7 @@ extern crate pyo3;
 use pyo3::{py, Py, Python, PyModule, PyResult};
 use pyo3::{ToPyObject};
 use pyo3::prelude::{PyObject};
+use pyo3::prelude::{PyTuple, PyDict};
 use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
 
 
@@ -48,6 +49,20 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
             None => py.None(),
         };
         PyDateTime::new(py, year, month, day, hour, minute, second, microsecond, &tzi)
+    }
+
+    #[pyfn(m, "datetime_from_timestamp")]
+    fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResult<Py<PyDateTime>> {
+        let timestamp : PyObject = ts.to_object(py);
+        let tzi : PyObject = match tz {
+            Some(t) => t.to_object(py),
+            None => py.None()
+        };
+
+        let args = PyTuple::new(py, &[timestamp, tzi]);
+        let kwargs = PyDict::new(py);
+
+        PyDateTime::from_timestamp(py, &args.to_object(py), &kwargs.to_object(py))
     }
 
     Ok(())

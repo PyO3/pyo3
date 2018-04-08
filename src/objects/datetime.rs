@@ -60,6 +60,16 @@ impl PyDateTime {
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
+
+    pub fn from_timestamp(py: Python, args: &PyObject, kwargs: &PyObject) ->
+            PyResult<Py<PyDateTime>> {
+
+        unsafe {
+            let ptr = PyDateTimeAPI.DateTime_FromTimestamp.unwrap()
+                (PyDateTimeAPI.DateTimeType, args.as_ptr(), kwargs.as_ptr());
+            Py::from_owned_ptr_or_err(py, ptr)
+        }
+    }
 }
 
 // datetime.time
