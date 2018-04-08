@@ -22,7 +22,9 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
-    /* pub TimeZone_UTC: *mut PyObject, */
+    #[cfg(Py_3_7)]
+    pub TimeZone_UTC: *mut PyObject,
+
     pub Date_FromDate: Option<
         unsafe extern "C" fn(
             year: c_int,
@@ -63,16 +65,18 @@ pub struct PyDateTime_CAPI {
             cls: *mut PyTypeObject,
         ) -> *mut PyObject,
     >,
-    /* pub TimeZone_FromTimeZone: Option< */
-    /*     unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject, */
-    /* >, */
+    #[cfg(Py_3_7)]
+    pub TimeZone_FromTimeZone: Option<
+        unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
+    >,
     pub DateTime_FromTimestamp: Option<
-        unsafe extern "C" fn(cls: *mut PyObject, args: *mut PyObject, kwargs: *mut PyObject)
+        unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject, kwargs: *mut PyObject)
             -> *mut PyObject,
     >,
     pub Date_FromTimestamp: Option<
-        unsafe extern "C" fn(cls: *mut PyObject, args: *mut PyObject) -> *mut PyObject,
+        unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
     >,
+    #[cfg(Py_3_6)]
     pub DateTime_FromDateAndTimeAndFold: Option<
         unsafe extern "C" fn(
             year: c_int,
@@ -87,6 +91,7 @@ pub struct PyDateTime_CAPI {
             cls: *mut PyTypeObject,
         ) -> *mut PyObject,
     >,
+    #[cfg(Py_3_6)]
     pub Time_FromTimeAndFold: Option< unsafe extern "C" fn(
             hour: c_int,
             minute: c_int,
