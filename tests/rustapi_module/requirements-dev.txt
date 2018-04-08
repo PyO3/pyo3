@@ -1,0 +1,3 @@
+hypothesis>=3.55
+pytest>=3.5.0
+setuptools-rust>=0.9.1
