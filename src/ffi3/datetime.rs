@@ -135,3 +135,8 @@ pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
 pub unsafe fn PyTime_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.TimeType) as c_int
 }
+
+#[inline(always)]
+pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, PyDateTimeAPI.DeltaType) as c_int
+}

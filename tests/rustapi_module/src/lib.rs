@@ -4,10 +4,13 @@ extern crate pyo3;
 use pyo3::{py, Py, Python, PyModule, PyResult};
 use pyo3::{ToPyObject};
 use pyo3::prelude::{PyObject};
-use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyTzInfo};
+use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
+
 
 #[py::modinit(datetime)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+
+
     #[pyfn(m, "make_date")]
     fn make_date(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
         PyDate::new(py, year, month, day)
@@ -22,6 +25,11 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
         };
 
         PyTime::new(py, hour, minute, second, microsecond, &tzi)
+    }
+
+    #[pyfn(m, "make_delta")]
+    fn make_delta(py: Python, days: i32, seconds: i32, microseconds: i32) -> PyResult<Py<PyDelta>> {
+        PyDelta::new(py, days, seconds, microseconds, true)
     }
 
     #[pyfn(m, "make_datetime")]

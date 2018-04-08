@@ -4,7 +4,14 @@ import datetime as pdt
 
 import pytest
 
+# Constants
 UTC = pdt.timezone.utc
+MAX_DAYS = pdt.timedelta.max // pdt.timedelta(days=1)
+MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
+MAX_SECONDS = int(pdt.timedelta.max.total_seconds())
+MIN_SECONDS = int(pdt.timedelta.min.total_seconds())
+MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
+MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
 
 def test_date():
@@ -87,3 +94,37 @@ def test_invalid_datetime_fails():
 def test_datetime_typeerror():
     with pytest.raises(TypeError):
         rdt.make_datetime('2011', 1, 1, 0, 0, 0, 0)
+
+
+@pytest.mark.parametrize('args', [
+    (0, 0, 0),
+    (1, 0, 0),
+    (-1, 0, 0),
+    (0, 1, 0),
+    (0, -1, 0),
+    (1, -1, 0),
+    (-1, 1, 0),
+    (0, 0, 123456),
+    (0, 0, -123456),
+])
+def test_delta(args):
+    act = pdt.timedelta(*args)
+    exp = rdt.make_delta(*args)
+
+    assert act == exp
+
+
+@pytest.mark.parametrize('args,err_type', [
+    ((MAX_DAYS + 1, 0, 0), OverflowError),
+    ((MIN_DAYS - 1, 0, 0), OverflowError),
+    ((0, MAX_SECONDS + 1, 0), OverflowError),
+    ((0, MIN_SECONDS - 1, 0), OverflowError),
+    ((0, 0, MAX_MICROSECONDS + 1), OverflowError),
+    ((0, 0, MIN_MICROSECONDS - 1), OverflowError),
+    (('0', 0, 0), TypeError),
+    ((0, '0', 0), TypeError),
+    ((0, 0, '0'), TypeError),
+])
+def test_delta_err(args, err_type):
+    with pytest.raises(err_type):
+        rdt.make_delta(*args)

@@ -82,3 +82,26 @@ pub struct PyTzInfo(PyObject);
 pyobject_convert!(PyTzInfo);
 pyobject_nativetype!(PyTzInfo, PyDateTime_TZInfoType, PyTZInfo_Check);
 
+
+// datetime.timedelta bindings
+pub struct PyDelta(PyObject);
+pyobject_convert!(PyDelta);
+pyobject_nativetype!(PyDelta, PyDateTime_DeltaType, PyDelta_Check);
+
+impl PyDelta {
+    pub fn new(py: Python, days: i32, seconds: i32, microseconds: i32,
+               normalize: bool) -> PyResult<Py<PyDelta>> {
+        let d = days as c_int;
+        let s = seconds as c_int;
+        let u = microseconds as c_int;
+        let n = normalize as c_int;
+
+        unsafe {
+            let ptr = PyDateTimeAPI.Delta_FromDelta.unwrap()(
+                d, s, u, n, PyDateTimeAPI.DeltaType
+                );
+            Py::from_owned_ptr_or_err(py, ptr)
+        }
+    }
+}
+
