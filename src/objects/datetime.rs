@@ -93,6 +93,25 @@ impl PyTime {
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
+
+    #[cfg(Py_3_6)]
+    pub fn new_with_fold(py: Python, hour: u32, minute: u32, second: u32,
+                         microsecond: u32, tzinfo: &PyObject,
+                         fold: bool) -> PyResult<Py<PyTime>> {
+        let h = hour as c_int;
+        let m = minute as c_int;
+        let s = second as c_int;
+        let u = microsecond as c_int;
+
+        let f = fold as c_int;
+        unsafe {
+            let ptr = PyDateTimeAPI.Time_FromTimeAndFold.unwrap()
+                (h, m, s, u, tzinfo.as_ptr(), f, PyDateTimeAPI.TimeType);
+            Py::from_owned_ptr_or_err(py, ptr)
+        }
+
+    }
+
 }
 
 // datetime.tzinfo bindings

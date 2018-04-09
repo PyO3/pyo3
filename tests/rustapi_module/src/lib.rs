@@ -8,9 +8,16 @@ use pyo3::prelude::{PyTuple, PyDict};
 use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
 
 
+macro_rules! to_pyobject {
+    ($py:expr, $o:ident) => (match $o {
+        Some(t) => t.to_object($py),
+        None => $py.None()
+    })
+}
+
+
 #[py::modinit(datetime)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
-
 
     #[pyfn(m, "make_date")]
     fn make_date(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
@@ -27,11 +34,7 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "make_time")]
     fn make_time(py: Python, hour: u32, minute: u32, second: u32,
                  microsecond: u32, tzinfo: Option<&PyTzInfo>) -> PyResult<Py<PyTime>> {
-        let tzi: PyObject = match tzinfo {
-            Some(t) => t.to_object(py),
-            None => py.None(),
-        };
-
+        let tzi: PyObject = to_pyobject!(py, tzinfo);
         PyTime::new(py, hour, minute, second, microsecond, &tzi)
     }
 
@@ -63,6 +66,16 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
         let kwargs = PyDict::new(py);
 
         PyDateTime::from_timestamp(py, &args.to_object(py), &kwargs.to_object(py))
+    }
+
+
+    #[cfg(Py_3_6)]
+    #[pyfn(m, "time_with_fold")]
+    fn time_with_fold(py: Python, hour: u32, minute: u32, second: u32,
+                      microsecond: u32, tzinfo: Option<&PyTzInfo>,
+                      fold: bool) -> PyResult<Py<PyTime>> {
+        let tzi = to_pyobject!(py, tzinfo);
+        PyTime::new_with_fold(py, hour, minute, second, microsecond, &tzi, fold)
     }
 
     Ok(())

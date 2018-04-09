@@ -16,6 +16,8 @@ MIN_SECONDS = int(pdt.timedelta.min.total_seconds())
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
+HAS_FOLD = getattr(pdt.datetime, 'fold', False)
+
 
 # Helper functions
 def get_timestamp(dt):
@@ -49,6 +51,13 @@ def test_time(args, kwargs):
 
     assert act == exp
     assert act.tzinfo is exp.tzinfo
+
+
+@pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
+@pytest.mark.parametrize('fold', [False, True])
+def test_time_fold(fold):
+    t = rdt.time_with_fold(0, 0, 0, 0, None, fold)
+    assert t.fold == fold
 
 
 @pytest.mark.xfail
