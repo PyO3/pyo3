@@ -135,9 +135,9 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
+    let cb = quote! {
         #cls::#name(&_obj, #(#names),*).return_type_into_py_result()
-    }};
+    };
 
     let body = impl_arg_params(spec, cb);
     let body_to_result = body_to_result(&body, spec);
@@ -221,9 +221,9 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
+    let cb = quote! {
         #cls::#name(&_cls, #(#names),*).return_type_into_py_result()
-    }};
+    };
 
     let body = impl_arg_params(spec, cb);
     let body_to_result = body_to_result(&body, spec);
@@ -254,9 +254,9 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
+    let cb = quote! {
         #cls::#name(#(#names),*).return_type_into_py_result()
-    }};
+    };
 
     let body = impl_arg_params(spec, cb);
     let body_to_result = body_to_result(&body, spec);
@@ -350,9 +350,9 @@ fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
             syn::Ident::from(format!("arg{}", item.0))
         }
     ).collect();
-    quote! {{
+    quote! {
         _slf.#fname(#(#names),*).return_type_into_py_result()
-    }}
+    }
 }
 
 pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
@@ -444,13 +444,10 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
 
     if spec.is_args(&name) {
         quote! {
-            match <#ty as _pyo3::FromPyObject>::extract(_args.as_ref())
-            {
-                Ok(#arg_name) => {
-                    #body
-                }
-                Err(e) => Err(e)
-            }
+            <#ty as _pyo3::FromPyObject>::extract(_args.as_ref())
+                .and_then(|#arg_name| {
+                        #body
+                    })
         }
     } else if spec.is_kwargs(&name) {
         quote! {{
@@ -508,12 +505,10 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
             }
         } else {
             quote! {
-                match _iter.next().unwrap().as_ref().unwrap().extract() {
-                    Ok(#arg_name) => {
+                _iter.next().unwrap().as_ref().unwrap().extract()
+                    .and_then(|#arg_name| {
                         #body
-                    }
-                    Err(e) => Err(e)
-                }
+                    })
             }
         }
     }

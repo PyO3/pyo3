@@ -307,9 +307,9 @@ pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
+    let cb = quote! {
         #name(#(#names),*).return_type_into_py_result()
-    }};
+    };
 
     let body = py_method::impl_arg_params(spec, cb);
     let body_to_result = py_method::body_to_result(&body, spec);
