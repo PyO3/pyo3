@@ -66,7 +66,7 @@ have rust type as well.
 # extern crate pyo3;
 # use pyo3::prelude::*;
 # fn check_for_error() -> bool {false}
-
+#
 fn my_func(arg: PyObject) -> PyResult<()> {
     if check_for_error() {
         Err(exc::ValueError::new("argument is wrong"))
@@ -100,8 +100,15 @@ fn main() {
 
 To check the type of an exception, you can simply do:
 
-```rust,ignore
-let ret = py.is_instance::<exc::TypeError>(&err.instance(py)).expect("Error calling is_instance");
+```rust
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# fn main() {
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let err = exc::TypeError::new(NoArgs);
+err.is_instance::<exc::TypeError>(py);
+# }
 ```
 
 ## Handle Rust Error
@@ -124,6 +131,7 @@ trait can be implemented. In that case actual exception arguments creation get d
 until `Python` object is available.
 
 ```rust,ignore
+#![feature(proc_macro, specialization)]
 extern crate pyo3;
 
 use std::net::TcpListener;

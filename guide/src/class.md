@@ -82,7 +82,7 @@ attribute. Only python `__new__` method can be specified, `__init__` is not avai
 #    debug: bool,
 #    token: PyToken,
 # }
-
+#
 #[py::methods]
 impl MyClass {
 
@@ -123,7 +123,7 @@ with value of custom class struct. Subclass must call parent's `__new__` method.
 # #![feature(proc_macro, specialization, const_fn)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-
+#
 #[py::class]
 struct BaseClass {
    val1: usize,
@@ -179,10 +179,9 @@ attributes. i.e.
 # #[py::class]
 # struct MyClass {
 #    num: i32,
-#    debug: bool,
 #    token: PyToken,
 # }
-
+#
 #[py::methods]
 impl MyClass {
 
@@ -207,10 +206,9 @@ rust's special keywords like `type`.
 # #[py::class]
 # struct MyClass {
 #    num: i32,
-#    debug: bool,
 #    token: PyToken,
 # }
-
+#
 #[py::methods]
 impl MyClass {
 
@@ -239,10 +237,9 @@ If parameter is specified, it is used and property name. i.e.
 # #[py::class]
 # struct MyClass {
 #    num: i32,
-#    debug: bool,
 #    token: PyToken,
 # }
-
+#
 #[py::methods]
 impl MyClass {
 
@@ -290,10 +287,9 @@ class method static methods, etc.
 # #[py::class]
 # struct MyClass {
 #    num: i32,
-#    debug: bool,
 #    token: PyToken,
 # }
-
+#
 #[py::methods]
 impl MyClass {
 
@@ -454,7 +450,7 @@ Example:
 #    debug: bool,
 #    token: PyToken,
 # }
-
+#
 #[py::methods]
 impl MyClass {
     #[args(arg1=true, args="*", arg2=10, kwargs="**")]

@@ -4,7 +4,7 @@
 
 ## `ToPyObject` and `IntoPyObject` trait
 
-[`ToPyObject`][ToPyObject] trait is a conversion trait that allows various objects to be converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the same purpose except it consumes `self`.
+[`ToPyObject`] trait is a conversion trait that allows various objects to be converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the same purpose except it consumes `self`.
 
 ## `IntoPyTuple` trait
 
@@ -14,7 +14,6 @@ For example, [`IntoPyTuple`][IntoPyTuple] trait is implemented for `()` so that 
 
 ```rust
 extern crate pyo3;
-
 use pyo3::{Python, IntoPyTuple};
 
 fn main() {
@@ -39,66 +38,95 @@ Both methods accept `args` and `kwargs` arguments. `args` argument is generate o
 [`IntoPyTuple`][IntoPyTuple] trait. So args could be `PyTuple` instance or
 rust tuple with up to 10 elements. Or `NoArgs` object which represents empty tuple object.
 
-```rust,ignore
+```rust
 extern crate pyo3;
-
 use pyo3::prelude::*;
 
+# struct SomeObject;
+#
+# impl SomeObject {
+#     fn new(py: Python) -> PyObject {
+#           let builtins = py.import("builtins").unwrap();
+#           let print = builtins.get("print").unwrap();
+#           print.to_object(py)
+#     }  
+# }
+#
 fn main() {
+    # let arg1 = "arg1";
+    # let arg2 = "arg2";
+    # let arg3 = "arg3";
+
     let gil = Python::acquire_gil();
     let py = gil.python();
-    
-    let obj = SomeObject::new();
-    
+
+    let obj = SomeObject::new(py);
+
     // call object without empty arguments
-    obj.call(NoArgs, NoArg);
-    
+    obj.call0(py);
+
     // call object with PyTuple
     let args = PyTuple::new(py, &[arg1, arg2, arg3]);
-    obj.call(args, NoArg);
+    obj.call1(py, args);
 
     // pass arguments as rust tuple
     let args = (arg1, arg2, arg3);
-    obj.call(args, NoArg);
+    obj.call1(py, args);
 }
 ```
 
 `kwargs` argument is generate over
 [`IntoPyDictPointer`][IntoPyDictPointer] trait. `HashMap` or `BTreeMap` could be used as
 keyword arguments. rust tuple with up to 10 elements where each element is tuple with size 2
-could be used as kwargs as well. Or `NoArgs` object can be used to indicate that 
+could be used as kwargs as well. Or `NoArgs` object can be used to indicate that
 no keywords arguments are provided.
 
-```rust,ignore
+```rust
 extern crate pyo3;
 use pyo3::prelude::*;
 
+# use std::collections::HashMap;
+# struct SomeObject;
+#
+# impl SomeObject {
+#     fn new(py: Python) -> PyObject {
+#           let builtins = py.import("builtins").unwrap();
+#           let print = builtins.get("print").unwrap();
+#           print.to_object(py)
+#     }  
+# }
+#
 fn main() {
+    # let key1 = "key1";
+    # let val1 = 1;
+    # let key2 = "key2";
+    # let val2 = 2;
+
     let gil = Python::acquire_gil();
     let py = gil.python();
-    
-    let obj = SomeObject::new();
-    
+
+    let obj = SomeObject::new(py);
+
     // call object with PyDict
     let kwargs = PyDict::new(py);
-    kwargs.set_item(key, value);
-    obj.call(NoArg, kwargs);
+    kwargs.set_item(key1, val1);
+    obj.call(py, NoArgs, kwargs);
 
     // pass arguments as rust tuple
-    let kwargs = ((key1, val1), (key2, val2), (key3, val3));
-    obj.call(args, kwargs);
+    let kwargs = ((key1, val1), (key2, val2));
+    obj.call(py, NoArgs, kwargs);
 
     // pass arguments as HashMap
-    let mut kwargs = HashMap::<i32, i32>::new();
-    kwargs.insert(1, 1);
-    obj.call(args, kwargs);
+    let mut kwargs = HashMap::<&str, i32>::new();
+    kwargs.insert(key1, 1);
+    obj.call(py, NoArgs, kwargs);
 }
 ```
 
 
 TODO
 
-[ToPyObject]: https://pyo3.github.io/pyo3/pyo3/trait.ToPyObject.html
+[`ToPyObject`]: https://pyo3.github.io/pyo3/pyo3/trait.ToPyObject.html
 [IntoPyObject]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyObject.html
 [PyObject]: https://pyo3.github.io/pyo3/pyo3/struct.PyObject.html
 [IntoPyTuple]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyTuple.html
