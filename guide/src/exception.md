@@ -5,6 +5,7 @@
 You can use the `py_exception!` macro to define a new exception type:
 
 ```rust
+# #[macro_use] extern crate pyo3;
 py_exception!(module, MyError);
 ```
 
@@ -25,7 +26,7 @@ fn main() {
     let py = gil.python();
     let ctx = PyDict::new(py);
 
-    ctx.set_item(py, "CustomError", py.get_type::<CustomError>()).unwrap();
+    ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
 
     py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"", None, Some(&ctx)).unwrap();
     py.run("assert CustomError('oops').args == ('oops',)", None, Some(&ctx)).unwrap();
@@ -52,7 +53,7 @@ fn main() {
 
 If you already have a Python exception instance, you can simply call [`PyErr::from_instance()`](https://pyo3.github.io/pyo3/pyo3/struct.PyErr.html#method.from_instance).
 
-```rust
+```rust,ignore
 PyErr::from_instance(py, err).restore(py);
 ```
 
@@ -62,6 +63,9 @@ has corresponding rust type, exceptions defined by `py_exception!` and `import_e
 have rust type as well.
 
 ```rust
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# fn check_for_error() -> bool {false}
 
 fn my_func(arg: PyObject) -> PyResult<()> {
     if check_for_error() {
@@ -70,7 +74,6 @@ fn my_func(arg: PyObject) -> PyResult<()> {
         Ok(())
     }
 }
-
 ```
 
 ## Check exception type
@@ -86,10 +89,10 @@ use pyo3::{Python, PyBool, PyList};
 fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    assert!(py.is_instance::<PyBool>(py.True().as_ref()).unwrap());
+    assert!(py.is_instance::<PyBool, _>(PyBool::new(py, true)).unwrap());
     let list = PyList::new(py, &[1, 2, 3, 4]);
-    assert!(!py.is_instance::<PyBool>(list.as_ref()).unwrap());
-    assert!(py.is_instance::<PyList>(list.as_ref()).unwrap());
+    assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
+    assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
 }
 ```
 
@@ -97,7 +100,7 @@ fn main() {
 
 To check the type of an exception, you can simply do:
 
-```rust
+```rust,ignore
 let ret = py.is_instance::<exc::TypeError>(&err.instance(py)).expect("Error calling is_instance");
 ```
 
@@ -120,10 +123,11 @@ more complex arguments are required [`PyErrArgument`](https://pyo3.github.io/pyo
 trait can be implemented. In that case actual exception arguments creation get delayed
 until `Python` object is available.
 
-```rust
-use std;
+```rust,ignore
+extern crate pyo3;
+
 use std::net::TcpListener;
-use pyo3::{PyErr, PyResult, ToPyErr, exc};
+use pyo3::{PyErr, PyResult, exc};
 
 impl std::convert::From<std::io::Error> for PyErr {
     fn from(err: std::io::Error) -> PyErr {
@@ -133,7 +137,6 @@ impl std::convert::From<std::io::Error> for PyErr {
 
 fn connect(s: String) -> PyResult<bool> {
     TcpListener::bind("127.0.0.1:80")?;
-
     Ok(true)
 }
 ```
@@ -144,7 +147,8 @@ The code snippet above will raise `OSError` in Python if `TcpListener::bind()` r
 types so `try!` macro or `?` operator can be used.
 
 ```rust
-use pyo3::*;
+# extern crate pyo3;
+use pyo3::prelude::*;
 
 fn parse_int(s: String) -> PyResult<usize> {
     Ok(s.parse::<usize>()?)
@@ -156,21 +160,26 @@ The code snippet above will raise `ValueError` in Python if `String::parse()` re
 
 ## Using exceptions defined in python code
 
-It is possible to use exception defined in python code as native rust types. 
+It is possible to use exception defined in python code as native rust types.
 `import_exception!` macro allows to import specific exception class and defined zst type
 for that exception.
 
 ```rust
-use pyo3::{PyErr, PyResult, exc};
+# #[macro_use] extern crate pyo3;
+use pyo3::prelude::*;
 
-import_exception!(asyncio, CancelledError)
+import_exception!(io, UnsupportedOperation);
 
-fn cancel(fut: PyFuture) -> PyResult<()> {
-    if fut.cancelled() {
-       Err(CancelledError.into())
-    }
+fn tell(file: PyObject) -> PyResult<u64> {
+    use pyo3::exc::*;
 
-    Ok(())
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    match file.call_method0(py, "tell") {
+        Err(_) => Err(UnsupportedOperation::new("not supported: tell")),
+        Ok(x) => x.extract::<u64>(py),
+    }    
 }
 
 ```

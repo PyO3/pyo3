@@ -7,3 +7,13 @@ extern crate docmatic;
 fn test_overview() {
     docmatic::assert_file("guide/src/overview.md");
 }
+
+#[test]
+fn test_conversions() {
+    docmatic::assert_file("guide/src/conversions.md")
+}
+
+#[test]
+fn test_exception() {
+    docmatic::assert_file("guide/src/exception.md")
+}
