@@ -5,7 +5,8 @@
 You can use the `py_exception!` macro to define a new exception type:
 
 ```rust
-# #[macro_use] extern crate pyo3;
+#[macro_use] extern crate pyo3;
+
 py_exception!(module, MyError);
 ```
 
@@ -66,7 +67,6 @@ have rust type as well.
 # extern crate pyo3;
 # use pyo3::prelude::*;
 # fn check_for_error() -> bool {false}
-#
 fn my_func(arg: PyObject) -> PyResult<()> {
     if check_for_error() {
         Err(exc::ValueError::new("argument is wrong"))
@@ -173,7 +173,7 @@ It is possible to use exception defined in python code as native rust types.
 for that exception.
 
 ```rust
-# #[macro_use] extern crate pyo3;
+#[macro_use] extern crate pyo3;
 use pyo3::prelude::*;
 
 import_exception!(io, UnsupportedOperation);

@@ -43,13 +43,10 @@ extern crate pyo3;
 use pyo3::prelude::*;
 
 # struct SomeObject;
-#
 # impl SomeObject {
 #     fn new(py: Python) -> PyObject {
-#           let builtins = py.import("builtins").unwrap();
-#           let print = builtins.get("print").unwrap();
-#           print.to_object(py)
-#     }  
+#           pyo3::PyDict::new(py).to_object(py)
+#     }
 # }
 #
 fn main() {
@@ -83,19 +80,16 @@ no keywords arguments are provided.
 
 ```rust
 extern crate pyo3;
+
+use std::collections::HashMap;
 use pyo3::prelude::*;
 
-# use std::collections::HashMap;
 # struct SomeObject;
-#
 # impl SomeObject {
 #     fn new(py: Python) -> PyObject {
-#           let builtins = py.import("builtins").unwrap();
-#           let print = builtins.get("print").unwrap();
-#           print.to_object(py)
-#     }  
+#           pyo3::PyDict::new(py).to_object(py)
+#     }
 # }
-#
 fn main() {
     # let key1 = "key1";
     # let val1 = 1;
