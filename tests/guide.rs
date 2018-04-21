@@ -4,16 +4,12 @@
 extern crate docmatic;
 
 #[test]
-fn test_overview() {
-    docmatic::assert_file("guide/src/overview.md");
-}
+fn test_guide() {
+    let mut guide_path = ::std::path::PathBuf::new();
+    guide_path.push("guide");
+    guide_path.push("src");
 
-#[test]
-fn test_conversions() {
-    docmatic::assert_file("guide/src/conversions.md")
-}
-
-#[test]
-fn test_exception() {
-    docmatic::assert_file("guide/src/exception.md")
+    for entry in guide_path.read_dir().unwrap() {
+        docmatic::assert_file(entry.unwrap().path());
+    }
 }
