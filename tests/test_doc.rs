@@ -21,7 +21,7 @@ fn test_file<P: AsRef<Path>>(path: P) {
 
 #[test]
 fn test_guide() {
-    let mut guide_path = PathBuf::from("guide").join("src");
+    let guide_path = PathBuf::from("guide").join("src");
     for entry in guide_path.read_dir().unwrap() {
         test_file(entry.unwrap().path())
     }
