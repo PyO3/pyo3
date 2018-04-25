@@ -26,7 +26,7 @@ num-traits = "0.2"
 pyo3cls = { path = "pyo3cls", version = "^0.2.1" }
 
 [dev-dependencies]
-docmatic = { version = "^0.1", git = "https://github.com/althonos/docmatic" }
+docmatic = { version = "^0.1", git = "https://github.com/assert-rs/docmatic" }
 
 [build-dependencies]
 regex = "0.2"
