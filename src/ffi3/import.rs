@@ -27,6 +27,7 @@ use ffi3::object::PyObject;
     #[cfg_attr(PyPy, link_name="PyPyImport_GetModuleDict")]
     pub fn PyImport_GetModuleDict() -> *mut PyObject;
     pub fn PyImport_AddModuleObject(name: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name="PyPyImport_AddModule")]
     pub fn PyImport_AddModule(name: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name="PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char)
