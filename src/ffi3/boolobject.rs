@@ -5,6 +5,8 @@ use ffi3::longobject::PyLongObject;
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     #[cfg_attr(PyPy, link_name="PyPyBool_Type")]
     pub static mut PyBool_Type: PyTypeObject;
+    // define Py_False ((PyObject *) &_Py_ZeroStruct)
+    #[cfg_attr(PyPy, link_name="_PyPy_ZeroStruct")]
     static mut _Py_FalseStruct: PyLongObject;
     #[cfg_attr(PyPy, link_name="_PyPy_TrueStruct")]
     static mut _Py_TrueStruct: PyLongObject;
