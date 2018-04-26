@@ -1,6 +1,7 @@
 use std::ptr;
 use std::os::raw::{c_void, c_int, c_uint, c_ulong, c_char};
 use ffi3::pyport::{Py_ssize_t, Py_hash_t};
+use ffi3::pyerrors::{PyErr_Format, PyExc_TypeError};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -70,6 +71,21 @@ pub unsafe fn Py_REFCNT(ob : *mut PyObject) -> Py_ssize_t {
         panic!();
     }
     (*ob).ob_refcnt
+}
+
+macro_rules! cstr(
+    ($s: tt) => (
+        // TODO: verify that $s is a string literal without nuls
+        unsafe {
+            ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _)
+        }
+    );
+);
+
+#[cfg(PyPy)]
+pub unsafe fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject {
+    return PyErr_Format(PyExc_TypeError, cstr!("'%.200s' object is not iterable").as_ptr(),
+                        Py_TYPE((*(arg1 as *mut PyTypeObject)).tp_name as *mut PyObject))
 }
 
 #[inline(always)]
@@ -710,6 +726,7 @@ pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     pub fn PyObject_SelfIter(arg1: *mut PyObject) -> *mut PyObject;
 
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(PyPy))]
     pub fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject;
 
     #[cfg_attr(PyPy, link_name="PyPyObject_GenericGetAttr")]
