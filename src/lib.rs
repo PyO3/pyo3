@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro, try_from, fn_must_use)]
+#![feature(specialization, proc_macro, try_from, fn_must_use, concat_idents)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -172,7 +172,7 @@ pub use class::*;
 
 /// Procedural macros
 pub mod py {
-    pub use pyo3cls::{proto, class, methods};
+    pub use pyo3cls::{proto, class, methods, function};
 
     #[cfg(Py_3)]
     pub use pyo3cls::mod3init as modinit;
@@ -182,13 +182,23 @@ pub mod py {
 }
 
 /// Constructs a `&'static CStr` literal.
-macro_rules! cstr(
+macro_rules! cstr {
     ($s: tt) => (
         // TODO: verify that $s is a string literal without nuls
         unsafe {
             ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _)
         }
     );
+}
+
+/// Registers a function annotated with `#[function]` in module.
+/// The first parameter is the module, the second the name of the function and the third is an
+/// instance of `Python`.
+#[macro_export]
+macro_rules! add_function_to_module(
+    ($modname:expr, $function_name:ident, $python:expr) => {
+        concat_idents!(__pyo3_add_to_module_, $function_name)($modname, $python);
+    };
 );
 
 mod python;

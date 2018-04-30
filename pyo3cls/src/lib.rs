@@ -1,19 +1,17 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#![recursion_limit="1024"]
+#![recursion_limit = "1024"]
 #![feature(proc_macro)]
 
 extern crate proc_macro;
-extern crate syn;
-extern crate quote;
 extern crate pyo3_derive_backend;
+extern crate quote;
+extern crate syn;
 
-use std::str::FromStr;
 use proc_macro::TokenStream;
-
-use quote::{Tokens, ToTokens};
 use pyo3_derive_backend::*;
-
+use quote::{ToTokens, Tokens};
+use std::str::FromStr;
 
 #[proc_macro_attribute]
 pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -24,7 +22,11 @@ pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_item(&source).unwrap();
 
     // Build the output
-    let init = module::build_py2_module_init(&mut ast, attr.to_string());
+    module::process_functions_in_module(&mut ast);
+
+    let modname = &attr.to_string()[1..attr.to_string().len() - 1].to_string();
+
+    let init = module::py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();
@@ -43,7 +45,11 @@ pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_item(&source).unwrap();
 
     // Build the output
-    let init = module::build_py3_module_init(&mut ast, attr.to_string());
+    module::process_functions_in_module(&mut ast);
+
+    let modname = &attr.to_string()[1..attr.to_string().len() - 1].to_string();
+
+    let init = module::py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();
@@ -101,6 +107,26 @@ pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
 
     // Build the output
     let expanded = py_impl::build_py_methods(&mut ast);
+
+    // Return the generated impl as a TokenStream
+    let mut tokens = Tokens::new();
+    ast.to_tokens(&mut tokens);
+    let s = String::from(tokens.as_str()) + expanded.as_str();
+
+    TokenStream::from_str(s.as_str()).unwrap()
+}
+
+#[proc_macro_attribute]
+pub fn function(_: TokenStream, input: TokenStream) -> TokenStream {
+    // Construct a string representation of the type definition
+    let source = input.to_string();
+
+    // Parse the string representation into a syntax tree
+    let mut ast = syn::parse_item(&source).unwrap();
+
+    // Build the output
+    let python_name = ast.ident.clone();
+    let expanded = module::add_fn_to_module(&mut ast, python_name, Vec::new());
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();

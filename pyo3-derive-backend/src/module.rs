@@ -1,42 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use syn;
-use quote::Tokens;
-
 use args;
 use method;
 use py_method;
+use quote::Tokens;
+use syn;
 use utils;
 
-
-pub fn build_py3_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
-    let modname = &attr.to_string()[1..attr.to_string().len()-1].to_string();
-
-    match ast.node {
-        syn::ItemKind::Fn(_, _, _, _, _, ref mut block) => {
-            let mut stmts = Vec::new();
-            for stmt in block.stmts.iter_mut() {
-                match stmt {
-                    &mut syn::Stmt::Item(ref mut item) => {
-                        if let Some(block) = wrap_fn(item) {
-                            for stmt in block.stmts.iter() {
-                                stmts.push(stmt.clone());
-                            }
-                            continue
-                        }
-                    }
-                    _ => (),
-                }
-                stmts.push(stmt.clone());
-            }
-            block.stmts = stmts;
-
-            py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false))
-        },
-        _ => panic!("#[modinit] can only be used with fn block"),
-    }
-}
-
+/// Generates the function that is called by the python interpreter to initialize the native
+/// module
 pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     let m_name = syn::Ident::from(name.trim().as_ref());
     let cb_name = syn::Ident::from(format!("PyInit_{}", name.trim()).as_ref());
@@ -84,34 +56,6 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     }
 }
 
-pub fn build_py2_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
-    let modname = &attr.to_string()[1..attr.to_string().len()-1].to_string();
-
-    match ast.node {
-        syn::ItemKind::Fn(_, _, _, _, _, ref mut block) => {
-            let mut stmts = Vec::new();
-            for stmt in block.stmts.iter_mut() {
-                match stmt {
-                    &mut syn::Stmt::Item(ref mut item) => {
-                        if let Some(block) = wrap_fn(item) {
-                            for stmt in block.stmts.iter() {
-                                stmts.push(stmt.clone());
-                            }
-                            continue
-                        }
-                    }
-                    _ => (),
-                }
-                stmts.push(stmt.clone());
-            }
-            block.stmts = stmts;
-
-            py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false))
-        },
-        _ => panic!("#[modinit] can only be used with fn block"),
-    }
-}
-
 pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     let m_name = syn::Ident::from(name.trim().as_ref());
     let cb_name = syn::Ident::from(format!("init{}", name.trim()).as_ref());
@@ -150,163 +94,203 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     }
 }
 
-fn wrap_fn(item: &mut syn::Item) -> Option<Box<syn::Block>> {
-    let name = item.ident.clone();
+/// Finds and takes care of the #[pyfn(...)] in #[modinit(...)]
+pub fn process_functions_in_module(ast: &mut syn::Item) {
+    if let syn::ItemKind::Fn(_, _, _, _, _, ref mut block) = ast.node {
+        let mut stmts: Vec<syn::Stmt> = Vec::new();
+        for stmt in block.stmts.iter_mut() {
+            if let &mut syn::Stmt::Item(ref mut item) = stmt {
+                if let Some((module_name, python_name, pyfn_attrs)) =
+                    extract_pyfn_attrs(&mut item.attrs)
+                {
+                    let function_to_python = add_fn_to_module(item, python_name, pyfn_attrs);
+                    let function_wrapper_ident = get_add_to_module_ident(&item.ident);
+                    let tokens = quote! {
+                        fn block_wrapper() {
+                            #function_to_python
+
+                            #function_wrapper_ident(#module_name, py);
+                        }
+                    }.to_string();
+
+                    let item = syn::parse_item(tokens.as_str()).unwrap();
+                    let block = match item.node {
+                        syn::ItemKind::Fn(_, _, _, _, _, ref block) => block.clone(),
+                        _ => unreachable!(),
+                    };
+
+                    stmts.extend(block.stmts.into_iter());
+                }
+            };
+            stmts.push(stmt.clone());
+        }
+        block.stmts = stmts;
+    } else {
+        panic!("#[modinit] can only be used with fn block");
+    }
+}
+
+/// Transforms a rust fn arg parsed with syn into a method::FnArg
+fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a syn::Ident) -> Option<method::FnArg<'a>> {
+    match input {
+        &syn::FnArg::SelfRef(_, _) | &syn::FnArg::SelfValue(_) => None,
+        &syn::FnArg::Captured(ref pat, ref ty) => {
+            let (mode, ident) = match pat {
+                &syn::Pat::Ident(ref mode, ref ident, _) => (mode, ident),
+                _ => panic!("unsupported argument: {:?}", pat),
+            };
+
+            let py = match ty {
+                &syn::Ty::Path(_, ref path) => if let Some(segment) = path.segments.last() {
+                    segment.ident.as_ref() == "Python"
+                } else {
+                    false
+                },
+                _ => false,
+            };
+
+            let opt = method::check_arg_ty_and_optional(&name, ty);
+            Some(method::FnArg {
+                name: ident,
+                mode,
+                ty,
+                optional: opt,
+                py,
+                reference: method::is_ref(&name, ty),
+            })
+        }
+        &syn::FnArg::Ignored(_) => panic!("ignored argument: {:?}", name),
+    }
+}
+
+/// Extracts the data from the #[pyfn(...)] attribute of a function
+fn extract_pyfn_attrs(
+    attrs: &mut Vec<syn::Attribute>,
+) -> Option<(syn::Ident, syn::Ident, Vec<args::Argument>)> {
     let mut new_attrs = Vec::new();
     let mut fnname = None;
     let mut modname = None;
     let mut fn_attrs = Vec::new();
 
-    for attr in item.attrs.iter() {
-        match attr.value {
-            syn::MetaItem::List(ref name, ref meta) => {
-                match name.as_ref() {
-                    "pyfn" => {
-                        if meta.len() >= 2 {
-                            match meta[0] {
-                                syn::NestedMetaItem::MetaItem(syn::MetaItem::Word(ref ident)) => {
-                                    modname = Some(ident.clone());
-                                }
-                                _ => modname = None
-                            }
-                            match meta[1] {
-                                syn::NestedMetaItem::Literal(syn::Lit::Str(ref s, _)) => {
-                                    fnname = Some(syn::Ident::from(s.as_str()));
-                                }
-                                _ => fnname = None
-                            }
-                        } else {
-                            println!("can not parse 'pyfn' params {:?}", attr);
-                            modname = None
+    for attr in attrs.iter() {
+        if let syn::MetaItem::List(ref name, ref meta) = attr.value {
+            if name.as_ref() == "pyfn" {
+                if meta.len() >= 2 {
+                    match meta[0] {
+                        syn::NestedMetaItem::MetaItem(syn::MetaItem::Word(ref ident)) => {
+                            modname = Some(ident.clone());
                         }
-                        if meta.len() >= 3 {
-                            fn_attrs = args::parse_arguments(&meta[2..meta.len()]);
-                        }
-                        continue;
+                        _ => panic!("The first parameter of pyfn must be a MetaItem"),
                     }
-                    _ => (),
+                    match meta[1] {
+                        syn::NestedMetaItem::Literal(syn::Lit::Str(ref s, _)) => {
+                            fnname = Some(syn::Ident::from(s.as_str()));
+                        }
+                        _ => panic!("The second parameter of pyfn must be a Literal"),
+                    }
+                    if meta.len() >= 3 {
+                        fn_attrs = args::parse_arguments(&meta[2..meta.len()]);
+                    }
+                } else {
+                    panic!("can not parse 'pyfn' params {:?}", attr);
                 }
+                continue;
             }
-            _ => (),
         };
         new_attrs.push(attr.clone())
     }
-    item.attrs.clear();
-    item.attrs.extend(new_attrs);
-
-    if let None = fnname {
-        return None
-    }
-    if let None = modname {
-        return None
-    }
-
-    match item.node {
-        syn::ItemKind::Fn(ref decl, _, _, _, _, _) => {
-            let mut arguments = Vec::new();
-
-            for input in decl.inputs.iter() {
-                match input {
-                    &syn::FnArg::SelfRef(_, _) | &syn::FnArg::SelfValue(_) => (),
-                    &syn::FnArg::Captured(ref pat, ref ty) => {
-                        let (mode, ident) = match pat {
-                            &syn::Pat::Ident(ref mode, ref ident, _) =>
-                                (mode, ident),
-                            _ =>
-                                panic!("unsupported argument: {:?}", pat),
-                        };
-
-                        let py = match ty {
-                            &syn::Ty::Path(_, ref path) =>
-                                if let Some(segment) = path.segments.last() {
-                                    segment.ident.as_ref() == "Python"
-                                } else {
-                                    false
-                                },
-                            _ => false
-                        };
-
-                        let opt = method::check_arg_ty_and_optional(&name, ty);
-                        arguments.push(method::FnArg {
-                            name: ident,
-                            mode: mode,
-                            ty: ty,
-                            optional: opt,
-                            py: py,
-                            reference: method::is_ref(&name, ty),
-                        });
-                    }
-                    &syn::FnArg::Ignored(_) =>
-                        panic!("ignored argument: {:?}", name),
-                }
-            }
-
-            let ty = method::get_return_info(&decl.output);
-
-            let spec = method::FnSpec {
-                tp: method::FnType::Fn,
-                attrs: fn_attrs,
-                args: arguments,
-                output: ty,
-            };
-
-            let m = modname.unwrap();
-            let fnname = fnname.unwrap();
-            let wrapper = impl_wrap(&name, &spec);
-            let item2 = item.clone();
-            let doc = utils::get_doc(&item.attrs, true);
-
-            let tokens = quote! {
-                fn test() {
-                    #item2
-
-                    #[allow(unused_imports)]
-                    {
-                        use std;
-                        use pyo3 as _pyo3;
-                        use pyo3::ObjectProtocol;
-
-                        #wrapper
-
-                        let _def = pyo3::class::PyMethodDef {
-                            ml_name: stringify!(#fnname),
-                            ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                            ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                            ml_doc: #doc,
-                        };
-
-                        unsafe {
-                            let func = pyo3::PyObject::from_owned_ptr_or_panic(
-                                py, pyo3::ffi::PyCFunction_New(
-                                    Box::into_raw(Box::new(_def.as_method_def())),
-                                    std::ptr::null_mut()));
-
-                            #m.add(stringify!(#fnname), func)?
-                        }
-                    }
-                }
-            }.to_string();
-
-            let item = syn::parse_item(tokens.as_str()).unwrap();
-            match item.node {
-                syn::ItemKind::Fn(_, _, _, _, _, ref block) => {
-                    return Some(block.clone())
-                },
-                _ => ()
-            }
-        },
-        _ => (),
-    }
-
-    None
+    attrs.clear();
+    attrs.extend(new_attrs);
+    Some((modname?, fnname?, fn_attrs))
 }
 
+/// Coordinates the naming of a the add-function-to-python-module function
+fn get_add_to_module_ident(name: &syn::Ident) -> syn::Ident {
+    syn::Ident::new("__pyo3_add_to_module_".to_string() + &name.to_string())
+}
 
-/// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
-    let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
-        |item| if item.1.py {syn::Ident::from("_py")} else {
-            syn::Ident::from(format!("arg{}", item.0))}).collect();
+/// Generates python wrapper over a function that allows adding it to a python module as a python
+/// function
+pub fn add_fn_to_module(
+    item: &mut syn::Item,
+    python_name: syn::Ident,
+    pyfn_attrs: Vec<args::Argument>,
+) -> Tokens {
+    let name = item.ident.clone();
+
+    let decl = if let syn::ItemKind::Fn(ref decl, _, _, _, _, _) = item.node {
+        decl.clone()
+    } else {
+        panic!("Expected a function")
+    };
+
+    let mut arguments = Vec::new();
+
+    for input in decl.inputs.iter() {
+        if let Some(fn_arg) = wrap_fn_argument(input, &name) {
+            arguments.push(fn_arg);
+        }
+    }
+
+    let ty = method::get_return_info(&decl.output);
+
+    let spec = method::FnSpec {
+        tp: method::FnType::Fn,
+        attrs: pyfn_attrs,
+        args: arguments,
+        output: ty,
+    };
+
+    let add_to_module_ident = get_add_to_module_ident(&name);
+
+    let wrapper = function_c_wrapper(&name, &spec);
+    let doc = utils::get_doc(&item.attrs, true);
+
+    let tokens = quote! (
+        fn #add_to_module_ident(module: &::pyo3::PyModule, py: ::pyo3::Python) {
+            use std;
+            use pyo3 as _pyo3;
+            use pyo3::ObjectProtocol;
+
+            #wrapper
+
+            let _def = pyo3::class::PyMethodDef {
+                ml_name: stringify!(#python_name),
+                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
+                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
+                ml_doc: #doc,
+            };
+
+            let function = unsafe {
+                pyo3::PyObject::from_owned_ptr_or_panic(
+                    py,
+                    pyo3::ffi::PyCFunction_New(
+                        Box::into_raw(Box::new(_def.as_method_def())),
+                        std::ptr::null_mut()
+                    )
+                )
+            };
+
+            module.add(stringify!(#python_name), function);
+        }
+    );
+
+    tokens
+}
+
+/// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
+fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
+    let names: Vec<syn::Ident> = spec.args
+        .iter()
+        .enumerate()
+        .map(|item| {
+            if item.1.py {
+                syn::Ident::from("_py")
+            } else {
+                syn::Ident::from(format!("arg{}", item.0))
+            }
+        })
+        .collect();
     let cb = quote! {
         #name(#(#names),*).return_type_into_py_result()
     };
