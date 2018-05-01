@@ -24,7 +24,9 @@ pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Build the output
     module::process_functions_in_module(&mut ast);
 
-    let modname = &attr.to_string()[1..attr.to_string().len() - 1].to_string();
+    let attr = utils::attr_with_parentheses(attr);
+
+    let modname = &attr[1..attr.len() - 1].to_string();
 
     let init = module::py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
@@ -47,7 +49,9 @@ pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Build the output
     module::process_functions_in_module(&mut ast);
 
-    let modname = &attr.to_string()[1..attr.to_string().len() - 1].to_string();
+    let attr = utils::attr_with_parentheses(attr);
+
+    let modname = &attr[1..attr.len() - 1].to_string();
 
     let init = module::py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
@@ -87,7 +91,7 @@ pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_derive_input(&source).unwrap();
 
     // Build the output
-    let expanded = py_class::build_py_class(&mut ast, attr.to_string());
+    let expanded = py_class::build_py_class(&mut ast, utils::attr_with_parentheses(attr));
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();

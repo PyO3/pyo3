@@ -7,6 +7,7 @@ extern crate log;
 #[macro_use]
 extern crate quote;
 extern crate syn;
+extern crate proc_macro;
 
 pub mod py_class;
 pub mod py_impl;

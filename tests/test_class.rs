@@ -10,6 +10,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use pyo3::ffi;
 
+use pyo3::py::class as pyclass;
+use pyo3::py::methods as pymethods;
+use pyo3::py::proto as pyproto;
 
 macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
@@ -35,7 +38,7 @@ macro_rules! py_expect_exception {
     }}
 }
 
-#[py::class]
+#[pyclass]
 struct EmptyClass { }
 
 #[test]
@@ -53,7 +56,7 @@ fn empty_class() {
 ///Line2
 ///  Line3
 // this is not doc string
-#[py::class]
+#[pyclass]
 struct ClassWithDocs { }
 
 #[test]
@@ -66,7 +69,7 @@ fn class_with_docstr() {
     }
 }
 
-#[py::class(name=CustomName)]
+#[pyclass(name=CustomName)]
 struct EmptyClass2 { }
 
 #[test]
@@ -77,7 +80,7 @@ fn custom_class_name() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
 }
 
-#[py::class]
+#[pyclass]
 struct EmptyClassInModule { }
 
 #[test]
@@ -92,12 +95,12 @@ fn empty_class_in_module() {
     assert_eq!(ty.getattr("__module__").unwrap().extract::<String>().unwrap(), "test_module.nested");
 }
 
-#[py::class]
+#[pyclass]
 struct EmptyClassWithNew {
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -113,13 +116,13 @@ fn empty_class_with_new() {
     assert!(typeobj.call(NoArgs, NoArgs).unwrap().cast_as::<EmptyClassWithNew>().is_ok());
 }
 
-#[py::class]
+#[pyclass]
 struct NewWithOneArg {
     _data: i32,
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl NewWithOneArg {
     #[new]
     fn __new__(obj: &PyRawObject, arg: i32) -> PyResult<()> {
@@ -137,7 +140,7 @@ fn new_with_one_arg() {
     assert_eq!(obj._data, 42);
 }
 
-#[py::class]
+#[pyclass]
 struct NewWithTwoArgs {
     _data1: i32,
     _data2: i32,
@@ -145,7 +148,7 @@ struct NewWithTwoArgs {
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl NewWithTwoArgs {
     #[new]
     fn __new__(obj: &PyRawObject, arg1: i32, arg2: i32) -> PyResult<()>
@@ -165,7 +168,7 @@ fn new_with_two_args() {
     assert_eq!(obj._data2, 20);
 }
 
-#[py::class(freelist=2)]
+#[pyclass(freelist=2)]
 struct ClassWithFreelist{token: PyToken}
 
 #[test]
@@ -202,7 +205,7 @@ impl Drop for TestDropCall {
     }
 }
 
-#[py::class]
+#[pyclass]
 struct DataIsDropped {
     member1: TestDropCall,
     member2: TestDropCall,
@@ -231,7 +234,7 @@ fn data_is_dropped() {
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
-#[py::class]
+#[pyclass]
 struct ClassWithDrop {
     token: PyToken,
 }
@@ -277,13 +280,13 @@ fn create_pointers_in_drop() {
     }
 }
 
-#[py::class]
+#[pyclass]
 struct InstanceMethod {
     member: i32,
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl InstanceMethod {
     /// Test method
     fn method(&self) -> PyResult<i32> {
@@ -304,13 +307,13 @@ fn instance_method() {
     py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d)).unwrap();
 }
 
-#[py::class]
+#[pyclass]
 struct InstanceMethodWithArgs {
     member: i32,
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl InstanceMethodWithArgs {
     fn method(&self, multiplier: i32) -> PyResult<i32> {
         Ok(self.member * multiplier)
@@ -331,10 +334,10 @@ fn instance_method_with_args() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct ClassMethod {token: PyToken}
 
-#[py::methods]
+#[pymethods]
 impl ClassMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -359,10 +362,10 @@ fn class_method() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct ClassMethodWithArgs{token: PyToken}
 
-#[py::methods]
+#[pymethods]
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
@@ -380,12 +383,12 @@ fn class_method_with_args() {
     py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(d)).unwrap();
 }
 
-#[py::class]
+#[pyclass]
 struct StaticMethod {
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl StaticMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -416,10 +419,10 @@ fn static_method() {
     py.run("assert C.no_parameters() == 'StaticMethod.no_parameters()!'", None, Some(d)).unwrap();
 }
 
-#[py::class]
+#[pyclass]
 struct StaticMethodWithArgs{token: PyToken}
 
-#[py::methods]
+#[pymethods]
 impl StaticMethodWithArgs {
 
     #[staticmethod]
@@ -440,14 +443,14 @@ fn static_method_with_args() {
     py.run("assert C.method(1337) == '0x539'", None, Some(d)).unwrap();
 }
 
-#[py::class]
+#[pyclass]
 struct GCIntegration {
     self_ref: RefCell<PyObject>,
     dropped: TestDropCall,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyGCProtocol for GCIntegration {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
         visit.call(&*self.self_ref.borrow())
@@ -479,7 +482,7 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
-#[py::class(gc)]
+#[pyclass(gc)]
 struct GCIntegration2 {
     token: PyToken,
 }
@@ -491,7 +494,7 @@ fn gc_integration2() {
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
-#[py::class(weakref)]
+#[pyclass(weakref)]
 struct WeakRefSupport {
     token: PyToken,
 }
@@ -503,13 +506,13 @@ fn weakref_support() {
     py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst");
 }
 
-#[py::class]
+#[pyclass]
 pub struct Len {
     l: usize,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyMappingProtocol for Len {
     fn __len__(&self) -> PyResult<usize> {
         Ok(self.l)
@@ -532,13 +535,13 @@ fn len() {
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
-#[py::class]
+#[pyclass]
 struct Iterator{
     iter: Box<iter::Iterator<Item=i32> + Send>,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyIterProtocol for Iterator {
     fn __iter__(&mut self) -> PyResult<Py<Iterator>> {
         Ok(self.into())
@@ -559,10 +562,10 @@ fn iterator() {
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
 
-#[py::class]
+#[pyclass]
 struct StringMethods {token: PyToken}
 
-#[py::proto]
+#[pyproto]
 impl<'p> PyObjectProtocol<'p> for StringMethods {
     fn __str__(&self) -> PyResult<&'static str> {
         Ok("str")
@@ -612,13 +615,13 @@ fn string_methods() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct Comparisons {
     val: i32,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyObjectProtocol for Comparisons {
     fn __hash__(&self) -> PyResult<isize> {
         Ok(self.val as isize)
@@ -647,12 +650,12 @@ fn comparisons() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct Sequence {
     token: PyToken
 }
 
-#[py::proto]
+#[pyproto]
 impl PySequenceProtocol for Sequence {
     fn __len__(&self) -> PyResult<usize> {
         Ok(5)
@@ -677,10 +680,10 @@ fn sequence() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct Callable {token: PyToken}
 
-#[py::methods]
+#[pymethods]
 impl Callable {
 
     #[__call__]
@@ -702,14 +705,14 @@ fn callable() {
     py_assert!(py, nc, "not callable(nc)");
 }
 
-#[py::class]
+#[pyclass]
 struct SetItem {
     key: i32,
     val: i32,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyMappingProtocol<'a> for SetItem {
     fn __setitem__(&mut self, key: i32, val: i32) -> PyResult<()> {
         self.key = key;
@@ -730,13 +733,13 @@ fn setitem() {
     py_expect_exception!(py, c, "del c[1]", NotImplementedError);
 }
 
-#[py::class]
+#[pyclass]
 struct DelItem {
     key: i32,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyMappingProtocol<'a> for DelItem {
     fn __delitem__(&mut self, key: i32) -> PyResult<()> {
         self.key = key;
@@ -755,13 +758,13 @@ fn delitem() {
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
 }
 
-#[py::class]
+#[pyclass]
 struct SetDelItem {
     val: Option<i32>,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyMappingProtocol for SetDelItem {
     fn __setitem__(&mut self, key: i32, val: i32) -> PyResult<()> {
         self.val = Some(val);
@@ -786,10 +789,10 @@ fn setdelitem() {
     assert_eq!(c.val, None);
 }
 
-#[py::class]
+#[pyclass]
 struct Reversed {token: PyToken}
 
-#[py::proto]
+#[pyproto]
 impl PyMappingProtocol for Reversed{
     fn __reversed__(&self) -> PyResult<&'static str> {
         Ok("I am reversed")
@@ -805,10 +808,10 @@ fn reversed() {
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
-#[py::class]
+#[pyclass]
 struct Contains {token: PyToken}
 
-#[py::proto]
+#[pyproto]
 impl PySequenceProtocol for Contains {
     fn __contains__(&self, item: i32) -> PyResult<bool> {
         Ok(item >= 0)
@@ -828,10 +831,10 @@ fn contains() {
 
 
 
-#[py::class]
+#[pyclass]
 struct UnaryArithmetic {token: PyToken}
 
-#[py::proto]
+#[pyproto]
 impl PyNumberProtocol for UnaryArithmetic {
 
     fn __neg__(&self) -> PyResult<&'static str> {
@@ -864,19 +867,19 @@ fn unary_arithmetic() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct BinaryArithmetic {
     token: PyToken
 }
 
-#[py::proto]
+#[pyproto]
 impl PyObjectProtocol for BinaryArithmetic {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("BA")
     }
 }
 
-#[py::proto]
+#[pyproto]
 impl PyNumberProtocol for BinaryArithmetic {
     fn __add__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
@@ -938,12 +941,12 @@ fn binary_arithmetic() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct RichComparisons {
     token: PyToken
 }
 
-#[py::proto]
+#[pyproto]
 impl PyObjectProtocol for RichComparisons {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("RC")
@@ -961,12 +964,12 @@ impl PyObjectProtocol for RichComparisons {
     }
 }
 
-#[py::class]
+#[pyclass]
 struct RichComparisons2 {
     py: PyToken
 }
 
-#[py::proto]
+#[pyproto]
 impl PyObjectProtocol for RichComparisons2 {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("RC2")
@@ -1034,20 +1037,20 @@ fn rich_comparisons_python_3_type_error() {
     py_expect_exception!(py, c2, "1 >= c2", TypeError);
 }
 
-#[py::class]
+#[pyclass]
 struct InPlaceOperations {
     value: u32,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl PyObjectProtocol for InPlaceOperations {
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("IPO({:?})", self.value))
     }
 }
 
-#[py::proto]
+#[pyproto]
 impl PyNumberProtocol for InPlaceOperations {
     fn __iadd__(&mut self, other: u32) -> PyResult<()> {
         self.value += other;
@@ -1120,13 +1123,13 @@ fn inplace_operations() {
     py_run!(py, c, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
 
-#[py::class]
+#[pyclass]
 struct ContextManager {
     exit_called: bool,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl<'p> PyContextProtocol<'p> for ContextManager {
 
     fn __enter__(&mut self) -> PyResult<i32> {
@@ -1165,13 +1168,13 @@ fn context_manager() {
     assert!(c.exit_called);
 }
 
-#[py::class]
+#[pyclass]
 struct ClassWithProperties {
     num: i32,
     token: PyToken,
 }
 
-#[py::methods]
+#[pymethods]
 impl ClassWithProperties {
 
     fn get_num(&self) -> PyResult<i32> {
@@ -1203,12 +1206,12 @@ fn class_with_properties() {
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
 }
 
-#[py::class]
+#[pyclass]
 struct MethArgs {
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl MethArgs {
 
     #[args(test="10")]
@@ -1243,7 +1246,7 @@ fn meth_args() {
     // py_expect_exception!(py, inst, "inst.get_kwarg(100)", TypeError);
 }
 
-#[py::class(subclass)]
+#[pyclass(subclass)]
 struct SubclassAble {}
 
 #[test]
@@ -1258,7 +1261,7 @@ fn subclass() {
       .unwrap();
 }
 
-#[py::class(dict)]
+#[pyclass(dict)]
 struct DunderDictSupport {
     token: PyToken,
 }
@@ -1271,7 +1274,7 @@ fn dunder_dict_support() {
     py_run!(py, inst, "inst.a = 1; assert inst.a == 1");
 }
 
-#[py::class(weakref, dict)]
+#[pyclass(weakref, dict)]
 struct WeakRefDunderDictSupport {
     token: PyToken,
 }
@@ -1284,14 +1287,14 @@ fn weakref_dunder_dict_support() {
     py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
 }
 
-#[py::class]
+#[pyclass]
 struct GetterSetter {
     #[prop(get, set)]
     num: i32,
     token: PyToken
 }
 
-#[py::methods]
+#[pymethods]
 impl GetterSetter {
 
     fn get_num2(&self) -> PyResult<i32> {
@@ -1310,13 +1313,13 @@ fn getter_setter_autogen() {
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
 }
 
-#[py::class]
+#[pyclass]
 struct BaseClass {
     #[prop(get)]
     val1: usize,
 }
 
-#[py::methods]
+#[pymethods]
 impl BaseClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -1324,13 +1327,13 @@ impl BaseClass {
     }
 }
 
-#[py::class(base=BaseClass)]
+#[pyclass(base=BaseClass)]
 struct SubClass {
     #[prop(get)]
     val2: usize,
 }
 
-#[py::methods]
+#[pymethods]
 impl SubClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -1350,13 +1353,13 @@ fn inheritance_with_new_methods() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct BaseClassWithDrop {
     token: PyToken,
     data: Option<Arc<AtomicBool>>,
 }
 
-#[py::methods]
+#[pymethods]
 impl BaseClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -1372,13 +1375,13 @@ impl Drop for BaseClassWithDrop {
     }
 }
 
-#[py::class(base=BaseClassWithDrop)]
+#[pyclass(base=BaseClassWithDrop)]
 struct SubClassWithDrop {
     token: PyToken,
     data: Option<Arc<AtomicBool>>,
 }
 
-#[py::methods]
+#[pymethods]
 impl SubClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -1419,13 +1422,13 @@ fn inheritance_with_new_methods_with_drop() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct MutRefArg {
     n: i32,
     token: PyToken,
 }
 
-#[py::methods]
+#[pymethods]
 impl MutRefArg {
 
     fn get(&self) -> PyResult<i32> {
