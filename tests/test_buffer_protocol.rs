@@ -8,14 +8,17 @@ use std::os::raw::{c_int, c_void};
 
 use pyo3::*;
 
+use pyo3::py::class as pyclass;
+use pyo3::py::proto as pyproto;
 
-#[py::class]
+
+#[pyclass]
 struct TestClass {
     vec: Vec<u8>,
     token: PyToken,
 }
 
-#[py::proto]
+#[pyproto]
 impl class::PyBufferProtocol for TestClass {
 
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
