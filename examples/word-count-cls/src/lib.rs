@@ -12,13 +12,17 @@ use std::io::prelude::*;
 use rayon::prelude::*;
 use pyo3::prelude::*;
 
-#[py::class]
+use pyo3::py::methods as pymethods;
+use pyo3::py::class as pyclass;
+use pyo3::py::modinit as pymodinit;
+
+#[pyclass]
 struct WordCounter {
     path: String,
     token: PyToken,
 }
 
-#[py::methods]
+#[pymethods]
 impl WordCounter {
 
     #[new]
@@ -81,9 +85,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
          .sum()
 }
 
-
-
-#[py::modinit(_word_count)]
+#[pymodinit(_word_count)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WordCounter>()?;
 
