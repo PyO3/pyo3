@@ -23,7 +23,7 @@ log = "0.4"
 libc = "0.2"
 spin = "0.4.6"
 num-traits = "0.2"
-pyo3cls = { path = "pyo3cls", version = "^0.2.1" }
+pyo3cls = { path = "pyo3cls", version = "0.2.5" }
 
 [build-dependencies]
 regex = "0.2"
