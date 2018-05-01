@@ -36,6 +36,7 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[test]
+#[cfg(Py_3)]
 fn test_module_with_functions() {
     let gil = Python::acquire_gil();
     let py = gil.python();

@@ -10,7 +10,7 @@ use utils;
 
 
 pub fn build_py3_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
-    let modname = &attr.to_string()[1..attr.to_string().len()-1].to_string();
+    let modname = &attr[1..attr.len()-1].to_string();
 
     match ast.node {
         syn::ItemKind::Fn(_, _, _, _, _, ref mut block) => {
@@ -86,7 +86,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
 }
 
 pub fn build_py2_module_init(ast: &mut syn::Item, attr: String) -> Tokens {
-    let modname = &attr.to_string()[1..attr.to_string().len()-1].to_string();
+    let modname = &attr[1..attr.len()-1].to_string();
 
     match ast.node {
         syn::ItemKind::Fn(_, _, _, _, _, ref mut block) => {

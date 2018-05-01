@@ -5,6 +5,8 @@ Cargo.lock
 build/
 __pycache__/
 .cache
+.pytest_cache/
+dist/
 
 *.so
 *.out
