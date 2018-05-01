@@ -391,11 +391,20 @@ fn is_python_token(field: &syn::Field) -> bool {
     return false
 }
 
-fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
-                                     Vec<syn::Ident>, syn::Ident) {
+fn parse_attribute(mut attr: String) -> (HashMap<&'static str, syn::Ident>,
+                                         Vec<syn::Ident>, syn::Ident) {
     let mut params = HashMap::new();
     let mut flags = vec![syn::Ident::from("0")];
     let mut base = syn::Ident::from("_pyo3::PyObjectRef");
+
+    // https://github.com/rust-lang/rust/pull/50120 removed the parantheses from
+    // the attr TokenStream, so we need to re-add them manually
+    // Old nightly (like 2018-04-05): ( name=CustomName )
+    // New nightly (like 2018-04-28): name=CustomName
+
+    if attr.len() > 0 && !attr.starts_with("(") {
+        attr = format!("({})", attr);
+    }
 
     if let Ok(tts) = syn::parse_token_trees(&attr) {
         let mut elem = Vec::new();
@@ -403,8 +412,8 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
 
         for tt in tts.iter() {
             match tt {
-                &syn::TokenTree::Token(_) => {
-                    println!("Wrong format: {:?}", attr.to_string());
+                &syn::TokenTree::Token(ref token) => {
+                    println!("Wrong format: Expected delimited, found token: {:?} {:?}", attr.to_string(), token);
                 }
                 &syn::TokenTree::Delimited(ref delimited) => {
                     for tt in delimited.tts.iter() {
@@ -429,7 +438,7 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
                     ident.as_ref().to_owned().to_lowercase()
                 },
                 _ => {
-                    println!("Wrong format: {:?}", attr.to_string());
+                    println!("Wrong format: Expected Token: {:?}", attr.to_string());
                     continue
                 }
             };
@@ -459,14 +468,14 @@ fn parse_attribute(attr: String) -> (HashMap<&'static str, syn::Ident>,
             }
 
             if elem.len() < 3 {
-                println!("Wrong format: {:?}", elem);
+                println!("Wrong format: Less than three elements{:?}", elem);
                 continue
             }
 
             match elem[1] {
                 syn::TokenTree::Token(syn::Token::Eq) => (),
                 _ => {
-                    println!("Wrong format: {:?}", attr.to_string());
+                    println!("Wrong format: Expected a Token as fist element: {:?}", attr.to_string());
                     continue
                 }
             }

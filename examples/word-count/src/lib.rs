@@ -10,6 +10,8 @@ use std::io::prelude::*;
 use rayon::prelude::*;
 use pyo3::prelude::*;
 
+use pyo3::py::modinit as pymodinit;
+
 fn matches(word: &str, search: &str) -> bool {
     let mut search = search.chars();
     for ch in word.chars().skip_while(|ch| !ch.is_alphabetic()) {
@@ -47,7 +49,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
          .sum()
 }
 
-#[py::modinit(_word_count)]
+#[pymodinit(_word_count)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "search")]

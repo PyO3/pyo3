@@ -5,6 +5,9 @@ extern crate pyo3;
 
 use pyo3::*;
 
+use pyo3::py::class as pyclass;
+use pyo3::py::proto as pyproto;
+
 
 #[test]
 fn test_basics() {
@@ -20,12 +23,12 @@ fn test_basics() {
 }
 
 
-#[py::class]
+#[pyclass]
 struct Test {
     token: PyToken
 }
 
-#[py::proto]
+#[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test
 {
     fn __getitem__(&self, idx: &PyObjectRef) -> PyResult<PyObject> {
