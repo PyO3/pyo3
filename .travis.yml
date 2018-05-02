@@ -1,3 +1,5 @@
+sudo: required
+dist: trusty
 language: python
 
 python:
@@ -11,12 +13,10 @@ allow_failures:
 
 env:
   global:
-    - RUST_VERSION=nightly
+    - TRAVIS_RUST_VERSION=nightly
     - RUSTFLAGS="-C link-dead-code"
     - RUST_BACKTRACE=1
-
-sudo: required
-dist: trusty
+    - SCCACHE_DIR="$HOME/.cargo/sccache"
 
 addons:
   apt:
@@ -29,20 +29,22 @@ addons:
       - binutils-dev
       - libiberty-dev
 
+
+before_install:
+  - curl -SsL "https://sh.rustup.rs/" | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
+  - export PATH=$PATH:$HOME/.cargo/bin
+
 # Add clippy
-before_script:
-  - |
-    if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
-        ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
-    fi
-  - export PATH=$PATH:~/.cargo/bin
+# before_script:
+#   - |
+#     if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
+#         ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
+#     fi
+#   - export PATH=$PATH:~/.cargo/bin
 
 install:
+  - cargo install --debug cargo-make
   - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
-  - mkdir ~/rust-installer
-  - curl -sL https://static.rust-lang.org/rustup.sh -o ~/rust-installer/rustup.sh
-  - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y
-  - export PATH="$HOME/rust/bin:$PATH"
   - python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"
   - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
   # - find $PYTHON_LIB
@@ -51,14 +53,18 @@ install:
   # https://github.com/google/pulldown-cmark/issues/122#issuecomment-364948741
   - LIBRARY_PATH=$(echo $LIBRARY_PATH | sed -E -e 's/^:*//' -e 's/:*$//' -e 's/:+/:/g')
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
-  - rustc -V
+
 script:
-  - cargo test
+  - cargo make test
 
 after_script:
-  - curl -SsL "https://github.com/xd009642/tarpaulin/releases/download/0.5.6/cargo-tarpaulin-0.5.6-travis.tar.gz" | tar xzvC "$HOME/.cargo/bin"
-  # - make test
-  # - make clippy
+  - cargo make ci-coverage-flow
+
+
+
+# curl -SsL "https://github.com/xd009642/tarpaulin/releases/download/0.5.6/cargo-tarpaulin-0.5.6-travis.tar.gz" | tar xzvC "$HOME/.cargo/bin"
+# - make test
+# - make clippy
 
 # after_success:
 #   - |

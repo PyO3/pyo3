@@ -1,0 +1,60 @@
+### CI setup flow ##############################################################
+
+[tasks.ci-install-sccache]
+description = "Install the `sccache` compiled executable from GitHub releases."
+script = [
+    '''
+    LATEST=$(cargo search sccache | grep sccache | cut -f2 -d"\"")
+    URL="https://github.com/mozilla/sccache/releases/download/${LATEST}/sccache-${LATEST}-x86_64-unknown-linux-musl.tar.gz"
+    curl -SsL $URL | tar xzv -C /tmp
+    mv /tmp/sccache-${LATEST}-x86_64-unknown-linux-musl/sccache $HOME/.cargo/bin/sccache
+    '''
+]
+
+[tasks.ci-setup-sccache]
+env = { "RUSTC_WRAPPER" = "sccache" }
+condition_script = ['test ! -d "$SCCACHE_DIR"']
+script = ['mkdir "$SCCACHE_DIR"']
+
+[tasks.ci-setup-flow]
+condition = { env = { "TRAVIS" = "true" } }
+dependencies = [
+    'ci-install-sccache',
+    'ci-setup-sccache',
+]
+
+
+### Coverage flow ##############################################################
+
+[tasks.pre-coverage]
+dependencies = ["ci-install-tarpaulin"]
+
+[tasks.ci-install-tarpaulin]
+condition = { env = { "TRAVIS" = "true" } }
+script = [
+    '''
+    LATEST=$(cargo search -q cargo-tarpaulin | grep cargo-tarpaulin | cut -f2 -d"\"")
+    URL="https://github.com/xd009642/tarpaulin/releases/download/${LATEST}/cargo-tarpaulin-${LATEST}-travis.tar.gz"
+    curl -SsL $URL | tar xzvC $HOME/.cargo/bin
+    '''
+]
+
+[tasks.ci-coverage]
+dependencies = [
+  "ci-coverage.travis",
+]
+
+[tasks.ci-coverage.travis]
+condition = { env = { "TRAVIS" = "true" } }
+command = "cargo"
+args = ["tarpaulin", "--out=Xml", "--ciserver=travis-ci"]
+
+[tasks.ci-coverage-flow]
+dependencies = [
+  "pre-coverage",
+  "ci-coverage",
+  "post-coverage",
+  "codecov"
+]
+
+### Release flow ###############################################################
