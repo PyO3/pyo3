@@ -32,7 +32,7 @@ script = ["cargo test --features=${FEATURES}"]
 [tasks.ci-test-python.linux]
 script = [
   """
-  pip install setuptools-rust pytest pytest-benchmark"
+  pip install setuptools-rust pytest pytest-benchmark
   cd examples/word-count && python setup.py install && pytest -v tests
   cd examples/word-count-cls && python setup.py install && pytest -v tests
   """
@@ -73,7 +73,6 @@ script = [
 
 [tasks.ci-coverage-travis]
 condition = { env = { "TRAVIS" = "true" } }
-command = "cargo"
 script = ["cargo tarpaulin --out=Xml --ciserver=travis-ci --features=${FEATURES}"]
 
 [tasks.ci-coverage]
