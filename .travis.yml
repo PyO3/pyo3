@@ -2,14 +2,19 @@ sudo: required
 dist: trusty
 language: python
 
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
-  - "3.7-dev"
-
-allow_failures:
-  - python: "3.7-dev"
+build_matrix:
+  include:
+  - python: "2.7"
+    env: FEATURES=python2
+  - python: "3.5"
+    env: FEATURES=python3
+  - python: "3.6"
+    env: FEATURES=python3
+  - python: "3.7"
+    env: FEATURES=python3
+  allow_failures:
+  - python: "3.7"
+    env: FEATURES=python3
 
 env:
   global:
@@ -28,7 +33,6 @@ addons:
       - gcc
       - binutils-dev
       - libiberty-dev
-
 
 before_install:
   - curl -SsL "https://sh.rustup.rs/" | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
@@ -55,7 +59,7 @@ install:
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
 
 script:
-  - cargo make test
+  - cargo make ci-flow
 
 after_script:
   - cargo make ci-coverage-flow

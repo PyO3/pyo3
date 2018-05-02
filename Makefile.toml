@@ -24,6 +24,40 @@ dependencies = [
 ]
 
 
+### Test flow ##################################################################
+
+[tasks.ci-test.linux]
+command = "cargo"
+args = ["test", "--features=$FEATURES"]
+
+[tasks.ci-test-python.linux]
+script = [
+  """
+  pip install setuptools-rust pytest pytest-benchmark"
+  cd examples/word-count && python setup.py install && pytest -v tests
+  cd examples/word-count-cls && python setup.py install && pytest -v tests
+  """
+]
+
+[tasks.ci-build.linux]
+command = "cargo"
+args = ["build", "--features=$FEATURES"]
+
+[tasks.ci-test-flow]
+dependencies = [
+  "pre-ci-flow",
+  "pre-build",
+  "ci-build",
+  "post-build",
+  "pre-test",
+  "ci-test",
+  "ci-test-python",
+  "post-test",
+  "examples-ci-flow",
+  "bench-ci-flow",
+  "post-ci-flow"
+]
+
 ### Coverage flow ##############################################################
 
 [tasks.pre-coverage]
@@ -39,15 +73,15 @@ script = [
     '''
 ]
 
-[tasks.ci-coverage]
-dependencies = [
-  "ci-coverage.travis",
-]
-
-[tasks.ci-coverage.travis]
+[tasks.ci-coverage-travis]
 condition = { env = { "TRAVIS" = "true" } }
 command = "cargo"
 args = ["tarpaulin", "--out=Xml", "--ciserver=travis-ci"]
+
+[tasks.ci-coverage]
+dependencies = [
+  "ci-coverage-travis",
+]
 
 [tasks.ci-coverage-flow]
 dependencies = [
@@ -56,5 +90,3 @@ dependencies = [
   "post-coverage",
   "codecov"
 ]
-
-### Release flow ###############################################################
