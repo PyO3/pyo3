@@ -103,12 +103,15 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
 ///
 /// Example of custom class implementation with `__new__` method:
 /// ```rust,ignore
-/// #[py::class]
+/// use pyo3::py::class as pyclass;
+/// use pyo3::py::methods as pymethods;
+///
+/// #[pyclass]
 /// struct MyClass {
 ///    token: PyToken
 /// }
 ///
-/// #[py::methods]
+/// #[pymethods]
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {

@@ -13,12 +13,15 @@ extern crate pyo3;
 
 ## Define new class
 
-To define python custom class, rust struct needs to be annotated with `#[py::class]` attribute.
+To define python custom class, rust struct needs to be annotated with `#[class]` attribute.
 
 ```rust
-use pyo3::prelude::*;
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+use pyo3::py::class;
 
-#[py::class]
+#[class]
 struct MyClass {
    num: i32,
    debug: bool,
@@ -44,11 +47,11 @@ are generated only if struct contains `PyToken` attribute.
 
 TODO - continue
 
-## py::class macro
+## class macro
 
 Python class generation is powered by [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html).
-To define python custom class, rust struct needs to be annotated with `#[py::class]` attribute.
-`py::class` macro accepts following parameters:
+To define python custom class, rust struct needs to be annotated with `#[class]` attribute.
+`class` macro accepts following parameters:
 
 * `name=XXX` - customize class name visible to python code. By default struct name is used as
 a class name.
@@ -72,14 +75,29 @@ To declare constructor, you need to define class method and annotate it with `#[
 attribute. Only python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
-#[py::methods]
+# #![feature(proc_macro, specialization, const_fn)]
+#
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::class;
+#
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+#    token: PyToken,
+# }
+#
+use pyo3::py::methods;
+
+#[methods]
 impl MyClass {
 
      #[new]
-     fn __new__(obj: &PyRawObject, ...) -> PyResult<()> {
+     fn __new__(obj: &PyRawObject, num: Option<i32>) -> PyResult<()> {
          obj.init(|token| {
              MyClass {
-                 num: 10,
+                 num: num.unwrap_or(10),
                  debug: false,
                  token: token
              }
@@ -93,7 +111,7 @@ Some rules of `new` method
 * If no method marked with `#[new]` is declared, object instances can only be created
   from Rust, but not from Python.
 * The first parameter is the raw object, custom `new` method must initialize object
-  with value of struct using `init` method. Type of the object may be the type object of 
+  with value of struct using `init` method. Type of the object may be the type object of
   a derived class declared in Python.
 * The first parameter implicitly has type `&PyRawObject`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
@@ -104,42 +122,48 @@ Some rules of `new` method
 ## Inheritance
 
 By default `PyObject` is used as default base class. To override default base class
-`base` parameter for `py::class` needs to be used. Value is full path to base class.
+`base` parameter for `class` needs to be used. Value is full path to base class.
 `__new__` method accepts `PyRawObject` object. `obj` instance must be initialized
 with value of custom class struct. Subclass must call parent's `__new__` method.
 
 ```rust
-
-#[py::class]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+#
+#[class]
 struct BaseClass {
-   val1: usize
+   val1: usize,
+   token: PyToken,
 }
 
-#[py::methods]
+#[methods]
 impl BaseClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       obj.init(|t| BaseClass{val1: 10})
+       obj.init(|token| BaseClass{val1: 10, token})
    }
-   
-   pub fn method(&self) -> PyResult<() {
+
+   pub fn method(&self) -> PyResult<()> {
       Ok(())
    }
 }
 
-#[py::class(base=BaseClass)]
+#[class(base=BaseClass)]
 struct SubClass {
-   val2: usize
+   val2: usize,
+   token: PyToken,
 }
 
-#[py::methods]
+#[methods]
 impl SubClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       obj.init(|t| SubClass{val2: 10})
+       obj.init(|token| SubClass{val2: 10, token});
        BaseClass::__new__(obj)
    }
-   
+
    fn method2(&self) -> PyResult<()> {
        self.get_base().method()
    }
@@ -153,11 +177,21 @@ base class.
 ## Object properties
 
 Descriptor methods can be defined in
-`#[py::methods]` `impl` block only and has to be annotated with `#[getter]` or `[setter]`
+`#[methods]` `impl` block only and has to be annotated with `#[getter]` or `[setter]`
 attributes. i.e.
 
 ```rust
-#[py::methods]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    token: PyToken,
+# }
+#
+#[methods]
 impl MyClass {
 
      #[getter]
@@ -175,7 +209,17 @@ Descriptor name becomes function name with prefix removed. This is useful in cas
 rust's special keywords like `type`.
 
 ```rust
-#[py::methods]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    token: PyToken,
+# }
+#
+#[methods]
 impl MyClass {
 
      #[getter]
@@ -185,7 +229,7 @@ impl MyClass {
 
      #[setter]
      fn set_num(&mut self, value: i32) -> PyResult<()> {
-        self.num = value
+        self.num = value;
         Ok(())
      }
 }
@@ -197,7 +241,17 @@ Also both `#[getter]` and `#[setter]` attributes accepts one parameter.
 If parameter is specified, it is used and property name. i.e.
 
 ```rust
-#[py::methods]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    token: PyToken,
+# }
+#
+#[methods]
 impl MyClass {
 
      #[getter(number)]
@@ -207,7 +261,7 @@ impl MyClass {
 
      #[setter(number)]
      fn set_num(&mut self, value: i32) -> PyResult<()> {
-        self.num = value
+        self.num = value;
         Ok(())
      }
 }
@@ -218,7 +272,11 @@ In this case property `number` is defined. And it is available from python code 
 For simple cases you can also define getters and setters in your Rust struct field definition, for example:
 
 ```rust
-#[py:class]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+#[class]
 struct MyClass {
   #[prop(get, set)]
   num: i32
@@ -230,12 +288,22 @@ Then it is available from Python code as `self.num`.
 ## Instance methods
 
 To define python compatible method, `impl` block for struct has to be annotated
-with `#[py::methods]` attribute. `pyo3` library generates python compatible
+with `#[methods]` attribute. `pyo3` library generates python compatible
 wrappers for all functions in this block with some variations, like descriptors,
 class method static methods, etc.
 
 ```rust
-#[py::methods]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    token: PyToken,
+# }
+#
+#[methods]
 impl MyClass {
 
      fn method1(&self) -> PyResult<i32> {
@@ -243,7 +311,7 @@ impl MyClass {
      }
 
      fn set_method(&mut self, value: i32) -> PyResult<()> {
-        self.num = value
+        self.num = value;
         Ok(())
      }
 }
@@ -256,9 +324,19 @@ The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject
 get injected by method wrapper. i.e
 
 ```rust
-#[py::methods]
-impl MyClass {
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+#    token: PyToken,
+# }
 
+#[methods]
+impl MyClass {
      fn method2(&self, py: Python) -> PyResult<i32> {
         Ok(10)
      }
@@ -273,9 +351,19 @@ To specify class method for custom class, method needs to be annotated
 with`#[classmethod]` attribute.
 
 ```rust
-#[py::methods]
-impl MyClass {
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+#    token: PyToken,
+# }
 
+#[methods]
+impl MyClass {
      #[classmethod]
      fn cls_method(cls: &PyType) -> PyResult<i32> {
         Ok(10)
@@ -298,9 +386,19 @@ with `#[staticmethod]` attribute. The return type must be `PyResult<T>`
 for some `T` that implements `IntoPyObject`.
 
 ```rust
-#[py::methods]
-impl MyClass {
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+#    token: PyToken,
+# }
 
+#[methods]
+impl MyClass {
      #[staticmethod]
      fn static_method(param1: i32, param2: &str) -> PyResult<i32> {
         Ok(10)
@@ -314,9 +412,19 @@ To specify custom `__call__` method for custom class, call method needs to be an
 with `#[call]` attribute. Arguments of the method are specified same as for instance method.
 
 ```rust
-#[py::methods]
-impl MyClass {
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+#    token: PyToken,
+# }
 
+#[methods]
+impl MyClass {
      #[call]
      #[args(args="*")]
      fn __call__(&self, args: &PyTuple) -> PyResult<i32> {
@@ -350,9 +458,19 @@ Each parameter could one of following type:
 
 Example:
 ```rust
-#[py::methods]
+# #![feature(proc_macro, specialization, const_fn)]
+# extern crate pyo3;
+# use pyo3::prelude::*;
+# use pyo3::py::*;
+# #[class]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+#    token: PyToken,
+# }
+#
+#[methods]
 impl MyClass {
-
     #[args(arg1=true, args="*", arg2=10, kwargs="**")]
     fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, kwargs: Option<&PyDict>) -> PyResult<i32> {
         Ok(1)
@@ -367,7 +485,7 @@ Python object model defines several protocols for different object behavior,
 like sequence, mapping or number protocols. pyo3 library defines separate trait for each
 of them. To provide specific python object behavior you need to implement specific trait
 for your struct. Important note, each protocol implementation block has to be annotated
-with `#[py::proto]` attribute.
+with `#[proto]` attribute.
 
 ### Basic object customization
 
@@ -444,17 +562,19 @@ These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 as every cycle must contain at least one mutable reference.
 Example:
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(proc_macro, specialization, const_fn)]
 extern crate pyo3;
 
-use pyo3::{py, PyObject, PyGCProtocol, PyVisit, PyTraverseError};
+use pyo3::prelude::*;
+use pyo3::py::*;
 
-#[py::class]
+#[class]
 struct ClassWithGCSupport {
     obj: Option<PyObject>,
+    token: PyToken,
 }
 
-#[py::proto]
+#[proto]
 impl PyGCProtocol for ClassWithGCSupport {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
         if let Some(ref obj) = self.obj {
@@ -472,10 +592,10 @@ impl PyGCProtocol for ClassWithGCSupport {
 }
 ```
 
-Special protocol trait implementation has to be annotated with `#[py::proto]` attribute.
+Special protocol trait implementation has to be annotated with `#[proto]` attribute.
 
-It is also possible to enable gc for custom class using `gc` parameter for `py::class` annotation.
-i.e. `#[py::class(gc)]`. In that case instances of custom class participate in python garbage
+It is also possible to enable gc for custom class using `gc` parameter for `class` annotation.
+i.e. `#[class(gc)]`. In that case instances of custom class participate in python garbage
 collector, and it is possible to track them with `gc` module methods.
 
 ### Iterator Types
@@ -490,18 +610,20 @@ It includes two methods `__iter__` and `__next__`:
 
 Example:
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(proc_macro, specialization, const_fn)]
 extern crate pyo3;
 
-use pyo3::{py, PyObject, PyResult, PyIterProtocol};
+use pyo3::prelude::*;
+use pyo3::py::*;
 
-#[py::class]
+#[class]
 struct MyIterator {
-    iter: Box<Iterator<Item=PyObject> + Send>
+    iter: Box<Iterator<Item=PyObject> + Send>,
+    token: PyToken,
 }
 
-#[py::proto]
-impl PyIterProtocol {
+#[proto]
+impl PyIterProtocol for MyIterator {
 
     fn __iter__(&mut self) -> PyResult<PyObject> {
         Ok(self.into())

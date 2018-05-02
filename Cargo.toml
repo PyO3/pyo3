@@ -25,6 +25,9 @@ spin = "0.4.6"
 num-traits = "0.2"
 pyo3cls = { path = "pyo3cls", version = "^0.2.1" }
 
+[dev-dependencies]
+docmatic = "^0.1.2"
+
 [build-dependencies]
 regex = "0.2"
 version_check = "0.1"

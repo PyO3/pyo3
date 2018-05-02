@@ -40,7 +40,7 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
-    fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
+    fn sum_as_string_py(_py: Python, a:i64, b:i64) -> PyResult<String> {
        let out = sum_as_string(a, b);
        Ok(out)
     }
