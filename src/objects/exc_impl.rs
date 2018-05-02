@@ -116,12 +116,15 @@ mod test {
         let py = gil.python();
 
         let err: PyErr = gaierror.into();
+        let socket = py.import("socket").map_err(|e| e.print(py)).expect("could not import socket");
 
         let d = PyDict::new(py);
-        d.set_item("socket", py.import("socket").map_err(|e| e.print(py)).unwrap()).unwrap();
-        d.set_item("exc", err).unwrap();
+        d.set_item("socket", socket).map_err(|e| e.print(py)).expect("could not setitem");
+        d.set_item("exc", err).map_err(|e| e.print(py)).expect("could not setitem");
 
-        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d)).unwrap();
+        py.run("assert isinstance(exc, socket.gaierror)", None, Some(d))
+            .map_err(|e| e.print(py))
+            .expect("assertion failed");
     }
 
     #[test]
@@ -130,11 +133,14 @@ mod test {
         let py = gil.python();
 
         let err: PyErr = MessageError.into();
+        let email = py.import("email").map_err(|e| e.print(py)).expect("could not import email");
 
         let d = PyDict::new(py);
-        d.set_item("email", py.import("email").map_err(|e| e.print(py)).unwrap()).unwrap();
-        d.set_item("exc", err).unwrap();
+        d.set_item("email", email).map_err(|e| e.print(py)).expect("could not setitem");
+        d.set_item("exc", err).map_err(|e| e.print(py)).expect("could not setitem");
 
-        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d)).unwrap();
+        py.run("assert isinstance(exc, email.errors.MessageError)", None, Some(d))
+            .map_err(|e| e.print(py))
+            .expect("assertion failed");
     }
 }

@@ -28,17 +28,19 @@ Now you can write your module, for example
 extern crate pyo3;
 use pyo3::{py, PyResult, Python, PyModule};
 
+use pyo3::py::modinit as pymodinit;
+
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 /// This module is implemented in Rust.
-#[py::modinit(rust2py)]
+#[pymodinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     // pyo3 aware function. All of our python interface could be declared in a separate module.
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
-    fn sum_as_string_py(_: Python, a:i64, b:i64) -> PyResult<String> {
+    fn sum_as_string_py(_py: Python, a:i64, b:i64) -> PyResult<String> {
        let out = sum_as_string(a, b);
        Ok(out)
     }

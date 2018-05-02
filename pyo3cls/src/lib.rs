@@ -34,7 +34,7 @@ pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_item(&source).unwrap();
 
     // Build the output
-    let init = module::build_py2_module_init(&mut ast, attr.to_string());
+    let init = module::build_py2_module_init(&mut ast, utils::attr_with_parentheses(attr));
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();
@@ -53,7 +53,7 @@ pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_item(&source).unwrap();
 
     // Build the output
-    let init = module::build_py3_module_init(&mut ast, attr.to_string());
+    let init = module::build_py3_module_init(&mut ast, utils::attr_with_parentheses(attr));
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();
@@ -91,7 +91,7 @@ pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = syn::parse_derive_input(&source).unwrap();
 
     // Build the output
-    let expanded = py_class::build_py_class(&mut ast, attr.to_string());
+    let expanded = py_class::build_py_class(&mut ast, utils::attr_with_parentheses(attr));
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();
