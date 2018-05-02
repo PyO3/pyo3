@@ -2,7 +2,7 @@ sudo: required
 dist: trusty
 language: python
 
-build_matrix:
+matrix:
   include:
   - python: "2.7"
     env: FEATURES=python2
@@ -37,6 +37,7 @@ addons:
 before_install:
   - curl -SsL "https://sh.rustup.rs/" | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
   - export PATH=$PATH:$HOME/.cargo/bin
+  - cargo install --debug cargo-make
 
 # Add clippy
 # before_script:
@@ -47,7 +48,7 @@ before_install:
 #   - export PATH=$PATH:~/.cargo/bin
 
 install:
-  - cargo install --debug cargo-make
+  - cargo make ci-setup-flow
   - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
   - python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"
   - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
@@ -59,7 +60,7 @@ install:
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
 
 script:
-  - cargo make ci-flow
+  - cargo make ci-test-flow
 
 after_script:
   - cargo make ci-coverage-flow
