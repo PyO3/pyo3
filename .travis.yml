@@ -53,35 +53,40 @@ install:
   - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
   - rustc -V
 script:
-  - make test
+  - cargo test
+
+after_script:
+  - cargo install --debug cargo-tarpaulin
+  - cargo tarpaulin
+  # - make test
   # - make clippy
 
-after_success:
-  - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-    cargo doc --no-deps &&
-    echo "<meta http-equiv=refresh content=0;url=os_balloon/index.html>" > target/doc/index.html &&
-    curl -sL https://github.com/rust-lang-nursery/mdBook/releases/download/v0.1.5/mdbook-v0.1.5-x86_64-unknown-linux-gnu.tar.gz | tar xvz -C $HOME/rust/bin &&
-    cd guide && mdbook build -d ../target/doc/guide && cd .. &&
-    git clone https://github.com/davisp/ghp-import.git &&
-    ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
-    echo "Uploaded documentation"
-    fi
-
-  - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-      tar xzf master.tar.gz &&
-      cd kcov-master &&
-      mkdir build &&
-      cd build &&
-      cmake .. &&
-      make &&
-      make install DESTDIR=../../kcov-build &&
-      cd ../.. &&
-      rm -rf kcov-master &&
-      for file in target/debug/pyo3-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
-      for file in target/debug/test_*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
-      bash <(curl -s https://codecov.io/bash) &&
-      echo "Uploaded code coverage"
-    fi
+# after_success:
+#   - |
+#     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
+#     cargo doc --no-deps &&
+#     echo "<meta http-equiv=refresh content=0;url=os_balloon/index.html>" > target/doc/index.html &&
+#     curl -sL https://github.com/rust-lang-nursery/mdBook/releases/download/v0.1.5/mdbook-v0.1.5-x86_64-unknown-linux-gnu.tar.gz | tar xvz -C $HOME/rust/bin &&
+#     cd guide && mdbook build -d ../target/doc/guide && cd .. &&
+#     git clone https://github.com/davisp/ghp-import.git &&
+#     ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
+#     echo "Uploaded documentation"
+#     fi
+#
+#   - |
+#     if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
+#       wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+#       tar xzf master.tar.gz &&
+#       cd kcov-master &&
+#       mkdir build &&
+#       cd build &&
+#       cmake .. &&
+#       make &&
+#       make install DESTDIR=../../kcov-build &&
+#       cd ../.. &&
+#       rm -rf kcov-master &&
+#       for file in target/debug/pyo3-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+#       for file in target/debug/test_*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+#       bash <(curl -s https://codecov.io/bash) &&
+#       echo "Uploaded code coverage"
+#     fi
