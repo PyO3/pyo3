@@ -3,10 +3,9 @@ dist: trusty
 language: python
 
 cache:
-  cargo: true
   pip: true
   directories:
-  - "$HOME/.cargo/sccache"
+  - "$HOME/.cargo"
 
 matrix:
   include:
@@ -41,9 +40,9 @@ addons:
       - libiberty-dev
 
 before_install:
+  - sh ci/travis/install-cargo-make.sh
   - curl -SsL "https://sh.rustup.rs/" | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
-  - export PATH=$PATH:$HOME/.cargo/bin
-  - cargo install --debug cargo-make
+  - export RUSTC_WRAPPER=sccache PATH=$PATH:$HOME/.cargo/bin
 
 # Add clippy
 # before_script:
@@ -68,7 +67,7 @@ install:
 script:
   - cargo make ci-test-flow
 
-after_script:
+after_success:
   - cargo make ci-coverage-flow
 
 
