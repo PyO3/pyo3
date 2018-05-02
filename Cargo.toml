@@ -32,13 +32,11 @@ pyo3cls = { version = "^0.2.1" }
 regex = "0.2"
 version_check = "0.1"
 pretty_assertions = "0.5.1"
+pyo3-build-utils = {version = "*", path="pyo3build"}
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"
 docmatic = "^0.1.2"
-
-[build-dependencies]
-pyo3-build-utils = {version = "*", path="pyo3build"}
 
 [features]
 default = []
