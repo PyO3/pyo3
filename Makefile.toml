@@ -13,8 +13,8 @@ script = [
 
 [tasks.ci-setup-sccache]
 env = { "RUSTC_WRAPPER" = "sccache" }
-condition_script = ['test ! -d "$SCCACHE_DIR"']
-script = ['mkdir "$SCCACHE_DIR"']
+condition_script = ['test ! -d "${SCCACHE_DIR}"']
+script = ['mkdir "${SCCACHE_DIR}"']
 
 [tasks.ci-setup-flow]
 condition = { env = { "TRAVIS" = "true" } }
@@ -27,8 +27,7 @@ dependencies = [
 ### Test flow ##################################################################
 
 [tasks.ci-test.linux]
-command = "cargo"
-args = ["test", "--features=$FEATURES"]
+script = ["cargo test --features=${FEATURES}"]
 
 [tasks.ci-test-python.linux]
 script = [
@@ -40,8 +39,7 @@ script = [
 ]
 
 [tasks.ci-build.linux]
-command = "cargo"
-args = ["build", "--features=$FEATURES"]
+script = ["cargo build --features=${FEATURES}"]
 
 [tasks.ci-test-flow]
 dependencies = [
@@ -76,7 +74,7 @@ script = [
 [tasks.ci-coverage-travis]
 condition = { env = { "TRAVIS" = "true" } }
 command = "cargo"
-args = ["tarpaulin", "--out=Xml", "--ciserver=travis-ci"]
+script = ["cargo tarpaulin --out=Xml --ciserver=travis-ci --features=${FEATURES}"]
 
 [tasks.ci-coverage]
 dependencies = [

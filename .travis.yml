@@ -2,6 +2,12 @@ sudo: required
 dist: trusty
 language: python
 
+cache:
+  cargo: true
+  pip: true
+  directories:
+  - "$HOME/.cargo/sccache"
+
 matrix:
   include:
   - python: "2.7"
