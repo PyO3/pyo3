@@ -40,9 +40,7 @@ addons:
       - libiberty-dev
 
 before_install:
-  - sh ci/travis/install-cargo-make.sh
-  - curl -SsL "https://sh.rustup.rs/" | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
-  - export RUSTC_WRAPPER=sccache PATH=$PATH:$HOME/.cargo/bin
+  - source ./ci/travis/setup.sh
 
 # Add clippy
 # before_script:
@@ -54,26 +52,12 @@ before_install:
 
 install:
   - cargo make ci-setup-flow
-  - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
-  - python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"
-  - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-  # - find $PYTHON_LIB
-  - export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
-  # delete any possible empty components
-  # https://github.com/google/pulldown-cmark/issues/122#issuecomment-364948741
-  - LIBRARY_PATH=$(echo $LIBRARY_PATH | sed -E -e 's/^:*//' -e 's/:*$//' -e 's/:+/:/g')
-  - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
 
 script:
   - cargo make ci-test-flow
 
 after_success:
   - cargo make ci-coverage-flow
-
-
-
-# curl -SsL "https://github.com/xd009642/tarpaulin/releases/download/0.5.6/cargo-tarpaulin-0.5.6-travis.tar.gz" | tar xzvC "$HOME/.cargo/bin"
-# - make test
 # - make clippy
 
 # after_success:
