@@ -79,7 +79,6 @@ def get_abi_tag():
 print(get_abi_tag())
 ";
 
-// TODO: I'm not sure this works in windows
 pub fn canonicalize_executable<P>(exe_name: P) -> Option<PathBuf>
     where
         P: AsRef<Path>,
