@@ -1,9 +1,8 @@
 #![feature(proc_macro, specialization)]
 
-#[macro_use]
 extern crate pyo3;
 
-use pyo3::{PyDict, PyModule, PyObject, PyResult, Python};
+use pyo3::prelude::*;
 use pyo3::py::{class, modinit};
 
 
