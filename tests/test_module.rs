@@ -37,7 +37,8 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar");
 
-    add_function_to_module!(m, double, py);
+    m.add_function(wrap_function!(double));
+    m.add("also_double", wrap_function!(double)(py));
 
     Ok(())
 }
@@ -56,4 +57,5 @@ fn test_module_with_functions() {
     py.run("assert module_with_functions.foo == 'bar'", None, Some(d)).unwrap();
     py.run("assert module_with_functions.EmptyClass != None", None, Some(d)).unwrap();
     py.run("assert module_with_functions.double(3) == 6", None, Some(d)).unwrap();
+    py.run("assert module_with_functions.also_double(3) == 6", None, Some(d)).unwrap();
 }

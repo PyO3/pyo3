@@ -46,7 +46,7 @@ fn double(x: usize) -> usize {
 
 #[modinit(module_with_functions)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
-    add_function_to_module!(m, double, py);
+    m.add_function(wrap_function!(double));
 
     Ok(())
 }

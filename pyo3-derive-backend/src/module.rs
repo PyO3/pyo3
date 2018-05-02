@@ -103,13 +103,13 @@ pub fn process_functions_in_module(ast: &mut syn::Item) {
                 if let Some((module_name, python_name, pyfn_attrs)) =
                     extract_pyfn_attrs(&mut item.attrs)
                 {
-                    let function_to_python = add_fn_to_module(item, python_name, pyfn_attrs);
-                    let function_wrapper_ident = get_add_to_module_ident(&item.ident);
+                    let function_to_python = add_fn_to_module(item, &python_name, pyfn_attrs);
+                    let function_wrapper_ident = function_wrapper_ident(&item.ident);
                     let tokens = quote! {
                         fn block_wrapper() {
                             #function_to_python
 
-                            #function_wrapper_ident(#module_name, py);
+                            #module_name.add_function(&#function_wrapper_ident);
                         }
                     }.to_string();
 
@@ -205,15 +205,16 @@ fn extract_pyfn_attrs(
 }
 
 /// Coordinates the naming of a the add-function-to-python-module function
-fn get_add_to_module_ident(name: &syn::Ident) -> syn::Ident {
-    syn::Ident::new("__pyo3_add_to_module_".to_string() + &name.to_string())
+fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
+    // Make sure this ident matches the one of wrap_function
+    syn::Ident::new("__pyo3_get_function_".to_string() + &name.to_string())
 }
 
 /// Generates python wrapper over a function that allows adding it to a python module as a python
 /// function
 pub fn add_fn_to_module(
     item: &mut syn::Item,
-    python_name: syn::Ident,
+    python_name: &syn::Ident,
     pyfn_attrs: Vec<args::Argument>,
 ) -> Tokens {
     let name = item.ident.clone();
@@ -241,13 +242,13 @@ pub fn add_fn_to_module(
         output: ty,
     };
 
-    let add_to_module_ident = get_add_to_module_ident(&name);
+    let function_wrapper_ident = function_wrapper_ident(&name);
 
     let wrapper = function_c_wrapper(&name, &spec);
     let doc = utils::get_doc(&item.attrs, true);
 
     let tokens = quote! (
-        fn #add_to_module_ident(module: &::pyo3::PyModule, py: ::pyo3::Python) {
+        fn #function_wrapper_ident(py: ::pyo3::Python) -> ::pyo3::PyObject {
             use std;
             use pyo3 as _pyo3;
             use pyo3::ObjectProtocol;
@@ -271,7 +272,7 @@ pub fn add_fn_to_module(
                 )
             };
 
-            module.add(stringify!(#python_name), function);
+            function
         }
     );
 

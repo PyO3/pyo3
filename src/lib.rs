@@ -193,13 +193,14 @@ macro_rules! cstr {
     );
 }
 
-/// Registers a function annotated with `#[function]` in module.
-/// The first parameter is the module, the second the name of the function and the third is an
-/// instance of `Python`.
+/// Returns a function that takes a Python instance and returns a python function.
+///
+/// Use this together with `#[function]` and [PyModule::add_function].
 #[macro_export]
-macro_rules! add_function_to_module(
-    ($modname:expr, $function_name:ident, $python:expr) => {
-        concat_idents!(__pyo3_add_to_module_, $function_name)($modname, $python);
+macro_rules! wrap_function (
+    ($function_name:ident) => {
+        // Make sure this ident matches the one in function_wrapper_ident
+        &concat_idents!(__pyo3_get_function_, $function_name)
     };
 );
 

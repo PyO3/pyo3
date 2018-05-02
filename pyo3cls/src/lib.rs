@@ -130,7 +130,7 @@ pub fn function(_: TokenStream, input: TokenStream) -> TokenStream {
 
     // Build the output
     let python_name = ast.ident.clone();
-    let expanded = module::add_fn_to_module(&mut ast, python_name, Vec::new());
+    let expanded = module::add_fn_to_module(&mut ast, &python_name, Vec::new());
 
     // Return the generated impl as a TokenStream
     let mut tokens = Tokens::new();

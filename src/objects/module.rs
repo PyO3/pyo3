@@ -16,7 +16,6 @@ use objectprotocol::ObjectProtocol;
 use instance::PyObjectWithToken;
 use err::{PyResult, PyErr};
 
-
 /// Represents a Python `module` object.
 pub struct PyModule(PyObject);
 
@@ -139,5 +138,24 @@ impl PyModule {
         };
 
         self.setattr(T::NAME, ty)
+    }
+
+    /// Adds a function to a module, using the functions __name__ as name.
+    ///
+    /// Use this together with the`#[function]` and [wrap_function!] macro.
+    ///
+    /// ```rust,ignore
+    /// m.add_function(wrap_function!(double));
+    /// ```
+    ///
+    /// You can also add a function with a custom name using [add](PyModule::add):
+    ///
+    /// ```rust,ignore
+    ///  m.add("also_double", wrap_function!(double)(py));
+    /// ```
+    pub fn add_function(&self, wrapper: &Fn(Python) -> PyObject) -> PyResult<()> {
+        let function = wrapper(self.py());
+        let name = function.getattr(self.py(), "__name__").expect("A function must have a __name__");
+        self.add(name.extract(self.py()).unwrap(), function)
     }
 }
