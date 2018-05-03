@@ -4,7 +4,7 @@
 
 curl -SsL https://github.com/SimonKagstrom/kcov/archive/master.tar.gz | tar xzv
 cd kcov-master
-cmake
+cmake .
 make
 install src/kcov $HOME/.cargo/bin/kcov
 cd $TRAVIS_BUILD_DIR
@@ -14,7 +14,7 @@ rm -rf kcov-master
 ### Run kcov ###################################################################
 
 _cover() {
-    dir$"target/cov/$(basename $@)"
+    dir="target/cov/$(basename $@)"
     mkdir -p $dir
     kcov --exclude-pattern=/.cargo,/usr/lib --verify $dir "$@"
 }
