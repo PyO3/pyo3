@@ -51,6 +51,7 @@ script:
 
 deploy:
   - provider: script
+    skip_cleanup: true
     script: ./ci/travis/cover.sh
     on:
       branch: master

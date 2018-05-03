@@ -2,7 +2,7 @@
 
 ### Setup kcov #################################################################
 
-curl -SsL https://github.com/SimonKagstrom/kcov/archive/master.tar.gz | tar xzv
+curl -SsL https://github.com/SimonKagstrom/kcov/archive/master.tar.gz | tar xz
 cd kcov-master
 cmake .
 make
@@ -19,11 +19,15 @@ _cover() {
     kcov --exclude-pattern=/.cargo,/usr/lib --verify $dir "$@"
 }
 
-for file in target/debug/pyo3-*[^\.d]; do _cover $file; done
-for file in target/debug/test_*[^\.d]; do _cover $file; done
+rm target/debug/pyo3-*.d
+rm target/debug/test_*.d
+rm target/debug/test_doc-*
+
+for file in target/debug/pyo3-*; do _cover $file; done
+for file in target/debug/test_*; do _cover $file; done
 
 
 ### Upload coverage ############################################################
 
 echo "Uploading code coverage"
-bash <(curl -s https://codecov.io/bash)
+curl -SsL https://codecov.io/bash | bash
