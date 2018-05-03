@@ -15,10 +15,10 @@ matrix:
     env: FEATURES=python3
   - python: "3.6"
     env: FEATURES=python3
-  - python: "3.7"
+  - python: "3.7-dev"
     env: FEATURES=python3
   allow_failures:
-  - python: "3.7"
+  - python: "3.7-dev"
     env: FEATURES=python3
 
 env:
