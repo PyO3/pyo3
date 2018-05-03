@@ -42,15 +42,21 @@ addons:
 before_install:
   - source ./ci/travis/setup.sh
 
-before_script:
+install:
   - pip install setuptools-rust pytest pytest-benchmark
 
 script:
-  - cargo build --features $FEATURES
-  - cargo test --features $FEATURES
+  - source ./ci/travis/test.sh
 
-after_success:
-  - cargo tarpaulin --features $FEATURES --ciserver travis-ci --out Xml
+deploy:
+  - provider: script
+    script: ./ci/travis/cover.sh
+    on:
+      branch: master
+
+
+# after_success:
+#   - source ./ci/travis/cover.sh
 # - make clippy
 
 # after_success:

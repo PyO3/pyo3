@@ -39,21 +39,6 @@ export RUSTC_WRAPPER=sccache
 mkdir -p $SCCACHE_DIR
 
 
-### Setup tarpaulin
-
-echo -n "Fetching latest available 'cargo-tarpaulin' version... "
-INSTALLED=$(_installed cargo tarpaulin)
-LATEST=$(_latest cargo-tarpaulin)
-echo "${LATEST} (installed: ${INSTALLED})"
-
-if [ "$INSTALLED" = "$LATEST" ]; then
-  echo "Using cached 'cargo-tarpaulin'"
-else
-  URL="https://github.com/xd009642/tarpaulin/releases/download/${LATEST}/cargo-tarpaulin-${LATEST}-travis.tar.gz"
-  curl -SsL $URL | tar xzvC $HOME/.cargo/bin
-fi
-
-
 ### Setup python linker flags ##################################################
 
 python -c """
