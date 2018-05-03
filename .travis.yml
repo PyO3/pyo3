@@ -27,6 +27,7 @@ env:
     - RUSTFLAGS="-C link-dead-code"
     - RUST_BACKTRACE=1
     - SCCACHE_DIR="$HOME/.cargo/sccache"
+    - RUSTC_WRAPPER=sccache
 
 addons:
   apt:

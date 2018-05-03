@@ -34,8 +34,6 @@ else
   mv /tmp/sccache-${LATEST}-x86_64-unknown-linux-musl/sccache $HOME/.cargo/bin/sccache
 fi
 
-export SCCACHE_DIR=$HOME/.cargo/sccache
-export RUSTC_WRAPPER=sccache
 mkdir -p $SCCACHE_DIR
 
 
