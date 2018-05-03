@@ -42,22 +42,15 @@ addons:
 before_install:
   - source ./ci/travis/setup.sh
 
-# Add clippy
-# before_script:
-#   - |
-#     if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
-#         ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
-#     fi
-#   - export PATH=$PATH:~/.cargo/bin
-
-install:
-  - cargo make ci-setup-flow
+before_script:
+  - pip install setuptools-rust pytest pytest-benchmark
 
 script:
-  - cargo make ci-test-flow
+  - cargo build --features $FEATURES
+  - cargo test --features $FEATURES
 
 after_success:
-  - cargo make ci-coverage-flow
+  - cargo tarpaulin --features $FEATURES --ciserver travis-ci --out Xml
 # - make clippy
 
 # after_success:
