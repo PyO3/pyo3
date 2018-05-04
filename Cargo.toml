@@ -13,9 +13,6 @@ license = "Apache-2.0"
 exclude = [".gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
 build = "build.rs"
 
-[lib]
-doctest = false
-
 [badges]
 travis-ci = { repository = "PyO3/pyo3", branch = "master" }
 appveyor = { repository = "PyO3/pyo3" }
@@ -42,16 +39,16 @@ docmatic = "^0.1.2"
 default = []
 
 # Use this feature when building python2 binding.
-python2 = []
+# python2 = []
 
 # Use this feature when building python3 binding.
 python3 = []
 
 # Use this feature when building pypy binding.
-pypy = []
+# pypy = []
 
 # Enable additional features that require nightly rust
-nightly = []
+# nightly = []
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
