@@ -1,20 +1,19 @@
 #!/bin/sh
 
-### Run kcov ###################################################################
+### Run kcov in parallel #######################################################
 
-_cover() {
-    dir="target/cov/$(basename $@)"
-    mkdir -p $dir
-    kcov --exclude-pattern=/.cargo,/usr/lib --verify $dir "$@"
-}
+rm -f target/debug/pyo3-*.d
+rm -f target/debug/test_*.d
+rm -f target/debug/test_doc-*
 
-rm target/debug/pyo3-*.d
-rm target/debug/test_*.d
-rm target/debug/test_doc-*
-
-for file in target/debug/pyo3-*; do _cover $file; done
-for file in target/debug/test_*; do _cover $file; done
-
+# echo $FILES
+FILES=$(find . -path ./target/debug/pyo3-\* -or -path ./target/debug/test_\*)
+echo $FILES | xargs -n1 -P $(nproc) sh -c '
+  dir="target/cov/$(basename $@)"
+  mkdir -p $dir
+  echo "Collecting coverage data of $(basename $@)"
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify $dir "$@" 2>&1 >/dev/null
+' _
 
 ### Upload coverage ############################################################
 
