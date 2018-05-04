@@ -61,6 +61,6 @@ deploy:
     script: ./ci/travis/guide.sh
     on:
       branch: master
-      repo: althonos/pyo3
+      repo: PyO3/pyo3
       python: 3.6
     
