@@ -1,22 +1,34 @@
+sudo: required
+dist: trusty
 language: python
 
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
-  - "3.7-dev"
+cache:
+  pip: true
+  directories:
+  - "$HOME/.cargo"
+  - "$HOME/kcov"
 
-allow_failures:
+matrix:
+  include:
+  - python: "2.7"
+    env: FEATURES=python2
+  - python: "3.5"
+    env: FEATURES=python3
+  - python: "3.6"
+    env: FEATURES=python3
   - python: "3.7-dev"
+    env: FEATURES=python3
+  allow_failures:
+  - python: "3.7-dev"
+    env: FEATURES=python3
 
 env:
   global:
-    - RUST_VERSION=nightly
+    - TRAVIS_RUST_VERSION=nightly
     - RUSTFLAGS="-C link-dead-code"
     - RUST_BACKTRACE=1
-
-sudo: required
-dist: trusty
+    - SCCACHE_DIR="$HOME/.cargo/sccache"
+    - RUSTC_WRAPPER=sccache
 
 addons:
   apt:
@@ -29,59 +41,26 @@ addons:
       - binutils-dev
       - libiberty-dev
 
-# Add clippy
-before_script:
-  - |
-    if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
-        ( ( cargo install clippy && export CLIPPY=true ) || export CLIPPY=false );
-    fi
-  - export PATH=$PATH:~/.cargo/bin
+before_install:
+  - source ./ci/travis/setup.sh
 
 install:
-  - python -c "import sysconfig; print('\n'.join(map(repr,sorted(sysconfig.get_config_vars().items()))))"
-  - mkdir ~/rust-installer
-  - curl -sL https://static.rust-lang.org/rustup.sh -o ~/rust-installer/rustup.sh
-  - sh ~/rust-installer/rustup.sh --prefix=~/rust --spec=$RUST_VERSION -y
-  - export PATH="$HOME/rust/bin:$PATH"
-  - python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"
-  - export PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-  # - find $PYTHON_LIB
-  - export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
-  # delete any possible empty components
-  # https://github.com/google/pulldown-cmark/issues/122#issuecomment-364948741
-  - LIBRARY_PATH=$(echo $LIBRARY_PATH | sed -E -e 's/^:*//' -e 's/:*$//' -e 's/:+/:/g')
-  - export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
-  - rustc -V
+  - pip install setuptools-rust pytest pytest-benchmark
+
 script:
-  - make test
-  # - make clippy
+  - source ./ci/travis/test.sh
 
-after_success:
-  - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_PULL_REQUEST" = "false" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-    cargo doc --no-deps &&
-    echo "<meta http-equiv=refresh content=0;url=os_balloon/index.html>" > target/doc/index.html &&
-    curl -sL https://github.com/rust-lang-nursery/mdBook/releases/download/v0.1.5/mdbook-v0.1.5-x86_64-unknown-linux-gnu.tar.gz | tar xvz -C $HOME/rust/bin &&
-    cd guide && mdbook build -d ../target/doc/guide && cd .. &&
-    git clone https://github.com/davisp/ghp-import.git &&
-    ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc &&
-    echo "Uploaded documentation"
-    fi
-
-  - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_BRANCH" == "master" && "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-      tar xzf master.tar.gz &&
-      cd kcov-master &&
-      mkdir build &&
-      cd build &&
-      cmake .. &&
-      make &&
-      make install DESTDIR=../../kcov-build &&
-      cd ../.. &&
-      rm -rf kcov-master &&
-      for file in target/debug/pyo3-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
-      for file in target/debug/test_*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
-      bash <(curl -s https://codecov.io/bash) &&
-      echo "Uploaded code coverage"
-    fi
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script: ./ci/travis/cover.sh
+    on:
+      branch: master
+  - provider: script
+    skip_cleanup: true
+    script: ./ci/travis/guide.sh
+    on:
+      branch: master
+      repo: althonos/pyo3
+      python: 3.6
+    
