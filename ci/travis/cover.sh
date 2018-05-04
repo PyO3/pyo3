@@ -1,16 +1,5 @@
 #!/bin/sh
 
-### Setup kcov #################################################################
-
-curl -SsL https://github.com/SimonKagstrom/kcov/archive/master.tar.gz | tar xz
-cd kcov-master
-cmake .
-make
-install src/kcov $HOME/.cargo/bin/kcov
-cd $TRAVIS_BUILD_DIR
-rm -rf kcov-master
-
-
 ### Run kcov ###################################################################
 
 _cover() {
