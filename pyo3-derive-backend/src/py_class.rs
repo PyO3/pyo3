@@ -41,7 +41,7 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
             use std;
-            extern crate pyo3 as _pyo3;
+            use pyo3 as _pyo3;
 
             #tokens
         };
@@ -372,7 +372,7 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, unused_imports)]
         const #dummy_const: () = {
-            extern crate pyo3 as _pyo3;
+            use pyo3 as _pyo3;
 
             #tokens
         };

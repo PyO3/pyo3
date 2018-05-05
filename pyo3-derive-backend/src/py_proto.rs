@@ -128,7 +128,7 @@ fn impl_proto_impl(ty: &Box<syn::Ty>,
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables)]
         const #dummy_const: () = {
-            extern crate pyo3 as _pyo3;
+            use pyo3 as _pyo3;
 
             #tokens
 
