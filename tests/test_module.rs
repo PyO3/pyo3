@@ -27,9 +27,9 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
         return Ok(42);
     }
 
-    m.add_class::<EmptyClass>();
+    m.add_class::<EmptyClass>().unwrap();
 
-    m.add("foo", "bar");
+    m.add("foo", "bar").unwrap();
 
     Ok(())
 }
