@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Find the installed version of a binary, if any
 _installed() {
     VERSION=$($@ --version 2>/dev/null || echo "$@ none")

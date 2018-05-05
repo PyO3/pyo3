@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 ### Run kcov in parallel #######################################################
 
 rm -f target/debug/pyo3-*.d

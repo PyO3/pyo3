@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 cargo build --features $FEATURES
 cargo test --features $FEATURES
 
