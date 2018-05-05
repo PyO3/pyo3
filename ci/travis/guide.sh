@@ -15,7 +15,7 @@ fi
 ### Build API reference ########################################################
 
 cargo doc --no-deps -p pyo3 -p pyo3cls
-echo "<meta http-equiv=refresh content=0;url=guide/" > target/doc/index.html
+echo "<meta http-equiv=refresh content=0;url='guide/'>" > target/doc/index.html
 
 
 ### Build guide ################################################################
