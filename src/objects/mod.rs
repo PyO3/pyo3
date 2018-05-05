@@ -180,6 +180,7 @@ macro_rules! pyobject_extract(
             }
         }
 
+        #[cfg(feature = "try_from")]
         impl<'source> $crate::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
         {
             type Error = $crate::PyErr;

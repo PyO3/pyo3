@@ -33,12 +33,12 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
         return Ok(42);
     }
 
-    m.add_class::<EmptyClass>();
+    m.add_class::<EmptyClass>().unwrap();
 
-    m.add("foo", "bar");
+    m.add("foo", "bar").unwrap();
 
-    m.add_function(wrap_function!(double));
-    m.add("also_double", wrap_function!(double)(py));
+    m.add_function(wrap_function!(double)).unwrap();
+    m.add("also_double", wrap_function!(double)(py)).unwrap();
 
     Ok(())
 }

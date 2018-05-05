@@ -136,7 +136,7 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {
-        #cls::#name(&_obj, #(#names),*).return_type_into_py_result()
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_obj, #(#names),*))
     };
 
     let body = impl_arg_params(spec, cb);
@@ -222,7 +222,7 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {
-        #cls::#name(&_cls, #(#names),*).return_type_into_py_result()
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_cls, #(#names),*))
     };
 
     let body = impl_arg_params(spec, cb);
@@ -255,7 +255,7 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
     let cb = quote! {
-        #cls::#name(#(#names),*).return_type_into_py_result()
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(#(#names),*))
     };
 
     let body = impl_arg_params(spec, cb);
@@ -351,7 +351,7 @@ fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
         }
     ).collect();
     quote! {
-        _slf.#fname(#(#names),*).return_type_into_py_result()
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(_slf.#fname(#(#names),*))
     }
 }
 

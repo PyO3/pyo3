@@ -1,12 +1,12 @@
-#![allow(dead_code, unused_variables)]
-#![feature(proc_macro, specialization, const_fn, const_align_of, const_size_of)]
+#![feature(proc_macro, specialization)]
 
 extern crate pyo3;
 
 use std::ptr;
 use std::os::raw::{c_int, c_void};
 
-use pyo3::*;
+use pyo3::prelude::*;
+use pyo3::ffi;
 
 use pyo3::py::class as pyclass;
 use pyo3::py::proto as pyproto;
@@ -19,7 +19,7 @@ struct TestClass {
 }
 
 #[pyproto]
-impl class::PyBufferProtocol for TestClass {
+impl PyBufferProtocol for TestClass {
 
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {

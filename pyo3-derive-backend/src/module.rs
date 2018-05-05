@@ -293,7 +293,7 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
         })
         .collect();
     let cb = quote! {
-        #name(#(#names),*).return_type_into_py_result()
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#name(#(#names),*))
     };
 
     let body = py_method::impl_arg_params(spec, cb);
