@@ -20,8 +20,7 @@ use err::{PyResult, PyErr};
 /// Represents a Python `module` object.
 pub struct PyModule(PyObject);
 
-pyobject_convert!(PyModule);
-pyobject_nativetype!(PyModule, PyModule_Type, PyModule_Check);
+pyobject_native_type!(PyModule, PyModule_Type, PyModule_Check);
 
 
 impl PyModule {

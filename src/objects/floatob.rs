@@ -19,8 +19,7 @@ use conversion::{ToPyObject, IntoPyObject};
 /// with `f32`/`f64`.
 pub struct PyFloat(PyObject);
 
-pyobject_convert!(PyFloat);
-pyobject_nativetype!(PyFloat, PyFloat_Type, PyFloat_Check);
+pyobject_native_type!(PyFloat, PyFloat_Type, PyFloat_Check);
 
 
 impl PyFloat {

@@ -16,8 +16,7 @@ use super::PyStringData;
 /// Represents a Python `string`.
 pub struct PyString(PyObject);
 
-pyobject_convert!(PyString);
-pyobject_nativetype!(PyString, PyUnicode_Type, PyUnicode_Check);
+pyobject_native_type!(PyString, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python `unicode string`.
 /// Corresponds to `unicode` in Python 2, and `str` in Python 3.
@@ -26,8 +25,7 @@ pub use PyString as PyUnicode;
 /// Represents a Python `byte` string.
 pub struct PyBytes(PyObject);
 
-pyobject_convert!(PyBytes);
-pyobject_nativetype!(PyBytes, PyBytes_Type, PyBytes_Check);
+pyobject_native_type!(PyBytes, PyBytes_Type, PyBytes_Check);
 
 
 impl PyString {

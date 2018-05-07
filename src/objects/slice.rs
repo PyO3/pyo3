@@ -14,8 +14,7 @@ use conversion::ToPyObject;
 /// Only `c_long` indeces supprted at the moment by `PySlice` object.
 pub struct PySlice(PyObject);
 
-pyobject_convert!(PySlice);
-pyobject_nativetype!(PySlice, PySlice_Type, PySlice_Check);
+pyobject_native_type!(PySlice, PySlice_Type, PySlice_Check);
 
 
 /// Represents a Python `slice` indices

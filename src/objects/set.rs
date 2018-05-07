@@ -16,10 +16,8 @@ pub struct PySet(PyObject);
 /// Represents a  Python `frozenset`
 pub struct PyFrozenSet(PyObject);
 
-pyobject_convert!(PySet);
-pyobject_convert!(PyFrozenSet);
-pyobject_nativetype!(PySet, PySet_Type, PySet_Check);
-pyobject_nativetype!(PyFrozenSet, PyFrozenSet_Type, PyFrozenSet_Check);
+
+pyobject_native_type!(PySet, PySet_Type, PySet_Check);pyobject_native_type!(PyFrozenSet, PyFrozenSet_Type, PyFrozenSet_Check);
 
 impl PySet {
     /// Creates a new set.
