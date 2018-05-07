@@ -33,6 +33,7 @@ pub use self::num2::{PyInt, PyLong};
 
 /// Implements typesafe conversions from a PyObjectRef, given a typecheck function as second
 /// parameter
+#[macro_export]
 macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
         impl<'a> $crate::FromPyObject<'a> for &'a $name
@@ -53,6 +54,7 @@ macro_rules! pyobject_downcast(
     );
 );
 
+#[macro_export]
 macro_rules! pyobject_native_type_named(
     ($name: ident) => {
         impl $crate::PyNativeType for $name {}
@@ -88,6 +90,7 @@ macro_rules! pyobject_native_type_named(
     };
 );
 
+#[macro_export]
 macro_rules! pyobject_native_type(
     ($name: ident, $typeobject: ident, $checkfunction: ident) => {
         pyobject_native_type_named!($name);
@@ -102,6 +105,7 @@ macro_rules! pyobject_native_type(
     };
 );
 
+#[macro_export]
 macro_rules! pyobject_native_type_convert(
     ($name: ident, $typeobject: ident, $checkfunction: ident) => {
         impl $crate::typeob::PyTypeInfo for $name {
@@ -174,6 +178,7 @@ macro_rules! pyobject_native_type_convert(
     };
 );
 
+#[macro_export]
 macro_rules! pyobject_extract(
     ($obj:ident to $t:ty => $body: block) => {
         impl<'source> $crate::FromPyObject<'source> for $t
