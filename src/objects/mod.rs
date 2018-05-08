@@ -20,7 +20,7 @@ pub use self::stringdata::PyStringData;
 pub use self::string::{PyBytes, PyString};
 
 #[cfg(not(Py_3))]
-pub use self::string2::{PyBytes, PyString};
+pub use self::string2::{PyBytes, PyString, PyUnicode};
 
 #[cfg(Py_3)]
 pub use self::num3::PyLong;
