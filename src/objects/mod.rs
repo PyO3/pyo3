@@ -17,7 +17,7 @@ pub use self::set::{PySet, PyFrozenSet};
 pub use self::stringdata::PyStringData;
 
 #[cfg(Py_3)]
-pub use self::string::{PyBytes, PyString};
+pub use self::string::{PyBytes, PyString, PyUnicode};
 
 #[cfg(not(Py_3))]
 pub use self::string2::{PyBytes, PyString, PyUnicode};
