@@ -268,11 +268,13 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         let gil = _pyo3::Python::acquire_gil();
                         let py = gil.python();
 
+                        let error_message = "An error occurred while initializing class ".to_string() +
+                                            <#cls as _pyo3::typeob::PyTypeInfo>::NAME.as_ref();
+
                         // automatically initialize the class on-demand
                         _pyo3::typeob::initialize_type::<#cls>(py, None)
                             .map_err(|e| e.print(py))
-                            .expect(format!("An error occurred while initializing class {}",
-                                            <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
+                            .expect(&error_message);
                     }
                 });
             }
@@ -337,7 +339,7 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
                             py: true,
                             reference: false
                         }],
-                        output: syn::parse::ty("PyResult<()>").expect("error parse PyResult<()>")
+                        output: syn::parse::ty("PyResult<()>").expect("error parse PyResult<()>"),
                     };
                     impl_py_setter_def(&name, doc, setter, &impl_wrap_setter(&Box::new(cls.clone()), &setter_name, &spec))
                 },

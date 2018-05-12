@@ -167,13 +167,14 @@ pub use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
 pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, prepare_pyo3_library};
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
 pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
-                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};
+                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple,
+                     ReturnTypeIntoPyResult};
 pub mod class;
 pub use class::*;
 
 /// Procedural macros
 pub mod py {
-    pub use pyo3cls::{proto, class, methods};
+    pub use pyo3cls::{proto, class, methods, function};
 
     #[cfg(Py_3)]
     pub use pyo3cls::mod3init as modinit;
@@ -183,13 +184,24 @@ pub mod py {
 }
 
 /// Constructs a `&'static CStr` literal.
-macro_rules! cstr(
+macro_rules! cstr {
     ($s: tt) => (
         // TODO: verify that $s is a string literal without nuls
         unsafe {
             ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _)
         }
     );
+}
+
+/// Returns a function that takes a Python instance and returns a python function.
+///
+/// Use this together with `#[function]` and [PyModule::add_function].
+#[macro_export]
+macro_rules! wrap_function (
+    ($function_name:ident) => {
+        // Make sure this ident matches the one in function_wrapper_ident
+        &concat_idents!(__pyo3_get_function_, $function_name)
+    };
 );
 
 mod python;

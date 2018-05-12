@@ -43,12 +43,23 @@ fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
 }
 
 
+pub fn body_to_result(body: &Tokens, spec: &FnSpec) -> Tokens {
+    let output = &spec.output;
+    quote! {
+        use pyo3::ReturnTypeIntoPyResult;
+        let _result: PyResult<<#output as ReturnTypeIntoPyResult>::Inner> = {
+            #body
+        };
+    }
+}
+
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: bool) -> Tokens {
-    let cb = impl_call(cls, name, &spec);
-    let output = &spec.output;
+    let body = impl_call(cls, name, &spec);
 
     if spec.args.is_empty() && noargs {
+        let body_to_result = body_to_result(&body, spec);
+
         quote! {
             unsafe extern "C" fn __wrap(
                 _slf: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
@@ -59,15 +70,14 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                 let _py = _pyo3::Python::assume_gil_acquired();
                 let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
 
-                let _result: #output = {
-                    #cb
-                };
+                #body_to_result
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, _py, _result)
             }
         }
     } else {
-        let body = impl_arg_params(&spec, cb);
+        let body = impl_arg_params(&spec, body);
+        let body_to_result = body_to_result(&body, spec);
 
         quote! {
             unsafe extern "C" fn __wrap(
@@ -84,9 +94,7 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
                 let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
                 let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-                let _result: #output = {
-                    #body
-                };
+                #body_to_result
                 _pyo3::callback::cb_convert(
                     _pyo3::callback::PyObjectCallbackConverter, _py, _result)
             }
@@ -127,12 +135,12 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
-        #cls::#name(&_obj, #(#names),*)
-    }};
+    let cb = quote! {
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_obj, #(#names),*))
+    };
 
     let body = impl_arg_params(spec, cb);
-    let output = &spec.output;
+    let body_to_result = body_to_result(&body, spec);
 
     quote! {
         #[allow(unused_mut)]
@@ -152,9 +160,7 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
                     let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
                     let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-                    let _result: #output = {
-                        #body
-                    };
+                    #body_to_result
 
                     match _result {
                         Ok(_) => _obj.into_ptr(),
@@ -176,7 +182,13 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
 /// Generate function wrapper for ffi::initproc
 fn impl_wrap_init(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let cb = impl_call(cls, name, &spec);
+    let output = &spec.output;
+    if quote! {#output} != quote! {PyResult<()>} || quote! {#output} != quote! {()}{
+        panic!("Constructor must return PyResult<()> or a ()");
+    }
+
     let body = impl_arg_params(&spec, cb);
+    let body_to_result = body_to_result(&body, spec);
 
     quote! {
         #[allow(unused_mut)]
@@ -192,9 +204,7 @@ fn impl_wrap_init(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Token
             let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-            let _result: PyResult<()> = {
-                #body
-            };
+            #body_to_result
             match _result {
                 Ok(_) => 0,
                 Err(e) => {
@@ -211,11 +221,12 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
-        #cls::#name(&_cls, #(#names),*)
-    }};
+    let cb = quote! {
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_cls, #(#names),*))
+    };
+
     let body = impl_arg_params(spec, cb);
-    let output = &spec.output;
+    let body_to_result = body_to_result(&body, spec);
 
     quote! {
         #[allow(unused_mut)]
@@ -231,9 +242,7 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
             let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-            let _result: #output = {
-                #body
-            };
+            #body_to_result
             _pyo3::callback::cb_convert(
                 _pyo3::callback::PyObjectCallbackConverter, _py, _result)
         }
@@ -245,12 +254,12 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
-    let cb = quote! {{
-        #cls::#name(#(#names),*)
-    }};
+    let cb = quote! {
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(#(#names),*))
+    };
 
     let body = impl_arg_params(spec, cb);
-    let output = &spec.output;
+    let body_to_result = body_to_result(&body, spec);
 
     quote! {
         #[allow(unused_mut)]
@@ -265,9 +274,7 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
             let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
             let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
 
-            let _result: #output = {
-                #body
-            };
+            #body_to_result
             _pyo3::callback::cb_convert(
                 _pyo3::callback::PyObjectCallbackConverter, _py, _result)
         }
@@ -343,9 +350,9 @@ fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
             syn::Ident::from(format!("arg{}", item.0))
         }
     ).collect();
-    quote! {{
-        _slf.#fname(#(#names),*)
-    }}
+    quote! {
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(_slf.#fname(#(#names),*))
+    }
 }
 
 pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
@@ -393,6 +400,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
     let mut rargs = spec.args.clone();
     rargs.reverse();
     let mut body = body;
+
     for (idx, arg) in rargs.iter().enumerate() {
         body = impl_arg_param(&arg, &spec, &body, len-idx-1);
     }
@@ -424,7 +432,7 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
 
 fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Tokens {
     if arg.py {
-        return body.clone()
+        return body.clone();
     }
     let ty = arg.ty;
     let name = arg.name;
@@ -436,27 +444,22 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
 
     if spec.is_args(&name) {
         quote! {
-            match <#ty as _pyo3::FromPyObject>::extract(_args.as_ref())
-            {
-                Ok(#arg_name) => {
-                    #body
-                }
-                Err(e) => Err(e)
-            }
+            <#ty as _pyo3::FromPyObject>::extract(_args.as_ref())
+                .and_then(|#arg_name| {
+                        #body
+                    })
         }
-    }
-    else if spec.is_kwargs(&name) {
+    } else if spec.is_kwargs(&name) {
         quote! {{
             let #arg_name = _kwargs;
             #body
         }}
-    }
-    else {
+    } else {
         if let Some(_) = arg.optional {
             // default value
             let mut default = Tokens::new();
             if let Some(d) = spec.default_value(name) {
-                let dt = quote!{ Some(#d) };
+                let dt = quote! { Some(#d) };
                 dt.to_tokens(&mut default);
             } else {
                 syn::Ident::from("None").to_tokens(&mut default);
@@ -500,15 +503,12 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
                     Err(e) => Err(e)
                 }
             }
-        }
-        else {
+        } else {
             quote! {
-                match _iter.next().unwrap().as_ref().unwrap().extract() {
-                    Ok(#arg_name) => {
+                _iter.next().unwrap().as_ref().unwrap().extract()
+                    .and_then(|#arg_name| {
                         #body
-                    }
-                    Err(e) => Err(e)
-                }
+                    })
             }
         }
     }

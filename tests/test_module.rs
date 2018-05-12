@@ -1,9 +1,10 @@
-#![feature(proc_macro, specialization)]
+#![feature(proc_macro, specialization, concat_idents)]
 
+#[macro_use]
 extern crate pyo3;
 
-use pyo3::prelude::*;
-use pyo3::py::{class, modinit};
+use pyo3::{PyDict, PyModule, PyObject, PyResult, Python};
+use pyo3::py::{class, function, modinit};
 
 
 #[class]
@@ -11,6 +12,11 @@ struct EmptyClass {}
 
 fn sum_as_string(a: i64, b: i64) -> String {
     format!("{}", a + b).to_string()
+}
+
+#[function]
+fn double(x: usize) -> usize {
+    x * 2
 }
 
 /// This module is implemented in Rust.
@@ -31,6 +37,9 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar").unwrap();
 
+    m.add_function(wrap_function!(double)).unwrap();
+    m.add("also_double", wrap_function!(double)(py)).unwrap();
+
     Ok(())
 }
 
@@ -47,4 +56,6 @@ fn test_module_with_functions() {
     py.run("assert module_with_functions.no_parameters() == 42", None, Some(d)).unwrap();
     py.run("assert module_with_functions.foo == 'bar'", None, Some(d)).unwrap();
     py.run("assert module_with_functions.EmptyClass != None", None, Some(d)).unwrap();
+    py.run("assert module_with_functions.double(3) == 6", None, Some(d)).unwrap();
+    py.run("assert module_with_functions.also_double(3) == 6", None, Some(d)).unwrap();
 }

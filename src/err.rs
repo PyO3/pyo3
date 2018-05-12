@@ -140,7 +140,7 @@ pub struct PyDowncastError;
 /// Helper conversion trait that allows to use custom arguments for exception constructor.
 pub trait PyErrArguments {
     /// Arguments for exception
-    fn arguments(&self, Python) -> PyObject;
+    fn arguments(&self, _: Python) -> PyObject;
 }
 
 impl PyErr {
