@@ -26,7 +26,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens
             static mut MODULE_DEF: pyo3::ffi::PyModuleDef = pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
-            MODULE_DEF.name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
+            MODULE_DEF.m_name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
 
             #[cfg(py_sys_config = "WITH_THREAD")]
             pyo3::ffi::PyEval_InitThreads();
