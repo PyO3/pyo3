@@ -1,13 +1,12 @@
 extern crate regex;
 extern crate version_check;
 
-use std::process::Command;
+use regex::Regex;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
-
-use regex::Regex;
-use version_check::{supports_features, is_min_version, is_min_date};
+use std::process::Command;
+use version_check::{is_min_date, is_min_version, supports_features};
 
 // Specifies the minimum nightly version needed to compile pyo3.
 const MIN_DATE: &'static str = "2018-05-01";
@@ -17,11 +16,10 @@ const MIN_VERSION: &'static str = "1.27.0-nightly";
 struct PythonVersion {
     major: u8,
     // minor == None means any minor version will do
-    minor: Option<u8>
+    minor: Option<u8>,
 }
 
 impl PartialEq for PythonVersion {
-
     fn eq(&self, o: &PythonVersion) -> bool {
         self.major == o.major && (self.minor.is_none() || self.minor == o.minor)
     }
@@ -29,11 +27,11 @@ impl PartialEq for PythonVersion {
 
 impl fmt::Display for PythonVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        try!(self.major.fmt(f));
-        try!(f.write_str("."));
+        self.major.fmt(f)?;
+        f.write_str(".")?;
         match self.minor {
-            Some(minor) => try!(minor.fmt(f)),
-            None => try!(f.write_str("*"))
+            Some(minor) => minor.fmt(f)?,
+            None => f.write_str("*")?,
         };
         Ok(())
     }
@@ -43,15 +41,7 @@ const PY3_MIN_MINOR: u8 = 5;
 
 const CFG_KEY: &'static str = "py_sys_config";
 
-// windows' python writes out lines with the windows crlf sequence;
-// posix platforms and mac os should write out lines with just lf.
-#[cfg(target_os="windows")]
-static NEWLINE_SEQUENCE: &'static str = "\r\n";
-
-#[cfg(not(target_os="windows"))]
-static NEWLINE_SEQUENCE: &'static str = "\n";
-
-// A list of python interpreter compile-time preprocessor defines that 
+// A list of python interpreter compile-time preprocessor defines that
 // we will pick up and pass to rustc via --cfg=py_sys_config={varname};
 // this allows using them conditional cfg attributes in the .rs files, so
 //
@@ -61,9 +51,9 @@ static NEWLINE_SEQUENCE: &'static str = "\n";
 //
 // see Misc/SpecialBuilds.txt in the python source for what these mean.
 //
-// (hrm, this is sort of re-implementing what distutils does, except 
+// (hrm, this is sort of re-implementing what distutils does, except
 // by passing command line args instead of referring to a python.h)
-#[cfg(not(target_os="windows"))]
+#[cfg(not(target_os = "windows"))]
 static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "Py_USING_UNICODE",
     "Py_UNICODE_WIDE",
@@ -75,59 +65,50 @@ static SYSCONFIG_FLAGS: [&'static str; 7] = [
 ];
 
 static SYSCONFIG_VALUES: [&'static str; 1] = [
-    // cfg doesn't support flags with values, just bools - so flags 
-    // below are translated into bools as {varname}_{val} 
+    // cfg doesn't support flags with values, just bools - so flags
+    // below are translated into bools as {varname}_{val}
     //
     // for example, Py_UNICODE_SIZE_2 or Py_UNICODE_SIZE_4
-    "Py_UNICODE_SIZE" // note - not present on python 3.3+, which is always wide
+    "Py_UNICODE_SIZE", // note - not present on python 3.3+, which is always wide
 ];
 
 /// Examine python's compile flags to pass to cfg by launching
-/// the interpreter and printing variables of interest from 
+/// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
-#[cfg(not(target_os="windows"))]
-fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, String>  {
+#[cfg(not(target_os = "windows"))]
+fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, String> {
     let mut script = "import sysconfig; \
-config = sysconfig.get_config_vars();".to_owned();
+                      config = sysconfig.get_config_vars();"
+        .to_owned();
 
     for k in SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter()) {
-        script.push_str(&format!("print(config.get('{}', {}))", k, 
-            if is_value(k) { "None" } else { "0" } ));
-        script.push_str(";");
+        script.push_str(&format!(
+            "print(config.get('{}', {}));",
+            k,
+            if is_value(k) { "None" } else { "0" }
+        ));
     }
 
-    let mut cmd = Command::new(python_path);
-    cmd.arg("-c").arg(script);
-
-    let out = try!(cmd.output().map_err(|e| {
-        format!("failed to run python interpreter `{:?}`: {}", cmd, e)
-    }));
-
-    if !out.status.success() {
-        let stderr = String::from_utf8(out.stderr).unwrap();
-        let mut msg = format!("python script failed with stderr:\n\n");
-        msg.push_str(&stderr);
-        return Err(msg);
-    }
-
-    let stdout = String::from_utf8(out.stdout).unwrap();
-    let split_stdout: Vec<&str> = stdout.trim_right().split(NEWLINE_SEQUENCE).collect();
+    let stdout = run_python_script(python_path, &script)?;
+    let split_stdout: Vec<&str> = stdout.trim_right().lines().collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
-        return Err(
-            format!("python stdout len didn't return expected number of lines:
-{}", split_stdout.len()).to_string());
+        return Err(format!(
+            "python stdout len didn't return expected number of lines: {}",
+            split_stdout.len()
+        ));
     }
     let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
-    // let var_map: HashMap<String, String> = HashMap::new();
-    let mut all_vars = all_vars.zip(split_stdout.iter())
-        .fold(HashMap::new(), |mut memo: HashMap<String, String>, (&k, &v)| {
+    let mut all_vars = all_vars.zip(split_stdout.iter()).fold(
+        HashMap::new(),
+        |mut memo: HashMap<String, String>, (&k, &v)| {
             if !(v.to_owned() == "None" && is_value(k)) {
                 memo.insert(k.to_owned(), v.to_owned());
             }
             memo
-        });
+        },
+    );
 
-    let debug = if let Some(val) = all_vars.get("Py_DEBUG") { val == "1" } else { false };
+    let debug = Some(&"1".to_string()) == all_vars.get("Py_DEBUG");
     if debug {
         all_vars.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
         all_vars.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
@@ -137,10 +118,10 @@ config = sysconfig.get_config_vars();".to_owned();
     Ok(all_vars)
 }
 
-#[cfg(target_os="windows")]
+#[cfg(target_os = "windows")]
 fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
     // sysconfig is missing all the flags on windows, so we can't actually
-    // query the interpreter directly for its build flags. 
+    // query the interpreter directly for its build flags.
     //
     // For the time being, this is the flags as defined in the python source's
     // PC\pyconfig.h. This won't work correctly if someone has built their
@@ -156,7 +137,7 @@ fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
     // a specially named pythonXX_d.exe and pythonXX_d.dll when you build the
     // Debug configuration, which this script doesn't currently support anyway.
     // map.insert("Py_DEBUG", "1");
-    
+
     // Uncomment these manually if your python was built with these and you want
     // the cfg flags to be set in rust.
     //
@@ -185,29 +166,26 @@ fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
 
 /// Run a python script using the specified interpreter binary.
 fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> {
-    let mut cmd = Command::new(interpreter);
-    cmd.arg("-c").arg(script);
-
-    let out = try!(cmd.output().map_err(|e| {
-        format!("failed to run python interpreter `{:?}`: {}", cmd, e)
-    }));
+    let out = Command::new(interpreter)
+        .args(&["-c", script])
+        .output()
+        .map_err(|e| format!("failed to run python interpreter:\n\n{}", e))?;
 
     if !out.status.success() {
         let stderr = String::from_utf8(out.stderr).unwrap();
-        let mut msg = format!("python script failed with stderr:\n\n");
-        msg.push_str(&stderr);
-        return Err(msg);
+        return Err(format!("python script failed with stderr:\n\n{}", stderr));
     }
 
-    let out = String::from_utf8(out.stdout).unwrap();
-    return Ok(out);
+    Ok(String::from_utf8(out.stdout).unwrap())
 }
 
-#[cfg(not(target_os="macos"))]
-#[cfg(not(target_os="windows"))]
-fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool)
-                      -> Result<String, String>
-{
+#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_os = "windows"))]
+fn get_rustc_link_lib(
+    _: &PythonVersion,
+    ld_version: &str,
+    enable_shared: bool,
+) -> Result<String, String> {
     if enable_shared {
         Ok(format!("cargo:rustc-link-lib=python{}", ld_version))
     } else {
@@ -215,53 +193,49 @@ fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, enable_shared: bool)
     }
 }
 
-#[cfg(target_os="macos")]
-fn get_macos_linkmodel() -> Result<String, String>
-{
-    let script = "import sysconfig; print('framework' if sysconfig.get_config_var('PYTHONFRAMEWORK') else ('shared' if sysconfig.get_config_var('Py_ENABLE_SHARED') else 'static'));";
+#[cfg(target_os = "macos")]
+fn get_macos_linkmodel() -> Result<String, String> {
+    let script = "import sysconfig;\
+    print('framework' if sysconfig.get_config_var('PYTHONFRAMEWORK') else ('shared' if sysconfig.get_config_var('Py_ENABLE_SHARED') else 'static'));";
     let out = run_python_script("python", script).unwrap();
     Ok(out.trim_right().to_owned())
 }
 
-#[cfg(target_os="macos")]
-fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String>
-{
-    // os x can be linked to a framework or static or dynamic, and 
+#[cfg(target_os = "macos")]
+fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
+    // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
     match get_macos_linkmodel().unwrap().as_ref() {
-        "static" => Ok(format!("cargo:rustc-link-lib=static=python{}",
-            ld_version)),
-        "shared" => Ok(format!("cargo:rustc-link-lib=python{}",
-            ld_version)),
-        "framework" => Ok(format!("cargo:rustc-link-lib=python{}", 
-            ld_version)),
-        other => Err(format!("unknown linkmodel {}", other))
+        "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version)),
+        "shared" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
+        "framework" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
+        other => Err(format!("unknown linkmodel {}", other)),
     }
 }
 
 /// Parse string as interpreter version.
-fn get_interpreter_version(line: &str) -> Result<PythonVersion, String>
-{
+fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
     match version_re.captures(&line) {
         Some(cap) => Ok(PythonVersion {
             major: cap.get(1).unwrap().as_str().parse().unwrap(),
-            minor: Some(cap.get(2).unwrap().as_str().parse().unwrap())
+            minor: Some(cap.get(2).unwrap().as_str().parse().unwrap()),
         }),
-        None => Err(
-            format!("Unexpected response to version query {}", line))
+        None => Err(format!("Unexpected response to version query {}", line)),
     }
 }
 
-#[cfg(target_os="windows")]
-fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String>
-{
+#[cfg(target_os = "windows")]
+fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
-    Ok(format!("cargo:rustc-link-lib=pythonXY:python{}{}", version.major, 
+    Ok(format!(
+        "cargo:rustc-link-lib=pythonXY:python{}{}",
+        version.major,
         match version.minor {
             Some(minor) => minor.to_string(),
-            None => "".to_owned()
-        }))
+            None => "".to_owned(),
+        }
+    ))
 }
 
 /// Locate a suitable python interpreter and extract config from it.
@@ -270,41 +244,51 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 /// Else tries to execute the interpreter as "python", "python{major version}",
 /// "python{major version}.{minor version}" in order until one
 /// is of the version we are expecting.
-fn find_interpreter_and_get_config(expected_version: &PythonVersion)
-                                   -> Result<(PythonVersion, String, Vec<String>), String>
-{
+fn find_interpreter_and_get_config(
+    expected_version: &PythonVersion,
+) -> Result<(PythonVersion, String, Vec<String>), String> {
     if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
-        let interpreter_path = sys_executable.to_str()
+        let interpreter_path = sys_executable
+            .to_str()
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
-        let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
+        let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
 
         if expected_version == &interpreter_version {
             return Ok((interpreter_version, interpreter_path.to_owned(), lines));
         } else {
-            return Err(format!("Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
-                                \tmin version {} != found {}",
-                               interpreter_path, expected_version, interpreter_version));
+            return Err(format!(
+                "Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
+                 \tmin version {} != found {}",
+                interpreter_path, expected_version, interpreter_version
+            ));
         }
     }
     // check default python
     let interpreter_path = "python";
-    let (interpreter_version, lines) = try!(get_config_from_interpreter(interpreter_path));
+    let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
     if expected_version == &interpreter_version {
         return Ok((interpreter_version, interpreter_path.to_owned(), lines));
     }
 
     let major_interpreter_path = &format!("python{}", expected_version.major);
-    let (interpreter_version, lines) = try!(get_config_from_interpreter(major_interpreter_path));
+    let (interpreter_version, lines) = get_config_from_interpreter(major_interpreter_path)?;
     if expected_version == &interpreter_version {
-        return Ok((interpreter_version, major_interpreter_path.to_owned(), lines));
+        return Ok((
+            interpreter_version,
+            major_interpreter_path.to_owned(),
+            lines,
+        ));
     }
 
     if let Some(minor) = expected_version.minor {
         let minor_interpreter_path = &format!("python{}.{}", expected_version.major, minor);
-        let (interpreter_version, lines) = try!(get_config_from_interpreter(
-            minor_interpreter_path));
+        let (interpreter_version, lines) = get_config_from_interpreter(minor_interpreter_path)?;
         if expected_version == &interpreter_version {
-            return Ok((interpreter_version, minor_interpreter_path.to_owned(), lines));
+            return Ok((
+                interpreter_version,
+                minor_interpreter_path.to_owned(),
+                lines,
+            ));
         }
     }
 
@@ -318,9 +302,9 @@ print(sysconfig.get_config_var('LIBDIR')); \
 print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
 print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
 print(sys.exec_prefix);";
-    let out = try!(run_python_script(interpreter, script));
-    let lines: Vec<String> = out.split(NEWLINE_SEQUENCE).map(|line| line.to_owned()).collect();
-    let interpreter_version = try!(get_interpreter_version(&lines[0]));
+    let out = run_python_script(interpreter, script)?;
+    let lines: Vec<String> = out.lines().map(|line| line.to_owned()).collect();
+    let interpreter_version = get_interpreter_version(&lines[0])?;
     Ok((interpreter_version, lines))
 }
 
@@ -329,9 +313,8 @@ print(sys.exec_prefix);";
 ///
 /// Note that if the python doesn't satisfy expected_version, this will error.
 fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, String), String> {
-
-    let (interpreter_version, interpreter_path, lines) = try!(
-        find_interpreter_and_get_config(expected_version));
+    let (interpreter_version, interpreter_path, lines) =
+        find_interpreter_and_get_config(expected_version)?;
 
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
@@ -339,27 +322,36 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
     let exec_prefix: &str = &lines[4];
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
-    if !is_extension_module || cfg!(target_os="windows") {
-        println!("{}", get_rustc_link_lib(&interpreter_version,
-            ld_version, enable_shared == "1").unwrap());
+    if !is_extension_module || cfg!(target_os = "windows") {
+        println!(
+            "{}",
+            get_rustc_link_lib(&interpreter_version, ld_version, enable_shared == "1").unwrap()
+        );
         if libpath != "None" {
             println!("cargo:rustc-link-search=native={}", libpath);
-        } else if cfg!(target_os="windows") {
+        } else if cfg!(target_os = "windows") {
             println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
         }
     }
 
     let mut flags = String::new();
 
-    if let PythonVersion { major: 3, minor: some_minor} = interpreter_version {
+    if let PythonVersion {
+        major: 3,
+        minor: some_minor,
+    } = interpreter_version
+    {
         if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
         if let Some(minor) = some_minor {
             if minor < PY3_MIN_MINOR {
-                return Err(format!("Python 3 required version is 3.{}, current version is 3.{}", PY3_MIN_MINOR, minor))
+                return Err(format!(
+                    "Python 3 required version is 3.{}, current version is 3.{}",
+                    PY3_MIN_MINOR, minor
+                ));
             }
-            for i in 5..(minor+1) {
+            for i in 5..(minor + 1) {
                 println!("cargo:rustc-cfg=Py_3_{}", i);
                 flags += format!("CFG_Py_3_{},", i).as_ref();
             }
@@ -386,19 +378,24 @@ fn version_from_env() -> Result<PythonVersion, String> {
     vars.sort_by(|a, b| b.cmp(a));
     for (key, _) in vars {
         match re.captures(&key) {
-            Some(cap) => return Ok(PythonVersion {
-                major: cap.get(1).unwrap().as_str().parse().unwrap(),
-                minor: match cap.get(3) {
-                    Some(s) => Some(s.as_str().parse().unwrap()),
-                    None => None
-                }
-            }),
-            None => ()
+            Some(cap) => {
+                return Ok(PythonVersion {
+                    major: cap.get(1).unwrap().as_str().parse().unwrap(),
+                    minor: match cap.get(3) {
+                        Some(s) => Some(s.as_str().parse().unwrap()),
+                        None => None,
+                    },
+                });
+            }
+            None => (),
         }
     }
 
-    Err("Python version feature was not found. At least one python version \
-         feature must be enabled.".to_owned())
+    Err(
+        "Python version feature was not found. At least one python version \
+         feature must be enabled."
+            .to_owned(),
+    )
 }
 
 fn check_rustc_version() {
@@ -407,11 +404,10 @@ fn check_rustc_version() {
     let ok_date = is_min_date(MIN_DATE);
 
     let print_version_err = |version: &str, date: &str| {
-        eprintln!("Installed version is: {} ({}). Minimum required: {} ({}).",
-                  version,
-                  date,
-                  MIN_VERSION,
-                  MIN_DATE);
+        eprintln!(
+            "Installed version is: {} ({}). Minimum required: {} ({}).",
+            version, date, MIN_VERSION, MIN_DATE
+        );
     };
 
     match (ok_channel, ok_version, ok_date) {
@@ -428,29 +424,38 @@ fn check_rustc_version() {
                 print_version_err(&*version, &*date);
                 panic!("Aborting compilation due to incompatible compiler.")
             }
-        },
+        }
         _ => {
-            println!("cargo:warning={}", "pyo3 was unable to check rustc compatibility.");
-            println!("cargo:warning={}", "Build may fail due to incompatible rustc version.");
+            println!(
+                "cargo:warning={}",
+                "pyo3 was unable to check rustc compatibility."
+            );
+            println!(
+                "cargo:warning={}",
+                "Build may fail due to incompatible rustc version."
+            );
         }
     }
 }
 
 fn main() {
     check_rustc_version();
-    // 1. Setup cfg variables so we can do conditional compilation in this 
-    // library based on the python interpeter's compilation flags. This is 
+    // 1. Setup cfg variables so we can do conditional compilation in this
+    // library based on the python interpeter's compilation flags. This is
     // necessary for e.g. matching the right unicode and threading interfaces.
     //
     // This locates the python interpreter based on the PATH, which should
     // work smoothly with an activated virtualenv.
     //
-    // If you have troubles with your shell accepting '.' in a var name, 
-    // try using 'env' (sorry but this isn't our fault - it just has to 
+    // If you have troubles with your shell accepting '.' in a var name,
+    // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
     let version = match version_from_env() {
         Ok(v) => v,
-        Err(_) => PythonVersion{major: 3, minor: None}
+        Err(_) => PythonVersion {
+            major: 3,
+            minor: None,
+        },
     };
     let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
     let mut config_map = get_config_vars(&python_interpreter_path).unwrap();
@@ -464,13 +469,13 @@ fn main() {
     for (key, val) in &config_map {
         match cfg_line_for_var(key, val) {
             Some(line) => println!("{}", line),
-            None => ()
+            None => (),
         }
     }
 
-    // 2. Export python interpreter compilation flags as cargo variables that 
+    // 2. Export python interpreter compilation flags as cargo variables that
     // will be visible to dependents. All flags will be available to dependent
-    // build scripts in the environment variable DEP_PYTHON27_PYTHON_FLAGS as 
+    // build scripts in the environment variable DEP_PYTHON27_PYTHON_FLAGS as
     // comma separated list; each item in the list looks like
     //
     // {VAL,FLAG}_{flag_name}=val;
@@ -479,7 +484,7 @@ fn main() {
     // VAL indicates it can take on any value
     //
     // rust-cypthon/build.rs contains an example of how to unpack this data
-    // into cfg flags that replicate the ones present in this library, so 
+    // into cfg flags that replicate the ones present in this library, so
     // you can use the same cfg syntax.
     //let mut flags = flags;
     let flags: String = config_map.iter().fold("".to_owned(), |memo, (key, val)| {
@@ -492,7 +497,12 @@ fn main() {
         }
     }) + flags.as_str();
 
-    println!("cargo:python_flags={}", 
-             if flags.len() > 0 { &flags[..flags.len()-1] } else { "" });
-
+    println!(
+        "cargo:python_flags={}",
+        if flags.len() > 0 {
+            &flags[..flags.len() - 1]
+        } else {
+            ""
+        }
+    );
 }
