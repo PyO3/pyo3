@@ -208,14 +208,14 @@ macro_rules! pyobject_extract(
     }
 );
 
-
+use ffi;
 use python::ToPyPointer;
 
 /// Represents general python instance.
 pub struct PyObjectRef(::PyObject);
 pyobject_native_type_named!(PyObjectRef);
-pyobject_native_type_convert!(PyObjectRef, PyBaseObject_Type, PyObject_Check);
-pyobject_downcast!(PyObjectRef, PyObject_Check);
+pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject_Check);
+pyobject_downcast!(PyObjectRef, ffi::PyObject_Check);
 
 mod typeobject;
 mod module;
