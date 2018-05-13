@@ -9,10 +9,9 @@ use utils;
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
-pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
+pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens {
 
-    let m_name: syn::Ident = syn::parse_str(name.trim().as_ref()).unwrap();
-    let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name.trim())).unwrap();
+    let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name)).unwrap();
 
     quote! {
         #[no_mangle]
@@ -27,7 +26,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             static mut MODULE_DEF: pyo3::ffi::PyModuleDef = pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
-            MODULE_DEF.m_name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
+            MODULE_DEF.name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
 
             #[cfg(py_sys_config = "WITH_THREAD")]
             pyo3::ffi::PyEval_InitThreads();
@@ -58,9 +57,9 @@ pub fn py3_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
     }
 }
 
-pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
-    let m_name: syn::Ident = syn::parse_str(name.trim().as_ref()).unwrap();
-    let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name.trim())).unwrap();
+pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens {
+
+    let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name)).unwrap();
 
     quote! {
         #[no_mangle]
@@ -72,7 +71,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
             pyo3::prepare_pyo3_library();
             pyo3::ffi::PyEval_InitThreads();
 
-            let _name = concat!(stringify!(#m_name), "\0").as_ptr() as *const _;
+            let _name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
             let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
             let _module = pyo3::ffi::Py_InitModule(_name, std::ptr::null_mut());
@@ -97,33 +96,29 @@ pub fn py2_init(fnname: &syn::Ident, name: &String, doc: syn::Lit) -> Tokens {
 }
 
 /// Finds and takes care of the #[pyfn(...)] in #[modinit(...)]
-pub fn process_functions_in_module(ast: &mut syn::Item) {
-    if let syn::Item::Fn(ref mut func) = ast {
-        let mut stmts: Vec<syn::Stmt> = Vec::new();
+pub fn process_functions_in_module(func: &mut syn::ItemFn) {
+    let mut stmts: Vec<syn::Stmt> = Vec::new();
 
-        for stmt in func.block.stmts.iter_mut() {
-            if let syn::Stmt::Item(syn::Item::Fn(ref mut func)) = stmt {
-                if let Some((module_name, python_name, pyfn_attrs)) =
-                    extract_pyfn_attrs(&mut func.attrs)
-                {
-                    let function_to_python = add_fn_to_module(func, &python_name, pyfn_attrs);
-                    let function_wrapper_ident = function_wrapper_ident(&func.ident);
-                    let item: syn::ItemFn = parse_quote!{
-                        fn block_wrapper() {
-                            #function_to_python
-                            #module_name.add_function(&#function_wrapper_ident);
-                        }
-                    };
-                    stmts.extend(item.block.stmts.into_iter());
-                }
-            };
-            stmts.push(stmt.clone());
-        }
-
-        func.block.stmts = stmts;
-    } else {
-        panic!("#[modinit] can only be used with fn block");
+    for stmt in func.block.stmts.iter_mut() {
+        if let syn::Stmt::Item(syn::Item::Fn(ref mut func)) = stmt {
+            if let Some((module_name, python_name, pyfn_attrs)) =
+                extract_pyfn_attrs(&mut func.attrs)
+            {
+                let function_to_python = add_fn_to_module(func, &python_name, pyfn_attrs);
+                let function_wrapper_ident = function_wrapper_ident(&func.ident);
+                let item: syn::ItemFn = parse_quote!{
+                    fn block_wrapper() {
+                        #function_to_python
+                        #module_name.add_function(&#function_wrapper_ident);
+                    }
+                };
+                stmts.extend(item.block.stmts.into_iter());
+            }
+        };
+        stmts.push(stmt.clone());
     }
+
+    func.block.stmts = stmts;
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
