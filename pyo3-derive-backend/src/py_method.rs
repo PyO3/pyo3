@@ -7,9 +7,12 @@ use method::{FnArg, FnSpec, FnType};
 use utils;
 
 
-pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
-                         sig: &mut syn::MethodSig, meth_attrs: &mut Vec<syn::Attribute>) -> Tokens
-{
+pub fn gen_py_method<'a>(
+    cls: &Box<syn::Type>,
+    name: &syn::Ident,
+    sig: &mut syn::MethodSig,
+    meth_attrs: &mut Vec<syn::Attribute>
+) -> Tokens {
     check_generic(name, sig);
 
     let doc = utils::get_doc(&meth_attrs, true);
@@ -37,7 +40,7 @@ pub fn gen_py_method<'a>(cls: &Box<syn::Ty>, name: &syn::Ident,
 
 
 fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
-    if !sig.generics.ty_params.is_empty() {
+    if !sig.decl.generics.params.is_empty() {
         panic!("python method can not be generic: {:?}", name);
     }
 }
@@ -54,7 +57,7 @@ pub fn body_to_result(body: &Tokens, spec: &FnSpec) -> Tokens {
 }
 
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: bool) -> Tokens {
+pub fn impl_wrap(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec, noargs: bool) -> Tokens {
     let body = impl_call(cls, name, &spec);
 
     if spec.args.is_empty() && noargs {
@@ -103,7 +106,7 @@ pub fn impl_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec, noargs: b
 }
 
 /// Generate function wrapper for protocol method (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_proto_wrap(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let cb = impl_call(cls, name, &spec);
     let body = impl_arg_params(&spec, cb);
 
@@ -131,7 +134,7 @@ pub fn impl_proto_wrap(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_new(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
@@ -180,7 +183,7 @@ pub fn impl_wrap_new(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> To
 }
 
 /// Generate function wrapper for ffi::initproc
-fn impl_wrap_init(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+fn impl_wrap_init(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let cb = impl_call(cls, name, &spec);
     let output = &spec.output;
     if quote! {#output} != quote! {PyResult<()>} || quote! {#output} != quote! {()}{
@@ -217,7 +220,7 @@ fn impl_wrap_init(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Token
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_class(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
@@ -250,7 +253,7 @@ pub fn impl_wrap_class(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> 
 }
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_static(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {syn::Ident::from("_py")} else {
             syn::Ident::from(format!("arg{}", item.0))}).collect();
@@ -282,7 +285,7 @@ pub fn impl_wrap_static(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) ->
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident) -> Tokens {
+pub(crate) fn impl_wrap_getter(cls: &Box<syn::Type>, name: &syn::Ident) -> Tokens {
     quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut _pyo3::ffi::PyObject, _: *mut _pyo3::c_void) -> *mut _pyo3::ffi::PyObject
@@ -308,7 +311,7 @@ pub(crate) fn impl_wrap_getter(cls: &Box<syn::Ty>, name: &syn::Ident) -> Tokens 
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub(crate) fn impl_wrap_setter(cls: &Box<syn::Type>, name: &syn::Ident, spec: &FnSpec) -> Tokens {
     if spec.args.len() < 1 {
         println!("Not enough arguments for setter {}::{}", quote!{#cls}, name);
     }
@@ -342,7 +345,7 @@ pub(crate) fn impl_wrap_setter(cls: &Box<syn::Ty>, name: &syn::Ident, spec: &FnS
 }
 
 
-fn impl_call(_cls: &Box<syn::Ty>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
+fn impl_call(_cls: &Box<syn::Type>, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {
             syn::Ident::from("_py")

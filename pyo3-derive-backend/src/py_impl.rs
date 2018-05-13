@@ -7,29 +7,25 @@ use py_method;
 
 
 pub fn build_py_methods(ast: &mut syn::Item) -> Tokens {
-    match ast.node {
-        syn::ItemKind::Impl(_, _, _, ref path, ref ty, ref mut impl_items) => {
-            if let &Some(_) = path {
-                panic!("#[methods] can not be used only with trait impl block");
-            } else {
-                impl_methods(ty, impl_items)
-            }
-        },
-        _ => panic!("#[methods] can only be used with Impl blocks"),
+    if let syn::Item::Impl(ref mut iimpl) = ast {
+        if iimpl.trait_.is_some() {
+            panic!("#[methods] can not be used only with trait impl block");
+        } else {
+            impl_methods(&iimpl.self_ty, &mut iimpl.items)
+        }
+    } else {
+        panic!("#[methods] can only be used with Impl blocks")
     }
 }
 
-pub fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
+pub fn impl_methods(ty: &Box<syn::Type>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
 
     // get method names in impl block
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
-        match iimpl.node {
-            syn::ImplItemKind::Method(ref mut sig, _) => {
-                methods.push(py_method::gen_py_method(
-                    ty, &iimpl.ident, sig, &mut iimpl.attrs));
-            },
-            _ => (),
+        if let syn::ImplItem::Method(ref mut meth) = iimpl {
+            let name = meth.sig.ident.clone();
+            methods.push(py_method::gen_py_method(ty, &name, &mut meth.sig, &mut meth.attrs));
         }
     }
 
@@ -44,14 +40,13 @@ pub fn impl_methods(ty: &Box<syn::Ty>, impls: &mut Vec<syn::ImplItem>) -> Tokens
         }
     };
 
-    let n = match ty.as_ref() {
-        &syn::Ty::Path(_, ref p) => {
-            p.segments.last().as_ref().unwrap().ident.as_ref()
-        }
-        _ => "CLS_METHODS"
+    let n = if let &syn::Type::Path(ref typath) = ty.as_ref() {
+        typath.path.segments.last().as_ref().unwrap().value().ident.as_ref()
+    } else {
+        "CLS_METHODS"
     };
 
-    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_METHODS_{}", n));
+    let dummy_const = syn::Ident::from(format!("_IMPL_PYO3_METHODS_{}", n));
     quote! {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes,

@@ -10,31 +10,33 @@ use func::impl_method_proto;
 
 
 pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
-    match ast.node {
-        syn::ItemKind::Impl(_, _, ref mut gen, ref mut path, ref ty, ref mut impl_items) => {
-            if let &mut Some(ref mut path) = path {
+    match ast {
+        syn::Item::Impl(ref mut expr) => {
+            if let Some((_, ref mut path, _)) = expr.trait_ {
                 let tokens = if let Some(ref mut segment) = path.segments.last() {
-                    match segment.ident.as_ref() {
+                    let ty = &expr.self_ty;
+                    let items = &mut expr.items;
+                    match segment.value().ident.as_ref() {
                         "PyObjectProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::OBJECT),
+                            impl_proto_impl(ty, items, &defs::OBJECT),
                         "PyAsyncProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::ASYNC),
+                            impl_proto_impl(ty, items, &defs::ASYNC),
                         "PyMappingProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::MAPPING),
+                            impl_proto_impl(ty, items, &defs::MAPPING),
                         "PyIterProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::ITER),
+                            impl_proto_impl(ty, items, &defs::ITER),
                         "PyContextProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::CONTEXT),
+                            impl_proto_impl(ty, items, &defs::CONTEXT),
                         "PySequenceProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::SEQ),
+                            impl_proto_impl(ty, items, &defs::SEQ),
                         "PyNumberProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::NUM),
+                            impl_proto_impl(ty, items, &defs::NUM),
                         "PyDescrProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::DESCR),
+                            impl_proto_impl(ty, items, &defs::DESCR),
                         "PyBufferProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::BUFFER),
+                            impl_proto_impl(ty, items, &defs::BUFFER),
                         "PyGCProtocol" =>
-                            impl_proto_impl(ty, impl_items, &defs::GC),
+                            impl_proto_impl(ty, items, &defs::GC),
                         _ => {
                             warn!("#[proto] can not be used with this block");
                             return Tokens::new()
@@ -45,18 +47,10 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
                 };
 
                 // attach lifetime
-                gen.lifetimes = vec![syn::LifetimeDef {
-                    attrs: vec![], bounds: vec![],
-                    lifetime: syn::Lifetime { ident: syn::Ident::from("\'p") },
-                }];
-
-                let seg = path.segments.pop().unwrap();
-                path.segments.push(syn::PathSegment{
-                    ident: seg.ident.clone(),
-                    parameters: syn::PathParameters::AngleBracketed(
-                        syn::AngleBracketedParameterData {
-                            lifetimes: vec![syn::Lifetime { ident: syn::Ident::from("\'p") }],
-                            types: vec![], bindings: vec![] })});
+                let mut seg = path.segments.pop().unwrap().into_value();
+                seg.arguments = syn::PathArguments::AngleBracketed(parse_quote!{<'p>});
+                path.segments.push(seg);
+                expr.generics.params = parse_quote!{'p};
 
                 tokens
             } else {
@@ -67,27 +61,31 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
     }
 }
 
-fn impl_proto_impl(ty: &Box<syn::Ty>,
-                   impls: &mut Vec<syn::ImplItem>, proto: &defs::Proto) -> Tokens
-{
+fn impl_proto_impl(
+    ty: &Box<syn::Type>,
+    impls: &mut Vec<syn::ImplItem>,
+    proto: &defs::Proto
+) -> Tokens {
     let mut tokens = Tokens::new();
     let mut py_methods = Vec::new();
 
     for iimpl in impls.iter_mut() {
-        match iimpl.node {
-            syn::ImplItemKind::Method(ref mut sig, _) => {
+        match iimpl {
+            syn::ImplItem::Method(ref mut met) => {
                 for m in proto.methods {
-                    if m.eq(iimpl.ident.as_ref()) {
-                        impl_method_proto(ty, sig, m).to_tokens(&mut tokens);
+                    if m.eq(met.sig.ident.as_ref()) {
+                        impl_method_proto(ty, &mut met.sig, m).to_tokens(&mut tokens);
                     }
                 }
                 for m in proto.py_methods {
-                    if m.name == iimpl.ident.as_ref() {
-                        let name = syn::Ident::from(m.name);
-                        let proto = syn::Ident::from(m.proto);
+                    let ident = met.sig.ident.clone();
+                    if m.name == ident.as_ref() {
 
-                        let fn_spec = FnSpec::parse(&iimpl.ident, sig, &mut iimpl.attrs);
-                        let meth = py_method::impl_proto_wrap(ty, &iimpl.ident, &fn_spec);
+                        let name: syn::Ident = syn::parse_str(m.name).unwrap();
+                        let proto: syn::Path = syn::parse_str(m.proto).unwrap();
+
+                        let fn_spec = FnSpec::parse(&ident, &mut met.sig, &mut met.attrs);
+                        let meth = py_method::impl_proto_wrap(ty, &ident, &fn_spec);
 
                         py_methods.push(
                             quote! {
@@ -115,14 +113,13 @@ fn impl_proto_impl(ty: &Box<syn::Ty>,
 
     // unique mod name
     let p = proto.name;
-    let n = match ty.as_ref() {
-        &syn::Ty::Path(_, ref p) => {
-        p.segments.last().as_ref().unwrap().ident.as_ref()
-    }
-    _ => "PROTO_METHODS"
+    let n = if let syn::Type::Path(ref typath) = ty.as_ref() {
+        typath.path.segments.last().as_ref().unwrap().value().ident.as_ref()
+    } else {
+        "PROTO_METHODS"
     };
 
-    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_{}_{}", n, p));
+    let dummy_const: syn::Path = syn::parse_str(&format!("_IMPL_PYO3_{}_{}", n, p)).unwrap();
     quote! {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes,

@@ -10,9 +10,9 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
 [dependencies]
-quote="0.3"
 log="0.4"
+quote="0.5"
 
 [dependencies.syn]
-version="0.11"
-features=["full"]
+version="0.13"
+features=["full", "parsing", "printing", "extra-traits"]

@@ -10,7 +10,7 @@ pub enum Argument {
     Kwarg(String, String),
 }
 
-pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
+pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
     let mut arguments = Vec::new();
     let mut has_kw = false;
     let mut has_varargs = false;
@@ -22,7 +22,7 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
 
     for item in items.iter() {
         match item {
-            &syn::NestedMetaItem::MetaItem(syn::MetaItem::Word(ref ident)) => {
+            &syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
                 // arguments in form #[args(somename)]
                 if has_kwargs {
                     println!("syntax error, keyword arguments is defined: {:?}", args_str);
@@ -35,11 +35,11 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                 }
                 arguments.push(Argument::Arg(ident.as_ref().to_owned(), None))
             }
-            &syn::NestedMetaItem::MetaItem(syn::MetaItem::NameValue(ref ident, ref lit)) => {
-                let name = ident.as_ref().to_owned();
-                match lit {
-                    &syn::Lit::Str(ref s, _) => {
-                        if s == "*" {  // #[args(args="*")]
+            &syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {
+                let name = nv.ident.as_ref().to_owned();
+                match nv.lit {
+                    syn::Lit::Str(ref litstr) => {
+                        if litstr.value() == "*" {  // #[args(args="*")]
                             if has_kwargs {
                                 println!("* - syntax error, keyword arguments is defined: {:?}",
                                          args_str);
@@ -51,8 +51,7 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                             }
                             has_varargs = true;
                             arguments.push(Argument::VarArgs(name));
-                        }
-                        else if s == "**" {  // #[args(kwargs="**")]
+                        } else if litstr.value() == "**" {  // #[args(kwargs="**")]
                             if has_kwargs {
                                 println!("arguments already define ** (kw args): {:?}",
                                          args_str);
@@ -62,7 +61,7 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                             arguments.push(Argument::KeywordArgs(name));
                         } else {
                             if has_varargs {
-                                arguments.push(Argument::Kwarg(name, s.clone()))
+                                arguments.push(Argument::Kwarg(name, litstr.value().clone()))
                             } else {
                                 if has_kwargs {
                                     println!("syntax error, keyword arguments is defined: {:?}",
@@ -70,13 +69,13 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                                     return Vec::new()
                                 }
                                 has_kw = true;
-                                arguments.push(Argument::Arg(name, Some(s.clone())))
+                                arguments.push(Argument::Arg(name, Some(litstr.value().clone())))
                             }
                         }
                     }
-                    &syn::Lit::Int(ref s, _) => {
+                    syn::Lit::Int(ref litint) => {
                         if has_varargs {
-                            arguments.push(Argument::Kwarg(name, format!("{}", s)));
+                            arguments.push(Argument::Kwarg(name, format!("{}", litint.value())));
                         } else {
                             if has_kwargs {
                                 println!("syntax error, keyword arguments is defined: {:?}",
@@ -84,12 +83,12 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                                 return Vec::new()
                             }
                             has_kw = true;
-                            arguments.push(Argument::Arg(name, Some(format!("{}", s))));
+                            arguments.push(Argument::Arg(name, Some(format!("{}", litint.value()))));
                         }
                     }
-                    &syn::Lit::Bool(ref b) => {
+                    syn::Lit::Bool(ref litb) => {
                         if has_varargs {
-                            arguments.push(Argument::Kwarg(name, format!("{}", b)));
+                            arguments.push(Argument::Kwarg(name, format!("{}", litb.value)));
                         } else {
                             if has_kwargs {
                                 println!("syntax error, keyword arguments is defined: {:?}",
@@ -97,20 +96,20 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                                 return Vec::new()
                             }
                             has_kw = true;
-                            arguments.push(Argument::Arg(name, Some(format!("{}", b))));
+                            arguments.push(Argument::Arg(name, Some(format!("{}", litb.value))));
                         }
                     }
                     _ => {
-                        println!("Only string literal is supported, got: {:?}", lit);
+                        println!("Only string literal is supported, got: {:?}", nv.lit);
                         return Vec::new()
                     }
                 }
             }
-            &syn::NestedMetaItem::Literal(ref lit) => {
+            &syn::NestedMeta::Literal(ref lit) => {
                 match lit {
-                    &syn::Lit::Str(ref s, _) => {
+                    &syn::Lit::Str(ref lits) => {
                         // #[args("*")]
-                        if s == "*" {
+                        if lits.value() == "*" {
                             if has_kwargs {
                                 println!(
                                     "syntax error, keyword arguments is defined: {:?}",
@@ -127,7 +126,7 @@ pub fn parse_arguments(items: &[syn::NestedMetaItem]) -> Vec<Argument> {
                             arguments.push(Argument::VarArgsSeparator);
                         } else {
                             println!("Unknown string literal, got: {:?} args: {:?}",
-                                     s, args_str);
+                                     lits.value(), args_str);
                             return Vec::new()
                         }
                     }
@@ -154,11 +153,11 @@ mod test {
     use syn;
     use args::{Argument, parse_arguments};
 
-    fn items(s: &'static str) -> Vec<syn::NestedMetaItem> {
+    fn items(s: &'static str) -> Vec<syn::NestedMeta> {
         let i = syn::parse_outer_attr(s).unwrap();
 
         match i.value {
-            syn::MetaItem::List(_, items) => {
+            syn::Meta::List(_, items) => {
                 items
             }
             _ => unreachable!()

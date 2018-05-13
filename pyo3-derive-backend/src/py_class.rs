@@ -11,17 +11,22 @@ use method::{FnType, FnSpec, FnArg};
 use py_method::{impl_wrap_getter, impl_wrap_setter, impl_py_getter_def, impl_py_setter_def};
 
 
-pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
+pub fn build_py_class(
+    ast: &mut syn::DeriveInput,
+    attr: &Vec<syn::Expr>
+) -> Tokens {
+
     let (params, flags, base) = parse_attribute(attr);
     let doc = utils::get_doc(&ast.attrs, true);
     let mut token: Option<syn::Ident> = None;
     let mut descriptors = Vec::new();
-    match ast.body {
-        syn::Body::Struct(syn::VariantData::Struct(ref mut fields)) => {
-            for field in fields.iter_mut() {
+
+    if let syn::Data::Struct(ref mut struc) = ast.data {
+        if let syn::Fields::Named(ref mut fields) = struc.fields {
+            for field in fields.named.iter_mut() {
                 if is_python_token(field) {
                     token = field.ident.clone();
-                    break
+                    break;
                 } else {
                     let field_descs = parse_descriptors(field);
                     if !field_descs.is_empty() {
@@ -29,11 +34,14 @@ pub fn build_py_class(ast: &mut syn::DeriveInput, attr: String) -> Tokens {
                     }
                 }
             }
-        },
-        _ => panic!("#[class] can only be used with normal structs"),
+        } else {
+            panic!("#[class] can only be used with C-style structs")
+        }
+    } else {
+        panic!("#[class] can only be used with structs")
     }
 
-    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_CLS_{}", ast.ident));
+    let dummy_const = syn::Ident::from(format!("_IMPL_PYO3_CLS_{}", ast.ident));
     let tokens = impl_class(&ast.ident, &base, token, doc, params, flags, descriptors);
 
     quote! {
@@ -52,37 +60,29 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
     let mut descs = Vec::new();
     let mut new_attrs = Vec::new();
     for attr in item.attrs.iter() {
-        match attr.value {
-            syn::MetaItem::List(ref name, ref metas) => {
-                match name.as_ref() {
-                    "prop" => {
-                        for meta in metas.iter() {
-                            match *meta {
-                                syn::NestedMetaItem::MetaItem(ref metaitem) => {
-                                    match metaitem.name() {
-                                        "get" => {
-                                            descs.push(FnType::Getter(None));
-                                        }
-                                        "set" => {
-                                            descs.push(FnType::Setter(None));
-                                        }
-                                        _ => {
-                                            panic!("Only getter and setter supported");
-                                        }
-                                    }
+        if let Some(syn::Meta::List(ref list)) = attr.interpret_meta() {
+            match list.ident.as_ref() {
+                "prop" => {
+                    for meta in list.nested.iter() {
+                        if let &syn::NestedMeta::Meta(ref metaitem) = meta {
+                            match metaitem.name().as_ref() {
+                                "get" => {
+                                    descs.push(FnType::Getter(None));
                                 }
-                                _ => ()
+                                "set" => {
+                                    descs.push(FnType::Setter(None));
+                                }
+                                _ => {
+                                    panic!("Only getter and setter supported");
+                                }
                             }
                         }
                     }
-                    _ => {
-                        new_attrs.push(attr.clone());
-                    }
                 }
+                _ => new_attrs.push(attr.clone()),
             }
-            _ => {
-                new_attrs.push(attr.clone());
-            }
+        } else {
+            new_attrs.push(attr.clone());
         }
     }
     item.attrs.clear();
@@ -90,14 +90,19 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
     descs
 }
 
-fn impl_class(cls: &syn::Ident, base: &syn::Ident,
-              token: Option<syn::Ident>, doc: syn::Lit,
-              params: HashMap<&'static str, syn::Ident>,
-              flags: Vec<syn::Ident>,
-              descriptors: Vec<(syn::Field, Vec<FnType>)>) -> Tokens {
+fn impl_class(
+    cls: &syn::Ident,
+    base: &syn::TypePath,
+    token: Option<syn::Ident>,
+    doc: syn::Lit,
+    params: HashMap<&'static str, syn::Expr>,
+    flags: Vec<syn::Expr>,
+    descriptors: Vec<(syn::Field, Vec<FnType>)>
+) -> Tokens {
+
     let cls_name = match params.get("name") {
-        Some(name) => quote! { #name }.as_str().to_string(),
-        None => quote! { #cls }.as_str().to_string()
+        Some(name) => quote! { #name }.to_string(),
+        None => quote! { #cls }.to_string()
     };
 
     let extra = if let Some(token) = token {
@@ -197,7 +202,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
     };
 
     let extra = if !descriptors.is_empty() {
-        let ty = syn::parse::ty(cls.as_ref()).expect("no name");
+        let ty = syn::parse_str(cls.as_ref()).expect("no name");
         let desc_impls = impl_descriptors(&ty, descriptors);
         Some(quote! {
             #desc_impls
@@ -211,21 +216,23 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
     let mut has_weakref = false;
     let mut has_dict = false;
     for f in flags.iter() {
-        if *f == syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_WEAKREF") {
-            has_weakref = true;
-        } else if *f == syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_DICT") {
-            has_dict = true;
+        if let syn::Expr::Path(ref epath) = f {
+            if epath.path == parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
+                has_weakref = true;
+            } else if epath.path == parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_DICT} {
+                has_dict = true;
+            }
         }
     }
     let weakref = if has_weakref {
-        syn::Ident::from("std::mem::size_of::<*const _pyo3::ffi::PyObject>()")
+        quote!{std::mem::size_of::<*const _pyo3::ffi::PyObject>()}
     } else {
-        syn::Ident::from("0")
+        quote!{0}
     };
     let dict = if has_dict {
-        syn::Ident::from("std::mem::size_of::<*const _pyo3::ffi::PyObject>()")
+        quote!{std::mem::size_of::<*const _pyo3::ffi::PyObject>()}
     } else {
-        syn::Ident::from("0")
+        quote!{0}
     };
 
     quote! {
@@ -239,7 +246,7 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
 
             const SIZE: usize = {
                 Self::OFFSET as usize +
-                    std::mem::size_of::<#cls>() + #weakref + #dict
+                std::mem::size_of::<#cls>() + #weakref + #dict
             };
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
@@ -268,13 +275,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
                         let gil = _pyo3::Python::acquire_gil();
                         let py = gil.python();
 
-                        let error_message = "An error occurred while initializing class ".to_string() +
-                                            <#cls as _pyo3::typeob::PyTypeInfo>::NAME.as_ref();
-
                         // automatically initialize the class on-demand
                         _pyo3::typeob::initialize_type::<#cls>(py, None)
                             .map_err(|e| e.print(py))
-                            .expect(&error_message);
+                            .expect(format!("An error occurred while initializing class {}",
+                                            <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }
                 });
             }
@@ -284,7 +289,11 @@ fn impl_class(cls: &syn::Ident, base: &syn::Ident,
     }
 }
 
-fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> Tokens {
+fn impl_descriptors(
+    cls: &syn::Type,
+    descriptors: Vec<(syn::Field, Vec<FnType>)>
+) -> Tokens {
+
     let methods: Vec<Tokens> = descriptors.iter().flat_map(|&(ref field, ref fns)| {
         fns.iter().map(|desc| {
             let name = field.ident.clone().unwrap();
@@ -318,30 +327,37 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
     let py_methods: Vec<Tokens> = descriptors.iter().flat_map(|&(ref field, ref fns)| {
         fns.iter().map(|desc| {
             let name = field.ident.clone().unwrap();
+
             // FIXME better doc?
-            let doc = syn::Lit::from(name.as_ref());
+            let doc: syn::Lit = syn::parse_str(&format!("\"{}\"", name)).unwrap();
+
             let field_ty = &field.ty;
             match *desc {
                 FnType::Getter(ref getter) => {
                     impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&Box::new(cls.clone()), &name))
                 }
                 FnType::Setter(ref setter) => {
-                    let mode = syn::BindingMode::ByValue(syn::Mutability::Immutable);
                     let setter_name = syn::Ident::from(format!("set_{}", name));
                     let spec = FnSpec {
                         tp: FnType::Setter(None),
                         attrs: Vec::new(),
                         args: vec![FnArg {
                             name: &name,
-                            mode: &mode,
+                            mutability: &None,
+                            by_ref: &None,
                             ty: field_ty,
                             optional: None,
                             py: true,
                             reference: false
                         }],
-                        output: syn::parse::ty("PyResult<()>").expect("error parse PyResult<()>"),
+                        output: syn::parse_str("PyResult<()>").unwrap()
                     };
-                    impl_py_setter_def(&name, doc, setter, &impl_wrap_setter(&Box::new(cls.clone()), &setter_name, &spec))
+                    impl_py_setter_def(
+                        &name,
+                        doc,
+                        setter,
+                        &impl_wrap_setter(&Box::new(cls.clone()), &setter_name, &spec)
+                    )
                 },
                 _ => unreachable!()
             }
@@ -362,13 +378,13 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
     };
 
     let n = match cls {
-        &syn::Ty::Path(_, ref p) => {
-            p.segments.last().as_ref().unwrap().ident.as_ref()
+        &syn::Type::Path(ref typath) => {
+            typath.path.segments.last().as_ref().unwrap().value().ident.as_ref()
         }
         _ => "CLS_METHODS"
     };
 
-    let dummy_const = syn::Ident::new(format!("_IMPL_PYO3_DESCRIPTORS_{}", n));
+    let dummy_const = syn::Ident::from(format!("_IMPL_PYO3_DESCRIPTORS_{}", n));
     quote! {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes,
@@ -383,9 +399,9 @@ fn impl_descriptors(cls: &syn::Ty, descriptors: Vec<(syn::Field, Vec<FnType>)>) 
 
 fn is_python_token(field: &syn::Field) -> bool {
     match field.ty {
-        syn::Ty::Path(_, ref path) => {
-            if let Some(segment) = path.segments.last() {
-                return segment.ident.as_ref() == "PyToken"
+        syn::Type::Path(ref typath) => {
+            if let Some(segment) = typath.path.segments.last() {
+                return segment.value().ident.as_ref() == "PyToken"
             }
         }
         _ => (),
@@ -393,137 +409,95 @@ fn is_python_token(field: &syn::Field) -> bool {
     return false
 }
 
-fn parse_attribute(mut attr: String) -> (HashMap<&'static str, syn::Ident>,
-                                         Vec<syn::Ident>, syn::Ident) {
+fn parse_attribute(
+    args: &Vec<syn::Expr>,
+) -> (
+    HashMap<&'static str, syn::Expr>,
+    Vec<syn::Expr>,
+    syn::TypePath
+) {
+
     let mut params = HashMap::new();
-    let mut flags = vec![syn::Ident::from("0")];
-    let mut base = syn::Ident::from("_pyo3::PyObjectRef");
+    let mut flags = vec![syn::Expr::Lit(parse_quote!{0})];
+    let mut base: syn::TypePath = parse_quote!{_pyo3::PyObjectRef};
 
     // https://github.com/rust-lang/rust/pull/50120 removed the parantheses from
     // the attr TokenStream, so we need to re-add them manually
     // Old nightly (like 2018-04-05): ( name=CustomName )
     // New nightly (like 2018-04-28): name=CustomName
 
-    if attr.len() > 0 && !attr.starts_with("(") {
-        attr = format!("({})", attr);
-    }
+    for expr in args.iter() {
+        match expr {
 
-    if let Ok(tts) = syn::parse_token_trees(&attr) {
-        let mut elem = Vec::new();
-        let mut elems = Vec::new();
-
-        for tt in tts.iter() {
-            match tt {
-                &syn::TokenTree::Token(ref token) => {
-                    println!("Wrong format: Expected delimited, found token: {:?} {:?}", attr.to_string(), token);
-                }
-                &syn::TokenTree::Delimited(ref delimited) => {
-                    for tt in delimited.tts.iter() {
-                        match tt {
-                            &syn::TokenTree::Token(syn::Token::Comma) => {
-                                let el = std::mem::replace(&mut elem, Vec::new());
-                                elems.push(el);
-                            },
-                            _ => elem.push(tt.clone())
-                        }
+            // Match a single flag
+            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+                match exp.path.segments.first().unwrap().value().ident.as_ref() {
+                    "gc" => {
+                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_GC}));
+                    }
+                    "weakref" => {
+                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_WEAKREF}));
+                    }
+                    "subclass" => {
+                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_BASETYPE}));
+                    }
+                    "dict" => {
+                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_DICT}));
+                    }
+                    param => {
+                        println!("Unsupported parameter: {}", param);
                     }
                 }
             }
-        }
-        if !elem.is_empty() {
-            elems.push(elem);
-        }
 
-        for elem in elems {
-            let key = match elem[0] {
-                syn::TokenTree::Token(syn::Token::Ident(ref ident)) => {
-                    ident.as_ref().to_owned().to_lowercase()
-                },
-                _ => {
-                    println!("Wrong format: Expected Token: {:?}", attr.to_string());
-                    continue
-                }
-            };
+            // Match a key/value flag
+            syn::Expr::Assign(ref ass) => {
 
-            if elem.len() == 1 {
-                match key.as_ref() {
-                    "gc" => {
-                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_GC"));
-                        continue
+                let key = match *ass.left {
+                    syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+                        exp.path.segments.first().unwrap().value().ident.as_ref()
                     }
-                    "weakref" => {
-                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_WEAKREF"));
-                        continue
-                    }
-                    "subclass" => {
-                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_BASETYPE"));
-                        continue
-                    }
-                    "dict" => {
-                        flags.push(syn::Ident::from("_pyo3::typeob::PY_TYPE_FLAG_DICT"));
-                        continue
+                    _ => panic!("could not parse argument: {:?}", ass)
+                };
+
+                match key {
+                    "freelist" => {
+                        // TODO: check if int literal
+                        params.insert("freelist", *ass.right.clone());
+                    },
+                    "name" => {
+                        match *ass.right {
+                            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+                                params.insert("name", exp.clone().into());
+                            },
+                            _ => println!("Wrong 'name' format: {:?}", *ass.right),
+                        }
+                    },
+                    "base" => {
+                        match *ass.right {
+                            syn::Expr::Path(ref exp) => {
+                                base = syn::TypePath{
+                                    path: exp.path.clone(),
+                                    qself: None,
+                                };
+                            },
+                            _ => println!("Wrong 'base' format: {:?}", *ass.right),
+                        }
                     }
                     _ => {
                         println!("Unsupported parameter: {:?}", key);
                     }
                 }
+
             }
 
-            if elem.len() < 3 {
-                println!("Wrong format: Less than three elements{:?}", elem);
-                continue
-            }
 
-            match elem[1] {
-                syn::TokenTree::Token(syn::Token::Eq) => (),
-                _ => {
-                    println!("Wrong format: Expected a Token as fist element: {:?}", attr.to_string());
-                    continue
-                }
-            }
 
-            match key.as_ref() {
-                "freelist" => {
-                    if elem.len() != 3 {
-                        println!("Wrong 'freelist' format: {:?}", elem);
-                    } else {
-                        match elem[2] {
-                            syn::TokenTree::Token(
-                                syn::Token::Literal(
-                                    syn::Lit::Int(val, _))) => {
-                                params.insert("freelist", syn::Ident::from(val.to_string()));
-                            }
-                            _ => println!("Wrong 'freelist' format: {:?}", elem)
-                        }
-                    }
-                },
-                "name" => {
-                    if elem.len() != 3 {
-                        println!("Wrong 'name' format: {:?}", elem);
-                    } else {
-                        match elem[2] {
-                            syn::TokenTree::Token(syn::Token::Ident(ref ident)) => {
-                                params.insert("name", ident.clone());
-                            },
-                            _ => println!("Wrong 'name' format: {:?}", elem)
-                        }
-                    }
-                },
-                "base" => {
-                    let mut m = String::new();
-                    for el in elem[2..elem.len()].iter() {
-                        let mut t = Tokens::new();
-                        el.to_tokens(&mut t);
-                        m += t.as_str().trim();
-                    }
-                    base = syn::Ident::from(m.as_str());
-                },
-                _ => {
-                    println!("Unsupported parameter: {:?}", key);
-                }
-            }
+            _ => panic!("could not parse arguments"),
+
         }
     }
+
 
     (params, flags, base)
 }

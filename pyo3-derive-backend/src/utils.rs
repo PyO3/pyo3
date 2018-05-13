@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use syn;
+use syn::spanned::Spanned;
 use quote::{Tokens, ToTokens};
 use proc_macro::TokenStream;
 
@@ -26,35 +27,37 @@ pub fn for_err_msg(i: &ToTokens) -> String {
     let mut tokens = Tokens::new();
 
     i.to_tokens(&mut tokens);
-    tokens.as_str().to_string()
+    format!("{:?}", tokens).to_string()
 }
 
+
+// FIXME(althonos): not sure the docstring formatting is on par here.
 pub fn get_doc(attrs: &Vec<syn::Attribute>, null_terminated: bool) -> syn::Lit {
+
     let mut doc = Vec::new();
+    let mut span = None;
 
     for attr in attrs.iter() {
-        match attr.value {
-            syn::MetaItem::NameValue(ref ident, ref lit) => {
-                if ident.as_ref() == "doc" {
-                    let s = quote!{ #lit }.to_string();
-                    let mut s = s[1..s.len()-1].to_string();
-                    if s.starts_with("/// ") {
-                        // Remove leading whitespace and ///
-                        s = s[4..].to_string();
-                    } else {
-                        // Remove only ///
-                        s = s[3..].to_string();
-                    }
-                    doc.push(s)
+        if let Some(syn::Meta::NameValue(ref metanv)) = attr.interpret_meta() {
+            if metanv.ident == "doc" {
+                span = Some(metanv.span());
+                if let syn::Lit::Str(ref litstr) = metanv.lit {
+                    let d = litstr.value();
+                    doc.push(if d.starts_with(" ") { d[1..d.len()].to_string() } else {d});
+                } else {
+                    panic!("could not parse doc");
                 }
             }
-            _ => (),
         }
     }
+
     let doc = doc.join("\n");
-    if null_terminated {
-        syn::Lit::Str(format!("{}\0", doc), syn::StrStyle::Cooked)
+
+    // FIXME: add span
+    syn::parse_str(&if null_terminated {
+        format!("\"{}\0\"", doc)
     } else {
-        syn::Lit::Str(doc, syn::StrStyle::Cooked)
-    }
+        format!("\"{}\"", doc)
+    }).unwrap()
+
 }
