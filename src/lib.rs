@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro)]
+#![feature(specialization, proc_macro, fn_must_use)]
 
 //! Rust bindings to the Python interpreter.
 //!
