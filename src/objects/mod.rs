@@ -31,6 +31,9 @@ pub use self::num3::PyLong as PyInt;
 pub use self::num2::{PyInt, PyLong};
 
 
+/// Implements typesafe conversions from a PyObjectRef, given a typecheck function as second
+/// parameter
+#[macro_export]
 macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
         impl<'a> $crate::FromPyObject<'a> for &'a $name
@@ -51,17 +54,8 @@ macro_rules! pyobject_downcast(
     );
 );
 
-macro_rules! pyobject_convert(
-    ($name: ident) => (
-        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
-            fn from(ob: &'a $name) -> Self {
-                unsafe{$crate::std::mem::transmute(ob)}
-            }
-        }
-    )
-);
-
-macro_rules! pyobject_nativetype(
+#[macro_export]
+macro_rules! pyobject_native_type_named(
     ($name: ident) => {
         impl $crate::PyNativeType for $name {}
 
@@ -71,12 +65,14 @@ macro_rules! pyobject_nativetype(
                 unsafe{$crate::std::mem::transmute(self)}
             }
         }
+
         impl $crate::PyObjectWithToken for $name {
             #[inline(always)]
             fn py(&self) -> $crate::Python {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }
         }
+
         impl $crate::python::ToPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
@@ -84,6 +80,7 @@ macro_rules! pyobject_nativetype(
                 self.0.as_ptr()
             }
         }
+
         impl PartialEq for $name {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
@@ -91,10 +88,26 @@ macro_rules! pyobject_nativetype(
             }
         }
     };
+);
 
+#[macro_export]
+macro_rules! pyobject_native_type(
     ($name: ident, $typeobject: ident, $checkfunction: ident) => {
-        pyobject_nativetype!($name);
+        pyobject_native_type_named!($name);
+        pyobject_native_type_convert!($name, $typeobject, $checkfunction);
+        pyobject_downcast!($name, $checkfunction);
 
+        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
+            fn from(ob: &'a $name) -> Self {
+                unsafe{$crate::std::mem::transmute(ob)}
+            }
+        }
+    };
+);
+
+#[macro_export]
+macro_rules! pyobject_native_type_convert(
+    ($name: ident, $typeobject: ident, $checkfunction: ident) => {
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::PyObjectRef;
@@ -162,11 +175,10 @@ macro_rules! pyobject_nativetype(
                 f.write_str(&s.to_string_lossy())
             }
         }
-
-        pyobject_downcast!($name, $checkfunction);
-};
+    };
 );
 
+#[macro_export]
 macro_rules! pyobject_extract(
     ($obj:ident to $t:ty => $body: block) => {
         impl<'source> $crate::FromPyObject<'source> for $t
@@ -201,7 +213,9 @@ use python::ToPyPointer;
 
 /// Represents general python instance.
 pub struct PyObjectRef(::PyObject);
-pyobject_nativetype!(PyObjectRef, PyBaseObject_Type, PyObject_Check);
+pyobject_native_type_named!(PyObjectRef);
+pyobject_native_type_convert!(PyObjectRef, PyBaseObject_Type, PyObject_Check);
+pyobject_downcast!(PyObjectRef, PyObject_Check);
 
 mod typeobject;
 mod module;

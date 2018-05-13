@@ -14,8 +14,7 @@ use err::{self, PyResult, PyErr};
 /// Represents a Python `dict`.
 pub struct PyDict(PyObject);
 
-pyobject_convert!(PyDict);
-pyobject_nativetype!(PyDict, PyDict_Type, PyDict_Check);
+pyobject_native_type!(PyDict, PyDict_Type, PyDict_Check);
 
 
 impl PyDict {

@@ -18,20 +18,17 @@ use super::{PyObjectRef, PyStringData};
 /// Represents a Python `string`.
 pub struct PyString(PyObject);
 
-pyobject_convert!(PyString);
-pyobject_nativetype!(PyString, PyBaseString_Type, PyBaseString_Check);
+pyobject_native_type!(PyString, PyBaseString_Type, PyBaseString_Check);
 
 /// Represents a Python `unicode string`.
 pub struct PyUnicode(PyObject);
 
-pyobject_convert!(PyUnicode);
-pyobject_nativetype!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
+pyobject_native_type!(PyUnicode, PyUnicode_Type, PyUnicode_Check);
 
 /// Represents a Python `byte` string. Corresponds to `str` in Python 2
 pub struct PyBytes(PyObject);
 
-pyobject_convert!(PyBytes);
-pyobject_nativetype!(PyBytes, PyBaseString_Type, PyString_Check);
+pyobject_native_type!(PyBytes, PyBaseString_Type, PyString_Check);
 
 
 impl PyString {

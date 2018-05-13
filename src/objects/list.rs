@@ -15,8 +15,7 @@ use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
 /// Represents a Python `list`.
 pub struct PyList(PyObject);
 
-pyobject_convert!(PyList);
-pyobject_nativetype!(PyList, PyList_Type, PyList_Check);
+pyobject_native_type!(PyList, PyList_Type, PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.

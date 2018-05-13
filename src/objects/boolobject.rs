@@ -7,8 +7,7 @@ use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject, PyTryFrom};
 /// Represents a Python `bool`.
 pub struct PyBool(PyObject);
 
-pyobject_convert!(PyBool);
-pyobject_nativetype!(PyBool, PyBool_Type, PyBool_Check);
+pyobject_native_type!(PyBool, PyBool_Type, PyBool_Check);
 
 
 impl PyBool {
