@@ -19,7 +19,6 @@ quote="0.5"
 version="0.13"
 features=["full", "parsing", "printing", "extra-traits"]
 
-
 [dependencies.pyo3-derive-backend]
 path = "../pyo3-derive-backend"
 version = "0.2.5"

@@ -21,10 +21,12 @@ use syn::punctuated::Punctuated;
 #[proc_macro_attribute]
 pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemFn = syn::parse(input).unwrap();
+    let mut ast: syn::ItemFn = syn::parse(input)
+        .expect("#[modinit] must be used on a function");
 
     // Extract the mod name
-    let modname: syn::Ident = syn::parse(attr).unwrap();
+    let modname: syn::Ident = syn::parse(attr)
+        .expect("could not parse module name");
 
     // Process the functions within the module
     module::process_functions_in_module(&mut ast);
@@ -41,10 +43,12 @@ pub fn mod2init(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemFn = syn::parse(input).unwrap();
+    let mut ast: syn::ItemFn = syn::parse(input)
+        .expect("#[modinit] must be used on a `fn` block");
 
     // Extract the mod name
-    let modname: syn::Ident = syn::parse(attr).unwrap();
+    let modname: syn::Ident = syn::parse(attr)
+        .expect("could not parse module name");
 
     // Process the functions within the module
     module::process_functions_in_module(&mut ast);
@@ -61,7 +65,8 @@ pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::Item = syn::parse(input).unwrap();
+    let mut ast: syn::Item = syn::parse(input)
+        .expect("#[proto] must be used on an `impl` block");
 
     // Build the output
     let expanded = py_proto::build_py_proto(&mut ast);
@@ -75,13 +80,14 @@ pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
+    let mut ast: syn::DeriveInput = syn::parse(input)
+        .expect("#[class] must be used on an ");
 
     // Parse the macro arguments into a list of expressions
     let mut args: Vec<syn::Expr> = {
         let buffer = TokenBuffer::new(attr);
         let punc = Punctuated::<syn::Expr, Token![,]>::parse_terminated(buffer.begin());
-        punc.expect("could not parse arguments").0.into_iter().collect()
+        punc.expect("could not parse macro arguments").0.into_iter().collect()
     };
 
     // Build the output
@@ -96,7 +102,8 @@ pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::Item = syn::parse(input).unwrap();
+    let mut ast: syn::Item = syn::parse(input)
+        .expect("#[methods] must be used on an `impl` block");
 
     // Build the output
     let expanded = py_impl::build_py_methods(&mut ast);
@@ -111,7 +118,7 @@ pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
 pub fn function(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn = syn::parse(input)
-        .expect("#[function] must be used on function definitions");
+        .expect("#[function] must be used on a `fn` block");
 
     // Build the output
     let python_name = ast.ident.clone();
