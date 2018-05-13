@@ -6,16 +6,15 @@
 extern crate proc_macro;
 extern crate pyo3_derive_backend;
 extern crate quote;
-#[macro_use]
 extern crate syn;
 
-use std::str::FromStr;
-
 use proc_macro::TokenStream;
-use pyo3_derive_backend::*;
-use quote::{ToTokens, Tokens};
+use quote::ToTokens;
 use syn::buffer::TokenBuffer;
 use syn::punctuated::Punctuated;
+use syn::token::Comma;
+
+use pyo3_derive_backend::*;
 
 
 #[proc_macro_attribute]
@@ -84,9 +83,9 @@ pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
         .expect("#[class] must be used on an ");
 
     // Parse the macro arguments into a list of expressions
-    let mut args: Vec<syn::Expr> = {
+    let args: Vec<syn::Expr> = {
         let buffer = TokenBuffer::new(attr);
-        let punc = Punctuated::<syn::Expr, Token![,]>::parse_terminated(buffer.begin());
+        let punc = Punctuated::<syn::Expr,Comma>::parse_terminated(buffer.begin());
         punc.expect("could not parse macro arguments").0.into_iter().collect()
     };
 
