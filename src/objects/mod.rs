@@ -44,7 +44,7 @@ macro_rules! pyobject_downcast(
             {
                 unsafe {
                     if $crate::ffi::$checkfunction(ob.as_ptr()) != 0 {
-                        Ok($crate::std::mem::transmute(ob))
+                        Ok(::std::mem::transmute(ob))
                     } else {
                         Err($crate::PyDowncastError.into())
                     }
@@ -59,10 +59,10 @@ macro_rules! pyobject_native_type_named(
     ($name: ident) => {
         impl $crate::PyNativeType for $name {}
 
-        impl $crate::std::convert::AsRef<$crate::PyObjectRef> for $name {
+        impl ::std::convert::AsRef<$crate::PyObjectRef> for $name {
             #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
             fn as_ref(&self) -> &$crate::PyObjectRef {
-                unsafe{$crate::std::mem::transmute(self)}
+                unsafe{::std::mem::transmute(self)}
             }
         }
 
@@ -97,9 +97,9 @@ macro_rules! pyobject_native_type(
         pyobject_native_type_convert!($name, $typeobject, $checkfunction);
         pyobject_downcast!($name, $checkfunction);
 
-        impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
+        impl<'a> ::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
             fn from(ob: &'a $name) -> Self {
-                unsafe{$crate::std::mem::transmute(ob)}
+                unsafe{::std::mem::transmute(ob)}
             }
         }
     };
@@ -113,7 +113,7 @@ macro_rules! pyobject_native_type_convert(
             type BaseType = $crate::PyObjectRef;
 
             const NAME: &'static str = stringify!($name);
-            const SIZE: usize = $crate::std::mem::size_of::<$crate::ffi::PyObject>();
+            const SIZE: usize = ::std::mem::size_of::<$crate::ffi::PyObject>();
             const OFFSET: isize = 0;
 
             #[inline]
@@ -156,22 +156,22 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl $crate::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
-                   -> Result<(), $crate::std::fmt::Error>
+        impl ::std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+                   -> Result<(), ::std::fmt::Error>
             {
                 use $crate::ObjectProtocol;
-                let s = try!(self.repr().map_err(|_| $crate::std::fmt::Error));
+                let s = try!(self.repr().map_err(|_| ::std::fmt::Error));
                 f.write_str(&s.to_string_lossy())
             }
         }
 
-        impl $crate::std::fmt::Display for $name {
-            fn fmt(&self, f: &mut $crate::std::fmt::Formatter)
-                   -> Result<(), $crate::std::fmt::Error>
+        impl ::std::fmt::Display for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter)
+                   -> Result<(), ::std::fmt::Error>
             {
                 use $crate::ObjectProtocol;
-                let s = try!(self.str().map_err(|_| $crate::std::fmt::Error));
+                let s = try!(self.str().map_err(|_| ::std::fmt::Error));
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -193,7 +193,7 @@ macro_rules! pyobject_extract(
         }
 
         #[cfg(feature = "try_from")]
-        impl<'source> $crate::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
+        impl<'source> ::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
         {
             type Error = $crate::PyErr;
 
