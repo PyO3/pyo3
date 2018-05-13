@@ -150,15 +150,22 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
 
 #[cfg(test)]
 mod test {
+
     use syn;
     use args::{Argument, parse_arguments};
+    use quote::ToTokens;
+    use syn::buffer::TokenBuffer;
+    use proc_macro::TokenStream;
 
     fn items(s: &'static str) -> Vec<syn::NestedMeta> {
-        let i = syn::parse_outer_attr(s).unwrap();
 
-        match i.value {
-            syn::Meta::List(_, items) => {
-                items
+        let stream = s.parse::<TokenStream>().unwrap();
+        let buffer = TokenBuffer::new(stream);
+        let i = syn::Attribute::parse_outer(buffer.begin()).unwrap().0;
+
+        match i.interpret_meta() {
+            Some(syn::Meta::List(syn::MetaList { nested, .. })) => {
+                nested.iter().map(Clone::clone).collect()
             }
             _ => unreachable!()
         }

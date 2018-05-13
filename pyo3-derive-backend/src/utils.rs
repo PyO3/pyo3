@@ -10,14 +10,14 @@ use proc_macro::TokenStream;
 ///
 /// nightly-2018-04-05: ( name=CustomName )
 /// nightly-2018-04-28: name=CustomName
-pub fn attr_with_parentheses(attr: TokenStream) -> String {
-    let attr = attr.to_string();
-    if attr.len() > 0 && !attr.starts_with("(") {
-        return format!("({})", attr);
-    } else {
-        return attr;
-    }
-}
+// pub fn attr_with_parentheses(attr: TokenStream) -> String {
+//     let attr = attr.to_string();
+//     if attr.len() > 0 && !attr.starts_with("(") {
+//         return format!("({})", attr);
+//     } else {
+//         return attr;
+//     }
+// }
 
 pub fn print_err(msg: String, t: Tokens) {
     println!("Error: {} in '{}'", msg, t.to_string());
