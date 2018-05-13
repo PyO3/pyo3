@@ -73,7 +73,7 @@ macro_rules! pyobject_native_type_named(
             }
         }
 
-        impl $crate::python::ToPyPointer for $name {
+        impl $crate::ToPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
