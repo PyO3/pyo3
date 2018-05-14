@@ -44,7 +44,7 @@ impl MethodProto {
 
 
 pub fn impl_method_proto(
-    cls: &Box<syn::Type>,
+    cls: &syn::Type,
     sig: &mut syn::MethodSig,
     meth: &MethodProto
 ) -> Tokens {

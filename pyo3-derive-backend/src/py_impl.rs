@@ -18,7 +18,7 @@ pub fn build_py_methods(ast: &mut syn::Item) -> Tokens {
     }
 }
 
-pub fn impl_methods(ty: &Box<syn::Type>, impls: &mut Vec<syn::ImplItem>) -> Tokens {
+pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> Tokens {
 
     // get method names in impl block
     let mut methods = Vec::new();
@@ -40,7 +40,7 @@ pub fn impl_methods(ty: &Box<syn::Type>, impls: &mut Vec<syn::ImplItem>) -> Toke
         }
     };
 
-    let n = if let &syn::Type::Path(ref typath) = ty.as_ref() {
+    let n = if let &syn::Type::Path(ref typath) = ty {
         typath.path.segments.last().as_ref().unwrap().value().ident.as_ref()
     } else {
         "CLS_METHODS"

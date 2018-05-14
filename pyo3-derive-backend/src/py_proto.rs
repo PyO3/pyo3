@@ -62,7 +62,7 @@ pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
 }
 
 fn impl_proto_impl(
-    ty: &Box<syn::Type>,
+    ty: &syn::Type,
     impls: &mut Vec<syn::ImplItem>,
     proto: &defs::Proto
 ) -> Tokens {
@@ -113,7 +113,7 @@ fn impl_proto_impl(
 
     // unique mod name
     let p = proto.name;
-    let n = if let syn::Type::Path(ref typath) = ty.as_ref() {
+    let n = if let syn::Type::Path(ref typath) = ty {
         typath.path.segments.last().as_ref().unwrap().value().ident.as_ref()
     } else {
         "PROTO_METHODS"

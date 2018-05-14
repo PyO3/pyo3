@@ -334,7 +334,7 @@ fn impl_descriptors(
             let field_ty = &field.ty;
             match *desc {
                 FnType::Getter(ref getter) => {
-                    impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&Box::new(cls.clone()), &name))
+                    impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
                 }
                 FnType::Setter(ref setter) => {
                     let setter_name = syn::Ident::from(format!("set_{}", name));
@@ -356,7 +356,7 @@ fn impl_descriptors(
                         &name,
                         doc,
                         setter,
-                        &impl_wrap_setter(&Box::new(cls.clone()), &setter_name, &spec)
+                        &impl_wrap_setter(&cls, &setter_name, &spec)
                     )
                 },
                 _ => unreachable!()
