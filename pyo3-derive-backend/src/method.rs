@@ -125,7 +125,7 @@ impl<'a> FnSpec<'a> {
         for s in self.attrs.iter() {
             match *s {
                 Argument::VarArgs(ref ident) =>
-                    return name.as_ref() == ident.as_str(),
+                    return name == ident,
                 _ => (),
             }
         }
@@ -147,7 +147,7 @@ impl<'a> FnSpec<'a> {
         for s in self.attrs.iter() {
             match *s {
                 Argument::KeywordArgs(ref ident) =>
-                    return name.as_ref() == ident.as_str(),
+                    return name == ident,
                 _ => (),
             }
         }
@@ -168,7 +168,7 @@ impl<'a> FnSpec<'a> {
         for s in self.attrs.iter() {
             match *s {
                 Argument::Arg(ref ident, ref opt) => {
-                    if ident.as_str() == name.as_ref() {
+                    if ident == name {
                         if let &Some(ref val) = opt {
                             let i: syn::Expr = syn::parse_str(&val).unwrap();
                             return Some(i.into_tokens())
@@ -176,7 +176,7 @@ impl<'a> FnSpec<'a> {
                     }
                 },
                 Argument::Kwarg(ref ident, ref opt) => {
-                    if ident.as_str() == name.as_ref() {
+                    if ident == name {
                         let i: syn::Expr = syn::parse_str(&opt).unwrap();
                         return Some(i.into_tokens())
                     }
@@ -191,7 +191,7 @@ impl<'a> FnSpec<'a> {
         for s in self.attrs.iter() {
             match *s {
                 Argument::Kwarg(ref ident, _) => {
-                    if ident.as_str() == name.as_ref() {
+                    if ident == name {
                         return true
                     }
                 },
