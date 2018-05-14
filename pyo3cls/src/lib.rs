@@ -64,7 +64,7 @@ pub fn mod3init(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::Item = syn::parse(input)
+    let mut ast: syn::ItemImpl = syn::parse(input)
         .expect("#[proto] must be used on an `impl` block");
 
     // Build the output
@@ -80,7 +80,7 @@ pub fn proto(_: TokenStream, input: TokenStream) -> TokenStream {
 pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::DeriveInput = syn::parse(input)
-        .expect("#[class] must be used on an ");
+        .expect("#[class] must be used on a `struct`");
 
     // Parse the macro arguments into a list of expressions
     let args: Vec<syn::Expr> = {
@@ -101,7 +101,7 @@ pub fn class(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn methods(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::Item = syn::parse(input)
+    let mut ast: syn::ItemImpl = syn::parse(input)
         .expect("#[methods] must be used on an `impl` block");
 
     // Build the output

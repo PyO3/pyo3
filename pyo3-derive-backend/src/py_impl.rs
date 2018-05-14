@@ -6,15 +6,11 @@ use quote::Tokens;
 use py_method;
 
 
-pub fn build_py_methods(ast: &mut syn::Item) -> Tokens {
-    if let syn::Item::Impl(ref mut iimpl) = ast {
-        if iimpl.trait_.is_some() {
-            panic!("#[methods] can not be used only with trait impl block");
-        } else {
-            impl_methods(&iimpl.self_ty, &mut iimpl.items)
-        }
+pub fn build_py_methods(ast: &mut syn::ItemImpl) -> Tokens {
+    if ast.trait_.is_some() {
+        panic!("#[methods] can not be used only with trait impl block");
     } else {
-        panic!("#[methods] can only be used with Impl blocks")
+        impl_methods(&iimpl.self_ty, &mut iimpl.items)
     }
 }
 

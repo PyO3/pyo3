@@ -9,56 +9,52 @@ use method::FnSpec;
 use func::impl_method_proto;
 
 
-pub fn build_py_proto(ast: &mut syn::Item) -> Tokens {
-    match ast {
-        syn::Item::Impl(ref mut expr) => {
-            if let Some((_, ref mut path, _)) = expr.trait_ {
-                let tokens = if let Some(ref mut segment) = path.segments.last() {
-                    let ty = &expr.self_ty;
-                    let items = &mut expr.items;
-                    match segment.value().ident.as_ref() {
-                        "PyObjectProtocol" =>
-                            impl_proto_impl(ty, items, &defs::OBJECT),
-                        "PyAsyncProtocol" =>
-                            impl_proto_impl(ty, items, &defs::ASYNC),
-                        "PyMappingProtocol" =>
-                            impl_proto_impl(ty, items, &defs::MAPPING),
-                        "PyIterProtocol" =>
-                            impl_proto_impl(ty, items, &defs::ITER),
-                        "PyContextProtocol" =>
-                            impl_proto_impl(ty, items, &defs::CONTEXT),
-                        "PySequenceProtocol" =>
-                            impl_proto_impl(ty, items, &defs::SEQ),
-                        "PyNumberProtocol" =>
-                            impl_proto_impl(ty, items, &defs::NUM),
-                        "PyDescrProtocol" =>
-                            impl_proto_impl(ty, items, &defs::DESCR),
-                        "PyBufferProtocol" =>
-                            impl_proto_impl(ty, items, &defs::BUFFER),
-                        "PyGCProtocol" =>
-                            impl_proto_impl(ty, items, &defs::GC),
-                        _ => {
-                            warn!("#[proto] can not be used with this block");
-                            return Tokens::new()
-                        }
+pub fn build_py_proto(ast: &mut syn::ItemImpl) -> Tokens {
+        if let Some((_, ref mut path, _)) = ast.trait_ {
+
+            let tokens = if let Some(ref mut segment) = path.segments.last() {
+                let ty = &ast.self_ty;
+                let items = &mut ast.items;
+                match segment.value().ident.as_ref() {
+                    "PyObjectProtocol" =>
+                        impl_proto_impl(ty, items, &defs::OBJECT),
+                    "PyAsyncProtocol" =>
+                        impl_proto_impl(ty, items, &defs::ASYNC),
+                    "PyMappingProtocol" =>
+                        impl_proto_impl(ty, items, &defs::MAPPING),
+                    "PyIterProtocol" =>
+                        impl_proto_impl(ty, items, &defs::ITER),
+                    "PyContextProtocol" =>
+                        impl_proto_impl(ty, items, &defs::CONTEXT),
+                    "PySequenceProtocol" =>
+                        impl_proto_impl(ty, items, &defs::SEQ),
+                    "PyNumberProtocol" =>
+                        impl_proto_impl(ty, items, &defs::NUM),
+                    "PyDescrProtocol" =>
+                        impl_proto_impl(ty, items, &defs::DESCR),
+                    "PyBufferProtocol" =>
+                        impl_proto_impl(ty, items, &defs::BUFFER),
+                    "PyGCProtocol" =>
+                        impl_proto_impl(ty, items, &defs::GC),
+                    _ => {
+                        warn!("#[proto] can not be used with this block");
+                        return Tokens::new()
                     }
-                } else {
-                    panic!("#[proto] can only be used with protocol trait implementations")
-                };
-
-                // attach lifetime
-                let mut seg = path.segments.pop().unwrap().into_value();
-                seg.arguments = syn::PathArguments::AngleBracketed(parse_quote!{<'p>});
-                path.segments.push(seg);
-                expr.generics.params = parse_quote!{'p};
-
-                tokens
+                }
             } else {
                 panic!("#[proto] can only be used with protocol trait implementations")
-            }
-        },
-        _ => panic!("#[proto] can only be used with Impl blocks"),
-    }
+            };
+
+            // attach lifetime
+            let mut seg = path.segments.pop().unwrap().into_value();
+            seg.arguments = syn::PathArguments::AngleBracketed(parse_quote!{<'p>});
+            path.segments.push(seg);
+            expr.generics.params = parse_quote!{'p};
+
+            tokens
+        } else {
+            panic!("#[proto] can only be used with protocol trait implementations")
+        }
 }
 
 fn impl_proto_impl(
