@@ -447,10 +447,10 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
 
     if spec.is_args(&name) {
         quote! {
-            <#ty as _pyo3::FromPyObject>::extract(_args.as_ref())
+            <#ty as ::pyo3::FromPyObject>::extract(_args.as_ref())
                 .and_then(|#arg_name| {
-                        #body
-                    })
+                    #body
+                })
         }
     } else if spec.is_kwargs(&name) {
         quote! {{
@@ -481,7 +481,8 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
                                 }
                             }
                         },
-                        None => Ok(#default) }
+                        None => Ok(#default)
+                    }
                 {
                     Ok(#arg_name) => #body,
                     Err(e) => Err(e)
@@ -508,7 +509,7 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
             }
         } else {
             quote! {
-                _iter.next().unwrap().as_ref().unwrap().extract()
+                ::pyo3::ObjectProtocol::extract(_iter.next().unwrap().unwrap())
                     .and_then(|#arg_name| {
                         #body
                     })

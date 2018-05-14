@@ -199,8 +199,6 @@ fn extract_pyfn_attrs(
     }
 
     *attrs = new_attrs;
-    // attrs.clear();
-    // attrs.extend(new_attrs);
     Some((modname?, fnname?, fn_attrs))
 }
 
@@ -291,10 +289,6 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
     let body = py_method::impl_arg_params(spec, cb);
     let body_to_result = py_method::body_to_result(&body, spec);
 
-    // FIXME(althonos): the `use::pyo3::ObjectProtocol` does not belong here,
-    //                  but removing it will cause the code produced by
-    //                  `impl_arg_param` to error because of unknown
-    //                  `extract` method
     quote! {
         #[allow(unused_variables, unused_imports)]
         unsafe extern "C" fn __wrap(
@@ -302,9 +296,6 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
             _args: *mut _pyo3::ffi::PyObject,
             _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
-
-            use pyo3::ObjectProtocol;
-
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             let _pool = _pyo3::GILPool::new();
