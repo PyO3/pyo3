@@ -244,21 +244,20 @@ pub fn add_fn_to_module(
         fn #function_wrapper_ident(py: ::pyo3::Python) -> ::pyo3::PyObject {
             use std;
             use pyo3 as _pyo3;
-            use pyo3::ObjectProtocol;
 
             #wrapper
 
-            let _def = pyo3::class::PyMethodDef {
+            let _def = _pyo3::class::PyMethodDef {
                 ml_name: stringify!(#python_name),
-                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
+                ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
+                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
                 ml_doc: #doc,
             };
 
             let function = unsafe {
-                pyo3::PyObject::from_owned_ptr_or_panic(
+                _pyo3::PyObject::from_owned_ptr_or_panic(
                     py,
-                    pyo3::ffi::PyCFunction_New(
+                    _pyo3::ffi::PyCFunction_New(
                         Box::into_raw(Box::new(_def.as_method_def())),
                         std::ptr::null_mut()
                     )
@@ -292,6 +291,10 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
     let body = py_method::impl_arg_params(spec, cb);
     let body_to_result = py_method::body_to_result(&body, spec);
 
+    // FIXME(althonos): the `use::pyo3::ObjectProtocol` does not belong here,
+    //                  but removing it will cause the code produced by
+    //                  `impl_arg_param` to error because of unknown
+    //                  `extract` method
     quote! {
         #[allow(unused_variables, unused_imports)]
         unsafe extern "C" fn __wrap(
@@ -299,6 +302,9 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
             _args: *mut _pyo3::ffi::PyObject,
             _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
         {
+
+            use pyo3::ObjectProtocol;
+
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             let _pool = _pyo3::GILPool::new();
