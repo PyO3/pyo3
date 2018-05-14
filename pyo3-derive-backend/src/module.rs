@@ -109,7 +109,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
                 let item: syn::ItemFn = parse_quote!{
                     fn block_wrapper() {
                         #function_to_python
-                        #module_name.add_function(&#function_wrapper_ident);
+                        #module_name.add_function(&#function_wrapper_ident)?;
                     }
                 };
                 stmts.extend(item.block.stmts.into_iter());
