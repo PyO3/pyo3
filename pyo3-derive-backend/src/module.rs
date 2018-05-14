@@ -59,7 +59,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens
 
 pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens {
 
-    let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name)).unwrap();
+    let cb_name: syn::Ident = syn::parse_str(&format!("init{}", name)).unwrap();
 
     quote! {
         #[no_mangle]
