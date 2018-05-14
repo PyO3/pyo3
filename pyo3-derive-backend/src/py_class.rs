@@ -1,10 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
 use std::collections::HashMap;
 
 use syn;
-use quote::{Tokens, ToTokens};
+use quote::Tokens;
 
 use utils;
 use method::{FnType, FnSpec, FnArg};
