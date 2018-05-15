@@ -1,0 +1,12 @@
+[package]
+name = "test-dict"
+version = "0.1.0"
+authors = ["Florian Doyon <florian.doyon@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+[dependencies.pyo3]
+path="../.."
+features = ["extension-module"]
