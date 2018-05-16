@@ -8,7 +8,7 @@ use std::ffi::{CStr, CString};
 
 use ffi;
 use typeob::{PyTypeInfo, initialize_type};
-use conversion::{ToPyObject, IntoPyTuple};
+use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
 use object::PyObject;
 use python::{Python, ToPyPointer, IntoPyDictPointer};
 use objects::{PyObjectRef, PyDict, PyType, exc};
@@ -38,6 +38,33 @@ impl PyModule {
         unsafe {
             py.from_owned_ptr_or_err(
                 ffi::PyImport_ImportModule(name.as_ptr()))
+        }
+    }
+
+    /// Loads the python code specified into a new module
+    /// 'code' is the raw Python you want to load into the module
+    /// 'file_name' is the file name to associate with the module 
+    ///     (this is used when Python reports errors, for example)
+    /// 'module_name' is the name to give the module
+    pub fn from_code<'p>(py: Python<'p>, code: &str, file_name: &str, module_name: &str) -> PyResult<&'p PyModule> {
+
+        let data = CString::new(code)?;
+        let filename = CString::new(file_name)?;
+        let module = CString::new(module_name)?;
+
+        unsafe {
+
+            let cptr = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input);
+            if cptr.is_null() {
+                return Err(PyErr::fetch(py));
+            }
+
+            let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
+            if mptr.is_null() {
+                return Err(PyErr::fetch(py));
+            }
+
+            <&PyModule as FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 
