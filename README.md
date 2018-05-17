@@ -17,7 +17,7 @@ Supported Python versions:
 
 Supported Rust version:
 
-* Rust 1.23.0-nightly 2017-11-07 or later
+* Rust 1.27.0-nightly 2018-05-01 or later
 
 ## Usage
 
