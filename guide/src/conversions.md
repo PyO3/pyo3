@@ -2,6 +2,10 @@
 
 `PyO3` provides some handy traits to convert between Python types and Rust types.
 
+## `.extract()?`
+
+The easiest way to convert a python object to a rust value is using `.extract()`.
+
 ## `ToPyObject` and `IntoPyObject` trait
 
 [`ToPyObject`] trait is a conversion trait that allows various objects to be converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the same purpose except it consumes `self`.

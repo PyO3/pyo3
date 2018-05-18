@@ -1,6 +1,6 @@
 // Source adopted from
 // https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-#![feature(proc_macro, specialization, const_fn)]
+#![feature(proc_macro, specialization)]
 extern crate pyo3;
 extern crate rayon;
 

@@ -51,7 +51,7 @@ fn test_module_with_functions() {
 
     let d = PyDict::new(py);
     d.set_item("module_with_functions", unsafe { PyObject::from_owned_ptr(py, PyInit_module_with_functions()) }).unwrap();
-    py.run("assert module_with_functions.__doc__.strip() == 'This module is implemented in Rust.'", None, Some(d)).unwrap();
+    py.run("assert module_with_functions.__doc__ == 'This module is implemented in Rust.'", None, Some(d)).unwrap();
     py.run("assert module_with_functions.sum_as_string(1, 2) == '3'", None, Some(d)).unwrap();
     py.run("assert module_with_functions.no_parameters() == 42", None, Some(d)).unwrap();
     py.run("assert module_with_functions.foo == 'bar'", None, Some(d)).unwrap();

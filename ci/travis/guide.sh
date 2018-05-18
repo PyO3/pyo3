@@ -20,9 +20,7 @@ echo "<meta http-equiv=refresh content=0;url='guide/'>" > target/doc/index.html
 
 ### Build guide ################################################################
 
-cd guide
-mdbook build -d ../target/doc/guide
-cd ..
+mdbook build -d target/doc/guide guide
 
 git clone https://github.com/davisp/ghp-import.git
 ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc

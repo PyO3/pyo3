@@ -176,6 +176,11 @@ struct MethArgs {
 #[pymethods]
 impl MethArgs {
 
+    #[args(test)]
+    fn get_optional(&self, test: Option<i32>) -> PyResult<i32> {
+        Ok(test.unwrap_or(10))
+    }
+
     #[args(test="10")]
     fn get_default(&self, test: i32) -> PyResult<i32> {
         Ok(test)
@@ -196,6 +201,8 @@ fn meth_args() {
     let py = gil.python();
     let inst = py.init(|t| MethArgs{token: t}).unwrap();
 
+    py_run!(py, inst, "assert inst.get_optional() == 10");
+    py_run!(py, inst, "assert inst.get_optional(100) == 100");
     py_run!(py, inst, "assert inst.get_default() == 10");
     py_run!(py, inst, "assert inst.get_default(100) == 100");
     py_run!(py, inst, "assert inst.get_kwarg() == 10");
