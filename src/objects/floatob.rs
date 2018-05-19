@@ -10,6 +10,7 @@ use python::{ToPyPointer, Python};
 use err::PyErr;
 use instance::{Py, PyObjectWithToken};
 use conversion::{ToPyObject, IntoPyObject};
+use objectprotocol::ObjectProtocol;
 
 /// Represents a Python `float` object.
 ///

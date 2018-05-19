@@ -79,7 +79,7 @@ macro_rules! int_fits_larger_int(
             }
         }
         pyobject_extract!(obj to $rust_type => {
-            let val = try!(obj.extract::<$larger_type>());
+            let val = try!($crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj));
             match cast::<$larger_type, $rust_type>(val) {
                 Some(v) => Ok(v),
                 None => Err(exc::OverflowError.into())

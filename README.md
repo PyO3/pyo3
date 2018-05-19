@@ -7,7 +7,7 @@
 * [User Guide](https://pyo3.github.io/pyo3/guide/)
 * [API Documentation](http://pyo3.github.io/pyo3/pyo3/)
 
-A comparison with pyo3, the base for this project, can be found [in the guide](https://pyo3.github.io/pyo3/guide/rust-cpython.html).
+A comparison with rust-cpython can be found [in the guide](https://pyo3.github.io/pyo3/guide/rust-cpython.html).
 
 ## Usage
 
@@ -80,8 +80,8 @@ use pyo3::py::modinit as pymodinit;
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "sum_as_string")]
-    // ``#[pyfn()]` converts the arguments from Python objects to Rust values and the Rust return
-    // value back into a Python object.
+    // ``#[pyfn()]` converts the arguments from Python objects to Rust values
+    // and the Rust return value back into a Python object.
     fn sum_as_string_py(a:i64, b:i64) -> PyResult<String> {
        let out = sum_as_string(a, b);
        Ok(out)

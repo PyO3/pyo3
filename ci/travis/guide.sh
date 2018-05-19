@@ -14,13 +14,14 @@ fi
 
 ### Build API reference ########################################################
 
-cargo doc --no-deps -p pyo3 -p pyo3cls
+cargo doc --no-deps -p pyo3 -p pyo3cls -p pyo3-derive-backend
 echo "<meta http-equiv=refresh content=0;url='guide/'>" > target/doc/index.html
 
 
 ### Build guide ################################################################
 
-mdbook build -d target/doc/guide guide
+# This builds the book in target/doc/guide. See https://github.com/rust-lang-nursery/mdBook/issues/698
+mdbook build -d ../target/doc/guide guide
 
 git clone https://github.com/davisp/ghp-import.git
 ./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc
