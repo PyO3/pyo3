@@ -46,20 +46,21 @@ impl PyModule {
     /// 'file_name' is the file name to associate with the module 
     ///     (this is used when Python reports errors, for example)
     /// 'module_name' is the name to give the module
+    #[cfg(Py_3)]
     pub fn from_code<'p>(py: Python<'p>, code: &str, file_name: &str, module_name: &str) -> PyResult<&'p PyModule> {
 
         let data = CString::new(code)?;
-        let filename = CString::new(file_name)?;
+        let filename = CString::new(file_name)?.as_ptr();
         let module = CString::new(module_name)?;
 
         unsafe {
 
-            let cptr = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input);
+            let cptr = ffi::Py_CompileString(data.as_ptr(), filename, ffi::Py_file_input);
             if cptr.is_null() {
                 return Err(PyErr::fetch(py));
             }
 
-            let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
+            let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename);
             if mptr.is_null() {
                 return Err(PyErr::fetch(py));
             }
