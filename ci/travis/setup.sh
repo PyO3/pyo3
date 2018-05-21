@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -ex
 
 # Find the installed version of a binary, if any
 _installed() {
