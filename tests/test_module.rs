@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate pyo3;
 
-use pyo3::{PyDict, PyModule, PyObject, PyResult, Python};
+use pyo3::{PyDict, PyModule, PyObject, PyResult, Python, ToPyObject};
 use pyo3::py::{class, function, modinit};
 
 
@@ -58,4 +58,31 @@ fn test_module_with_functions() {
     py.run("assert module_with_functions.EmptyClass != None", None, Some(d)).unwrap();
     py.run("assert module_with_functions.double(3) == 6", None, Some(d)).unwrap();
     py.run("assert module_with_functions.also_double(3) == 6", None, Some(d)).unwrap();
+}
+
+#[test]
+#[cfg(Py_3)]
+fn test_module_from_code() {
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let adder_mod = PyModule::from_code(py, 
+        "def add(a,b):\n\treturn a+b", 
+        "adder_mod.py", 
+        "adder_mod")
+        .expect("Module code should be loaded");
+
+    let add_func = adder_mod
+        .get("add")
+        .expect("Add fucntion should be in the module")
+        .to_object(py);
+
+    let ret_value: i32 = add_func
+        .call1(py, (1, 2))
+        .expect("A value should be returned")
+        .extract(py)
+        .expect("The value should be able to be converted to an i32");
+
+    assert_eq!(ret_value, 3);
 }
