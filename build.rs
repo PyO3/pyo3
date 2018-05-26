@@ -41,18 +41,18 @@ const PY3_MIN_MINOR: u8 = 5;
 
 const CFG_KEY: &'static str = "py_sys_config";
 
-// A list of python interpreter compile-time preprocessor defines that
-// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
-// this allows using them conditional cfg attributes in the .rs files, so
-//
-// #[cfg(py_sys_config="{varname}"]
-//
-// is the equivalent of #ifdef {varname} name in C.
-//
-// see Misc/SpecialBuilds.txt in the python source for what these mean.
-//
-// (hrm, this is sort of re-implementing what distutils does, except
-// by passing command line args instead of referring to a python.h)
+/// A list of python interpreter compile-time preprocessor defines that
+/// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
+/// this allows using them conditional cfg attributes in the .rs files, so
+///
+/// #[cfg(py_sys_config="{varname}"]
+///
+/// is the equivalent of #ifdef {varname} name in C.
+///
+/// see Misc/SpecialBuilds.txt in the python source for what these mean.
+///
+/// (hrm, this is sort of re-implementing what distutils does, except
+/// by passing command line args instead of referring to a python.h)
 #[cfg(not(target_os = "windows"))]
 static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "Py_USING_UNICODE",
@@ -239,11 +239,16 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 }
 
 /// Locate a suitable python interpreter and extract config from it.
-/// If the environment variable `PYTHON_SYS_EXECUTABLE`, use the provided
-/// path a Python executable, and raises an error if the version doesn't match.
-/// Else tries to execute the interpreter as "python", "python{major version}",
-/// "python{major version}.{minor version}" in order until one
-/// is of the version we are expecting.
+///
+/// The following locations are checked in the order listed:
+///
+/// 1. If `PYTHON_SYS_EXECUTABLE` is set, this intepreter is used and an error is raised if the
+/// version doesn't match.
+/// 2. `python`
+/// 3. `python{major version}`
+/// 4. `python{major version}.{minor version}`
+///
+/// If none of the above works, an error is returned
 fn find_interpreter_and_get_config(
     expected_version: &PythonVersion,
 ) -> Result<(PythonVersion, String, Vec<String>), String> {
@@ -486,7 +491,6 @@ fn main() {
     // rust-cypthon/build.rs contains an example of how to unpack this data
     // into cfg flags that replicate the ones present in this library, so
     // you can use the same cfg syntax.
-    //let mut flags = flags;
     let flags: String = config_map.iter().fold("".to_owned(), |memo, (key, val)| {
         if is_value(key) {
             memo + format!("VAL_{}={},", key, val).as_ref()
@@ -505,4 +509,16 @@ fn main() {
             ""
         }
     );
+
+    let env_vars = [
+        "LD_LIBRARY_PATH",
+        "LIBRARY_PATH",
+        "PATH",
+        "PYTHON_LIB",
+        "PYTHON_SYS_EXECUTABLE",
+    ];
+
+    for var in env_vars.iter() {
+        println!("cargo:rerun-if-env-changed={}", var);
+    }
 }
