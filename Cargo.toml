@@ -29,7 +29,7 @@ pyo3cls = { path = "pyo3cls", version = "0.2.5" }
 docmatic = "^0.1.2"
 
 [build-dependencies]
-regex = "0.2"
+regex = "1.0"
 version_check = "0.1"
 
 [features]
