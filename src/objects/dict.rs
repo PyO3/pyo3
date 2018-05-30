@@ -227,31 +227,17 @@ impl <K, V> IntoPyObject for collections::BTreeMap<K, V>
     }
 }
 
-impl <K, V, H> IntoPyDictPointer for collections::HashMap<K, V, H>
-    where K: hash::Hash+cmp::Eq+ToPyObject,
-          V: ToPyObject,
-          H: hash::BuildHasher
+impl <K, V, I> IntoPyDictPointer for I
+where
+    K: ToPyObject,
+    V: ToPyObject,
+    I: IntoIterator<Item = (K, V)>
 {
-    #[must_use]
-    fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
+    default fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
-        dict.into_ptr()
-    }
-}
-
-impl <K, V> IntoPyDictPointer for collections::BTreeMap<K, V>
-    where K: cmp::Eq+ToPyObject,
-          V: ToPyObject
-{
-    #[must_use]
-    fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
-        let dict = PyDict::new(py);
-        for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+        }
         dict.into_ptr()
     }
 }
@@ -621,6 +607,24 @@ mod test {
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+    }
+
+    #[test]
+    fn test_vec_into_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let map = vec![
+            ("a", 1),
+            ("b", 2),
+            ("c", 3),
+        ];
+        let m = map.into_dict_ptr(py);
+        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+
+        assert!(py_map.len() == 3);
+        assert!(py_map.get_item("b").unwrap().extract::<i32>().unwrap() == 2);
     }
 
     #[test]
