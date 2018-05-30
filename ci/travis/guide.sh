@@ -19,7 +19,9 @@ fi
 # This builds the book in target/doc/guide. See https://github.com/rust-lang-nursery/mdBook/issues/698
 mdbook build -d ../target/doc/guide guide
 
-LASTEST_TAG=$(git tag -l "v*" | tail -n1)
+# Get the lastest tag across all branches
+# https://stackoverflow.com/a/7261049/3549270
+LASTEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1 -l v*))
 
 git clone -b gh-pages https://$GH_TOKEN@github.com/$TRAVIS_REPO_SLUG.git gh_pages
 cd gh_pages
