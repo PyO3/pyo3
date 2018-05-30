@@ -21,6 +21,7 @@ mdbook build -d ../target/doc/guide guide
 
 # Get the lastest tag across all branches
 # https://stackoverflow.com/a/7261049/3549270
+git fetch --tags
 LASTEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1 -l v*))
 
 git clone -b gh-pages https://$GH_TOKEN@github.com/$TRAVIS_REPO_SLUG.git gh_pages
