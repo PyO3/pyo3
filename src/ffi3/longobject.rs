@@ -1,5 +1,7 @@
 use libc::size_t;
-use std::os::raw::{c_void, c_char, c_int, c_long, c_ulong, c_longlong, c_ulonglong, c_double};
+use std::os::raw::{
+    c_void, c_char, c_int, c_long, c_ulong, c_longlong, c_ulonglong, c_double, c_uchar
+};
 use ffi3::object::*;
 use ffi3::pyport::Py_ssize_t;
 
@@ -59,3 +61,20 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
      -> c_long;
 }
 
+#[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    pub fn _PyLong_FromByteArray(
+        arg1: *const c_uchar,
+        arg2: size_t,
+        arg3: c_int, // is_little_endian
+        arg4: c_int, // is_signed
+    ) -> *mut PyObject;
+    pub fn _PyLong_AsByteArray(
+        arg1: *mut PyLongObject,
+        arg2: *const c_uchar,
+        arg3: size_t,
+        arg4: c_int, // is_little_endian
+        arg5: c_int, // is_signed
+    ) -> c_int;
+}
