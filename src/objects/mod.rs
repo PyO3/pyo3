@@ -230,6 +230,9 @@ mod stringutils;
 mod set;
 pub mod exc;
 
+#[macro_use]
+mod num_common;
+
 #[cfg(Py_3)]
 mod num3;
 
