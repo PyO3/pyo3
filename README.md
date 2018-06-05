@@ -48,14 +48,15 @@ fn main() -> PyResult<()> {
 
 ### As native module
 
-Pyo3 can be used to write native python module. The example will generate a python-compatible library.
-
-For MacOS, "-C link-arg=-undefined -C link-arg=dynamic_lookup" is required to build the library.
-`setuptools-rust` includes this by default. See [examples/word-count](examples/word-count) and the associated setup.py. Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
+Pyo3 can be used to generate a python-compatible library.
 
 **`Cargo.toml`:**
 
 ```toml
+[package]
+name = "rust2py"
+version = "0.1.0"
+
 [lib]
 name = "rust2py"
 crate-type = ["cdylib"]
@@ -99,7 +100,13 @@ fn sum_as_string(a:i64, b:i64) -> String {
 
 ```
 
-For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setuptools-rust)
+**To build**: `cargo rustc --release`
+
+**On a Mac**: `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`
+
+Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
+
+[`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
 
 ## License
 
