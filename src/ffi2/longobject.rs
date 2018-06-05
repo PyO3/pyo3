@@ -60,16 +60,17 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
     pub fn PyLong_GetInfo() -> *mut PyObject;
     
     pub fn _PyLong_FromByteArray(
-        arg1: *const c_uchar,
-        arg2: size_t,
-        arg3: c_int, // is_little_endian
-        arg4: c_int, // is_signed
+        bytes: *const c_uchar,
+        n: size_t,
+        little_endian: c_int,
+        is_signed: c_int,
     ) -> *mut PyObject;
+
     pub fn _PyLong_AsByteArray(
-        arg1: *mut PyLongObject,
-        arg2: *const c_uchar,
-        arg3: size_t,
-        arg4: c_int, // is_little_endian
-        arg5: c_int, // is_signed
+        v: *mut PyLongObject,
+        bytes: *const c_uchar,
+        n: size_t,
+        little_endian: c_int,
+        is_signed: c_int,
     ) -> c_int;
 }
