@@ -7,7 +7,7 @@ When reporting a bug, please provide the following information. If this is not a
  - Your operating system and version:
  - Your python version:
  - How did you install python (e.g. apt or pyenv)? Did you use a virtualenv?:
- - Your rust version:
+ - Your rust version (`rustc --version`):
 
 ### 💥 Reproducing
 
