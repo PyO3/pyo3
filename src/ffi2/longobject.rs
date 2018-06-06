@@ -1,10 +1,11 @@
-use std::os::raw::{c_void, c_char, c_int, c_long, c_ulong, c_longlong, c_ulonglong, c_double};
+use std::os::raw::{
+    c_void, c_char, c_int, c_long, c_ulong, c_longlong, c_ulonglong, c_double, c_uchar
+};
 use libc::size_t;
 use ffi2::pyport::Py_ssize_t;
 use ffi2::object::*;
 
-//enum PyLongObject { /* representation hidden */ }
-
+pub enum PyLongObject {}
 
 #[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     pub static mut PyLong_Type: PyTypeObject;
@@ -58,26 +59,18 @@ pub unsafe fn PyLong_CheckExact(op : *mut PyObject) -> c_int {
     
     pub fn PyLong_GetInfo() -> *mut PyObject;
     
-    /*
-    pub fn _PyLong_AsInt(arg1: *mut PyObject) -> c_int;
-    pub fn _PyLong_Frexp(a: *mut PyLongObject, e: *mut Py_ssize_t)
-     -> c_double;
-    
-    pub fn _PyLong_Sign(v: *mut PyObject) -> c_int;
-    pub fn _PyLong_NumBits(v: *mut PyObject) -> size_t;
-    pub fn _PyLong_FromByteArray(bytes: *const c_uchar, n: size_t,
-                                 little_endian: c_int,
-                                 is_signed: c_int) -> *mut PyObject;
-    pub fn _PyLong_AsByteArray(v: *mut PyLongObject,
-                               bytes: *mut c_uchar, n: size_t,
-                               little_endian: c_int,
-                               is_signed: c_int) -> c_int;
-    pub fn _PyLong_Format(aa: *mut PyObject, base: c_int,
-                          addL: c_int, newstyle: c_int)
-     -> *mut PyObject;
-    pub fn _PyLong_FormatAdvanced(obj: *mut PyObject,
-                                  format_spec: *mut c_char,
-                                  format_spec_len: Py_ssize_t)
-     -> *mut PyObject;*/
-}
+    pub fn _PyLong_FromByteArray(
+        bytes: *const c_uchar,
+        n: size_t,
+        little_endian: c_int,
+        is_signed: c_int,
+    ) -> *mut PyObject;
 
+    pub fn _PyLong_AsByteArray(
+        v: *mut PyLongObject,
+        bytes: *const c_uchar,
+        n: size_t,
+        little_endian: c_int,
+        is_signed: c_int,
+    ) -> c_int;
+}
