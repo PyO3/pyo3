@@ -136,14 +136,12 @@ int_convert_bignum!(u128, 16, IS_LITTLE_ENDIAN, 0);
 
 #[cfg(test)]
 mod test {
-    use python::Python;
-    use conversion::ToPyObject;
-
     macro_rules! test_common (
         ($test_mod_name:ident, $t:ty) => (
             mod $test_mod_name {
-                use super::*;
                 use objects::exc;
+                use conversion::ToPyObject;
+                use python::Python;
 
                 #[test]
                 fn from_py_string_type_error() {

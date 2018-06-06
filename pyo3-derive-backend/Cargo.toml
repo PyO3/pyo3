@@ -13,7 +13,9 @@ license = "Apache-2.0"
 [dependencies]
 log="0.4"
 quote="0.5"
+# proc-macro2 is pinned to -Z minimal-versions pass (until the next syn upgrade)
+proc-macro2="0.3.8"
 
 [dependencies.syn]
-version="0.13"
+version="0.13.11"
 features=["full", "parsing", "printing", "extra-traits"]

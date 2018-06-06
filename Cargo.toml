@@ -30,7 +30,7 @@ docmatic = "^0.1.2"
 
 [build-dependencies]
 regex = "1.0"
-version_check = "0.1"
+version_check = "0.1.3"
 
 [features]
 default = []
@@ -40,9 +40,6 @@ python2 = []
 
 # Use this feature when building python3 binding.
 python3 = []
-
-# Enable additional features that require nightly rust
-#nightly = []
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
