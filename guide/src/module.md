@@ -1,26 +1,6 @@
 # Python Module
 
-Python module generation is powered by unstable [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html) feature, so you need to turn on `proc_macro` feature:
-
-```rust
-#![feature(proc_macro)]
-
-extern crate pyo3;
-# fn main() {}
-```
-
-You need to change your `crate-type` to `cdylib` to produce a Python compatible library:
-
-```toml
-[lib]
-name = "rust2py"
-crate-type = ["cdylib"]
-
-[dependencies]
-pyo3 = { version = "0.2", features = ["extension-module"] }
-```
-
-Now you can write your module, for example
+As shown in the Getting Started chapter, you can create a module as follows:
 
 ```rust
 #![feature(proc_macro)]

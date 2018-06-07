@@ -31,7 +31,7 @@ pub use self::num3::PyLong as PyInt;
 pub use self::num2::{PyInt, PyLong};
 
 
-/// Implements typesafe conversions from a PyObjectRef, given a typecheck function as second
+/// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
 /// parameter
 #[macro_export]
 macro_rules! pyobject_downcast(
@@ -178,6 +178,9 @@ macro_rules! pyobject_native_type_convert(
     };
 );
 
+/// Implements [FromPyObject] and (currently deactivated until it's stabillized) a
+/// [TryFrom](std::convert::TryFrom) implementation, given a function body that performs the actual
+/// conversion
 #[macro_export]
 macro_rules! pyobject_extract(
     ($obj:ident to $t:ty => $body: block) => {
@@ -185,9 +188,6 @@ macro_rules! pyobject_extract(
         {
             fn extract($obj: &'source $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
-                #[allow(unused_imports)]
-                use objectprotocol::ObjectProtocol;
-
                 $body
             }
         }
@@ -199,9 +199,6 @@ macro_rules! pyobject_extract(
 
             fn try_from($obj: &$crate::PyObjectRef) -> Result<Self, $crate::PyErr>
             {
-                #[allow(unused_imports)]
-                use $crate::ObjectProtocol;
-
                 $body
             }
         }
@@ -232,6 +229,9 @@ mod stringdata;
 mod stringutils;
 mod set;
 pub mod exc;
+
+#[macro_use]
+mod num_common;
 
 #[cfg(Py_3)]
 mod num3;

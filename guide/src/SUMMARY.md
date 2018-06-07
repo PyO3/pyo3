@@ -1,8 +1,7 @@
 # Summary
 
-[Overview](./overview.md)
-
-link-arg=-undefi- [Type Conversions](./conversions.md)
+- [Get Started](./overview.md)
+- [Type Conversions](./conversions.md)
 - [Python Exception](./exception.md)
 - [Python Module](./module.md)
 - [Python Function](./function.md)

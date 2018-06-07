@@ -3,9 +3,10 @@ name = "pyo3cls"
 version = "0.2.5"
 description = "Proc macros for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
+keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3.git"
-documentation = "http://pyo3.github.io/PyO3/pyo3/"
+documentation = "https://pyo3.github.io/pyo3/guide/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 

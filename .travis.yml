@@ -48,7 +48,7 @@ install:
   - pip install setuptools-rust pytest pytest-benchmark
 
 script:
-  - source ./ci/travis/test.sh
+  - ./ci/travis/test.sh
 
 deploy:
   - provider: script
@@ -63,4 +63,3 @@ deploy:
       branch: master
       repo: PyO3/pyo3
       python: 3.6
-    

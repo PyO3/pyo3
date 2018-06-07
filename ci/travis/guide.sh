@@ -1,27 +1,39 @@
 #!/bin/sh
 
-set -e
+set -ex
 
 ### Setup latest mdbook version ################################################
 
 INSTALLED=$(echo $(mdbook --version 2>/dev/null || echo "mdbook none") | cut -d' ' -f1)
-LATEST=0.1.5
+PINNED=0.1.5
 
-if [ "$LATEST" != "$INSTALLED" ]; then
-    URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${LATEST}/mdbook-v${LATEST}-x86_64-unknown-linux-gnu.tar.gz
+if [ "$PINNED" != "$INSTALLED" ]; then
+    URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${PINNED}/mdbook-v${PINNED}-x86_64-unknown-linux-gnu.tar.gz
     curl -SsL $URL | tar xvz -C $HOME/.cargo/bin
 fi
 
-### Build API reference ########################################################
+### Build the guide ################################################################
+# Build and then upload the guide to a specific folder on the gh-pages branch. This way we can have multiple versions
+# of the guide at the same time (See #165)
 
-cargo doc --no-deps -p pyo3 -p pyo3cls
-echo "<meta http-equiv=refresh content=0;url='guide/'>" > target/doc/index.html
+# This builds the book in target/doc/guide. See https://github.com/rust-lang-nursery/mdBook/issues/698
+mdbook build -d ../target/doc/guide guide
 
+# Get the lastest tag across all branches
+# https://stackoverflow.com/a/7261049/3549270
+git fetch --tags
+LASTEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1 -l v*))
 
-### Build guide ################################################################
+git clone -b gh-pages https://$GH_TOKEN@github.com/$TRAVIS_REPO_SLUG.git gh_pages
+cd gh_pages
 
-mdbook build -d target/doc/guide guide
+echo "<meta http-equiv=refresh content=0;url='${LASTEST_TAG}/'>" > index.html
+echo "pyo3.rs" > CNAME
 
-git clone https://github.com/davisp/ghp-import.git
-./ghp-import/ghp_import.py -n -p -f -m "Documentation upload" -r https://"$GH_TOKEN"@github.com/"$TRAVIS_REPO_SLUG.git" target/doc
-echo "Uploaded documentation"
+# For builds triggered by a tag, $TRAVIS_BRANCH will be set to the tag
+rm -rf "$TRAVIS_BRANCH"
+cp -r ../target/doc/guide "$TRAVIS_BRANCH"
+git add --all
+git commit -m "Upload documentation for $TRAVIS_BRANCH"
+
+git push -f

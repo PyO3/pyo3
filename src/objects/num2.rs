@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::os::raw::c_long;
+use std::os::raw::{c_long, c_uchar};
 
 extern crate num_traits;
 use self::num_traits::cast::cast;
@@ -14,6 +14,7 @@ use err::{PyResult, PyErr};
 use instance::{Py, PyObjectWithToken};
 use objects::{exc, PyObjectRef};
 use conversion::{ToPyObject, IntoPyObject, FromPyObject};
+use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 
 /// Represents a Python `int` object.
 ///
@@ -90,41 +91,6 @@ macro_rules! int_fits_c_long(
     )
 );
 
-
-macro_rules! int_fits_larger_int(
-    ($rust_type:ty, $larger_type:ty) => (
-        impl ToPyObject for $rust_type {
-            #[inline]
-            fn to_object(&self, py: Python) -> PyObject {
-                (*self as $larger_type).to_object(py)
-            }
-        }
-        impl IntoPyObject for $rust_type {
-            fn into_object(self, py: Python) -> PyObject {
-                (self as $larger_type).into_object(py)
-            }
-        }
-        pyobject_extract!(obj to $rust_type => {
-            let val = try!(obj.extract::<$larger_type>());
-            match cast::<$larger_type, $rust_type>(val) {
-                Some(v) => Ok(v),
-                None => Err(exc::OverflowError.into())
-            }
-        });
-    )
-);
-
-
-fn err_if_invalid_value<'p, T: PartialEq>
-    (py: Python, invalid_value: T, actual_value: T) -> PyResult<T>
-{
-    if actual_value == invalid_value && PyErr::occurred(py) {
-        Err(PyErr::fetch(py))
-    } else {
-        Ok(actual_value)
-    }
-}
-
 macro_rules! int_convert_u64_or_i64 (
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ull_or_ull:expr) => (
         impl ToPyObject for $rust_type {
@@ -174,7 +140,6 @@ macro_rules! int_convert_u64_or_i64 (
     )
 );
 
-
 int_fits_c_long!(i8);
 int_fits_c_long!(u8);
 int_fits_c_long!(i16);
@@ -204,10 +169,11 @@ int_fits_larger_int!(usize, u64);
 // u64 has a manual implementation as it never fits into signed long
 int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
 
+int_convert_bignum!(i128, 16, IS_LITTLE_ENDIAN, 1);
+int_convert_bignum!(u128, 16, IS_LITTLE_ENDIAN, 0);
 
 #[cfg(test)]
 mod test {
-    use std;
     use python::{Python};
     use conversion::ToPyObject;
 
@@ -236,52 +202,11 @@ mod test {
     num_to_py_object_and_back!(to_from_u64, u64, u64);
     num_to_py_object_and_back!(to_from_isize, isize, isize);
     num_to_py_object_and_back!(to_from_usize, usize, usize);
+    num_to_py_object_and_back!(to_from_i128, i128, i128);
+    num_to_py_object_and_back!(to_from_u128, u128, u128);
     num_to_py_object_and_back!(float_to_i32, f64, i32);
     num_to_py_object_and_back!(float_to_u32, f64, u32);
     num_to_py_object_and_back!(float_to_i64, f64, i64);
     num_to_py_object_and_back!(float_to_u64, f64, u64);
     num_to_py_object_and_back!(int_to_float, i32, f64);
-
-    #[test]
-    fn test_u32_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::u32::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<u32>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
-    }
-    
-    #[test]
-    fn test_i64_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::i64::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<u32>(py).is_err());
-    }
-    
-    #[test]
-    fn test_i64_min() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::i64::MIN;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<i64>(py).unwrap());
-        assert!(obj.extract::<i32>(py).is_err());
-        assert!(obj.extract::<u64>(py).is_err());
-    }
-    
-    #[test]
-    fn test_u64_max() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = std::u64::MAX;
-        let obj = v.to_object(py);
-        assert_eq!(v, obj.extract::<u64>(py).unwrap());
-        assert!(obj.extract::<i64>(py).is_err());
-    }
 }
