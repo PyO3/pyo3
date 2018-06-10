@@ -14,8 +14,22 @@ except ImportError:
     else:
         from setuptools_rust import RustExtension
 
+class PyTest(TestCommand):
+    user_options = []
+    
+    def run(self):
+        self.run_command("test_rust")
+
+        import subprocess
+        import sys
+        errno = subprocess.call([sys.executable, '-m', 'pytest', 'tests'])
+        raise SystemExit(errno)
+
+
 setup_requires = ['setuptools-rust>=0.6.1']
 install_requires = []
+tests_require = install_requires + ['pytest']
+
 
 setup(
     name='my-class',
@@ -27,4 +41,5 @@ setup(
     setup_requires=setup_requires,
     include_package_data=True,
     zip_safe=False,
+    cmdclass=dict(test=PyTest)
 )
