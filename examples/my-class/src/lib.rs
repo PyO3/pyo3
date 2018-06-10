@@ -7,8 +7,9 @@ use pyo3::py::{class, methods, modinit};
 
 #[class]
 struct MyClass{
+    #[prop(clone_get, set)]
     title: String, // has Clone trait
-    // #[prop(get, set)]
+    #[prop(get, set)]
     num: i32 // has Copy trait
 }
 
