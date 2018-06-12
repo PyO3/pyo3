@@ -1,0 +1,13 @@
+[package]
+authors = ["Antonio Yang<yanganto@gmail.com>"]
+name = "my-class"
+version = "0.1.0"
+
+[dependencies]
+
+[dependencies.pyo3]
+path = "../../"
+
+[lib]
+name = "my_class"
+crate-type = ["cdylib"]

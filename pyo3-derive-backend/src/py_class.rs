@@ -68,6 +68,9 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
                                 "get" => {
                                     descs.push(FnType::Getter(None));
                                 }
+                                "clone_get" => {
+                                    descs.push(FnType::CloneGetter(None));
+                                }
                                 "set" => {
                                     descs.push(FnType::Setter(None));
                                 }
@@ -307,6 +310,15 @@ fn impl_descriptors(
                         }
                     }
                 }
+                FnType::CloneGetter(_) => {
+                    quote! {
+                        impl #cls {
+                            fn #name(&self) -> _pyo3::PyResult<#field_ty> {
+                                Ok(self.#name.clone())
+                            }
+                        }
+                    }
+                }
                 FnType::Setter(_) => {
                     let setter_name = syn::Ident::from(format!("set_{}", name));
                     quote! {
@@ -333,6 +345,9 @@ fn impl_descriptors(
             let field_ty = &field.ty;
             match *desc {
                 FnType::Getter(ref getter) => {
+                    impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
+                }
+                FnType::CloneGetter(ref getter) => {
                     impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
                 }
                 FnType::Setter(ref setter) => {

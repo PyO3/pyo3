@@ -22,6 +22,7 @@ pub struct FnArg<'a> {
 #[derive(Clone, PartialEq, Debug)]
 pub enum FnType {
     Getter(Option<String>),
+    CloneGetter(Option<String>),
     Setter(Option<String>),
     Fn,
     FnNew,

@@ -33,6 +33,8 @@ pub fn gen_py_method<'a>(
             impl_py_method_def_static(name, doc, &impl_wrap_static(cls, name, &spec)),
         FnType::Getter(ref getter) =>
             impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name)),
+        FnType::CloneGetter(ref getter) =>
+            impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name)),
         FnType::Setter(ref setter) =>
             impl_py_setter_def(name, doc, setter, &impl_wrap_setter(cls, name, &spec)),
     }
