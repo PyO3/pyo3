@@ -302,7 +302,7 @@ fn impl_descriptors(
                     quote! {
                         impl #cls {
                             fn #name(&self) -> _pyo3::PyResult<#field_ty> {
-                                Ok(self.#name)
+                                Ok(self.#name.clone())
                             }
                         }
                     }

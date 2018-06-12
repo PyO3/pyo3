@@ -54,6 +54,8 @@ fn class_with_properties() {
 struct GetterSetter {
     #[prop(get, set)]
     num: i32,
+    #[prop(get, set)]
+    text: String,
     token: PyToken
 }
 
@@ -70,8 +72,9 @@ fn getter_setter_autogen() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| GetterSetter{num: 10, token: t}).unwrap();
+    let inst = py.init(|t| GetterSetter{num: 10, token: t, text: "Hello".to_string()}).unwrap();
 
     py_run!(py, inst, "assert inst.num == 10");
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+    py_run!(py, inst, "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'");
 }

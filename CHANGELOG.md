@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+* Always clone in getters. This allows using the get-annotation on all Clone-Types
+
 ## 0.2.7 (2018-05-18)
 
 * Fix nightly breakage with proc_macro_path
