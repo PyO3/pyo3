@@ -45,3 +45,10 @@ python3 = []
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
 extension-module = []
+
+[workspace]
+members = [
+    "pyo3cls",
+    "pyo3-derive-backend",
+    "examples/*",
+]

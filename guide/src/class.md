@@ -47,7 +47,7 @@ are generated only if struct contains `PyToken` attribute.
 
 TODO - continue
 
-## class macro
+## The `#[class]` macro
 
 Python class generation is powered by [Procedural Macros](https://doc.rust-lang.org/book/first-edition/procedural-macros.html).
 To define python custom class, rust struct needs to be annotated with `#[class]` attribute.
@@ -65,7 +65,7 @@ python object that can be collector `PyGCProtocol` trait has to be implemented.
 * `base=BaseType` - use custom base class. BaseType is type which is
 implements `PyTypeInfo` trait.
 * `subclass` - adds subclass support so that Python classes can inherit from this class
-* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables
+* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables.
 
 
 ## Constructor

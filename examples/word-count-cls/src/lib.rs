@@ -1,7 +1,6 @@
 // Source adopted from
 // https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
 #![feature(proc_macro, specialization)]
-#![feature(const_fn, const_align_of, const_size_of, const_ptr_null, const_ptr_null_mut)]
 
 extern crate pyo3;
 extern crate rayon;
@@ -16,7 +15,7 @@ use pyo3::py::methods as pymethods;
 use pyo3::py::class as pyclass;
 use pyo3::py::modinit as pymodinit;
 
-#[pyclass]
+#[pyclass(dict)]
 struct WordCounter {
     path: String,
     token: PyToken,
@@ -27,7 +26,7 @@ impl WordCounter {
 
     #[new]
     fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
-        obj.init(|t| WordCounter {path: path, token: t})
+        obj.init(|t| WordCounter {path, token: t})
     }
 
     fn search(&self, py: Python, search: String) -> PyResult<i32> {

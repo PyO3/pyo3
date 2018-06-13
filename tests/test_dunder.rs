@@ -371,16 +371,16 @@ fn context_manager() {
     let py = gil.python();
 
     let c = py.init_mut(|t| ContextManager{exit_called: false, token: t}).unwrap();
-    py_run!(py, c, "with c as x:\n  assert x == 42");
+    py_run!(py, c, "with c as x: assert x == 42");
     assert!(c.exit_called);
 
     c.exit_called = false;
-    py_run!(py, c, "with c as x:\n  raise ValueError");
+    py_run!(py, c, "with c as x: raise ValueError");
     assert!(c.exit_called);
 
     c.exit_called = false;
     py_expect_exception!(
-        py, c, "with c as x:\n  raise NotImplementedError", NotImplementedError);
+        py, c, "with c as x: raise NotImplementedError", NotImplementedError);
     assert!(c.exit_called);
 }
 
@@ -434,3 +434,40 @@ fn test_cls_impl() {
     py.run("assert ob[1] == 'int'", None, Some(d)).unwrap();
     py.run("assert ob[100:200:1] == 'slice'", None, Some(d)).unwrap();
 }
+
+#[pyclass(dict)]
+struct DunderDictSupport {
+    token: PyToken,
+}
+
+#[test]
+fn dunder_dict_support() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = Py::new_ref(py, |t| DunderDictSupport{token: t}).unwrap();
+    py_run!(py, inst, r#"
+        inst.a = 1
+        assert inst.a == 1
+    "#);
+
+    py_run!(py, inst, r#"
+        import copy
+        inst2 = copy.deepcopy(inst)
+        inst2.a = 2
+        assert inst.a == 1
+    "#);
+}
+
+#[pyclass(weakref, dict)]
+struct WeakRefDunderDictSupport {
+    token: PyToken,
+}
+
+#[test]
+fn weakref_dunder_dict_support() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport{token: t}).unwrap();
+    py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
+}
+

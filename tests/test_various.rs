@@ -11,34 +11,6 @@ use pyo3::py::methods as pymethods;
 #[macro_use]
 mod common;
 
-
-#[pyclass(dict)]
-struct DunderDictSupport {
-    token: PyToken,
-}
-
-#[test]
-fn dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = Py::new_ref(py, |t| DunderDictSupport{token: t}).unwrap();
-    py_run!(py, inst, "inst.a = 1; assert inst.a == 1");
-}
-
-#[pyclass(weakref, dict)]
-struct WeakRefDunderDictSupport {
-    token: PyToken,
-}
-
-#[test]
-fn weakref_dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport{token: t}).unwrap();
-    py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
-}
-
-
 #[pyclass]
 struct MutRefArg {
     n: i32,

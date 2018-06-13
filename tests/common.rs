@@ -1,9 +1,23 @@
+/// Removes indentation from multiline strings in pyrun commands
+pub fn indoc(commands: &str) -> String {
+    let indent;
+    if let Some(second) = commands.lines().nth(1) {
+        indent = second.chars().take_while(char::is_ascii_whitespace).collect::<String>();
+    } else {
+        indent = "".to_string();
+    }
+
+    commands.trim_right().replace(&("\n".to_string() + &indent), "\n") + "\n"
+}
+
 #[macro_export]
 macro_rules! py_run {
     ($py:expr, $val:ident, $code:expr) => {{
         let d = PyDict::new($py);
         d.set_item(stringify!($val), &$val).unwrap();
-        $py.run($code, None, Some(d)).map_err(|e| e.print($py)).expect($code);
+        $py.run(&common::indoc($code), None, Some(d))
+            .map_err(|e| e.print($py))
+            .expect(&common::indoc($code));
     }}
 }
 

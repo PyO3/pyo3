@@ -420,11 +420,6 @@ fn parse_attribute(
     let mut flags = vec![syn::Expr::Lit(parse_quote!{0})];
     let mut base: syn::TypePath = parse_quote!{_pyo3::PyObjectRef};
 
-    // https://github.com/rust-lang/rust/pull/50120 removed the parantheses from
-    // the attr TokenStream, so we need to re-add them manually
-    // Old nightly (like 2018-04-05): ( name=CustomName )
-    // New nightly (like 2018-04-28): name=CustomName
-
     for expr in args.iter() {
         match expr {
 
