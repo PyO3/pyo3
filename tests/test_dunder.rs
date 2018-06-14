@@ -449,13 +449,6 @@ fn dunder_dict_support() {
         inst.a = 1
         assert inst.a == 1
     "#);
-
-    py_run!(py, inst, r#"
-        import copy
-        inst2 = copy.deepcopy(inst)
-        inst2.a = 2
-        assert inst.a == 1
-    "#);
 }
 
 #[pyclass(weakref, dict)]
@@ -470,4 +463,3 @@ fn weakref_dunder_dict_support() {
     let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport{token: t}).unwrap();
     py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
 }
-

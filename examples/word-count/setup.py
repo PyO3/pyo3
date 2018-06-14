@@ -27,7 +27,7 @@ class PyTest(TestCommand):
         raise SystemExit(errno)
 
 
-setup_requires = ['setuptools-rust>=0.6.0']
+setup_requires = ['setuptools-rust>=0.10.1']
 install_requires = []
 tests_require = install_requires + ['pytest', 'pytest-benchmark']
 
