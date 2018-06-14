@@ -4,7 +4,7 @@ CPython has an infamous GIL(Global Interpreter Lock) prevents developers
 getting true parallelism. With `pyo3` you can release GIL when executing
 Rust code to achieve true parallelism.
 
-The [`Python::allow_threads`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html#method.allow_threads)
+The [`Python::allow_threads`](https://docs.rs/pyo3/0.2.7/struct.Python.html#method.allow_threads)
 method temporarily releases the GIL, thus allowing other Python threads to run.
 
 ```rust,ignore
