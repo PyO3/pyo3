@@ -7,5 +7,6 @@
 - [Python Function](./function.md)
 - [Python Class](./class.md)
 - [Parallelism](./parallelism.md)
+- [Debugging](./debugging.md)
 - [Distribution](./distribution.md)
 - [Appendix: Pyo3 and rust-cpython](./rust-cpython.md)
