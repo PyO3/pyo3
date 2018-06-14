@@ -65,3 +65,6 @@ deploy:
       repo: PyO3/pyo3
       python: 3.6
       condition: $TRAVIS_EVENT_TYPE != "cron"
+
+notifications:
+  email: false
