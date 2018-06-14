@@ -6,7 +6,7 @@ authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3.git"
-documentation = "https://pyo3.github.io/pyo3/guide/"
+documentation = "https://docs.rs/pyo3cls"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
