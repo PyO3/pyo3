@@ -8,11 +8,11 @@ extern crate rayon;
 use std::fs::File;
 use std::io::prelude::*;
 
-use rayon::prelude::*;
 use pyo3::prelude::*;
+use rayon::prelude::*;
 
-use pyo3::py::methods as pymethods;
 use pyo3::py::class as pyclass;
+use pyo3::py::methods as pymethods;
 use pyo3::py::modinit as pymodinit;
 
 #[pyclass(dict)]
@@ -23,10 +23,9 @@ struct WordCounter {
 
 #[pymethods]
 impl WordCounter {
-
     #[new]
     fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
-        obj.init(|t| WordCounter {path, token: t})
+        obj.init(|t| WordCounter { path, token: t })
     }
 
     fn search(&self, py: Python, search: String) -> PyResult<i32> {
@@ -46,12 +45,13 @@ impl WordCounter {
     }
 }
 
-
 fn matches(word: &str, search: &str) -> bool {
     let mut search = search.chars();
     for ch in word.chars().skip_while(|ch| !ch.is_alphabetic()) {
         match search.next() {
-            None => { return !ch.is_alphabetic(); }
+            None => {
+                return !ch.is_alphabetic();
+            }
             Some(expect) => {
                 if ch.to_lowercase().next() != Some(expect) {
                     return false;
@@ -73,15 +73,14 @@ fn wc_line(line: &str, search: &str) -> i32 {
 }
 
 fn wc_sequential(lines: &str, search: &str) -> i32 {
-    lines.lines()
-         .map(|line| wc_line(line, search))
-         .fold(0, |sum, line| sum + line)
+    lines
+        .lines()
+        .map(|line| wc_line(line, search))
+        .fold(0, |sum, line| sum + line)
 }
 
 fn wc_parallel(lines: &str, search: &str) -> i32 {
-    lines.par_lines()
-         .map(|line| wc_line(line, search))
-         .sum()
+    lines.par_lines().map(|line| wc_line(line, search)).sum()
 }
 
 #[pymodinit(_word_count)]
