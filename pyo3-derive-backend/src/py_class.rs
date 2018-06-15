@@ -47,7 +47,6 @@ pub fn build_py_class(
                 unused_qualifications, unused_variables, non_camel_case_types)]
         const #dummy_const: () = {
             use std;
-            use pyo3 as _pyo3;
 
             #tokens
         };
@@ -105,36 +104,36 @@ fn impl_class(
 
     let extra = if let Some(token) = token {
         Some(quote! {
-            impl _pyo3::PyObjectWithToken for #cls {
+            impl ::pyo3::PyObjectWithToken for #cls {
                 #[inline(always)]
-                fn py<'p>(&'p self) -> _pyo3::Python<'p> {
+                fn py<'p>(&'p self) -> ::pyo3::Python<'p> {
                     self.#token.py()
                 }
             }
-            impl _pyo3::ToPyObject for #cls {
+            impl ::pyo3::ToPyObject for #cls {
                 #[inline]
-                fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
-                    unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+                fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+                    unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
-            impl _pyo3::ToBorrowedObject for #cls {
+            impl ::pyo3::ToBorrowedObject for #cls {
                 #[inline]
-                fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
-                    where F: FnOnce(*mut _pyo3::ffi::PyObject) -> R
+                fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
+                    where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
                 {
                     f(self.as_ptr())
                 }
             }
-            impl<'a> _pyo3::ToPyObject for &'a mut #cls {
+            impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
                 #[inline]
-                fn to_object<'p>(&self, py: _pyo3::Python<'p>) -> _pyo3::PyObject {
-                    unsafe { _pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+                fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+                    unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
-            impl<'a> _pyo3::ToBorrowedObject for &'a mut #cls {
+            impl<'a> ::pyo3::ToBorrowedObject for &'a mut #cls {
                 #[inline]
-                fn with_borrowed_ptr<F, R>(&self, _py: _pyo3::Python, f: F) -> R
-                    where F: FnOnce(*mut _pyo3::ffi::PyObject) -> R
+                fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
+                    where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
                 {
                     f(self.as_ptr())
                 }
@@ -145,12 +144,12 @@ fn impl_class(
                     unsafe{std::mem::transmute(ob)}
                 }
             }
-            impl _pyo3::ToPyPointer for #cls {
+            impl ::pyo3::ToPyPointer for #cls {
                 #[inline]
-                fn as_ptr(&self) -> *mut _pyo3::ffi::PyObject {
+                fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
                     unsafe {
                         {self as *const _ as *mut u8}
-                        .offset(-<#cls as _pyo3::typeob::PyTypeInfo>::OFFSET) as *mut _pyo3::ffi::PyObject
+                        .offset(-<#cls as ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
                     }
                 }
             }
@@ -176,16 +175,16 @@ fn impl_class(
     let extra = {
         if let Some(freelist) = params.get("freelist") {
             Some(quote! {
-                impl _pyo3::freelist::PyObjectWithFreeList for #cls {
+                impl ::pyo3::freelist::PyObjectWithFreeList for #cls {
                     #[inline]
-                    fn get_free_list() -> &'static mut _pyo3::freelist::FreeList<*mut _pyo3::ffi::PyObject> {
-                        static mut FREELIST: *mut _pyo3::freelist::FreeList<*mut _pyo3::ffi::PyObject> = 0 as *mut _;
+                    fn get_free_list() -> &'static mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
+                        static mut FREELIST: *mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> = 0 as *mut _;
                         unsafe {
                             if FREELIST.is_null() {
                                 FREELIST = Box::into_raw(Box::new(
-                                    _pyo3::freelist::FreeList::with_capacity(#freelist)));
+                                    ::pyo3::freelist::FreeList::with_capacity(#freelist)));
 
-                                <#cls as _pyo3::typeob::PyTypeObject>::init_type();
+                                <#cls as ::pyo3::typeob::PyTypeObject>::init_type();
                             }
                             &mut *FREELIST
                         }
@@ -215,26 +214,26 @@ fn impl_class(
     let mut has_dict = false;
     for f in flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
-            if epath.path == parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
+            if epath.path == parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
-            } else if epath.path == parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_DICT} {
+            } else if epath.path == parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_DICT} {
                 has_dict = true;
             }
         }
     }
     let weakref = if has_weakref {
-        quote!{std::mem::size_of::<*const _pyo3::ffi::PyObject>()}
+        quote!{std::mem::size_of::<*const ::pyo3::ffi::PyObject>()}
     } else {
         quote!{0}
     };
     let dict = if has_dict {
-        quote!{std::mem::size_of::<*const _pyo3::ffi::PyObject>()}
+        quote!{std::mem::size_of::<*const ::pyo3::ffi::PyObject>()}
     } else {
         quote!{0}
     };
 
     quote! {
-        impl _pyo3::typeob::PyTypeInfo for #cls {
+        impl ::pyo3::typeob::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
 
@@ -249,35 +248,35 @@ fn impl_class(
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
                 (
-                    (<#base as _pyo3::typeob::PyTypeInfo>::SIZE +
+                    (<#base as ::pyo3::typeob::PyTypeInfo>::SIZE +
                      std::mem::align_of::<#cls>() - 1)  /
                         std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()
                 ) as isize
             };
 
             #[inline]
-            unsafe fn type_object() -> &'static mut _pyo3::ffi::PyTypeObject {
-                static mut TYPE_OBJECT: _pyo3::ffi::PyTypeObject = _pyo3::ffi::PyTypeObject_INIT;
+            unsafe fn type_object() -> &'static mut ::pyo3::ffi::PyTypeObject {
+                static mut TYPE_OBJECT: ::pyo3::ffi::PyTypeObject = ::pyo3::ffi::PyTypeObject_INIT;
                 &mut TYPE_OBJECT
             }
         }
 
-        impl _pyo3::typeob::PyTypeObject for #cls {
+        impl ::pyo3::typeob::PyTypeObject for #cls {
             #[inline(always)]
             fn init_type() {
                 static START: std::sync::Once = std::sync::ONCE_INIT;
                 START.call_once(|| {
-                    let ty = unsafe{<#cls as _pyo3::typeob::PyTypeInfo>::type_object()};
+                    let ty = unsafe{<#cls as ::pyo3::typeob::PyTypeInfo>::type_object()};
 
-                    if (ty.tp_flags & _pyo3::ffi::Py_TPFLAGS_READY) == 0 {
-                        let gil = _pyo3::Python::acquire_gil();
+                    if (ty.tp_flags & ::pyo3::ffi::Py_TPFLAGS_READY) == 0 {
+                        let gil = ::pyo3::Python::acquire_gil();
                         let py = gil.python();
 
                         // automatically initialize the class on-demand
-                        _pyo3::typeob::initialize_type::<#cls>(py, None)
+                        ::pyo3::typeob::initialize_type::<#cls>(py, None)
                             .map_err(|e| e.print(py))
                             .expect(format!("An error occurred while initializing class {}",
-                                            <#cls as _pyo3::typeob::PyTypeInfo>::NAME).as_ref());
+                                            <#cls as ::pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }
                 });
             }
@@ -299,7 +298,7 @@ fn impl_descriptors(
                 FnType::Getter(_) => {
                     quote! {
                         impl #cls {
-                            fn #name(&self) -> _pyo3::PyResult<#field_ty> {
+                            fn #name(&self) -> ::pyo3::PyResult<#field_ty> {
                                 Ok(self.#name.clone())
                             }
                         }
@@ -309,7 +308,7 @@ fn impl_descriptors(
                     let setter_name = syn::Ident::new(&format!("set_{}", name), Span::call_site());
                     quote! {
                         impl #cls {
-                            fn #setter_name(&mut self, value: #field_ty) -> _pyo3::PyResult<()> {
+                            fn #setter_name(&mut self, value: #field_ty) -> ::pyo3::PyResult<()> {
                                 self.#name = value;
                                 Ok(())
                             }
@@ -364,9 +363,9 @@ fn impl_descriptors(
     let tokens = quote! {
         #(#methods)*
 
-        impl _pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
-            fn py_methods() -> &'static [_pyo3::class::PyMethodDefType] {
-                static METHODS: &'static [_pyo3::class::PyMethodDefType] = &[
+        impl ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
+            fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
+                static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#py_methods),*
                 ];
                 METHODS
@@ -381,14 +380,12 @@ fn impl_descriptors(
         _ => "CLS_METHODS".to_string()
     };
 
-    let dummy_const = syn::Ident::new(&format!("_IMPL_PYO3_DESCRIPTORS_{}", n), Span::call_site());
+    let dummy_const = syn::Ident::new(&format!("_IMPL_pyo3_DESCRIPTORS_{}", n), Span::call_site());
     quote! {
         #[feature(specialization)]
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, unused_imports)]
         const #dummy_const: () = {
-            use pyo3 as _pyo3;
-
             #tokens
         };
     }
@@ -416,7 +413,7 @@ fn parse_attribute(
 
     let mut params = HashMap::new();
     let mut flags = vec![syn::Expr::Lit(parse_quote!{0})];
-    let mut base: syn::TypePath = parse_quote!{_pyo3::PyObjectRef};
+    let mut base: syn::TypePath = parse_quote!{::pyo3::PyObjectRef};
 
     for expr in args.iter() {
         match expr {
@@ -425,16 +422,16 @@ fn parse_attribute(
             syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
                 match exp.path.segments.first().unwrap().value().ident.to_string().as_str() {
                     "gc" => {
-                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_GC}));
+                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_GC}));
                     }
                     "weakref" => {
-                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_WEAKREF}));
+                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_WEAKREF}));
                     }
                     "subclass" => {
-                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_BASETYPE}));
+                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_BASETYPE}));
                     }
                     "dict" => {
-                        flags.push(syn::Expr::Path(parse_quote!{_pyo3::typeob::PY_TYPE_FLAG_DICT}));
+                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_DICT}));
                     }
                     param => {
                         println!("Unsupported parameter: {}", param);

@@ -89,13 +89,13 @@ fn impl_proto_impl(
                                 impl #proto for #ty
                                 {
                                     #[inline]
-                                    fn #name() -> Option<_pyo3::class::methods::PyMethodDef> {
+                                    fn #name() -> Option<::pyo3::class::methods::PyMethodDef> {
                                         #meth
 
-                                        Some(_pyo3::class::PyMethodDef {
+                                        Some(::pyo3::class::PyMethodDef {
                                             ml_name: stringify!(#name),
-                                            ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                                            ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
+                                            ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
+                                            ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
                                             ml_doc: ""})
                                     }
                                 }
@@ -123,8 +123,6 @@ fn impl_proto_impl(
                 unused_qualifications, unused_variables,
                 unused_imports)]
         const #dummy_const: () = {
-            use pyo3 as _pyo3;
-
             #tokens
 
             #(#py_methods)*

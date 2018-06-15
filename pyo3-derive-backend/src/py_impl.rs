@@ -26,9 +26,9 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
     }
 
     let tokens = quote! {
-        impl _pyo3::class::methods::PyMethodsProtocolImpl for #ty {
-            fn py_methods() -> &'static [_pyo3::class::PyMethodDefType] {
-                static METHODS: &'static [_pyo3::class::PyMethodDefType] = &[
+        impl ::pyo3::class::methods::PyMethodsProtocolImpl for #ty {
+            fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
+                static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#methods),*
                 ];
                 METHODS
@@ -48,8 +48,6 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
         #[allow(non_upper_case_globals, unused_attributes,
                 unused_qualifications, unused_variables, unused_imports)]
         const #dummy_const: () = {
-            use pyo3 as _pyo3;
-
             #tokens
         };
     }

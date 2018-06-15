@@ -149,11 +149,11 @@ pub const CONTEXT: Proto = Proto {
     py_methods: &[
         PyMethod {
             name: "__enter__",
-            proto: "_pyo3::class::context::PyContextEnterProtocolImpl",
+            proto: "::pyo3::class::context::PyContextEnterProtocolImpl",
         },
         PyMethod {
             name: "__exit__",
-            proto: "_pyo3::class::context::PyContextExitProtocolImpl",
+            proto: "::pyo3::class::context::PyContextExitProtocolImpl",
         },
     ],
 };
@@ -200,11 +200,11 @@ pub const DESCR: Proto = Proto {
     py_methods: &[
         PyMethod {
             name: "__del__",
-            proto: "_pyo3::class::context::PyDescrDelProtocolImpl",
+            proto: "::pyo3::class::context::PyDescrDelProtocolImpl",
         },
         PyMethod {
             name: "__set_name__",
-            proto: "_pyo3::class::context::PyDescrNameProtocolImpl",
+            proto: "::pyo3::class::context::PyDescrNameProtocolImpl",
         },
     ],
 };
@@ -594,51 +594,51 @@ pub const NUM: Proto = Proto {
     py_methods: &[
         PyMethod {
             name: "__radd__",
-            proto: "_pyo3::class::number::PyNumberRAddProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRAddProtocolImpl"},
         PyMethod {
             name: "__rsub__",
-            proto: "_pyo3::class::number::PyNumberRSubProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRSubProtocolImpl"},
         PyMethod {
             name: "__rmul__",
-            proto: "_pyo3::class::number::PyNumberRMulProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRMulProtocolImpl"},
         PyMethod {
             name: "__rmatmul__",
-            proto: "_pyo3::class::number::PyNumberRMatmulProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRMatmulProtocolImpl"},
         PyMethod {
             name: "__rtruediv__",
-            proto: "_pyo3::class::number::PyNumberRTruedivProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRTruedivProtocolImpl"},
         PyMethod {
             name: "__rfloordiv__",
-            proto: "_pyo3::class::number::PyNumberRFloordivProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRFloordivProtocolImpl"},
         PyMethod {
             name: "__rmod__",
-            proto: "_pyo3::class::number::PyNumberRModProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRModProtocolImpl"},
         PyMethod {
             name: "__rdivmod__",
-            proto: "_pyo3::class::number::PyNumberRDivmodProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRDivmodProtocolImpl"},
         PyMethod {
             name: "__rpow__",
-            proto: "_pyo3::class::number::PyNumberRPowProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRPowProtocolImpl"},
         PyMethod {
             name: "__rlshift__",
-            proto: "_pyo3::class::number::PyNumberRLShiftProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRLShiftProtocolImpl"},
         PyMethod {
             name: "__rrshift__",
-            proto: "_pyo3::class::number::PyNumberRRShiftProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRRShiftProtocolImpl"},
         PyMethod {
             name: "__rand__",
-            proto: "_pyo3::class::number::PyNumberRAndProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRAndProtocolImpl"},
         PyMethod {
             name: "__rxor__",
-            proto: "_pyo3::class::number::PyNumberRXorProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRXorProtocolImpl"},
         PyMethod {
             name: "__ror__",
-            proto: "_pyo3::class::number::PyNumberROrProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberROrProtocolImpl"},
         PyMethod {
             name: "__complex__",
-            proto: "_pyo3::class::number::PyNumberComplexProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberComplexProtocolImpl"},
         PyMethod {
             name: "__round__",
-            proto: "_pyo3::class::number::PyNumberRoundProtocolImpl"},
+            proto: "::pyo3::class::number::PyNumberRoundProtocolImpl"},
     ]
 };

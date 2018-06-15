@@ -243,21 +243,20 @@ pub fn add_fn_to_module(
     let tokens = quote! {
         fn #function_wrapper_ident(py: ::pyo3::Python) -> ::pyo3::PyObject {
             use std;
-            use pyo3 as _pyo3;
 
             #wrapper
 
-            let _def = _pyo3::class::PyMethodDef {
+            let _def = ::pyo3::class::PyMethodDef {
                 ml_name: stringify!(#python_name),
-                ml_meth: _pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: _pyo3::ffi::METH_VARARGS | _pyo3::ffi::METH_KEYWORDS,
+                ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
+                ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
                 ml_doc: #doc,
             };
 
             let function = unsafe {
-                _pyo3::PyObject::from_owned_ptr_or_panic(
+                ::pyo3::PyObject::from_owned_ptr_or_panic(
                     py,
-                    _pyo3::ffi::PyCFunction_New(
+                    ::pyo3::ffi::PyCFunction_New(
                         Box::into_raw(Box::new(_def.as_method_def())),
                         std::ptr::null_mut()
                     )
@@ -294,20 +293,20 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
     quote! {
         #[allow(unused_variables, unused_imports)]
         unsafe extern "C" fn __wrap(
-            _slf: *mut _pyo3::ffi::PyObject,
-            _args: *mut _pyo3::ffi::PyObject,
-            _kwargs: *mut _pyo3::ffi::PyObject) -> *mut _pyo3::ffi::PyObject
+            _slf: *mut ::pyo3::ffi::PyObject,
+            _args: *mut ::pyo3::ffi::PyObject,
+            _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
-            let _pool = _pyo3::GILPool::new();
-            let _py = _pyo3::Python::assume_gil_acquired();
-            let _args = _py.from_borrowed_ptr::<_pyo3::PyTuple>(_args);
-            let _kwargs = _pyo3::argparse::get_kwargs(_py, _kwargs);
+            let _pool = ::pyo3::GILPool::new();
+            let _py = ::pyo3::Python::assume_gil_acquired();
+            let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
+            let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
 
             #body_to_result
-            _pyo3::callback::cb_convert(
-                _pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            ::pyo3::callback::cb_convert(
+                ::pyo3::callback::PyObjectCallbackConverter, _py, _result)
         }
     }
 }
