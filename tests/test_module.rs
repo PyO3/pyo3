@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate pyo3;
 
-use pyo3::{PyDict, PyModule, PyObject, PyResult, Python, ToPyObject};
+use pyo3::prelude::*;
 use pyo3::py::{class, function, modinit};
 
 

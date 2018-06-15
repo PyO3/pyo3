@@ -8,7 +8,7 @@ use std::ffi::{CStr, CString};
 
 use ffi;
 use typeob::{PyTypeInfo, initialize_type};
-use conversion::{ToPyObject, IntoPyTuple, FromPyObject};
+use conversion::{ToPyObject, IntoPyTuple};
 use object::PyObject;
 use python::{Python, ToPyPointer, IntoPyDictPointer};
 use objects::{PyObjectRef, PyDict, PyType, exc};
@@ -65,7 +65,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            <&PyModule as ::conversion::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 

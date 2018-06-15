@@ -1,4 +1,5 @@
 /// Removes indentation from multiline strings in pyrun commands
+#[allow(unused)] // macro scoping is fooling the compiler
 pub fn indoc(commands: &str) -> String {
     let indent;
     if let Some(second) = commands.lines().nth(1) {
