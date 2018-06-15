@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use syn;
-use quote::Tokens;
 use utils::print_err;
+use proc_macro2::{TokenStream, Span};
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -47,7 +47,7 @@ pub fn impl_method_proto(
     cls: &syn::Type,
     sig: &mut syn::MethodSig,
     meth: &MethodProto
-) -> Tokens {
+) -> TokenStream {
 
     if let MethodProto::Free{proto, ..} = meth {
         let p: syn::Path = syn::parse_str(proto).unwrap();
@@ -90,11 +90,11 @@ pub fn impl_method_proto(
 
                 if sig.decl.inputs.len() <= 1 {
                     println!("Not enough arguments for {}", name);
-                    return Tokens::new();
+                    return TokenStream::new();
                 }
 
                 let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg_name = syn::Ident::from(arg);
+                let arg_name = syn::Ident::new(arg, Span::call_site());
                 let arg_ty = get_arg_ty(sig, 1);
                 let (ty, succ) = get_res_success(ty);
 
@@ -129,12 +129,12 @@ pub fn impl_method_proto(
             MethodProto::BinaryS{name, arg1, arg2, pyres, proto} => {
                 if sig.decl.inputs.len() <= 1 {
                     print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return Tokens::new();
+                    return TokenStream::new();
                 }
                 let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::from(arg1);
+                let arg1_name = syn::Ident::new(arg1, Span::call_site());
                 let arg1_ty = get_arg_ty(sig, 0);
-                let arg2_name = syn::Ident::from(arg2);
+                let arg2_name = syn::Ident::new(arg2, Span::call_site());
                 let arg2_ty = get_arg_ty(sig, 1);
                 let (ty, succ) = get_res_success(ty);
 
@@ -174,12 +174,12 @@ pub fn impl_method_proto(
             MethodProto::Ternary{name, arg1, arg2, pyres, proto} => {
                 if sig.decl.inputs.len() <= 2 {
                     print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return Tokens::new();
+                    return TokenStream::new();
                 }
                 let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::from(arg1);
+                let arg1_name = syn::Ident::new(arg1, Span::call_site());
                 let arg1_ty = get_arg_ty(sig, 1);
-                let arg2_name = syn::Ident::from(arg2);
+                let arg2_name = syn::Ident::new(arg2, Span::call_site());
                 let arg2_ty = get_arg_ty(sig, 2);
                 let (ty, succ) = get_res_success(ty);
 
@@ -222,14 +222,14 @@ pub fn impl_method_proto(
             MethodProto::TernaryS{name, arg1, arg2, arg3, pyres, proto} => {
                 if sig.decl.inputs.len() <= 2 {
                     print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return Tokens::new();
+                    return TokenStream::new();
                 }
                 let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::from(arg1);
+                let arg1_name = syn::Ident::new(arg1, Span::call_site());
                 let arg1_ty = get_arg_ty(sig, 0);
-                let arg2_name = syn::Ident::from(arg2);
+                let arg2_name = syn::Ident::new(arg2, Span::call_site());
                 let arg2_ty = get_arg_ty(sig, 1);
-                let arg3_name = syn::Ident::from(arg3);
+                let arg3_name = syn::Ident::new(arg3, Span::call_site());
                 let arg3_ty = get_arg_ty(sig, 2);
                 let (ty, succ) = get_res_success(ty);
 
@@ -274,14 +274,14 @@ pub fn impl_method_proto(
             MethodProto::Quaternary{name, arg1, arg2, arg3, proto} => {
                 if sig.decl.inputs.len() <= 3 {
                     print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return Tokens::new();
+                    return TokenStream::new();
                 }
                 let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::from(arg1);
+                let arg1_name = syn::Ident::new(arg1, Span::call_site());
                 let arg1_ty = get_arg_ty(sig, 1);
-                let arg2_name = syn::Ident::from(arg2);
+                let arg2_name = syn::Ident::new(arg2, Span::call_site());
                 let arg2_ty = get_arg_ty(sig, 2);
-                let arg3_name = syn::Ident::from(arg3);
+                let arg3_name = syn::Ident::new(arg3, Span::call_site());
                 let arg3_ty = get_arg_ty(sig, 3);
                 let (ty, succ) = get_res_success(ty);
 
@@ -330,7 +330,7 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Type {
                 syn::Type::Path(ref ty) => {
                     // use only last path segment for Option<>
                     let seg = ty.path.segments.last().unwrap().value().clone();
-                    if seg.ident.as_ref() == "Option" {
+                    if seg.ident == "Option" {
                         match seg.arguments {
                             syn::PathArguments::AngleBracketed(ref data) => {
                                 if let Some(pair) = data.args.last() {
@@ -360,14 +360,14 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Type {
 }
 
 // Success
-fn get_res_success(ty: &syn::Type) -> (Tokens, syn::GenericArgument) {
+fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
     let mut result;
     let mut succ;
 
     match ty {
         &syn::Type::Path(ref typath) => {
             if let Some(segment) = typath.path.segments.last() {
-                match segment.value().ident.as_ref() {
+                match segment.value().ident.to_string().as_str() {
                     // check for PyResult<T>
                     "PyResult" => match segment.value().arguments {
                         syn::PathArguments::AngleBracketed(ref data) => {
@@ -378,7 +378,7 @@ fn get_res_success(ty: &syn::Type) -> (Tokens, syn::GenericArgument) {
                             match data.args[0] {
                                 syn::GenericArgument::Type(syn::Type::Path(ref typath)) =>
                                     if let Some(segment) = typath.path.segments.last() {
-                                        match segment.value().ident.as_ref() {
+                                        match segment.value().ident.to_string().as_str() {
                                             // get T from Option<T>
                                             "Option" => match segment.value().arguments {
                                                 syn::PathArguments::AngleBracketed(ref data) =>
@@ -397,7 +397,7 @@ fn get_res_success(ty: &syn::Type) -> (Tokens, syn::GenericArgument) {
                         _ => panic!("fn result type is not supported"),
                     },
                     _ => panic!("fn result type has to be PyResult or (), got {:?}",
-                                segment.value().ident.as_ref())
+                                segment.value().ident)
                 }
             } else {
                 panic!("fn result is not supported {:?}", typath)
@@ -434,7 +434,7 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize,
             match cap.ty {
                 syn::Type::Path(ref typath) => {
                     let seg = typath.path.segments.last().unwrap().value().clone();
-                    if seg.ident.as_ref() == "Option" {
+                    if seg.ident == "Option" {
                         sig.decl.inputs[idx] = fix_name(&cap.pat, &decl2.inputs[idx]);
                     } else {
                         sig.decl.inputs[idx] = fix_name(&cap.pat, &decl1.inputs[idx]);

@@ -14,12 +14,16 @@ license = "Apache-2.0"
 proc-macro = true
 
 [dependencies]
-quote="0.5"
+quote="0.6"
 
 [dependencies.syn]
-version="0.13"
+version="0.14"
 features=["full", "parsing", "printing", "extra-traits"]
 
 [dependencies.pyo3-derive-backend]
 path = "../pyo3-derive-backend"
 version = "0.2.5"
+
+[dependencies.proc-macro2]
+version = "0.4"
+features= ["nightly"]

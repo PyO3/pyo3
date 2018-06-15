@@ -1,11 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use syn;
-use quote::Tokens;
-use quote::ToTokens;
 
 use args::{Argument, parse_arguments};
-use utils::for_err_msg;
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 
 
 #[derive(Clone, PartialEq, Debug)]
@@ -83,7 +82,7 @@ impl<'a> FnSpec<'a> {
                     let py = match ty {
                         &syn::Type::Path(syn::TypePath {ref path, ..}) =>
                             if let Some(segment) = path.segments.last() {
-                                segment.value().ident.as_ref() == "Python"
+                                segment.value().ident == "Python"
                             } else {
                                 false
                             },
@@ -164,21 +163,21 @@ impl<'a> FnSpec<'a> {
         false
     }
 
-    pub fn default_value(&self, name: &syn::Ident) -> Option<Tokens> {
+    pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
         for s in self.attrs.iter() {
             match *s {
                 Argument::Arg(ref ident, ref opt) => {
                     if ident == name {
                         if let &Some(ref val) = opt {
                             let i: syn::Expr = syn::parse_str(&val).unwrap();
-                            return Some(i.into_tokens())
+                            return Some(i.into_token_stream())
                         }
                     }
                 },
                 Argument::Kwarg(ref ident, ref opt) => {
                     if ident == name {
                         let i: syn::Expr = syn::parse_str(&opt).unwrap();
-                        return Some(i.into_tokens())
+                        return Some(quote!(#i))
                     }
                 },
                 _ => (),
@@ -209,15 +208,15 @@ pub fn is_ref<'a>(name: &'a syn::Ident, ty: &'a syn::Type) -> bool {
         }
         &syn::Type::Path(syn::TypePath {ref path, ..}) => {
             if let Some(segment) = path.segments.last() {
-                match segment.value().ident.as_ref() {
+                match segment.value().ident.to_string().as_str() {
                     "Option" => {
                         match segment.value().arguments {
                             syn::PathArguments::AngleBracketed(ref params) => {
                                 if params.args.len() != 1 {
                                     panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                           for_err_msg(name),
-                                           for_err_msg(ty),
-                                           for_err_msg(path));
+                                           name,
+                                           ty,
+                                           path);
                                 }
                                 match &params.args[params.args.len()-1] {
                                     &syn::GenericArgument::Type(syn::Type::Reference(_)) => {
@@ -228,9 +227,9 @@ pub fn is_ref<'a>(name: &'a syn::Ident, ty: &'a syn::Type) -> bool {
                             },
                             _ => {
                                 panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                       for_err_msg(name),
-                                       for_err_msg(ty),
-                                       for_err_msg(path));
+                                       name,
+                                       ty,
+                                       path);
                             }
                         }
                     },
@@ -254,31 +253,31 @@ pub fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Type)
             //}
 
             if let Some(segment) = path.segments.last() {
-                match segment.value().ident.as_ref() {
+                match segment.value().ident.to_string().as_str() {
                     "Option" => {
                         match segment.value().arguments {
                             syn::PathArguments::AngleBracketed(ref params) => {
                                 if params.args.len() != 1 {
                                     panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                           for_err_msg(name),
-                                           for_err_msg(ty),
-                                           for_err_msg(path));
+                                           name,
+                                           ty,
+                                           path);
                                 }
 
                                 match &params.args[0] {
                                     &syn::GenericArgument::Type(ref ty) => Some(ty),
                                     _ => panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                                    for_err_msg(name),
-                                                    for_err_msg(ty),
-                                                    for_err_msg(path)),
+                                                    name,
+                                                    ty,
+                                                    path),
                                 }
 
                             },
                             _ => {
                                 panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                       for_err_msg(name),
-                                       for_err_msg(ty),
-                                       for_err_msg(path));
+                                       name,
+                                       ty,
+                                       path);
                             }
                         }
                     },
@@ -291,8 +290,8 @@ pub fn check_arg_ty_and_optional<'a>(name: &'a syn::Ident, ty: &'a syn::Type)
         _ => {
             None
             //panic!("argument type is not supported by python method: {:?} ({:?})",
-            //for_err_msg(name),
-            //for_err_msg(ty));
+            //name,
+            //ty);
         },
     }
 }
@@ -305,7 +304,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
     for attr in attrs.iter() {
         match attr.interpret_meta().unwrap() {
             syn::Meta::Word(ref name) => {
-                match name.as_ref() {
+                match name.to_string().as_ref() {
                     "new" | "__new__" => {
                         res = Some(FnType::FnNew)
                     },
@@ -329,7 +328,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                         if res != None {
                             panic!("setter/getter attribute can not be used mutiple times");
                         }
-                        if name.as_ref() == "setter" {
+                        if name == "setter" {
                             res = Some(FnType::Setter(None))
                         } else {
                             res = Some(FnType::Getter(None))
@@ -341,7 +340,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                 }
             },
             syn::Meta::List(syn::MetaList {ref ident, ref nested, ..}) => {
-                match ident.as_ref() {
+                match ident.to_string().as_str() {
                     "new" => {
                         res = Some(FnType::FnNew)
                     },
@@ -364,7 +363,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                         }
                         match nested.first().unwrap().value() {
                             syn::NestedMeta::Meta(syn::Meta::Word(ref w)) => {
-                                if ident.as_ref() == "setter" {
+                                if ident == "setter" {
                                     res = Some(FnType::Setter(Some(w.to_string())))
                                 } else {
                                     res = Some(FnType::Getter(Some(w.to_string())))
@@ -373,7 +372,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                             syn::NestedMeta::Literal(ref lit) => {
                                 match *lit {
                                     syn::Lit::Str(ref s) => {
-                                        if ident.as_ref() == "setter" {
+                                        if ident == "setter" {
                                             res = Some(FnType::Setter(Some(s.value())))
                                         } else {
                                             res = Some(FnType::Getter(Some(s.value())))

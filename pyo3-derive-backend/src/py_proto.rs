@@ -1,7 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use syn;
-use quote::{Tokens, ToTokens};
+use quote::ToTokens;
+use proc_macro2::{TokenStream};
 
 use defs;
 use py_method;
@@ -9,13 +10,13 @@ use method::FnSpec;
 use func::impl_method_proto;
 
 
-pub fn build_py_proto(ast: &mut syn::ItemImpl) -> Tokens {
+pub fn build_py_proto(ast: &mut syn::ItemImpl) -> TokenStream {
         if let Some((_, ref mut path, _)) = ast.trait_ {
 
             let tokens = if let Some(ref mut segment) = path.segments.last() {
                 let ty = &ast.self_ty;
                 let items = &mut ast.items;
-                match segment.value().ident.as_ref() {
+                match segment.value().ident.to_string().as_str() {
                     "PyObjectProtocol" =>
                         impl_proto_impl(ty, items, &defs::OBJECT),
                     "PyAsyncProtocol" =>
@@ -38,7 +39,7 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> Tokens {
                         impl_proto_impl(ty, items, &defs::GC),
                     _ => {
                         warn!("#[proto] can not be used with this block");
-                        return Tokens::new()
+                        return TokenStream::new()
                     }
                 }
             } else {
@@ -61,21 +62,21 @@ fn impl_proto_impl(
     ty: &syn::Type,
     impls: &mut Vec<syn::ImplItem>,
     proto: &defs::Proto
-) -> Tokens {
-    let mut tokens = Tokens::new();
+) -> TokenStream {
+    let mut tokens = TokenStream::new();
     let mut py_methods = Vec::new();
 
     for iimpl in impls.iter_mut() {
         match iimpl {
             syn::ImplItem::Method(ref mut met) => {
                 for m in proto.methods {
-                    if m.eq(met.sig.ident.as_ref()) {
+                    if m.eq(met.sig.ident.to_string().as_str()) {
                         impl_method_proto(ty, &mut met.sig, m).to_tokens(&mut tokens);
                     }
                 }
                 for m in proto.py_methods {
                     let ident = met.sig.ident.clone();
-                    if m.name == ident.as_ref() {
+                    if m.name == ident.to_string().as_str() {
 
                         let name: syn::Ident = syn::parse_str(m.name).unwrap();
                         let proto: syn::Path = syn::parse_str(m.proto).unwrap();
@@ -110,9 +111,9 @@ fn impl_proto_impl(
     // unique mod name
     let p = proto.name;
     let n = if let syn::Type::Path(ref typath) = ty {
-        typath.path.segments.last().as_ref().unwrap().value().ident.as_ref()
+        typath.path.segments.last().as_ref().unwrap().value().ident.to_string()
     } else {
-        "PROTO_METHODS"
+        "PROTO_METHODS".to_string()
     };
 
     let dummy_const: syn::Path = syn::parse_str(&format!("_IMPL_PYO3_{}_{}", n, p)).unwrap();

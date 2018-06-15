@@ -4,13 +4,14 @@
 use args;
 use method;
 use py_method;
-use quote::Tokens;
 use syn;
 use utils;
 
+use proc_macro2::{TokenStream, Span};
+
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
-pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens {
+pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
 
     let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name)).unwrap();
 
@@ -58,7 +59,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens
     }
 }
 
-pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> Tokens {
+pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
 
     let cb_name: syn::Ident = syn::parse_str(&format!("init{}", name)).unwrap();
 
@@ -215,7 +216,7 @@ pub fn add_fn_to_module(
     func: &mut syn::ItemFn,
     python_name: &syn::Ident,
     pyfn_attrs: Vec<args::Argument>,
-) -> Tokens {
+) -> TokenStream {
 
     let mut arguments = Vec::new();
 
@@ -271,15 +272,15 @@ pub fn add_fn_to_module(
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> Tokens {
+fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
     let names: Vec<syn::Ident> = spec.args
         .iter()
         .enumerate()
         .map(|item| {
             if item.1.py {
-                syn::Ident::from("_py")
+                syn::Ident::new("_py", Span::call_site())
             } else {
-                syn::Ident::from(format!("arg{}", item.0))
+                syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
             }
         })
         .collect();

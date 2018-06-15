@@ -51,7 +51,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
 }
 
 #[pymodinit(_word_count)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "search")]
     fn search(py: Python, path: String, search: String) -> PyResult<i32> {
         let mut file = File::open(path)?;

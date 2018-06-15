@@ -33,7 +33,7 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                              args_str);
                     return Vec::new()
                 }
-                arguments.push(Argument::Arg(*ident, None))
+                arguments.push(Argument::Arg(ident.clone(), None))
             }
             syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {
                 match nv.lit {
@@ -49,7 +49,7 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                                 return Vec::new()
                             }
                             has_varargs = true;
-                            arguments.push(Argument::VarArgs(nv.ident));
+                            arguments.push(Argument::VarArgs(nv.ident.clone()));
                         } else if litstr.value() == "**" {  // #[args(kwargs="**")]
                             if has_kwargs {
                                 println!("arguments already define ** (kw args): {:?}",
@@ -57,10 +57,10 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                                 return Vec::new()
                             }
                             has_kwargs = true;
-                            arguments.push(Argument::KeywordArgs(nv.ident));
+                            arguments.push(Argument::KeywordArgs(nv.ident.clone()));
                         } else {
                             if has_varargs {
-                                arguments.push(Argument::Kwarg(nv.ident, litstr.value().clone()))
+                                arguments.push(Argument::Kwarg(nv.ident.clone(), litstr.value().clone()))
                             } else {
                                 if has_kwargs {
                                     println!("syntax error, keyword arguments is defined: {:?}",
@@ -68,13 +68,13 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                                     return Vec::new()
                                 }
                                 has_kw = true;
-                                arguments.push(Argument::Arg(nv.ident, Some(litstr.value().clone())))
+                                arguments.push(Argument::Arg(nv.ident.clone(), Some(litstr.value().clone())))
                             }
                         }
                     }
                     syn::Lit::Int(ref litint) => {
                         if has_varargs {
-                            arguments.push(Argument::Kwarg(nv.ident, format!("{}", litint.value())));
+                            arguments.push(Argument::Kwarg(nv.ident.clone(), format!("{}", litint.value())));
                         } else {
                             if has_kwargs {
                                 println!("syntax error, keyword arguments is defined: {:?}",
@@ -82,12 +82,12 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                                 return Vec::new()
                             }
                             has_kw = true;
-                            arguments.push(Argument::Arg(nv.ident, Some(format!("{}", litint.value()))));
+                            arguments.push(Argument::Arg(nv.ident.clone(), Some(format!("{}", litint.value()))));
                         }
                     }
                     syn::Lit::Bool(ref litb) => {
                         if has_varargs {
-                            arguments.push(Argument::Kwarg(nv.ident, format!("{}", litb.value)));
+                            arguments.push(Argument::Kwarg(nv.ident.clone(), format!("{}", litb.value)));
                         } else {
                             if has_kwargs {
                                 println!("syntax error, keyword arguments is defined: {:?}",
@@ -95,7 +95,7 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                                 return Vec::new()
                             }
                             has_kw = true;
-                            arguments.push(Argument::Arg(nv.ident, Some(format!("{}", litb.value))));
+                            arguments.push(Argument::Arg(nv.ident.clone(), Some(format!("{}", litb.value))));
                         }
                     }
                     _ => {
@@ -152,9 +152,8 @@ mod test {
 
     use syn;
     use args::{Argument, parse_arguments};
-    use quote::Tokens;
 
-    fn items(s: Tokens) -> Vec<syn::NestedMeta> {
+    fn items(s: TokenStream) -> Vec<syn::NestedMeta> {
         let dummy: syn::ItemFn = parse_quote!{#s fn dummy() {}};
         match dummy.attrs[0].interpret_meta() {
             Some(syn::Meta::List(syn::MetaList { nested, .. })) => {

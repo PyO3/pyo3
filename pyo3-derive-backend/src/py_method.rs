@@ -1,10 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use syn;
-use quote::{Tokens, ToTokens};
+use quote::ToTokens;
 use method::{FnArg, FnSpec, FnType};
 
 use utils;
+use proc_macro2::{TokenStream, Span};
 
 
 pub fn gen_py_method<'a>(
@@ -12,7 +13,7 @@ pub fn gen_py_method<'a>(
     name: &syn::Ident,
     sig: &mut syn::MethodSig,
     meth_attrs: &mut Vec<syn::Attribute>
-) -> Tokens {
+) -> TokenStream {
     check_generic(name, sig);
 
     let doc = utils::get_doc(&meth_attrs, true);
@@ -46,7 +47,7 @@ fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
 }
 
 
-pub fn body_to_result(body: &Tokens, spec: &FnSpec) -> Tokens {
+pub fn body_to_result(body: &TokenStream, spec: &FnSpec) -> TokenStream {
     let output = &spec.output;
     quote! {
         use pyo3::ReturnTypeIntoPyResult;
@@ -57,7 +58,7 @@ pub fn body_to_result(body: &Tokens, spec: &FnSpec) -> Tokens {
 }
 
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec, noargs: bool) -> Tokens {
+pub fn impl_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec, noargs: bool) -> TokenStream {
     let body = impl_call(cls, name, &spec);
 
     if spec.args.is_empty() && noargs {
@@ -106,7 +107,7 @@ pub fn impl_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec, noargs: bool
 }
 
 /// Generate function wrapper for protocol method (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     let cb = impl_call(cls, name, &spec);
     let body = impl_arg_params(&spec, cb);
 
@@ -134,10 +135,10 @@ pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tok
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
-        |item| if item.1.py {syn::Ident::from("_py")} else {
-            syn::Ident::from(format!("arg{}", item.0))}).collect();
+        |item| if item.1.py {syn::Ident::new("_py", Span::call_site())} else {
+            syn::Ident::new(&format!("arg{}", item.0), Span::call_site())}).collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_obj, #(#names),*))
     };
@@ -183,10 +184,12 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
 }
 
 /// Generate function wrapper for ffi::initproc
-fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     let cb = impl_call(cls, name, &spec);
     let output = &spec.output;
-    if quote! {#output} != quote! {PyResult<()>} || quote! {#output} != quote! {()}{
+    let result_empty: syn::Type = parse_quote!(PyResult<()>);
+    let empty: syn::Type = parse_quote!(());
+    if output != &result_empty || output != &empty {
         panic!("Constructor must return PyResult<()> or a ()");
     }
 
@@ -220,10 +223,10 @@ fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
 }
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_class(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_class(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
-        |item| if item.1.py {syn::Ident::from("_py")} else {
-            syn::Ident::from(format!("arg{}", item.0))}).collect();
+        |item| if item.1.py {syn::Ident::new("_py", Span::call_site())} else {
+            syn::Ident::new(&format!("arg{}", item.0), Span::call_site())}).collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_cls, #(#names),*))
     };
@@ -253,10 +256,10 @@ pub fn impl_wrap_class(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tok
 }
 
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
-        |item| if item.1.py {syn::Ident::from("_py")} else {
-            syn::Ident::from(format!("arg{}", item.0))}).collect();
+        |item| if item.1.py {syn::Ident::new("_py", Span::call_site())} else {
+            syn::Ident::new(&format!("arg{}", item.0), Span::call_site())}).collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(#(#names),*))
     };
@@ -285,7 +288,7 @@ pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> To
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> Tokens {
+pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStream {
     quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut _pyo3::ffi::PyObject, _: *mut _pyo3::c_void) -> *mut _pyo3::ffi::PyObject
@@ -311,7 +314,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> Tokens {
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_setter(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tokens {
+pub(crate) fn impl_wrap_setter(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     if spec.args.len() < 1 {
         println!("Not enough arguments for setter {}::{}", quote!{#cls}, name);
     }
@@ -345,12 +348,12 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec
 }
 
 
-fn impl_call(_cls: &syn::Type, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
+fn impl_call(_cls: &syn::Type, fname: &syn::Ident, spec: &FnSpec) -> TokenStream {
     let names: Vec<syn::Ident> = spec.args.iter().enumerate().map(
         |item| if item.1.py {
-            syn::Ident::from("_py")
+            syn::Ident::new("_py", Span::call_site())
         } else {
-            syn::Ident::from(format!("arg{}", item.0))
+            syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
         }
     ).collect();
     quote! {
@@ -358,7 +361,7 @@ fn impl_call(_cls: &syn::Type, fname: &syn::Ident, spec: &FnSpec) -> Tokens {
     }
 }
 
-pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
+pub fn impl_arg_params(spec: &FnSpec, body: TokenStream) -> TokenStream {
     let args: Vec<FnArg> = spec.args.iter()
         .filter(|item| !item.py).map(|item| item.clone()).collect();
     if args.is_empty() {
@@ -372,31 +375,32 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
             continue
         }
         if ! (spec.is_args(&arg.name) || spec.is_kwargs(&arg.name)) {
-            let name = arg.name.as_ref();
+            let name = arg.name;
             let kwonly = if spec.is_kw_only(&arg.name) {
-                syn::Ident::from("true")
+                syn::Ident::new("true", Span::call_site())
             } else {
-                syn::Ident::from("false")
+                syn::Ident::new("false", Span::call_site())
             };
 
             let opt = if let Some(_) = arg.optional {
-                syn::Ident::from("true")
+                syn::Ident::new("true", Span::call_site())
             } else if let Some(_) = spec.default_value(&arg.name) {
-                syn::Ident::from("true")
+                syn::Ident::new("true", Span::call_site())
             } else {
-                syn::Ident::from("false")
+                syn::Ident::new("false", Span::call_site())
             };
 
             params.push(
                 quote! {
                     _pyo3::argparse::ParamDescription{
-                        name: #name, is_optional: #opt, kw_only: #kwonly}
+                        name: stringify!(#name), is_optional: #opt, kw_only: #kwonly}
                 }
             );
         }
     }
     let placeholders: Vec<syn::Ident> = params.iter().map(
-        |_| syn::Ident::from("None")).collect();
+        |_| syn::Ident::new("None", Span::call_site())
+    ).collect();
 
     // generate extrat args
     let len = spec.args.len();
@@ -408,10 +412,10 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
         body = impl_arg_param(&arg, &spec, &body, len-idx-1);
     }
 
-    let accept_args = syn::Ident::from(
-        if spec.accept_args() { "true" } else { "false" });
-    let accept_kwargs = syn::Ident::from(
-        if spec.accept_kwargs() { "true" } else { "false" });
+    let accept_args = syn::Ident::new(
+        if spec.accept_args() { "true" } else { "false" }, Span::call_site());
+    let accept_kwargs = syn::Ident::new(
+        if spec.accept_kwargs() { "true" } else { "false" }, Span::call_site());
 
     // create array of arguments, and then parse
     quote! {
@@ -433,13 +437,13 @@ pub fn impl_arg_params(spec: &FnSpec, body: Tokens) -> Tokens {
     }
 }
 
-fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Tokens {
+fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &TokenStream, idx: usize) -> TokenStream {
     if arg.py {
         return body.clone();
     }
     let ty = arg.ty;
     let name = arg.name;
-    let arg_name = syn::Ident::from(format!("arg{}", idx));
+    let arg_name = syn::Ident::new(&format!("arg{}", idx), Span::call_site());
 
     // First unwrap() asserts the iterated sequence is long enough (which should be guaranteed);
     // second unwrap() asserts the parameter was not missing (which fn
@@ -460,12 +464,12 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
     } else {
         if let Some(_) = arg.optional {
             // default value
-            let mut default = Tokens::new();
+            let mut default = TokenStream::new();
             if let Some(d) = spec.default_value(name) {
                 let dt = quote! { Some(#d) };
                 dt.to_tokens(&mut default);
             } else {
-                syn::Ident::from("None").to_tokens(&mut default);
+                syn::Ident::new("None", Span::call_site()).to_tokens(&mut default);
             }
 
             quote! {
@@ -518,8 +522,8 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &Tokens, idx: usize) -> Toke
     }
 }
 
-pub fn impl_py_method_def(name: &syn::Ident, doc: syn::Lit, spec: &FnSpec, wrapper: &Tokens)
-                          -> Tokens
+pub fn impl_py_method_def(name: &syn::Ident, doc: syn::Lit, spec: &FnSpec, wrapper: &TokenStream)
+                          -> TokenStream
 {
     if spec.args.is_empty() {
         quote! {
@@ -550,7 +554,7 @@ pub fn impl_py_method_def(name: &syn::Ident, doc: syn::Lit, spec: &FnSpec, wrapp
     }
 }
 
-pub fn impl_py_method_def_new(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+pub fn impl_py_method_def_new(name: &syn::Ident, doc: syn::Lit, wrapper: &TokenStream) -> TokenStream
 {
     quote! {
         _pyo3::class::PyMethodDefType::New({
@@ -566,7 +570,7 @@ pub fn impl_py_method_def_new(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens
     }
 }
 
-pub fn impl_py_method_def_init(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+pub fn impl_py_method_def_init(name: &syn::Ident, doc: syn::Lit, wrapper: &TokenStream) -> TokenStream
 {
     quote! {
         _pyo3::class::PyMethodDefType::Init({
@@ -582,7 +586,7 @@ pub fn impl_py_method_def_init(name: &syn::Ident, doc: syn::Lit, wrapper: &Token
     }
 }
 
-pub fn impl_py_method_def_class(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+pub fn impl_py_method_def_class(name: &syn::Ident, doc: syn::Lit, wrapper: &TokenStream) -> TokenStream
 {
     quote! {
         _pyo3::class::PyMethodDefType::Class({
@@ -599,7 +603,7 @@ pub fn impl_py_method_def_class(name: &syn::Ident, doc: syn::Lit, wrapper: &Toke
     }
 }
 
-pub fn impl_py_method_def_static(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+pub fn impl_py_method_def_static(name: &syn::Ident, doc: syn::Lit, wrapper: &TokenStream) -> TokenStream
 {
     quote! {
         _pyo3::class::PyMethodDefType::Static({
@@ -615,7 +619,7 @@ pub fn impl_py_method_def_static(name: &syn::Ident, doc: syn::Lit, wrapper: &Tok
     }
 }
 
-pub fn impl_py_method_def_call(name: &syn::Ident, doc: syn::Lit, wrapper: &Tokens) -> Tokens
+pub fn impl_py_method_def_call(name: &syn::Ident, doc: syn::Lit, wrapper: &TokenStream) -> TokenStream
 {
     quote! {
         _pyo3::class::PyMethodDefType::Call({
@@ -631,13 +635,13 @@ pub fn impl_py_method_def_call(name: &syn::Ident, doc: syn::Lit, wrapper: &Token
     }
 }
 
-pub(crate) fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Option<String>, wrapper: &Tokens)
-    -> Tokens
+pub(crate) fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Option<String>, wrapper: &TokenStream)
+    -> TokenStream
 {
     let n = if let &Some(ref name) = setter {
         name.to_string()
     } else {
-        let n = String::from(name.as_ref());
+        let n = name.to_string();
         if n.starts_with("set_") {
             n[4..].to_string()
         } else {
@@ -658,13 +662,13 @@ pub(crate) fn impl_py_setter_def(name: &syn::Ident, doc: syn::Lit, setter: &Opti
     }
 }
 
-pub(crate) fn impl_py_getter_def(name: &syn::Ident, doc: syn::Lit, getter: &Option<String>, wrapper: &Tokens)
-    -> Tokens
+pub(crate) fn impl_py_getter_def(name: &syn::Ident, doc: syn::Lit, getter: &Option<String>, wrapper: &TokenStream)
+    -> TokenStream
 {
     let n = if let &Some(ref name) = getter {
         name.to_string()
     } else {
-        let n = String::from(name.as_ref());
+        let n = name.to_string();
         if n.starts_with("get_") {
             n[4..].to_string()
         } else {
