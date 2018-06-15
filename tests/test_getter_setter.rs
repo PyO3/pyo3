@@ -11,7 +11,6 @@ use pyo3::py::methods as pymethods;
 #[macro_use]
 mod common;
 
-
 #[pyclass]
 struct ClassWithProperties {
     num: i32,
@@ -20,7 +19,6 @@ struct ClassWithProperties {
 
 #[pymethods]
 impl ClassWithProperties {
-
     fn get_num(&self) -> PyResult<i32> {
         Ok(self.num)
     }
@@ -41,7 +39,9 @@ fn class_with_properties() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| ClassWithProperties{num: 10, token: t}).unwrap();
+    let inst = py
+        .init(|t| ClassWithProperties { num: 10, token: t })
+        .unwrap();
 
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
@@ -56,12 +56,11 @@ struct GetterSetter {
     num: i32,
     #[prop(get, set)]
     text: String,
-    token: PyToken
+    token: PyToken,
 }
 
 #[pymethods]
 impl GetterSetter {
-
     fn get_num2(&self) -> PyResult<i32> {
         Ok(self.num)
     }
@@ -72,9 +71,18 @@ fn getter_setter_autogen() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| GetterSetter{num: 10, token: t, text: "Hello".to_string()}).unwrap();
+    let inst =
+        py.init(|t| GetterSetter {
+            num: 10,
+            token: t,
+            text: "Hello".to_string(),
+        }).unwrap();
 
     py_run!(py, inst, "assert inst.num == 10");
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
-    py_run!(py, inst, "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'");
+    py_run!(
+        py,
+        inst,
+        "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'"
+    );
 }

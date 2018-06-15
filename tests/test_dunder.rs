@@ -2,18 +2,16 @@
 
 extern crate pyo3;
 
+use pyo3::ffi;
 use pyo3::prelude::*;
 use std::{isize, iter};
-use pyo3::ffi;
 
 use pyo3::py::class as pyclass;
 use pyo3::py::methods as pymethods;
 use pyo3::py::proto as pyproto;
 
-
 #[macro_use]
 mod common;
-
 
 #[pyclass]
 pub struct Len {
@@ -33,20 +31,23 @@ fn len() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Py::new(py, |t| Len{l: 10, token: t}).unwrap();
+    let inst = Py::new(py, |t| Len { l: 10, token: t }).unwrap();
     py_assert!(py, inst, "len(inst) == 10");
     unsafe {
         assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
         assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
     }
 
-    let inst = Py::new(py, |t| Len{l: (isize::MAX as usize) + 1, token: t}).unwrap();
+    let inst = Py::new(py, |t| Len {
+        l: (isize::MAX as usize) + 1,
+        token: t,
+    }).unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
 #[pyclass]
-struct Iterator{
-    iter: Box<iter::Iterator<Item=i32> + Send>,
+struct Iterator {
+    iter: Box<iter::Iterator<Item = i32> + Send>,
     token: PyToken,
 }
 
@@ -66,13 +67,18 @@ fn iterator() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Py::new(py, |t| Iterator{iter: Box::new(5..8), token: t}).unwrap();
+    let inst = Py::new(py, |t| Iterator {
+        iter: Box::new(5..8),
+        token: t,
+    }).unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
 
 #[pyclass]
-struct StringMethods {token: PyToken}
+struct StringMethods {
+    token: PyToken,
+}
 
 #[pyproto]
 impl<'p> PyObjectProtocol<'p> for StringMethods {
@@ -103,7 +109,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Py::new(py, |t| StringMethods{token: t}).unwrap();
+    let obj = Py::new(py, |t| StringMethods { token: t }).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
@@ -116,13 +122,12 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Py::new(py, |t| StringMethods{token: t}).unwrap();
+    let obj = Py::new(py, |t| StringMethods { token: t }).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "unicode(obj) == 'unicode'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
 }
-
 
 #[pyclass]
 struct Comparisons {
@@ -140,16 +145,15 @@ impl PyObjectProtocol for Comparisons {
     }
 }
 
-
 #[test]
 fn comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let zero = Py::new(py, |t| Comparisons{val: 0, token: t}).unwrap();
-    let one = Py::new(py, |t| Comparisons{val: 1, token: t}).unwrap();
-    let ten = Py::new(py, |t| Comparisons{val: 10, token: t}).unwrap();
-    let minus_one = Py::new(py, |t| Comparisons{val: -1, token: t}).unwrap();
+    let zero = Py::new(py, |t| Comparisons { val: 0, token: t }).unwrap();
+    let one = Py::new(py, |t| Comparisons { val: 1, token: t }).unwrap();
+    let ten = Py::new(py, |t| Comparisons { val: 10, token: t }).unwrap();
+    let minus_one = Py::new(py, |t| Comparisons { val: -1, token: t }).unwrap();
     py_assert!(py, one, "hash(one) == 1");
     py_assert!(py, ten, "hash(ten) == 10");
     py_assert!(py, minus_one, "hash(minus_one) == -2");
@@ -158,10 +162,9 @@ fn comparisons() {
     py_assert!(py, zero, "not zero");
 }
 
-
 #[pyclass]
 struct Sequence {
-    token: PyToken
+    token: PyToken,
 }
 
 #[pyproto]
@@ -183,18 +186,18 @@ fn sequence() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| Sequence{token: t}).unwrap();
+    let c = py.init(|t| Sequence { token: t }).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
 
-
 #[pyclass]
-struct Callable {token: PyToken}
+struct Callable {
+    token: PyToken,
+}
 
 #[pymethods]
 impl Callable {
-
     #[__call__]
     fn __call__(&self, arg: i32) -> PyResult<i32> {
         Ok(arg * 6)
@@ -206,11 +209,11 @@ fn callable() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| Callable{token: t}).unwrap();
+    let c = py.init(|t| Callable { token: t }).unwrap();
     py_assert!(py, c, "callable(c)");
     py_assert!(py, c, "c(7) == 42");
 
-    let nc = py.init(|t| Comparisons{val: 0, token: t}).unwrap();
+    let nc = py.init(|t| Comparisons { val: 0, token: t }).unwrap();
     py_assert!(py, nc, "not callable(nc)");
 }
 
@@ -235,7 +238,12 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(|t| SetItem{key: 0, val: 0, token: t}).unwrap();
+    let c =
+        py.init_ref(|t| SetItem {
+            key: 0,
+            val: 0,
+            token: t,
+        }).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.key, 1);
     assert_eq!(c.val, 2);
@@ -261,7 +269,7 @@ fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(|t| DelItem{key:0, token:t}).unwrap();
+    let c = py.init_ref(|t| DelItem { key: 0, token: t }).unwrap();
     py_run!(py, c, "del c[1]");
     assert_eq!(c.key, 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
@@ -291,7 +299,11 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(|t| SetDelItem{val: None, token: t}).unwrap();
+    let c =
+        py.init_ref(|t| SetDelItem {
+            val: None,
+            token: t,
+        }).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.val, Some(2));
     py_run!(py, c, "del c[1]");
@@ -299,10 +311,12 @@ fn setdelitem() {
 }
 
 #[pyclass]
-struct Reversed {token: PyToken}
+struct Reversed {
+    token: PyToken,
+}
 
 #[pyproto]
-impl PyMappingProtocol for Reversed{
+impl PyMappingProtocol for Reversed {
     fn __reversed__(&self) -> PyResult<&'static str> {
         Ok("I am reversed")
     }
@@ -313,12 +327,14 @@ fn reversed() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| Reversed{token: t}).unwrap();
+    let c = py.init(|t| Reversed { token: t }).unwrap();
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
 #[pyclass]
-struct Contains {token: PyToken}
+struct Contains {
+    token: PyToken,
+}
 
 #[pyproto]
 impl PySequenceProtocol for Contains {
@@ -332,12 +348,11 @@ fn contains() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| Contains{token: t}).unwrap();
+    let c = py.init(|t| Contains { token: t }).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
     py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
 }
-
 
 #[pyclass]
 struct ContextManager {
@@ -347,15 +362,16 @@ struct ContextManager {
 
 #[pyproto]
 impl<'p> PyContextProtocol<'p> for ContextManager {
-
     fn __enter__(&mut self) -> PyResult<i32> {
         Ok(42)
     }
 
-    fn __exit__(&mut self,
-                ty: Option<&'p PyType>,
-                _value: Option<&'p PyObjectRef>,
-                _traceback: Option<&'p PyObjectRef>) -> PyResult<bool> {
+    fn __exit__(
+        &mut self,
+        ty: Option<&'p PyType>,
+        _value: Option<&'p PyObjectRef>,
+        _traceback: Option<&'p PyObjectRef>,
+    ) -> PyResult<bool> {
         self.exit_called = true;
         if ty == Some(self.py().get_type::<exc::ValueError>()) {
             Ok(true)
@@ -370,7 +386,11 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_mut(|t| ContextManager{exit_called: false, token: t}).unwrap();
+    let c =
+        py.init_mut(|t| ContextManager {
+            exit_called: false,
+            token: t,
+        }).unwrap();
     py_run!(py, c, "with c as x: assert x == 42");
     assert!(c.exit_called);
 
@@ -380,10 +400,13 @@ fn context_manager() {
 
     c.exit_called = false;
     py_expect_exception!(
-        py, c, "with c as x: raise NotImplementedError", NotImplementedError);
+        py,
+        c,
+        "with c as x: raise NotImplementedError",
+        NotImplementedError
+    );
     assert!(c.exit_called);
 }
-
 
 #[test]
 fn test_basics() {
@@ -400,22 +423,20 @@ fn test_basics() {
 
 #[pyclass]
 struct Test {
-    token: PyToken
+    token: PyToken,
 }
 
 #[pyproto]
-impl<'p> PyMappingProtocol<'p> for Test
-{
+impl<'p> PyMappingProtocol<'p> for Test {
     fn __getitem__(&self, idx: &PyObjectRef) -> PyResult<PyObject> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".into_object(self.py()))
+                return Ok("slice".into_object(self.py()));
             }
-        }
-        else if let Ok(idx) = idx.extract::<isize>() {
+        } else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".into_object(self.py()))
+                return Ok("int".into_object(self.py()));
             }
         }
         Err(PyErr::new::<exc::ValueError, _>("error"))
@@ -427,12 +448,13 @@ fn test_cls_impl() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = py.init(|t| Test{token: t}).unwrap();
+    let ob = py.init(|t| Test { token: t }).unwrap();
     let d = PyDict::new(py);
     d.set_item("ob", ob).unwrap();
 
     py.run("assert ob[1] == 'int'", None, Some(d)).unwrap();
-    py.run("assert ob[100:200:1] == 'slice'", None, Some(d)).unwrap();
+    py.run("assert ob[100:200:1] == 'slice'", None, Some(d))
+        .unwrap();
 }
 
 #[pyclass(dict)]
@@ -444,11 +466,15 @@ struct DunderDictSupport {
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, |t| DunderDictSupport{token: t}).unwrap();
-    py_run!(py, inst, r#"
+    let inst = Py::new_ref(py, |t| DunderDictSupport { token: t }).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
         inst.a = 1
         assert inst.a == 1
-    "#);
+    "#
+    );
 }
 
 #[pyclass(weakref, dict)]
@@ -460,6 +486,10 @@ struct WeakRefDunderDictSupport {
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport{token: t}).unwrap();
-    py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
+    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport { token: t }).unwrap();
+    py_run!(
+        py,
+        inst,
+        "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+    );
 }

@@ -11,13 +11,11 @@ use pyo3::py::methods as pymethods;
 #[macro_use]
 mod common;
 
-
 #[pyclass]
 struct BaseClass {
     #[prop(get)]
     val1: usize,
 }
-
 
 #[pyclass(subclass)]
 struct SubclassAble {}
@@ -28,17 +26,21 @@ fn subclass() {
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item("SubclassAble", py.get_type::<SubclassAble>()).unwrap();
-    py.run("class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)", None, Some(d))
-      .map_err(|e| e.print(py))
-      .unwrap();
+    d.set_item("SubclassAble", py.get_type::<SubclassAble>())
+        .unwrap();
+    py.run(
+        "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
+        None,
+        Some(d),
+    ).map_err(|e| e.print(py))
+        .unwrap();
 }
 
 #[pymethods]
 impl BaseClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| BaseClass{val1: 10})
+        obj.init(|_| BaseClass { val1: 10 })
     }
 }
 
@@ -52,7 +54,7 @@ struct SubClass {
 impl SubClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| SubClass{val2: 5})?;
+        obj.init(|_| SubClass { val2: 5 })?;
         BaseClass::__new__(obj)
     }
 }
