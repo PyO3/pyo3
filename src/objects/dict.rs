@@ -420,6 +420,27 @@ mod test {
     }
 
     #[test]
+    fn test_iterates(){
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v = HashMap::new();
+        for i in 0..200{
+            v.insert(i,i);
+        }
+        let ob = v.to_object(py);
+        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
+        let mut key_sum = 0;
+        let mut value_sum = 0;
+        for el in dict.items().iter() {
+            let tuple = el.cast_as::<PyTuple>().unwrap();
+            key_sum += tuple.get_item(0).extract::<i32>().unwrap();
+            value_sum += tuple.get_item(1).extract::<i32>().unwrap();
+        }
+        assert_eq!(key_sum,value_sum)
+    }
+
+    #[test]
     fn test_items() {
         let gil = Python::acquire_gil();
         let py = gil.python();
