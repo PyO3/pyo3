@@ -204,7 +204,7 @@ macro_rules! wrap_function (
     };
 );
 
-mod python;
+pub mod python;
 mod err;
 mod conversion;
 mod instance;
