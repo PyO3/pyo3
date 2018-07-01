@@ -15,7 +15,7 @@ use typeob::{PyTypeInfo, PyTypeObject};
 /// Represents a reference to a Python `type object`.
 pub struct PyType(PyObject);
 
-pyobject_native_type!(PyType, PyType_Type, PyType_Check);
+pyobject_native_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 
 
 impl PyType {

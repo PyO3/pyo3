@@ -11,7 +11,7 @@ use err::{PyResult, PyErr};
 /// Represents a Python `bytearray`.
 pub struct PyByteArray(PyObject);
 
-pyobject_native_type!(PyByteArray, PyByteArray_Type, PyByteArray_Check);
+pyobject_native_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.

@@ -15,7 +15,7 @@ use super::exc;
 /// Represents a Python `tuple` object.
 pub struct PyTuple(PyObject);
 
-pyobject_native_type!(PyTuple, PyTuple_Type, PyTuple_Check);
+pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
 
 impl PyTuple {

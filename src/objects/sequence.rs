@@ -16,7 +16,7 @@ use objectprotocol::ObjectProtocol;
 /// Represents a reference to a python object supporting the sequence protocol.
 pub struct PySequence(PyObject);
 pyobject_native_type_named!(PySequence);
-pyobject_downcast!(PySequence, PySequence_Check);
+pyobject_downcast!(PySequence, ffi::PySequence_Check);
 
 
 #[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]

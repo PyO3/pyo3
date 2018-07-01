@@ -35,7 +35,7 @@ pub use self::num2::{PyInt, PyLong};
 /// parameter
 #[macro_export]
 macro_rules! pyobject_downcast(
-    ($name: ident, $checkfunction: ident) => (
+    ($name: ident, $checkfunction: path) => (
         impl<'a> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
@@ -43,7 +43,7 @@ macro_rules! pyobject_downcast(
             fn extract(ob: &'a $crate::PyObjectRef) -> $crate::PyResult<Self>
             {
                 unsafe {
-                    if $crate::ffi::$checkfunction(ob.as_ptr()) != 0 {
+                    if $checkfunction(ob.as_ptr()) != 0 {
                         Ok($crate::std::mem::transmute(ob))
                     } else {
                         Err($crate::PyDowncastError.into())
@@ -92,7 +92,7 @@ macro_rules! pyobject_native_type_named(
 
 #[macro_export]
 macro_rules! pyobject_native_type(
-    ($name: ident, $typeobject: ident, $checkfunction: ident) => {
+    ($name: ident, $typeobject: path, $checkfunction: path) => {
         pyobject_native_type_named!($name);
         pyobject_native_type_convert!($name, $typeobject, $checkfunction);
         pyobject_downcast!($name, $checkfunction);
@@ -107,7 +107,7 @@ macro_rules! pyobject_native_type(
 
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
-    ($name: ident, $typeobject: ident, $checkfunction: ident) => {
+    ($name: ident, $typeobject: path, $checkfunction: path) => {
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::PyObjectRef;
@@ -118,13 +118,13 @@ macro_rules! pyobject_native_type_convert(
 
             #[inline]
             unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
-                &mut $crate::ffi::$typeobject
+                &mut $typeobject
             }
 
             #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
             fn is_instance(ptr: *mut $crate::ffi::PyObject) -> bool {
                 #[allow(unused_unsafe)]
-                unsafe { $crate::ffi::$checkfunction(ptr) > 0 }
+                unsafe { $checkfunction(ptr) > 0 }
             }
         }
 
@@ -207,12 +207,12 @@ macro_rules! pyobject_extract(
 
 
 use python::ToPyPointer;
-
+use ffi;
 /// Represents general python instance.
 pub struct PyObjectRef(::PyObject);
 pyobject_native_type_named!(PyObjectRef);
-pyobject_native_type_convert!(PyObjectRef, PyBaseObject_Type, PyObject_Check);
-pyobject_downcast!(PyObjectRef, PyObject_Check);
+pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject_Check);
+pyobject_downcast!(PyObjectRef, ffi::PyObject_Check);
 
 mod typeobject;
 mod module;
