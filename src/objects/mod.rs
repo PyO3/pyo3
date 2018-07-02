@@ -92,7 +92,7 @@ macro_rules! pyobject_native_type_named(
 
 #[macro_export]
 macro_rules! pyobject_native_type(
-    ($name: ident, $typeobject: path, $checkfunction: path) => {
+    ($name: ident, $typeobject: expr, $checkfunction: path) => {
         pyobject_native_type_named!($name);
         pyobject_native_type_convert!($name, $typeobject, $checkfunction);
         pyobject_downcast!($name, $checkfunction);
@@ -107,7 +107,7 @@ macro_rules! pyobject_native_type(
 
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
-    ($name: ident, $typeobject: path, $checkfunction: path) => {
+    ($name: ident, $typeobject: expr, $checkfunction: path) => {
         impl $crate::typeob::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::PyObjectRef;
