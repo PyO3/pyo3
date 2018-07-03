@@ -8,10 +8,10 @@
 extern crate proc_macro;
 extern crate proc_macro2;
 extern crate pyo3_derive_backend;
+#[macro_use]
 extern crate quote;
 extern crate syn;
 
-use quote::{ToTokens, TokenStreamExt};
 use syn::buffer::TokenBuffer;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -33,12 +33,12 @@ pub fn mod2init(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -
     module::process_functions_in_module(&mut ast);
 
     // Create the module initialisation function
-    let init = module::py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
+    let expanded = module::py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
-    // Return the generated code as a TokenStream
-    let mut tokens = ast.into_token_stream();
-    tokens.append_all(init);
-    tokens.into()
+    quote! (
+        #ast
+        #expanded
+    ).into()
 }
 
 #[proc_macro_attribute]
@@ -55,12 +55,12 @@ pub fn mod3init(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -
     module::process_functions_in_module(&mut ast);
 
     // Create the module initialisation function
-    let init = module::py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
+    let expanded = module::py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
-    // Return the generated code as a TokenStream
-    let mut tokens = ast.into_token_stream();
-    tokens.append_all(init);
-    tokens.into()
+    quote! (
+        #ast
+        #expanded
+    ).into()
 }
 
 #[proc_macro_attribute]
@@ -72,10 +72,10 @@ pub fn proto(_: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc
     // Build the output
     let expanded = py_proto::build_py_proto(&mut ast);
 
-    // Return the generated impl as a TokenStream
-    let mut tokens = ast.into_token_stream();
-    tokens.append_all(expanded);
-    tokens.into()
+    quote! (
+        #ast
+        #expanded
+    ).into()
 }
 
 #[proc_macro_attribute]
@@ -94,25 +94,25 @@ pub fn class(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
     // Build the output
     let expanded = py_class::build_py_class(&mut ast, &args);
 
-    // Return the generated impl as a TokenStream
-    let mut tokens = ast.into_token_stream();
-    tokens.append_all(expanded);
-    tokens.into()
+    quote! (
+        #ast
+        #expanded
+    ).into()
 }
 
 #[proc_macro_attribute]
 pub fn methods(_: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemImpl = syn::parse(input)
+    let mut ast: syn::ItemImpl = syn::parse(input.clone())
         .expect("#[methods] must be used on an `impl` block");
 
     // Build the output
     let expanded = py_impl::build_py_methods(&mut ast);
 
-    // Return the generated impl as a TokenStream
-    let mut tokens = ast.into_token_stream();
-    tokens.append_all(expanded);
-    tokens.into()
+    quote! (
+        #ast
+        #expanded
+    ).into()
 }
 
 #[proc_macro_attribute]
@@ -125,8 +125,8 @@ pub fn function(_: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
     let python_name = ast.ident.clone();
     let expanded = module::add_fn_to_module(&mut ast, &python_name, Vec::new());
 
-    // Return the generated impl as a TokenStream
-    let mut tokens = ast.into_token_stream();
-    tokens.append_all(expanded);
-    tokens.into()
+    quote! (
+        #ast
+        #expanded
+    ).into()
 }

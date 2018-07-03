@@ -108,24 +108,9 @@ fn impl_proto_impl(
         }
     }
 
-    // unique mod name
-    let p = proto.name;
-    let n = if let syn::Type::Path(ref typath) = ty {
-        typath.path.segments.last().as_ref().unwrap().value().ident.to_string()
-    } else {
-        "PROTO_METHODS".to_string()
-    };
-
-    let dummy_const: syn::Path = syn::parse_str(&format!("_IMPL_PYO3_{}_{}", n, p)).unwrap();
     quote! {
-        #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes,
-                unused_qualifications, unused_variables,
-                unused_imports)]
-        const #dummy_const: () = {
-            #tokens
+        #tokens
 
-            #(#py_methods)*
-        };
+        #(#py_methods)*
     }
 }

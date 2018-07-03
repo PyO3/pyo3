@@ -19,32 +19,31 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
         #[no_mangle]
         #[allow(non_snake_case, unused_imports)]
         pub unsafe extern "C" fn #cb_name() -> *mut ::pyo3::ffi::PyObject {
-            use std;
-            use pyo3::{IntoPyPointer, ObjectProtocol};
+            use ::pyo3::{IntoPyPointer, ObjectProtocol};
 
             // initialize pyo3
-            pyo3::prepare_pyo3_library();
+            ::pyo3::prepare_pyo3_library();
 
-            static mut MODULE_DEF: pyo3::ffi::PyModuleDef = pyo3::ffi::PyModuleDef_INIT;
+            static mut MODULE_DEF: ::pyo3::ffi::PyModuleDef = ::pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
 
             #[cfg(py_sys_config = "WITH_THREAD")]
-            pyo3::ffi::PyEval_InitThreads();
+            ::pyo3::ffi::PyEval_InitThreads();
 
-            let _module = pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
+            let _module = ::pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
             if _module.is_null() {
                 return _module;
             }
 
-            let _pool = pyo3::GILPool::new();
-            let _py = pyo3::Python::assume_gil_acquired();
-            let _module = match _py.from_owned_ptr_or_err::<pyo3::PyModule>(_module) {
+            let _pool = ::pyo3::GILPool::new();
+            let _py = ::pyo3::Python::assume_gil_acquired();
+            let _module = match _py.from_owned_ptr_or_err::<::pyo3::PyModule>(_module) {
                 Ok(m) => m,
                 Err(e) => {
-                    pyo3::PyErr::from(e).restore(_py);
-                    return std::ptr::null_mut();
+                    ::pyo3::PyErr::from(e).restore(_py);
+                    return ::std::ptr::null_mut();
                 }
             };
             _module.add("__doc__", #doc).expect("Failed to add doc for module");
@@ -52,7 +51,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
                 Ok(_) => _module.into_ptr(),
                 Err(e) => {
                     e.restore(_py);
-                    std::ptr::null_mut()
+                    ::std::ptr::null_mut()
                 }
             }
         }
@@ -67,24 +66,22 @@ pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
         #[no_mangle]
         #[allow(non_snake_case, unused_imports)]
         pub unsafe extern "C" fn #cb_name() {
-            use std;
-
             // initialize python
-            pyo3::prepare_pyo3_library();
-            pyo3::ffi::PyEval_InitThreads();
+            ::pyo3::prepare_pyo3_library();
+            ::pyo3::ffi::PyEval_InitThreads();
 
             let _name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
-            let _pool = pyo3::GILPool::new();
-            let _py = pyo3::Python::assume_gil_acquired();
-            let _module = pyo3::ffi::Py_InitModule(_name, std::ptr::null_mut());
+            let _pool = ::pyo3::GILPool::new();
+            let _py = ::pyo3::Python::assume_gil_acquired();
+            let _module = ::pyo3::ffi::Py_InitModule(_name, ::std::ptr::null_mut());
             if _module.is_null() {
                 return
             }
 
-            let _module = match _py.from_borrowed_ptr_or_err::<pyo3::PyModule>(_module) {
+            let _module = match _py.from_borrowed_ptr_or_err::<::pyo3::PyModule>(_module) {
                 Ok(m) => m,
                 Err(e) => {
-                    pyo3::PyErr::from(e).restore(_py);
+                    ::pyo3::PyErr::from(e).restore(_py);
                     return
                 }
             };
@@ -242,8 +239,6 @@ pub fn add_fn_to_module(
 
     let tokens = quote! {
         fn #function_wrapper_ident(py: ::pyo3::Python) -> ::pyo3::PyObject {
-            use std;
-
             #wrapper
 
             let _def = ::pyo3::class::PyMethodDef {
@@ -258,7 +253,7 @@ pub fn add_fn_to_module(
                     py,
                     ::pyo3::ffi::PyCFunction_New(
                         Box::into_raw(Box::new(_def.as_method_def())),
-                        std::ptr::null_mut()
+                        ::std::ptr::null_mut()
                     )
                 )
             };

@@ -3,7 +3,7 @@
 use syn;
 
 use py_method;
-use proc_macro2::{TokenStream, Span};
+use proc_macro2::TokenStream;
 
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
@@ -25,7 +25,7 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
         }
     }
 
-    let tokens = quote! {
+    quote! {
         impl ::pyo3::class::methods::PyMethodsProtocolImpl for #ty {
             fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
@@ -34,21 +34,5 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
                 METHODS
             }
         }
-    };
-
-    let n = if let &syn::Type::Path(ref typath) = ty {
-        typath.path.segments.last().as_ref().unwrap().value().ident.to_string()
-    } else {
-        "CLS_METHODS".to_string()
-    };
-
-    let dummy_const = syn::Ident::new(&format!("_IMPL_PYO3_METHODS_{}", n), Span::call_site());
-    quote! {
-        #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes,
-                unused_qualifications, unused_variables, unused_imports)]
-        const #dummy_const: () = {
-            #tokens
-        };
     }
 }

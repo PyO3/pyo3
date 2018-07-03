@@ -88,7 +88,6 @@ pub fn impl_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec, noargs: bool
                 _args: *mut ::pyo3::ffi::PyObject,
                 _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
             {
-                use pyo3::ToPyPointer;
                 const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
                 let _pool = ::pyo3::GILPool::new();
@@ -152,7 +151,6 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
             _args: *mut ::pyo3::ffi::PyObject,
             _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
         {
-            use std::ptr;
             use pyo3::typeob::PyTypeInfo;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
@@ -169,13 +167,13 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
                         Ok(_) => _obj.into_ptr(),
                         Err(e) => {
                             e.restore(_py);
-                            ptr::null_mut()
+                            ::std::ptr::null_mut()
                         }
                     }
                 }
                 Err(e) => {
                     e.restore(_py);
-                    ptr::null_mut()
+                    ::std::ptr::null_mut()
                 }
             }
         }
@@ -292,7 +290,6 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStrea
         unsafe extern "C" fn __wrap(
             _slf: *mut ::pyo3::ffi::PyObject, _: *mut ::pyo3::c_void) -> *mut ::pyo3::ffi::PyObject
         {
-            use std;
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
 
             let _pool = ::pyo3::GILPool::new();
@@ -305,7 +302,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStrea
                 }
                 Err(e) => {
                     e.restore(_py);
-                    std::ptr::null_mut()
+                    ::std::ptr::null_mut()
                 }
             }
         }

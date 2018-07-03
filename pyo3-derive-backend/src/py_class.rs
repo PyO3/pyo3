@@ -39,17 +39,10 @@ pub fn build_py_class(
         panic!("#[class] can only be used with structs")
     }
 
-    let dummy_const = syn::Ident::new(&format!("_IMPL_PYO3_CLS_{}", ast.ident), Span::call_site());
     let tokens = impl_class(&ast.ident, &base, token, doc, params, flags, descriptors);
 
     quote! {
-        #[allow(non_upper_case_globals, unused_attributes,
-                unused_qualifications, unused_variables, non_camel_case_types)]
-        const #dummy_const: () = {
-            use std;
-
-            #tokens
-        };
+        #tokens
     }
 }
 
@@ -360,7 +353,7 @@ fn impl_descriptors(
         }).collect::<Vec<TokenStream>>()
     }).collect();
 
-    let tokens = quote! {
+    quote! {
         #(#methods)*
 
         impl ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
@@ -371,23 +364,6 @@ fn impl_descriptors(
                 METHODS
             }
         }
-    };
-
-    let n = match cls {
-        &syn::Type::Path(ref typath) => {
-            typath.path.segments.last().as_ref().unwrap().value().ident.to_string()
-        }
-        _ => "CLS_METHODS".to_string()
-    };
-
-    let dummy_const = syn::Ident::new(&format!("_IMPL_pyo3_DESCRIPTORS_{}", n), Span::call_site());
-    quote! {
-        #[feature(specialization)]
-        #[allow(non_upper_case_globals, unused_attributes,
-                unused_qualifications, unused_variables, unused_imports)]
-        const #dummy_const: () = {
-            #tokens
-        };
     }
 }
 
