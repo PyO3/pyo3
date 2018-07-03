@@ -22,7 +22,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
             use ::pyo3::{IntoPyPointer, ObjectProtocol};
 
             // initialize pyo3
-            ::pyo3::prepare_pyo3_library();
+            ::pyo3::init_once();
 
             static mut MODULE_DEF: ::pyo3::ffi::PyModuleDef = ::pyo3::ffi::PyModuleDef_INIT;
             // We can't convert &'static str to *const c_char within a static initializer,
@@ -67,7 +67,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
         #[allow(non_snake_case, unused_imports)]
         pub unsafe extern "C" fn #cb_name() {
             // initialize python
-            ::pyo3::prepare_pyo3_library();
+            ::pyo3::init_once();
             ::pyo3::ffi::PyEval_InitThreads();
 
             let _name = concat!(stringify!(#name), "\0").as_ptr() as *const _;

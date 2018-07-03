@@ -61,13 +61,13 @@ pub fn prepare_freethreaded_python() {
             // and will be restored by PyGILState_Ensure.
         }
 
-        prepare_pyo3_library();
+        init_once();
     });
 }
 
 
 #[doc(hidden)]
-pub fn prepare_pyo3_library() {
+pub fn init_once() {
     START_PYO3.call_once(|| unsafe {
         // initialize release pool
         POOL = Box::into_raw(Box::new(ReleasePool::new()));
@@ -282,7 +282,7 @@ mod test {
 
     #[test]
     fn test_owned() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -309,7 +309,7 @@ mod test {
 
     #[test]
     fn test_owned_nested() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -346,7 +346,7 @@ mod test {
 
     #[test]
     fn test_borrowed() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -373,7 +373,7 @@ mod test {
 
     #[test]
     fn test_borrowed_nested() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -410,7 +410,7 @@ mod test {
 
     #[test]
     fn test_pyobject_drop() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
