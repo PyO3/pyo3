@@ -77,6 +77,9 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
 /// sysconfig.get_config_vars.
 #[cfg(not(target_os = "windows"))]
 fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, String> {
+    // FIXME: We can do much better here using serde:
+    // import json, sysconfig; print(json.dumps({k:str(v) for k, v in sysconfig.get_config_vars().items()}))
+
     let mut script = "import sysconfig; \
                       config = sysconfig.get_config_vars();"
         .to_owned();
@@ -510,13 +513,7 @@ fn main() {
         }
     );
 
-    let env_vars = [
-        "LD_LIBRARY_PATH",
-        "LIBRARY_PATH",
-        "PATH",
-        "PYTHON_LIB",
-        "PYTHON_SYS_EXECUTABLE",
-    ];
+    let env_vars = ["LD_LIBRARY_PATH", "PATH", "PYTHON_SYS_EXECUTABLE"];
 
     for var in env_vars.iter() {
         println!("cargo:rerun-if-env-changed={}", var);
