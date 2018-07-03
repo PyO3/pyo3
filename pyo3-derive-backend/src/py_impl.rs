@@ -2,9 +2,8 @@
 
 use syn;
 
-use py_method;
 use proc_macro2::TokenStream;
-
+use py_method;
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
     if ast.trait_.is_some() {
@@ -15,13 +14,17 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
 }
 
 pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStream {
-
     // get method names in impl block
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
         if let syn::ImplItem::Method(ref mut meth) = iimpl {
             let name = meth.sig.ident.clone();
-            methods.push(py_method::gen_py_method(ty, &name, &mut meth.sig, &mut meth.attrs));
+            methods.push(py_method::gen_py_method(
+                ty,
+                &name,
+                &mut meth.sig,
+                &mut meth.attrs,
+            ));
         }
     }
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use syn;
 
-use proc_macro2::{TokenStream};
+use proc_macro2::TokenStream;
 
 pub fn print_err(msg: String, t: TokenStream) {
     println!("Error: {} in '{}'", msg, t.to_string());

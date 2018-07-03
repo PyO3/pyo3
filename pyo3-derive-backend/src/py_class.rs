@@ -4,16 +4,12 @@ use std::collections::HashMap;
 
 use syn;
 
+use method::{FnArg, FnSpec, FnType};
+use proc_macro2::{Span, TokenStream};
+use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
 use utils;
-use method::{FnType, FnSpec, FnArg};
-use py_method::{impl_wrap_getter, impl_wrap_setter, impl_py_getter_def, impl_py_setter_def};
-use proc_macro2::{TokenStream, Span};
 
-pub fn build_py_class(
-    ast: &mut syn::DeriveInput,
-    attr: &Vec<syn::Expr>
-) -> TokenStream {
-
+pub fn build_py_class(ast: &mut syn::DeriveInput, attr: &Vec<syn::Expr>) -> TokenStream {
     let (params, flags, base) = parse_attribute(attr);
     let doc = utils::get_doc(&ast.attrs, true);
     let mut token: Option<syn::Ident> = None;
@@ -87,12 +83,11 @@ fn impl_class(
     doc: syn::Lit,
     params: HashMap<&'static str, syn::Expr>,
     flags: Vec<syn::Expr>,
-    descriptors: Vec<(syn::Field, Vec<FnType>)>
+    descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> TokenStream {
-
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.to_string(),
-        None => quote! { #cls }.to_string()
+        None => quote! { #cls }.to_string(),
     };
 
     let extra = if let Some(token) = token {
@@ -279,79 +274,88 @@ fn impl_class(
     }
 }
 
-fn impl_descriptors(
-    cls: &syn::Type,
-    descriptors: Vec<(syn::Field, Vec<FnType>)>
-) -> TokenStream {
-    let methods: Vec<TokenStream> = descriptors.iter().flat_map(|&(ref field, ref fns)| {
-        fns.iter().map(|desc| {
-            let name = field.ident.clone().unwrap();
-            let field_ty = &field.ty;
-            match *desc {
-                FnType::Getter(_) => {
-                    quote! {
-                        impl #cls {
-                            fn #name(&self) -> ::pyo3::PyResult<#field_ty> {
-                                Ok(self.#name.clone())
+fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> TokenStream {
+    let methods: Vec<TokenStream> = descriptors
+        .iter()
+        .flat_map(|&(ref field, ref fns)| {
+            fns.iter()
+                .map(|desc| {
+                    let name = field.ident.clone().unwrap();
+                    let field_ty = &field.ty;
+                    match *desc {
+                        FnType::Getter(_) => {
+                            quote! {
+                                impl #cls {
+                                    fn #name(&self) -> ::pyo3::PyResult<#field_ty> {
+                                        Ok(self.#name.clone())
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-                FnType::Setter(_) => {
-                    let setter_name = syn::Ident::new(&format!("set_{}", name), Span::call_site());
-                    quote! {
-                        impl #cls {
-                            fn #setter_name(&mut self, value: #field_ty) -> ::pyo3::PyResult<()> {
-                                self.#name = value;
-                                Ok(())
+                        FnType::Setter(_) => {
+                            let setter_name =
+                                syn::Ident::new(&format!("set_{}", name), Span::call_site());
+                            quote! {
+                                impl #cls {
+                                    fn #setter_name(&mut self, value: #field_ty) -> ::pyo3::PyResult<()> {
+                                        self.#name = value;
+                                        Ok(())
+                                    }
+                                }
                             }
                         }
+                        _ => unreachable!(),
                     }
-                },
-                _ => unreachable!()
-            }
-        }).collect::<Vec<TokenStream>>()
-    }).collect();
+                })
+                .collect::<Vec<TokenStream>>()
+        })
+        .collect();
 
-    let py_methods: Vec<TokenStream> = descriptors.iter().flat_map(|&(ref field, ref fns)| {
-        fns.iter().map(|desc| {
-            let name = field.ident.clone().unwrap();
+    let py_methods: Vec<TokenStream> = descriptors
+        .iter()
+        .flat_map(|&(ref field, ref fns)| {
+            fns.iter()
+                .map(|desc| {
+                    let name = field.ident.clone().unwrap();
 
-            // FIXME better doc?
-            let doc: syn::Lit = syn::parse_str(&format!("\"{}\"", name)).unwrap();
+                    // FIXME better doc?
+                    let doc: syn::Lit = syn::parse_str(&format!("\"{}\"", name)).unwrap();
 
-            let field_ty = &field.ty;
-            match *desc {
-                FnType::Getter(ref getter) => {
-                    impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
-                }
-                FnType::Setter(ref setter) => {
-                    let setter_name = syn::Ident::new(&format!("set_{}", name), Span::call_site());
-                    let spec = FnSpec {
-                        tp: FnType::Setter(None),
-                        attrs: Vec::new(),
-                        args: vec![FnArg {
-                            name: &name,
-                            mutability: &None,
-                            by_ref: &None,
-                            ty: field_ty,
-                            optional: None,
-                            py: true,
-                            reference: false
-                        }],
-                        output: parse_quote!(PyResult<()>)
-                    };
-                    impl_py_setter_def(
-                        &name,
-                        doc,
-                        setter,
-                        &impl_wrap_setter(&cls, &setter_name, &spec)
-                    )
-                },
-                _ => unreachable!()
-            }
-        }).collect::<Vec<TokenStream>>()
-    }).collect();
+                    let field_ty = &field.ty;
+                    match *desc {
+                        FnType::Getter(ref getter) => {
+                            impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
+                        }
+                        FnType::Setter(ref setter) => {
+                            let setter_name =
+                                syn::Ident::new(&format!("set_{}", name), Span::call_site());
+                            let spec = FnSpec {
+                                tp: FnType::Setter(None),
+                                attrs: Vec::new(),
+                                args: vec![FnArg {
+                                    name: &name,
+                                    mutability: &None,
+                                    by_ref: &None,
+                                    ty: field_ty,
+                                    optional: None,
+                                    py: true,
+                                    reference: false,
+                                }],
+                                output: parse_quote!(PyResult<()>),
+                            };
+                            impl_py_setter_def(
+                                &name,
+                                doc,
+                                setter,
+                                &impl_wrap_setter(&cls, &setter_name, &spec),
+                            )
+                        }
+                        _ => unreachable!(),
+                    }
+                })
+                .collect::<Vec<TokenStream>>()
+        })
+        .collect();
 
     quote! {
         #(#methods)*
@@ -371,12 +375,12 @@ fn is_python_token(field: &syn::Field) -> bool {
     match field.ty {
         syn::Type::Path(ref typath) => {
             if let Some(segment) = typath.path.segments.last() {
-                return segment.value().ident.to_string() == "PyToken"
+                return segment.value().ident.to_string() == "PyToken";
             }
         }
         _ => (),
     }
-    return false
+    return false;
 }
 
 fn parse_attribute(
@@ -384,85 +388,88 @@ fn parse_attribute(
 ) -> (
     HashMap<&'static str, syn::Expr>,
     Vec<syn::Expr>,
-    syn::TypePath
+    syn::TypePath,
 ) {
-
     let mut params = HashMap::new();
     let mut flags = vec![syn::Expr::Lit(parse_quote!{0})];
     let mut base: syn::TypePath = parse_quote!{::pyo3::PyObjectRef};
 
     for expr in args.iter() {
         match expr {
-
             // Match a single flag
-            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
-                match exp.path.segments.first().unwrap().value().ident.to_string().as_str() {
-                    "gc" => {
-                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_GC}));
-                    }
-                    "weakref" => {
-                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_WEAKREF}));
-                    }
-                    "subclass" => {
-                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_BASETYPE}));
-                    }
-                    "dict" => {
-                        flags.push(syn::Expr::Path(parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_DICT}));
-                    }
-                    param => {
-                        println!("Unsupported parameter: {}", param);
-                    }
+            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => match exp
+                .path
+                .segments
+                .first()
+                .unwrap()
+                .value()
+                .ident
+                .to_string()
+                .as_str()
+            {
+                "gc" => {
+                    flags.push(syn::Expr::Path(
+                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_GC},
+                    ));
                 }
-            }
+                "weakref" => {
+                    flags.push(syn::Expr::Path(
+                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_WEAKREF},
+                    ));
+                }
+                "subclass" => {
+                    flags.push(syn::Expr::Path(
+                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_BASETYPE},
+                    ));
+                }
+                "dict" => {
+                    flags.push(syn::Expr::Path(
+                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_DICT},
+                    ));
+                }
+                param => {
+                    println!("Unsupported parameter: {}", param);
+                }
+            },
 
             // Match a key/value flag
             syn::Expr::Assign(ref ass) => {
-
                 let key = match *ass.left {
                     syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
                         exp.path.segments.first().unwrap().value().ident.to_string()
                     }
-                    _ => panic!("could not parse argument: {:?}", ass)
+                    _ => panic!("could not parse argument: {:?}", ass),
                 };
 
                 match key.as_str() {
                     "freelist" => {
                         // TODO: check if int literal
                         params.insert("freelist", *ass.right.clone());
-                    },
-                    "name" => {
-                        match *ass.right {
-                            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
-                                params.insert("name", exp.clone().into());
-                            },
-                            _ => println!("Wrong 'name' format: {:?}", *ass.right),
-                        }
-                    },
-                    "base" => {
-                        match *ass.right {
-                            syn::Expr::Path(ref exp) => {
-                                base = syn::TypePath{
-                                    path: exp.path.clone(),
-                                    qself: None,
-                                };
-                            },
-                            _ => println!("Wrong 'base' format: {:?}", *ass.right),
-                        }
                     }
+                    "name" => match *ass.right {
+                        syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+                            params.insert("name", exp.clone().into());
+                        }
+                        _ => println!("Wrong 'name' format: {:?}", *ass.right),
+                    },
+                    "base" => match *ass.right {
+                        syn::Expr::Path(ref exp) => {
+                            base = syn::TypePath {
+                                path: exp.path.clone(),
+                                qself: None,
+                            };
+                        }
+                        _ => println!("Wrong 'base' format: {:?}", *ass.right),
+                    },
                     _ => {
                         println!("Unsupported parameter: {:?}", key);
                     }
                 }
-
             }
 
-
-
             _ => panic!("could not parse arguments"),
-
         }
     }
-
 
     (params, flags, base)
 }

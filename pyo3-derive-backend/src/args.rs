@@ -29,78 +29,103 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                     return Vec::new();
                 }
                 if has_kw {
-                    println!("syntax error, argument is not allowed after keyword argument: {:?}",
-                             args_str);
-                    return Vec::new()
+                    println!(
+                        "syntax error, argument is not allowed after keyword argument: {:?}",
+                        args_str
+                    );
+                    return Vec::new();
                 }
                 arguments.push(Argument::Arg(ident.clone(), None))
             }
             syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {
                 match nv.lit {
                     syn::Lit::Str(ref litstr) => {
-                        if litstr.value() == "*" {  // #[args(args="*")]
+                        if litstr.value() == "*" {
+                            // #[args(args="*")]
                             if has_kwargs {
-                                println!("* - syntax error, keyword arguments is defined: {:?}",
-                                         args_str);
-                                return Vec::new()
+                                println!(
+                                    "* - syntax error, keyword arguments is defined: {:?}",
+                                    args_str
+                                );
+                                return Vec::new();
                             }
                             if has_varargs {
                                 println!("*(var args) is defined: {:?}", args_str);
-                                return Vec::new()
+                                return Vec::new();
                             }
                             has_varargs = true;
                             arguments.push(Argument::VarArgs(nv.ident.clone()));
-                        } else if litstr.value() == "**" {  // #[args(kwargs="**")]
+                        } else if litstr.value() == "**" {
+                            // #[args(kwargs="**")]
                             if has_kwargs {
-                                println!("arguments already define ** (kw args): {:?}",
-                                         args_str);
-                                return Vec::new()
+                                println!("arguments already define ** (kw args): {:?}", args_str);
+                                return Vec::new();
                             }
                             has_kwargs = true;
                             arguments.push(Argument::KeywordArgs(nv.ident.clone()));
                         } else {
                             if has_varargs {
-                                arguments.push(Argument::Kwarg(nv.ident.clone(), litstr.value().clone()))
+                                arguments
+                                    .push(Argument::Kwarg(nv.ident.clone(), litstr.value().clone()))
                             } else {
                                 if has_kwargs {
-                                    println!("syntax error, keyword arguments is defined: {:?}",
-                                             args_str);
-                                    return Vec::new()
+                                    println!(
+                                        "syntax error, keyword arguments is defined: {:?}",
+                                        args_str
+                                    );
+                                    return Vec::new();
                                 }
                                 has_kw = true;
-                                arguments.push(Argument::Arg(nv.ident.clone(), Some(litstr.value().clone())))
+                                arguments.push(Argument::Arg(
+                                    nv.ident.clone(),
+                                    Some(litstr.value().clone()),
+                                ))
                             }
                         }
                     }
                     syn::Lit::Int(ref litint) => {
                         if has_varargs {
-                            arguments.push(Argument::Kwarg(nv.ident.clone(), format!("{}", litint.value())));
+                            arguments.push(Argument::Kwarg(
+                                nv.ident.clone(),
+                                format!("{}", litint.value()),
+                            ));
                         } else {
                             if has_kwargs {
-                                println!("syntax error, keyword arguments is defined: {:?}",
-                                         args_str);
-                                return Vec::new()
+                                println!(
+                                    "syntax error, keyword arguments is defined: {:?}",
+                                    args_str
+                                );
+                                return Vec::new();
                             }
                             has_kw = true;
-                            arguments.push(Argument::Arg(nv.ident.clone(), Some(format!("{}", litint.value()))));
+                            arguments.push(Argument::Arg(
+                                nv.ident.clone(),
+                                Some(format!("{}", litint.value())),
+                            ));
                         }
                     }
                     syn::Lit::Bool(ref litb) => {
                         if has_varargs {
-                            arguments.push(Argument::Kwarg(nv.ident.clone(), format!("{}", litb.value)));
+                            arguments
+                                .push(Argument::Kwarg(nv.ident.clone(), format!("{}", litb.value)));
                         } else {
                             if has_kwargs {
-                                println!("syntax error, keyword arguments is defined: {:?}",
-                                         args_str);
-                                return Vec::new()
+                                println!(
+                                    "syntax error, keyword arguments is defined: {:?}",
+                                    args_str
+                                );
+                                return Vec::new();
                             }
                             has_kw = true;
-                            arguments.push(Argument::Arg(nv.ident.clone(), Some(format!("{}", litb.value))));
+                            arguments.push(Argument::Arg(
+                                nv.ident.clone(),
+                                Some(format!("{}", litb.value)),
+                            ));
                         }
                     }
                     _ => {
                         println!("Only string literal is supported, got: {:?}", nv.lit);
-                        return Vec::new()
+                        return Vec::new();
                     }
                 }
             }
@@ -112,33 +137,37 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
                             if has_kwargs {
                                 println!(
                                     "syntax error, keyword arguments is defined: {:?}",
-                                    args_str);
-                                return Vec::new()
+                                    args_str
+                                );
+                                return Vec::new();
                             }
                             if has_varargs {
-                                println!(
-                                    "arguments already define * (var args): {:?}",
-                                    args_str);
-                                return Vec::new()
+                                println!("arguments already define * (var args): {:?}", args_str);
+                                return Vec::new();
                             }
                             has_varargs = true;
                             arguments.push(Argument::VarArgsSeparator);
                         } else {
-                            println!("Unknown string literal, got: {:?} args: {:?}",
-                                     lits.value(), args_str);
-                            return Vec::new()
+                            println!(
+                                "Unknown string literal, got: {:?} args: {:?}",
+                                lits.value(),
+                                args_str
+                            );
+                            return Vec::new();
                         }
                     }
                     _ => {
-                        println!("Only string literal is supported, got: {:?} args: {:?}",
-                                 lit, args_str);
-                        return Vec::new()
+                        println!(
+                            "Only string literal is supported, got: {:?} args: {:?}",
+                            lit, args_str
+                        );
+                        return Vec::new();
                     }
                 }
             }
             _ => {
                 println!("Unknown argument, got: {:?} args: {:?}", item, args_str);
-                return Vec::new()
+                return Vec::new();
             }
         }
     }
@@ -146,12 +175,11 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
     arguments
 }
 
-
 #[cfg(test)]
 mod test {
 
+    use args::{parse_arguments, Argument};
     use syn;
-    use args::{Argument, parse_arguments};
 
     fn items(s: TokenStream) -> Vec<syn::NestedMeta> {
         let dummy: syn::ItemFn = parse_quote!{#s fn dummy() {}};
@@ -159,7 +187,7 @@ mod test {
             Some(syn::Meta::List(syn::MetaList { nested, .. })) => {
                 nested.iter().map(Clone::clone).collect()
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -174,28 +202,43 @@ mod test {
     #[test]
     fn test_simple_args() {
         let args = parse_arguments(&items(quote!{#[args(test1, test2, test3="None")]}));
-        assert!(args == vec![Argument::Arg(parse_quote!{test1}, None),
-                             Argument::Arg(parse_quote!{test2}, None),
-                             Argument::Arg(parse_quote!{test3}, Some("None".to_owned()))]);
+        assert!(
+            args == vec![
+                Argument::Arg(parse_quote!{test1}, None),
+                Argument::Arg(parse_quote!{test2}, None),
+                Argument::Arg(parse_quote!{test3}, Some("None".to_owned())),
+            ]
+        );
     }
 
     #[test]
     fn test_varargs() {
-        let args = parse_arguments(&items(quote!{#[args(test1, test2="None", "*", test3="None")]}));
-        assert!(args == vec![Argument::Arg(parse_quote!{test1}, None),
-                             Argument::Arg(parse_quote!{test2}, Some("None".to_owned())),
-                             Argument::VarArgsSeparator,
-                             Argument::Kwarg(parse_quote!{test3}, "None".to_owned())]);
+        let args = parse_arguments(&items(
+            quote!{#[args(test1, test2="None", "*", test3="None")]},
+        ));
+        assert!(
+            args == vec![
+                Argument::Arg(parse_quote!{test1}, None),
+                Argument::Arg(parse_quote!{test2}, Some("None".to_owned())),
+                Argument::VarArgsSeparator,
+                Argument::Kwarg(parse_quote!{test3}, "None".to_owned()),
+            ]
+        );
     }
 
     #[test]
     fn test_all() {
-        let args = parse_arguments(
-            &items(quote!{#[args(test1, test2="None", args="*", test3="None", kwargs="**")]}));
-        assert!(args == vec![Argument::Arg(parse_quote!{test1}, None),
-                             Argument::Arg(parse_quote!{test2}, Some("None".to_owned())),
-                             Argument::VarArgs(parse_quote!{args}),
-                             Argument::Kwarg(parse_quote!{test3}, "None".to_owned()),
-                             Argument::KeywordArgs(parse_quote!{kwargs})]);
+        let args = parse_arguments(&items(
+            quote!{#[args(test1, test2="None", args="*", test3="None", kwargs="**")]},
+        ));
+        assert!(
+            args == vec![
+                Argument::Arg(parse_quote!{test1}, None),
+                Argument::Arg(parse_quote!{test2}, Some("None".to_owned())),
+                Argument::VarArgs(parse_quote!{args}),
+                Argument::Kwarg(parse_quote!{test3}, "None".to_owned()),
+                Argument::KeywordArgs(parse_quote!{kwargs}),
+            ]
+        );
     }
 }

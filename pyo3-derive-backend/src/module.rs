@@ -7,12 +7,11 @@ use py_method;
 use syn;
 use utils;
 
-use proc_macro2::{TokenStream, Span};
+use proc_macro2::{Span, TokenStream};
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
 pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
-
     let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name)).unwrap();
 
     quote! {
@@ -59,7 +58,6 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
 }
 
 pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
-
     let cb_name: syn::Ident = syn::parse_str(&format!("init{}", name)).unwrap();
 
     quote! {
@@ -125,20 +123,18 @@ fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a syn::Ident) -> Option<m
     match input {
         &syn::FnArg::SelfRef(_) | &syn::FnArg::SelfValue(_) => None,
         &syn::FnArg::Captured(ref cap) => {
-
             let (mutability, by_ref, ident) = match cap.pat {
-                syn::Pat::Ident(ref patid) =>
-                    (&patid.mutability, &patid.by_ref, &patid.ident),
-                _ =>
-                    panic!("unsupported argument: {:?}", cap.pat),
+                syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
+                _ => panic!("unsupported argument: {:?}", cap.pat),
             };
 
             let py = match cap.ty {
-                syn::Type::Path(ref typath) => {
-                    typath.path.segments.last()
-                        .map(|seg| seg.value().ident == "Python")
-                        .unwrap_or(false)
-                }
+                syn::Type::Path(ref typath) => typath
+                    .path
+                    .segments
+                    .last()
+                    .map(|seg| seg.value().ident == "Python")
+                    .unwrap_or(false),
                 _ => false,
             };
 
@@ -174,8 +170,9 @@ fn extract_pyfn_attrs(
                 if meta.len() >= 2 {
                     // read module name
                     match meta[0] {
-                        syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) =>
-                            modname = Some(ident.clone()),
+                        syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
+                            modname = Some(ident.clone())
+                        }
                         _ => panic!("The first parameter of pyfn must be a MetaItem"),
                     }
                     // read Python fonction name
@@ -214,7 +211,6 @@ pub fn add_fn_to_module(
     python_name: &syn::Ident,
     pyfn_attrs: Vec<args::Argument>,
 ) -> TokenStream {
-
     let mut arguments = Vec::new();
 
     for input in func.decl.inputs.iter() {
@@ -267,7 +263,8 @@ pub fn add_fn_to_module(
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
 fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
-    let names: Vec<syn::Ident> = spec.args
+    let names: Vec<syn::Ident> = spec
+        .args
         .iter()
         .enumerate()
         .map(|item| {
