@@ -26,7 +26,7 @@ use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 /// with the primitive Rust integer types.
 pub struct PyInt(PyObject);
 
-pyobject_native_type!(PyInt, PyInt_Type, PyInt_Check);
+pyobject_native_type!(PyInt, ffi::PyInt_Type, ffi::PyInt_Check);
 
 /// In Python 2.x, represents a Python `long` object.
 /// Both `PyInt` and `PyLong` refer to the same type on Python 3.x.
@@ -37,7 +37,7 @@ pyobject_native_type!(PyInt, PyInt_Type, PyInt_Check);
 /// with the primitive Rust integer types.
 pub struct PyLong(PyObject);
 
-pyobject_native_type!(PyLong, PyLong_Type, PyLong_Check);
+pyobject_native_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 
 impl PyInt {
     /// Creates a new Python 2.7 `int` object.

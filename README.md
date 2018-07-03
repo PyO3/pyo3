@@ -100,9 +100,15 @@ fn sum_as_string(a:i64, b:i64) -> String {
 
 ```
 
-**To build**: `cargo rustc --release`
+On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content: 
 
-**On a Mac**: `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`
+```toml
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+```
 
 Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
 
