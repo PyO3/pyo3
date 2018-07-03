@@ -3,18 +3,17 @@
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::py::class as pyclass;
-use pyo3::py::proto as pyproto;
+use pyo3::py::{class, proto};
 
 #[macro_use]
 mod common;
 
-#[pyclass]
+#[class]
 struct UnaryArithmetic {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyNumberProtocol for UnaryArithmetic {
     fn __neg__(&self) -> PyResult<&'static str> {
         Ok("neg")
@@ -45,32 +44,32 @@ fn unary_arithmetic() {
     py_run!(py, c, "assert ~c == 'invert'");
 }
 
-#[pyclass]
+#[class]
 struct BinaryArithmetic {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyObjectProtocol for BinaryArithmetic {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("BA")
     }
 }
 
-#[pyclass]
+#[class]
 struct InPlaceOperations {
     value: u32,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyObjectProtocol for InPlaceOperations {
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("IPO({:?})", self.value))
     }
 }
 
-#[pyproto]
+#[proto]
 impl PyNumberProtocol for InPlaceOperations {
     fn __iadd__(&mut self, other: u32) -> PyResult<()> {
         self.value += other;
@@ -133,7 +132,7 @@ fn inplace_operations() {
     init(12, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
 
-#[pyproto]
+#[proto]
 impl PyNumberProtocol for BinaryArithmetic {
     fn __add__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
@@ -194,12 +193,12 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 | c == '1 | BA'");
 }
 
-#[pyclass]
+#[class]
 struct RichComparisons {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyObjectProtocol for RichComparisons {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("RC")
@@ -217,12 +216,12 @@ impl PyObjectProtocol for RichComparisons {
     }
 }
 
-#[pyclass]
+#[class]
 struct RichComparisons2 {
     py: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyObjectProtocol for RichComparisons2 {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("RC2")

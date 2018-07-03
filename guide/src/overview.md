@@ -64,12 +64,12 @@ features = ["extension-module"]
 extern crate pyo3;
 use pyo3::prelude::*;
 
-use pyo3::py::modinit as pymodinit;
+use pyo3::py::modint;
 
 // Add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 /// This module is implemented in Rust.
-#[pymodinit(rust2py)]
+#[modinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "sum_as_string")]

@@ -8,14 +8,14 @@ use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
-use pyo3::py::proto as pyproto;
+use pyo3::py::class;
+use pyo3::py::methods;
+use pyo3::py::proto;
 
 #[macro_use]
 mod common;
 
-#[pyclass(freelist = 2)]
+#[class(freelist = 2)]
 struct ClassWithFreelist {
     token: PyToken,
 }
@@ -55,7 +55,7 @@ impl Drop for TestDropCall {
 }
 
 #[allow(dead_code)]
-#[pyclass]
+#[class]
 struct DataIsDropped {
     member1: TestDropCall,
     member2: TestDropCall,
@@ -89,7 +89,7 @@ fn data_is_dropped() {
     assert!(drop_called2.load(Ordering::Relaxed));
 }
 
-#[pyclass]
+#[class]
 struct ClassWithDrop {
     token: PyToken,
 }
@@ -136,14 +136,14 @@ fn create_pointers_in_drop() {
 }
 
 #[allow(dead_code)]
-#[pyclass]
+#[class]
 struct GCIntegration {
     self_ref: RefCell<PyObject>,
     dropped: TestDropCall,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyGCProtocol for GCIntegration {
     fn __traverse__(&self, visit: PyVisit) -> Result<(), PyTraverseError> {
         visit.call(&*self.self_ref.borrow())
@@ -178,7 +178,7 @@ fn gc_integration() {
     assert!(drop_called.load(Ordering::Relaxed));
 }
 
-#[pyclass(gc)]
+#[class(gc)]
 struct GCIntegration2 {
     token: PyToken,
 }
@@ -190,7 +190,7 @@ fn gc_integration2() {
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
-#[pyclass(weakref)]
+#[class(weakref)]
 struct WeakRefSupport {
     token: PyToken,
 }
@@ -206,13 +206,13 @@ fn weakref_support() {
     );
 }
 
-#[pyclass]
+#[class]
 struct BaseClassWithDrop {
     token: PyToken,
     data: Option<Arc<AtomicBool>>,
 }
 
-#[pymethods]
+#[methods]
 impl BaseClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -231,13 +231,13 @@ impl Drop for BaseClassWithDrop {
     }
 }
 
-#[pyclass(base=BaseClassWithDrop)]
+#[class(base=BaseClassWithDrop)]
 struct SubClassWithDrop {
     token: PyToken,
     data: Option<Arc<AtomicBool>>,
 }
 
-#[pymethods]
+#[methods]
 impl SubClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {

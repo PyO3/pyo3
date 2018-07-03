@@ -50,8 +50,7 @@ fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
 pub fn body_to_result(body: &TokenStream, spec: &FnSpec) -> TokenStream {
     let output = &spec.output;
     quote! {
-        use pyo3::ReturnTypeIntoPyResult;
-        let _result: PyResult<<#output as ReturnTypeIntoPyResult>::Inner> = {
+        let _result: ::pyo3::PyResult<<#output as ::pyo3::ReturnTypeIntoPyResult>::Inner> = {
             #body
         };
     }

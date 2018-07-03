@@ -54,10 +54,10 @@
 //! # Python extension
 //!
 //! To allow Python to load the rust code as a Python extension
-//! module, you need provide initialization function and annotate it with `#[pymodinit(name)]`.
+//! module, you need provide initialization function and annotate it with `#[modinit(name)]`.
 //! `pymodinit` expands to an `extern "C"` function.
 //!
-//! Macro syntax: `#[pymodinit(name)]`
+//! Macro syntax: `#[modinit(name)]`
 //!
 //! 1. `name`: The module name as a Rust identifier
 //! 2. Decorate init function `Fn(Python, &PyModule) -> PyResult<()>`.
@@ -78,15 +78,15 @@
 //! #![feature(proc_macro, specialization)]
 //!
 //! extern crate pyo3;
-//! use pyo3::{py, Python, PyResult, PyModule, PyString};
+//! use pyo3::prelude::*;
 //!
-//! use pyo3::py::modinit as pymodinit;
+//! use pyo3::py::modinit;
 //!
 //! // add bindings to the generated python module
 //! // N.B: names: "libhello" must be the name of the `.so` or `.pyd` file
 //!
 //! /// Module documentation string
-//! #[pymodinit(hello)]
+//! #[modinit(hello)]
 //! fn init_module(py: Python, m: &PyModule) -> PyResult<()> {
 //!
 //!     // pyo3 aware function. All of our python interface could be declared

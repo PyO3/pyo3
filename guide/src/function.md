@@ -10,9 +10,9 @@ One way is defining the function in the module definition.
 
 extern crate pyo3;
 use pyo3::{py, PyResult, Python, PyModule};
-use pyo3::py::modinit as pymodinit;
+use pyo3::py::modint;
 
-#[pymodinit(rust2py)]
+#[modinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
@@ -41,14 +41,14 @@ extern crate pyo3;
 use pyo3::{py, PyResult, Python, PyModule};
 
 use pyo3::py::function as pyfunction;
-use pyo3::py::modinit as pymodinit;
+use pyo3::py::modint;
 
 #[pyfunction]
 fn double(x: usize) -> usize {
     x * 2
 }
 
-#[pymodinit(module_with_functions)]
+#[modinit(module_with_functions)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(double)).unwrap();
 

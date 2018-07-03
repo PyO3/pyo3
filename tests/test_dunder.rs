@@ -6,20 +6,20 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 use std::{isize, iter};
 
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
-use pyo3::py::proto as pyproto;
+use pyo3::py::class;
+use pyo3::py::methods;
+use pyo3::py::proto;
 
 #[macro_use]
 mod common;
 
-#[pyclass]
+#[class]
 pub struct Len {
     l: usize,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyMappingProtocol for Len {
     fn __len__(&self) -> PyResult<usize> {
         Ok(self.l)
@@ -45,13 +45,13 @@ fn len() {
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
-#[pyclass]
+#[class]
 struct Iterator {
     iter: Box<iter::Iterator<Item = i32> + Send>,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyIterProtocol for Iterator {
     fn __iter__(&mut self) -> PyResult<Py<Iterator>> {
         Ok(self.into())
@@ -75,12 +75,12 @@ fn iterator() {
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
 
-#[pyclass]
+#[class]
 struct StringMethods {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl<'p> PyObjectProtocol<'p> for StringMethods {
     fn __str__(&self) -> PyResult<&'static str> {
         Ok("str")
@@ -129,13 +129,13 @@ fn string_methods() {
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
 }
 
-#[pyclass]
+#[class]
 struct Comparisons {
     val: i32,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyObjectProtocol for Comparisons {
     fn __hash__(&self) -> PyResult<isize> {
         Ok(self.val as isize)
@@ -162,12 +162,12 @@ fn comparisons() {
     py_assert!(py, zero, "not zero");
 }
 
-#[pyclass]
+#[class]
 struct Sequence {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PySequenceProtocol for Sequence {
     fn __len__(&self) -> PyResult<usize> {
         Ok(5)
@@ -191,12 +191,12 @@ fn sequence() {
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
 
-#[pyclass]
+#[class]
 struct Callable {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl Callable {
     #[__call__]
     fn __call__(&self, arg: i32) -> PyResult<i32> {
@@ -217,14 +217,14 @@ fn callable() {
     py_assert!(py, nc, "not callable(nc)");
 }
 
-#[pyclass]
+#[class]
 struct SetItem {
     key: i32,
     val: i32,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyMappingProtocol<'a> for SetItem {
     fn __setitem__(&mut self, key: i32, val: i32) -> PyResult<()> {
         self.key = key;
@@ -250,13 +250,13 @@ fn setitem() {
     py_expect_exception!(py, c, "del c[1]", NotImplementedError);
 }
 
-#[pyclass]
+#[class]
 struct DelItem {
     key: i32,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyMappingProtocol<'a> for DelItem {
     fn __delitem__(&mut self, key: i32) -> PyResult<()> {
         self.key = key;
@@ -275,13 +275,13 @@ fn delitem() {
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
 }
 
-#[pyclass]
+#[class]
 struct SetDelItem {
     val: Option<i32>,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyMappingProtocol for SetDelItem {
     fn __setitem__(&mut self, _key: i32, val: i32) -> PyResult<()> {
         self.val = Some(val);
@@ -310,12 +310,12 @@ fn setdelitem() {
     assert_eq!(c.val, None);
 }
 
-#[pyclass]
+#[class]
 struct Reversed {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyMappingProtocol for Reversed {
     fn __reversed__(&self) -> PyResult<&'static str> {
         Ok("I am reversed")
@@ -331,12 +331,12 @@ fn reversed() {
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
-#[pyclass]
+#[class]
 struct Contains {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PySequenceProtocol for Contains {
     fn __contains__(&self, item: i32) -> PyResult<bool> {
         Ok(item >= 0)
@@ -354,13 +354,13 @@ fn contains() {
     py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
 }
 
-#[pyclass]
+#[class]
 struct ContextManager {
     exit_called: bool,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl<'p> PyContextProtocol<'p> for ContextManager {
     fn __enter__(&mut self) -> PyResult<i32> {
         Ok(42)
@@ -421,12 +421,12 @@ fn test_basics() {
     assert_eq!(5, indices.slicelength);
 }
 
-#[pyclass]
+#[class]
 struct Test {
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl<'p> PyMappingProtocol<'p> for Test {
     fn __getitem__(&self, idx: &PyObjectRef) -> PyResult<PyObject> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
@@ -457,7 +457,7 @@ fn test_cls_impl() {
         .unwrap();
 }
 
-#[pyclass(dict)]
+#[class(dict)]
 struct DunderDictSupport {
     token: PyToken,
 }
@@ -477,7 +477,7 @@ fn dunder_dict_support() {
     );
 }
 
-#[pyclass(weakref, dict)]
+#[class(weakref, dict)]
 struct WeakRefDunderDictSupport {
     token: PyToken,
 }

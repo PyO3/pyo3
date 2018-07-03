@@ -5,19 +5,19 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use std::isize;
 
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
+use pyo3::py::class;
+use pyo3::py::methods;
 
 #[macro_use]
 mod common;
 
-#[pyclass]
+#[class]
 struct ClassWithProperties {
     num: i32,
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl ClassWithProperties {
     fn get_num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -50,7 +50,7 @@ fn class_with_properties() {
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
 }
 
-#[pyclass]
+#[class]
 struct GetterSetter {
     #[prop(get, set)]
     num: i32,
@@ -59,7 +59,7 @@ struct GetterSetter {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl GetterSetter {
     fn get_num2(&self) -> PyResult<i32> {
         Ok(self.num)

@@ -4,19 +4,19 @@ extern crate pyo3;
 
 use pyo3::prelude::*;
 
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
+use pyo3::py::class;
+use pyo3::py::methods;
 
 #[macro_use]
 mod common;
 
-#[pyclass]
+#[class]
 struct InstanceMethod {
     member: i32,
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl InstanceMethod {
     /// Test method
     fn method(&self) -> PyResult<i32> {
@@ -42,13 +42,13 @@ fn instance_method() {
         .unwrap();
 }
 
-#[pyclass]
+#[class]
 struct InstanceMethodWithArgs {
     member: i32,
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl InstanceMethodWithArgs {
     fn method(&self, multiplier: i32) -> PyResult<i32> {
         Ok(self.member * multiplier)
@@ -74,12 +74,12 @@ fn instance_method_with_args() {
         .unwrap();
 }
 
-#[pyclass]
+#[class]
 struct ClassMethod {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl ClassMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -111,12 +111,12 @@ fn class_method() {
     ).unwrap();
 }
 
-#[pyclass]
+#[class]
 struct ClassMethodWithArgs {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl ClassMethodWithArgs {
     #[classmethod]
     fn method(cls: &PyType, input: &PyString) -> PyResult<String> {
@@ -139,12 +139,12 @@ fn class_method_with_args() {
     ).unwrap();
 }
 
-#[pyclass]
+#[class]
 struct StaticMethod {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl StaticMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -177,12 +177,12 @@ fn static_method() {
     ).unwrap();
 }
 
-#[pyclass]
+#[class]
 struct StaticMethodWithArgs {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl StaticMethodWithArgs {
     #[staticmethod]
     fn method(_py: Python, input: i32) -> PyResult<String> {
@@ -204,12 +204,12 @@ fn static_method_with_args() {
         .unwrap();
 }
 
-#[pyclass]
+#[class]
 struct MethArgs {
     token: PyToken,
 }
 
-#[pymethods]
+#[methods]
 impl MethArgs {
     #[args(test)]
     fn get_optional(&self, test: Option<i32>) -> PyResult<i32> {

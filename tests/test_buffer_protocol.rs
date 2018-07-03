@@ -8,16 +8,16 @@ use std::ptr;
 use pyo3::ffi;
 use pyo3::prelude::*;
 
-use pyo3::py::class as pyclass;
-use pyo3::py::proto as pyproto;
+use pyo3::py::class;
+use pyo3::py::proto;
 
-#[pyclass]
+#[class]
 struct TestClass {
     vec: Vec<u8>,
     token: PyToken,
 }
 
-#[pyproto]
+#[proto]
 impl PyBufferProtocol for TestClass {
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {

@@ -566,7 +566,7 @@ Example:
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::py::*;
+use pyo3::py::{class, proto};
 
 #[class]
 struct ClassWithGCSupport {
