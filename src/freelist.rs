@@ -35,9 +35,9 @@ impl<T> FreeList<T> {
         let entries = (0..capacity).map(|_| Slot::Empty).collect::<Vec<_>>();
 
         FreeList {
-            entries: entries,
+            entries,
             split: 0,
-            capacity: capacity,
+            capacity,
         }
     }
 

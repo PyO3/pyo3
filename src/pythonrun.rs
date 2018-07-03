@@ -261,7 +261,7 @@ impl GILGuard {
             let pool: &'static mut ReleasePool = &mut *POOL;
             GILGuard { owned: pool.owned.len(),
                        borrowed: pool.borrowed.len(),
-                       gstate: gstate,
+                       gstate,
                        no_send: marker::PhantomData }
         }
     }

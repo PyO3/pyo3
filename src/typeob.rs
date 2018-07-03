@@ -141,9 +141,9 @@ impl PyRawObject {
 
         if !ptr.is_null() {
             Ok(PyRawObject {
-                ptr: ptr,
-                tp_ptr: tp_ptr,
-                curr_ptr: curr_ptr,
+                ptr,
+                tp_ptr,
+                curr_ptr,
                 // initialized: 0,
             })
         } else {
@@ -158,9 +158,9 @@ impl PyRawObject {
                                curr_ptr: *mut ffi::PyTypeObject) -> PyResult<PyRawObject> {
         if !ptr.is_null() {
             Ok(PyRawObject {
-                ptr: ptr,
-                tp_ptr: tp_ptr,
-                curr_ptr: curr_ptr,
+                ptr,
+                tp_ptr,
+                curr_ptr,
                 // initialized: 0,
             })
         } else {

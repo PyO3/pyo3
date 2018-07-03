@@ -91,7 +91,7 @@ impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
-            let visit = PyVisit { visit: visit, arg: arg, _py: py };
+            let visit = PyVisit { visit, arg, _py: py };
             match slf.__traverse__(visit) {
                 Ok(()) => 0,
                 Err(PyTraverseError(code)) => code

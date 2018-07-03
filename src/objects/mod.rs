@@ -44,7 +44,7 @@ macro_rules! pyobject_downcast(
             {
                 unsafe {
                     if $crate::ffi::$checkfunction(ob.as_ptr()) != 0 {
-                        Ok($crate::std::mem::transmute(ob))
+                        Ok(&*(ob as *const $crate::objects::PyObjectRef as *const $name))
                     } else {
                         Err($crate::PyDowncastError.into())
                     }
@@ -62,7 +62,7 @@ macro_rules! pyobject_native_type_named(
         impl $crate::std::convert::AsRef<$crate::PyObjectRef> for $name {
             #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
             fn as_ref(&self) -> &$crate::PyObjectRef {
-                unsafe{$crate::std::mem::transmute(self)}
+                unsafe{&*(self as *const $name as *const $crate::objects::PyObjectRef)}
             }
         }
 
@@ -99,7 +99,7 @@ macro_rules! pyobject_native_type(
 
         impl<'a> $crate::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
             fn from(ob: &'a $name) -> Self {
-                unsafe{$crate::std::mem::transmute(ob)}
+                unsafe{&*(ob as *const $name as *const $crate::objects::PyObjectRef)}
             }
         }
     };

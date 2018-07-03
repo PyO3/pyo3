@@ -26,7 +26,6 @@ pub trait ToBorrowedObject: ToPyObject {
     ///
     /// May be more efficient than `to_object` because it does not need
     /// to touch any reference counts when the input object already is a Python object.
-    #[inline]
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
         where F: FnOnce(*mut ffi::PyObject) -> R;
 }

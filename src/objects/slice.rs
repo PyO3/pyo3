@@ -28,9 +28,9 @@ pub struct PySliceIndices {
 impl PySliceIndices {
     pub fn new(start: isize, stop: isize, step: isize) -> PySliceIndices {
         PySliceIndices {
-            start: start,
-            stop: stop,
-            step: step,
+            start,
+            stop,
+            step,
             slicelength: 0,
         }
     }
@@ -54,7 +54,7 @@ impl PySlice {
     pub fn indices(&self, length: c_long) -> PyResult<PySliceIndices> {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe {
-            let slicelen: isize = 0;
+            let slicelength: isize = 0;
             let start: isize = 0;
             let stop: isize = 0;
             let step: isize = 0;
@@ -63,13 +63,13 @@ impl PySlice {
                 &start as *const _ as *mut _,
                 &stop as *const _ as *mut _,
                 &step as *const _ as *mut _,
-                &slicelen as *const _ as *mut _);
+                &slicelength as *const _ as *mut _);
             if r == 0{
                 Ok(PySliceIndices {
-                    start: start,
-                    stop: stop,
-                    step: step,
-                    slicelength: slicelen,
+                    start,
+                    stop,
+                    step,
+                    slicelength,
                 })
             } else {
                 Err(PyErr::fetch(self.py()))

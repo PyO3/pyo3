@@ -286,13 +286,15 @@ impl PyErr {
             PyErrValue::None
         };
 
+        let ptype = if ptype.is_null() {
+            <exc::SystemError as PyTypeObject>::type_object()
+        } else {
+            Py::from_owned_ptr(ptype)
+        };
+
         PyErr {
-            ptype: if ptype.is_null() {
-                <exc::SystemError as PyTypeObject>::type_object()
-            } else {
-                Py::from_owned_ptr(ptype)
-            },
-            pvalue: pvalue,
+            ptype,
+            pvalue,
             ptraceback: PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), ptraceback),
         }
     }
