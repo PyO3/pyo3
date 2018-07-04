@@ -1,45 +1,35 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::collections::HashMap;
-
-use syn;
-
 use method::{FnArg, FnSpec, FnType};
 use proc_macro2::{Span, TokenStream};
 use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
+use std::collections::HashMap;
+use syn;
 use utils;
 
-pub fn build_py_class(ast: &mut syn::DeriveInput, attr: &Vec<syn::Expr>) -> TokenStream {
+pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> TokenStream {
     let (params, flags, base) = parse_attribute(attr);
-    let doc = utils::get_doc(&ast.attrs, true);
+    let doc = utils::get_doc(&class.attrs, true);
     let mut token: Option<syn::Ident> = None;
     let mut descriptors = Vec::new();
 
-    if let syn::Data::Struct(ref mut struc) = ast.data {
-        if let syn::Fields::Named(ref mut fields) = struc.fields {
-            for field in fields.named.iter_mut() {
-                if is_python_token(field) {
-                    token = field.ident.clone();
-                    break;
-                } else {
-                    let field_descs = parse_descriptors(field);
-                    if !field_descs.is_empty() {
-                        descriptors.push((field.clone(), field_descs));
-                    }
+    if let syn::Fields::Named(ref mut fields) = class.fields {
+        for field in fields.named.iter_mut() {
+            if is_python_token(field) {
+                token = field.ident.clone();
+                break;
+            } else {
+                let field_descs = parse_descriptors(field);
+                if !field_descs.is_empty() {
+                    descriptors.push((field.clone(), field_descs));
                 }
             }
-        } else {
-            panic!("#[class] can only be used with C-style structs")
         }
     } else {
-        panic!("#[class] can only be used with structs")
+        panic!("#[class] can only be used with C-style structs")
     }
 
-    let tokens = impl_class(&ast.ident, &base, token, doc, params, flags, descriptors);
-
-    quote! {
-        #tokens
-    }
+    impl_class(&class.ident, &base, token, doc, params, flags, descriptors)
 }
 
 fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
@@ -202,22 +192,22 @@ fn impl_class(
     let mut has_dict = false;
     for f in flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
-            if epath.path == parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
+            if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
-            } else if epath.path == parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_DICT} {
+            } else if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT} {
                 has_dict = true;
             }
         }
     }
     let weakref = if has_weakref {
-        quote!{std::mem::size_of::<*const ::pyo3::ffi::PyObject>()}
+        quote! {std::mem::size_of::<*const ::pyo3::ffi::PyObject>()}
     } else {
-        quote!{0}
+        quote! {0}
     };
     let dict = if has_dict {
-        quote!{std::mem::size_of::<*const ::pyo3::ffi::PyObject>()}
+        quote! {std::mem::size_of::<*const ::pyo3::ffi::PyObject>()}
     } else {
-        quote!{0}
+        quote! {0}
     };
 
     quote! {
@@ -391,8 +381,8 @@ fn parse_attribute(
     syn::TypePath,
 ) {
     let mut params = HashMap::new();
-    let mut flags = vec![syn::Expr::Lit(parse_quote!{0})];
-    let mut base: syn::TypePath = parse_quote!{::pyo3::PyObjectRef};
+    let mut flags = vec![syn::Expr::Lit(parse_quote! {0})];
+    let mut base: syn::TypePath = parse_quote! {::pyo3::PyObjectRef};
 
     for expr in args.iter() {
         match expr {
@@ -409,22 +399,22 @@ fn parse_attribute(
             {
                 "gc" => {
                     flags.push(syn::Expr::Path(
-                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_GC},
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_GC},
                     ));
                 }
                 "weakref" => {
                     flags.push(syn::Expr::Path(
-                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_WEAKREF},
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF},
                     ));
                 }
                 "subclass" => {
                     flags.push(syn::Expr::Path(
-                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_BASETYPE},
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_BASETYPE},
                     ));
                 }
                 "dict" => {
                     flags.push(syn::Expr::Path(
-                        parse_quote!{::pyo3::typeob::PY_TYPE_FLAG_DICT},
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT},
                     ));
                 }
                 param => {

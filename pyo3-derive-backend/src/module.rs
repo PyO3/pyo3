@@ -207,7 +207,7 @@ fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
 /// Generates python wrapper over a function that allows adding it to a python module as a python
 /// function
 pub fn add_fn_to_module(
-    func: &mut syn::ItemFn,
+    func: &syn::ItemFn,
     python_name: &syn::Ident,
     pyfn_attrs: Vec<args::Argument>,
 ) -> TokenStream {

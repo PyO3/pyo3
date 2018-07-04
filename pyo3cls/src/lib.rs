@@ -88,7 +88,7 @@ pub fn class(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::DeriveInput = syn::parse(input).expect("#[class] must be used on a `struct`");
+    let mut ast: syn::ItemStruct = syn::parse(input).expect("#[class] must be used on a `struct`");
 
     // Parse the macro arguments into a list of expressions
     let args: Vec<syn::Expr> = {
