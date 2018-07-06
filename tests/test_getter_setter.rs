@@ -52,11 +52,11 @@ fn class_with_properties() {
 
 #[class]
 struct GetterSetter {
+    token: PyToken,
     #[prop(get, set)]
     num: i32,
     #[prop(get, set)]
     text: String,
-    token: PyToken,
 }
 
 #[methods]

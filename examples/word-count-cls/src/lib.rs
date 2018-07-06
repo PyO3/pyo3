@@ -5,13 +5,11 @@
 extern crate pyo3;
 extern crate rayon;
 
+use pyo3::prelude::*;
+use pyo3::py::{class, methods, modinit};
+use rayon::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
-
-use pyo3::prelude::*;
-use rayon::prelude::*;
-
-use pyo3::py::{class, methods, modinit};
 
 #[class(dict)]
 struct WordCounter {

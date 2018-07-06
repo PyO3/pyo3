@@ -16,8 +16,11 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> Tok
     if let syn::Fields::Named(ref mut fields) = class.fields {
         for field in fields.named.iter_mut() {
             if is_python_token(field) {
-                token = field.ident.clone();
-                break;
+                if token.is_none() {
+                    token = field.ident.clone();
+                } else {
+                    panic!("You can only have one PyToken per class");
+                }
             } else {
                 let field_descs = parse_descriptors(field);
                 if !field_descs.is_empty() {
@@ -48,8 +51,8 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
                                 "set" => {
                                     descs.push(FnType::Setter(None));
                                 }
-                                _ => {
-                                    panic!("Only getter and setter supported");
+                                x => {
+                                    panic!(r#"Only "get" and "set" supported are, not "{}""#, x);
                                 }
                             }
                         }
