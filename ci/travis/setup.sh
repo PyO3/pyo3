@@ -41,16 +41,18 @@ mkdir -p $SCCACHE_DIR
 
 ### Setup kcov #################################################################
 
-if [ ! -d "$HOME/kcov/.git" ]; then
-    git clone --depth=1 https://github.com/SimonKagstrom/kcov "$HOME/kcov"
-fi
+if [ ! -f "$HOME/.cargo/bin/kcov" ]; then
+    if [ ! -d "$HOME/kcov/.git" ]; then
+        git clone --depth=1 https://github.com/SimonKagstrom/kcov "$HOME/kcov"
+    fi
 
-cd $HOME/kcov
-git pull
-cmake .
-make
-install src/kcov $HOME/.cargo/bin/kcov
-cd $TRAVIS_BUILD_DIR
+    cd $HOME/kcov
+    git pull
+    cmake .
+    make
+    install src/kcov $HOME/.cargo/bin/kcov
+    cd $TRAVIS_BUILD_DIR
+fi
 
 ### Setup python linker flags ##################################################
 
