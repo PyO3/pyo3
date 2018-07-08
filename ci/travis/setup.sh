@@ -51,3 +51,14 @@ cmake .
 make
 install src/kcov $HOME/.cargo/bin/kcov
 cd $TRAVIS_BUILD_DIR
+
+### Setup python linker flags ##################################################
+
+PYTHON_LIB=$(python -c "import sysconfig as s; print(s.get_config_var('LIBDIR'))")
+export LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
+
+# delete any possible empty components
+# https://github.com/google/pulldown-cmark/issues/122#issuecomment-364948741
+LIBRARY_PATH=$(echo ${LIBRARY_PATH} | sed -E -e 's/^:*//' -e 's/:*$//' -e 's/:+/:/g')
+
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
