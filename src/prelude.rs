@@ -10,7 +10,6 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use super::py;
 pub use class::*;
 pub use objects::*;
 pub use objectprotocol::ObjectProtocol;

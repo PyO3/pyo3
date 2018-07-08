@@ -4,12 +4,12 @@ extern crate pyo3;
 
 use pyo3::prelude::*;
 
-use pyo3::py::class;
+use pyo3::pyclass;
 
 #[macro_use]
 mod common;
 
-#[class]
+#[pyclass]
 struct EmptyClass {}
 
 #[test]
@@ -27,7 +27,7 @@ fn empty_class() {
 ///Line2
 ///  Line3
 // this is not doc string
-#[class]
+#[pyclass]
 struct ClassWithDocs {}
 
 #[test]
@@ -44,7 +44,7 @@ fn class_with_docstr() {
     }
 }
 
-#[class(name=CustomName)]
+#[pyclass(name=CustomName)]
 struct EmptyClass2 {}
 
 #[test]
@@ -55,7 +55,7 @@ fn custom_class_name() {
     py_assert!(py, typeobj, "typeobj.__name__ == 'CustomName'");
 }
 
-#[class]
+#[pyclass]
 struct EmptyClassInModule {}
 
 #[test]

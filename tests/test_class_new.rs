@@ -4,15 +4,15 @@ extern crate pyo3;
 
 use pyo3::prelude::*;
 
-use pyo3::py::class;
-use pyo3::py::methods;
+use pyo3::pyclass;
+use pyo3::pymethods;
 
-#[class]
+#[pyclass]
 struct EmptyClassWithNew {
     token: PyToken,
 }
 
-#[methods]
+#[pymethods]
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -34,13 +34,13 @@ fn empty_class_with_new() {
     );
 }
 
-#[class]
+#[pyclass]
 struct NewWithOneArg {
     _data: i32,
     token: PyToken,
 }
 
-#[methods]
+#[pymethods]
 impl NewWithOneArg {
     #[new]
     fn __new__(obj: &PyRawObject, arg: i32) -> PyResult<()> {
@@ -61,7 +61,7 @@ fn new_with_one_arg() {
     assert_eq!(obj._data, 42);
 }
 
-#[class]
+#[pyclass]
 struct NewWithTwoArgs {
     _data1: i32,
     _data2: i32,
@@ -69,7 +69,7 @@ struct NewWithTwoArgs {
     token: PyToken,
 }
 
-#[methods]
+#[pymethods]
 impl NewWithTwoArgs {
     #[new]
     fn __new__(obj: &PyRawObject, arg1: i32, arg2: i32) -> PyResult<()> {

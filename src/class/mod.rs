@@ -32,6 +32,7 @@ pub use self::methods::{PyMethodDef, PyMethodDefType, PyMethodType,
 
 use ffi;
 
+/// Operators for the __richcmp__ method
 #[derive(Debug)]
 pub enum CompareOp {
     Lt = ffi::Py_LT as isize,

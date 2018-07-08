@@ -6,14 +6,14 @@ As shown in the Getting Started chapter, you can create a module as follows:
 #![feature(proc_macro)]
 
 extern crate pyo3;
-use pyo3::{py, PyResult, Python, PyModule};
+use pyo3::{PyResult, Python, PyModule};
 
-use pyo3::py::modint;
+use pyo3::pymodinit;
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 /// This module is implemented in Rust.
-#[modinit(rust2py)]
+#[pymodinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     // pyo3 aware function. All of our python interface could be declared in a separate module.
@@ -36,7 +36,7 @@ fn sum_as_string(a:i64, b:i64) -> String {
 # fn main() {}
 ```
 
-The `modinit` procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, it must be the name of the `.so` or `.pyd` file.
+The `#[pymodinit}` procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, it must be the name of the `.so` or `.pyd` file.
 
 The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module initialization function will be applied automatically as the Python doc string of your module.
 

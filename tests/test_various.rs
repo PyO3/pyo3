@@ -5,19 +5,19 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use std::isize;
 
-use pyo3::py::class;
-use pyo3::py::methods;
+use pyo3::pyclass;
+use pyo3::pymethods;
 
 #[macro_use]
 mod common;
 
-#[class]
+#[pyclass]
 struct MutRefArg {
     n: i32,
     token: PyToken,
 }
 
-#[methods]
+#[pymethods]
 impl MutRefArg {
     fn get(&self) -> PyResult<i32> {
         Ok(self.n)

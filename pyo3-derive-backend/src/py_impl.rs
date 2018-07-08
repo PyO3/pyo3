@@ -7,7 +7,7 @@ use py_method;
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
     if ast.trait_.is_some() {
-        panic!("#[methods] can not be used only with trait impl block");
+        panic!("#[pymethods] can not be used only with trait impl block");
     } else {
         impl_methods(&ast.self_ty, &mut ast.items)
     }

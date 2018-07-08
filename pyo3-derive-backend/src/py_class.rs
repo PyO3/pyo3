@@ -29,7 +29,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> Tok
             }
         }
     } else {
-        panic!("#[class] can only be used with C-style structs")
+        panic!("#[pyclass] can only be used with C-style structs")
     }
 
     impl_class(&class.ident, &base, token, doc, params, flags, descriptors)

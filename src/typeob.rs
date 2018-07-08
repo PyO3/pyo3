@@ -103,15 +103,14 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
 ///
 /// Example of custom class implementation with `__new__` method:
 /// ```rust,ignore
-/// use pyo3::py::class;
-/// use pyo3::py::methods;
+/// use pyo3::{pyclass, pymethods};
 ///
-/// #[class]
+/// #[pyclass]
 /// struct MyClass {
 ///    token: PyToken
 /// }
 ///
-/// #[methods]
+/// #[pymethods]
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -212,7 +211,7 @@ impl PyObjectWithToken for PyRawObject {
     }
 }
 
-/// A Python object allocator that is usable as a base type for #[class]
+/// A Python object allocator that is usable as a base type for #[pyclass]
 pub trait PyObjectAlloc<T> {
 
     /// Allocates a new object (usually by calling ty->tp_alloc),

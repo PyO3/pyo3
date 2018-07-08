@@ -9,10 +9,10 @@ One way is defining the function in the module definition.
 #![feature(proc_macro)]
 
 extern crate pyo3;
-use pyo3::{py, PyResult, Python, PyModule};
-use pyo3::py::modint;
+use pyo3::prelude::*;
+use pyo3::pymodinit;
 
-#[modinit(rust2py)]
+#[pymodinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
@@ -38,17 +38,16 @@ as third.
 
 #[macro_use]
 extern crate pyo3;
-use pyo3::{py, PyResult, Python, PyModule};
+use pyo3::prelude::*;
 
-use pyo3::py::function as pyfunction;
-use pyo3::py::modint;
+use pyo3::{pyfunction, pymodinit};
 
 #[pyfunction]
 fn double(x: usize) -> usize {
     x * 2
 }
 
-#[modinit(module_with_functions)]
+#[pymodinit(module_with_functions)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(double)).unwrap();
 

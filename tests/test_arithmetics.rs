@@ -3,17 +3,17 @@
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::py::{class, proto};
+use pyo3::{pyclass, pyproto};
 
 #[macro_use]
 mod common;
 
-#[class]
+#[pyclass]
 struct UnaryArithmetic {
     token: PyToken,
 }
 
-#[proto]
+#[pyproto]
 impl PyNumberProtocol for UnaryArithmetic {
     fn __neg__(&self) -> PyResult<&'static str> {
         Ok("neg")
@@ -44,32 +44,32 @@ fn unary_arithmetic() {
     py_run!(py, c, "assert ~c == 'invert'");
 }
 
-#[class]
+#[pyclass]
 struct BinaryArithmetic {
     token: PyToken,
 }
 
-#[proto]
+#[pyproto]
 impl PyObjectProtocol for BinaryArithmetic {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("BA")
     }
 }
 
-#[class]
+#[pyclass]
 struct InPlaceOperations {
     value: u32,
     token: PyToken,
 }
 
-#[proto]
+#[pyproto]
 impl PyObjectProtocol for InPlaceOperations {
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("IPO({:?})", self.value))
     }
 }
 
-#[proto]
+#[pyproto]
 impl PyNumberProtocol for InPlaceOperations {
     fn __iadd__(&mut self, other: u32) -> PyResult<()> {
         self.value += other;
@@ -132,7 +132,7 @@ fn inplace_operations() {
     init(12, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
 
-#[proto]
+#[pyproto]
 impl PyNumberProtocol for BinaryArithmetic {
     fn __add__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
@@ -193,12 +193,12 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 | c == '1 | BA'");
 }
 
-#[class]
+#[pyclass]
 struct RichComparisons {
     token: PyToken,
 }
 
-#[proto]
+#[pyproto]
 impl PyObjectProtocol for RichComparisons {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("RC")
@@ -216,12 +216,12 @@ impl PyObjectProtocol for RichComparisons {
     }
 }
 
-#[class]
+#[pyclass]
 struct RichComparisons2 {
     py: PyToken,
 }
 
-#[proto]
+#[pyproto]
 impl PyObjectProtocol for RichComparisons2 {
     fn __repr__(&self) -> PyResult<&'static str> {
         Ok("RC2")

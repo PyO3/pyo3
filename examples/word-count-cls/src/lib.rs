@@ -6,18 +6,18 @@ extern crate pyo3;
 extern crate rayon;
 
 use pyo3::prelude::*;
-use pyo3::py::{class, methods, modinit};
+use pyo3::{pyclass, pymethods, pymodinit};
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
 
-#[class(dict)]
+#[pyclass(dict)]
 struct WordCounter {
     path: String,
     token: PyToken,
 }
 
-#[methods]
+#[pymethods]
 impl WordCounter {
     #[new]
     fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
@@ -79,7 +79,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
     lines.par_lines().map(|line| wc_line(line, search)).sum()
 }
 
-#[modinit(_word_count)]
+#[pymodinit(_word_count)]
 fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WordCounter>()?;
 

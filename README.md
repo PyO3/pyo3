@@ -74,12 +74,12 @@ features = ["extension-module"]
 extern crate pyo3;
 use pyo3::prelude::*;
 
-use pyo3::py::modinit;
+use pyo3::pymodinit;
 
 // Add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 /// This module is implemented in Rust.
-#[modinit(rust2py)]
+#[pymodinit(rust2py)]
 fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "sum_as_string")]
@@ -97,7 +97,6 @@ fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
 fn sum_as_string(a:i64, b:i64) -> String {
     format!("{}", a + b).to_string()
 }
-
 ```
 
 On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content: 

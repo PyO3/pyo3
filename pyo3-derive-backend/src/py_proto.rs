@@ -26,12 +26,12 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> TokenStream {
                 "PyBufferProtocol" => impl_proto_impl(ty, items, &defs::BUFFER),
                 "PyGCProtocol" => impl_proto_impl(ty, items, &defs::GC),
                 _ => {
-                    warn!("#[proto] can not be used with this block");
+                    warn!("#[pyproto] can not be used with this block");
                     return TokenStream::new();
                 }
             }
         } else {
-            panic!("#[proto] can only be used with protocol trait implementations")
+            panic!("#[pyproto] can only be used with protocol trait implementations")
         };
 
         // attach lifetime
@@ -42,7 +42,7 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> TokenStream {
 
         tokens
     } else {
-        panic!("#[proto] can only be used with protocol trait implementations")
+        panic!("#[pyproto] can only be used with protocol trait implementations")
     }
 }
 

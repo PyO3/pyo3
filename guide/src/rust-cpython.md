@@ -30,14 +30,14 @@ py_class!(class MyClass |py| {
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::py::{class, methods};
+use pyo3::{pyclass, pymethods};
 
-#[class]
+#[pyclass]
 struct MyClass {
    num: u32,
 }
 
-#[methods]
+#[pymethods]
 impl MyClass {
     #[new]
     fn __new__(obj: &PyRawObject, num: u32) -> PyResult<()> {

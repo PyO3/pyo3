@@ -24,7 +24,7 @@ pub fn mod2init(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemFn = syn::parse(input).expect("#[modinit] must be used on a function");
+    let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodinit] must be used on a function");
 
     // Extract the mod name
     let modname: syn::Ident = syn::parse(attr).expect("could not parse module name");
@@ -47,7 +47,7 @@ pub fn mod3init(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemFn = syn::parse(input).expect("#[modinit] must be used on a `fn` block");
+    let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodinit] must be used on a `fn` block");
 
     // Extract the mod name
     let modname: syn::Ident = syn::parse(attr).expect("could not parse module name");
@@ -65,13 +65,13 @@ pub fn mod3init(
 }
 
 #[proc_macro_attribute]
-pub fn proto(
+pub fn pyproto(
     _: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemImpl =
-        syn::parse(input).expect("#[proto] must be used on an `impl` block");
+        syn::parse(input).expect("#[pyproto] must be used on an `impl` block");
 
     // Build the output
     let expanded = py_proto::build_py_proto(&mut ast);
@@ -83,12 +83,12 @@ pub fn proto(
 }
 
 #[proc_macro_attribute]
-pub fn class(
+pub fn pyclass(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemStruct = syn::parse(input).expect("#[class] must be used on a `struct`");
+    let mut ast: syn::ItemStruct = syn::parse(input).expect("#[pyclass] must be used on a `struct`");
 
     // Parse the macro arguments into a list of expressions
     let args: Vec<syn::Expr> = {
@@ -110,13 +110,13 @@ pub fn class(
 }
 
 #[proc_macro_attribute]
-pub fn methods(
+pub fn pymethods(
     _: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemImpl =
-        syn::parse(input.clone()).expect("#[methods] must be used on an `impl` block");
+        syn::parse(input.clone()).expect("#[pymethods] must be used on an `impl` block");
 
     // Build the output
     let expanded = py_impl::build_py_methods(&mut ast);
@@ -128,7 +128,7 @@ pub fn methods(
 }
 
 #[proc_macro_attribute]
-pub fn function(
+pub fn pyfunction(
     _: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {

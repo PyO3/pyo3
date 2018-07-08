@@ -5,18 +5,18 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use std::isize;
 
-use pyo3::py::{class, methods};
+use pyo3::{pyclass, pymethods};
 
 #[macro_use]
 mod common;
 
-#[class]
+#[pyclass]
 struct BaseClass {
     #[prop(get)]
     val1: usize,
 }
 
-#[class(subclass)]
+#[pyclass(subclass)]
 struct SubclassAble {}
 
 #[test]
@@ -35,7 +35,7 @@ fn subclass() {
         .unwrap();
 }
 
-#[methods]
+#[pymethods]
 impl BaseClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
@@ -43,13 +43,13 @@ impl BaseClass {
     }
 }
 
-#[class(base=BaseClass)]
+#[pyclass(base=BaseClass)]
 struct SubClass {
     #[prop(get)]
     val2: usize,
 }
 
-#[methods]
+#[pymethods]
 impl SubClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {

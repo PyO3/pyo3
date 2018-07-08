@@ -8,7 +8,7 @@ use ffi;
 static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 /// `PyMethodDefType` represents different types of python callable objects.
-/// It is used by `#[methods]` and `#[proto]` annotations.
+/// It is used by `#[pymethods]` and `#[pyproto]` annotations.
 #[derive(Debug)]
 pub enum PyMethodDefType {
     /// Represents class `__new__` method
