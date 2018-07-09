@@ -28,8 +28,8 @@ Then in the Python bridge, we have a function `search` exposed to Python runtime
 `Python::allow_threads` method to enable true parallelism:
 
 ```rust,ignore
-#[pymodinit(_word_count)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodinit]
+fn word_count(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "search")]
     fn search(py: Python, path: String, search: String) -> PyResult<i32> {

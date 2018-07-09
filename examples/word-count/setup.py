@@ -44,7 +44,7 @@ setup(
         'Operating System :: MacOS :: MacOS X',
     ],
     packages=['word_count'],
-    rust_extensions=[RustExtension('word_count._word_count', 'Cargo.toml')],
+    rust_extensions=[RustExtension('word_count.word_count', 'Cargo.toml')],
     install_requires=install_requires,
     tests_require=tests_require,
     setup_requires=setup_requires,

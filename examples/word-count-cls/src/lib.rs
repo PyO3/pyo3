@@ -79,8 +79,8 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
     lines.par_lines().map(|line| wc_line(line, search)).sum()
 }
 
-#[pymodinit(_word_count)]
-fn init_mod(_py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodinit]
+fn word_count(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WordCounter>()?;
 
     Ok(())

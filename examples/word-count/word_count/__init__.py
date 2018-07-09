@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from ._word_count import search, search_sequential
+from .word_count import search, search_sequential
 
 __all__ = ['search', 'search_sequential', 'search_py']
 

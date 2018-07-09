@@ -4,7 +4,8 @@
 
 * Upgraded to syn 0.14 which means much better error messages :tada:
 * 128 bit integer support by [kngwyu](https://github.com/kngwyu) ([#137](https://github.com/PyO3/pyo3/pull/173))
-* Added `py` prefixes to the proc macros and moved them into the root module. You should just use the plain proc macros, i.e. `#[pyclass]`, `#[pymethods]`, `#[pyproto]`, `#[pyfunction]` and `#[pymodinit]`. This is important because `proc_macro_path_invoc` isn't going to be stabilized soon. 
+* Added `py` prefixes to the proc macros and moved them into the root module. You should just use the plain proc macros, i.e. `#[pyclass]`, `#[pymethods]`, `#[pyproto]`, `#[pyfunction]` and `#[pymodinit]`. This is important because `proc_macro_path_invoc` isn't going to be stabilized soon.
+* `#[pymodinit]` uses the function name as module name, unless the name is overrriden with `#[pymodinit(name)]`
 * The guide is now properly versioned.
 * A few internal macros became part of the public api ([#155](https://github.com/PyO3/pyo3/pull/155), [#186](https://github.com/PyO3/pyo3/pull/186))
 * Always clone in getters. This allows using the get-annotation on all Clone-Types

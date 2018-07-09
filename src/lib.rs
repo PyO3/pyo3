@@ -53,15 +53,9 @@
 //! # Python extension
 //!
 //! To allow Python to load the rust code as a Python extension
-//! module, you need provide initialization function and annotate it with `#[pymodinit(name)]`.
-//! `pymodinit` expands to an `extern "C"` function.
-//!
-//! Macro syntax: `#[pymodinit(name)]`
-//!
-//! 1. `name`: The module name as a Rust identifier
-//! 2. Decorate init function `Fn(Python, &PyModule) -> PyResult<()>`.
-//!    This function will be called when the module is imported, and is responsible
-//!    for adding the module's members.
+//! module, you need an initialization function with `Fn(Python, &PyModule) -> PyResult<()>`
+//! that is annotates with `#[pymodinit]`. By default the function name will become the module name,
+//! but you can override that with `#[pymodinit(name)]`.
 //!
 //! To creates a Python callable object that invokes a Rust function, specify rust
 //! function and decorate it with `#[pyfn()]` attribute. `pyfn()` accepts three parameters.
@@ -84,8 +78,8 @@
 //! // Add bindings to the generated python module
 //! // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 //! /// This module is implemented in Rust.
-//! #[pymodinit(rust2py)]
-//! fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+//! #[pymodinit]
+//! fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 //!
 //!     #[pyfn(m, "sum_as_string")]
 //!     // ``#[pyfn()]` converts the arguments from Python objects to Rust values

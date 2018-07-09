@@ -69,8 +69,8 @@ use pyo3::pymodinit;
 // Add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 /// This module is implemented in Rust.
-#[pymodinit(rust2py)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodinit]
+fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "sum_as_string")]
     // ``#[pyfn()]` converts the arguments from Python objects to Rust values

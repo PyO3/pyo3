@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-from ._word_count import WordCounter
+from .word_count_cls import WordCounter
 
 __all__ = ['WordCounter', 'search_py']
 

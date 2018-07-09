@@ -10,5 +10,5 @@ rayon = "0.8"
 path = "../../"
 
 [lib]
-name = "word_count"
+name = "word_count_cls"
 crate-type = ["cdylib"]

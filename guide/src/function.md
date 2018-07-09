@@ -12,8 +12,8 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::pymodinit;
 
-#[pymodinit(rust2py)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodinit]
+fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
@@ -47,8 +47,8 @@ fn double(x: usize) -> usize {
     x * 2
 }
 
-#[pymodinit(module_with_functions)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodinit]
+fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(double)).unwrap();
 
     Ok(())

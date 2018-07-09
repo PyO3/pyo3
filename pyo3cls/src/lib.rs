@@ -26,8 +26,12 @@ pub fn mod2init(
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodinit] must be used on a function");
 
-    // Extract the mod name
-    let modname: syn::Ident = syn::parse(attr).expect("could not parse module name");
+    let modname: syn::Ident;
+    if attr.is_empty() {
+        modname = ast.ident.clone();
+    } else {
+        modname = syn::parse(attr).expect("could not parse module name");
+    }
 
     // Process the functions within the module
     module::process_functions_in_module(&mut ast);
@@ -49,8 +53,12 @@ pub fn mod3init(
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodinit] must be used on a `fn` block");
 
-    // Extract the mod name
-    let modname: syn::Ident = syn::parse(attr).expect("could not parse module name");
+    let modname: syn::Ident;
+    if attr.is_empty() {
+        modname = ast.ident.clone();
+    } else {
+        modname = syn::parse(attr).expect("could not parse module name");
+    }
 
     // Process the functions within the module
     module::process_functions_in_module(&mut ast);

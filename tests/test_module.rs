@@ -19,8 +19,8 @@ fn double(x: usize) -> usize {
 }
 
 /// This module is implemented in Rust.
-#[pymodinit(module_with_functions)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodinit]
+fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
         let out = sum_as_string(a, b);
@@ -62,6 +62,25 @@ fn test_module_with_functions() {
     run("assert module_with_functions.EmptyClass != None");
     run("assert module_with_functions.double(3) == 6");
     run("assert module_with_functions.also_double(3) == 6");
+}
+
+#[pymodinit(other_name)]
+fn some_name(_: Python, _: &PyModule) -> PyResult<()> {
+    Ok(())
+}
+
+#[test]
+#[cfg(Py_3)]
+fn test_module_renaming() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = PyDict::new(py);
+    d.set_item("different_name", unsafe {
+        PyObject::from_owned_ptr(py, PyInit_other_name())
+    }).unwrap();
+
+    py.run("assert different_name.__name__ == 'other_name'", None, Some(d)).unwrap();
 }
 
 #[test]
