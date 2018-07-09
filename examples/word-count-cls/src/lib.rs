@@ -80,7 +80,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
 }
 
 #[pymodinit]
-fn word_count(_py: Python, m: &PyModule) -> PyResult<()> {
+fn word_count_cls(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WordCounter>()?;
 
     Ok(())
