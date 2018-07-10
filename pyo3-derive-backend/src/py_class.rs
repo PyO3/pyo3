@@ -32,7 +32,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> Tok
         panic!("#[class] can only be used with C-style structs")
     }
 
-    impl_class(&class.ident, &base, token, doc, params, flags, descriptors)
+    impl_class(&class, &base, token, doc, params, flags, descriptors)
 }
 
 fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
@@ -70,7 +70,7 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
 }
 
 fn impl_class(
-    cls: &syn::Ident,
+    class: &syn::ItemStruct,
     base: &syn::TypePath,
     token: Option<syn::Ident>,
     doc: syn::Lit,
@@ -78,6 +78,9 @@ fn impl_class(
     flags: Vec<syn::Expr>,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> TokenStream {
+    let cls = &class.ident;
+    let generics = &class.generics;
+
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.to_string(),
         None => quote! { #cls }.to_string(),
@@ -85,19 +88,19 @@ fn impl_class(
 
     let extra = if let Some(token) = token {
         Some(quote! {
-            impl ::pyo3::PyObjectWithToken for #cls {
+            impl #generics ::pyo3::PyObjectWithToken for #cls #generics {
                 #[inline(always)]
                 fn py<'p>(&'p self) -> ::pyo3::Python<'p> {
                     self.#token.py()
                 }
             }
-            impl ::pyo3::ToPyObject for #cls {
+            impl #generics ::pyo3::ToPyObject for #cls #generics {
                 #[inline]
                 fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
                     unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
-            impl ::pyo3::ToBorrowedObject for #cls {
+            impl #generics ::pyo3::ToBorrowedObject for #cls #generics {
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
                     where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
@@ -105,13 +108,13 @@ fn impl_class(
                     f(self.as_ptr())
                 }
             }
-            impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
+            impl<'a> #generics ::pyo3::ToPyObject for &'a mut #cls #generics {
                 #[inline]
                 fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
                     unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
                 }
             }
-            impl<'a> ::pyo3::ToBorrowedObject for &'a mut #cls {
+            impl<'a> #generics ::pyo3::ToBorrowedObject for &'a mut #cls #generics {
                 #[inline]
                 fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
                     where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
@@ -119,13 +122,13 @@ fn impl_class(
                     f(self.as_ptr())
                 }
             }
-            impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
+            impl<'a> #generics std::convert::From<&'a mut #cls> for &'a #cls #generics
             {
                 fn from(ob: &'a mut #cls) -> Self {
                     unsafe{std::mem::transmute(ob)}
                 }
             }
-            impl ::pyo3::ToPyPointer for #cls {
+            impl #generics ::pyo3::ToPyPointer for #cls #generics {
                 #[inline]
                 fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
                     unsafe {
@@ -134,14 +137,14 @@ fn impl_class(
                     }
                 }
             }
-            impl std::fmt::Debug for #cls {
+            impl #generics std::fmt::Debug for #cls #generics {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     use pyo3::ObjectProtocol;
                     let s = try!(self.repr().map_err(|_| std::fmt::Error));
                     f.write_str(&s.to_string_lossy())
                 }
             }
-            impl std::fmt::Display for #cls {
+            impl #generics std::fmt::Display for #cls #generics {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     use pyo3::ObjectProtocol;
                     let s = try!(self.str().map_err(|_| std::fmt::Error));
@@ -156,7 +159,7 @@ fn impl_class(
     let extra = {
         if let Some(freelist) = params.get("freelist") {
             Some(quote! {
-                impl ::pyo3::freelist::PyObjectWithFreeList for #cls {
+                impl #generics ::pyo3::freelist::PyObjectWithFreeList for #cls #generics {
                     #[inline]
                     fn get_free_list() -> &'static mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> = 0 as *mut _;
@@ -181,7 +184,7 @@ fn impl_class(
 
     let extra = if !descriptors.is_empty() {
         let ty = syn::parse_str(&cls.to_string()).expect("no name");
-        let desc_impls = impl_descriptors(&ty, descriptors);
+        let desc_impls = impl_descriptors(&ty, &generics, descriptors);
         Some(quote! {
             #desc_impls
             #extra
@@ -214,8 +217,8 @@ fn impl_class(
     };
 
     quote! {
-        impl ::pyo3::typeob::PyTypeInfo for #cls {
-            type Type = #cls;
+        impl #generics ::pyo3::typeob::PyTypeInfo for #cls #generics {
+            type Type = #cls #generics;
             type BaseType = #base;
 
             const NAME: &'static str = #cls_name;
@@ -242,7 +245,7 @@ fn impl_class(
             }
         }
 
-        impl ::pyo3::typeob::PyTypeObject for #cls {
+        impl #generics ::pyo3::typeob::PyTypeObject for #cls #generics {
             #[inline(always)]
             fn init_type() {
                 static START: std::sync::Once = std::sync::ONCE_INIT;
@@ -254,7 +257,7 @@ fn impl_class(
                         let py = gil.python();
 
                         // automatically initialize the class on-demand
-                        ::pyo3::typeob::initialize_type::<#cls>(py, None)
+                        ::pyo3::typeob::initialize_type::<#cls #generics>(py, None)
                             .map_err(|e| e.print(py))
                             .expect(format!("An error occurred while initializing class {}",
                                             <#cls as ::pyo3::typeob::PyTypeInfo>::NAME).as_ref());
@@ -267,7 +270,7 @@ fn impl_class(
     }
 }
 
-fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> TokenStream {
+fn impl_descriptors(cls: &syn::Type, generics: &syn::Generics, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> TokenStream {
     let methods: Vec<TokenStream> = descriptors
         .iter()
         .flat_map(|&(ref field, ref fns)| {
@@ -278,7 +281,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                     match *desc {
                         FnType::Getter(_) => {
                             quote! {
-                                impl #cls {
+                                impl #generics #cls #generics {
                                     fn #name(&self) -> ::pyo3::PyResult<#field_ty> {
                                         Ok(self.#name.clone())
                                     }
@@ -289,7 +292,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());
                             quote! {
-                                impl #cls {
+                                impl #generics #cls #generics {
                                     fn #setter_name(&mut self, value: #field_ty) -> ::pyo3::PyResult<()> {
                                         self.#name = value;
                                         Ok(())
@@ -353,7 +356,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
     quote! {
         #(#methods)*
 
-        impl ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
+        impl #generics ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls #generics {
             fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#py_methods),*
