@@ -5,11 +5,8 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::py::{class, methods};
 
-#[class]
-pub struct User {
-    name: String,
-    age: u32
-}
+#[macro_use]
+mod common;
 
 #[class]
 pub struct LinkedListNode<'a> {
@@ -26,6 +23,12 @@ impl<'a> LinkedListNode<'a> {
 }
 
 #[test]
-fn test_user_derive() {
+fn test_class_generic_lifetime_derive() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<LinkedListNode>();
+    assert!(typeobj.call(NoArgs, NoArgs).is_err());
+
+    py_assert!(py, typeobj, "typeobj.__name__ == 'LinkedListNode'");
 }
 
