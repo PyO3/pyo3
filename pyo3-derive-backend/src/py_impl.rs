@@ -14,6 +14,8 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
 }
 
 pub fn impl_methods(generics: &syn::Generics, ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStream {
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
     // get method names in impl block
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
@@ -28,8 +30,8 @@ pub fn impl_methods(generics: &syn::Generics, ty: &syn::Type, impls: &mut Vec<sy
         }
     }
 
-    let result = quote! {
-        impl ::pyo3::class::methods::PyMethodsProtocolImpl for #ty {
+    quote! {
+        impl #impl_generics ::pyo3::class::methods::PyMethodsProtocolImpl for #ty #where_clause {
             fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#methods),*
@@ -37,7 +39,5 @@ pub fn impl_methods(generics: &syn::Generics, ty: &syn::Type, impls: &mut Vec<sy
                 METHODS
             }
         }
-    };
-    println!("{}", result);
-    result
+    }
 }

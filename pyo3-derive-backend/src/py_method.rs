@@ -42,6 +42,17 @@ fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
     }
 }
 
+fn get_class_name(cls: &syn::Type) -> &syn::Ident {
+    if let &syn::Type::Path(ref type_path) = cls {
+        let &syn::TypePath { ref path, .. } = type_path;
+        let &syn::Path { ref segments, .. } = path;
+        let last = segments.last().expect("class path should not be empty").into_value();
+        &last.ident
+    } else {
+        panic!("class should be a path");
+    }
+}
+
 pub fn body_to_result(body: &TokenStream, spec: &FnSpec) -> TokenStream {
     let output = &spec.output;
     quote! {
@@ -129,6 +140,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tok
 
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
+    let cls_name = get_class_name(cls);
     let names: Vec<syn::Ident> = spec
         .args
         .iter()
@@ -142,7 +154,7 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
         })
         .collect();
     let cb = quote! {
-        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_obj, #(#names),*))
+        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls_name::#name(&_obj, #(#names),*))
     };
 
     let body = impl_arg_params(spec, cb);
@@ -160,7 +172,7 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = ::pyo3::GILPool::new();
             let _py = ::pyo3::Python::assume_gil_acquired();
-            match ::pyo3::typeob::PyRawObject::new(_py, #cls::type_object(), _cls) {
+            match ::pyo3::typeob::PyRawObject::new(_py, #cls_name::type_object(), _cls) {
                 Ok(_obj) => {
                     let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
                     let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
