@@ -11,9 +11,11 @@ use err::{self, PyResult, PyErr};
 
 
 /// Represents a Python `set`
+#[repr(transparent)]
 pub struct PySet(PyObject);
 
 /// Represents a  Python `frozenset`
+#[repr(transparent)]
 pub struct PyFrozenSet(PyObject);
 
 

@@ -29,6 +29,7 @@ use python::{Python, ToPyPointer};
 use objects::PyObjectRef;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
+#[repr(transparent)]
 pub struct PyBuffer(Box<ffi::Py_buffer>); // use Box<> because Python expects that the Py_buffer struct has a stable memory address
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
@@ -521,6 +522,7 @@ impl Drop for PyBuffer {
 /// `&ReadOnlyCell<T>` is basically a safe version of `*const T`:
 ///  The data cannot be modified through the reference, but other references may
 ///  be modifying the data.
+#[repr(transparent)]
 pub struct ReadOnlyCell<T>(cell::UnsafeCell<T>);
 
 impl <T: Copy> ReadOnlyCell<T> {
@@ -647,4 +649,3 @@ mod test {
         assert_eq!(buffer.to_vec::<f32>(py).unwrap(), [10.0, 11.0, 12.0, 13.0]);
     }
 }
-

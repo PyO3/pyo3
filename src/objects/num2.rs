@@ -24,6 +24,7 @@ use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 /// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
+#[repr(transparent)]
 pub struct PyInt(PyObject);
 
 pyobject_native_type!(PyInt, ffi::PyInt_Type, ffi::PyInt_Check);

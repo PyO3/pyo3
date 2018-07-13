@@ -5,6 +5,7 @@ use python::{Python, ToPyPointer};
 use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject, PyTryFrom};
 
 /// Represents a Python `bool`.
+#[repr(transparent)]
 pub struct PyBool(PyObject);
 
 pyobject_native_type!(PyBool, ffi::PyBool_Type, ffi::PyBool_Check);

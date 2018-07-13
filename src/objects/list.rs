@@ -13,6 +13,7 @@ use python::{Python, ToPyPointer, IntoPyPointer};
 use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
 
 /// Represents a Python `list`.
+#[repr(transparent)]
 pub struct PyList(PyObject);
 
 pyobject_native_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);

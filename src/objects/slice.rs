@@ -12,6 +12,7 @@ use conversion::ToPyObject;
 /// Represents a Python `slice`.
 ///
 /// Only `c_long` indeces supprted at the moment by `PySlice` object.
+#[repr(transparent)]
 pub struct PySlice(PyObject);
 
 pyobject_native_type!(PySlice, ffi::PySlice_Type, ffi::PySlice_Check);

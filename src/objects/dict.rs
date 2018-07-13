@@ -12,6 +12,7 @@ use objects::{PyObjectRef, PyList};
 use err::{self, PyResult, PyErr};
 
 /// Represents a Python `dict`.
+#[repr(transparent)]
 pub struct PyDict(PyObject);
 
 pyobject_native_type!(PyDict, ffi::PyDict_Type, ffi::PyDict_Check);

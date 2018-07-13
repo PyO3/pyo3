@@ -16,16 +16,19 @@ use objectprotocol::ObjectProtocol;
 use super::{PyObjectRef, PyStringData};
 
 /// Represents a Python `string`.
+#[repr(transparent)]
 pub struct PyString(PyObject);
 
 pyobject_native_type!(PyString, ffi::PyBaseString_Type, ffi::PyBaseString_Check);
 
 /// Represents a Python `unicode string`.
+#[repr(transparent)]
 pub struct PyUnicode(PyObject);
 
 pyobject_native_type!(PyUnicode, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
 /// Represents a Python `byte` string. Corresponds to `str` in Python 2
+#[repr(transparent)]
 pub struct PyBytes(PyObject);
 
 pyobject_native_type!(PyBytes, ffi::PyBaseString_Type, ffi::PyString_Check);

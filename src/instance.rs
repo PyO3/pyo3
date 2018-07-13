@@ -14,7 +14,6 @@ use conversion::{ToPyObject, IntoPyObject, FromPyObject};
 use python::{Python, IntoPyPointer, ToPyPointer};
 use typeob::{PyTypeInfo, PyTypeObject};
 
-
 pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {

@@ -21,6 +21,7 @@ use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 /// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
+#[repr(transparent)]
 pub struct PyLong(PyObject);
 
 pyobject_native_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);

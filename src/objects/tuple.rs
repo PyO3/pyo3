@@ -13,6 +13,7 @@ use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject, PyTryFrom}
 use super::exc;
 
 /// Represents a Python `tuple` object.
+#[repr(transparent)]
 pub struct PyTuple(PyObject);
 
 pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);

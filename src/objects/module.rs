@@ -17,6 +17,7 @@ use instance::PyObjectWithToken;
 use err::{PyResult, PyErr};
 
 /// Represents a Python `module` object.
+#[repr(transparent)]
 pub struct PyModule(PyObject);
 
 pyobject_native_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
@@ -43,7 +44,7 @@ impl PyModule {
 
     /// Loads the python code specified into a new module
     /// 'code' is the raw Python you want to load into the module
-    /// 'file_name' is the file name to associate with the module 
+    /// 'file_name' is the file name to associate with the module
     ///     (this is used when Python reports errors, for example)
     /// 'module_name' is the name to give the module
     #[cfg(Py_3)]

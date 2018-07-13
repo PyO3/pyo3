@@ -14,6 +14,7 @@ use objectprotocol::ObjectProtocol;
 
 
 /// Represents a reference to a python object supporting the sequence protocol.
+#[repr(transparent)]
 pub struct PySequence(PyObject);
 pyobject_native_type_named!(PySequence);
 pyobject_downcast!(PySequence, ffi::PySequence_Check);

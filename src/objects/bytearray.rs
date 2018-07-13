@@ -9,6 +9,7 @@ use python::{Python, ToPyPointer};
 use err::{PyResult, PyErr};
 
 /// Represents a Python `bytearray`.
+#[repr(transparent)]
 pub struct PyByteArray(PyObject);
 
 pyobject_native_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);

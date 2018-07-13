@@ -13,6 +13,7 @@ use instance::{Py, PyObjectWithToken};
 use typeob::{PyTypeInfo, PyTypeObject};
 
 /// Represents a reference to a Python `type object`.
+#[repr(transparent)]
 pub struct PyType(PyObject);
 
 pyobject_native_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);

@@ -18,6 +18,7 @@ use objectprotocol::ObjectProtocol;
 /// by using [`ToPyObject`](trait.ToPyObject.html)
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
+#[repr(transparent)]
 pub struct PyFloat(PyObject);
 
 pyobject_native_type!(PyFloat, ffi::PyFloat_Type, ffi::PyFloat_Check);

@@ -9,6 +9,7 @@ use ffi;
 use python::{Python, ToPyPointer};
 use typeob::PyTypeInfo;
 
+#[repr(transparent)]
 pub struct PyTraverseError(c_int);
 
 /// GC support

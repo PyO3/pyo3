@@ -209,6 +209,7 @@ macro_rules! pyobject_extract(
 use python::ToPyPointer;
 use ffi;
 /// Represents general python instance.
+#[repr(transparent)]
 pub struct PyObjectRef(::PyObject);
 pyobject_native_type_named!(PyObjectRef);
 pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject_Check);

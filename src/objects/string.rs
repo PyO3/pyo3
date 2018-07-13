@@ -14,6 +14,7 @@ use err::{PyResult, PyErr};
 use super::PyStringData;
 
 /// Represents a Python `string`.
+#[repr(transparent)]
 pub struct PyString(PyObject);
 
 pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
@@ -23,6 +24,7 @@ pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 pub use PyString as PyUnicode;
 
 /// Represents a Python `byte` string.
+#[repr(transparent)]
 pub struct PyBytes(PyObject);
 
 pyobject_native_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
