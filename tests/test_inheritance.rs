@@ -43,7 +43,7 @@ impl BaseClass {
     }
 }
 
-#[pyclass(base=BaseClass)]
+#[pyclass(extends=BaseClass)]
 struct SubClass {
     #[prop(get)]
     val2: usize,

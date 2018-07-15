@@ -445,7 +445,7 @@ fn parse_attribute(
                         }
                         _ => println!("Wrong 'name' format: {:?}", *ass.right),
                     },
-                    "base" => match *ass.right {
+                    "extends" => match *ass.right {
                         syn::Expr::Path(ref exp) => {
                             base = syn::TypePath {
                                 path: exp.path.clone(),

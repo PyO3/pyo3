@@ -33,7 +33,7 @@ so that they can benefit from a freelist. `XXX` is a number of items for free li
 participate in python garbage collector. If a custom class contains references to other
 python object that can be collected, the `PyGCProtocol` trait has to be implemented.
 * `weakref` - adds support for python weak references
-* `base=BaseType` - use a custom base class. The base BaseType must implement `PyTypeInfo`.
+* `extends=BaseType` - use a custom base class. The base BaseType must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class
 * `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables. (Incomplete, see [#123](https://github.com/PyO3/pyo3/issues/123))
 
@@ -115,7 +115,7 @@ impl BaseClass {
    }
 }
 
-#[pyclass(base=BaseClass)]
+#[pyclass(extends=BaseClass)]
 struct SubClass {
    val2: usize,
    token: PyToken,

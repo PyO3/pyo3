@@ -231,7 +231,7 @@ impl Drop for BaseClassWithDrop {
     }
 }
 
-#[pyclass(base=BaseClassWithDrop)]
+#[pyclass(extends=BaseClassWithDrop)]
 struct SubClassWithDrop {
     token: PyToken,
     data: Option<Arc<AtomicBool>>,
