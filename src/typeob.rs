@@ -4,7 +4,7 @@
 
 use std;
 use std::mem;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::collections::HashMap;
 
 use {ffi, class, pythonrun};
@@ -492,8 +492,6 @@ fn async_methods<T>(_type_info: &mut ffi::PyTypeObject) {}
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where T: PyObjectAlloc<T>
 {
-    debug!("DEALLOC: {:?} - {:?}", obj,
-           CStr::from_ptr((*(*obj).ob_type).tp_name).to_string_lossy());
     let _pool = pythonrun::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
     <T as PyObjectAlloc<T>>::dealloc(py, obj)

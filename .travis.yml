@@ -63,6 +63,13 @@ deploy:
       repo: PyO3/pyo3
       python: 3.6
       condition: $TRAVIS_EVENT_TYPE != "cron"
+  - provider: script
+    skip_cleanup: true
+    script: ./ci/travis/guide.sh
+    on:
+      tags: true
+      repo: PyO3/pyo3
+      python: 3.6
 
 notifications:
   email: false

@@ -123,7 +123,6 @@
 extern crate libc;
 extern crate spin;
 extern crate pyo3cls;
-#[macro_use] extern crate log;
 // We need that reexport for wrap_function
 #[doc(hidden)]
 pub extern crate mashup;
