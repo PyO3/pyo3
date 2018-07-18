@@ -124,6 +124,9 @@ extern crate libc;
 extern crate spin;
 extern crate pyo3cls;
 #[macro_use] extern crate log;
+// We need that reexport for wrap_function
+#[doc(hidden)]
+pub extern crate mashup;
 
 #[cfg(not(Py_3))]
 mod ffi2;
@@ -176,16 +179,25 @@ macro_rules! cstr {
     );
 }
 
-/// Returns a function that takes a Python instance and returns a python function.
+/// Returns a function that takes a [Python] instance and returns a python function.
 ///
 /// Use this together with `#[function]` and [PyModule::add_function].
 #[macro_export]
-macro_rules! wrap_function (
-    ($function_name:ident) => {
-        // Make sure this ident matches the one in function_wrapper_ident
-        &concat_idents!(__pyo3_get_function_, $function_name)
-    };
-);
+macro_rules! wrap_function {
+    ($function_name:ident) => {{
+        // Get the mashup macro and its helpers into scope
+        use $crate::mashup::*;
+
+        mashup! {
+            // Make sure this ident matches the one in function_wrapper_ident
+            m["method"] = __pyo3_get_function_ $function_name;
+        }
+
+        m! {
+            &"method"
+        }
+    }}
+}
 
 pub mod python;
 mod err;

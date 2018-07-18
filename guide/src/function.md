@@ -34,13 +34,11 @@ as first parameter, the function name as second and an instance of `Python`
 as third.
 
 ```rust
-#![feature(use_extern_macros, concat_idents)]
+#![feature(specialization, use_extern_macros)]
 
 #[macro_use]
 extern crate pyo3;
 use pyo3::prelude::*;
-
-
 
 #[pyfunction]
 fn double(x: usize) -> usize {
@@ -56,4 +54,3 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
 # fn main() {}
 ```
-

@@ -1,4 +1,4 @@
-#![feature(use_extern_macros, specialization, concat_idents)]
+#![feature(use_extern_macros, specialization)]
 
 #[macro_use]
 extern crate pyo3;
