@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.1
+
+* Fixed scoping bug in pyobject_native_type that would break rust-numpy
+
+## 0.3.0
 
 * Upgraded to syn 0.14 which means much better error messages :tada:
 * 128 bit integer support by [kngwyu](https://github.com/kngwyu) ([#137](https://github.com/PyO3/pyo3/pull/173))
