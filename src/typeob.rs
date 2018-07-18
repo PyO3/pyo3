@@ -103,7 +103,7 @@ impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
 ///
 /// Example of custom class implementation with `__new__` method:
 /// ```rust,ignore
-/// use pyo3::{pyclass, pymethods};
+/// use pyo3::prelude::*;
 ///
 /// #[pyclass]
 /// struct MyClass {

@@ -1,11 +1,8 @@
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 
 extern crate pyo3;
 
 use pyo3::prelude::*;
-
-use pyo3::pyclass;
-use pyo3::pymethods;
 
 #[macro_use]
 mod common;

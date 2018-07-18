@@ -1,4 +1,4 @@
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 
 extern crate pyo3;
 
@@ -7,9 +7,6 @@ use std::ptr;
 
 use pyo3::ffi;
 use pyo3::prelude::*;
-
-use pyo3::pyclass;
-use pyo3::pyproto;
 
 #[pyclass]
 struct TestClass {

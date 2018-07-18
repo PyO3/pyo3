@@ -1,6 +1,6 @@
 // Source adopted from
 // https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 extern crate pyo3;
 extern crate rayon;
 
@@ -9,8 +9,6 @@ use std::io::prelude::*;
 
 use pyo3::prelude::*;
 use rayon::prelude::*;
-
-use pyo3::pymodinit;
 
 fn matches(word: &str, search: &str) -> bool {
     let mut search = search.chars();

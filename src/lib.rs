@@ -1,4 +1,4 @@
-#![feature(specialization, proc_macro)]
+#![feature(specialization, use_extern_macros)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -29,7 +29,7 @@
 //! # Example
 //!
 //! ```rust
-//! #![feature(proc_macro, specialization)]
+//! #![feature(use_extern_macros, specialization)]
 //!
 //! extern crate pyo3;
 //!
@@ -68,12 +68,10 @@
 //! # Example
 //!
 //! ```rust
-//! #![feature(proc_macro, specialization)]
+//! #![feature(use_extern_macros, specialization)]
 //!
 //! extern crate pyo3;
 //! use pyo3::prelude::*;
-//!
-//! use pyo3::pymodinit;
 //!
 //! // Add bindings to the generated python module
 //! // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
@@ -157,13 +155,16 @@ pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
 pub mod class;
 pub use class::*;
 
-pub use pyo3cls::{pyproto, pyclass, pymethods, pyfunction};
+/// The proc macro attributes
+pub mod proc_macro {
+    pub use pyo3cls::{pyproto, pyclass, pymethods, pyfunction};
 
-#[cfg(Py_3)]
-pub use pyo3cls::mod3init as pymodinit;
+    #[cfg(Py_3)]
+    pub use pyo3cls::mod3init as pymodinit;
 
-#[cfg(not(Py_3))]
-pub use pyo3cls::mod2init as pymodinit;
+    #[cfg(not(Py_3))]
+    pub use pyo3cls::mod2init as pymodinit;
+}
 
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr {

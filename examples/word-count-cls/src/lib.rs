@@ -1,12 +1,11 @@
 // Source adopted from
 // https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 
 extern crate pyo3;
 extern crate rayon;
 
 use pyo3::prelude::*;
-use pyo3::{pyclass, pymethods, pymodinit};
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;

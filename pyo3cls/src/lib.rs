@@ -1,9 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
-//! must not contain any other public items
+//! must not contain any other public items.
 
 #![recursion_limit = "1024"]
-#![feature(proc_macro)]
 
 extern crate proc_macro;
 extern crate proc_macro2;

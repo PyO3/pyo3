@@ -1,10 +1,9 @@
-#![feature(proc_macro, specialization, concat_idents)]
+#![feature(use_extern_macros, specialization, concat_idents)]
 
 #[macro_use]
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::{pyclass, pyfunction, pymodinit};
 
 #[pyclass]
 struct EmptyClass {}
@@ -80,7 +79,11 @@ fn test_module_renaming() {
         PyObject::from_owned_ptr(py, PyInit_other_name())
     }).unwrap();
 
-    py.run("assert different_name.__name__ == 'other_name'", None, Some(d)).unwrap();
+    py.run(
+        "assert different_name.__name__ == 'other_name'",
+        None,
+        Some(d),
+    ).unwrap();
 }
 
 #[test]

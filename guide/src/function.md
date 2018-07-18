@@ -10,7 +10,7 @@ One way is defining the function in the module definition.
 
 extern crate pyo3;
 use pyo3::prelude::*;
-use pyo3::pymodinit;
+
 
 #[pymodinit]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
@@ -34,13 +34,13 @@ as first parameter, the function name as second and an instance of `Python`
 as third.
 
 ```rust
-#![feature(proc_macro, concat_idents)]
+#![feature(use_extern_macros, concat_idents)]
 
 #[macro_use]
 extern crate pyo3;
 use pyo3::prelude::*;
 
-use pyo3::{pyfunction, pymodinit};
+
 
 #[pyfunction]
 fn double(x: usize) -> usize {

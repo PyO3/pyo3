@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! The `PyO3` Prelude
+//! A collection of items you most likely want to have in scope when working with pyo3
 //!
 //! The purpose of this module is to alleviate imports of many common pyo3 traits
 //! by adding a glob import to the top of pyo3 heavy modules:
@@ -22,3 +22,11 @@ pub use typeob::PyRawObject;
 pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
 pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
                      ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};
+
+pub use pyo3cls::{pyproto, pyclass, pymethods, pyfunction};
+
+#[cfg(Py_3)]
+pub use pyo3cls::mod3init as pymodinit;
+
+#[cfg(not(Py_3))]
+pub use pyo3cls::mod2init as pymodinit;

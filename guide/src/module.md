@@ -8,7 +8,7 @@ As shown in the Getting Started chapter, you can create a module as follows:
 extern crate pyo3;
 use pyo3::{PyResult, Python, PyModule};
 
-use pyo3::pymodinit;
+
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file

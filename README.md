@@ -25,7 +25,7 @@ pyo3 = "0.2"
 Example program displaying the value of `sys.version`:
 
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 
 extern crate pyo3;
 
@@ -69,12 +69,12 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 
 extern crate pyo3;
 use pyo3::prelude::*;
 
-use pyo3::pymodinit;
+
 
 // Add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file

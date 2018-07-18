@@ -131,7 +131,7 @@ trait can be implemented. In that case actual exception arguments creation get d
 until `Python` object is available.
 
 ```rust,ignore
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 extern crate pyo3;
 
 use std::net::TcpListener;

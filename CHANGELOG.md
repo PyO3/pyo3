@@ -4,7 +4,8 @@
 
 * Upgraded to syn 0.14 which means much better error messages :tada:
 * 128 bit integer support by [kngwyu](https://github.com/kngwyu) ([#137](https://github.com/PyO3/pyo3/pull/173))
-* Added `py` prefixes to the proc macros and moved them into the root module. You should just use the plain proc macros, i.e. `#[pyclass]`, `#[pymethods]`, `#[pyproto]`, `#[pyfunction]` and `#[pymodinit]`. This is important because `proc_macro_path_invoc` isn't going to be stabilized soon.
+* `proc_macro` has been stabilized on nightly ([rust-lang/rust#52081](https://github.com/rust-lang/rust/pull/52081)). This means that we can remove the `proc_macro` feature, but now we need the `use_extern_macros` from the 2018 edition instead.
+* All proc macro are now prefixed with `py` and live in the prelude. This means you can use `#[pyclass]`, `#[pymethods]`, `#[pyproto]`, `#[pyfunction]` and `#[pymodinit]` directly, at least after a `use pyo3::prelude::*`. They were also moved into a module called `proc_macro`. You shouldn't use `#[pyo3::proc_macro::pyclass]` or other longer paths in attributes because `proc_macro_path_invoc` isn't going to be stabilized soon.
 * Renamed the `base` option in the `pyclass` macro to `extends`.
 * `#[pymodinit]` uses the function name as module name, unless the name is overrriden with `#[pymodinit(name)]`
 * The guide is now properly versioned.

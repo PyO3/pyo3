@@ -5,10 +5,10 @@
 To define python custom class, rust struct needs to be annotated with `#[pyclass]` attribute.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-use pyo3::pyclass;
+
 
 #[pyclass]
 struct MyClass {
@@ -45,11 +45,11 @@ To declare a constructor, you need to define a class method and annotate it with
 attribute. Only the python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 #
 # extern crate pyo3;
 # use pyo3::prelude::*;
-use pyo3::{pyclass, pymethods};
+
 
 #[pyclass]
 struct MyClass {
@@ -92,10 +92,9 @@ By default `PyObject` is used as default base class. To override default base cl
 with value of custom class struct. Subclass must call parent's `__new__` method.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 #
 #[pyclass]
 struct BaseClass {
@@ -146,10 +145,9 @@ Descriptor methods can be defined in
 attributes. i.e.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -174,10 +172,9 @@ Descriptor name becomes function name with prefix removed. This is useful in cas
 rust's special keywords like `type`.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -206,10 +203,9 @@ Also both `#[getter]` and `#[setter]` attributes accepts one parameter.
 If parameter is specified, it is used and property name. i.e.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -237,10 +233,9 @@ In this case property `number` is defined. And it is available from python code 
 For simple cases you can also define getters and setters in your Rust struct field definition, for example:
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 #[pyclass]
 struct MyClass {
   #[prop(get, set)]
@@ -258,10 +253,9 @@ wrappers for all functions in this block with some variations, like descriptors,
 class method static methods, etc.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -289,10 +283,9 @@ The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject
 get injected by method wrapper. i.e
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -316,10 +309,9 @@ To specify class method for custom class, method needs to be annotated
 with`#[classmethod]` attribute.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -351,10 +343,9 @@ with `#[staticmethod]` attribute. The return type must be `PyResult<T>`
 for some `T` that implements `IntoPyObject`.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -377,10 +368,9 @@ To specify custom `__call__` method for custom class, call method needs to be an
 with `#[call]` attribute. Arguments of the method are specified same as for instance method.
 
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -423,10 +413,10 @@ Each parameter could one of following type:
 
 Example:
 ```rust
-# #![feature(proc_macro, specialization)]
+# #![feature(use_extern_macros, specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-# use pyo3::{pyclass, pymethods};
+#
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -527,11 +517,11 @@ These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 as every cycle must contain at least one mutable reference.
 Example:
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::{pyclass, pyproto};
+
 
 #[pyclass]
 struct ClassWithGCSupport {
@@ -576,11 +566,11 @@ It includes two methods `__iter__` and `__next__`:
 Example:
 
 ```rust
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::{pyclass, pyproto};
+
 
 #[pyclass]
 struct MyIterator {

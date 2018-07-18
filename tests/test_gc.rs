@@ -1,4 +1,4 @@
-#![feature(proc_macro, specialization)]
+#![feature(use_extern_macros, specialization)]
 
 extern crate pyo3;
 
@@ -7,10 +7,6 @@ use pyo3::prelude::*;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-use pyo3::pyclass;
-use pyo3::pymethods;
-use pyo3::pyproto;
 
 #[macro_use]
 mod common;
