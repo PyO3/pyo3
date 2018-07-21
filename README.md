@@ -19,7 +19,7 @@ To use `pyo3`, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.2"
+pyo3 = "0.3"
 ```
 
 Example program displaying the value of `sys.version`:
@@ -62,7 +62,7 @@ name = "rust2py"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.2"
+version = "0.3"
 features = ["extension-module"]
 ```
 
