@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+* Replaced `concat_idents` with mashup
+
 ## 0.3.1
 
 * Fixed scoping bug in pyobject_native_type that would break rust-numpy

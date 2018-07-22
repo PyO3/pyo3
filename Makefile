@@ -9,10 +9,6 @@ FEATURES := python2
 endif
 ifeq ($(PY),3)
 FEATURES := python3
-ifdef PEP384
-export PEP384=1
-FEATURES := $(FEATURES) pep-384
-endif
 endif
 
 CARGO_FLAGS := --features "$(FEATURES)" --no-default-features

@@ -350,7 +350,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
         minor: some_minor,
     } = interpreter_version
     {
-        if env::var_os("CARGO_FEATURE_PEP_384").is_some() {
+        if env::var_os("CARGO_FEATURE_ABI3").is_some() {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
         if let Some(minor) = some_minor {

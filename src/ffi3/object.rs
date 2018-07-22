@@ -206,7 +206,9 @@ pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 
 #[cfg(Py_LIMITED_API)]
-pub enum PyTypeObject { }
+mod typeobject {
+    pub enum PyTypeObject {}
+}
 
 #[cfg(not(Py_LIMITED_API))]
 mod typeobject {
@@ -561,7 +563,8 @@ mod typeobject {
         ) as *mut ffi3::structmember::PyMemberDef
     }
 }
-#[cfg(not(Py_LIMITED_API))]
+
+// The exported types depend on whether Py_LIMITED_API is set
 pub use self::typeobject::*;
 
 #[repr(C)]

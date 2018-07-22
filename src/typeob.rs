@@ -350,8 +350,8 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
     }
 }
 
-
 /// Register new type in python object system.
+#[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyResult<()>
     where T: PyObjectAlloc<T> + PyTypeInfo
 {

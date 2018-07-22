@@ -8,6 +8,7 @@ rayon = "0.8"
 
 [dependencies.pyo3]
 path = "../../"
+features = ["extension-module"]
 
 [lib]
 name = "word_count_cls"
