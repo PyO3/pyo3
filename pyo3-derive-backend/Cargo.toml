@@ -15,7 +15,7 @@ log="0.4"
 quote="0.6"
 
 [dependencies.proc-macro2]
-version = "0.4"
+version = "0.4.9"
 features = ["nightly"]
 
 [dependencies.syn]
