@@ -132,9 +132,8 @@ impl<'p> Python<'p> {
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
     pub fn run(self, code: &str, globals: Option<&PyDict>,
-                locals: Option<&PyDict>) -> PyResult<()> {
-        let _ = self.run_code(code, ffi::Py_file_input, globals, locals)?;
-        Ok(())
+                locals: Option<&PyDict>) -> PyResult<&'p PyObjectRef> {
+        self.run_code(code, ffi::Py_file_input, globals, locals)
     }
 
     /// Runs code in the given context.
