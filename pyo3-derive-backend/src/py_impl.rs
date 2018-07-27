@@ -9,11 +9,13 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
     if ast.trait_.is_some() {
         panic!("#[pymethods] can not be used only with trait impl block");
     } else {
-        impl_methods(&ast.self_ty, &mut ast.items)
+        impl_methods(&ast.generics, &ast.self_ty, &mut ast.items)
     }
 }
 
-pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStream {
+pub fn impl_methods(generics: &syn::Generics, ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStream {
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
     // get method names in impl block
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
@@ -29,7 +31,7 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
     }
 
     quote! {
-        impl ::pyo3::class::methods::PyMethodsProtocolImpl for #ty {
+        impl #impl_generics ::pyo3::class::methods::PyMethodsProtocolImpl for #ty #where_clause {
             fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#methods),*
