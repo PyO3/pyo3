@@ -4,7 +4,7 @@ name = "word-count-cls"
 version = "0.1.0"
 
 [dependencies]
-rayon = "0.8"
+rayon = "1.0"
 
 [dependencies.pyo3]
 path = "../../"
