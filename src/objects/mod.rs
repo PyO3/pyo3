@@ -35,8 +35,8 @@ pub use self::num2::{PyInt, PyLong};
 /// parameter
 #[macro_export]
 macro_rules! pyobject_downcast(
-    ($name: ident, $checkfunction: path) => (
-        impl<'a> $crate::FromPyObject<'a> for &'a $name
+    ($name: ty, $checkfunction: path $(,$type_param: ident)*) => (
+        impl<'a, $($type_param,)*> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
             #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
@@ -56,24 +56,24 @@ macro_rules! pyobject_downcast(
 
 #[macro_export]
 macro_rules! pyobject_native_type_named(
-    ($name: ident) => {
-        impl $crate::PyNativeType for $name {}
+    ($name: ty $(,$type_param: ident)*) => {
+        impl<$($type_param,)*> $crate::PyNativeType for $name {}
 
-        impl ::std::convert::AsRef<$crate::PyObjectRef> for $name {
+        impl<$($type_param,)*> ::std::convert::AsRef<$crate::PyObjectRef> for $name {
             #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
             fn as_ref(&self) -> &$crate::PyObjectRef {
                 unsafe{&*(self as *const $name as *const $crate::PyObjectRef)}
             }
         }
 
-        impl $crate::PyObjectWithToken for $name {
+        impl<$($type_param,)*> $crate::PyObjectWithToken for $name {
             #[inline(always)]
             fn py(&self) -> $crate::Python {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }
         }
 
-        impl $crate::python::ToPyPointer for $name {
+        impl<$($type_param,)*> $crate::python::ToPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
@@ -81,7 +81,7 @@ macro_rules! pyobject_native_type_named(
             }
         }
 
-        impl PartialEq for $name {
+        impl<$($type_param,)*> PartialEq for $name {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
                 self.as_ptr() == o.as_ptr()
@@ -92,12 +92,12 @@ macro_rules! pyobject_native_type_named(
 
 #[macro_export]
 macro_rules! pyobject_native_type(
-    ($name: ident, $typeobject: expr, $checkfunction: path) => {
-        pyobject_native_type_named!($name);
-        pyobject_native_type_convert!($name, $typeobject, $checkfunction);
-        pyobject_downcast!($name, $checkfunction);
+    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        pyobject_native_type_named!($name $(,$type_param)*);
+        pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
+        pyobject_downcast!($name, $checkfunction $(,$type_param)*);
 
-        impl<'a> ::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
+        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyObjectRef)}
             }
@@ -107,8 +107,8 @@ macro_rules! pyobject_native_type(
 
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
-    ($name: ident, $typeobject: expr, $checkfunction: path) => {
-        impl $crate::typeob::PyTypeInfo for $name {
+    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        impl<$($type_param,)*> $crate::typeob::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::PyObjectRef;
 
@@ -128,7 +128,7 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl $crate::typeob::PyTypeObject for $name {
+        impl<$($type_param,)*> $crate::typeob::PyTypeObject for $name {
             #[inline(always)]
             fn init_type() {}
 
@@ -138,7 +138,7 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl $crate::ToPyObject for $name
+        impl<$($type_param,)*> $crate::ToPyObject for $name
         {
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
@@ -146,7 +146,7 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl $crate::ToBorrowedObject for $name
+        impl<$($type_param,)*> $crate::ToBorrowedObject for $name
         {
             #[inline]
             fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
@@ -156,7 +156,7 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl ::std::fmt::Debug for $name {
+        impl<$($type_param,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>
             {
@@ -166,7 +166,7 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl ::std::fmt::Display for $name {
+        impl<$($type_param,)*> ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>
             {
