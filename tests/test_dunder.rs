@@ -234,8 +234,8 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c =
-        py.init_ref(|t| SetItem {
+    let c = py
+        .init_ref(|t| SetItem {
             key: 0,
             val: 0,
             token: t,
@@ -295,8 +295,8 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c =
-        py.init_ref(|t| SetDelItem {
+    let c = py
+        .init_ref(|t| SetDelItem {
             val: None,
             token: t,
         }).unwrap();
@@ -382,8 +382,8 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c =
-        py.init_mut(|t| ContextManager {
+    let c = py
+        .init_mut(|t| ContextManager {
             exit_called: false,
             token: t,
         }).unwrap();

@@ -1,8 +1,9 @@
-use std::os::raw::{c_int, c_long};
-use ffi3::object::*;
 use ffi3::longobject::PyLongObject;
+use ffi3::object::*;
+use std::os::raw::{c_int, c_long};
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyBool_Type: PyTypeObject;
     static mut _Py_FalseStruct: PyLongObject;
     static mut _Py_TrueStruct: PyLongObject;
@@ -10,7 +11,7 @@ use ffi3::longobject::PyLongObject;
 }
 
 #[inline(always)]
-pub unsafe fn PyBool_Check(op : *mut PyObject) -> c_int {
+pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyBool_Type) as c_int
 }
 
@@ -23,4 +24,3 @@ pub unsafe fn Py_False() -> *mut PyObject {
 pub unsafe fn Py_True() -> *mut PyObject {
     &mut _Py_TrueStruct as *mut PyLongObject as *mut PyObject
 }
-

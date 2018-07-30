@@ -13,7 +13,8 @@ pub fn indoc(commands: &str) -> String {
 
     commands
         .trim_right()
-        .replace(&("\n".to_string() + &indent), "\n") + "\n"
+        .replace(&("\n".to_string() + &indent), "\n")
+        + "\n"
 }
 
 #[macro_export]

@@ -30,7 +30,7 @@ fn subclass() {
         None,
         Some(d),
     ).map_err(|e| e.print(py))
-        .unwrap();
+    .unwrap();
 }
 
 #[pymethods]

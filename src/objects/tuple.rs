@@ -3,14 +3,14 @@
 use std;
 use std::slice;
 
-use ffi::{self, Py_ssize_t};
+use super::exc;
+use conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
 use err::{PyErr, PyResult};
-use instance::{Py, PyObjectWithToken, AsPyRef};
+use ffi::{self, Py_ssize_t};
+use instance::{AsPyRef, Py, PyObjectWithToken};
 use object::PyObject;
 use objects::PyObjectRef;
-use python::{Python, ToPyPointer, IntoPyPointer};
-use conversion::{FromPyObject, ToPyObject, IntoPyTuple, IntoPyObject, PyTryFrom};
-use super::exc;
+use python::{IntoPyPointer, Python, ToPyPointer};
 
 /// Represents a Python `tuple` object.
 #[repr(transparent)]
@@ -18,9 +18,7 @@ pub struct PyTuple(PyObject);
 
 pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
-
 impl PyTuple {
-
     /// Construct a new tuple with the given elements.
     pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PyTuple> {
         unsafe {
@@ -35,9 +33,7 @@ impl PyTuple {
 
     /// Retrieves the empty tuple.
     pub fn empty(_py: Python) -> Py<PyTuple> {
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyTuple_New(0))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_New(0)) }
     }
 
     /// Gets the length of the tuple.
@@ -55,17 +51,14 @@ impl PyTuple {
 
     /// Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
     pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
-        unsafe {
-            Py::from_owned_ptr_or_panic(
-                ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_GetSlice(self.as_ptr(), low, high)) }
     }
 
     /// Take a slice of the tuple pointed to by p from low and return it as a new tuple.
     pub fn split_from(&self, low: isize) -> Py<PyTuple> {
         unsafe {
-            let ptr = ffi::PyTuple_GetSlice(
-                self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
+            let ptr =
+                ffi::PyTuple_GetSlice(self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
             Py::from_owned_ptr_or_panic(ptr)
         }
     }
@@ -78,8 +71,8 @@ impl PyTuple {
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
         unsafe {
-            self.py().from_borrowed_ptr(
-                ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
+            self.py()
+                .from_borrowed_ptr(ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
@@ -89,16 +82,17 @@ impl PyTuple {
         // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            std::mem::transmute(
-                slice::from_raw_parts(
-                    (*ptr).ob_item.as_ptr(), self.len()
-                ))
+            std::mem::transmute(slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len()))
         }
     }
 
     /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyTupleIterator {
-        PyTupleIterator{ py: self.py(), slice: self.as_slice(), index: 0 }
+        PyTupleIterator {
+            py: self.py(),
+            slice: self.as_slice(),
+            index: 0,
+        }
     }
 }
 
@@ -156,8 +150,11 @@ impl<'a> IntoPyTuple for &'a str {
 }
 
 fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
-    let msg = format!("Expected tuple of length {}, but got tuple of length {}.",
-                      expected_length, t.len());
+    let msg = format!(
+        "Expected tuple of length {}, but got tuple of length {}.",
+        expected_length,
+        t.len()
+    );
     exc::ValueError::new(msg)
 }
 
@@ -211,26 +208,65 @@ tuple_conversion!(1, (ref0, 0, A));
 tuple_conversion!(2, (ref0, 0, A), (ref1, 1, B));
 tuple_conversion!(3, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C));
 tuple_conversion!(4, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D));
-tuple_conversion!(5, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-  (ref4, 4, E));
-tuple_conversion!(6, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-  (ref4, 4, E), (ref5, 5, F));
-tuple_conversion!(7, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G));
-tuple_conversion!(8, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H));
-tuple_conversion!(9, (ref0, 0, A), (ref1, 1, B), (ref2, 2, C), (ref3, 3, D),
-  (ref4, 4, E), (ref5, 5, F), (ref6, 6, G), (ref7, 7, H), (ref8, 8, I));
-
+tuple_conversion!(
+    5,
+    (ref0, 0, A),
+    (ref1, 1, B),
+    (ref2, 2, C),
+    (ref3, 3, D),
+    (ref4, 4, E)
+);
+tuple_conversion!(
+    6,
+    (ref0, 0, A),
+    (ref1, 1, B),
+    (ref2, 2, C),
+    (ref3, 3, D),
+    (ref4, 4, E),
+    (ref5, 5, F)
+);
+tuple_conversion!(
+    7,
+    (ref0, 0, A),
+    (ref1, 1, B),
+    (ref2, 2, C),
+    (ref3, 3, D),
+    (ref4, 4, E),
+    (ref5, 5, F),
+    (ref6, 6, G)
+);
+tuple_conversion!(
+    8,
+    (ref0, 0, A),
+    (ref1, 1, B),
+    (ref2, 2, C),
+    (ref3, 3, D),
+    (ref4, 4, E),
+    (ref5, 5, F),
+    (ref6, 6, G),
+    (ref7, 7, H)
+);
+tuple_conversion!(
+    9,
+    (ref0, 0, A),
+    (ref1, 1, B),
+    (ref2, 2, C),
+    (ref3, 3, D),
+    (ref4, 4, E),
+    (ref5, 5, F),
+    (ref6, 6, G),
+    (ref7, 7, H),
+    (ref8, 8, I)
+);
 
 #[cfg(test)]
 mod test {
-    use PyTuple;
+    use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use python::Python;
-    use conversion::{ToPyObject, PyTryFrom};
-    use objects::PyObjectRef;
     use objectprotocol::ObjectProtocol;
+    use objects::PyObjectRef;
+    use python::Python;
+    use PyTuple;
 
     #[test]
     fn test_new() {

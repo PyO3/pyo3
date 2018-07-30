@@ -4,13 +4,13 @@
 
 use std::os::raw::c_double;
 
-use ffi;
-use object::PyObject;
-use python::{ToPyPointer, Python};
+use conversion::{IntoPyObject, ToPyObject};
 use err::PyErr;
+use ffi;
 use instance::{Py, PyObjectWithToken};
-use conversion::{ToPyObject, IntoPyObject};
+use object::PyObject;
 use objectprotocol::ObjectProtocol;
+use python::{Python, ToPyPointer};
 
 /// Represents a Python `float` object.
 ///
@@ -23,13 +23,10 @@ pub struct PyFloat(PyObject);
 
 pyobject_native_type!(PyFloat, ffi::PyFloat_Type, ffi::PyFloat_Check);
 
-
 impl PyFloat {
     /// Creates a new Python `float` object.
     pub fn new(_py: Python, val: c_double) -> Py<PyFloat> {
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val)) }
     }
 
     /// Gets the value of this float.
@@ -62,13 +59,11 @@ pyobject_extract!(obj to f64 => {
 });
 
 impl ToPyObject for f32 {
-
     fn to_object(&self, py: Python) -> PyObject {
         PyFloat::new(py, *self as f64).into()
     }
 }
 impl IntoPyObject for f32 {
-
     fn into_object(self, py: Python) -> PyObject {
         PyFloat::new(py, self as f64).into()
     }
@@ -78,11 +73,10 @@ pyobject_extract!(obj to f32 => {
     Ok(obj.extract::<f64>()? as f32)
 });
 
-
 #[cfg(test)]
 mod test {
-    use python::Python;
     use conversion::ToPyObject;
+    use python::Python;
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (

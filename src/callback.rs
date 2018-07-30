@@ -3,14 +3,13 @@
 //! Utilities for a Python callable object that invokes a Rust function.
 
 use std::os::raw::c_int;
-use std::{ptr, isize};
+use std::{isize, ptr};
 
+use conversion::IntoPyObject;
 use err::PyResult;
 use ffi::{self, Py_hash_t};
-use python::{Python, IntoPyPointer};
 use objects::exc::OverflowError;
-use conversion::IntoPyObject;
-
+use python::{IntoPyPointer, Python};
 
 pub trait CallbackConverter<S> {
     type R;
@@ -22,7 +21,8 @@ pub trait CallbackConverter<S> {
 pub struct PyObjectCallbackConverter;
 
 impl<S> CallbackConverter<S> for PyObjectCallbackConverter
-    where S: IntoPyObject
+where
+    S: IntoPyObject,
 {
     type R = *mut ffi::PyObject;
 
@@ -35,7 +35,6 @@ impl<S> CallbackConverter<S> for PyObjectCallbackConverter
         ptr::null_mut()
     }
 }
-
 
 pub struct BoolCallbackConverter;
 
@@ -73,7 +72,6 @@ impl CallbackConverter<usize> for LenResultConverter {
     }
 }
 
-
 pub struct UnitCallbackConverter;
 
 impl CallbackConverter<()> for UnitCallbackConverter {
@@ -102,7 +100,7 @@ macro_rules! wrapping_cast {
                 self as $to
             }
         }
-    }
+    };
 }
 wrapping_cast!(u8, Py_hash_t);
 wrapping_cast!(u16, Py_hash_t);
@@ -117,8 +115,9 @@ wrapping_cast!(i64, Py_hash_t);
 
 pub struct HashConverter;
 
-impl <T> CallbackConverter<T> for HashConverter
-    where T: WrappingCastTo<Py_hash_t>
+impl<T> CallbackConverter<T> for HashConverter
+where
+    T: WrappingCastTo<Py_hash_t>,
 {
     type R = Py_hash_t;
 
@@ -141,7 +140,8 @@ impl <T> CallbackConverter<T> for HashConverter
 #[inline]
 
 pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
-    where C: CallbackConverter<T>
+where
+    C: CallbackConverter<T>,
 {
     match value {
         Ok(val) => C::convert(val, py),

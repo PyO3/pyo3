@@ -2,11 +2,11 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use err::{PyDowncastError, PyErr, PyResult};
 use ffi;
+use instance::PyObjectWithToken;
 use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
-use instance::PyObjectWithToken;
-use err::{PyErr, PyResult, PyDowncastError};
 
 /// A python iterator object.
 ///
@@ -14,11 +14,11 @@ use err::{PyErr, PyResult, PyDowncastError};
 /// so that `PyIterator` can implement the rust `Iterator` trait.
 pub struct PyIterator<'p>(&'p PyObjectRef);
 
-
-impl <'p> PyIterator<'p> {
+impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
     pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
-        where T: ToPyPointer
+    where
+        T: ToPyPointer,
     {
         unsafe {
             let ptr = ffi::PyObject_GetIter(obj.as_ptr());
@@ -44,9 +44,7 @@ impl<'p> Iterator for PyIterator<'p> {
     fn next(&mut self) -> Option<Self::Item> {
         let py = self.0.py();
 
-        match unsafe {
-            py.from_owned_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) }
-        {
+        match unsafe { py.from_owned_ptr_or_opt(ffi::PyIter_Next(self.0.as_ptr())) } {
             Some(obj) => Some(Ok(obj)),
             None => {
                 if PyErr::occurred(py) {
@@ -61,7 +59,6 @@ impl<'p> Iterator for PyIterator<'p> {
 
 /// Dropping a `PyIterator` instance decrements the reference count on the object by 1.
 impl<'p> Drop for PyIterator<'p> {
-
     fn drop(&mut self) {
         unsafe { ffi::Py_DECREF(self.0.as_ptr()) }
     }
@@ -69,12 +66,12 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
+    use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
+    use objectprotocol::ObjectProtocol;
+    use objects::{PyList, PyObjectRef};
     use python::Python;
     use pythonrun::GILPool;
-    use conversion::{PyTryFrom, ToPyObject};
-    use objects::{PyObjectRef, PyList};
-    use objectprotocol::ObjectProtocol;
 
     #[test]
     fn vec_iter() {

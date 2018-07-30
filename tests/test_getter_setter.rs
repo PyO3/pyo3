@@ -68,8 +68,8 @@ fn getter_setter_autogen() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst =
-        py.init(|t| GetterSetter {
+    let inst = py
+        .init(|t| GetterSetter {
             num: 10,
             token: t,
             text: "Hello".to_string(),

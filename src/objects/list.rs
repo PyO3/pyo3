@@ -4,13 +4,13 @@
 
 use std;
 
+use conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::PyObjectRef;
-use python::{Python, ToPyPointer, IntoPyPointer};
-use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject};
+use python::{IntoPyPointer, Python, ToPyPointer};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -33,17 +33,13 @@ impl PyList {
 
     /// Construct a new empty list.
     pub fn empty(py: Python) -> &PyList {
-        unsafe {
-            py.from_owned_ptr::<PyList>(ffi::PyList_New(0))
-        }
+        unsafe { py.from_owned_ptr::<PyList>(ffi::PyList_New(0)) }
     }
 
     /// Gets the length of the list.
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
-        unsafe {
-            ffi::PyList_Size(self.as_ptr()) as usize
-        }
+        unsafe { ffi::PyList_Size(self.as_ptr()) as usize }
     }
 
     /// Check if list is empty.
@@ -56,8 +52,8 @@ impl PyList {
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: isize) -> &PyObjectRef {
         unsafe {
-            self.py().from_borrowed_ptr(
-                ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
+            self.py()
+                .from_borrowed_ptr(ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
         }
     }
 
@@ -67,44 +63,55 @@ impl PyList {
     pub fn get_parked_item(&self, index: isize) -> PyObject {
         unsafe {
             PyObject::from_borrowed_ptr(
-                self.py(), ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
+                self.py(),
+                ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t),
+            )
         }
     }
 
     /// Sets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()> where I: ToPyObject {
+    pub fn set_item<I>(&self, index: isize, item: I) -> PyResult<()>
+    where
+        I: ToPyObject,
+    {
         unsafe {
             err::error_on_minusone(
-                self.py(), ffi::PyList_SetItem(self.as_ptr(), index,
-                                               item.to_object(self.py()).into_ptr()))
+                self.py(),
+                ffi::PyList_SetItem(self.as_ptr(), index, item.to_object(self.py()).into_ptr()),
+            )
         }
     }
 
     /// Appends an item at the list.
-    pub fn append<I>(&self, item: I) -> PyResult<()> where I: ToBorrowedObject
+    pub fn append<I>(&self, item: I) -> PyResult<()>
+    where
+        I: ToBorrowedObject,
     {
         item.with_borrowed_ptr(self.py(), |item| unsafe {
-            err::error_on_minusone(
-                self.py(), ffi::PyList_Append(self.as_ptr(), item))
+            err::error_on_minusone(self.py(), ffi::PyList_Append(self.as_ptr(), item))
         })
     }
 
     /// Inserts an item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn insert<I>(&self, index: isize, item: I) -> PyResult<()> where I: ToBorrowedObject
+    pub fn insert<I>(&self, index: isize, item: I) -> PyResult<()>
+    where
+        I: ToBorrowedObject,
     {
         item.with_borrowed_ptr(self.py(), |item| unsafe {
-            err::error_on_minusone(
-                self.py(), ffi::PyList_Insert(self.as_ptr(), index, item))
+            err::error_on_minusone(self.py(), ffi::PyList_Insert(self.as_ptr(), index, item))
         })
     }
 
     /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyListIterator {
-        PyListIterator { list: self, index: 0 }
+        PyListIterator {
+            list: self,
+            index: 0,
+        }
     }
 }
 
@@ -138,8 +145,10 @@ impl<'a> std::iter::IntoIterator for &'a PyList {
     }
 }
 
-impl <T> ToPyObject for [T] where T: ToPyObject {
-
+impl<T> ToPyObject for [T]
+where
+    T: ToPyObject,
+{
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
@@ -152,16 +161,19 @@ impl <T> ToPyObject for [T] where T: ToPyObject {
     }
 }
 
-impl <T> ToPyObject for Vec<T> where T: ToPyObject {
-
+impl<T> ToPyObject for Vec<T>
+where
+    T: ToPyObject,
+{
     fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
         self.as_slice().to_object(py)
     }
-
 }
 
-impl <T> IntoPyObject for Vec<T> where T: IntoPyObject + ToPyObject {
-
+impl<T> IntoPyObject for Vec<T>
+where
+    T: IntoPyObject + ToPyObject,
+{
     fn into_object(self, py: Python) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
@@ -176,11 +188,11 @@ impl <T> IntoPyObject for Vec<T> where T: IntoPyObject + ToPyObject {
 
 #[cfg(test)]
 mod test {
+    use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use python::Python;
-    use conversion::{ToPyObject, PyTryFrom};
-    use objects::PyList;
     use objectprotocol::ObjectProtocol;
+    use objects::PyList;
+    use python::Python;
 
     #[test]
     fn test_new() {
@@ -198,7 +210,7 @@ mod test {
     fn test_len() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let v = vec![1,2,3,4];
+        let v = vec![1, 2, 3, 4];
         let ob = v.to_object(py);
         let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(4, list.len());

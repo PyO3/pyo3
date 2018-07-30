@@ -1,12 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use std::borrow::Cow;
 
+use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use err::PyResult;
-use python::Python;
+use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::{PyObjectRef, PyString};
-use instance::PyObjectWithToken;
-use conversion::{ToPyObject, IntoPyObject, PyTryFrom};
+use python::Python;
 
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.

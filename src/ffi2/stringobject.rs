@@ -1,13 +1,13 @@
-use std::os::raw::{c_char, c_int, c_long};
-use ffi2::pyport::Py_ssize_t;
 use ffi2::object::*;
+use ffi2::pyport::Py_ssize_t;
+use std::os::raw::{c_char, c_int, c_long};
 
 #[repr(C)]
 #[allow(missing_copy_implementations)]
 pub struct PyStringObject {
-    #[cfg(py_sys_config="Py_TRACE_REFS")]
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
-    #[cfg(py_sys_config="Py_TRACE_REFS")]
+    #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_prev: *mut PyObject,
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -17,69 +17,83 @@ pub struct PyStringObject {
     pub ob_sval: [c_char; 1],
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyBaseString_Type: PyTypeObject;
     pub static mut PyString_Type: PyTypeObject;
 }
 
 #[inline(always)]
-pub unsafe fn PyString_Check(op : *mut PyObject) -> c_int {
+pub unsafe fn PyString_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_STRING_SUBCLASS)
 }
 
 #[inline(always)]
-pub unsafe fn PyBaseString_Check(op : *mut PyObject) -> c_int {
+pub unsafe fn PyBaseString_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(
-        Py_TYPE(op), Py_TPFLAGS_STRING_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS)
+        Py_TYPE(op),
+        Py_TPFLAGS_STRING_SUBCLASS | Py_TPFLAGS_UNICODE_SUBCLASS,
+    )
 }
 
 #[inline(always)]
-pub unsafe fn PyString_CheckExact(op : *mut PyObject) -> c_int {
-    let u : *mut PyTypeObject = &mut PyString_Type;
+pub unsafe fn PyString_CheckExact(op: *mut PyObject) -> c_int {
+    let u: *mut PyTypeObject = &mut PyString_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
 #[inline(always)]
-pub unsafe fn PyString_GET_SIZE(op : *mut PyObject) -> Py_ssize_t {
+pub unsafe fn PyString_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     (*(op as *mut PyStringObject)).ob_size
 }
 
 #[inline(always)]
-pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
+pub unsafe fn PyString_AS_STRING(op: *mut PyObject) -> *mut c_char {
     (*(op as *mut PyStringObject)).ob_sval.as_mut_ptr()
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub fn PyString_FromString(v: *const c_char) -> *mut PyObject;
-    pub fn PyString_FromStringAndSize(v: *const c_char,
-                                      len: Py_ssize_t) -> *mut PyObject;
+    pub fn PyString_FromStringAndSize(v: *const c_char, len: Py_ssize_t) -> *mut PyObject;
     pub fn PyString_FromFormat(format: *const c_char, ...) -> *mut PyObject;
     pub fn PyString_Size(string: *mut PyObject) -> Py_ssize_t;
     pub fn PyString_AsString(string: *mut PyObject) -> *mut c_char;
-    pub fn PyString_AsStringAndSize(obj: *mut PyObject,
-                                    s: *mut *mut c_char,
-                                    len: *mut Py_ssize_t) -> c_int;
+    pub fn PyString_AsStringAndSize(
+        obj: *mut PyObject,
+        s: *mut *mut c_char,
+        len: *mut Py_ssize_t,
+    ) -> c_int;
     pub fn PyString_Concat(string: *mut *mut PyObject, newpart: *mut PyObject);
     pub fn PyString_ConcatAndDel(string: *mut *mut PyObject, newpart: *mut PyObject);
     pub fn _PyString_Resize(string: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
-    pub fn PyString_Format(format: *mut PyObject, args: *mut PyObject)
-                           -> *mut PyObject;
+    pub fn PyString_Format(format: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
     pub fn PyString_InternInPlace(string: *mut *mut PyObject);
     pub fn PyString_InternFromString(v: *const c_char) -> *mut PyObject;
-    pub fn PyString_Decode(s: *const c_char, size: Py_ssize_t,
-                           encoding: *const c_char,
-                           errors: *const c_char) -> *mut PyObject;
-    pub fn PyString_AsDecodedObject(str: *mut PyObject,
-                                    encoding: *const c_char,
-                                    errors: *const c_char) -> *mut PyObject;
-    pub fn PyString_Encode(s: *const c_char, size: Py_ssize_t,
-                           encoding: *const c_char,
-                           errors: *const c_char) -> *mut PyObject;
-    pub fn PyString_AsEncodedObject(str: *mut PyObject,
-                                    encoding: *const c_char,
-                                    errors: *const c_char) -> *mut PyObject;
-    
-    /*
+    pub fn PyString_Decode(
+        s: *const c_char,
+        size: Py_ssize_t,
+        encoding: *const c_char,
+        errors: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyString_AsDecodedObject(
+        str: *mut PyObject,
+        encoding: *const c_char,
+        errors: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyString_Encode(
+        s: *const c_char,
+        size: Py_ssize_t,
+        encoding: *const c_char,
+        errors: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyString_AsEncodedObject(
+        str: *mut PyObject,
+        encoding: *const c_char,
+        errors: *const c_char,
+    ) -> *mut PyObject;
+
+/*
     pub fn PyString_Repr(arg1: *mut PyObject, arg2: c_int)
      -> *mut PyObject;
     pub fn _PyString_Eq(arg1: *mut PyObject, arg2: *mut PyObject)
@@ -129,4 +143,3 @@ pub unsafe fn PyString_AS_STRING(op : *mut PyObject) -> *mut c_char {
                                    format_spec_len: Py_ssize_t)
      -> *mut PyObject;*/
 }
-

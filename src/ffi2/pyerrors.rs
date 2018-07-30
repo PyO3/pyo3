@@ -1,39 +1,45 @@
-use std::os::raw::{c_char, c_int};
-use ffi2::pyport::Py_ssize_t;
-use ffi2::object::*;
 use ffi2::classobject::*;
+use ffi2::object::*;
+use ffi2::pyport::Py_ssize_t;
 use ffi2::stringobject::PyString_AS_STRING;
-#[cfg(py_sys_config="Py_USING_UNICODE")]
+#[cfg(py_sys_config = "Py_USING_UNICODE")]
 use ffi2::unicodeobject::Py_UNICODE;
+use std::os::raw::{c_char, c_int};
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub fn PyErr_SetNone(arg1: *mut PyObject);
     pub fn PyErr_SetObject(arg1: *mut PyObject, arg2: *mut PyObject);
     pub fn PyErr_SetString(arg1: *mut PyObject, arg2: *const c_char);
     pub fn PyErr_Occurred() -> *mut PyObject;
     pub fn PyErr_Clear();
-    pub fn PyErr_Fetch(arg1: *mut *mut PyObject, arg2: *mut *mut PyObject,
-                       arg3: *mut *mut PyObject);
-    pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject,
-                         arg3: *mut PyObject);
-    pub fn PyErr_GivenExceptionMatches(arg1: *mut PyObject,
-                                       arg2: *mut PyObject) -> c_int;
+    pub fn PyErr_Fetch(
+        arg1: *mut *mut PyObject,
+        arg2: *mut *mut PyObject,
+        arg3: *mut *mut PyObject,
+    );
+    pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
+    pub fn PyErr_GivenExceptionMatches(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     pub fn PyErr_ExceptionMatches(arg1: *mut PyObject) -> c_int;
-    pub fn PyErr_NormalizeException(arg1: *mut *mut PyObject,
-                                    arg2: *mut *mut PyObject,
-                                    arg3: *mut *mut PyObject);
+    pub fn PyErr_NormalizeException(
+        arg1: *mut *mut PyObject,
+        arg2: *mut *mut PyObject,
+        arg3: *mut *mut PyObject,
+    );
 }
 
 #[inline]
 pub unsafe fn PyExceptionClass_Check(x: *mut PyObject) -> c_int {
-    (PyClass_Check(x) != 0 || (PyType_Check(x) != 0 &&
-      PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0)) as c_int
+    (PyClass_Check(x) != 0
+        || (PyType_Check(x) != 0
+            && PyType_FastSubclass(x as *mut PyTypeObject, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0))
+        as c_int
 }
 
 #[inline]
 pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
-    (PyInstance_Check(x) != 0 ||
-     PyType_FastSubclass((*x).ob_type, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0) as c_int
+    (PyInstance_Check(x) != 0
+        || PyType_FastSubclass((*x).ob_type, Py_TPFLAGS_BASE_EXC_SUBCLASS) != 0) as c_int
 }
 
 #[inline]
@@ -54,7 +60,8 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     }
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyExc_BaseException: *mut PyObject;
     pub static mut PyExc_Exception: *mut PyObject;
     pub static mut PyExc_StopIteration: *mut PyObject;
@@ -92,7 +99,8 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub static mut PyExc_UnicodeTranslateError: *mut PyObject;
     pub static mut PyExc_ValueError: *mut PyObject;
     pub static mut PyExc_ZeroDivisionError: *mut PyObject;
-    #[cfg(windows)] pub static mut PyExc_WindowsError: *mut PyObject;
+    #[cfg(windows)]
+    pub static mut PyExc_WindowsError: *mut PyObject;
     pub static mut PyExc_BufferError: *mut PyObject;
     pub static mut PyExc_MemoryErrorInst: *mut PyObject;
     pub static mut PyExc_RecursionErrorInst: *mut PyObject;
@@ -106,111 +114,87 @@ pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     pub static mut PyExc_ImportWarning: *mut PyObject;
     pub static mut PyExc_UnicodeWarning: *mut PyObject;
     pub static mut PyExc_BytesWarning: *mut PyObject;
-    
+
     pub fn PyErr_BadArgument() -> c_int;
     pub fn PyErr_NoMemory() -> *mut PyObject;
     pub fn PyErr_SetFromErrno(arg1: *mut PyObject) -> *mut PyObject;
-    pub fn PyErr_SetFromErrnoWithFilenameObject(arg1: *mut PyObject,
-                                                arg2: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyErr_SetFromErrnoWithFilename(arg1: *mut PyObject,
-                                          arg2: *const c_char)
-     -> *mut PyObject;
-    pub fn PyErr_Format(arg1: *mut PyObject, arg2: *const c_char, ...)
-     -> *mut PyObject;
+    pub fn PyErr_SetFromErrnoWithFilenameObject(
+        arg1: *mut PyObject,
+        arg2: *mut PyObject,
+    ) -> *mut PyObject;
+    pub fn PyErr_SetFromErrnoWithFilename(
+        arg1: *mut PyObject,
+        arg2: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyErr_Format(arg1: *mut PyObject, arg2: *const c_char, ...) -> *mut PyObject;
     pub fn PyErr_BadInternalCall();
-    pub fn _PyErr_BadInternalCall(filename: *mut c_char,
-                                  lineno: c_int);
-    pub fn PyErr_NewException(name: *mut c_char, base: *mut PyObject,
-                              dict: *mut PyObject) -> *mut PyObject;
-    pub fn PyErr_NewExceptionWithDoc(name: *mut c_char,
-                                     doc: *mut c_char,
-                                     base: *mut PyObject, dict: *mut PyObject)
-     -> *mut PyObject;
+    pub fn _PyErr_BadInternalCall(filename: *mut c_char, lineno: c_int);
+    pub fn PyErr_NewException(
+        name: *mut c_char,
+        base: *mut PyObject,
+        dict: *mut PyObject,
+    ) -> *mut PyObject;
+    pub fn PyErr_NewExceptionWithDoc(
+        name: *mut c_char,
+        doc: *mut c_char,
+        base: *mut PyObject,
+        dict: *mut PyObject,
+    ) -> *mut PyObject;
     pub fn PyErr_WriteUnraisable(arg1: *mut PyObject);
     pub fn PyErr_CheckSignals() -> c_int;
     pub fn PyErr_SetInterrupt();
     pub fn PySignal_SetWakeupFd(fd: c_int) -> c_int;
-    pub fn PyErr_SyntaxLocation(arg1: *const c_char,
-                                arg2: c_int);
-    pub fn PyErr_ProgramText(arg1: *const c_char, arg2: c_int)
-     -> *mut PyObject;
+    pub fn PyErr_SyntaxLocation(arg1: *const c_char, arg2: c_int);
+    pub fn PyErr_ProgramText(arg1: *const c_char, arg2: c_int) -> *mut PyObject;
 }
 
-#[cfg(py_sys_config="Py_USING_UNICODE")]
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    pub fn PyUnicodeDecodeError_Create(arg1: *const c_char,
-                                       arg2: *const c_char,
-                                       arg3: Py_ssize_t, arg4: Py_ssize_t,
-                                       arg5: Py_ssize_t,
-                                       arg6: *const c_char)
-     -> *mut PyObject;
-    pub fn PyUnicodeEncodeError_Create(arg1: *const c_char,
-                                       arg2: *const Py_UNICODE,
-                                       arg3: Py_ssize_t, arg4: Py_ssize_t,
-                                       arg5: Py_ssize_t,
-                                       arg6: *const c_char)
-     -> *mut PyObject;
-    pub fn PyUnicodeTranslateError_Create(arg1: *const Py_UNICODE,
-                                          arg2: Py_ssize_t, arg3: Py_ssize_t,
-                                          arg4: Py_ssize_t,
-                                          arg5: *const c_char)
-     -> *mut PyObject;
-    pub fn PyUnicodeEncodeError_GetEncoding(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeDecodeError_GetEncoding(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeEncodeError_GetObject(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeDecodeError_GetObject(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeTranslateError_GetObject(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeEncodeError_GetStart(arg1: *mut PyObject,
-                                         arg2: *mut Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeDecodeError_GetStart(arg1: *mut PyObject,
-                                         arg2: *mut Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeTranslateError_GetStart(arg1: *mut PyObject,
-                                            arg2: *mut Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeEncodeError_SetStart(arg1: *mut PyObject,
-                                         arg2: Py_ssize_t) -> c_int;
-    pub fn PyUnicodeDecodeError_SetStart(arg1: *mut PyObject,
-                                         arg2: Py_ssize_t) -> c_int;
-    pub fn PyUnicodeTranslateError_SetStart(arg1: *mut PyObject,
-                                            arg2: Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeEncodeError_GetEnd(arg1: *mut PyObject,
-                                       arg2: *mut Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeDecodeError_GetEnd(arg1: *mut PyObject,
-                                       arg2: *mut Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeTranslateError_GetEnd(arg1: *mut PyObject,
-                                          arg2: *mut Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeEncodeError_SetEnd(arg1: *mut PyObject, arg2: Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeDecodeError_SetEnd(arg1: *mut PyObject, arg2: Py_ssize_t)
-     -> c_int;
-    pub fn PyUnicodeTranslateError_SetEnd(arg1: *mut PyObject,
-                                          arg2: Py_ssize_t) -> c_int;
-    pub fn PyUnicodeEncodeError_GetReason(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeDecodeError_GetReason(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeTranslateError_GetReason(arg1: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyUnicodeEncodeError_SetReason(arg1: *mut PyObject,
-                                          arg2: *const c_char)
-     -> c_int;
-    pub fn PyUnicodeDecodeError_SetReason(arg1: *mut PyObject,
-                                          arg2: *const c_char)
-     -> c_int;
-    pub fn PyUnicodeTranslateError_SetReason(arg1: *mut PyObject,
-                                             arg2: *const c_char)
-     -> c_int;
+#[cfg(py_sys_config = "Py_USING_UNICODE")]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    pub fn PyUnicodeDecodeError_Create(
+        arg1: *const c_char,
+        arg2: *const c_char,
+        arg3: Py_ssize_t,
+        arg4: Py_ssize_t,
+        arg5: Py_ssize_t,
+        arg6: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyUnicodeEncodeError_Create(
+        arg1: *const c_char,
+        arg2: *const Py_UNICODE,
+        arg3: Py_ssize_t,
+        arg4: Py_ssize_t,
+        arg5: Py_ssize_t,
+        arg6: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyUnicodeTranslateError_Create(
+        arg1: *const Py_UNICODE,
+        arg2: Py_ssize_t,
+        arg3: Py_ssize_t,
+        arg4: Py_ssize_t,
+        arg5: *const c_char,
+    ) -> *mut PyObject;
+    pub fn PyUnicodeEncodeError_GetEncoding(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeDecodeError_GetEncoding(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeEncodeError_GetObject(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeDecodeError_GetObject(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeTranslateError_GetObject(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeEncodeError_GetStart(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> c_int;
+    pub fn PyUnicodeDecodeError_GetStart(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> c_int;
+    pub fn PyUnicodeTranslateError_GetStart(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> c_int;
+    pub fn PyUnicodeEncodeError_SetStart(arg1: *mut PyObject, arg2: Py_ssize_t) -> c_int;
+    pub fn PyUnicodeDecodeError_SetStart(arg1: *mut PyObject, arg2: Py_ssize_t) -> c_int;
+    pub fn PyUnicodeTranslateError_SetStart(arg1: *mut PyObject, arg2: Py_ssize_t) -> c_int;
+    pub fn PyUnicodeEncodeError_GetEnd(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> c_int;
+    pub fn PyUnicodeDecodeError_GetEnd(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> c_int;
+    pub fn PyUnicodeTranslateError_GetEnd(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> c_int;
+    pub fn PyUnicodeEncodeError_SetEnd(arg1: *mut PyObject, arg2: Py_ssize_t) -> c_int;
+    pub fn PyUnicodeDecodeError_SetEnd(arg1: *mut PyObject, arg2: Py_ssize_t) -> c_int;
+    pub fn PyUnicodeTranslateError_SetEnd(arg1: *mut PyObject, arg2: Py_ssize_t) -> c_int;
+    pub fn PyUnicodeEncodeError_GetReason(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeDecodeError_GetReason(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeTranslateError_GetReason(arg1: *mut PyObject) -> *mut PyObject;
+    pub fn PyUnicodeEncodeError_SetReason(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
+    pub fn PyUnicodeDecodeError_SetReason(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
+    pub fn PyUnicodeTranslateError_SetReason(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
 }
-

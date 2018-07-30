@@ -68,8 +68,8 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t =
-        py.init(|t| TestClass {
+    let t = py
+        .init(|t| TestClass {
             vec: vec![b' ', b'2', b'3'],
             token: t,
         }).unwrap();
@@ -85,8 +85,8 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t =
-        py.init(|t| TestClass {
+    let t = py
+        .init(|t| TestClass {
             vec: vec![b' ', b'2', b'3'],
             token: t,
         }).unwrap();

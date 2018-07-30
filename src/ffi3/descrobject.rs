@@ -1,11 +1,10 @@
-use std::ptr;
-use std::os::raw::{c_void, c_char, c_int};
+use ffi3::methodobject::PyMethodDef;
 use ffi3::object::{PyObject, PyTypeObject};
 use ffi3::structmember::PyMemberDef;
-use ffi3::methodobject::PyMethodDef;
+use std::os::raw::{c_char, c_int, c_void};
+use std::ptr;
 
-pub type getter =
-    unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
+pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
 
 pub type setter =
     unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
@@ -20,7 +19,7 @@ pub struct PyGetSetDef {
     pub closure: *mut c_void,
 }
 
-pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
+pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     name: ptr::null_mut(),
     get: None,
     set: None,
@@ -28,7 +27,8 @@ pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyClassMethodDescr_Type: PyTypeObject;
     pub static mut PyGetSetDescr_Type: PyTypeObject;
     pub static mut PyMemberDescr_Type: PyTypeObject;
@@ -37,8 +37,8 @@ pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
     pub static mut PyDictProxy_Type: PyTypeObject;
 
     pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
-    pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject,
-                                  arg2: *mut PyMethodDef) -> *mut PyObject;
+    pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
+        -> *mut PyObject;
     pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
     pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
     pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
@@ -46,5 +46,3 @@ pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
 
     pub static mut PyProperty_Type: PyTypeObject;
 }
-
-

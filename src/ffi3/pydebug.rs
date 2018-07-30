@@ -1,7 +1,8 @@
 use std::os::raw::c_int;
 
 #[cfg(not(Py_LIMITED_API))]
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut Py_DebugFlag: c_int;
     pub static mut Py_VerboseFlag: c_int;
     pub static mut Py_QuietFlag: c_int;
@@ -21,4 +22,3 @@ use std::os::raw::c_int;
     #[cfg(all(Py_3_6, windows))]
     pub static mut Py_LegacyWindowsStdioFlag: c_int;
 }
-

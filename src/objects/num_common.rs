@@ -1,13 +1,14 @@
 //! common macros for num2.rs and num3.rs
 
-use std::os::raw::c_int;
-use python::Python;
 use err::{PyErr, PyResult};
+use python::Python;
+use std::os::raw::c_int;
 
-
-pub(super) fn err_if_invalid_value<T: PartialEq>
-    (py: Python, invalid_value: T, actual_value: T) -> PyResult<T>
-{
+pub(super) fn err_if_invalid_value<T: PartialEq>(
+    py: Python,
+    invalid_value: T,
+    actual_value: T,
+) -> PyResult<T> {
     if actual_value == invalid_value && PyErr::occurred(py) {
         Err(PyErr::fetch(py))
     } else {
@@ -38,7 +39,6 @@ macro_rules! int_fits_larger_int(
         });
     )
 );
-
 
 // for 128bit Integers
 #[macro_export]
@@ -98,9 +98,9 @@ pub(super) const IS_LITTLE_ENDIAN: c_int = 0;
 
 #[cfg(test)]
 mod test {
-    use std;
-    use python::Python;
     use conversion::ToPyObject;
+    use python::Python;
+    use std;
 
     #[test]
     fn test_u32_max() {

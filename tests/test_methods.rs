@@ -26,8 +26,8 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj =
-        py.init_ref(|t| InstanceMethod {
+    let obj = py
+        .init_ref(|t| InstanceMethod {
             member: 42,
             token: t,
         }).unwrap();
@@ -58,8 +58,8 @@ fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj =
-        py.init_ref(|t| InstanceMethodWithArgs {
+    let obj = py
+        .init_ref(|t| InstanceMethodWithArgs {
             member: 7,
             token: t,
         }).unwrap();

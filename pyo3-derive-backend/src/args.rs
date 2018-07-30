@@ -179,8 +179,8 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
 mod test {
 
     use args::{parse_arguments, Argument};
-    use syn;
     use proc_macro2::TokenStream;
+    use syn;
 
     fn items(s: TokenStream) -> Vec<syn::NestedMeta> {
         let dummy: syn::ItemFn = parse_quote!{#s fn dummy() {}};

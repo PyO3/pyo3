@@ -3,17 +3,16 @@
 //! Python type object information
 
 use std;
-use std::mem;
-use std::ffi::CString;
 use std::collections::HashMap;
+use std::ffi::CString;
+use std::mem;
 
-use {ffi, class, pythonrun};
+use class::methods::PyMethodDefType;
 use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken, PyToken};
-use python::{Python, IntoPyPointer};
 use objects::PyType;
-use class::methods::PyMethodDefType;
-
+use python::{IntoPyPointer, Python};
+use {class, ffi, pythonrun};
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -44,33 +43,32 @@ pub trait PyTypeInfo {
     /// Check if `*mut ffi::PyObject` is instance of this type
 
     fn is_instance(ptr: *mut ffi::PyObject) -> bool {
-        unsafe {ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0}
+        unsafe { ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0 }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
 
     fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
-        unsafe {
-            (*ptr).ob_type == Self::type_object()
-        }
+        unsafe { (*ptr).ob_type == Self::type_object() }
     }
 }
-
 
 /// type object supports python GC
 pub const PY_TYPE_FLAG_GC: usize = 1;
 
 /// Type object supports python weak references
-pub const PY_TYPE_FLAG_WEAKREF: usize = 1<<1;
+pub const PY_TYPE_FLAG_WEAKREF: usize = 1 << 1;
 
 /// Type object can be used as the base type of another type
-pub const PY_TYPE_FLAG_BASETYPE: usize = 1<<2;
+pub const PY_TYPE_FLAG_BASETYPE: usize = 1 << 2;
 
 /// The instances of this type have a dictionary containing instance variables
-pub const PY_TYPE_FLAG_DICT: usize = 1<<3;
+pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 
-
-impl<'a, T: ?Sized> PyTypeInfo for &'a T where T: PyTypeInfo {
+impl<'a, T: ?Sized> PyTypeInfo for &'a T
+where
+    T: PyTypeInfo,
+{
     type Type = T::Type;
     type BaseType = T::BaseType;
     const NAME: &'static str = T::NAME;
@@ -132,9 +130,11 @@ pub struct PyRawObject {
 
 impl PyRawObject {
     #[must_use]
-    pub unsafe fn new(py: Python,
-                      tp_ptr: *mut ffi::PyTypeObject,
-                      curr_ptr: *mut ffi::PyTypeObject) -> PyResult<PyRawObject> {
+    pub unsafe fn new(
+        py: Python,
+        tp_ptr: *mut ffi::PyTypeObject,
+        curr_ptr: *mut ffi::PyTypeObject,
+    ) -> PyResult<PyRawObject> {
         let alloc = (*curr_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
         let ptr = alloc(curr_ptr, 0);
 
@@ -151,10 +151,12 @@ impl PyRawObject {
     }
 
     #[must_use]
-    pub unsafe fn new_with_ptr(py: Python,
-                               ptr: *mut ffi::PyObject,
-                               tp_ptr: *mut ffi::PyTypeObject,
-                               curr_ptr: *mut ffi::PyTypeObject) -> PyResult<PyRawObject> {
+    pub unsafe fn new_with_ptr(
+        py: Python,
+        ptr: *mut ffi::PyObject,
+        tp_ptr: *mut ffi::PyTypeObject,
+        curr_ptr: *mut ffi::PyTypeObject,
+    ) -> PyResult<PyRawObject> {
         if !ptr.is_null() {
             Ok(PyRawObject {
                 ptr,
@@ -168,8 +170,9 @@ impl PyRawObject {
     }
 
     pub fn init<T, F>(&self, f: F) -> PyResult<()>
-        where F: FnOnce(PyToken) -> T,
-              T: PyTypeInfo
+    where
+        F: FnOnce(PyToken) -> T,
+        T: PyTypeInfo,
     {
         let value = f(PyToken::new());
 
@@ -182,7 +185,7 @@ impl PyRawObject {
 
     /// Type object
     pub fn type_object(&self) -> &PyType {
-        unsafe {PyType::from_type_ptr(self.py(), self.curr_ptr)}
+        unsafe { PyType::from_type_ptr(self.py(), self.curr_ptr) }
     }
 
     /// Return reference to object.
@@ -204,7 +207,6 @@ impl IntoPyPointer for PyRawObject {
 }
 
 impl PyObjectWithToken for PyRawObject {
-
     #[inline(always)]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
@@ -213,7 +215,6 @@ impl PyObjectWithToken for PyRawObject {
 
 /// A Python object allocator that is usable as a base type for #[pyclass]
 pub trait PyObjectAlloc<T> {
-
     /// Allocates a new object (usually by calling ty->tp_alloc),
     unsafe fn alloc(py: Python) -> PyResult<*mut ffi::PyObject>;
 
@@ -226,8 +227,10 @@ pub trait PyObjectAlloc<T> {
     unsafe fn drop(_py: Python, _obj: *mut ffi::PyObject) {}
 }
 
-impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
-
+impl<T> PyObjectAlloc<T> for T
+where
+    T: PyTypeInfo,
+{
     #[allow(unconditional_recursion)]
     /// Calls the rust destructor for the object.
     default unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
@@ -255,7 +258,7 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
         Self::drop(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
-            return
+            return;
         }
 
         match (*T::type_object()).tp_free {
@@ -303,7 +306,6 @@ impl<T> PyObjectAlloc<T> for T where T : PyTypeInfo {
 
 /// Trait implemented by Python object types that have a corresponding type object.
 pub trait PyTypeObject {
-
     /// Initialize type object
     fn init_type();
 
@@ -313,22 +315,27 @@ pub trait PyTypeObject {
     /// Create PyRawObject which can be initialized with rust value
     #[must_use]
     fn create(py: Python) -> PyResult<PyRawObject>
-        where Self: Sized + PyObjectAlloc<Self> + PyTypeInfo
+    where
+        Self: Sized + PyObjectAlloc<Self> + PyTypeInfo,
     {
         <Self as PyTypeObject>::init_type();
 
         unsafe {
             let ptr = <Self as PyObjectAlloc<Self>>::alloc(py)?;
             PyRawObject::new_with_ptr(
-                py, ptr,
+                py,
+                ptr,
                 <Self as PyTypeInfo>::type_object(),
-                <Self as PyTypeInfo>::type_object())
+                <Self as PyTypeInfo>::type_object(),
+            )
         }
     }
 }
 
-impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
-
+impl<T> PyTypeObject for T
+where
+    T: PyObjectAlloc<T> + PyTypeInfo,
+{
     #[inline]
     default fn init_type() {
         unsafe {
@@ -337,8 +344,10 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
 
-                initialize_type::<T>(py, None).expect(
-                    &format!("An error occurred while initializing class {}", T::NAME));
+                initialize_type::<T>(py, None).expect(&format!(
+                    "An error occurred while initializing class {}",
+                    T::NAME
+                ));
             }
         }
     }
@@ -353,19 +362,21 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
 /// Register new type in python object system.
 #[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyResult<()>
-    where T: PyObjectAlloc<T> + PyTypeInfo
+where
+    T: PyObjectAlloc<T> + PyTypeInfo,
 {
     // type name
     let name = match module_name {
         Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME)),
-        None => CString::new(T::NAME)
+        None => CString::new(T::NAME),
     };
-    let name = name.expect(
-        "Module name/type name must not contain NUL byte").into_raw();
+    let name = name
+        .expect("Module name/type name must not contain NUL byte")
+        .into_raw();
 
-    let type_object: &mut ffi::PyTypeObject = unsafe{&mut *T::type_object()};
-    let base_type_object: &mut ffi::PyTypeObject = unsafe {
-        &mut *<T::BaseType as PyTypeInfo>::type_object() };
+    let type_object: &mut ffi::PyTypeObject = unsafe { &mut *T::type_object() };
+    let base_type_object: &mut ffi::PyTypeObject =
+        unsafe { &mut *<T::BaseType as PyTypeInfo>::type_object() };
 
     type_object.tp_name = name;
     type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
@@ -442,7 +453,10 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
     }
 
     if let (None, Some(_)) = (new, init) {
-        panic!("{}.__new__ method is required if __init__ method defined", T::NAME);
+        panic!(
+            "{}.__new__ method is required if __init__ method defined",
+            T::NAME
+        );
     }
 
     // __new__ method
@@ -462,8 +476,9 @@ pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyRe
 
     // set type flags
     py_class_flags::<T>(type_object);
-    if type_object.tp_base !=
-        unsafe{&ffi::PyBaseObject_Type as *const ffi::PyTypeObject as *mut ffi::PyTypeObject} {
+    if type_object.tp_base
+        != unsafe { &ffi::PyBaseObject_Type as *const ffi::PyTypeObject as *mut ffi::PyTypeObject }
+    {
         type_object.tp_flags |= ffi::Py_TPFLAGS_HEAPTYPE
     }
 
@@ -490,7 +505,8 @@ fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
 fn async_methods<T>(_type_info: &mut ffi::PyTypeObject) {}
 
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
-    where T: PyObjectAlloc<T>
+where
+    T: PyObjectAlloc<T>,
 {
     let _pool = pythonrun::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
@@ -499,41 +515,44 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 
 #[cfg(Py_3)]
 fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
-    if type_object.tp_traverse != None || type_object.tp_clear != None ||
-        T::FLAGS & PY_TYPE_FLAG_GC != 0
+    if type_object.tp_traverse != None
+        || type_object.tp_clear != None
+        || T::FLAGS & PY_TYPE_FLAG_GC != 0
     {
-        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT |  ffi::Py_TPFLAGS_HAVE_GC;
+        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
     }
-    if T::FLAGS & PY_TYPE_FLAG_BASETYPE !=  0 {
+    if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
         type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
 }
 
 #[cfg(not(Py_3))]
 fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
-    if type_object.tp_traverse != None || type_object.tp_clear != None ||
-        T::FLAGS & PY_TYPE_FLAG_GC != 0
+    if type_object.tp_traverse != None
+        || type_object.tp_clear != None
+        || T::FLAGS & PY_TYPE_FLAG_GC != 0
     {
-        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
+        type_object.tp_flags =
+            ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
     }
     if !type_object.tp_as_buffer.is_null() {
         type_object.tp_flags = type_object.tp_flags | ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
     }
-    if T::FLAGS & PY_TYPE_FLAG_BASETYPE !=  0 {
+    if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
         type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
 }
 
-
-fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
-                                          Option<ffi::initproc>,
-                                          Option<ffi::PyCFunctionWithKeywords>,
-                                          Vec<ffi::PyMethodDef>)>
-{
+fn py_class_method_defs<T>() -> PyResult<(
+    Option<ffi::newfunc>,
+    Option<ffi::initproc>,
+    Option<ffi::PyCFunctionWithKeywords>,
+    Vec<ffi::PyMethodDef>,
+)> {
     let mut defs = Vec::new();
     let mut call = None;
     let mut new = None;
@@ -547,7 +566,7 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
                 if let class::methods::PyMethodType::PyNewFunc(meth) = def.ml_meth {
                     new = Some(meth)
                 }
-            },
+            }
             PyMethodDefType::Call(ref def) => {
                 if let class::methods::PyMethodType::PyCFunctionWithKeywords(meth) = def.ml_meth {
                     call = Some(meth)
@@ -562,9 +581,9 @@ fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
                     panic!("Method type is not supoorted by tp_init slot")
                 }
             }
-            PyMethodDefType::Method(ref def) |
-            PyMethodDefType::Class(ref def) |
-            PyMethodDefType::Static(ref def) => {
+            PyMethodDefType::Method(ref def)
+            | PyMethodDefType::Class(ref def)
+            | PyMethodDefType::Static(ref def) => {
                 defs.push(def.as_method_def());
             }
             _ => (),
@@ -606,7 +625,8 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();
 
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods()
-        .iter().chain(<T as class::methods::PyPropMethodsProtocolImpl>::py_methods().iter())
+        .iter()
+        .chain(<T as class::methods::PyPropMethodsProtocolImpl>::py_methods().iter())
     {
         match *def {
             PyMethodDefType::Getter(ref getter) => {
@@ -616,7 +636,7 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
                 }
                 let def = defs.get_mut(&name).expect("Failed to call get_mut");
                 getter.copy_to(def);
-            },
+            }
             PyMethodDefType::Setter(ref setter) => {
                 let name = setter.name.to_string();
                 if !defs.contains_key(&name) {
@@ -624,7 +644,7 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
                 }
                 let def = defs.get_mut(&name).expect("Failed to call get_mut");
                 setter.copy_to(def);
-            },
+            }
             _ => (),
         }
     }

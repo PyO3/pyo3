@@ -1,8 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use conversion::{IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject};
 use ffi;
 use object::PyObject;
 use python::{Python, ToPyPointer};
-use conversion::{ToPyObject, IntoPyObject, ToBorrowedObject, PyTryFrom};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
@@ -10,14 +10,11 @@ pub struct PyBool(PyObject);
 
 pyobject_native_type!(PyBool, ffi::PyBool_Type, ffi::PyBool_Check);
 
-
 impl PyBool {
     /// Depending on `val`, returns `py.True()` or `py.False()`.
     #[inline]
     pub fn new(py: Python, val: bool) -> &PyBool {
-        unsafe {
-            py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() })
-        }
+        unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
     }
 
     /// Gets whether this boolean is `true`.
@@ -33,7 +30,13 @@ impl ToPyObject for bool {
     fn to_object(&self, py: Python) -> PyObject {
         unsafe {
             PyObject::from_borrowed_ptr(
-                py, if *self { ffi::Py_True() } else { ffi::Py_False() })
+                py,
+                if *self {
+                    ffi::Py_True()
+                } else {
+                    ffi::Py_False()
+                },
+            )
         }
     }
 }
@@ -41,10 +44,17 @@ impl ToPyObject for bool {
 impl ToBorrowedObject for bool {
     #[inline]
     fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-        where F: FnOnce(*mut ffi::PyObject) -> R
+    where
+        F: FnOnce(*mut ffi::PyObject) -> R,
     {
         // Avoid unnecessary Py_INCREF/Py_DECREF pair
-        f(unsafe { if *self { ffi::Py_True() } else { ffi::Py_False() } })
+        f(unsafe {
+            if *self {
+                ffi::Py_True()
+            } else {
+                ffi::Py_False()
+            }
+        })
     }
 }
 
@@ -62,13 +72,12 @@ pyobject_extract!(obj to bool => {
     Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
 });
 
-
 #[cfg(test)]
 mod test {
-    use python::Python;
-    use objects::{PyBool, PyObjectRef};
     use conversion::ToPyObject;
     use objectprotocol::ObjectProtocol;
+    use objects::{PyBool, PyObjectRef};
+    use python::Python;
 
     #[test]
     fn test_true() {

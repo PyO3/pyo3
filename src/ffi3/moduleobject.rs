@@ -1,23 +1,25 @@
-use std::os::raw::{c_char, c_int, c_void};
-use ffi3::pyport::Py_ssize_t;
-use ffi3::object::*;
 use ffi3::methodobject::PyMethodDef;
+use ffi3::object::*;
+use ffi3::pyport::Py_ssize_t;
+use std::os::raw::{c_char, c_int, c_void};
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyModule_Type: PyTypeObject;
 }
 
 #[inline(always)]
-pub unsafe fn PyModule_Check(op : *mut PyObject) -> c_int {
+pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyModule_Type)
 }
 
 #[inline(always)]
-pub unsafe fn PyModule_CheckExact(op : *mut PyObject) -> c_int {
+pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyModule_Type) as c_int
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
@@ -44,7 +46,7 @@ pub const PyModuleDef_HEAD_INIT: PyModuleDef_Base = PyModuleDef_Base {
     ob_base: PyObject_HEAD_INIT,
     m_init: None,
     m_index: 0,
-    m_copy: ::std::ptr::null_mut()
+    m_copy: ::std::ptr::null_mut(),
 };
 
 #[repr(C)]
@@ -54,8 +56,8 @@ pub struct PyModuleDef_Slot {
     pub value: *mut c_void,
 }
 
-pub const Py_mod_create : c_int = 1;
-pub const Py_mod_exec : c_int = 2;
+pub const Py_mod_create: c_int = 1;
+pub const Py_mod_exec: c_int = 2;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -80,5 +82,5 @@ pub const PyModuleDef_INIT: PyModuleDef = PyModuleDef {
     m_slots: ::std::ptr::null_mut(),
     m_traverse: None,
     m_clear: None,
-    m_free: None
+    m_free: None,
 };

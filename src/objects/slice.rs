@@ -2,12 +2,12 @@
 
 use std::os::raw::c_long;
 
-use object::PyObject;
-use python::{ToPyPointer, Python};
+use conversion::ToPyObject;
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
-use conversion::ToPyObject;
+use object::PyObject;
+use python::{Python, ToPyPointer};
 
 /// Represents a Python `slice`.
 ///
@@ -16,7 +16,6 @@ use conversion::ToPyObject;
 pub struct PySlice(PyObject);
 
 pyobject_native_type!(PySlice, ffi::PySlice_Type, ffi::PySlice_Check);
-
 
 /// Represents a Python `slice` indices
 pub struct PySliceIndices {
@@ -37,15 +36,15 @@ impl PySliceIndices {
     }
 }
 
-
 impl PySlice {
-
     /// Construct a new slice with the given elements.
     pub fn new(py: Python, start: isize, stop: isize, step: isize) -> &PySlice {
         unsafe {
-            let ptr = ffi::PySlice_New(ffi::PyLong_FromLong(start as c_long),
-                                       ffi::PyLong_FromLong(stop as c_long),
-                                       ffi::PyLong_FromLong(step as c_long));
+            let ptr = ffi::PySlice_New(
+                ffi::PyLong_FromLong(start as c_long),
+                ffi::PyLong_FromLong(stop as c_long),
+                ffi::PyLong_FromLong(step as c_long),
+            );
             py.from_owned_ptr(ptr)
         }
     }
@@ -60,12 +59,14 @@ impl PySlice {
             let stop: isize = 0;
             let step: isize = 0;
             let r = ffi::PySlice_GetIndicesEx(
-                self.as_ptr(), length as Py_ssize_t,
+                self.as_ptr(),
+                length as Py_ssize_t,
                 &start as *const _ as *mut _,
                 &stop as *const _ as *mut _,
                 &step as *const _ as *mut _,
-                &slicelength as *const _ as *mut _);
-            if r == 0{
+                &slicelength as *const _ as *mut _,
+            );
+            if r == 0 {
                 Ok(PySliceIndices {
                     start,
                     stop,

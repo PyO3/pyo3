@@ -3,18 +3,16 @@
 //! Free allocation list
 use std;
 
-use ffi;
 use err::PyResult;
+use ffi;
 use python::Python;
-use typeob::{PyTypeInfo, PyObjectAlloc};
+use typeob::{PyObjectAlloc, PyTypeInfo};
 
 /// Implementing this trait for custom class adds free allocation list to class.
 /// The performance improvement applies to types that are often created and deleted in a row,
 /// so that they can benefit from a freelist.
 pub trait PyObjectWithFreeList: PyTypeInfo {
-
     fn get_free_list() -> &'static mut FreeList<*mut ffi::PyObject>;
-
 }
 
 pub enum Slot<T> {
@@ -29,7 +27,6 @@ pub struct FreeList<T> {
 }
 
 impl<T> FreeList<T> {
-
     /// Create new `FreeList` instance with specified capacity
     pub fn with_capacity(capacity: usize) -> FreeList<T> {
         let entries = (0..capacity).map(|_| Slot::Empty).collect::<Vec<_>>();
@@ -47,12 +44,12 @@ impl<T> FreeList<T> {
         if idx == 0 {
             None
         } else {
-            match std::mem::replace(&mut self.entries[idx-1], Slot::Empty) {
+            match std::mem::replace(&mut self.entries[idx - 1], Slot::Empty) {
                 Slot::Filled(v) => {
                     self.split = idx - 1;
                     Some(v)
                 }
-                _ => panic!("FreeList is corrupt")
+                _ => panic!("FreeList is corrupt"),
             }
         }
     }
@@ -70,9 +67,10 @@ impl<T> FreeList<T> {
     }
 }
 
-
-impl<T> PyObjectAlloc<T> for T where T: PyObjectWithFreeList {
-
+impl<T> PyObjectAlloc<T> for T
+where
+    T: PyObjectWithFreeList,
+{
     unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         let obj = if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().pop() {
             ffi::PyObject_Init(obj, <T as PyTypeInfo>::type_object());
@@ -89,7 +87,7 @@ impl<T> PyObjectAlloc<T> for T where T: PyObjectWithFreeList {
         Self::drop(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
-            return
+            return;
         }
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {

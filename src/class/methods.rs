@@ -67,34 +67,29 @@ unsafe impl Sync for PyGetterDef {}
 unsafe impl Sync for PySetterDef {}
 unsafe impl Sync for ffi::PyGetSetDef {}
 
-
 impl PyMethodDef {
-
     /// Convert `PyMethodDef` to Python method definition struct `ffi::PyMethodDef`
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
-            PyMethodType::PyCFunctionWithKeywords(meth) =>
-                unsafe {
-                    std::mem::transmute::<ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
-                },
-            PyMethodType::PyNoArgsFunction(meth) =>
-                unsafe {
-                    std::mem::transmute::<ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
-                },
-            PyMethodType::PyNewFunc(meth) =>
-                unsafe {
-                    std::mem::transmute::<ffi::newfunc, ffi::PyCFunction>(meth)
-                },
-            PyMethodType::PyInitFunc(meth) =>
-                unsafe {
-                    std::mem::transmute::<ffi::initproc, ffi::PyCFunction>(meth)
-                },
+            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe {
+                std::mem::transmute::<ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
+            },
+            PyMethodType::PyNoArgsFunction(meth) => unsafe {
+                std::mem::transmute::<ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
+            },
+            PyMethodType::PyNewFunc(meth) => unsafe {
+                std::mem::transmute::<ffi::newfunc, ffi::PyCFunction>(meth)
+            },
+            PyMethodType::PyInitFunc(meth) => unsafe {
+                std::mem::transmute::<ffi::initproc, ffi::PyCFunction>(meth)
+            },
         };
 
         ffi::PyMethodDef {
-            ml_name: CString::new(self.ml_name).expect(
-                "Method name must not contain NULL byte").into_raw(),
+            ml_name: CString::new(self.ml_name)
+                .expect("Method name must not contain NULL byte")
+                .into_raw(),
             ml_meth: Some(meth),
             ml_flags: self.ml_flags,
             ml_doc: self.ml_doc.as_ptr() as *const _,
@@ -106,8 +101,9 @@ impl PyGetterDef {
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = CString::new(self.name).expect(
-                "Method name must not contain NULL byte").into_raw();
+            dst.name = CString::new(self.name)
+                .expect("Method name must not contain NULL byte")
+                .into_raw();
         }
         dst.get = Some(self.meth);
     }
@@ -117,8 +113,9 @@ impl PySetterDef {
     /// Copy descriptor information to `ffi::PyGetSetDef`
     pub fn copy_to(&self, dst: &mut ffi::PyGetSetDef) {
         if dst.name.is_null() {
-            dst.name = CString::new(self.name).expect(
-                "Method name must not contain NULL byte").into_raw();
+            dst.name = CString::new(self.name)
+                .expect("Method name must not contain NULL byte")
+                .into_raw();
         }
         dst.set = Some(self.meth);
     }

@@ -21,7 +21,9 @@ struct WordCounter {
 impl WordCounter {
     #[new]
     fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
-        obj.init(|_| WordCounter { path: PathBuf::from(path) })
+        obj.init(|_| WordCounter {
+            path: PathBuf::from(path),
+        })
     }
 
     /// Searches for the word, parallelized by rayon
@@ -41,10 +43,7 @@ impl WordCounter {
     fn search_sequential(&self, needle: String) -> PyResult<usize> {
         let contents = fs::read_to_string(&self.path)?;
 
-        let result = contents
-            .lines()
-            .map(|line| count_line(line, &needle))
-            .sum();
+        let result = contents.lines().map(|line| count_line(line, &needle)).sum();
 
         Ok(result)
     }

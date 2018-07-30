@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * Conversions from tuples to PyDict.
+ * Conversions from tuples to PyDict due to [rust-lang/rust#52050](https://github.com/rust-lang/rust/issues/52050)
 
 ### Changed
 
  * Merged both examples into one
+ * Rustfmt all the things :heavy_check_mark:
 
 ## [0.3.2] - 2018-07-22
 

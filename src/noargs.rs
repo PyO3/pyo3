@@ -2,12 +2,12 @@
 
 use std;
 
+use conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
 use ffi;
 use instance::Py;
-use python::{Python, IntoPyDictPointer};
-use conversion::{ToPyObject, IntoPyObject, IntoPyTuple};
 use object::PyObject;
 use objects::PyTuple;
+use python::{IntoPyDictPointer, Python};
 
 /// An empty struct that represents the empty argument list.
 /// Corresponds to the empty tuple `()` in Python.
@@ -24,7 +24,6 @@ pub struct NoArgs;
 
 /// Converts `NoArgs` to an empty Python tuple.
 impl IntoPyTuple for NoArgs {
-
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
     }
@@ -32,7 +31,6 @@ impl IntoPyTuple for NoArgs {
 
 /// Converts `()` to an empty Python tuple.
 impl IntoPyTuple for () {
-
     fn into_tuple(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
     }
@@ -40,7 +38,6 @@ impl IntoPyTuple for () {
 
 /// Converts `NoArgs` to an empty Python tuple.
 impl ToPyObject for NoArgs {
-
     fn to_object(&self, py: Python) -> PyObject {
         PyTuple::empty(py).into()
     }
@@ -48,7 +45,6 @@ impl ToPyObject for NoArgs {
 
 /// Converts `NoArgs` to an empty Python tuple.
 impl IntoPyObject for NoArgs {
-
     fn into_object(self, py: Python) -> PyObject {
         PyTuple::empty(py).into()
     }
@@ -56,7 +52,6 @@ impl IntoPyObject for NoArgs {
 
 /// Converts `NoArgs` to an null pointer.
 impl IntoPyDictPointer for NoArgs {
-
     fn into_dict_ptr(self, _: Python) -> *mut ffi::PyObject {
         std::ptr::null_mut()
     }

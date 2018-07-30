@@ -66,8 +66,8 @@ fn data_is_dropped() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst =
-            py.init(|t| DataIsDropped {
+        let inst = py
+            .init(|t| DataIsDropped {
                 member1: TestDropCall {
                     drop_called: Arc::clone(&drop_called1),
                 },

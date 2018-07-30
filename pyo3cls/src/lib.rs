@@ -50,7 +50,8 @@ pub fn mod3init(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodinit] must be used on a `fn` block");
+    let mut ast: syn::ItemFn =
+        syn::parse(input).expect("#[pymodinit] must be used on a `fn` block");
 
     let modname: syn::Ident;
     if attr.is_empty() {
@@ -95,7 +96,8 @@ pub fn pyclass(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemStruct = syn::parse(input).expect("#[pyclass] must be used on a `struct`");
+    let mut ast: syn::ItemStruct =
+        syn::parse(input).expect("#[pyclass] must be used on a `struct`");
 
     // Parse the macro arguments into a list of expressions
     let args: Vec<syn::Expr> = {

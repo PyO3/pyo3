@@ -121,8 +121,8 @@
 //! [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
 
 extern crate libc;
-extern crate spin;
 extern crate pyo3cls;
+extern crate spin;
 // We need that reexport for wrap_function
 #[doc(hidden)]
 pub extern crate mashup;
@@ -142,24 +142,25 @@ pub mod ffi {
     pub use ffi3::*;
 }
 
-pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
-pub use objects::*;
-pub use objectprotocol::ObjectProtocol;
-pub use object::PyObject;
+pub use conversion::{
+    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,
+    ToBorrowedObject, ToPyObject,
+};
+pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
+pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
 pub use noargs::NoArgs;
-pub use typeob::{PyTypeInfo, PyRawObject, PyObjectAlloc};
-pub use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
-pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, init_once};
-pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
-pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
-                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple,
-                     ReturnTypeIntoPyResult};
+pub use object::PyObject;
+pub use objectprotocol::ObjectProtocol;
+pub use objects::*;
+pub use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
+pub use pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
+pub use typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 pub mod class;
 pub use class::*;
 
 /// The proc macro attributes
 pub mod proc_macro {
-    pub use pyo3cls::{pyproto, pyclass, pymethods, pyfunction};
+    pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 
     #[cfg(Py_3)]
     pub use pyo3cls::mod3init as pymodinit;
@@ -170,12 +171,10 @@ pub mod proc_macro {
 
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr {
-    ($s: tt) => (
+    ($s: tt) => {
         // TODO: verify that $s is a string literal without nuls
-        unsafe {
-            ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _)
-        }
-    );
+        unsafe { ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _) }
+    };
 }
 
 /// Returns a function that takes a [Python] instance and returns a python function.
@@ -195,26 +194,26 @@ macro_rules! wrap_function {
         m! {
             &"method"
         }
-    }}
+    }};
 }
 
-pub mod python;
-mod err;
-mod conversion;
-mod instance;
-mod object;
-mod objects;
-mod objectprotocol;
-mod noargs;
-mod pythonrun;
-#[doc(hidden)]
-pub mod callback;
-pub mod typeob;
 #[doc(hidden)]
 pub mod argparse;
 pub mod buffer;
+#[doc(hidden)]
+pub mod callback;
+mod conversion;
+mod err;
 pub mod freelist;
+mod instance;
+mod noargs;
+mod object;
+mod objectprotocol;
+mod objects;
 pub mod prelude;
+pub mod python;
+mod pythonrun;
+pub mod typeob;
 
 // re-export for simplicity
 #[doc(hidden)]

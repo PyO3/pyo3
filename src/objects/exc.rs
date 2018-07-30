@@ -2,17 +2,17 @@
 
 //! This module contains the standard python exception types.
 
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, mem, ops};
-use std::ffi::CStr;
 
+use conversion::ToPyObject;
+use err::{PyErr, PyResult};
 use ffi;
 use instance::Py;
-use err::{PyErr, PyResult};
+use objects::{PyObjectRef, PyTuple, PyType};
 use python::{Python, ToPyPointer};
-use objects::{PyTuple, PyType, PyObjectRef};
 use typeob::PyTypeObject;
-use conversion::ToPyObject;
 
 macro_rules! exc_type(
     ($name:ident, $exc_name:ident) => (
@@ -127,44 +127,53 @@ exc_type!(TimeoutError, PyExc_TimeoutError);
 
 exc_type!(EnvironmentError, PyExc_EnvironmentError);
 exc_type!(IOError, PyExc_IOError);
-#[cfg(target_os="windows")]
+#[cfg(target_os = "windows")]
 exc_type!(WindowsError, PyExc_WindowsError);
 
-
 impl UnicodeDecodeError {
-
-
-    pub fn new_err<'p>(py: Python<'p>, encoding: &CStr, input: &[u8],
-                       range: ops::Range<usize>, reason: &CStr) -> PyResult<&'p PyObjectRef> {
+    pub fn new_err<'p>(
+        py: Python<'p>,
+        encoding: &CStr,
+        input: &[u8],
+        range: ops::Range<usize>,
+        reason: &CStr,
+    ) -> PyResult<&'p PyObjectRef> {
         unsafe {
             let input: &[c_char] = mem::transmute(input);
-            py.from_owned_ptr_or_err(
-                ffi::PyUnicodeDecodeError_Create(
-                    encoding.as_ptr(),
-                    input.as_ptr(),
-                    input.len() as ffi::Py_ssize_t,
-                    range.start as ffi::Py_ssize_t,
-                    range.end as ffi::Py_ssize_t,
-                    reason.as_ptr()))
+            py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
+                encoding.as_ptr(),
+                input.as_ptr(),
+                input.len() as ffi::Py_ssize_t,
+                range.start as ffi::Py_ssize_t,
+                range.end as ffi::Py_ssize_t,
+                reason.as_ptr(),
+            ))
         }
     }
 
-    pub fn new_utf8<'p>(py: Python<'p>, input: &[u8], err: std::str::Utf8Error)
-                        -> PyResult<&'p PyObjectRef>
-    {
+    pub fn new_utf8<'p>(
+        py: Python<'p>,
+        input: &[u8],
+        err: std::str::Utf8Error,
+    ) -> PyResult<&'p PyObjectRef> {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new_err(
-            py, cstr!("utf-8"), input, pos .. pos+1, cstr!("invalid utf-8"))
+            py,
+            cstr!("utf-8"),
+            input,
+            pos..pos + 1,
+            cstr!("invalid utf-8"),
+        )
     }
 }
 
-
 impl StopIteration {
-
     pub fn stop_iteration(_py: Python, args: &PyTuple) {
         unsafe {
             ffi::PyErr_SetObject(
-                ffi::PyExc_StopIteration as *mut ffi::PyObject, args.as_ptr());
+                ffi::PyExc_StopIteration as *mut ffi::PyObject,
+                args.as_ptr(),
+            );
         }
     }
 }

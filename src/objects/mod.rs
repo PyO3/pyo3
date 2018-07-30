@@ -1,20 +1,21 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[macro_use] mod exc_impl;
+#[macro_use]
+mod exc_impl;
 
-pub use self::typeobject::PyType;
-pub use self::module::PyModule;
-pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
-pub use self::tuple::PyTuple;
 pub use self::dict::PyDict;
-pub use self::list::PyList;
 pub use self::floatob::PyFloat;
+pub use self::iterator::PyIterator;
+pub use self::list::PyList;
+pub use self::module::PyModule;
 pub use self::sequence::PySequence;
+pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-pub use self::set::{PySet, PyFrozenSet};
 pub use self::stringdata::PyStringData;
+pub use self::tuple::PyTuple;
+pub use self::typeobject::PyType;
 
 #[cfg(Py_3)]
 pub use self::string::{PyBytes, PyString, PyUnicode};
@@ -29,7 +30,6 @@ pub use self::num3::PyLong as PyInt;
 
 #[cfg(not(Py_3))]
 pub use self::num2::{PyInt, PyLong};
-
 
 /// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
 /// parameter
@@ -203,9 +203,8 @@ macro_rules! pyobject_extract(
     }
 );
 
-
-use python::ToPyPointer;
 use ffi;
+use python::ToPyPointer;
 /// Represents general python instance.
 #[repr(transparent)]
 pub struct PyObjectRef(::PyObject);
@@ -213,21 +212,21 @@ pyobject_native_type_named!(PyObjectRef);
 pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject_Check);
 pyobject_downcast!(PyObjectRef, ffi::PyObject_Check);
 
-mod typeobject;
-mod module;
-mod dict;
-mod iterator;
 mod boolobject;
 mod bytearray;
-mod tuple;
-mod list;
+mod dict;
+pub mod exc;
 mod floatob;
+mod iterator;
+mod list;
+mod module;
 mod sequence;
+mod set;
 mod slice;
 mod stringdata;
 mod stringutils;
-mod set;
-pub mod exc;
+mod tuple;
+mod typeobject;
 
 #[macro_use]
 mod num_common;

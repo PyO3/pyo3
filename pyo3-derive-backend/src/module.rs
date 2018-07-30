@@ -272,8 +272,7 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
             } else {
                 syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
             }
-        })
-        .collect();
+        }).collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#name(#(#names),*))
     };
