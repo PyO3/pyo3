@@ -16,7 +16,7 @@ use typeob::PyTypeInfo;
 
 
 /// Python object model helper methods
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+
 pub trait ObjectProtocol {
 
     /// Determines whether this object has the given attribute.
@@ -152,7 +152,7 @@ pub trait ObjectProtocol {
     fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
 
     /// Gets the Python base object for this object.
-    #[cfg_attr(feature = "cargo-clippy", allow(mut_from_ref))]
+
     fn get_mut_base(&self) -> &mut <Self as PyTypeInfo>::BaseType where Self: PyTypeInfo;
 
     /// Casts the PyObject to a concrete Python object type.

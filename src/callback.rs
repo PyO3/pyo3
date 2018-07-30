@@ -139,7 +139,7 @@ impl <T> CallbackConverter<T> for HashConverter
 }
 
 #[inline]
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+
 pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
     where C: CallbackConverter<T>
 {

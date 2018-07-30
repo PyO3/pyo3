@@ -57,7 +57,7 @@ macro_rules! import_exception {
         }
 
         impl $name {
-            #[cfg_attr(feature = "cargo-clippy", allow(new_ret_no_self))]
+
             pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr
                 where Self: $crate::typeob::PyTypeObject + Sized
             {

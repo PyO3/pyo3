@@ -20,25 +20,6 @@ curl -SsL "https://sh.rustup.rs/" | sh -s -- -y --default-toolchain=$TRAVIS_RUST
 export PATH=$PATH:$HOME/.cargo/bin
 
 
-### Setup sccache ##############################################################
-
-echo -n "Fetching latest available 'sccache' version... "
-INSTALLED=$(_installed sccache)
-LATEST=$(_latest sccache)
-echo "${LATEST} (installed: ${INSTALLED})"
-
-if [ "$INSTALLED" = "$LATEST" ]; then
-  echo "Using cached 'sccache'"
-else
-  echo "Installing latest 'sccache' from mozilla/sccache"
-  URL="https://github.com/mozilla/sccache/releases/download/${LATEST}/sccache-${LATEST}-x86_64-unknown-linux-musl.tar.gz"
-  curl -SsL $URL | tar xzv -C /tmp
-  mv /tmp/sccache-${LATEST}-x86_64-unknown-linux-musl/sccache $HOME/.cargo/bin/sccache
-fi
-
-mkdir -p $SCCACHE_DIR
-
-
 ### Setup kcov #################################################################
 
 if [ ! -f "$HOME/.cargo/bin/kcov" ]; then

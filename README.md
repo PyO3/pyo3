@@ -1,8 +1,12 @@
 # PyO3
 
-[![Build Status](https://travis-ci.org/PyO3/pyo3.svg?branch=master)](https://travis-ci.org/PyO3/pyo3) [![Build Status](https://ci.appveyor.com/api/projects/status/github/PyO3/pyo3?branch=master&svg=true)](https://ci.appveyor.com/project/fafhrd91/pyo3) [![codecov](https://codecov.io/gh/PyO3/pyo3/branch/master/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3) [![crates.io](http://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3) [![Join the dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
+[![Build Status](https://travis-ci.org/PyO3/pyo3.svg?branch=master)](https://travis-ci.org/PyO3/pyo3)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/PyO3/pyo3?branch=master&svg=true)](https://ci.appveyor.com/project/fafhrd91/pyo3)
+[![codecov](https://codecov.io/gh/PyO3/pyo3/branch/master/graph/badge.svg)](https://codecov.io/gh/PyO3/pyo3)
+[![crates.io](http://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3)
+[![Join the dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
 
-[Rust](http://www.rust-lang.org/) bindings for the [Python](https://www.python.org/) interpreter. This includes running and interacting with python code from a rust binaries as well as writing native python modules.
+[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 * [API Documentation](https://docs.rs/crate/pyo3/)
@@ -11,11 +15,72 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.27.0-nightly 2018-05-01.
+Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.29.0-nightly 2018-07-16.
 
-### From a rust binary
+You can either write a native python module in rust or use python from a rust binary.
 
-To use `pyo3`, add this to your `Cargo.toml`:
+### Using rust from python
+
+Pyo3 can be used to generate a native python module.
+
+**`Cargo.toml`:**
+
+```toml
+[package]
+name = "rust-py"
+version = "0.1.0"
+
+[lib]
+name = "rust_py"
+crate-type = ["cdylib"]
+
+[dependencies.pyo3]
+version = "0.3"
+features = ["extension-module"]
+```
+
+**`src/lib.rs`**
+
+```rust
+#![feature(use_extern_macros, specialization)]
+
+#[macro_use]
+extern crate pyo3;
+
+use pyo3::prelude::*;
+
+#[pyfunction]
+/// Formats the sum of two numbers as string
+fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
+    Ok((a + b).to_string())
+}
+
+/// This module is a python moudle implemented in Rust.
+#[pymodinit]
+fn rust_py(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_function!(sum_as_string))?;
+
+    Ok(())
+}
+```
+
+On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content: 
+
+```toml
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+```
+
+Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
+
+[`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
+
+### Using python from rust
+
+Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -46,72 +111,12 @@ fn main() -> PyResult<()> {
 }
 ```
 
-### As native module
+## Examples and tooling
 
-Pyo3 can be used to generate a python-compatible library.
-
-**`Cargo.toml`:**
-
-```toml
-[package]
-name = "rust2py"
-version = "0.1.0"
-
-[lib]
-name = "rust2py"
-crate-type = ["cdylib"]
-
-[dependencies.pyo3]
-version = "0.3"
-features = ["extension-module"]
-```
-
-**`src/lib.rs`**
-
-```rust
-#![feature(use_extern_macros, specialization)]
-
-extern crate pyo3;
-use pyo3::prelude::*;
-
-
-
-// Add bindings to the generated python module
-// N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-/// This module is implemented in Rust.
-#[pymodinit]
-fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
-
-    #[pyfn(m, "sum_as_string")]
-    // ``#[pyfn()]` converts the arguments from Python objects to Rust values
-    // and the Rust return value back into a Python object.
-    fn sum_as_string_py(a:i64, b:i64) -> PyResult<String> {
-       let out = sum_as_string(a, b);
-       Ok(out)
-    }
-
-    Ok(())
-}
-
-// The logic can be implemented as a normal rust function
-fn sum_as_string(a:i64, b:i64) -> String {
-    format!("{}", a + b).to_string()
-}
-```
-
-On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content: 
-
-```toml
-[target.x86_64-apple-darwin]
-rustflags = [
-  "-C", "link-arg=-undefined",
-  "-C", "link-arg=dynamic_lookup",
-]
-```
-
-Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
-
-[`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
+ * [examples/word-count](examples/word-count) _Counting the occurences of a word in a text file_
+ * [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json_
+ * [rust-numpy](https://github.com/rust-numpy/rust-numpy) _Rust binding of NumPy C-API_
+ * [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://pyo3.github.io/pyo3/pyo3/struct.PyDict.html)_
 
 ## License
 

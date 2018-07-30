@@ -13,6 +13,7 @@ fn sum_as_string(a: i64, b: i64) -> String {
 }
 
 #[pyfunction]
+/// Doubles the given value
 fn double(x: usize) -> usize {
     x * 2
 }
@@ -60,7 +61,9 @@ fn test_module_with_functions() {
     run("assert module_with_functions.foo == 'bar'");
     run("assert module_with_functions.EmptyClass != None");
     run("assert module_with_functions.double(3) == 6");
+    run("assert module_with_functions.double.__doc__ == 'Doubles the given value'");
     run("assert module_with_functions.also_double(3) == 6");
+    run("assert module_with_functions.also_double.__doc__ == 'Doubles the given value'");
 }
 
 #[pymodinit(other_name)]

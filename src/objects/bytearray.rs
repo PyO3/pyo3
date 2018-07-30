@@ -54,7 +54,7 @@ impl PyByteArray {
     }
 
     /// Gets the Python bytearray data as byte slice.
-    #[cfg_attr(feature = "cargo-clippy", allow(mut_from_ref))]
+
     pub fn data(&self) -> &mut [u8] {
         unsafe {
             let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;

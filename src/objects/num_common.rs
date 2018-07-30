@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use python::Python;
 use err::{PyErr, PyResult};
 
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+
 pub(super) fn err_if_invalid_value<T: PartialEq>
     (py: Python, invalid_value: T, actual_value: T) -> PyResult<T>
 {

@@ -42,13 +42,13 @@ pub trait PyTypeInfo {
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
-    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
+
     fn is_instance(ptr: *mut ffi::PyObject) -> bool {
         unsafe {ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0}
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
-    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
+
     fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
         unsafe {
             (*ptr).ob_type == Self::type_object()
@@ -186,7 +186,7 @@ impl PyRawObject {
     }
 
     /// Return reference to object.
-    #[cfg_attr(feature = "cargo-clippy", allow(should_implement_trait))]
+
     pub fn as_ref<T: PyTypeInfo>(&self) -> &T {
         // TODO: check is object initialized
         unsafe {
@@ -204,7 +204,7 @@ impl IntoPyPointer for PyRawObject {
 }
 
 impl PyObjectWithToken for PyRawObject {
-    #[cfg_attr(feature = "cargo-clippy", allow(inline_always))]
+
     #[inline(always)]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
@@ -338,7 +338,7 @@ impl<T> PyTypeObject for T where T: PyObjectAlloc<T> + PyTypeInfo {
                 let py = gil.python();
 
                 initialize_type::<T>(py, None).expect(
-                    format!("An error occurred while initializing class {}", T::NAME).as_ref());
+                    &format!("An error occurred while initializing class {}", T::NAME));
             }
         }
     }
@@ -528,7 +528,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+
 fn py_class_method_defs<T>() -> PyResult<(Option<ffi::newfunc>,
                                           Option<ffi::initproc>,
                                           Option<ffi::PyCFunctionWithKeywords>,

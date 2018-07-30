@@ -29,7 +29,7 @@ macro_rules! exc_type(
             }
         }
         impl $name {
-            #[cfg_attr(feature = "cargo-clippy", allow(new_ret_no_self))]
+
             pub fn new<V: ToPyObject + 'static>(args: V) -> PyErr {
                 PyErr::new::<$name, V>(args)
             }
@@ -133,7 +133,7 @@ exc_type!(WindowsError, PyExc_WindowsError);
 
 impl UnicodeDecodeError {
 
-    #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+
     pub fn new_err<'p>(py: Python<'p>, encoding: &CStr, input: &[u8],
                        range: ops::Range<usize>, reason: &CStr) -> PyResult<&'p PyObjectRef> {
         unsafe {

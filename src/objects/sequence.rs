@@ -20,7 +20,7 @@ pyobject_native_type_named!(PySequence);
 pyobject_downcast!(PySequence, ffi::PySequence_Check);
 
 
-#[cfg_attr(feature = "cargo-clippy", allow(len_without_is_empty))]
+
 impl PySequence {
     /// Returns the number of objects in sequence. This is equivalent to Python `len()`.
     #[inline]

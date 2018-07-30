@@ -30,7 +30,3 @@ pub use pyo3cls::mod3init as pymodinit;
 
 #[cfg(not(Py_3))]
 pub use pyo3cls::mod2init as pymodinit;
-
-// Until the extern macro story is fully fleshed out, this will make wrap_function! work
-//#[doc(hidden)]
-//pub use mashup::*;
