@@ -61,11 +61,3 @@ impl IntoPyDictPointer for NoArgs {
         std::ptr::null_mut()
     }
 }
-
-/// Converts `()` to an null pointer.
-impl IntoPyDictPointer for () {
-
-    fn into_dict_ptr(self, _: Python) -> *mut ffi::PyObject {
-        std::ptr::null_mut()
-    }
-}

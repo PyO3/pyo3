@@ -468,6 +468,7 @@ mod test {
     use conversion::{ToPyObject, PyTryFrom};
     use objects::PyString;
     use super::*;
+    use noargs::NoArgs;
 
     #[test]
     fn test_debug_string() {
@@ -493,7 +494,7 @@ mod test {
         let py = gil.python();
         let a = py.eval("42", None, None).unwrap();
         a.call_method0("__str__").unwrap();  // ok
-        assert!(a.call_method("nonexistent_method", (1,), ()).is_err());
+        assert!(a.call_method("nonexistent_method", (1,), NoArgs).is_err());
         assert!(a.call_method0("nonexistent_method").is_err());
         assert!(a.call_method1("nonexistent_method", (1,)).is_err());
     }
