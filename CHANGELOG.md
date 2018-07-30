@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2018-07-30
 
 ### Removed
 
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Merged both examples into one
  * Rustfmt all the things :heavy_check_mark:
+ * Switched to [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [0.3.2] - 2018-07-22
 
@@ -126,13 +127,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Better `Iterator` support for PyTuple, PyList, PyDict #75
 * Introduce IntoPyDictPointer similar to IntoPyTuple #69
 
-## [0.1.0] - 07-23-2017
+## 0.1.0 - 07-23-2017
 
 ### Added
 
 * Initial release
 
-[Unreleased]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.3.2...HEAD
+[0.4.0]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/pyo3/pyo3/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/pyo3/pyo3/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pyo3/pyo3/compare/v0.2.7...v0.3.0
