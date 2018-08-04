@@ -11,13 +11,13 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
 [dependencies]
-log="0.4"
-quote="0.6"
+log= "0.4.3"
+quote= "0.6.4"
 
 [dependencies.proc-macro2]
 version = "0.4.9"
 features = ["nightly"]
 
 [dependencies.syn]
-version="0.14"
+version= "0.14.5"
 features=["full", "parsing", "printing", "extra-traits"]

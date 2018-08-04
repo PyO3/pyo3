@@ -25,8 +25,7 @@ class PyTest(TestCommand):
         import subprocess
         import sys
 
-        errno = subprocess.call([sys.executable, "-m", "pytest", "tests"])
-        raise SystemExit(errno)
+        subprocess.check_call([sys.executable, "-m", "pytest", "tests"])
 
 
 setup_requires = ["setuptools-rust>=0.10.1", "wheel"]

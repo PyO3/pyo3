@@ -4,21 +4,23 @@ language: python
 
 cache:
   pip: true
-  cargo: true
+  directories:
+    - $HOME/.cargo
+    - $TRAVIS_BUILD_DIR/target
 
 matrix:
   include:
-  - python: "2.7"
-    env: FEATURES=python2
-  - python: "3.5"
-    env: FEATURES=python3
-  - python: "3.6"
-    env: FEATURES=python3
-  - python: "3.7-dev"
-    env: FEATURES=python3
+    - python: "2.7"
+      env: FEATURES=python2
+    - python: "3.5"
+      env: FEATURES=python3
+    - python: "3.6"
+      env: FEATURES=python3
+    - python: "3.7-dev"
+      env: FEATURES=python3
   allow_failures:
-  - python: "3.7-dev"
-    env: FEATURES=python3
+    - python: "3.7-dev"
+      env: FEATURES=python3
 
 env:
   global:

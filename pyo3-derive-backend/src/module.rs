@@ -61,7 +61,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
 
     quote! {
         #[no_mangle]
-        #[allow(non_snake_case, unused_imports)]
+        #[allow(non_snake_case)]
         pub unsafe extern "C" fn #cb_name() {
             // initialize python
             ::pyo3::init_once();
@@ -281,7 +281,6 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
     let body_to_result = py_method::body_to_result(&body, spec);
 
     quote! {
-        #[allow(unused_variables, unused_imports)]
         unsafe extern "C" fn __wrap(
             _slf: *mut ::pyo3::ffi::PyObject,
             _args: *mut ::pyo3::ffi::PyObject,

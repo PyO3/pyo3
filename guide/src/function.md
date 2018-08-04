@@ -54,3 +54,16 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
 # fn main() {}
 ```
+
+## Closures
+
+Currently, there are no conversions between `Fn`s in rust and callables in python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:
+
+### Calling a python function in rust
+
+You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `NoArgs`) as second paramter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the args.
+
+### Calling rust `Fn`s in python
+
+If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_function!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambda and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (Long-Term a special container similar to wasm-bindgen's `Closure` should take care of that). You can than use a `#[pyclass]` struct with that container as field as a way to pass the function over the ffi-barrier. You can even make that class callable with `__call__` so it looks like a function in python code.
+

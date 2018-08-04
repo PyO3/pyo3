@@ -2,11 +2,6 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std;
-use std::ffi::CString;
-use std::marker::PhantomData;
-use std::os::raw::c_int;
-
 use conversion::PyTryFrom;
 use err::{PyDowncastError, PyErr, PyResult};
 use ffi;
@@ -14,6 +9,10 @@ use instance::{AsPyRef, Py, PyToken};
 use object::PyObject;
 use objects::{PyDict, PyModule, PyObjectRef, PyType};
 use pythonrun::{self, GILGuard};
+use std;
+use std::ffi::CString;
+use std::marker::PhantomData;
+use std::os::raw::c_int;
 use typeob::{PyObjectAlloc, PyTypeInfo, PyTypeObject};
 
 /// Marker type that indicates that the GIL is currently held.
@@ -294,10 +293,11 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
+        let p;
         unsafe {
-            let p = pythonrun::register_owned(self, obj.into_ptr());
-            <T as PyTryFrom>::try_from(p)
+            p = pythonrun::register_owned(self, obj.into_ptr());
         }
+        <T as PyTryFrom>::try_from(p)
     }
 
     /// Register object in release pool, and do unchecked downcast to specific type.
@@ -463,7 +463,6 @@ impl<'p> Python<'p> {
     /// Release `ffi::PyObject` pointer.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-
     pub fn xdecref(self, ptr: *mut ffi::PyObject) {
         if !ptr.is_null() {
             unsafe { ffi::Py_DECREF(ptr) };

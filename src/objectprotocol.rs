@@ -14,7 +14,6 @@ use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
 use typeob::PyTypeInfo;
 
 /// Python object model helper methods
-
 pub trait ObjectProtocol {
     /// Determines whether this object has the given attribute.
     /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
@@ -517,13 +516,13 @@ where
         FromPyObject::extract(self.into())
     }
 
+    fn get_refcnt(&self) -> isize {
+        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
+    }
+
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     fn None(&self) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(self.py(), ffi::Py_None()) }
-    }
-
-    fn get_refcnt(&self) -> isize {
-        unsafe { ffi::Py_REFCNT(self.as_ptr()) }
     }
 }
 

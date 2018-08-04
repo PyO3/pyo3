@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fmt;
 use std::process::Command;
+use std::process::Stdio;
 use version_check::{is_min_date, is_min_version, supports_features};
 
 // Specifies the minimum nightly version needed to compile pyo3.
@@ -172,12 +173,12 @@ fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
 fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> {
     let out = Command::new(interpreter)
         .args(&["-c", script])
+        .stderr(Stdio::inherit())
         .output()
         .map_err(|e| format!("failed to run python interpreter:\n\n{}", e))?;
 
     if !out.status.success() {
-        let stderr = String::from_utf8(out.stderr).unwrap();
-        return Err(format!("python script failed with stderr:\n\n{}", stderr));
+        return Err(format!("python script failed"));
     }
 
     Ok(String::from_utf8(out.stdout).unwrap())
@@ -306,11 +307,16 @@ fn find_interpreter_and_get_config(
 
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<String>), String> {
-    let script = "import sys; import sysconfig; print(sys.version_info[0:2]); \
-print(sysconfig.get_config_var('LIBDIR')); \
-print(sysconfig.get_config_var('Py_ENABLE_SHARED')); \
-print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short')); \
-print(sys.exec_prefix);";
+    let script = r#"
+import sys
+import sysconfig
+
+print(sys.version_info[0:2])
+print(sysconfig.get_config_var('LIBDIR'))
+print(sysconfig.get_config_var('Py_ENABLE_SHARED'))
+print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
+print(sys.exec_prefix)
+"#;
     let out = run_python_script(interpreter, script)?;
     let lines: Vec<String> = out.lines().map(|line| line.to_owned()).collect();
     let interpreter_version = get_interpreter_version(&lines[0])?;

@@ -98,21 +98,21 @@ mod tupleobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 
 mod enumobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod methodobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod moduleobject;
-mod setobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5 // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-                                                                                      // mod funcobject; TODO excluded by PEP-384
-                                                                                      // mod classobject; TODO excluded by PEP-384
+mod setobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+               // mod funcobject; TODO excluded by PEP-384
+               // mod classobject; TODO excluded by PEP-384
 mod fileobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod pycapsule;  // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod sliceobject;
-mod traceback; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5 // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-                                                                                      // mod cellobject; TODO excluded by PEP-384
+mod traceback; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+               // mod cellobject; TODO excluded by PEP-384
 mod descrobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod genobject;   // TODO excluded by PEP-384
 mod iterobject;  // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod structseq;
 mod warnings; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5 // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-                                                                                          // mod namespaceobject; TODO
+mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+                   // mod namespaceobject; TODO
 
 mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
@@ -131,7 +131,7 @@ mod import;
 mod intrcheck; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 #[cfg(Py_3_6)]
 mod osmodule;
-mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5 // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
+mod sysmodule; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 mod bltinmodule;
 mod objectabstract; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5

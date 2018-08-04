@@ -38,13 +38,7 @@ fi
 ### Setup python linker flags ##################################################
 
 PYTHON_LIB=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-LIBRARY_PATH="$LIBRARY_PATH:$PYTHON_LIB"
 
-# delete any possible empty components
-# https://github.com/google/pulldown-cmark/issues/122#issuecomment-364948741
-LIBRARY_PATH=$(echo ${LIBRARY_PATH} | sed -E -e 's/^:*//' -e 's/:*$//' -e 's/:+/:/g')
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PYTHON_LIB:$HOME/rust/lib"
 
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$LIBRARY_PATH:$HOME/rust/lib"
-
-python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"
 echo ${LD_LIBRARY_PATH}
