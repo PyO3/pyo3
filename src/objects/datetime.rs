@@ -2,6 +2,11 @@ use err::PyResult;
 use object::PyObject;
 use std::os::raw::c_int;
 use ffi::{PyDateTimeAPI};
+use ffi::{PyDateTime_DateType, PyDate_Check};
+use ffi::{PyDateTime_DateTimeType, PyDateTime_Check};
+use ffi::{PyDateTime_DeltaType, PyDelta_Check};
+use ffi::{PyDateTime_TimeType, PyTime_Check};
+use ffi::{PyDateTime_TZInfoType, PyTZInfo_Check};
 use python::{Python, ToPyPointer};
 use instance::Py;
 
@@ -9,8 +14,7 @@ use instance::Py;
 
 // datetime.date bindings
 pub struct PyDate(PyObject);
-pyobject_convert!(PyDate);
-pyobject_nativetype!(PyDate, PyDateTime_DateType, PyDate_Check);
+pyobject_native_type!(PyDate, PyDateTime_DateType, PyDate_Check);
 
 impl PyDate {
     pub fn new(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
@@ -36,8 +40,7 @@ impl PyDate {
 
 // datetime.datetime bindings
 pub struct PyDateTime(PyObject);
-pyobject_convert!(PyDateTime);
-pyobject_nativetype!(PyDateTime, PyDateTime_DateTimeType, PyDateTime_Check);
+pyobject_native_type!(PyDateTime, PyDateTime_DateTimeType, PyDateTime_Check);
 
 
 impl PyDateTime {
@@ -74,8 +77,7 @@ impl PyDateTime {
 
 // datetime.time
 pub struct PyTime(PyObject);
-pyobject_convert!(PyTime);
-pyobject_nativetype!(PyTime, PyDateTime_TimeType, PyTime_Check);
+pyobject_native_type!(PyTime, PyDateTime_TimeType, PyTime_Check);
 
 impl PyTime {
     pub fn new(py: Python, hour: u32, minute: u32, second: u32,
@@ -116,14 +118,12 @@ impl PyTime {
 
 // datetime.tzinfo bindings
 pub struct PyTzInfo(PyObject);
-pyobject_convert!(PyTzInfo);
-pyobject_nativetype!(PyTzInfo, PyDateTime_TZInfoType, PyTZInfo_Check);
+pyobject_native_type!(PyTzInfo, PyDateTime_TZInfoType, PyTZInfo_Check);
 
 
 // datetime.timedelta bindings
 pub struct PyDelta(PyObject);
-pyobject_convert!(PyDelta);
-pyobject_nativetype!(PyDelta, PyDateTime_DeltaType, PyDelta_Check);
+pyobject_native_type!(PyDelta, PyDateTime_DeltaType, PyDelta_Check);
 
 impl PyDelta {
     pub fn new(py: Python, days: i32, seconds: i32, microseconds: i32,
