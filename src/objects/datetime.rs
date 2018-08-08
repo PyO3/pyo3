@@ -5,11 +5,18 @@ use ffi::{PyDateTimeAPI};
 use ffi::{PyDateTime_DateType, PyDate_Check};
 use ffi::{PyDateTime_DateTimeType, PyDateTime_Check};
 use ffi::{PyDateTime_DeltaType, PyDelta_Check};
+use ffi::{PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_SECONDS, PyDateTime_DELTA_GET_MICROSECONDS};
 use ffi::{PyDateTime_TimeType, PyTime_Check};
 use ffi::{PyDateTime_TZInfoType, PyTZInfo_Check};
 use python::{Python, ToPyPointer};
 use instance::Py;
 
+
+pub trait PyDeltaComponentAccess {
+    fn get_days(&self) -> i32;
+    fn get_seconds(&self) -> i32;
+    fn get_microseconds(&self) -> i32;
+}
 
 
 // datetime.date bindings
@@ -142,3 +149,22 @@ impl PyDelta {
     }
 }
 
+impl PyDeltaComponentAccess for PyDelta {
+    fn get_days(&self) -> i32 {
+        unsafe {
+            PyDateTime_DELTA_GET_DAYS(self.as_ptr()) as i32
+        }
+    }
+
+    fn get_seconds(&self) -> i32 {
+        unsafe {
+            PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) as i32
+        }
+    }
+
+    fn get_microseconds(&self) -> i32 {
+        unsafe {
+            PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) as i32
+        }
+    }
+}

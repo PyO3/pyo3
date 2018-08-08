@@ -9,6 +9,7 @@ use pyo3::prelude::{pyfunction, pymodinit};
 use pyo3::prelude::{PyObject};
 use pyo3::prelude::{PyModule};
 use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
+use pyo3::prelude::{PyDeltaComponentAccess};
 use pyo3::prelude::{PyTuple, PyDict};
 
 
@@ -42,6 +43,11 @@ fn make_time(py: Python, hour: u32, minute: u32, second: u32,
 #[pyfunction]
 fn make_delta(py: Python, days: i32, seconds: i32, microseconds: i32) -> PyResult<Py<PyDelta>> {
     PyDelta::new(py, days, seconds, microseconds, true)
+}
+
+#[pyfunction]
+fn get_delta_tuple(py: Python, delta: &PyDelta) -> Py<PyTuple> {
+    PyTuple::new(py, &[delta.get_days(), delta.get_seconds(), delta.get_microseconds()])
 }
 
 #[pyfunction]
@@ -87,6 +93,7 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(date_from_timestamp))?;
     m.add_function(wrap_function!(make_time))?;
     m.add_function(wrap_function!(make_delta))?;
+    m.add_function(wrap_function!(get_delta_tuple))?;
     m.add_function(wrap_function!(make_datetime))?;
     m.add_function(wrap_function!(datetime_from_timestamp))?;
 

@@ -5,6 +5,7 @@ import datetime as pdt
 import pytest
 
 from hypothesis import given
+from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
 
 # Constants
@@ -148,6 +149,14 @@ def test_datetime_from_timestamp_tzinfo():
 def test_delta(args):
     act = pdt.timedelta(*args)
     exp = rdt.make_delta(*args)
+
+    assert act == exp
+
+
+@given(td=st.timedeltas())
+def test_delta_accessors(td):
+    act = rdt.get_delta_tuple(td)
+    exp = (td.days, td.seconds, td.microseconds)
 
     assert act == exp
 

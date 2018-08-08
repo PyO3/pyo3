@@ -1,6 +1,7 @@
 use std::os::raw::c_int;
 use std::ffi::CString;
 use std::option::Option;
+use ffi3::pyport::Py_hash_t;
 use ffi3::object::*;
 use ffi3::pycapsule::PyCapsule_Import;
 
@@ -104,6 +105,16 @@ pub struct PyDateTime_CAPI {
     >,
 }
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PyDateTime_Delta {
+    pub ob_base: PyObject,
+    pub hashcode: Py_hash_t,
+    pub days: c_int,
+    pub seconds: c_int,
+    pub microseconds: c_int,
+}
+
 unsafe impl Sync for PyDateTime_CAPI {}
 
 lazy_static! {
@@ -144,4 +155,35 @@ pub unsafe fn PyTime_Check(op: *mut PyObject) -> c_int {
 #[inline(always)]
 pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DeltaType) as c_int
+}
+
+//
+// Accessor functions
+//
+macro_rules! _access_field {
+    ($obj:expr, $type: ident, $field:tt) => {
+        (*($obj as *mut $type)).$field
+    }
+}
+
+// Accessor functions for PyDateTime_Delta
+macro_rules! _access_delta_field {
+    ($obj:expr, $field:tt) => {
+        _access_field!($obj, PyDateTime_Delta, $field)
+    }
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int {
+    _access_delta_field!(o, days)
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int {
+    _access_delta_field!(o, seconds)
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
+    _access_delta_field!(o, microseconds)
 }
