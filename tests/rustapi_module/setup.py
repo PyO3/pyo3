@@ -2,17 +2,7 @@ import sys
 
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
-
-try:
-    from setuptools_rust import RustExtension
-except ImportError:
-    import subprocess
-    errno = subprocess.call([sys.executable, '-m', 'pip', 'install', 'setuptools-rust'])
-    if errno:
-        print("Please install setuptools-rust package")
-        raise SystemExit(errno)
-    else:
-        from setuptools_rust import RustExtension
+from setuptools_rust import RustExtension
 
 
 class PyTest(TestCommand):
@@ -25,6 +15,20 @@ class PyTest(TestCommand):
         errno = subprocess.call(['pytest', 'tests'])
         raise SystemExit(errno)
 
+
+def get_py_version_cfgs():
+    # For now each Cfg Py_3_X flag is interpreted as "at least 3.X"
+    version = sys.version_info[0:2]
+
+    if version[0] == 2:
+        return ['--cfg=Py_2']
+
+    py3_min = 5
+    out_cfg = []
+    for minor in range(py3_min, version[1]+1):
+        out_cfg.append('--cfg=Py_3_%d' % minor)
+
+    return out_cfg
 
 setup_requires = ['setuptools-rust>=0.6.1']
 install_requires = []
@@ -43,7 +47,8 @@ setup(
         'Operating System :: MacOS :: MacOS X',
     ],
     packages=['rustapi_module'],
-    rust_extensions=[RustExtension('rustapi_module.datetime', 'Cargo.toml')],
+    rust_extensions=[RustExtension('rustapi_module.datetime', 'Cargo.toml',
+                                   rustc_flags=get_py_version_cfgs())],
     install_requires=install_requires,
     tests_require=tests_require,
     setup_requires=setup_requires,
