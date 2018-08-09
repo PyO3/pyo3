@@ -9,6 +9,7 @@ use pyo3::prelude::{pyfunction, pymodinit};
 use pyo3::prelude::{PyObject};
 use pyo3::prelude::{PyModule};
 use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
+use pyo3::prelude::{PyDateComponentAccess};
 use pyo3::prelude::{PyDeltaComponentAccess};
 use pyo3::prelude::{PyTuple, PyDict};
 
@@ -24,6 +25,11 @@ macro_rules! to_pyobject {
 #[pyfunction]
 fn make_date(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
     PyDate::new(py, year, month, day)
+}
+
+#[pyfunction]
+fn get_date_tuple(py: Python, d: &PyDate) -> Py<PyTuple> {
+    PyTuple::new(py, &[d.get_year(), d.get_month(), d.get_day()])
 }
 
 #[pyfunction]
@@ -90,6 +96,7 @@ fn time_with_fold(py: Python, hour: u32, minute: u32, second: u32,
 #[pymodinit]
 fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(make_date))?;
+    m.add_function(wrap_function!(get_date_tuple))?;
     m.add_function(wrap_function!(date_from_timestamp))?;
     m.add_function(wrap_function!(make_time))?;
     m.add_function(wrap_function!(make_delta))?;

@@ -3,6 +3,7 @@ use object::PyObject;
 use std::os::raw::c_int;
 use ffi::{PyDateTimeAPI};
 use ffi::{PyDateTime_DateType, PyDate_Check};
+use ffi::{PyDateTime_Date_GET_YEAR, PyDateTime_Date_GET_MONTH, PyDateTime_Date_GET_DAY};
 use ffi::{PyDateTime_DateTimeType, PyDateTime_Check};
 use ffi::{PyDateTime_DeltaType, PyDelta_Check};
 use ffi::{PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_SECONDS, PyDateTime_DELTA_GET_MICROSECONDS};
@@ -11,6 +12,12 @@ use ffi::{PyDateTime_TZInfoType, PyTZInfo_Check};
 use python::{Python, ToPyPointer};
 use instance::Py;
 
+// Traits
+pub trait PyDateComponentAccess {
+    fn get_year(&self) -> u32;
+    fn get_month(&self) -> u32;
+    fn get_day(&self) -> u32;
+}
 
 pub trait PyDeltaComponentAccess {
     fn get_days(&self) -> i32;
@@ -42,8 +49,29 @@ impl PyDate {
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
+
+
 }
 
+impl PyDateComponentAccess for PyDate {
+    fn get_year(&self) -> u32 {
+        unsafe {
+            PyDateTime_Date_GET_YEAR(self.as_ptr()) as u32
+        }
+    }
+
+    fn get_month(&self) -> u32 {
+        unsafe {
+            PyDateTime_Date_GET_MONTH(self.as_ptr()) as u32
+        }
+    }
+
+    fn get_day(&self) -> u32 {
+        unsafe {
+            PyDateTime_Date_GET_DAY(self.as_ptr()) as u32
+        }
+    }
+}
 
 // datetime.datetime bindings
 pub struct PyDateTime(PyObject);

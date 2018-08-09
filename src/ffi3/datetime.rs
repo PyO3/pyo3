@@ -1,4 +1,4 @@
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_char, c_uchar};
 use std::ffi::CString;
 use std::option::Option;
 use ffi3::pyport::Py_hash_t;
@@ -105,6 +105,19 @@ pub struct PyDateTime_CAPI {
     >,
 }
 
+// Type struct wrappers
+
+const _PyDateTime_DATE_DATASIZE : usize = 4;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PyDateTime_Date {
+    pub ob_base: PyObject,
+    pub hashcode: Py_hash_t,
+    pub hastzinfo: c_char,
+    pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_Delta {
@@ -115,6 +128,8 @@ pub struct PyDateTime_Delta {
     pub microseconds: c_int,
 }
 
+
+// C API Capsule
 unsafe impl Sync for PyDateTime_CAPI {}
 
 lazy_static! {
@@ -132,6 +147,9 @@ pub unsafe fn PyDateTime_IMPORT() -> PyDateTime_CAPI {
 }
 
 
+//
+// Type Check macros
+//
 #[inline(always)]
 pub unsafe fn PyDate_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DateType) as c_int
@@ -165,6 +183,48 @@ macro_rules! _access_field {
         (*($obj as *mut $type)).$field
     }
 }
+
+// Accessor functions for PyDateTime_Date
+// Note: These have nonsensical names
+#[macro_export]
+macro_rules! PyDateTime_GET_YEAR {
+    // This is a macro in the C API and it's difficult to get the same behavior
+    // without making it a macro in Rust as well, or playing with pointers
+    ($o: expr) => {
+        (((*$o).data[0] as c_int) << 8) | ((*$o).data[1] as c_int)
+    }
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_Date_GET_YEAR(o: *mut PyObject) -> c_int {
+    PyDateTime_GET_YEAR!(o as *mut PyDateTime_Date)
+}
+
+#[macro_export]
+macro_rules! PyDateTime_GET_MONTH {
+    ($o: expr) => {
+        (*$o).data[2] as c_int
+    }
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_Date_GET_MONTH(o: *mut PyObject) -> c_int {
+    PyDateTime_GET_MONTH!(o as *mut PyDateTime_Date)
+}
+
+#[macro_export]
+macro_rules! PyDateTime_GET_DAY {
+    ($o: expr) => {
+        (*$o).data[3] as c_int
+    }
+}
+
+
+#[inline(always)]
+pub unsafe fn PyDateTime_Date_GET_DAY(o: *mut PyObject) -> c_int {
+    PyDateTime_GET_DAY!(o as *mut PyDateTime_Date)
+}
+
 
 // Accessor functions for PyDateTime_Delta
 macro_rules! _access_delta_field {

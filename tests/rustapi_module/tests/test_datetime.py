@@ -30,6 +30,14 @@ def test_date():
     assert rdt.make_date(2017, 9, 1) == pdt.date(2017, 9, 1)
 
 
+@given(d=st.dates())
+def test_date_accessors(d):
+    act = rdt.get_date_tuple(d)
+    exp = (d.year, d.month, d.day)
+
+    assert act == exp
+
+
 def test_invalid_date_fails():
     with pytest.raises(ValueError):
         rdt.make_date(2017, 2, 30)
