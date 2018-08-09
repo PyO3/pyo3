@@ -182,13 +182,18 @@ pub unsafe fn PyDate_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline(always)]
+pub unsafe fn PyDate_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == PyDateTimeAPI.DateType) as c_int
+}
+
+#[inline(always)]
 pub unsafe fn PyDateTime_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DateTimeType) as c_int
 }
 
 #[inline(always)]
-pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
-    PyObject_TypeCheck(op, PyDateTimeAPI.TZInfoType) as c_int
+pub unsafe fn PyDateTime_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == PyDateTimeAPI.DateTimeType) as c_int
 }
 
 #[inline(always)]
@@ -197,8 +202,28 @@ pub unsafe fn PyTime_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline(always)]
+pub unsafe fn PyTime_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == PyDateTimeAPI.TimeType) as c_int
+}
+
+#[inline(always)]
 pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DeltaType) as c_int
+}
+
+#[inline(always)]
+pub unsafe fn PyDelta_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == PyDateTimeAPI.DeltaType) as c_int
+}
+
+#[inline(always)]
+pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
+    PyObject_TypeCheck(op, PyDateTimeAPI.TZInfoType) as c_int
+}
+
+#[inline(always)]
+pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
+    (Py_TYPE(op) == PyDateTimeAPI.TZInfoType) as c_int
 }
 
 //
