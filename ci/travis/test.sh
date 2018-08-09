@@ -11,3 +11,7 @@ for example in examples/*; do
   pytest -v tests
   cd $TRAVIS_BUILD_DIR
 done
+
+cd tests/rustapi_module
+tox -e py
+cd $TRAVIS_BUILD_DIR
