@@ -129,7 +129,8 @@ extern crate spin;
 #[doc(hidden)]
 pub extern crate mashup;
 
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 
 #[cfg(not(Py_3))]
 mod ffi2;

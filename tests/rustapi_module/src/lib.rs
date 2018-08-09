@@ -3,24 +3,24 @@
 #[macro_use]
 extern crate pyo3;
 
-use pyo3::{Py, Python, PyResult};
-use pyo3::{ObjectProtocol, ToPyObject};
+use pyo3::prelude::PyDeltaComponentAccess;
+use pyo3::prelude::PyModule;
+use pyo3::prelude::PyObject;
 use pyo3::prelude::{pyfunction, pymodinit};
-use pyo3::prelude::{PyObject};
-use pyo3::prelude::{PyModule};
-use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
+use pyo3::prelude::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo};
 use pyo3::prelude::{PyDateComponentAccess, PyTimeComponentAccess};
-use pyo3::prelude::{PyDeltaComponentAccess};
-use pyo3::prelude::{PyTuple, PyDict};
-
+use pyo3::prelude::{PyDict, PyTuple};
+use pyo3::{ObjectProtocol, ToPyObject};
+use pyo3::{Py, PyResult, Python};
 
 macro_rules! to_pyobject {
-    ($py:expr, $o:ident) => (match $o {
-        Some(t) => t.to_object($py),
-        None => $py.None()
-    })
+    ($py:expr, $o:ident) => {
+        match $o {
+            Some(t) => t.to_object($py),
+            None => $py.None(),
+        }
+    };
 }
-
 
 #[pyfunction]
 fn make_date(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
@@ -40,32 +40,59 @@ fn date_from_timestamp(py: Python, ts: i64) -> PyResult<Py<PyDate>> {
 }
 
 #[pyfunction]
-fn make_time(py: Python, hour: u32, minute: u32, second: u32,
-             microsecond: u32, tzinfo: Option<&PyTzInfo>) -> PyResult<Py<PyTime>> {
+fn make_time(
+    py: Python,
+    hour: u32,
+    minute: u32,
+    second: u32,
+    microsecond: u32,
+    tzinfo: Option<&PyTzInfo>,
+) -> PyResult<Py<PyTime>> {
     let tzi: PyObject = to_pyobject!(py, tzinfo);
     PyTime::new(py, hour, minute, second, microsecond, &tzi)
 }
 
 #[cfg(Py_3_6)]
 #[pyfunction]
-fn time_with_fold(py: Python, hour: u32, minute: u32, second: u32,
-                  microsecond: u32, tzinfo: Option<&PyTzInfo>,
-                  fold: bool) -> PyResult<Py<PyTime>> {
+fn time_with_fold(
+    py: Python,
+    hour: u32,
+    minute: u32,
+    second: u32,
+    microsecond: u32,
+    tzinfo: Option<&PyTzInfo>,
+    fold: bool,
+) -> PyResult<Py<PyTime>> {
     let tzi = to_pyobject!(py, tzinfo);
     PyTime::new_with_fold(py, hour, minute, second, microsecond, &tzi, fold)
 }
 
 #[pyfunction]
 fn get_time_tuple(py: Python, dt: &PyTime) -> Py<PyTuple> {
-    PyTuple::new(py, &[dt.get_hour(), dt.get_minute(), dt.get_second(),
-                       dt.get_microsecond()])
+    PyTuple::new(
+        py,
+        &[
+            dt.get_hour(),
+            dt.get_minute(),
+            dt.get_second(),
+            dt.get_microsecond(),
+        ],
+    )
 }
 
 #[cfg(Py_3_6)]
 #[pyfunction]
 fn get_time_tuple_fold(py: Python, dt: &PyTime) -> Py<PyTuple> {
-    PyTuple::new(py, &[dt.get_hour(), dt.get_minute(), dt.get_second(),
-                       dt.get_microsecond(), dt.get_fold() as u32])
+    PyTuple::new(
+        py,
+        &[
+            dt.get_hour(),
+            dt.get_minute(),
+            dt.get_second(),
+            dt.get_microsecond(),
+            dt.get_fold() as u32,
+        ],
+    )
 }
 
 #[pyfunction]
@@ -75,41 +102,85 @@ fn make_delta(py: Python, days: i32, seconds: i32, microseconds: i32) -> PyResul
 
 #[pyfunction]
 fn get_delta_tuple(py: Python, delta: &PyDelta) -> Py<PyTuple> {
-    PyTuple::new(py, &[delta.get_days(), delta.get_seconds(), delta.get_microseconds()])
+    PyTuple::new(
+        py,
+        &[
+            delta.get_days(),
+            delta.get_seconds(),
+            delta.get_microseconds(),
+        ],
+    )
 }
 
 #[pyfunction]
-fn make_datetime(py: Python, year: u32, month: u32, day: u32,
-                 hour: u32, minute: u32, second: u32, microsecond: u32,
-                 tzinfo: Option<&PyTzInfo>) -> PyResult<Py<PyDateTime>> {
-    let tzi : PyObject = match tzinfo {
+fn make_datetime(
+    py: Python,
+    year: u32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+    microsecond: u32,
+    tzinfo: Option<&PyTzInfo>,
+) -> PyResult<Py<PyDateTime>> {
+    let tzi: PyObject = match tzinfo {
         Some(t) => t.to_object(py),
         None => py.None(),
     };
-    PyDateTime::new(py, year, month, day, hour, minute, second, microsecond, &tzi)
+    PyDateTime::new(
+        py,
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        microsecond,
+        &tzi,
+    )
 }
 
 #[pyfunction]
 fn get_datetime_tuple(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
-    PyTuple::new(py, &[dt.get_year(), dt.get_month(), dt.get_day(),
-                       dt.get_hour(), dt.get_minute(), dt.get_second(),
-                       dt.get_microsecond()])
+    PyTuple::new(
+        py,
+        &[
+            dt.get_year(),
+            dt.get_month(),
+            dt.get_day(),
+            dt.get_hour(),
+            dt.get_minute(),
+            dt.get_second(),
+            dt.get_microsecond(),
+        ],
+    )
 }
 
 #[cfg(Py_3_6)]
 #[pyfunction]
 fn get_datetime_tuple_fold(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
-    PyTuple::new(py, &[dt.get_year(), dt.get_month(), dt.get_day(),
-                       dt.get_hour(), dt.get_minute(), dt.get_second(),
-                       dt.get_microsecond(), dt.get_fold() as u32])
+    PyTuple::new(
+        py,
+        &[
+            dt.get_year(),
+            dt.get_month(),
+            dt.get_day(),
+            dt.get_hour(),
+            dt.get_minute(),
+            dt.get_second(),
+            dt.get_microsecond(),
+            dt.get_fold() as u32,
+        ],
+    )
 }
 
 #[pyfunction]
 fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResult<Py<PyDateTime>> {
-    let timestamp : PyObject = ts.to_object(py);
-    let tzi : PyObject = match tz {
+    let timestamp: PyObject = ts.to_object(py);
+    let tzi: PyObject = match tz {
         Some(t) => t.to_object(py),
-        None => py.None()
+        None => py.None(),
     };
 
     let args = PyTuple::new(py, &[timestamp, tzi]);
@@ -117,10 +188,6 @@ fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResu
 
     PyDateTime::from_timestamp(py, &args.to_object(py), &kwargs.to_object(py))
 }
-
-
-
-
 
 #[pymodinit]
 fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {

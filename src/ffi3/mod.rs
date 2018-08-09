@@ -118,8 +118,8 @@ mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.
 mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
-mod pystate; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod datetime;
+mod pystate; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 #[cfg(Py_LIMITED_API)]
 mod pyarena {}

@@ -1,11 +1,12 @@
-use std::os::raw::{c_int, c_char, c_uchar};
-use std::ffi::CString;
-use std::option::Option;
-use ffi2::pyport::Py_hash_t;
 use ffi2::object::*;
 use ffi2::pycapsule::PyCapsule_Import;
+use ffi2::pyport::Py_hash_t;
+use std::ffi::CString;
+use std::option::Option;
+use std::os::raw::{c_char, c_int, c_uchar};
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
     pub static mut PyDateTime_DateType: PyTypeObject;
     pub static mut PyDateTime_TimeType: PyTypeObject;
     pub static mut PyDateTime_DateTimeType: PyTypeObject;
@@ -13,7 +14,6 @@ use ffi2::pycapsule::PyCapsule_Import;
     pub static mut PyDateTime_DeltaType: PyTypeObject;
     pub static mut PyDateTime_TZInfoType: PyTypeObject;
 }
-
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -25,12 +25,8 @@ pub struct PyDateTime_CAPI {
     pub TZInfoType: *mut PyTypeObject,
 
     pub Date_FromDate: Option<
-        unsafe extern "C" fn(
-            year: c_int,
-            month: c_int,
-            day: c_int,
-            cls: *mut PyTypeObject,
-        ) -> *mut PyObject,
+        unsafe extern "C" fn(year: c_int, month: c_int, day: c_int, cls: *mut PyTypeObject)
+            -> *mut PyObject,
     >,
     pub DateTime_FromDateAndTime: Option<
         unsafe extern "C" fn(
@@ -68,15 +64,14 @@ pub struct PyDateTime_CAPI {
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject, kwargs: *mut PyObject)
             -> *mut PyObject,
     >,
-    pub Date_FromTimestamp: Option<
-        unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
-    >,
+    pub Date_FromTimestamp:
+        Option<unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject>,
 }
 
 // Type struct wrappers
 
-const _PyDateTime_DATE_DATASIZE : usize = 4;
-const _PyDateTime_TIME_DATASIZE : usize = 6;
+const _PyDateTime_DATE_DATASIZE: usize = 4;
+const _PyDateTime_TIME_DATASIZE: usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
@@ -95,7 +90,7 @@ pub struct PyDateTime_Time {
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
-    pub tzinfo: *mut PyObject
+    pub tzinfo: *mut PyObject,
 }
 
 #[repr(C)]
@@ -105,7 +100,7 @@ pub struct PyDateTime_DateTime {
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
-    pub tzinfo: *mut PyObject
+    pub tzinfo: *mut PyObject,
 }
 
 #[repr(C)]
@@ -118,14 +113,12 @@ pub struct PyDateTime_Delta {
     pub microseconds: c_int,
 }
 
-
 // C API Capsule
 unsafe impl Sync for PyDateTime_CAPI {}
 
 lazy_static! {
     pub static ref PyDateTimeAPI: PyDateTime_CAPI = unsafe { PyDateTime_IMPORT() };
 }
-
 
 #[inline(always)]
 pub unsafe fn PyDateTime_IMPORT() -> PyDateTime_CAPI {
@@ -135,7 +128,6 @@ pub unsafe fn PyDateTime_IMPORT() -> PyDateTime_CAPI {
     let capsule = PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 0);
     *(capsule as *const PyDateTime_CAPI)
 }
-
 
 //
 // Type Check macros
@@ -196,7 +188,7 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 macro_rules! _access_field {
     ($obj:expr, $type: ident, $field:tt) => {
         (*($obj as *mut $type)).$field
-    }
+    };
 }
 
 // Accessor functions for PyDateTime_Date
@@ -207,7 +199,7 @@ macro_rules! PyDateTime_GET_YEAR {
     // without making it a macro in Rust as well, or playing with pointers
     ($o: expr) => {
         (((*$o).data[0] as c_int) << 8) | ((*$o).data[1] as c_int)
-    }
+    };
 }
 
 #[inline(always)]
@@ -224,7 +216,7 @@ pub unsafe fn PyDateTime_DateTime_GET_YEAR(o: *mut PyObject) -> c_int {
 macro_rules! PyDateTime_GET_MONTH {
     ($o: expr) => {
         (*$o).data[2] as c_int
-    }
+    };
 }
 
 #[inline(always)]
@@ -241,7 +233,7 @@ pub unsafe fn PyDateTime_DateTime_GET_MONTH(o: *mut PyObject) -> c_int {
 macro_rules! PyDateTime_GET_DAY {
     ($o: expr) => {
         (*$o).data[3] as c_int
-    }
+    };
 }
 
 #[inline(always)]
@@ -258,33 +250,33 @@ pub unsafe fn PyDateTime_DateTime_GET_DAY(o: *mut PyObject) -> c_int {
 macro_rules! _PyDateTime_GET_HOUR {
     ($o: expr, $offset:expr) => {
         (*$o).data[$offset + 0] as c_int
-    }
+    };
 }
 
 macro_rules! _PyDateTime_GET_MINUTE {
     ($o: expr, $offset:expr) => {
         (*$o).data[$offset + 1] as c_int
-    }
+    };
 }
 
 macro_rules! _PyDateTime_GET_SECOND {
     ($o: expr, $offset:expr) => {
         (*$o).data[$offset + 2] as c_int
-    }
+    };
 }
 
 macro_rules! _PyDateTime_GET_MICROSECOND {
     ($o: expr, $offset:expr) => {
-        (((*$o).data[$offset + 3] as c_int) << 16) |
-        (((*$o).data[$offset + 4] as c_int) << 8) |
-        ((*$o).data[$offset + 5] as c_int)
-    }
+        (((*$o).data[$offset + 3] as c_int) << 16)
+            | (((*$o).data[$offset + 4] as c_int) << 8)
+            | ((*$o).data[$offset + 5] as c_int)
+    };
 }
 
-macro_rules! _PyDateTime_GET_TZINFO{
+macro_rules! _PyDateTime_GET_TZINFO {
     ($o: expr) => {
         (*$o).tzinfo
-    }
+    };
 }
 
 // Accessor functions for DateTime
@@ -339,12 +331,11 @@ pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
     _PyDateTime_GET_TZINFO!(o as *mut PyDateTime_Time)
 }
 
-
 // Accessor functions for PyDateTime_Delta
 macro_rules! _access_delta_field {
     ($obj:expr, $field:tt) => {
         _access_field!($obj, PyDateTime_Delta, $field)
-    }
+    };
 }
 
 #[inline(always)]
