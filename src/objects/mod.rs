@@ -6,7 +6,7 @@ mod exc_impl;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::datetime::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
-pub use self::datetime::{PyDateComponentAccess};
+pub use self::datetime::{PyDateComponentAccess, PyTimeComponentAccess};
 pub use self::datetime::{PyDeltaComponentAccess};
 pub use self::dict::PyDict;
 pub use self::floatob::PyFloat;

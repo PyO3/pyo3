@@ -119,6 +119,26 @@ def test_datetime(args, kwargs):
     assert act.tzinfo is exp.tzinfo
 
 
+@given(dt=st.datetimes())
+def test_datetime_tuple(dt):
+    act = rdt.get_datetime_tuple(dt)
+    exp = dt.timetuple()[0:6] + (dt.microsecond, )
+
+    assert act == exp
+
+
+@pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
+@given(dt=st.datetimes())
+def test_datetime_tuple_fold(dt):
+    dt_fold = dt.replace(fold=0)
+    dt_nofold = dt.replace(fold=1)
+
+    for dt in (dt_fold, dt_nofold):
+        act = rdt.get_datetime_tuple_fold(dt)
+        exp = dt.timetuple()[0:6] + (dt.microsecond, dt.fold)
+
+        assert act == exp
+
 def test_invalid_datetime_fails():
     with pytest.raises(ValueError):
         rdt.make_datetime(2011, 1, 42, 0, 0, 0, 0)

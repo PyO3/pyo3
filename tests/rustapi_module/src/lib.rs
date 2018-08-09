@@ -9,7 +9,7 @@ use pyo3::prelude::{pyfunction, pymodinit};
 use pyo3::prelude::{PyObject};
 use pyo3::prelude::{PyModule};
 use pyo3::prelude::{PyDate, PyTime, PyDateTime, PyDelta, PyTzInfo};
-use pyo3::prelude::{PyDateComponentAccess};
+use pyo3::prelude::{PyDateComponentAccess, PyTimeComponentAccess};
 use pyo3::prelude::{PyDeltaComponentAccess};
 use pyo3::prelude::{PyTuple, PyDict};
 
@@ -68,6 +68,21 @@ fn make_datetime(py: Python, year: u32, month: u32, day: u32,
 }
 
 #[pyfunction]
+fn get_datetime_tuple(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
+    PyTuple::new(py, &[dt.get_year(), dt.get_month(), dt.get_day(),
+                       dt.get_hour(), dt.get_minute(), dt.get_second(),
+                       dt.get_microsecond()])
+}
+
+#[cfg(Py_3_6)]
+#[pyfunction]
+fn get_datetime_tuple_fold(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
+    PyTuple::new(py, &[dt.get_year(), dt.get_month(), dt.get_day(),
+                       dt.get_hour(), dt.get_minute(), dt.get_second(),
+                       dt.get_microsecond(), dt.get_fold() as u32])
+}
+
+#[pyfunction]
 fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResult<Py<PyDateTime>> {
     let timestamp : PyObject = ts.to_object(py);
     let tzi : PyObject = match tz {
@@ -102,12 +117,14 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(make_delta))?;
     m.add_function(wrap_function!(get_delta_tuple))?;
     m.add_function(wrap_function!(make_datetime))?;
+    m.add_function(wrap_function!(get_datetime_tuple))?;
     m.add_function(wrap_function!(datetime_from_timestamp))?;
 
     // Python 3.6+ functions
     #[cfg(Py_3_6)]
     {
         m.add_function(wrap_function!(time_with_fold));
+        m.add_function(wrap_function!(get_datetime_tuple_fold));
     }
 
     Ok(())
