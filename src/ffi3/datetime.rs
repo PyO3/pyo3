@@ -108,6 +108,7 @@ pub struct PyDateTime_CAPI {
 // Type struct wrappers
 
 const _PyDateTime_DATE_DATASIZE : usize = 4;
+const _PyDateTime_TIME_DATASIZE : usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
@@ -117,6 +118,18 @@ pub struct PyDateTime_Date {
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
     pub data: [c_uchar; _PyDateTime_DATE_DATASIZE],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct PyDateTime_Time {
+    pub ob_base: PyObject,
+    pub hashcode: Py_hash_t,
+    pub hastzinfo: c_char,
+    pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
+    #[cfg(Py_3_6)]
+    pub fold: c_uchar,
+    pub tzinfo: *mut PyObject
 }
 
 #[repr(C)]
@@ -322,6 +335,38 @@ pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_uchar {
 #[inline(always)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
     _PyDateTime_GET_TZINFO!(o as *mut PyDateTime_DateTime)
+}
+
+// Accessor functions for Time
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int {
+    _PyDateTime_GET_HOUR!((o as *mut PyDateTime_Time), 0)
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int {
+    _PyDateTime_GET_MINUTE!((o as *mut PyDateTime_Time), 0)
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
+    _PyDateTime_GET_SECOND!((o as *mut PyDateTime_Time), 0)
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
+    _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_Time), 0)
+}
+
+#[cfg(Py_3_6)]
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_uchar {
+    _PyDateTime_GET_FOLD!(o as *mut PyDateTime_Time)
+}
+
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
+    _PyDateTime_GET_TZINFO!(o as *mut PyDateTime_Time)
 }
 
 

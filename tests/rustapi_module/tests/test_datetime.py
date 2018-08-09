@@ -62,6 +62,27 @@ def test_time(args, kwargs):
     assert act.tzinfo is exp.tzinfo
 
 
+@given(t=st.times())
+def test_time(t):
+    act = rdt.get_time_tuple(t)
+    exp = (t.hour, t.minute, t.second, t.microsecond)
+
+    assert act == exp
+
+
+@pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
+@given(t=st.times())
+def test_time_fold(t):
+    t_nofold = t.replace(fold=0)
+    t_fold = t.replace(fold=1)
+
+    for t in (t_nofold, t_fold):
+        act = rdt.get_time_tuple_fold(t)
+        exp = (t.hour, t.minute, t.second, t.microsecond, t.fold)
+
+        assert act == exp
+
+
 @pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
 @pytest.mark.parametrize('fold', [False, True])
 def test_time_fold(fold):
@@ -130,8 +151,8 @@ def test_datetime_tuple(dt):
 @pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
 @given(dt=st.datetimes())
 def test_datetime_tuple_fold(dt):
-    dt_fold = dt.replace(fold=0)
-    dt_nofold = dt.replace(fold=1)
+    dt_fold = dt.replace(fold=1)
+    dt_nofold = dt.replace(fold=0)
 
     for dt in (dt_fold, dt_nofold):
         act = rdt.get_datetime_tuple_fold(dt)

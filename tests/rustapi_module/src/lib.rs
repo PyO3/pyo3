@@ -46,6 +46,28 @@ fn make_time(py: Python, hour: u32, minute: u32, second: u32,
     PyTime::new(py, hour, minute, second, microsecond, &tzi)
 }
 
+#[cfg(Py_3_6)]
+#[pyfunction]
+fn time_with_fold(py: Python, hour: u32, minute: u32, second: u32,
+                  microsecond: u32, tzinfo: Option<&PyTzInfo>,
+                  fold: bool) -> PyResult<Py<PyTime>> {
+    let tzi = to_pyobject!(py, tzinfo);
+    PyTime::new_with_fold(py, hour, minute, second, microsecond, &tzi, fold)
+}
+
+#[pyfunction]
+fn get_time_tuple(py: Python, dt: &PyTime) -> Py<PyTuple> {
+    PyTuple::new(py, &[dt.get_hour(), dt.get_minute(), dt.get_second(),
+                       dt.get_microsecond()])
+}
+
+#[cfg(Py_3_6)]
+#[pyfunction]
+fn get_time_tuple_fold(py: Python, dt: &PyTime) -> Py<PyTuple> {
+    PyTuple::new(py, &[dt.get_hour(), dt.get_minute(), dt.get_second(),
+                       dt.get_microsecond(), dt.get_fold() as u32])
+}
+
 #[pyfunction]
 fn make_delta(py: Python, days: i32, seconds: i32, microseconds: i32) -> PyResult<Py<PyDelta>> {
     PyDelta::new(py, days, seconds, microseconds, true)
@@ -97,14 +119,6 @@ fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResu
 }
 
 
-#[cfg(Py_3_6)]
-#[pyfunction]
-fn time_with_fold(py: Python, hour: u32, minute: u32, second: u32,
-                  microsecond: u32, tzinfo: Option<&PyTzInfo>,
-                  fold: bool) -> PyResult<Py<PyTime>> {
-    let tzi = to_pyobject!(py, tzinfo);
-    PyTime::new_with_fold(py, hour, minute, second, microsecond, &tzi, fold)
-}
 
 
 
@@ -114,6 +128,7 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(get_date_tuple))?;
     m.add_function(wrap_function!(date_from_timestamp))?;
     m.add_function(wrap_function!(make_time))?;
+    m.add_function(wrap_function!(get_time_tuple))?;
     m.add_function(wrap_function!(make_delta))?;
     m.add_function(wrap_function!(get_delta_tuple))?;
     m.add_function(wrap_function!(make_datetime))?;
@@ -124,6 +139,7 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     #[cfg(Py_3_6)]
     {
         m.add_function(wrap_function!(time_with_fold));
+        m.add_function(wrap_function!(get_time_tuple_fold));
         m.add_function(wrap_function!(get_datetime_tuple_fold));
     }
 
