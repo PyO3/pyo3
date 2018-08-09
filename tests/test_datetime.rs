@@ -6,7 +6,6 @@ use pyo3::prelude::*;
 
 use pyo3::ffi::*;
 
-#[cfg(Py_3)]
 fn _get_subclasses<'p>(py: &'p Python, py_type: &str, args: &str) ->
     (&'p PyObjectRef, &'p PyObjectRef, &'p PyObjectRef) {
     macro_rules! unwrap_py {
@@ -47,7 +46,6 @@ fn _get_subclasses<'p>(py: &'p Python, py_type: &str, args: &str) ->
     (obj, sub_obj, sub_sub_obj)
 }
 
-#[cfg(Py_3)]
 macro_rules! assert_check_exact {
     ($check_func:ident, $obj: expr) => {
         unsafe {
@@ -57,7 +55,6 @@ macro_rules! assert_check_exact {
     }
 }
 
-#[cfg(Py_3)]
 macro_rules! assert_check_only {
     ($check_func:ident, $obj: expr) => {
         unsafe {
@@ -69,7 +66,6 @@ macro_rules! assert_check_only {
 
 
 #[test]
-#[cfg(Py_3)]
 fn test_date_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -83,7 +79,6 @@ fn test_date_check() {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_time_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -97,7 +92,6 @@ fn test_time_check() {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_datetime_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -112,7 +106,6 @@ fn test_datetime_check() {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_delta_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();

@@ -1,5 +1,6 @@
 import rustapi_module.datetime as rdt
 
+import sys
 import datetime as pdt
 
 import pytest
@@ -9,11 +10,36 @@ from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
 
 # Constants
-UTC = pdt.timezone.utc
-MAX_DAYS = pdt.timedelta.max // pdt.timedelta(days=1)
-MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
+def _get_utc():
+    timezone = getattr(pdt, 'timezone', None)
+    if timezone:
+        return timezone.utc
+    else:
+        class UTC(pdt.tzinfo):
+            def utcoffset(self, dt):
+                return pdt.timedelta(0)
+
+            def dst(self, dt):
+                return pdt.timedelta(0)
+
+            def tzname(self, dt):
+                return "UTC"
+
+        return UTC()
+
+UTC = _get_utc()
+
 MAX_SECONDS = int(pdt.timedelta.max.total_seconds())
 MIN_SECONDS = int(pdt.timedelta.min.total_seconds())
+
+try:
+    MAX_DAYS = pdt.timedelta.max // pdt.timedelta(days=1)
+    MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
+except Exception:
+    # Python 2 compatibility
+    MAX_DAYS = MAX_SECONDS // pdt.timedelta(days=1).total_seconds()
+    MIN_DAYS = MIN_SECONDS // pdt.timedelta(days=1).total_seconds()
+
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
@@ -21,16 +47,15 @@ HAS_FOLD = getattr(pdt.datetime, 'fold', False)
 
 
 # Helper functions
-def get_timestamp(dt):
-    return dt.timestamp()
+get_timestamp = getattr(pdt.datetime, 'timestamp', None)
+if get_timestamp is None:
+    def get_timestamp(dt):
+        # Python 2 compatibility
+        return (dt - pdt.datetime(1970, 1, 1)).total_seconds()
 
 
-
-
-
-
-
-
+xfail_date_bounds = pytest.mark.xfail(sys.version_info < (3, 6),
+    reason="Date bounds were not checked in the C constructor prior to version 3.6")
 
 # Tests
 def test_date():
@@ -45,6 +70,7 @@ def test_date_accessors(d):
     assert act == exp
 
 
+@xfail_date_bounds
 def test_invalid_date_fails():
     with pytest.raises(ValueError):
         rdt.make_date(2017, 2, 30)
@@ -109,6 +135,7 @@ def test_invalid_time_fails_xfail(args):
         rdt.make_time(*args)
 
 
+@xfail_date_bounds
 @pytest.mark.parametrize('args', [
     (24, 0, 0, 0),
     (25, 0, 0, 0),
@@ -167,6 +194,8 @@ def test_datetime_tuple_fold(dt):
 
         assert act == exp
 
+
+@xfail_date_bounds
 def test_invalid_datetime_fails():
     with pytest.raises(ValueError):
         rdt.make_datetime(2011, 1, 42, 0, 0, 0, 0)
