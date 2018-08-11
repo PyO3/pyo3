@@ -14,6 +14,7 @@ use pythonrun;
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct PyObject(*mut ffi::PyObject);
 
 // `PyObject` is thread-safe, any python related operations require a Python<'p> token.
@@ -136,9 +137,9 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    pub fn cast_as<D>(&self, py: Python) -> Result<&D, <D as PyTryFrom>::Error>
+    pub fn cast_as<D>(&self, py: Python) -> Result<&D, PyDowncastError>
     where
-        D: PyTryFrom<Error = PyDowncastError>,
+        D: PyTryFrom,
     {
         D::try_from(self.as_ref(py))
     }

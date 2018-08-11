@@ -16,7 +16,6 @@ use python::ToPyPointer;
 #[repr(transparent)]
 pub struct PySequence(PyObject);
 pyobject_native_type_named!(PySequence);
-pyobject_downcast!(PySequence, ffi::PySequence_Check);
 
 impl PySequence {
     /// Returns the number of objects in sequence. This is equivalent to Python `len()`.
@@ -279,9 +278,7 @@ where
 }
 
 impl PyTryFrom for PySequence {
-    type Error = PyDowncastError;
-
-    fn try_from(value: &PyObjectRef) -> Result<&PySequence, Self::Error> {
+    fn try_from(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 let ptr = value as *const _ as *mut u8 as *mut PySequence;
@@ -292,11 +289,11 @@ impl PyTryFrom for PySequence {
         }
     }
 
-    fn try_from_exact(value: &PyObjectRef) -> Result<&PySequence, Self::Error> {
+    fn try_from_exact(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
-    fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, Self::Error> {
+    fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 let ptr = value as *const _ as *mut u8 as *mut PySequence;
@@ -307,7 +304,7 @@ impl PyTryFrom for PySequence {
         }
     }
 
-    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut PySequence, Self::Error> {
+    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
         PySequence::try_from_mut(value)
     }
 }

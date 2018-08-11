@@ -136,14 +136,14 @@ fn impl_class(
             }
             impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    use pyo3::ObjectProtocol;
+                    use ::pyo3::ObjectProtocol;
                     let s = try!(self.repr().map_err(|_| std::fmt::Error));
                     f.write_str(&s.to_string_lossy())
                 }
             }
             impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-                    use pyo3::ObjectProtocol;
+                    use ::pyo3::ObjectProtocol;
                     let s = try!(self.str().map_err(|_| std::fmt::Error));
                     f.write_str(&s.to_string_lossy())
                 }

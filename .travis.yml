@@ -1,12 +1,8 @@
-sudo: required
-dist: trusty
 language: python
 
 cache:
   pip: true
-  directories:
-    - $HOME/.cargo
-    - $TRAVIS_BUILD_DIR/target
+  cargo: true
 
 matrix:
   include:

@@ -4,6 +4,7 @@ use std;
 use std::ffi::CString;
 
 use ffi;
+use libc::c_int;
 
 static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
@@ -42,7 +43,7 @@ pub enum PyMethodType {
 pub struct PyMethodDef {
     pub ml_name: &'static str,
     pub ml_meth: PyMethodType,
-    pub ml_flags: ::c_int,
+    pub ml_flags: c_int,
     pub ml_doc: &'static str,
 }
 

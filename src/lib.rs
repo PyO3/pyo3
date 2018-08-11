@@ -120,7 +120,9 @@
 //!
 //! [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
 
-extern crate libc;
+// We need those types in the macro exports
+#[doc(hidden)]
+pub extern crate libc;
 extern crate pyo3cls;
 extern crate spin;
 // We need that reexport for wrap_function
@@ -214,7 +216,3 @@ pub mod prelude;
 pub mod python;
 mod pythonrun;
 pub mod typeob;
-
-// re-export for simplicity
-#[doc(hidden)]
-pub use std::os::raw::*;

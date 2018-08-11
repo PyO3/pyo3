@@ -12,6 +12,7 @@ use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken, PyToken};
 use objects::PyType;
 use python::{IntoPyPointer, Python};
+use std::os::raw::c_void;
 use {class, ffi, pythonrun};
 
 /// Python type information.
@@ -65,10 +66,7 @@ pub const PY_TYPE_FLAG_BASETYPE: usize = 1 << 2;
 /// The instances of this type have a dictionary containing instance variables
 pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 
-impl<'a, T: ?Sized> PyTypeInfo for &'a T
-where
-    T: PyTypeInfo,
-{
+impl<'a, T: PyTypeInfo + ?Sized> PyTypeInfo for &'a T {
     type Type = T::Type;
     type BaseType = T::BaseType;
     const NAME: &'static str = T::NAME;
@@ -262,13 +260,13 @@ where
         }
 
         match (*T::type_object()).tp_free {
-            Some(free) => free(obj as *mut ::c_void),
+            Some(free) => free(obj as *mut c_void),
             None => {
                 let ty = ffi::Py_TYPE(obj);
                 if ffi::PyType_IS_GC(ty) != 0 {
-                    ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                    ffi::PyObject_GC_Del(obj as *mut c_void);
                 } else {
-                    ffi::PyObject_Free(obj as *mut ::c_void);
+                    ffi::PyObject_Free(obj as *mut c_void);
                 }
 
                 // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
@@ -285,13 +283,13 @@ where
         Self::drop(py, obj);
 
         match (*T::type_object()).tp_free {
-            Some(free) => free(obj as *mut ::c_void),
+            Some(free) => free(obj as *mut c_void),
             None => {
                 let ty = ffi::Py_TYPE(obj);
                 if ffi::PyType_IS_GC(ty) != 0 {
-                    ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                    ffi::PyObject_GC_Del(obj as *mut c_void);
                 } else {
-                    ffi::PyObject_Free(obj as *mut ::c_void);
+                    ffi::PyObject_Free(obj as *mut c_void);
                 }
 
                 // For heap types, PyType_GenericAlloc calls INCREF on the type objects,

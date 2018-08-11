@@ -6,6 +6,7 @@ use std;
 use err::PyResult;
 use ffi;
 use python::Python;
+use std::os::raw::c_void;
 use typeob::{PyObjectAlloc, PyTypeInfo};
 
 /// Implementing this trait for custom class adds free allocation list to class.
@@ -92,13 +93,13 @@ where
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
             match (*T::type_object()).tp_free {
-                Some(free) => free(obj as *mut ::c_void),
+                Some(free) => free(obj as *mut c_void),
                 None => {
                     let ty = ffi::Py_TYPE(obj);
                     if ffi::PyType_IS_GC(ty) != 0 {
-                        ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                        ffi::PyObject_GC_Del(obj as *mut c_void);
                     } else {
-                        ffi::PyObject_Free(obj as *mut ::c_void);
+                        ffi::PyObject_Free(obj as *mut c_void);
                     }
 
                     // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
@@ -117,13 +118,13 @@ where
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
             match (*T::type_object()).tp_free {
-                Some(free) => free(obj as *mut ::c_void),
+                Some(free) => free(obj as *mut c_void),
                 None => {
                     let ty = ffi::Py_TYPE(obj);
                     if ffi::PyType_IS_GC(ty) != 0 {
-                        ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                        ffi::PyObject_GC_Del(obj as *mut c_void);
                     } else {
-                        ffi::PyObject_Free(obj as *mut ::c_void);
+                        ffi::PyObject_Free(obj as *mut c_void);
                     }
 
                     // For heap types, PyType_GenericAlloc calls INCREF on the type objects,

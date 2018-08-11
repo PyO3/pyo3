@@ -93,7 +93,6 @@ macro_rules! pyobject_native_type(
     ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
-        pyobject_downcast!($name, $checkfunction $(,$type_param)*);
 
         impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
             fn from(ob: &'a $name) -> Self {
@@ -210,7 +209,6 @@ use python::ToPyPointer;
 pub struct PyObjectRef(::PyObject);
 pyobject_native_type_named!(PyObjectRef);
 pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject_Check);
-pyobject_downcast!(PyObjectRef, ffi::PyObject_Check);
 
 mod boolobject;
 mod bytearray;

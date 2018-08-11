@@ -200,8 +200,16 @@ fn get_rustc_link_lib(
 
 #[cfg(target_os = "macos")]
 fn get_macos_linkmodel() -> Result<String, String> {
-    let script = "import sysconfig;\
-    print('framework' if sysconfig.get_config_var('PYTHONFRAMEWORK') else ('shared' if sysconfig.get_config_var('Py_ENABLE_SHARED') else 'static'));";
+    let script = r#"
+import sysconfig
+
+if sysconfig.get_config_var("PYTHONFRAMEWORK"):
+    print("framework")
+elif sysconfig.get_config_var("Py_ENABLE_SHARED"):
+    print("shared")
+else:
+    print("static")
+"#;
     let out = run_python_script("python", script).unwrap();
     Ok(out.trim_right().to_owned())
 }
@@ -519,6 +527,10 @@ fn main() {
             ""
         }
     );
+
+    if env::var_os("TARGET") == Some("x86_64-apple-darwin".into()) {
+        // TODO: Find out how we can set -undefined dynamic_lookup here (if this is possible)
+    }
 
     let env_vars = ["LD_LIBRARY_PATH", "PATH", "PYTHON_SYS_EXECUTABLE"];
 

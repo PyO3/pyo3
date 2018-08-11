@@ -90,12 +90,12 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         Ok(format!("format({})", format_spec))
     }
 
-    fn __unicode__(&self) -> PyResult<PyObject> {
-        Ok(PyString::new(self.py(), "unicode").into())
-    }
-
     fn __bytes__(&self) -> PyResult<PyObject> {
         Ok(PyBytes::new(self.py(), b"bytes").into())
+    }
+
+    fn __unicode__(&self) -> PyResult<PyObject> {
+        Ok(PyString::new(self.py(), "unicode").into())
     }
 }
 

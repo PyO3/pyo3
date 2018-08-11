@@ -1,23 +1,86 @@
 # PyO3
 
-[Rust](http://www.rust-lang.org/) bindings for the [Python](https://www.python.org/) interpreter. This includes running and interacting with python code from a rust binaries as well as writing native python modules.
+[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
 
 ## Usage
 
-Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.27.0-nightly 2018-05-01.
+Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.29.0-nightly 2018-07-16.
 
-### From a rust binary
+You can either write a native python module in rust or use python from a rust binary.
 
-To use `pyo3`, add this to your `Cargo.toml`:
+### Using rust from python
+
+Pyo3 can be used to generate a native python module.
+
+**`Cargo.toml`:**
+
+```toml
+[package]
+name = "rust-py"
+version = "0.1.0"
+
+[lib]
+name = "rust_py"
+crate-type = ["cdylib"]
+
+[dependencies.pyo3]
+version = "0.3"
+features = ["extension-module"]
+```
+
+**`src/lib.rs`**
+
+```rust
+#![feature(use_extern_macros, specialization)]
+
+#[macro_use]
+extern crate pyo3;
+
+use pyo3::prelude::*;
+
+#[pyfunction]
+/// Formats the sum of two numbers as string
+fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
+    Ok((a + b).to_string())
+}
+
+/// This module is a python moudle implemented in Rust.
+#[pymodinit]
+fn rust_py(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_function!(sum_as_string))?;
+
+    Ok(())
+}
+```
+
+On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content: 
+
+```toml
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+```
+
+Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
+
+[`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/https://github.com/PyO3/pyo3/tree/master/examples/word-count) and the associated setup.py.
+
+### Using python from rust
+
+Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.2"
+pyo3 = "0.3"
 ```
 
 Example program displaying the value of `sys.version`:
 
 ```rust
+#![feature(use_extern_macros, specialization)]
+
 extern crate pyo3;
 
 use pyo3::prelude::*;
@@ -37,57 +100,10 @@ fn main() -> PyResult<()> {
 }
 ```
 
-### As native module
+## Examples and tooling
 
-Pyo3 can be used to write native python module. The example will generate a python-compatible library.
-
-For MacOS, "-C link-arg=-undefined -C link-arg=dynamic_lookup" is required to build the library.
-`setuptools-rust` includes this by default. See [examples/word-count](examples/word-count) and the associated setup.py. Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
-
-**`Cargo.toml`:**
-
-```toml
-[lib]
-name = "rust2py"
-crate-type = ["cdylib"]
-
-[dependencies.pyo3]
-version = "0.2"
-features = ["extension-module"]
-```
-
-**`src/lib.rs`**
-
-```rust
-#![feature(use_extern_macros, specialization)]
-
-extern crate pyo3;
-use pyo3::prelude::*;
-
-
-
-// Add bindings to the generated python module
-// N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-/// This module is implemented in Rust.
-#[pymodinit]
-fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
-
-    #[pyfn(m, "sum_as_string")]
-    // ``#[pyfn()]` converts the arguments from Python objects to Rust values
-    // and the Rust return value back into a Python object.
-    fn sum_as_string_py(a:i64, b:i64) -> PyResult<String> {
-       let out = sum_as_string(a, b);
-       Ok(out)
-    }
-
-    Ok(())
-}
-
-// The logic can be implemented as a normal rust function
-fn sum_as_string(a:i64, b:i64) -> String {
-    format!("{}", a + b).to_string()
-}
-
-```
-
-For `setup.py` integration, see [setuptools-rust](https://github.com/PyO3/setuptools-rust)
+ * [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count) _Counting the occurences of a word in a text file_
+ * [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json_
+ * [rust-numpy](https://github.com/rust-numpy/rust-numpy) _Rust binding of NumPy C-API_
+ * [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://pyo3.github.io/pyo3/pyo3/struct.PyDict.html)_
+ * [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library_
