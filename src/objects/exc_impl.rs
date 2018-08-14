@@ -21,8 +21,6 @@ macro_rules! dot_stringify {
 ///
 /// # Example
 /// ```
-/// #![feature(const_fn, const_ptr_null_mut)]
-///
 /// #[macro_use] extern crate pyo3;
 ///
 /// use pyo3::{Python, PyDict};
