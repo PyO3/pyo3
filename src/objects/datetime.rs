@@ -8,12 +8,9 @@ use ffi::{
 use ffi::{
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
 };
-use ffi::{
-    PyDateTime_DateTime_GET_DAY, PyDateTime_DateTime_GET_MONTH, PyDateTime_DateTime_GET_YEAR,
-};
 use ffi::{PyDateTime_DateType, PyDate_Check};
-use ffi::{PyDateTime_Date_GET_DAY, PyDateTime_Date_GET_MONTH, PyDateTime_Date_GET_YEAR};
 use ffi::{PyDateTime_DeltaType, PyDelta_Check};
+use ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
 use ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
@@ -78,15 +75,15 @@ impl PyDate {
 
 impl PyDateComponentAccess for PyDate {
     fn get_year(&self) -> u32 {
-        unsafe { PyDateTime_Date_GET_YEAR(self.as_ptr()) as u32 }
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as u32 }
     }
 
     fn get_month(&self) -> u32 {
-        unsafe { PyDateTime_Date_GET_MONTH(self.as_ptr()) as u32 }
+        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u32 }
     }
 
     fn get_day(&self) -> u32 {
-        unsafe { PyDateTime_Date_GET_DAY(self.as_ptr()) as u32 }
+        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u32 }
     }
 }
 
@@ -148,15 +145,15 @@ impl PyDateTime {
 
 impl PyDateComponentAccess for PyDateTime {
     fn get_year(&self) -> u32 {
-        unsafe { PyDateTime_DateTime_GET_YEAR(self.as_ptr()) as u32 }
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as u32 }
     }
 
     fn get_month(&self) -> u32 {
-        unsafe { PyDateTime_DateTime_GET_MONTH(self.as_ptr()) as u32 }
+        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u32 }
     }
 
     fn get_day(&self) -> u32 {
-        unsafe { PyDateTime_DateTime_GET_DAY(self.as_ptr()) as u32 }
+        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u32 }
     }
 }
 

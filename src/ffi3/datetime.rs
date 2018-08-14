@@ -227,85 +227,50 @@ macro_rules! _access_field {
     };
 }
 
-// Accessor functions for PyDateTime_Date
-// Note: These have nonsensical names
-#[macro_export]
-macro_rules! PyDateTime_GET_YEAR {
-    // This is a macro in the C API and it's difficult to get the same behavior
-    // without making it a macro in Rust as well, or playing with pointers
-    ($o: expr) => {
-        (((*$o).data[0] as c_int) << 8) | ((*$o).data[1] as c_int)
-    };
+// Accessor functions for PyDateTime_Date and PyDateTime_DateTime
+#[inline]
+pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
+    // This should work for Date or DateTime
+    let d = *(o as *mut PyDateTime_Date);
+    (c_int::from(d.data[0]) << 8 | c_int::from(d.data[1]))
 }
 
-#[inline(always)]
-pub unsafe fn PyDateTime_Date_GET_YEAR(o: *mut PyObject) -> c_int {
-    PyDateTime_GET_YEAR!(o as *mut PyDateTime_Date)
+#[inline]
+pub unsafe fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int {
+    let d = *(o as *mut PyDateTime_Date);
+    c_int::from(d.data[2])
 }
 
-#[inline(always)]
-pub unsafe fn PyDateTime_DateTime_GET_YEAR(o: *mut PyObject) -> c_int {
-    PyDateTime_GET_YEAR!(o as *mut PyDateTime_DateTime)
-}
-
-#[macro_export]
-macro_rules! PyDateTime_GET_MONTH {
-    ($o: expr) => {
-        (*$o).data[2] as c_int
-    };
-}
-
-#[inline(always)]
-pub unsafe fn PyDateTime_Date_GET_MONTH(o: *mut PyObject) -> c_int {
-    PyDateTime_GET_MONTH!(o as *mut PyDateTime_Date)
-}
-
-#[inline(always)]
-pub unsafe fn PyDateTime_DateTime_GET_MONTH(o: *mut PyObject) -> c_int {
-    PyDateTime_GET_MONTH!(o as *mut PyDateTime_DateTime)
-}
-
-#[macro_export]
-macro_rules! PyDateTime_GET_DAY {
-    ($o: expr) => {
-        (*$o).data[3] as c_int
-    };
-}
-
-#[inline(always)]
-pub unsafe fn PyDateTime_Date_GET_DAY(o: *mut PyObject) -> c_int {
-    PyDateTime_GET_DAY!(o as *mut PyDateTime_Date)
-}
-
-#[inline(always)]
-pub unsafe fn PyDateTime_DateTime_GET_DAY(o: *mut PyObject) -> c_int {
-    PyDateTime_GET_DAY!(o as *mut PyDateTime_DateTime)
+#[inline]
+pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
+    let d = *(o as *mut PyDateTime_Date);
+    c_int::from(d.data[3])
 }
 
 // Accessor macros for times
 macro_rules! _PyDateTime_GET_HOUR {
     ($o: expr, $offset:expr) => {
-        (*$o).data[$offset + 0] as c_int
+        c_int::from((*$o).data[$offset + 0])
     };
 }
 
 macro_rules! _PyDateTime_GET_MINUTE {
     ($o: expr, $offset:expr) => {
-        (*$o).data[$offset + 1] as c_int
+        c_int::from((*$o).data[$offset + 1])
     };
 }
 
 macro_rules! _PyDateTime_GET_SECOND {
     ($o: expr, $offset:expr) => {
-        (*$o).data[$offset + 2] as c_int
+        c_int::from((*$o).data[$offset + 2])
     };
 }
 
 macro_rules! _PyDateTime_GET_MICROSECOND {
     ($o: expr, $offset:expr) => {
-        (((*$o).data[$offset + 3] as c_int) << 16)
-            | (((*$o).data[$offset + 4] as c_int) << 8)
-            | ((*$o).data[$offset + 5] as c_int)
+        (c_int::from((*$o).data[$offset + 3]) << 16)
+            | (c_int::from((*$o).data[$offset + 4]) << 8)
+            | (c_int::from((*$o).data[$offset + 5]))
     };
 }
 
