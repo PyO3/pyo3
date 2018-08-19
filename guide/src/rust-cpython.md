@@ -25,7 +25,7 @@ py_class!(class MyClass |py| {
 **pyo3**
 
 ```rust
-#![feature(use_extern_macros, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 

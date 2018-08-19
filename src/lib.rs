@@ -1,4 +1,4 @@
-#![feature(specialization, use_extern_macros)]
+#![feature(specialization)]
 
 //! Rust bindings to the Python interpreter.
 //!
@@ -29,7 +29,7 @@
 //! # Example
 //!
 //! ```rust
-//! #![feature(use_extern_macros, specialization)]
+//! #![feature(specialization)]
 //!
 //! extern crate pyo3;
 //!
@@ -68,7 +68,7 @@
 //! # Example
 //!
 //! ```rust
-//! #![feature(use_extern_macros, specialization)]
+//! #![feature(specialization)]
 //!
 //! extern crate pyo3;
 //! use pyo3::prelude::*;

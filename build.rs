@@ -10,9 +10,9 @@ use std::process::Stdio;
 use version_check::{is_min_date, is_min_version, supports_features};
 
 // Specifies the minimum nightly version needed to compile pyo3.
-// This requirement is due to https://github.com/rust-lang/rust/pull/52081
-const MIN_DATE: &'static str = "2018-07-16";
-const MIN_VERSION: &'static str = "1.29.0-nightly";
+// This requirements is due to the stabilization of use_extern_macros
+const MIN_DATE: &'static str = "2018-08-18";
+const MIN_VERSION: &'static str = "1.30.0-nightly";
 
 #[derive(Debug)]
 struct PythonVersion {

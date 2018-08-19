@@ -31,7 +31,7 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
-#![feature(use_extern_macros, specialization)]
+#![feature(specialization)]
 
 #[macro_use]
 extern crate pyo3;
@@ -79,7 +79,7 @@ pyo3 = "0.3"
 Example program displaying the value of `sys.version`:
 
 ```rust
-#![feature(use_extern_macros, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 

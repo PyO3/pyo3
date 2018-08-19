@@ -1,6 +1,6 @@
 // Source adopted from
 // https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-#![feature(use_extern_macros, specialization)]
+#![feature(specialization)]
 
 #[macro_use]
 extern crate pyo3;
