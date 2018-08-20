@@ -2,7 +2,10 @@
 use conversion::{IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject};
 use ffi;
 use object::PyObject;
+use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
+use FromPyObject;
+use PyResult;
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
@@ -68,9 +71,11 @@ impl IntoPyObject for bool {
 /// Converts a Python `bool` to a rust `bool`.
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
-pyobject_extract!(obj to bool => {
-    Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
-});
+impl<'source> FromPyObject<'source> for bool {
+    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+        Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -86,7 +91,7 @@ mod test {
         assert!(PyBool::new(py, true).is_true());
         let t: &PyObjectRef = PyBool::new(py, true).into();
         assert_eq!(true, t.extract().unwrap());
-        assert!(true.to_object(py) == PyBool::new(py, true).into());
+        assert_eq!(true.to_object(py), PyBool::new(py, true).into());
     }
 
     #[test]
@@ -96,6 +101,6 @@ mod test {
         assert!(!PyBool::new(py, false).is_true());
         let t: &PyObjectRef = PyBool::new(py, false).into();
         assert_eq!(false, t.extract().unwrap());
-        assert!(false.to_object(py) == PyBool::new(py, false).into());
+        assert_eq!(false.to_object(py), PyBool::new(py, false).into());
     }
 }

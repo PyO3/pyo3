@@ -2,11 +2,9 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::os::raw::{c_long, c_uchar};
-
 extern crate num_traits;
-use self::num_traits::cast::cast;
 
+use self::num_traits::cast::cast;
 use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 use conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use err::{PyErr, PyResult};
@@ -15,6 +13,8 @@ use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::{exc, PyObjectRef};
 use python::{Python, ToPyPointer};
+use std::os::raw::{c_long, c_uchar};
+
 /// Represents a Python `int` object.
 ///
 /// You can usually avoid directly working with this type
@@ -26,7 +26,7 @@ pub struct PyLong(PyObject);
 
 pyobject_native_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 
-macro_rules! int_fits_c_long(
+macro_rules! int_fits_c_long (
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
 
@@ -44,23 +44,26 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-        pyobject_extract!(obj to $rust_type => {
-            let ptr = obj.as_ptr();
-            let val = unsafe {
-                let num = ffi::PyNumber_Index(ptr);
-                if num.is_null() {
-                    Err(PyErr::fetch(obj.py()))
-                } else {
-                    let val = err_if_invalid_value(obj.py(), -1, ffi::PyLong_AsLong(num));
-                    ffi::Py_DECREF(num);
-                    val
+
+        impl<'source> FromPyObject<'source> for $rust_type {
+            fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+                let ptr = obj.as_ptr();
+                let val = unsafe {
+                    let num = ffi::PyNumber_Index(ptr);
+                    if num.is_null() {
+                        Err(PyErr::fetch(obj.py()))
+                    } else {
+                        let val = err_if_invalid_value(obj.py(), -1, ffi::PyLong_AsLong(num));
+                        ffi::Py_DECREF(num);
+                        val
+                    }
+                }?;
+                match cast::<c_long, $rust_type>(val) {
+                    Some(v) => Ok(v),
+                    None => Err(exc::OverflowError.into())
                 }
-            }?;
-            match cast::<c_long, $rust_type>(val) {
-                Some(v) => Ok(v),
-                None => Err(exc::OverflowError.into())
             }
-        });
+        }
     )
 );
 

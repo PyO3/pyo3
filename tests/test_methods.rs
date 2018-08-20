@@ -31,7 +31,7 @@ fn instance_method() {
             member: 42,
             token: t,
         }).unwrap();
-    assert!(obj.method().unwrap() == 42);
+    assert_eq!(obj.method().unwrap(), 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
     py.run("assert obj.method() == 42", None, Some(d)).unwrap();

@@ -175,33 +175,6 @@ macro_rules! pyobject_native_type_convert(
     };
 );
 
-/// Implements [FromPyObject] and (currently deactivated until it's stabillized) a
-/// [TryFrom](std::convert::TryFrom) implementation, given a function body that performs the actual
-/// conversion
-#[macro_export]
-macro_rules! pyobject_extract(
-    ($obj:ident to $t:ty => $body: block) => {
-        impl<'source> $crate::FromPyObject<'source> for $t
-        {
-            fn extract($obj: &'source $crate::PyObjectRef) -> $crate::PyResult<Self>
-            {
-                $body
-            }
-        }
-
-        #[cfg(feature = "try_from")]
-        impl<'source> ::std::convert::TryFrom<&'source $crate::PyObjectRef> for $t
-        {
-            type Error = $crate::PyErr;
-
-            fn try_from($obj: &$crate::PyObjectRef) -> Result<Self, $crate::PyErr>
-            {
-                $body
-            }
-        }
-    }
-);
-
 use ffi;
 use python::ToPyPointer;
 /// Represents general python instance.

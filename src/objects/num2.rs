@@ -77,16 +77,19 @@ macro_rules! int_fits_c_long(
                 }
             }
         }
-        pyobject_extract!(obj to $rust_type => {
-            let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
-            if val == -1 && PyErr::occurred(obj.py()) {
-                return Err(PyErr::fetch(obj.py()));
+
+        impl<'source> FromPyObject<'source> for $rust_type {
+            fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+                let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
+                if val == -1 && PyErr::occurred(obj.py()) {
+                    return Err(PyErr::fetch(obj.py()));
+                }
+                match cast::<c_long, $rust_type>(val) {
+                    Some(v) => Ok(v),
+                    None => Err(exc::OverflowError.into())
+                }
             }
-            match cast::<c_long, $rust_type>(val) {
-                Some(v) => Ok(v),
-                None => Err(exc::OverflowError.into())
-            }
-        });
+        }
     )
 );
 

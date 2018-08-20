@@ -2,15 +2,17 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::os::raw::c_double;
-
 use conversion::{IntoPyObject, ToPyObject};
 use err::PyErr;
 use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
+use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
+use std::os::raw::c_double;
+use FromPyObject;
+use PyResult;
 
 /// Represents a Python `float` object.
 ///
@@ -40,38 +42,44 @@ impl ToPyObject for f64 {
         PyFloat::new(py, *self).into()
     }
 }
+
 impl IntoPyObject for f64 {
     fn into_object(self, py: Python) -> PyObject {
         PyFloat::new(py, self).into()
     }
 }
 
-pyobject_extract!(obj to f64 => {
-    let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
+impl<'source> FromPyObject<'source> for f64 {
+    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+        let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
-    {
-        if v == -1.0 && PyErr::occurred(obj.py()) {
-            Err(PyErr::fetch(obj.py()))
-        } else {
-            Ok(v)
+        {
+            if v == -1.0 && PyErr::occurred(obj.py()) {
+                Err(PyErr::fetch(obj.py()))
+            } else {
+                Ok(v)
+            }
         }
     }
-});
+}
 
 impl ToPyObject for f32 {
     fn to_object(&self, py: Python) -> PyObject {
         PyFloat::new(py, *self as f64).into()
     }
 }
+
 impl IntoPyObject for f32 {
     fn into_object(self, py: Python) -> PyObject {
         PyFloat::new(py, self as f64).into()
     }
 }
 
-pyobject_extract!(obj to f32 => {
-    Ok(obj.extract::<f64>()? as f32)
-});
+impl<'source> FromPyObject<'source> for f32 {
+    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+        Ok(obj.extract::<f64>()? as f32)
+    }
+}
 
 #[cfg(test)]
 mod test {

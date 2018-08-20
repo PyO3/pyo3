@@ -1,12 +1,11 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
-use std::borrow::Cow;
-
 use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use err::PyResult;
 use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::{PyObjectRef, PyString};
 use python::Python;
+use std::borrow::Cow;
+use FromPyObject;
 
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.
@@ -16,6 +15,7 @@ impl ToPyObject for str {
         PyString::new(py, self).into()
     }
 }
+
 impl<'a> IntoPyObject for &'a str {
     #[inline]
     fn into_object(self, py: Python) -> PyObject {
@@ -40,12 +40,14 @@ impl ToPyObject for String {
         PyString::new(py, self).into()
     }
 }
+
 impl IntoPyObject for String {
     #[inline]
     fn into_object(self, py: Python) -> PyObject {
         PyString::new(py, &self).into()
     }
 }
+
 impl<'a> IntoPyObject for &'a String {
     #[inline]
     fn into_object(self, py: Python) -> PyObject {
@@ -78,6 +80,10 @@ impl<'a> ::FromPyObject<'a> for &'a str {
 
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
-pyobject_extract!(obj to String => {
-    <PyString as PyTryFrom>::try_from(obj)?.to_string().map(Cow::into_owned)
-});
+impl<'source> FromPyObject<'source> for String {
+    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+        <PyString as PyTryFrom>::try_from(obj)?
+            .to_string()
+            .map(Cow::into_owned)
+    }
+}
