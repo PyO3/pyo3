@@ -106,3 +106,87 @@ fn test_delta_check() {
     assert_check_only!(PyDelta_Check, sub_obj);
     assert_check_only!(PyDelta_Check, sub_sub_obj);
 }
+
+#[cfg(Py_3_6)]
+#[test]
+fn test_pydate_out_of_bounds() {
+    // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let vals = [
+        (2147484672u32, 1, 1),
+        (2018, 2147484672u32, 1),
+        (2018, 1, 2147484672u32),
+    ];
+
+    for val in vals.into_iter() {
+        let (year, month, day) = val;
+        let dt = PyDate::new(py, *year, *month, *day);
+        let msg = format!("Should have raised an error: {:#?}", val);
+        match dt {
+            Ok(_) => assert!(false, msg),
+            Err(_) => assert!(true),
+        }
+    }
+}
+
+#[cfg(Py_3_6)]
+#[test]
+fn test_pytime_out_of_bounds() {
+    // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let vals = [
+        (2147484672u32, 0, 0, 0),
+        (0, 2147484672u32, 0, 0),
+        (0, 0, 2147484672u32, 0),
+        (0, 0, 0, 2147484672u32),
+    ];
+
+    for val in vals.into_iter() {
+        let (hour, minute, second, microsecond) = val;
+        let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
+        let msg = format!("Should have raised an error: {:#?}", val);
+        match dt {
+            Ok(_) => assert!(false, msg),
+            Err(_) => assert!(true),
+        }
+    }
+}
+
+#[cfg(Py_3_6)]
+#[test]
+fn test_pydatetime_out_of_bounds() {
+    // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let vals = [
+        (2147484672u32, 1, 1, 0, 0, 0, 0),
+        (2018, 2147484672u32, 1, 0, 0, 0, 0),
+        (2018, 1, 2147484672u32, 0, 0, 0, 0),
+        (2018, 1, 1, 2147484672u32, 0, 0, 0),
+        (2018, 1, 1, 0, 2147484672u32, 0, 0),
+        (2018, 1, 1, 0, 0, 2147484672u32, 0),
+        (2018, 1, 1, 0, 0, 0, 2147484672u32),
+    ];
+
+    for val in vals.into_iter() {
+        let (year, month, day, hour, minute, second, microsecond) = val;
+        let dt = PyDateTime::new(
+            py,
+            *year,
+            *month,
+            *day,
+            *hour,
+            *minute,
+            *second,
+            *microsecond,
+            None,
+        );
+        let msg = format!("Should have raised an error: {:#?}", val);
+        match dt {
+            Ok(_) => assert!(false, msg),
+            Err(_) => assert!(true),
+        }
+    }
+}
