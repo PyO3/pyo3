@@ -2,8 +2,11 @@ use ffi2::object::*;
 use ffi2::pycapsule::PyCapsule_Import;
 use ffi2::pyport::Py_hash_t;
 use std::ffi::CString;
+use std::ops::Deref;
 use std::option::Option;
 use std::os::raw::{c_char, c_int, c_uchar};
+use std::ptr;
+use std::sync::Once;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -114,19 +117,63 @@ pub struct PyDateTime_Delta {
 }
 
 // C API Capsule
-unsafe impl Sync for PyDateTime_CAPI {}
+// Note: This is "roll-your-own" lazy-static implementation is necessary because
+// of the interaction between the call_once locks and the GIL. It turns out that
+// calling PyCapsule_Import releases and re-acquires the GIL during the import,
+// so if you have two threads attempting to use the PyDateTimeAPI singleton
+// under the GIL, it causes a deadlock; what happens is:
+//
+// Thread 1 acquires GIL
+// Thread 1 acquires the call_once lock
+// Thread 1 calls PyCapsule_Import, thus releasing the GIL
+// Thread 2 acquires the GIL
+// Thread 2 blocks waiting for the call_once lock
+// Thread 1 blocks waiting for the GIL
+//
+// However, Python's import mechanism acquires a module-specific lock around
+// each import call, so all call importing datetime will return the same
+// object, making the call_once lock superfluous. As such, we can weaken
+// the guarantees of the cache, such that PyDateTime_IMPORT can be called
+// until __PY_DATETIME_API_UNSAFE_CACHE is populated, which will happen exactly
+// one time. So long as PyDateTime_IMPORT has no side effects (it should not),
+// this will be at most a slight waste of resources.
+static __PY_DATETIME_API_ONCE: Once = Once::new();
+static mut __PY_DATETIME_API_UNSAFE_CACHE: *const PyDateTime_CAPI = ptr::null();
 
-lazy_static! {
-    pub static ref PyDateTimeAPI: PyDateTime_CAPI = unsafe { PyDateTime_IMPORT() };
+pub struct PyDateTimeAPI {
+    __private_field: (),
+}
+pub static PyDateTimeAPI: PyDateTimeAPI = PyDateTimeAPI {
+    __private_field: (),
+};
+
+impl Deref for PyDateTimeAPI {
+    type Target = PyDateTime_CAPI;
+
+    fn deref(&self) -> &'static PyDateTime_CAPI {
+        unsafe {
+            let cache_val = if !__PY_DATETIME_API_UNSAFE_CACHE.is_null() {
+                return &(*__PY_DATETIME_API_UNSAFE_CACHE);
+            } else {
+                PyDateTime_IMPORT()
+            };
+
+            __PY_DATETIME_API_ONCE.call_once(move || {
+                __PY_DATETIME_API_UNSAFE_CACHE = cache_val;
+            });
+
+            &(*__PY_DATETIME_API_UNSAFE_CACHE)
+        }
+    }
 }
 
 #[inline(always)]
-pub unsafe fn PyDateTime_IMPORT() -> PyDateTime_CAPI {
+pub unsafe fn PyDateTime_IMPORT() -> *const PyDateTime_CAPI {
     // PyDateTime_CAPSULE_NAME is a macro in C
     let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
 
-    let capsule = PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 0);
-    *(capsule as *const PyDateTime_CAPI)
+    let capsule = PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1);
+    capsule as *const PyDateTime_CAPI
 }
 
 //
