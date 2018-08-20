@@ -20,11 +20,30 @@ use typeob::{PyObjectAlloc, PyTypeInfo, PyTypeObject};
 /// The 'Python' struct is a zero-size marker struct that is required for most Python operations.
 /// This is used to indicate that the operation accesses/modifies the Python interpreter state,
 /// and thus can only be called if the Python interpreter is initialized and the
-/// Python global interpreter lock (GIL) is acquired.
-/// The lifetime `'p` represents the lifetime of the Python interpreter.
+/// Python global interpreter lock (GIL) is acquired. The lifetime `'p` represents the lifetime of
+/// the Python interpreter.
 ///
-/// You can imagine the GIL to be a giant `Mutex<PythonInterpreterState>`.
-/// The type `Python<'p>` then acts like a reference `&'p PythonInterpreterState`.
+/// Note that the GIL can be temporarily released by the python interpreter during a function call
+/// (e.g. importing a module), even when you're holding a GILGuard. In general, you don't need to
+/// worry about this becauseas the GIL is reaquired before returning to the rust code:
+///
+/// ```text
+/// GILGuard          |=====================================|
+/// GIL actually held |==========|         |================|
+/// Rust code running |=======|                |==|  |======|
+/// ```
+///
+/// This behaviour can cause deadlocks when trying to lock while holding a GILGuard:
+///
+///  * Thread 1 acquires the GIL
+///  * Thread 1 locks a mutex
+///  * Thread 1 makes a call into the python interpreter, which releases the GIL
+///  * Thread 2 acquires the GIL
+///  * Thraed 2 tries to locks the mutex, blocks
+///  * Thread 1's python interpreter call blocks trying to reacquire the GIL held by thread 2
+///
+/// To avoid deadlocking, you should release the GIL before trying to lock a mutex, e.g. with
+/// [Python::allow_threads].
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
