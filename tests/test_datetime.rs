@@ -107,6 +107,29 @@ fn test_delta_check() {
     assert_check_only!(PyDelta_Check, sub_sub_obj);
 }
 
+#[test]
+#[cfg(Py_3)]
+fn test_datetime_utc() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
+    let timezone = datetime.get("timezone").unwrap();
+    let utc = timezone.getattr("utc").unwrap().to_object(py);
+
+    let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+
+    let locals = PyDict::new(py);
+    locals.set_item("dt", dt).unwrap();
+
+    let offset: f32 = py
+        .eval("dt.utcoffset().total_seconds()", None, Some(locals))
+        .unwrap()
+        .extract()
+        .unwrap();
+    assert_eq!(offset, 0f32);
+}
+
 #[cfg(Py_3_6)]
 #[test]
 fn test_pydate_out_of_bounds() {

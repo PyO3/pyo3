@@ -102,7 +102,7 @@ impl PyDateTime {
         minute: u32,
         second: u32,
         microsecond: u32,
-        tzinfo: &PyObject,
+        tzinfo: Option<&PyObject>,
     ) -> PyResult<Py<PyDateTime>> {
         unsafe {
             let ptr = PyDateTimeAPI.DateTime_FromDateAndTime.unwrap()(
@@ -113,7 +113,10 @@ impl PyDateTime {
                 minute as c_int,
                 second as c_int,
                 microsecond as c_int,
-                tzinfo.as_ptr(),
+                match tzinfo {
+                    Some(o) => o.as_ptr(),
+                    None => py.None().as_ptr(),
+                },
                 PyDateTimeAPI.DateTimeType,
             );
             Py::from_owned_ptr_or_err(py, ptr)
@@ -184,7 +187,7 @@ impl PyTime {
         minute: u32,
         second: u32,
         microsecond: u32,
-        tzinfo: &PyObject,
+        tzinfo: Option<&PyObject>,
     ) -> PyResult<Py<PyTime>> {
         unsafe {
             let ptr = PyDateTimeAPI.Time_FromTime.unwrap()(
@@ -192,7 +195,10 @@ impl PyTime {
                 minute as c_int,
                 second as c_int,
                 microsecond as c_int,
-                tzinfo.as_ptr(),
+                match tzinfo {
+                    Some(o) => o.as_ptr(),
+                    None => py.None().as_ptr(),
+                },
                 PyDateTimeAPI.TimeType,
             );
             Py::from_owned_ptr_or_err(py, ptr)
@@ -206,7 +212,7 @@ impl PyTime {
         minute: u32,
         second: u32,
         microsecond: u32,
-        tzinfo: &PyObject,
+        tzinfo: Option<&PyObject>,
         fold: bool,
     ) -> PyResult<Py<PyTime>> {
         unsafe {
@@ -215,7 +221,10 @@ impl PyTime {
                 minute as c_int,
                 second as c_int,
                 microsecond as c_int,
-                tzinfo.as_ptr(),
+                match tzinfo {
+                    Some(o) => o.as_ptr(),
+                    None => py.None().as_ptr(),
+                },
                 fold as c_int,
                 PyDateTimeAPI.TimeType,
             );

@@ -13,15 +13,6 @@ use pyo3::prelude::{PyDict, PyTuple};
 use pyo3::{ObjectProtocol, ToPyObject};
 use pyo3::{Py, PyResult, Python};
 
-macro_rules! to_pyobject {
-    ($py:expr, $o:ident) => {
-        match $o {
-            Some(t) => t.to_object($py),
-            None => $py.None(),
-        }
-    };
-}
-
 #[pyfunction]
 fn make_date(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
     PyDate::new(py, year, month, day)
@@ -48,8 +39,14 @@ fn make_time(
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<Py<PyTime>> {
-    let tzi: PyObject = to_pyobject!(py, tzinfo);
-    PyTime::new(py, hour, minute, second, microsecond, &tzi)
+    PyTime::new(
+        py,
+        hour,
+        minute,
+        second,
+        microsecond,
+        tzinfo.map(|o| o.to_object(py)).as_ref(),
+    )
 }
 
 #[cfg(Py_3_6)]
@@ -63,8 +60,15 @@ fn time_with_fold(
     tzinfo: Option<&PyTzInfo>,
     fold: bool,
 ) -> PyResult<Py<PyTime>> {
-    let tzi = to_pyobject!(py, tzinfo);
-    PyTime::new_with_fold(py, hour, minute, second, microsecond, &tzi, fold)
+    PyTime::new_with_fold(
+        py,
+        hour,
+        minute,
+        second,
+        microsecond,
+        tzinfo.map(|o| o.to_object(py)).as_ref(),
+        fold,
+    )
 }
 
 #[pyfunction]
@@ -124,10 +128,6 @@ fn make_datetime(
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<Py<PyDateTime>> {
-    let tzi: PyObject = match tzinfo {
-        Some(t) => t.to_object(py),
-        None => py.None(),
-    };
     PyDateTime::new(
         py,
         year,
@@ -137,7 +137,7 @@ fn make_datetime(
         minute,
         second,
         microsecond,
-        &tzi,
+        tzinfo.map(|o| (o.to_object(py))).as_ref(),
     )
 }
 
