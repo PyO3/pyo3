@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.4.0"
+version = "0.4.1"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -19,10 +19,10 @@ appveyor = { repository = "fafhrd91/pyo3" }
 codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 
 [dependencies]
-libc = "0.2.42"
+libc = "0.2.43"
 spin = "0.4.9"
 num-traits = "0.2.5"
-pyo3cls = { path = "pyo3cls", version = "0.4.0" }
+pyo3cls = { path = "pyo3cls", version = "=0.4.1" }
 mashup = "0.1.5"
 
 [dev-dependencies]

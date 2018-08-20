@@ -34,7 +34,7 @@ as first parameter, the function name as second and an instance of `Python`
 as third.
 
 ```rust
-#![feature(specialization, use_extern_macros)]
+#![feature(specialization)]
 
 #[macro_use]
 extern crate pyo3;

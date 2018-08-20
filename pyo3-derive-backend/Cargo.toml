@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-derive-backend"
-version = "0.4.0"
+version = "0.4.1"
 description = "Code generation for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
@@ -11,13 +11,10 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
 [dependencies]
-log= "0.4.3"
-quote= "0.6.4"
-
-[dependencies.proc-macro2]
-version = "0.4.9"
-features = ["nightly"]
+log = "0.4.4"
+quote = "0.6.6"
+proc-macro2 = "0.4.13"
 
 [dependencies.syn]
-version= "0.14.5"
-features=["full", "parsing", "printing", "extra-traits"]
+version = "0.14.8"
+features = ["full", "extra-traits"]
