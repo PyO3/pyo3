@@ -27,19 +27,19 @@ use instance::Py;
 use python::{Python, ToPyPointer};
 
 // Traits
-pub trait PyDateComponentAccess {
+pub trait PyDateAccess {
     fn get_year(&self) -> u32;
     fn get_month(&self) -> u32;
     fn get_day(&self) -> u32;
 }
 
-pub trait PyDeltaComponentAccess {
+pub trait PyDeltaAccess {
     fn get_days(&self) -> i32;
     fn get_seconds(&self) -> i32;
     fn get_microseconds(&self) -> i32;
 }
 
-pub trait PyTimeComponentAccess {
+pub trait PyTimeAccess {
     fn get_hour(&self) -> u32;
     fn get_minute(&self) -> u32;
     fn get_second(&self) -> u32;
@@ -73,7 +73,7 @@ impl PyDate {
     }
 }
 
-impl PyDateComponentAccess for PyDate {
+impl PyDateAccess for PyDate {
     fn get_year(&self) -> u32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as u32 }
     }
@@ -138,7 +138,7 @@ impl PyDateTime {
     }
 }
 
-impl PyDateComponentAccess for PyDateTime {
+impl PyDateAccess for PyDateTime {
     fn get_year(&self) -> u32 {
         unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as u32 }
     }
@@ -152,7 +152,7 @@ impl PyDateComponentAccess for PyDateTime {
     }
 }
 
-impl PyTimeComponentAccess for PyDateTime {
+impl PyTimeAccess for PyDateTime {
     fn get_hour(&self) -> u32 {
         unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u32 }
     }
@@ -232,7 +232,7 @@ impl PyTime {
     }
 }
 
-impl PyTimeComponentAccess for PyTime {
+impl PyTimeAccess for PyTime {
     fn get_hour(&self) -> u32 {
         unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u32 }
     }
@@ -284,7 +284,7 @@ impl PyDelta {
     }
 }
 
-impl PyDeltaComponentAccess for PyDelta {
+impl PyDeltaAccess for PyDelta {
     fn get_days(&self) -> i32 {
         unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) as i32 }
     }

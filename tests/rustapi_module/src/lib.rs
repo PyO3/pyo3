@@ -3,12 +3,12 @@
 #[macro_use]
 extern crate pyo3;
 
-use pyo3::prelude::PyDeltaComponentAccess;
+use pyo3::prelude::PyDeltaAccess;
 use pyo3::prelude::PyModule;
 use pyo3::prelude::PyObject;
 use pyo3::prelude::{pyfunction, pymodinit};
 use pyo3::prelude::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo};
-use pyo3::prelude::{PyDateComponentAccess, PyTimeComponentAccess};
+use pyo3::prelude::{PyDateAccess, PyTimeAccess};
 use pyo3::prelude::{PyDict, PyTuple};
 use pyo3::{ObjectProtocol, ToPyObject};
 use pyo3::{Py, PyResult, Python};
