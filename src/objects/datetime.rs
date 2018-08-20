@@ -54,12 +54,13 @@ pyobject_native_type!(PyDate, PyDateTime_DateType, PyDate_Check);
 
 impl PyDate {
     pub fn new(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
-        let y = year as c_int;
-        let m = month as c_int;
-        let d = day as c_int;
-
         unsafe {
-            let ptr = PyDateTimeAPI.Date_FromDate.unwrap()(y, m, d, PyDateTimeAPI.DateType);
+            let ptr = PyDateTimeAPI.Date_FromDate.unwrap()(
+                year as c_int,
+                month as c_int,
+                day as c_int,
+                PyDateTimeAPI.DateType,
+            );
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
@@ -103,23 +104,15 @@ impl PyDateTime {
         microsecond: u32,
         tzinfo: &PyObject,
     ) -> PyResult<Py<PyDateTime>> {
-        let y = year as c_int;
-        let mo = month as c_int;
-        let d = day as c_int;
-        let h = hour as c_int;
-        let mi = minute as c_int;
-        let s = second as c_int;
-        let u = microsecond as c_int;
-
         unsafe {
             let ptr = PyDateTimeAPI.DateTime_FromDateAndTime.unwrap()(
-                y,
-                mo,
-                d,
-                h,
-                mi,
-                s,
-                u,
+                year as c_int,
+                month as c_int,
+                day as c_int,
+                hour as c_int,
+                minute as c_int,
+                second as c_int,
+                microsecond as c_int,
                 tzinfo.as_ptr(),
                 PyDateTimeAPI.DateTimeType,
             );
@@ -193,14 +186,15 @@ impl PyTime {
         microsecond: u32,
         tzinfo: &PyObject,
     ) -> PyResult<Py<PyTime>> {
-        let h = hour as c_int;
-        let m = minute as c_int;
-        let s = second as c_int;
-        let u = microsecond as c_int;
-        let tzi = tzinfo.as_ptr();
-
         unsafe {
-            let ptr = PyDateTimeAPI.Time_FromTime.unwrap()(h, m, s, u, tzi, PyDateTimeAPI.TimeType);
+            let ptr = PyDateTimeAPI.Time_FromTime.unwrap()(
+                hour as c_int,
+                minute as c_int,
+                second as c_int,
+                microsecond as c_int,
+                tzinfo.as_ptr(),
+                PyDateTimeAPI.TimeType,
+            );
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
@@ -215,20 +209,14 @@ impl PyTime {
         tzinfo: &PyObject,
         fold: bool,
     ) -> PyResult<Py<PyTime>> {
-        let h = hour as c_int;
-        let m = minute as c_int;
-        let s = second as c_int;
-        let u = microsecond as c_int;
-
-        let f = fold as c_int;
         unsafe {
             let ptr = PyDateTimeAPI.Time_FromTimeAndFold.unwrap()(
-                h,
-                m,
-                s,
-                u,
+                hour as c_int,
+                minute as c_int,
+                second as c_int,
+                microsecond as c_int,
                 tzinfo.as_ptr(),
-                f,
+                fold as c_int,
                 PyDateTimeAPI.TimeType,
             );
             Py::from_owned_ptr_or_err(py, ptr)
@@ -275,13 +263,14 @@ impl PyDelta {
         microseconds: i32,
         normalize: bool,
     ) -> PyResult<Py<PyDelta>> {
-        let d = days as c_int;
-        let s = seconds as c_int;
-        let u = microseconds as c_int;
-        let n = normalize as c_int;
-
         unsafe {
-            let ptr = PyDateTimeAPI.Delta_FromDelta.unwrap()(d, s, u, n, PyDateTimeAPI.DeltaType);
+            let ptr = PyDateTimeAPI.Delta_FromDelta.unwrap()(
+                days as c_int,
+                seconds as c_int,
+                microseconds as c_int,
+                normalize as c_int,
+                PyDateTimeAPI.DeltaType,
+            );
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
