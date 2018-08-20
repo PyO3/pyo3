@@ -3,7 +3,6 @@ use ffi2::pycapsule::PyCapsule_Import;
 use ffi2::pyport::Py_hash_t;
 use std::ffi::CString;
 use std::ops::Deref;
-use std::option::Option;
 use std::os::raw::{c_char, c_int, c_uchar};
 use std::ptr;
 use std::sync::Once;
@@ -27,48 +26,40 @@ pub struct PyDateTime_CAPI {
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
 
-    pub Date_FromDate: Option<
+    pub Date_FromDate:
         unsafe extern "C" fn(year: c_int, month: c_int, day: c_int, cls: *mut PyTypeObject)
             -> *mut PyObject,
-    >,
-    pub DateTime_FromDateAndTime: Option<
-        unsafe extern "C" fn(
-            year: c_int,
-            month: c_int,
-            day: c_int,
-            hour: c_int,
-            minute: c_int,
-            second: c_int,
-            microsecond: c_int,
-            tzinfo: *mut PyObject,
-            cls: *mut PyTypeObject,
-        ) -> *mut PyObject,
-    >,
-    pub Time_FromTime: Option<
-        unsafe extern "C" fn(
-            hour: c_int,
-            minute: c_int,
-            second: c_int,
-            microsecond: c_int,
-            tzinfo: *mut PyObject,
-            cls: *mut PyTypeObject,
-        ) -> *mut PyObject,
-    >,
-    pub Delta_FromDelta: Option<
-        unsafe extern "C" fn(
-            days: c_int,
-            seconds: c_int,
-            microseconds: c_int,
-            normalize: c_int,
-            cls: *mut PyTypeObject,
-        ) -> *mut PyObject,
-    >,
-    pub DateTime_FromTimestamp: Option<
+    pub DateTime_FromDateAndTime: unsafe extern "C" fn(
+        year: c_int,
+        month: c_int,
+        day: c_int,
+        hour: c_int,
+        minute: c_int,
+        second: c_int,
+        microsecond: c_int,
+        tzinfo: *mut PyObject,
+        cls: *mut PyTypeObject,
+    ) -> *mut PyObject,
+    pub Time_FromTime: unsafe extern "C" fn(
+        hour: c_int,
+        minute: c_int,
+        second: c_int,
+        microsecond: c_int,
+        tzinfo: *mut PyObject,
+        cls: *mut PyTypeObject,
+    ) -> *mut PyObject,
+    pub Delta_FromDelta: unsafe extern "C" fn(
+        days: c_int,
+        seconds: c_int,
+        microseconds: c_int,
+        normalize: c_int,
+        cls: *mut PyTypeObject,
+    ) -> *mut PyObject,
+    pub DateTime_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject, kwargs: *mut PyObject)
             -> *mut PyObject,
-    >,
     pub Date_FromTimestamp:
-        Option<unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject>,
+        unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
 }
 
 // Type struct wrappers

@@ -55,7 +55,7 @@ pyobject_native_type!(PyDate, PyDateTime_DateType, PyDate_Check);
 impl PyDate {
     pub fn new(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
         unsafe {
-            let ptr = PyDateTimeAPI.Date_FromDate.unwrap()(
+            let ptr = (PyDateTimeAPI.Date_FromDate)(
                 year as c_int,
                 month as c_int,
                 day as c_int,
@@ -67,8 +67,7 @@ impl PyDate {
 
     pub fn from_timestamp(py: Python, args: &PyObject) -> PyResult<Py<PyDate>> {
         unsafe {
-            let ptr =
-                PyDateTimeAPI.Date_FromTimestamp.unwrap()(PyDateTimeAPI.DateType, args.as_ptr());
+            let ptr = (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, args.as_ptr());
             Py::from_owned_ptr_or_err(py, ptr)
         }
     }
@@ -105,7 +104,7 @@ impl PyDateTime {
         tzinfo: Option<&PyObject>,
     ) -> PyResult<Py<PyDateTime>> {
         unsafe {
-            let ptr = PyDateTimeAPI.DateTime_FromDateAndTime.unwrap()(
+            let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
                 year as c_int,
                 month as c_int,
                 day as c_int,
@@ -129,7 +128,7 @@ impl PyDateTime {
         kwargs: &PyObject,
     ) -> PyResult<Py<PyDateTime>> {
         unsafe {
-            let ptr = PyDateTimeAPI.DateTime_FromTimestamp.unwrap()(
+            let ptr = (PyDateTimeAPI.DateTime_FromTimestamp)(
                 PyDateTimeAPI.DateTimeType,
                 args.as_ptr(),
                 kwargs.as_ptr(),
@@ -190,7 +189,7 @@ impl PyTime {
         tzinfo: Option<&PyObject>,
     ) -> PyResult<Py<PyTime>> {
         unsafe {
-            let ptr = PyDateTimeAPI.Time_FromTime.unwrap()(
+            let ptr = (PyDateTimeAPI.Time_FromTime)(
                 hour as c_int,
                 minute as c_int,
                 second as c_int,
@@ -216,7 +215,7 @@ impl PyTime {
         fold: bool,
     ) -> PyResult<Py<PyTime>> {
         unsafe {
-            let ptr = PyDateTimeAPI.Time_FromTimeAndFold.unwrap()(
+            let ptr = (PyDateTimeAPI.Time_FromTimeAndFold)(
                 hour as c_int,
                 minute as c_int,
                 second as c_int,
@@ -273,7 +272,7 @@ impl PyDelta {
         normalize: bool,
     ) -> PyResult<Py<PyDelta>> {
         unsafe {
-            let ptr = PyDateTimeAPI.Delta_FromDelta.unwrap()(
+            let ptr = (PyDateTimeAPI.Delta_FromDelta)(
                 days as c_int,
                 seconds as c_int,
                 microseconds as c_int,
