@@ -14,13 +14,16 @@ use pyo3::{ObjectProtocol, ToPyObject};
 use pyo3::{Py, PyResult, Python};
 
 #[pyfunction]
-fn make_date(py: Python, year: i32, month: i32, day: i32) -> PyResult<Py<PyDate>> {
+fn make_date(py: Python, year: i32, month: u8, day: u8) -> PyResult<Py<PyDate>> {
     PyDate::new(py, year, month, day)
 }
 
 #[pyfunction]
 fn get_date_tuple(py: Python, d: &PyDate) -> Py<PyTuple> {
-    PyTuple::new(py, &[d.get_year(), d.get_month(), d.get_day()])
+    PyTuple::new(
+        py,
+        &[d.get_year(), d.get_month() as i32, d.get_day() as i32],
+    )
 }
 
 #[pyfunction]
@@ -33,10 +36,10 @@ fn date_from_timestamp(py: Python, ts: i64) -> PyResult<Py<PyDate>> {
 #[pyfunction]
 fn make_time(
     py: Python,
-    hour: i32,
-    minute: i32,
-    second: i32,
-    microsecond: i32,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<Py<PyTime>> {
     PyTime::new(
@@ -53,10 +56,10 @@ fn make_time(
 #[pyfunction]
 fn time_with_fold(
     py: Python,
-    hour: i32,
-    minute: i32,
-    second: i32,
-    microsecond: i32,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
     fold: bool,
 ) -> PyResult<Py<PyTime>> {
@@ -76,9 +79,9 @@ fn get_time_tuple(py: Python, dt: &PyTime) -> Py<PyTuple> {
     PyTuple::new(
         py,
         &[
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
+            dt.get_hour() as u32,
+            dt.get_minute() as u32,
+            dt.get_second() as u32,
             dt.get_microsecond(),
         ],
     )
@@ -90,11 +93,11 @@ fn get_time_tuple_fold(py: Python, dt: &PyTime) -> Py<PyTuple> {
     PyTuple::new(
         py,
         &[
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
+            dt.get_hour() as u32,
+            dt.get_minute() as u32,
+            dt.get_second() as u32,
             dt.get_microsecond(),
-            dt.get_fold() as i32,
+            dt.get_fold() as u32,
         ],
     )
 }
@@ -120,12 +123,12 @@ fn get_delta_tuple(py: Python, delta: &PyDelta) -> Py<PyTuple> {
 fn make_datetime(
     py: Python,
     year: i32,
-    month: i32,
-    day: i32,
-    hour: i32,
-    minute: i32,
-    second: i32,
-    microsecond: i32,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
 ) -> PyResult<Py<PyDateTime>> {
     PyDateTime::new(
@@ -147,12 +150,12 @@ fn get_datetime_tuple(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
         py,
         &[
             dt.get_year(),
-            dt.get_month(),
-            dt.get_day(),
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
-            dt.get_microsecond(),
+            dt.get_month() as i32,
+            dt.get_day() as i32,
+            dt.get_hour() as i32,
+            dt.get_minute() as i32,
+            dt.get_second() as i32,
+            dt.get_microsecond() as i32,
         ],
     )
 }
@@ -164,12 +167,12 @@ fn get_datetime_tuple_fold(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
         py,
         &[
             dt.get_year(),
-            dt.get_month(),
-            dt.get_day(),
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
-            dt.get_microsecond(),
+            dt.get_month() as i32,
+            dt.get_day() as i32,
+            dt.get_hour() as i32,
+            dt.get_minute() as i32,
+            dt.get_second() as i32,
+            dt.get_microsecond() as i32,
             dt.get_fold() as i32,
         ],
     )
