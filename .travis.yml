@@ -44,12 +44,13 @@ script:
   - ./ci/travis/test.sh
 
 deploy:
-  - provider: script
-    skip_cleanup: true
-    script: ./ci/travis/cover.sh
-    on:
-      branch: master
-      condition: $TRAVIS_EVENT_TYPE != "cron"
+# FIXME: kcov seems to be broken
+#  - provider: script
+#    skip_cleanup: true
+#    script: ./ci/travis/cover.sh
+#    on:
+#      branch: master
+#      condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     skip_cleanup: true
     script: ./ci/travis/guide.sh
