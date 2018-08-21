@@ -9,12 +9,12 @@ extern "C" {
     pub static mut PyListRevIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LIST_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyList_Type) as c_int
 }

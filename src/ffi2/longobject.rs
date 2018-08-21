@@ -12,12 +12,12 @@ extern "C" {
     pub static mut PyLong_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyLong_Type;
     (Py_TYPE(op) == u) as c_int

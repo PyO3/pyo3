@@ -7,12 +7,12 @@ extern "C" {
     pub static mut PyFile_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyFile_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyFile_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyFile_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyFile_Type) as c_int
 }

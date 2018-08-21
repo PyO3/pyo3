@@ -23,12 +23,12 @@ extern "C" {
     pub static mut PyGen_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyGen_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyGen_Type) as c_int
 }
@@ -44,7 +44,7 @@ extern "C" {
     pub static mut PyCoro_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCoro_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCoro_Type)
 }
@@ -54,7 +54,7 @@ extern "C" {
     pub static mut _PyCoroWrapper_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCoroWrapper_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyCoroWrapper_Type)
 }
@@ -66,13 +66,13 @@ extern "C" {
 }
 
 #[cfg(Py_3_6)]
-#[inline(always)]
+#[inline]
 pub unsafe fn PyAsyncGen_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyAsyncGen_Type)
 }
 
 #[cfg(not(Py_3_6))]
-#[inline(always)]
+#[inline]
 pub unsafe fn PyAsyncGen_Check(_op: *mut PyObject) -> c_int {
     0
 }

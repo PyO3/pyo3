@@ -20,19 +20,19 @@ extern "C" {
     pub static mut PyTuple_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyTuple_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
 // Macro, trading safety for speed
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     *(*(op as *mut PyTupleObject))
         .ob_item
@@ -40,13 +40,13 @@ pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObjec
         .offset(i as isize)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     Py_SIZE(op)
 }
 
 /// Macro, *only* to be used to fill in brand new tuples
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject) {
     *(*(op as *mut PyTupleObject))
         .ob_item

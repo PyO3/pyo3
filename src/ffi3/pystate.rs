@@ -58,7 +58,7 @@ extern "C" {
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }

@@ -6,12 +6,12 @@ extern "C" {
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyComplex_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyComplex_Type) as c_int
 }

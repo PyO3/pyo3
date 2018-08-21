@@ -10,17 +10,17 @@ extern "C" {
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyBool_Type) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
     &mut _Py_FalseStruct as *mut PyLongObject as *mut PyObject
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
     &mut _Py_TrueStruct as *mut PyLongObject as *mut PyObject
 }

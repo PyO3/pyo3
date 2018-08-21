@@ -7,7 +7,7 @@ extern "C" {
     static mut _Py_EllipsisObject: PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
     &mut _Py_EllipsisObject
 }
@@ -32,7 +32,7 @@ extern "C" {
     pub static mut PyEllipsis_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PySlice_Type) as c_int
 }

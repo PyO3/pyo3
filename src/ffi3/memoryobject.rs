@@ -7,7 +7,7 @@ extern "C" {
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyMemoryView_Type) as c_int
 }

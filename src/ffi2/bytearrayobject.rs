@@ -42,7 +42,7 @@ extern "C" {
     pub fn PyByteArray_Resize(bytearray: *mut PyObject, len: Py_ssize_t) -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyByteArray_AS_STRING(o: *mut PyObject) -> *mut c_char {
     PyByteArray_AsString(o)
     // #define PyByteArray_AS_STRING(self) \
@@ -50,7 +50,7 @@ pub unsafe fn PyByteArray_AS_STRING(o: *mut PyObject) -> *mut c_char {
     //    Py_SIZE(self) ? ((PyByteArrayObject *)(self))->ob_bytes : _PyByteArray_empty_string)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyByteArray_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
     // #define PyByteArray_GET_SIZE(self)  (assert(PyByteArray_Check(self)),Py_SIZE(self))
     PyByteArray_Size(o)

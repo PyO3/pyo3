@@ -205,7 +205,7 @@ impl IntoPyPointer for PyRawObject {
 }
 
 impl PyObjectWithToken for PyRawObject {
-    #[inline(always)]
+    #[inline]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }

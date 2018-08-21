@@ -90,7 +90,7 @@ macro_rules! py_exception {
         }
 
         impl $crate::typeob::PyTypeObject for $name {
-            #[inline(always)]
+            #[inline]
             fn init_type() {
                 let _ = $name::type_object();
             }

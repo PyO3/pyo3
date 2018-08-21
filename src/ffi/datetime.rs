@@ -185,7 +185,7 @@ impl Deref for PyDateTimeAPI {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
     // PyDateTime_CAPSULE_NAME is a macro in C
     let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
@@ -202,52 +202,52 @@ pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
 //
 // Type Check macros
 //
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDate_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DateType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDate_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == PyDateTimeAPI.DateType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DateTimeType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == PyDateTimeAPI.DateTimeType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTime_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.TimeType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTime_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == PyDateTimeAPI.TimeType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DeltaType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDelta_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == PyDateTimeAPI.DeltaType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTZInfo_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.TZInfoType) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == PyDateTimeAPI.TZInfoType) as c_int
 }
@@ -322,65 +322,65 @@ macro_rules! _PyDateTime_GET_TZINFO {
 }
 
 // Accessor functions for DateTime
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_HOUR!((o as *mut PyDateTime_DateTime), _PyDateTime_DATE_DATASIZE)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MINUTE!((o as *mut PyDateTime_DateTime), _PyDateTime_DATE_DATASIZE)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_SECOND!((o as *mut PyDateTime_DateTime), _PyDateTime_DATE_DATASIZE)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_DateTime), _PyDateTime_DATE_DATASIZE)
 }
 
 #[cfg(Py_3_6)]
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_uchar {
     _PyDateTime_GET_FOLD!(o as *mut PyDateTime_DateTime)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
     _PyDateTime_GET_TZINFO!(o as *mut PyDateTime_DateTime)
 }
 
 // Accessor functions for Time
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_HOUR!((o as *mut PyDateTime_Time), 0)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MINUTE!((o as *mut PyDateTime_Time), 0)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_SECOND!((o as *mut PyDateTime_Time), 0)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_Time), 0)
 }
 
 #[cfg(Py_3_6)]
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_uchar {
     _PyDateTime_GET_FOLD!(o as *mut PyDateTime_Time)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
     _PyDateTime_GET_TZINFO!(o as *mut PyDateTime_Time)
 }
@@ -392,17 +392,17 @@ macro_rules! _access_delta_field {
     };
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int {
     _access_delta_field!(o, days)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int {
     _access_delta_field!(o, seconds)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
     _access_delta_field!(o, microseconds)
 }

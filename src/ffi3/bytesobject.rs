@@ -8,12 +8,12 @@ extern "C" {
     pub static mut PyBytesIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyBytes_Type) as c_int
 }

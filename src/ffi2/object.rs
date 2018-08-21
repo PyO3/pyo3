@@ -37,17 +37,17 @@ pub struct PyVarObject {
     pub ob_size: Py_ssize_t,
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     (*ob).ob_refcnt
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_TYPE(ob: *mut PyObject) -> *mut PyTypeObject {
     (*ob).ob_type
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
     (*(ob as *mut PyVarObject)).ob_size
 }
@@ -564,7 +564,7 @@ extern "C" {
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
@@ -576,12 +576,12 @@ extern "C" {
     pub static mut PySuper_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == (&mut PyType_Type as *mut _)) as c_int
 }
@@ -611,7 +611,7 @@ extern "C" {
     pub fn PyObject_Str(o: *mut PyObject) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyObject_Bytes(o: *mut PyObject) -> *mut PyObject {
     PyObject_Str(o)
 }
@@ -755,18 +755,18 @@ pub const Py_TPFLAGS_DEFAULT: c_long = (Py_TPFLAGS_HAVE_GETCHARBUFFER
     | Py_TPFLAGS_HAVE_INDEX
     | 0);
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_long) -> c_int {
     (((*t).tp_flags & f) != 0) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_long) -> c_int {
     PyType_HasFeature(t, f)
 }
 
 // Reference counting macros.
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
     if cfg!(py_sys_config = "Py_REF_DEBUG") {
         Py_IncRef(op)
@@ -775,7 +775,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
     if cfg!(py_sys_config = "Py_REF_DEBUG") || cfg!(py_sys_config = "COUNT_ALLOCS") {
         Py_DecRef(op)
@@ -787,7 +787,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
     let tmp = *op;
     if !tmp.is_null() {
@@ -796,14 +796,14 @@ pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_XINCREF(op: *mut PyObject) {
     if !op.is_null() {
         Py_INCREF(op)
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     if !op.is_null() {
         Py_DECREF(op)
@@ -819,12 +819,12 @@ extern "C" {
     static mut _Py_NotImplementedStruct: PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
     &mut _Py_NoneStruct
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     &mut _Py_NotImplementedStruct
 }
@@ -855,7 +855,7 @@ extern "C" {
 
 pub const PyTrash_UNWIND_LEVEL: c_int = 50;
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_TRASHCAN<F: FnOnce() -> ()>(op: *mut PyObject, body: F) {
     let tstate = ffi2::pystate::PyThreadState_GET();
     if tstate.is_null() || (*tstate).trash_delete_nesting < PyTrash_UNWIND_LEVEL {

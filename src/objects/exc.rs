@@ -38,7 +38,7 @@ macro_rules! exc_type(
             }
         }
         impl PyTypeObject for $name {
-            #[inline(always)]
+            #[inline]
             fn init_type() {}
 
             #[inline]

@@ -8,12 +8,12 @@ extern "C" {
     pub static mut PyModule_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyModule_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyModule_Type) as c_int
 }

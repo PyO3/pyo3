@@ -8,7 +8,7 @@ extern "C" {
     pub static mut PyLongRangeIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyRange_Type) as c_int
 }

@@ -56,19 +56,19 @@ extern "C" {
     pub static mut PyMethod_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyClass_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyClass_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyInstance_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyInstance_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyMethod_Type;
     (Py_TYPE(op) == u) as c_int
@@ -100,17 +100,17 @@ extern "C" {
     pub fn PyMethod_ClearFreeList() -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_GET_FUNCTION(meth: *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_func
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_GET_SELF(meth: *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_self
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_GET_CLASS(meth: *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_class
 }

@@ -86,7 +86,7 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDescr_IsData(d: *mut PyObject) -> c_int {
     (*Py_TYPE(d)).tp_descr_set.is_some() as c_int
 }
