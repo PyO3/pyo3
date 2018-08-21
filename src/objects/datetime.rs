@@ -1,4 +1,5 @@
 use err::PyResult;
+use ffi;
 use ffi::PyDateTimeAPI;
 use ffi::{PyDateTime_Check, PyDateTime_DateTimeType};
 use ffi::{
@@ -112,10 +113,7 @@ impl PyDateTime {
                 minute as c_int,
                 second as c_int,
                 microsecond as c_int,
-                match tzinfo {
-                    Some(o) => o.as_ptr(),
-                    None => py.None().as_ptr(),
-                },
+                opt_to_pyobj(py, tzinfo),
                 PyDateTimeAPI.DateTimeType,
             );
             Py::from_owned_ptr_or_err(py, ptr)
@@ -194,10 +192,7 @@ impl PyTime {
                 minute as c_int,
                 second as c_int,
                 microsecond as c_int,
-                match tzinfo {
-                    Some(o) => o.as_ptr(),
-                    None => py.None().as_ptr(),
-                },
+                opt_to_pyobj(py, tzinfo),
                 PyDateTimeAPI.TimeType,
             );
             Py::from_owned_ptr_or_err(py, ptr)
@@ -220,10 +215,7 @@ impl PyTime {
                 minute as c_int,
                 second as c_int,
                 microsecond as c_int,
-                match tzinfo {
-                    Some(o) => o.as_ptr(),
-                    None => py.None().as_ptr(),
-                },
+                opt_to_pyobj(py, tzinfo),
                 fold as c_int,
                 PyDateTimeAPI.TimeType,
             );
@@ -295,5 +287,14 @@ impl PyDeltaAccess for PyDelta {
 
     fn get_microseconds(&self) -> i32 {
         unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) as i32 }
+    }
+}
+
+// Utility function
+unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
+    // Convenience function for unpacking Options to either an Object or None
+    match opt {
+        Some(tzi) => tzi.as_ptr(),
+        None => py.None().as_ptr(),
     }
 }
