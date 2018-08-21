@@ -6,7 +6,7 @@ use std::os::raw::{c_char, c_double, c_int, c_long, c_uint, c_void};
 use std::ptr;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyObject {
     #[cfg(py_sys_config = "Py_TRACE_REFS")]
     pub _ob_next: *mut PyObject,
