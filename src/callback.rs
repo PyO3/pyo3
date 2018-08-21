@@ -14,7 +14,7 @@ use python::{IntoPyPointer, Python};
 pub trait CallbackConverter<S> {
     type R;
 
-    fn convert(S, Python) -> Self::R;
+    fn convert(s: S, p: Python) -> Self::R;
     fn error_value() -> Self::R;
 }
 
@@ -61,7 +61,7 @@ impl CallbackConverter<usize> for LenResultConverter {
         if val <= (isize::MAX as usize) {
             val as isize
         } else {
-            OverflowError::new(()).restore(py);
+            OverflowError::py_err(()).restore(py);
             -1
         }
     }
@@ -138,7 +138,6 @@ where
 }
 
 #[inline]
-
 pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
 where
     C: CallbackConverter<T>,

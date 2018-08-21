@@ -2,16 +2,17 @@
 
 //! Python type object information
 
+use class::methods::PyMethodDefType;
+use err::{PyErr, PyResult};
+use instance::{Py, PyObjectWithToken, PyToken};
+use objects::PyObjectRef;
+use objects::PyType;
+use python::ToPyPointer;
+use python::{IntoPyPointer, Python};
 use std;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
-
-use class::methods::PyMethodDefType;
-use err::{PyErr, PyResult};
-use instance::{Py, PyObjectWithToken, PyToken};
-use objects::PyType;
-use python::{IntoPyPointer, Python};
 use std::os::raw::c_void;
 use {class, ffi, pythonrun};
 
@@ -42,15 +43,13 @@ pub trait PyTypeInfo {
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
-
-    fn is_instance(ptr: *mut ffi::PyObject) -> bool {
-        unsafe { ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0 }
+    fn is_instance(object: &PyObjectRef) -> bool {
+        unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object()) != 0 }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
-
-    fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
-        unsafe { (*ptr).ob_type == Self::type_object() }
+    fn is_exact_instance(object: &PyObjectRef) -> bool {
+        unsafe { (*object.as_ptr()).ob_type == Self::type_object() }
     }
 }
 
@@ -81,12 +80,12 @@ impl<'a, T: PyTypeInfo + ?Sized> PyTypeInfo for &'a T {
     }
 
     #[inline]
-    default fn is_instance(ptr: *mut ffi::PyObject) -> bool {
+    default fn is_instance(ptr: &PyObjectRef) -> bool {
         <T as PyTypeInfo>::is_instance(ptr)
     }
 
     #[inline]
-    default fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
+    default fn is_exact_instance(ptr: &PyObjectRef) -> bool {
         <T as PyTypeInfo>::is_exact_instance(ptr)
     }
 }
@@ -185,10 +184,10 @@ impl PyRawObject {
     pub fn type_object(&self) -> &PyType {
         unsafe { PyType::from_type_ptr(self.py(), self.curr_ptr) }
     }
+}
 
-    /// Return reference to object.
-
-    pub fn as_ref<T: PyTypeInfo>(&self) -> &T {
+impl<T: PyTypeInfo> AsRef<T> for PyRawObject {
+    fn as_ref(&self) -> &T {
         // TODO: check is object initialized
         unsafe {
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
@@ -342,10 +341,9 @@ where
                 let gil = Python::acquire_gil();
                 let py = gil.python();
 
-                initialize_type::<T>(py, None).expect(&format!(
-                    "An error occurred while initializing class {}",
-                    T::NAME
-                ));
+                initialize_type::<T>(py, None).unwrap_or_else(|_| {
+                    panic!("An error occurred while initializing class {}", T::NAME)
+                });
             }
         }
     }

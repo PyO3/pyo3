@@ -1,8 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[macro_use]
-mod exc_impl;
-
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::dict::PyDict;
@@ -10,31 +7,32 @@ pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::module::PyModule;
-pub use self::sequence::PySequence;
-pub use self::set::{PyFrozenSet, PySet};
-pub use self::slice::{PySlice, PySliceIndices};
-pub use self::stringdata::PyStringData;
-pub use self::tuple::PyTuple;
-pub use self::typeobject::PyType;
-
-#[cfg(Py_3)]
-pub use self::string::{PyBytes, PyString, PyUnicode};
-
 #[cfg(not(Py_3))]
-pub use self::string2::{PyBytes, PyString, PyUnicode};
-
+pub use self::num2::{PyInt, PyLong};
 #[cfg(Py_3)]
 pub use self::num3::PyLong;
 #[cfg(Py_3)]
 pub use self::num3::PyLong as PyInt;
-
+pub use self::sequence::PySequence;
+pub use self::set::{PyFrozenSet, PySet};
+pub use self::slice::{PySlice, PySliceIndices};
+#[cfg(Py_3)]
+pub use self::string::{PyBytes, PyString, PyUnicode};
 #[cfg(not(Py_3))]
-pub use self::num2::{PyInt, PyLong};
+pub use self::string2::{PyBytes, PyString, PyUnicode};
+pub use self::stringdata::PyStringData;
+pub use self::tuple::PyTuple;
+pub use self::typeobject::PyType;
+use ffi;
+use python::ToPyPointer;
+
+#[macro_use]
+mod exc_impl;
 
 /// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
 /// parameter
 #[macro_export]
-macro_rules! pyobject_downcast(
+macro_rules! pyobject_downcast (
     ($name: ty, $checkfunction: path $(,$type_param: ident)*) => (
         impl<'a, $($type_param,)*> $crate::FromPyObject<'a> for &'a $name
         {
@@ -54,7 +52,7 @@ macro_rules! pyobject_downcast(
 );
 
 #[macro_export]
-macro_rules! pyobject_native_type_named(
+macro_rules! pyobject_native_type_named (
     ($name: ty $(,$type_param: ident)*) => {
         impl<$($type_param,)*> $crate::PyNativeType for $name {}
 
@@ -89,7 +87,7 @@ macro_rules! pyobject_native_type_named(
 );
 
 #[macro_export]
-macro_rules! pyobject_native_type(
+macro_rules! pyobject_native_type (
     ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
@@ -118,10 +116,9 @@ macro_rules! pyobject_native_type_convert(
                 &mut $typeobject
             }
 
-
-            fn is_instance(ptr: *mut $crate::ffi::PyObject) -> bool {
+            fn is_instance(ptr: &$crate::objects::PyObjectRef) -> bool {
                 #[allow(unused_unsafe)]
-                unsafe { $checkfunction(ptr) > 0 }
+                unsafe { $checkfunction(ptr.as_ptr()) > 0 }
             }
         }
 
@@ -175,8 +172,6 @@ macro_rules! pyobject_native_type_convert(
     };
 );
 
-use ffi;
-use python::ToPyPointer;
 /// Represents general python instance.
 #[repr(transparent)]
 pub struct PyObjectRef(::PyObject);

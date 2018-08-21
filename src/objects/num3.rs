@@ -13,6 +13,7 @@ use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::{exc, PyObjectRef};
 use python::{Python, ToPyPointer};
+use std::i64;
 use std::os::raw::{c_long, c_uchar};
 
 /// Represents a Python `int` object.
@@ -29,7 +30,7 @@ pyobject_native_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 macro_rules! int_fits_c_long (
     ($rust_type:ty) => (
         impl ToPyObject for $rust_type {
-
+            #![cfg_attr(feature="cargo-clippy", allow(cast_lossless))]
             fn to_object(&self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(*self as c_long))
@@ -37,7 +38,7 @@ macro_rules! int_fits_c_long (
             }
         }
         impl IntoPyObject for $rust_type {
-
+            #![cfg_attr(feature="cargo-clippy", allow(cast_lossless))]
             fn into_object(self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(self as c_long))

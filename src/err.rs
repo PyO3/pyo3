@@ -17,10 +17,11 @@ use typeob::PyTypeObject;
 /// Defines a new exception type.
 ///
 /// # Syntax
-/// `py_exception!(module, MyError)`
+/// `py_exception!(module, MyError, pyo3::exc::Exception)`
 ///
 /// * `module` is the name of the containing module.
 /// * `MyError` is the name of the new exception type.
+/// * `pyo3::exc::Exception` is the name of the base type
 ///
 /// # Example
 /// ```
@@ -29,7 +30,7 @@ use typeob::PyTypeObject;
 ///
 /// use pyo3::{Python, PyDict};
 ///
-/// py_exception!(mymodule, CustomError);
+/// py_exception!(mymodule, CustomError, pyo3::exc::Exception);
 ///
 /// fn main() {
 ///     let gil = Python::acquire_gil();
@@ -48,7 +49,7 @@ macro_rules! py_exception {
     ($module: ident, $name: ident, $base: ty) => {
         pub struct $name;
 
-        impl ::std::convert::From<$name> for $crate::PyErr {
+        impl std::convert::From<$name> for $crate::PyErr {
             fn from(_err: $name) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, _>(())
             }
@@ -61,7 +62,7 @@ macro_rules! py_exception {
         }
 
         impl $name {
-            pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr {
+            pub fn py_err<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr {
                 $crate::PyErr::new::<$name, T>(args)
             }
             pub fn into<R, T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyResult<R> {
@@ -90,7 +91,7 @@ macro_rules! py_exception {
         }
 
         impl $crate::typeob::PyTypeObject for $name {
-            #[inline(always)]
+            #[inline]
             fn init_type() {
                 let _ = $name::type_object();
             }
@@ -104,9 +105,6 @@ macro_rules! py_exception {
                 }
             }
         }
-    };
-    ($module: ident, $name: ident) => {
-        py_exception!($module, $name, $crate::exc::Exception);
     };
 }
 

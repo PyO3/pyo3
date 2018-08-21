@@ -82,7 +82,8 @@ impl PyTuple {
         // (We don't even need a Python token, thanks to immutability)
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
-            std::mem::transmute(slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len()))
+            let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
+            &*(slice as *const [*mut ffi::PyObject] as *const [PyObject])
         }
     }
 
@@ -155,7 +156,7 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
         expected_length,
         t.len()
     );
-    exc::ValueError::new(msg)
+    exc::ValueError::py_err(msg)
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {

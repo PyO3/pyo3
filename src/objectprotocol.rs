@@ -172,7 +172,7 @@ pub trait ObjectProtocol {
 
     /// Gets the Python base object for this object.
 
-    fn get_mut_base(&self) -> &mut <Self as PyTypeInfo>::BaseType
+    fn get_mut_base(&mut self) -> &mut <Self as PyTypeInfo>::BaseType
     where
         Self: PyTypeInfo;
 
@@ -271,7 +271,7 @@ where
             } else if result < 0 {
                 return Err(PyErr::fetch(py));
             }
-            Err(::exc::TypeError::new(
+            Err(::exc::TypeError::py_err(
                 "ObjectProtocol::compare(): All comparisons returned false",
             ))
         }
@@ -493,7 +493,7 @@ where
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 
-    fn get_mut_base(&self) -> &mut <Self as PyTypeInfo>::BaseType
+    fn get_mut_base(&mut self) -> &mut <Self as PyTypeInfo>::BaseType
     where
         Self: PyTypeInfo,
     {

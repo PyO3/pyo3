@@ -252,7 +252,7 @@ where
 {
     fn try_from(value: &PyObjectRef) -> Result<&T, PyDowncastError> {
         unsafe {
-            if T::is_instance(value.as_ptr()) {
+            if T::is_instance(value) {
                 let ptr = if T::OFFSET == 0 {
                     value as *const _ as *mut u8 as *mut T
                 } else {
@@ -267,7 +267,7 @@ where
 
     fn try_from_exact(value: &PyObjectRef) -> Result<&T, PyDowncastError> {
         unsafe {
-            if T::is_exact_instance(value.as_ptr()) {
+            if T::is_exact_instance(value) {
                 let ptr = if T::OFFSET == 0 {
                     value as *const _ as *mut u8 as *mut T
                 } else {
@@ -282,7 +282,7 @@ where
 
     fn try_from_mut(value: &PyObjectRef) -> Result<&mut T, PyDowncastError> {
         unsafe {
-            if T::is_instance(value.as_ptr()) {
+            if T::is_instance(value) {
                 let ptr = if T::OFFSET == 0 {
                     value as *const _ as *mut u8 as *mut T
                 } else {
@@ -297,7 +297,7 @@ where
 
     fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut T, PyDowncastError> {
         unsafe {
-            if T::is_exact_instance(value.as_ptr()) {
+            if T::is_exact_instance(value) {
                 let ptr = if T::OFFSET == 0 {
                     value as *const _ as *mut u8 as *mut T
                 } else {

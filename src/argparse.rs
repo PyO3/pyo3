@@ -40,7 +40,7 @@ pub fn parse_args<'p>(
     let nargs = args.len();
     let nkeywords = kwargs.map_or(0, |d| d.len());
     if !accept_args && (nargs + nkeywords > params.len()) {
-        return Err(exc::TypeError::new(format!(
+        return Err(exc::TypeError::py_err(format!(
             "{}{} takes at most {} argument{} ({} given)",
             fname.unwrap_or("function"),
             if fname.is_some() { "()" } else { "" },
@@ -57,7 +57,7 @@ pub fn parse_args<'p>(
                 *out = Some(kwarg);
                 used_keywords += 1;
                 if i < nargs {
-                    return Err(exc::TypeError::new(format!(
+                    return Err(exc::TypeError::py_err(format!(
                         "Argument given by name ('{}') and position ({})",
                         p.name,
                         i + 1
@@ -67,7 +67,7 @@ pub fn parse_args<'p>(
             None => {
                 if p.kw_only {
                     if !p.is_optional {
-                        return Err(exc::TypeError::new(format!(
+                        return Err(exc::TypeError::py_err(format!(
                             "Required argument ('{}') is keyword only argument",
                             p.name
                         )));
@@ -78,7 +78,7 @@ pub fn parse_args<'p>(
                 } else {
                     *out = None;
                     if !p.is_optional {
-                        return Err(exc::TypeError::new(format!(
+                        return Err(exc::TypeError::py_err(format!(
                             "Required argument ('{}') (pos {}) not found",
                             p.name,
                             i + 1
@@ -94,7 +94,7 @@ pub fn parse_args<'p>(
             let item = <PyTuple as PyTryFrom>::try_from(item)?;
             let key = <PyString as PyTryFrom>::try_from(item.get_item(0))?.to_string()?;
             if !params.iter().any(|p| p.name == key) {
-                return Err(exc::TypeError::new(format!(
+                return Err(exc::TypeError::py_err(format!(
                     "'{}' is an invalid keyword argument for this function",
                     key
                 )));

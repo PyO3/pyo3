@@ -279,7 +279,7 @@ impl AsPyRef<PyObjectRef> for PyObject {
         unsafe { &*(self as *const _ as *mut PyObjectRef) }
     }
     #[inline]
-    fn as_mut(&self, _py: Python) -> &mut PyObjectRef {
+    fn as_mut(&mut self, _py: Python) -> &mut PyObjectRef {
         unsafe { &mut *(self as *const _ as *mut PyObjectRef) }
     }
 }

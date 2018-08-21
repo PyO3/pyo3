@@ -162,9 +162,9 @@ impl PyModule {
                 PyType::new::<T>()
             } else {
                 // automatically initialize the class
-                initialize_type::<T>(self.py(), Some(self.name()?)).expect(
-                    format!("An error occurred while initializing class {}", T::NAME).as_ref(),
-                );
+                initialize_type::<T>(self.py(), Some(self.name()?)).unwrap_or_else(|_| {
+                    panic!("An error occurred while initializing class {}", T::NAME)
+                });
                 PyType::new::<T>()
             }
         };

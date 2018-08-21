@@ -1,7 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-
 use buffer;
 use conversion::{FromPyObject, PyTryFrom, ToBorrowedObject};
 use err::{self, PyDowncastError, PyErr, PyResult};
@@ -39,7 +37,7 @@ impl PySequence {
                     self.as_ptr(),
                     other.as_ptr(),
                 ))?;
-            Ok(std::mem::transmute(ptr))
+            Ok(&*(ptr as *const PyObjectRef as *const PySequence))
         }
     }
 
@@ -55,7 +53,7 @@ impl PySequence {
                     self.as_ptr(),
                     count as Py_ssize_t,
                 ))?;
-            Ok(std::mem::transmute(ptr))
+            Ok(&*(ptr as *const PyObjectRef as *const PySequence))
         }
     }
 

@@ -3,7 +3,7 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std::borrow::Cow;
-use std::{char, mem, str};
+use std::{char, str};
 
 use err::{PyErr, PyResult};
 use objects::exc;
@@ -63,7 +63,7 @@ impl<'a> PyStringData<'a> {
             }
             PyStringData::Utf16(data) => {
                 fn utf16_bytes(input: &[u16]) -> &[u8] {
-                    unsafe { mem::transmute(input) }
+                    unsafe { &*(input as *const [u16] as *const [u8]) }
                 }
                 match String::from_utf16(data) {
                     Ok(s) => Ok(Cow::Owned(s)),
@@ -78,7 +78,7 @@ impl<'a> PyStringData<'a> {
             }
             PyStringData::Utf32(data) => {
                 fn utf32_bytes(input: &[u32]) -> &[u8] {
-                    unsafe { mem::transmute(input) }
+                    unsafe { &*(input as *const [u32] as *const [u8]) }
                 }
                 match data.iter().map(|&u| char::from_u32(u)).collect() {
                     Some(s) => Ok(Cow::Owned(s)),

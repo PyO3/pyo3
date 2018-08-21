@@ -55,8 +55,7 @@ macro_rules! import_exception {
         }
 
         impl $name {
-
-            pub fn new<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr
+            pub fn py_err<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr
                 where Self: $crate::typeob::PyTypeObject + Sized
             {
                 $crate::PyErr::new::<Self, T>(args)

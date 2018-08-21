@@ -5,6 +5,7 @@ extern crate pyo3;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
 
+use pyo3::exc::BufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 
@@ -18,7 +19,7 @@ struct TestClass {
 impl PyBufferProtocol for TestClass {
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
-            return Err(PyErr::new::<exc::BufferError, _>("View is null"));
+            return Err(BufferError::py_err("View is null"));
         }
 
         unsafe {
@@ -26,7 +27,7 @@ impl PyBufferProtocol for TestClass {
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(PyErr::new::<exc::BufferError, _>("Object is not writable"));
+            return Err(BufferError::py_err("Object is not writable"));
         }
 
         let bytes = &self.vec;

@@ -2,19 +2,18 @@
 
 //! This module contains the standard python exception types.
 
-use std::ffi::CStr;
-use std::os::raw::c_char;
-use std::{self, mem, ops};
-
 use conversion::ToPyObject;
 use err::{PyErr, PyResult};
 use ffi;
 use instance::Py;
 use objects::{PyObjectRef, PyTuple, PyType};
 use python::{Python, ToPyPointer};
+use std::ffi::CStr;
+use std::os::raw::c_char;
+use std::{self, ops};
 use typeob::PyTypeObject;
 
-macro_rules! exc_type(
+macro_rules! exc_type (
     ($name:ident, $exc_name:ident) => (
         pub struct $name;
 
@@ -29,8 +28,7 @@ macro_rules! exc_type(
             }
         }
         impl $name {
-
-            pub fn new<V: ToPyObject + 'static>(args: V) -> PyErr {
+            pub fn py_err<V: ToPyObject + 'static>(args: V) -> PyErr {
                 PyErr::new::<$name, V>(args)
             }
             pub fn into<R, V: ToPyObject + 'static>(args: V) -> PyResult<R> {
@@ -38,7 +36,7 @@ macro_rules! exc_type(
             }
         }
         impl PyTypeObject for $name {
-            #[inline(always)]
+            #[inline]
             fn init_type() {}
 
             #[inline]
@@ -139,7 +137,7 @@ impl UnicodeDecodeError {
         reason: &CStr,
     ) -> PyResult<&'p PyObjectRef> {
         unsafe {
-            let input: &[c_char] = mem::transmute(input);
+            let input: &[c_char] = &*(input as *const [u8] as *const [i8]);
             py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
                 input.as_ptr(),

@@ -7,7 +7,7 @@ You can use the `py_exception!` macro to define a new exception type:
 ```rust
 #[macro_use] extern crate pyo3;
 
-py_exception!(module, MyError);
+py_exception!(module, MyError, pyo3::exc::Exception);
 ```
 
 * `module` is the name of the containing module.
@@ -20,7 +20,7 @@ For example:
 
 use pyo3::{Python, PyDict};
 
-py_exception!(mymodule, CustomError);
+py_exception!(mymodule, CustomError, pyo3::exc::Exception);
 
 fn main() {
     let gil = Python::acquire_gil();
@@ -69,7 +69,7 @@ have rust type as well.
 # fn check_for_error() -> bool {false}
 fn my_func(arg: PyObject) -> PyResult<()> {
     if check_for_error() {
-        Err(exc::ValueError::new("argument is wrong"))
+        Err(exc::ValueError::py_err("argument is wrong"))
     } else {
         Ok(())
     }
@@ -106,7 +106,7 @@ To check the type of an exception, you can simply do:
 # fn main() {
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let err = exc::TypeError::new(NoArgs);
+# let err = exc::TypeError::py_err(NoArgs);
 err.is_instance::<exc::TypeError>(py);
 # }
 ```

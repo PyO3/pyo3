@@ -50,28 +50,28 @@ impl IntoPyObject for f64 {
 }
 
 impl<'source> FromPyObject<'source> for f64 {
+    // PyFloat_AsDouble returns -1.0 upon failure
+    #![cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
     fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
-        {
-            if v == -1.0 && PyErr::occurred(obj.py()) {
-                Err(PyErr::fetch(obj.py()))
-            } else {
-                Ok(v)
-            }
+        if v == -1.0 && PyErr::occurred(obj.py()) {
+            Err(PyErr::fetch(obj.py()))
+        } else {
+            Ok(v)
         }
     }
 }
 
 impl ToPyObject for f32 {
     fn to_object(&self, py: Python) -> PyObject {
-        PyFloat::new(py, *self as f64).into()
+        PyFloat::new(py, f64::from(*self)).into()
     }
 }
 
 impl IntoPyObject for f32 {
     fn into_object(self, py: Python) -> PyObject {
-        PyFloat::new(py, self as f64).into()
+        PyFloat::new(py, f64::from(self)).into()
     }
 }
 

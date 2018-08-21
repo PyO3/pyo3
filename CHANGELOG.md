@@ -6,9 +6,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Changed
+
+ * All exceptions are consturcted with `py_err` instead of `new`, as they return `PyErr` and not `Self`.
+ * `as_mut` and friends take and `&mut self` instead of `&self`
+
 ### Fixed
 
  * Added an explenation that the GIL can temporarily be released even while holding a GILGuard.
+ * Lots of clippy errors
 
 ### Removed
 

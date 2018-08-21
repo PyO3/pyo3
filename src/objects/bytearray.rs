@@ -47,8 +47,7 @@ impl PyByteArray {
     }
 
     /// Gets the Python bytearray data as byte slice.
-
-    pub fn data(&self) -> &mut [u8] {
+    pub fn data(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;
             let length = ffi::PyByteArray_Size(self.0.as_ptr()) as usize;

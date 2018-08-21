@@ -460,7 +460,7 @@ impl PyBuffer {
         fort: u8,
     ) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return Err(exc::BufferError::new(
+            return Err(exc::BufferError::py_err(
                 "Slice length does not match buffer length.",
             ));
         }
@@ -563,7 +563,7 @@ impl PyBuffer {
             return buffer_readonly_error();
         }
         if mem::size_of_val(source) != self.len_bytes() {
-            return Err(exc::BufferError::new(
+            return Err(exc::BufferError::py_err(
                 "Slice length does not match buffer length.",
             ));
         }
@@ -593,13 +593,15 @@ impl PyBuffer {
 }
 
 fn incompatible_format_error() -> PyResult<()> {
-    Err(exc::BufferError::new(
+    Err(exc::BufferError::py_err(
         "Slice type is incompatible with buffer format.",
     ))
 }
 
 fn buffer_readonly_error() -> PyResult<()> {
-    Err(exc::BufferError::new("Cannot write to read-only buffer."))
+    Err(exc::BufferError::py_err(
+        "Cannot write to read-only buffer.",
+    ))
 }
 
 impl Drop for PyBuffer {

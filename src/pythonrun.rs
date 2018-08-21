@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use spin;
-use std::{any, marker, mem, rc, sync};
+use std::{any, marker, rc, sync};
 
 use ffi;
 use objects::PyObjectRef;
@@ -242,13 +242,13 @@ pub unsafe fn register_pointer(obj: *mut ffi::PyObject) {
 pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
     pool.owned.push(obj);
-    mem::transmute(&pool.owned[pool.owned.len() - 1])
+    &*(&pool.owned[pool.owned.len() - 1] as *const *mut ffi::PyObject as *const PyObjectRef)
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
     pool.borrowed.push(obj);
-    mem::transmute(&pool.borrowed[pool.borrowed.len() - 1])
+    &*(&pool.borrowed[pool.borrowed.len() - 1] as *const *mut ffi::PyObject as *const PyObjectRef)
 }
 
 impl GILGuard {

@@ -7,6 +7,7 @@ use std::rc::Rc;
 use conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use err::{PyErr, PyResult};
 use ffi;
+use instance;
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use objects::PyObjectRef;
@@ -42,8 +43,7 @@ pub trait AsPyRef<T>: Sized {
     fn as_ref(&self, py: Python) -> &T;
 
     /// Return mutable reference to object.
-
-    fn as_mut(&self, py: Python) -> &mut T;
+    fn as_mut(&mut self, py: Python) -> &mut T;
 
     /// Acquire python gil and call closure with object reference.
     fn with<F, R>(&self, f: F) -> R
@@ -57,7 +57,7 @@ pub trait AsPyRef<T>: Sized {
     }
 
     /// Acquire python gil and call closure with mutable object reference.
-    fn with_mut<F, R>(&self, f: F) -> R
+    fn with_mut<F, R>(&mut self, f: F) -> R
     where
         F: FnOnce(Python, &mut T) -> R,
     {
@@ -80,7 +80,7 @@ pub trait AsPyRef<T>: Sized {
         result
     }
 
-    fn into_mut_py<F, R>(self, f: F) -> R
+    fn into_mut_py<F, R>(mut self, f: F) -> R
     where
         Self: IntoPyPointer,
         F: FnOnce(Python, &mut T) -> R,
@@ -222,7 +222,7 @@ where
         }
     }
     #[inline]
-    default fn as_mut(&self, _py: Python) -> &mut T {
+    default fn as_mut(&mut self, _py: Python) -> &mut T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_mut().unwrap()
@@ -236,10 +236,10 @@ where
 {
     #[inline]
     fn as_ref(&self, _py: Python) -> &T {
-        unsafe { std::mem::transmute(self) }
+        unsafe { &*(self as *const instance::Py<T> as *const T) }
     }
     #[inline]
-    fn as_mut(&self, _py: Python) -> &mut T {
+    fn as_mut(&mut self, _py: Python) -> &mut T {
         unsafe { &mut *(self as *const _ as *mut T) }
     }
 }
