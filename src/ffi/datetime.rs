@@ -1,3 +1,5 @@
+#![cfg_attr(feature="cargo-clippy", allow(type_complexity))]
+
 use ffi::PyCapsule_Import;
 use ffi::Py_hash_t;
 use ffi::{PyObject, PyTypeObject};
