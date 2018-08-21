@@ -56,5 +56,4 @@ members = [
     "pyo3cls",
     "pyo3-derive-backend",
     "examples/*",
-    "tests/rustapi_module",
 ]
