@@ -8,7 +8,7 @@ description = "A Python wrapper for the Rust API for purposes of testing"
 
 [dependencies.pyo3]
 path = "../../"
-# features = ["extension-module"]
+features = ["extension-module"]
 
 [lib]
 name = "rustapi_module"
