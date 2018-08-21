@@ -30,7 +30,6 @@ def get_py_version_cfgs():
 
     return out_cfg
 
-setup_requires = ['setuptools-rust>=0.6.1']
 install_requires = []
 tests_require = install_requires + ['pytest', 'pytest-benchmark']
 
@@ -51,7 +50,6 @@ setup(
                                    rustc_flags=get_py_version_cfgs())],
     install_requires=install_requires,
     tests_require=tests_require,
-    setup_requires=setup_requires,
     include_package_data=True,
     zip_safe=False,
     cmdclass=dict(test=PyTest)
