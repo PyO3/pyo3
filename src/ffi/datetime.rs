@@ -1,7 +1,7 @@
-use ffi::{PyObject, PyTypeObject};
-use ffi::{Py_TYPE, PyObject_TypeCheck};
 use ffi::PyCapsule_Import;
 use ffi::Py_hash_t;
+use ffi::{PyObject, PyTypeObject};
+use ffi::{PyObject_TypeCheck, Py_TYPE};
 use std::ffi::CString;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};
@@ -161,8 +161,8 @@ pub struct PyDateTime_Delta {
 // until __PY_DATETIME_API_UNSAFE_CACHE is populated, which will happen exactly
 // one time. So long as PyDateTime_IMPORT has no side effects (it should not),
 // this will be at most a slight waste of resources.
-static __PY_DATETIME_API_ONCE: Once = Once::new();
-static mut __PY_DATETIME_API_UNSAFE_CACHE: *const PyDateTime_CAPI = ptr::null();
+static PY_DATETIME_API_ONCE: Once = Once::new();
+static mut PY_DATETIME_API_UNSAFE_CACHE: *const PyDateTime_CAPI = ptr::null();
 
 pub struct PyDateTimeAPI {
     __private_field: (),
@@ -176,17 +176,17 @@ impl Deref for PyDateTimeAPI {
 
     fn deref(&self) -> &'static PyDateTime_CAPI {
         unsafe {
-            let cache_val = if !__PY_DATETIME_API_UNSAFE_CACHE.is_null() {
-                return &(*__PY_DATETIME_API_UNSAFE_CACHE);
+            let cache_val = if !PY_DATETIME_API_UNSAFE_CACHE.is_null() {
+                return &(*PY_DATETIME_API_UNSAFE_CACHE);
             } else {
                 PyDateTime_IMPORT()
             };
 
-            __PY_DATETIME_API_ONCE.call_once(move || {
-                __PY_DATETIME_API_UNSAFE_CACHE = cache_val;
+            PY_DATETIME_API_ONCE.call_once(move || {
+                PY_DATETIME_API_UNSAFE_CACHE = cache_val;
             });
 
-            &(*__PY_DATETIME_API_UNSAFE_CACHE)
+            &(*PY_DATETIME_API_UNSAFE_CACHE)
         }
     }
 }
