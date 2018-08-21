@@ -176,28 +176,27 @@ impl Deref for PyDateTimeAPI {
 
     fn deref(&self) -> &'static PyDateTime_CAPI {
         unsafe {
-            let cache_val = if !PY_DATETIME_API_UNSAFE_CACHE.is_null() {
-                return &(*PY_DATETIME_API_UNSAFE_CACHE);
+            if !PY_DATETIME_API_UNSAFE_CACHE.is_null() {
+                &(*PY_DATETIME_API_UNSAFE_CACHE)
             } else {
                 PyDateTime_IMPORT()
-            };
-
-            PY_DATETIME_API_ONCE.call_once(move || {
-                PY_DATETIME_API_UNSAFE_CACHE = cache_val;
-            });
-
-            &(*PY_DATETIME_API_UNSAFE_CACHE)
+            }
         }
     }
 }
 
 #[inline(always)]
-pub unsafe fn PyDateTime_IMPORT() -> *const PyDateTime_CAPI {
+pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
     // PyDateTime_CAPSULE_NAME is a macro in C
     let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
 
-    let capsule = PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1);
-    capsule as *const PyDateTime_CAPI
+    let capsule = PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *const PyDateTime_CAPI;
+
+    PY_DATETIME_API_ONCE.call_once(move || {
+        PY_DATETIME_API_UNSAFE_CACHE = capsule;
+    });
+
+    &(*PY_DATETIME_API_UNSAFE_CACHE)
 }
 
 //
