@@ -28,9 +28,9 @@ use python::{Python, ToPyPointer};
 
 // Traits
 pub trait PyDateAccess {
-    fn get_year(&self) -> u32;
-    fn get_month(&self) -> u32;
-    fn get_day(&self) -> u32;
+    fn get_year(&self) -> i32;
+    fn get_month(&self) -> i32;
+    fn get_day(&self) -> i32;
 }
 
 pub trait PyDeltaAccess {
@@ -40,10 +40,10 @@ pub trait PyDeltaAccess {
 }
 
 pub trait PyTimeAccess {
-    fn get_hour(&self) -> u32;
-    fn get_minute(&self) -> u32;
-    fn get_second(&self) -> u32;
-    fn get_microsecond(&self) -> u32;
+    fn get_hour(&self) -> i32;
+    fn get_minute(&self) -> i32;
+    fn get_second(&self) -> i32;
+    fn get_microsecond(&self) -> i32;
     #[cfg(Py_3_6)]
     fn get_fold(&self) -> u8;
 }
@@ -53,7 +53,7 @@ pub struct PyDate(PyObject);
 pyobject_native_type!(PyDate, PyDateTime_DateType, PyDate_Check);
 
 impl PyDate {
-    pub fn new(py: Python, year: u32, month: u32, day: u32) -> PyResult<Py<PyDate>> {
+    pub fn new(py: Python, year: i32, month: i32, day: i32) -> PyResult<Py<PyDate>> {
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromDate)(
                 year as c_int,
@@ -74,16 +74,16 @@ impl PyDate {
 }
 
 impl PyDateAccess for PyDate {
-    fn get_year(&self) -> u32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as u32 }
+    fn get_year(&self) -> i32 {
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as i32 }
     }
 
-    fn get_month(&self) -> u32 {
-        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u32 }
+    fn get_month(&self) -> i32 {
+        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as i32 }
     }
 
-    fn get_day(&self) -> u32 {
-        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u32 }
+    fn get_day(&self) -> i32 {
+        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as i32 }
     }
 }
 
@@ -94,13 +94,13 @@ pyobject_native_type!(PyDateTime, PyDateTime_DateTimeType, PyDateTime_Check);
 impl PyDateTime {
     pub fn new(
         py: Python,
-        year: u32,
-        month: u32,
-        day: u32,
-        hour: u32,
-        minute: u32,
-        second: u32,
-        microsecond: u32,
+        year: i32,
+        month: i32,
+        day: i32,
+        hour: i32,
+        minute: i32,
+        second: i32,
+        microsecond: i32,
         tzinfo: Option<&PyObject>,
     ) -> PyResult<Py<PyDateTime>> {
         unsafe {
@@ -139,34 +139,34 @@ impl PyDateTime {
 }
 
 impl PyDateAccess for PyDateTime {
-    fn get_year(&self) -> u32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as u32 }
+    fn get_year(&self) -> i32 {
+        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) as i32 }
     }
 
-    fn get_month(&self) -> u32 {
-        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u32 }
+    fn get_month(&self) -> i32 {
+        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as i32 }
     }
 
-    fn get_day(&self) -> u32 {
-        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u32 }
+    fn get_day(&self) -> i32 {
+        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as i32 }
     }
 }
 
 impl PyTimeAccess for PyDateTime {
-    fn get_hour(&self) -> u32 {
-        unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u32 }
+    fn get_hour(&self) -> i32 {
+        unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as i32 }
     }
 
-    fn get_minute(&self) -> u32 {
-        unsafe { PyDateTime_DATE_GET_MINUTE(self.as_ptr()) as u32 }
+    fn get_minute(&self) -> i32 {
+        unsafe { PyDateTime_DATE_GET_MINUTE(self.as_ptr()) as i32 }
     }
 
-    fn get_second(&self) -> u32 {
-        unsafe { PyDateTime_DATE_GET_SECOND(self.as_ptr()) as u32 }
+    fn get_second(&self) -> i32 {
+        unsafe { PyDateTime_DATE_GET_SECOND(self.as_ptr()) as i32 }
     }
 
-    fn get_microsecond(&self) -> u32 {
-        unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as u32 }
+    fn get_microsecond(&self) -> i32 {
+        unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as i32 }
     }
 
     #[cfg(Py_3_6)]
@@ -182,10 +182,10 @@ pyobject_native_type!(PyTime, PyDateTime_TimeType, PyTime_Check);
 impl PyTime {
     pub fn new(
         py: Python,
-        hour: u32,
-        minute: u32,
-        second: u32,
-        microsecond: u32,
+        hour: i32,
+        minute: i32,
+        second: i32,
+        microsecond: i32,
         tzinfo: Option<&PyObject>,
     ) -> PyResult<Py<PyTime>> {
         unsafe {
@@ -207,10 +207,10 @@ impl PyTime {
     #[cfg(Py_3_6)]
     pub fn new_with_fold(
         py: Python,
-        hour: u32,
-        minute: u32,
-        second: u32,
-        microsecond: u32,
+        hour: i32,
+        minute: i32,
+        second: i32,
+        microsecond: i32,
         tzinfo: Option<&PyObject>,
         fold: bool,
     ) -> PyResult<Py<PyTime>> {
@@ -233,20 +233,20 @@ impl PyTime {
 }
 
 impl PyTimeAccess for PyTime {
-    fn get_hour(&self) -> u32 {
-        unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u32 }
+    fn get_hour(&self) -> i32 {
+        unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as i32 }
     }
 
-    fn get_minute(&self) -> u32 {
-        unsafe { PyDateTime_TIME_GET_MINUTE(self.as_ptr()) as u32 }
+    fn get_minute(&self) -> i32 {
+        unsafe { PyDateTime_TIME_GET_MINUTE(self.as_ptr()) as i32 }
     }
 
-    fn get_second(&self) -> u32 {
-        unsafe { PyDateTime_TIME_GET_SECOND(self.as_ptr()) as u32 }
+    fn get_second(&self) -> i32 {
+        unsafe { PyDateTime_TIME_GET_SECOND(self.as_ptr()) as i32 }
     }
 
-    fn get_microsecond(&self) -> u32 {
-        unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as u32 }
+    fn get_microsecond(&self) -> i32 {
+        unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as i32 }
     }
 
     #[cfg(Py_3_6)]

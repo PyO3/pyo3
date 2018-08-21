@@ -2,8 +2,9 @@
 
 extern crate pyo3;
 
-use pyo3::prelude::*;
+use std::iter;
 
+use pyo3::prelude::*;
 use pyo3::ffi::*;
 
 fn _get_subclasses<'p>(
@@ -123,19 +124,41 @@ fn test_datetime_utc() {
     assert_eq!(offset, 0f32);
 }
 
+static INVALID_DATES : &'static [(i32, i32, i32)] = &[
+        (-1, 1, 1),
+        (0, 1, 1),
+        (10000, 1, 1),
+        (2<<30, 1, 1),
+        (2018, 2<<30, 1),
+        (2018, 0, 1),
+        (2018, -1, 1),
+        (2018, 13, 1),
+        (2018, 1, 0),
+        (2017, 2, 29),
+        (2018, 1, -1),
+        (2018, 1, 32),
+];
+
+static INVALID_TIMES: &'static [(i32, i32, i32, i32)] = &[
+        (-1, 0, 0, 0),
+        (25, 0, 0, 0),
+        (2<<30, 0, 0, 0),
+        (0, -1, 0, 0),
+        (0, 60, 0, 0),
+        (0, 2<<30, 0, 0),
+        (0, 0, -1, 0),
+        (0, 0, 61, 0),
+        (0, 0, 2<<30, 0),
+];
+
+
 #[cfg(Py_3_6)]
 #[test]
 fn test_pydate_out_of_bounds() {
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let vals = [
-        (2147484672u32, 1, 1),
-        (2018, 2147484672u32, 1),
-        (2018, 1, 2147484672u32),
-    ];
-
-    for val in vals.into_iter() {
+    for val in INVALID_DATES.into_iter() {
         let (year, month, day) = val;
         let dt = PyDate::new(py, *year, *month, *day);
         let msg = format!("Should have raised an error: {:#?}", val);
@@ -152,14 +175,7 @@ fn test_pytime_out_of_bounds() {
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let vals = [
-        (2147484672u32, 0, 0, 0),
-        (0, 2147484672u32, 0, 0),
-        (0, 0, 2147484672u32, 0),
-        (0, 0, 0, 2147484672u32),
-    ];
-
-    for val in vals.into_iter() {
+    for val in INVALID_TIMES.into_iter() {
         let (hour, minute, second, microsecond) = val;
         let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
         let msg = format!("Should have raised an error: {:#?}", val);
@@ -176,18 +192,18 @@ fn test_pydatetime_out_of_bounds() {
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let vals = [
-        (2147484672u32, 1, 1, 0, 0, 0, 0),
-        (2018, 2147484672u32, 1, 0, 0, 0, 0),
-        (2018, 1, 2147484672u32, 0, 0, 0, 0),
-        (2018, 1, 1, 2147484672u32, 0, 0, 0),
-        (2018, 1, 1, 0, 2147484672u32, 0, 0),
-        (2018, 1, 1, 0, 0, 2147484672u32, 0),
-        (2018, 1, 1, 0, 0, 0, 2147484672u32),
-    ];
+    let valid_time = (0, 0, 0, 0);
+    let valid_date = (2018, 1, 1);
 
-    for val in vals.into_iter() {
-        let (year, month, day, hour, minute, second, microsecond) = val;
+    let invalid_dates = INVALID_DATES.into_iter().zip(iter::repeat(&valid_time));
+    let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.into_iter());
+
+    let vals = invalid_dates.chain(invalid_times);
+
+    for val in vals {
+        let (date, time) = val;
+        let (year, month, day) = date;
+        let (hour, minute, second, microsecond) = time;
         let dt = PyDateTime::new(
             py,
             *year,
