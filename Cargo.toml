@@ -55,5 +55,4 @@ extension-module = []
 members = [
     "pyo3cls",
     "pyo3-derive-backend",
-    "examples/*",
 ]
