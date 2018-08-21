@@ -1,6 +1,7 @@
-use ffi2::object::*;
-use ffi2::pycapsule::PyCapsule_Import;
-use ffi2::pyport::Py_hash_t;
+use ffi::{PyObject, PyTypeObject};
+use ffi::{Py_TYPE, PyObject_TypeCheck};
+use ffi::PyCapsule_Import;
+use ffi::Py_hash_t;
 use std::ffi::CString;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};
@@ -25,6 +26,8 @@ pub struct PyDateTime_CAPI {
     pub TimeType: *mut PyTypeObject,
     pub DeltaType: *mut PyTypeObject,
     pub TZInfoType: *mut PyTypeObject,
+    #[cfg(Py_3_7)]
+    pub TimeZone_UTC: *mut PyObject,
 
     pub Date_FromDate:
         unsafe extern "C" fn(year: c_int, month: c_int, day: c_int, cls: *mut PyTypeObject)
@@ -55,11 +58,37 @@ pub struct PyDateTime_CAPI {
         normalize: c_int,
         cls: *mut PyTypeObject,
     ) -> *mut PyObject,
+    #[cfg(Py_3_7)]
+    pub TimeZone_FromTimeZone:
+        unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
     pub DateTime_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject, kwargs: *mut PyObject)
             -> *mut PyObject,
     pub Date_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
+    #[cfg(Py_3_6)]
+    pub DateTime_FromDateAndTimeAndFold: unsafe extern "C" fn(
+        year: c_int,
+        month: c_int,
+        day: c_int,
+        hour: c_int,
+        minute: c_int,
+        second: c_int,
+        microsecond: c_int,
+        tzinfo: *mut PyObject,
+        fold: c_int,
+        cls: *mut PyTypeObject,
+    ) -> *mut PyObject,
+    #[cfg(Py_3_6)]
+    pub Time_FromTimeAndFold: unsafe extern "C" fn(
+        hour: c_int,
+        minute: c_int,
+        second: c_int,
+        microsecond: c_int,
+        tzinfo: *mut PyObject,
+        fold: c_int,
+        cls: *mut PyTypeObject,
+    ) -> *mut PyObject,
 }
 
 // Type struct wrappers
@@ -69,7 +98,7 @@ const _PyDateTime_TIME_DATASIZE: usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_Date {
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
@@ -78,27 +107,31 @@ pub struct PyDateTime_Date {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_Time {
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
     pub data: [c_uchar; _PyDateTime_TIME_DATASIZE],
+    #[cfg(Py_3_6)]
+    pub fold: c_uchar,
     pub tzinfo: *mut PyObject,
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_DateTime {
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
     pub data: [c_uchar; _PyDateTime_DATETIME_DATASIZE],
+    #[cfg(Py_3_6)]
+    pub fold: c_uchar,
     pub tzinfo: *mut PyObject,
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_Delta {
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
@@ -252,27 +285,34 @@ pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
 // Accessor macros for times
 macro_rules! _PyDateTime_GET_HOUR {
     ($o: expr, $offset:expr) => {
-        (*$o).data[$offset + 0] as c_int
+        c_int::from((*$o).data[$offset + 0])
     };
 }
 
 macro_rules! _PyDateTime_GET_MINUTE {
     ($o: expr, $offset:expr) => {
-        (*$o).data[$offset + 1] as c_int
+        c_int::from((*$o).data[$offset + 1])
     };
 }
 
 macro_rules! _PyDateTime_GET_SECOND {
     ($o: expr, $offset:expr) => {
-        (*$o).data[$offset + 2] as c_int
+        c_int::from((*$o).data[$offset + 2])
     };
 }
 
 macro_rules! _PyDateTime_GET_MICROSECOND {
     ($o: expr, $offset:expr) => {
-        (((*$o).data[$offset + 3] as c_int) << 16)
-            | (((*$o).data[$offset + 4] as c_int) << 8)
-            | ((*$o).data[$offset + 5] as c_int)
+        (c_int::from((*$o).data[$offset + 3]) << 16)
+            | (c_int::from((*$o).data[$offset + 4]) << 8)
+            | (c_int::from((*$o).data[$offset + 5]))
+    };
+}
+
+#[cfg(Py_3_6)]
+macro_rules! _PyDateTime_GET_FOLD {
+    ($o: expr) => {
+        (*$o).fold
     };
 }
 
@@ -303,6 +343,12 @@ pub unsafe fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_DateTime), _PyDateTime_DATE_DATASIZE)
 }
 
+#[cfg(Py_3_6)]
+#[inline(always)]
+pub unsafe fn PyDateTime_DATE_GET_FOLD(o: *mut PyObject) -> c_uchar {
+    _PyDateTime_GET_FOLD!(o as *mut PyDateTime_DateTime)
+}
+
 #[inline(always)]
 pub unsafe fn PyDateTime_DATE_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
     _PyDateTime_GET_TZINFO!(o as *mut PyDateTime_DateTime)
@@ -327,6 +373,12 @@ pub unsafe fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int {
 #[inline(always)]
 pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_Time), 0)
+}
+
+#[cfg(Py_3_6)]
+#[inline(always)]
+pub unsafe fn PyDateTime_TIME_GET_FOLD(o: *mut PyObject) -> c_uchar {
+    _PyDateTime_GET_FOLD!(o as *mut PyDateTime_Time)
 }
 
 #[inline(always)]

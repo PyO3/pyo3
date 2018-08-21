@@ -17,7 +17,6 @@ pub use self::boolobject::*;
 pub use self::bytearrayobject::*;
 pub use self::bytesobject::*;
 pub use self::complexobject::*;
-pub use self::datetime::*;
 pub use self::descrobject::*;
 pub use self::dictobject::*;
 pub use self::enumobject::*;
@@ -118,7 +117,6 @@ mod weakrefobject; // TODO supports PEP-384 only; needs adjustment for Python 3.
 mod codecs; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 mod pyerrors; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
-mod datetime;
 mod pystate; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
 
 #[cfg(Py_LIMITED_API)]
