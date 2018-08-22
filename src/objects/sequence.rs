@@ -312,8 +312,19 @@ mod test {
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
     use objectprotocol::ObjectProtocol;
+    use object::PyObject;
     use objects::PySequence;
-    use python::Python;
+    use python::{ToPyPointer, Python};
+
+    fn get_object() -> PyObject {
+        // Convenience function for getting a single unique object
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let obj = py.eval("object()", None, None).unwrap();
+
+        obj.to_object(py)
+    }
 
     #[test]
     fn test_numbers_are_not_sequences() {
@@ -425,22 +436,20 @@ mod test {
 
     #[test]
     fn test_seq_set_item_refcnt() {
-        let cnt;
+        let obj = get_object();
         {
             let gil = Python::acquire_gil();
             let py = gil.python();
             let v: Vec<i32> = vec![1, 2];
             let ob = v.to_object(py);
             let seq = ob.cast_as::<PySequence>(py).unwrap();
-            let none = py.None();
-            cnt = none.get_refcnt();
-            assert!(seq.set_item(1, none).is_ok());
-            assert!(seq.get_item(1).unwrap().is_none());
+            assert!(seq.set_item(1, &obj).is_ok());
+            assert!(seq.get_item(1).unwrap().as_ptr() == obj.as_ptr());
         }
         {
             let gil = Python::acquire_gil();
-            let py = gil.python();
-            assert_eq!(cnt, py.None().get_refcnt());
+            let _py = gil.python();
+            assert_eq!(1, obj.get_refcnt());
         }
     }
 

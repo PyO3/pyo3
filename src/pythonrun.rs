@@ -281,9 +281,20 @@ impl GILGuard {
 #[cfg(test)]
 mod test {
     use super::{GILPool, ReleasePool, POOL};
+    use conversion::ToPyObject;
     use object::PyObject;
-    use python::Python;
+    use python::{Python, ToPyPointer};
     use {ffi, pythonrun};
+
+    fn get_object() -> PyObject {
+        // Convenience function for getting a single unique object
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let obj = py.eval("object()", None, None).unwrap();
+
+        obj.to_object(py)
+    }
 
     #[test]
     fn test_owned() {
@@ -356,22 +367,24 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
+            let obj = get_object();
+            let obj_ptr = obj.as_ptr();
             let cnt;
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 assert_eq!(p.borrowed.len(), 0);
 
-                cnt = ffi::Py_REFCNT(ffi::Py_True());
-                pythonrun::register_borrowed(py, ffi::Py_True());
+                cnt = ffi::Py_REFCNT(obj_ptr);
+                pythonrun::register_borrowed(py, obj_ptr);
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
         }
     }
@@ -383,32 +396,34 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
+            let obj = get_object();
+            let obj_ptr = obj.as_ptr();
             let cnt;
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 assert_eq!(p.borrowed.len(), 0);
 
-                cnt = ffi::Py_REFCNT(ffi::Py_True());
-                pythonrun::register_borrowed(py, ffi::Py_True());
+                cnt = ffi::Py_REFCNT(obj_ptr);
+                pythonrun::register_borrowed(py, obj_ptr);
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
 
                 {
                     let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
-                    pythonrun::register_borrowed(py, ffi::Py_True());
+                    pythonrun::register_borrowed(py, obj_ptr);
                     assert_eq!(p.borrowed.len(), 2);
                 }
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
         }
     }
