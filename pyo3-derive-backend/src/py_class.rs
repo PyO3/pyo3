@@ -86,7 +86,7 @@ fn impl_class(
     let extra = if let Some(token) = token {
         Some(quote! {
             impl ::pyo3::PyObjectWithToken for #cls {
-                #[inline(always)]
+                #[inline]
                 fn py<'p>(&'p self) -> ::pyo3::Python<'p> {
                     self.#token.py()
                 }
@@ -243,7 +243,7 @@ fn impl_class(
         }
 
         impl ::pyo3::typeob::PyTypeObject for #cls {
-            #[inline(always)]
+            #[inline]
             fn init_type() {
                 static START: std::sync::Once = std::sync::ONCE_INIT;
                 START.call_once(|| {

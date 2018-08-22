@@ -48,14 +48,14 @@ extern "C" {
 }
 
 /// Test if a type has a GC head
-#[inline(always)]
+#[inline]
 #[allow(unused_parens)]
 pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
     PyType_HasFeature(t, Py_TPFLAGS_HAVE_GC)
 }
 
 /// Test if an object has a GC head
-#[inline(always)]
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
     (PyType_IS_GC(Py_TYPE(o)) != 0 && match (*Py_TYPE(o)).tp_is_gc {
@@ -80,13 +80,13 @@ extern "C" {
 }
 
 /// Test if a type supports weak references
-#[inline(always)]
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyType_SUPPORTS_WEAKREFS(t: *mut PyTypeObject) -> c_int {
     ((*t).tp_weaklistoffset > 0) as c_int
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyObject_GET_WEAKREFS_LISTPTR(o: *mut PyObject) -> *mut *mut PyObject {
     let weaklistoffset = (*Py_TYPE(o)).tp_weaklistoffset as isize;

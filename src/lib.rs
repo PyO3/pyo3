@@ -129,20 +129,14 @@ extern crate spin;
 #[doc(hidden)]
 pub extern crate mashup;
 
+/// Rust FFI declarations for Python
+pub mod ffi;
+
 #[cfg(not(Py_3))]
 mod ffi2;
 
 #[cfg(Py_3)]
 mod ffi3;
-
-/// Rust FFI declarations for Python
-pub mod ffi {
-    #[cfg(not(Py_3))]
-    pub use ffi2::*;
-
-    #[cfg(Py_3)]
-    pub use ffi3::*;
-}
 
 pub use conversion::{
     FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,

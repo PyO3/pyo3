@@ -20,12 +20,12 @@ extern "C" {
     pub static mut PyInt_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyInt_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_INT_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyInt_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyInt_Type;
     (Py_TYPE(op) == u) as c_int

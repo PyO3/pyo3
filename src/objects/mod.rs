@@ -2,6 +2,9 @@
 
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
+pub use self::datetime::PyDeltaAccess;
+pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo};
+pub use self::datetime::{PyDateAccess, PyTimeAccess};
 pub use self::dict::PyDict;
 pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
@@ -63,7 +66,7 @@ macro_rules! pyobject_native_type_named (
         }
 
         impl<$($type_param,)*> $crate::PyObjectWithToken for $name {
-            #[inline(always)]
+            #[inline]
             fn py(&self) -> $crate::Python {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }
@@ -123,7 +126,7 @@ macro_rules! pyobject_native_type_convert(
         }
 
         impl<$($type_param,)*> $crate::typeob::PyTypeObject for $name {
-            #[inline(always)]
+            #[inline]
             fn init_type() {}
 
             #[inline]
@@ -180,6 +183,7 @@ pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject
 
 mod boolobject;
 mod bytearray;
+mod datetime;
 mod dict;
 pub mod exc;
 mod floatob;

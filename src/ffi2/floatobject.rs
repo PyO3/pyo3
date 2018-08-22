@@ -19,12 +19,12 @@ extern "C" {
     pub static mut PyFloat_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyFloat_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyFloat_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyFloat_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyFloat_Type;
     (Py_TYPE(op) == u) as c_int

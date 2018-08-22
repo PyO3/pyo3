@@ -22,7 +22,7 @@ impl PyToken {
         PyToken(PhantomData)
     }
 
-    #[inline(always)]
+    #[inline]
 
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }

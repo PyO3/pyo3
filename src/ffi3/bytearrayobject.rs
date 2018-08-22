@@ -8,12 +8,12 @@ extern "C" {
     pub static mut PyByteArrayIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyByteArray_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyByteArray_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyByteArray_Type) as c_int
 }

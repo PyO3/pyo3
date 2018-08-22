@@ -7,7 +7,7 @@ extern "C" {
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
 }
@@ -63,7 +63,7 @@ impl Default for PyMethodDef {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
     PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }
