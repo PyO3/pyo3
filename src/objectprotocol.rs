@@ -16,33 +16,33 @@ use typeob::PyTypeInfo;
 /// Python object model helper methods
 pub trait ObjectProtocol {
     /// Determines whether this object has the given attribute.
-    /// This is equivalent to the Python expression 'hasattr(self, attr_name)'.
+    /// This is equivalent to the Python expression `hasattr(self, attr_name)`.
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
         N: ToPyObject;
 
     /// Retrieves an attribute value.
-    /// This is equivalent to the Python expression 'self.attr_name'.
+    /// This is equivalent to the Python expression `self.attr_name`.
     fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef>
     where
         N: ToPyObject;
 
     /// Sets an attribute value.
-    /// This is equivalent to the Python expression 'self.attr_name = value'.
+    /// This is equivalent to the Python expression `self.attr_name = value`.
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
         N: ToBorrowedObject,
         V: ToBorrowedObject;
 
     /// Deletes an attribute.
-    /// This is equivalent to the Python expression 'del self.attr_name'.
+    /// This is equivalent to the Python expression `del self.attr_name`.
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
         N: ToPyObject;
 
     /// Compares two Python objects.
     ///
-    /// On Python 2, this is equivalent to the Python expression 'cmp(self, other)'.
+    /// On Python 2, this is equivalent to the Python expression `cmp(self, other)`.
     ///
     /// On Python 3, this is equivalent to:
     /// ```python,ignore
@@ -73,35 +73,35 @@ pub trait ObjectProtocol {
         O: ToPyObject;
 
     /// Compute the string representation of self.
-    /// This is equivalent to the Python expression 'repr(self)'.
+    /// This is equivalent to the Python expression `repr(self)`.
     fn repr(&self) -> PyResult<&PyString>;
 
     /// Compute the string representation of self.
-    /// This is equivalent to the Python expression 'str(self)'.
+    /// This is equivalent to the Python expression `str(self)`.
     fn str(&self) -> PyResult<&PyString>;
 
     /// Determines whether this object is callable.
     fn is_callable(&self) -> bool;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
+    /// This is equivalent to the Python expression: `self(*args, **kwargs)`
     fn call<A, K>(&self, args: A, kwargs: K) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
         K: IntoPyDictPointer;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: 'self()'
+    /// This is equivalent to the Python expression: `self()`
     fn call0(&self) -> PyResult<&PyObjectRef>;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: 'self(*args)'
+    /// This is equivalent to the Python expression: `self(*args)`
     fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple;
 
     /// Calls a method on the object.
-    /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
+    /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`
     ///
     /// # Example
     /// ```rust,ignore
@@ -116,43 +116,43 @@ pub trait ObjectProtocol {
         K: IntoPyDictPointer;
 
     /// Calls a method on the object.
-    /// This is equivalent to the Python expression: 'self.name()'
+    /// This is equivalent to the Python expression: `self.name()`
     fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef>;
 
     /// Calls a method on the object with positional arguments only .
-    /// This is equivalent to the Python expression: 'self.name(*args)'
+    /// This is equivalent to the Python expression: `self.name(*args)`
     fn call_method1<A: IntoPyTuple>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>;
 
     /// Retrieves the hash code of the object.
-    /// This is equivalent to the Python expression: 'hash(self)'
+    /// This is equivalent to the Python expression: `hash(self)`
     fn hash(&self) -> PyResult<isize>;
 
     /// Returns whether the object is considered to be true.
-    /// This is equivalent to the Python expression: 'not not self'
+    /// This is equivalent to the Python expression: `not not self`
     fn is_true(&self) -> PyResult<bool>;
 
     /// Returns whether the object is considered to be None.
-    /// This is equivalent to the Python expression: 'is None'
+    /// This is equivalent to the Python expression: `is None`
     fn is_none(&self) -> bool;
 
     /// Returns the length of the sequence or mapping.
-    /// This is equivalent to the Python expression: 'len(self)'
+    /// This is equivalent to the Python expression: `len(self)`
     fn len(&self) -> PyResult<usize>;
 
-    /// This is equivalent to the Python expression: 'self\[key\]'
+    /// This is equivalent to the Python expression: `self[key]`
     fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef>
     where
         K: ToBorrowedObject;
 
     /// Sets an item value.
-    /// This is equivalent to the Python expression 'self\[key\] = value'.
+    /// This is equivalent to the Python expression `self[key] = value`.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
         K: ToBorrowedObject,
         V: ToBorrowedObject;
 
     /// Deletes an item.
-    /// This is equivalent to the Python expression 'del self\[key\]'.
+    /// This is equivalent to the Python expression `del self[key]`.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: ToBorrowedObject;
