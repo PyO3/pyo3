@@ -257,7 +257,7 @@ impl PyBuffer {
     }
 
     /// An array of length ndim.
-    /// If suboffsets[n] >= 0, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
+    /// If `suboffsets[n] >= 0`, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
     /// A suboffset value that is negative indicates that no de-referencing should occur (striding in a contiguous memory block).
     ///
     /// If all suboffsets are negative (i.e. no de-referencing is needed), then this field must be NULL (the default value).
