@@ -211,7 +211,7 @@ impl PyObjectWithToken for PyRawObject {
     }
 }
 
-/// A Python object allocator that is usable as a base type for #[pyclass]
+/// A Python object allocator that is usable as a base type for `#[pyclass]`
 pub trait PyObjectAlloc<T> {
     /// Allocates a new object (usually by calling ty->tp_alloc),
     unsafe fn alloc(py: Python) -> PyResult<*mut ffi::PyObject>;

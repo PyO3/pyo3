@@ -139,20 +139,20 @@ pub trait ObjectProtocol {
     /// This is equivalent to the Python expression: 'len(self)'
     fn len(&self) -> PyResult<usize>;
 
-    /// This is equivalent to the Python expression: 'self[key]'
+    /// This is equivalent to the Python expression: 'self\[key\]'
     fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef>
     where
         K: ToBorrowedObject;
 
     /// Sets an item value.
-    /// This is equivalent to the Python expression 'self[key] = value'.
+    /// This is equivalent to the Python expression 'self\[key\] = value'.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
         K: ToBorrowedObject,
         V: ToBorrowedObject;
 
     /// Deletes an item.
-    /// This is equivalent to the Python expression 'del self[key]'.
+    /// This is equivalent to the Python expression 'del self\[key\]'.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: ToBorrowedObject;

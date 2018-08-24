@@ -200,7 +200,7 @@ impl PySequence {
         }
     }
 
-    /// Return the first index i for which o[i] == value.
+    /// Return the first index `i` for which `o[i] == value`.
     /// This is equivalent to the Python expression `o.index(value)`
     #[inline]
     pub fn index<V>(&self, value: V) -> PyResult<usize>
