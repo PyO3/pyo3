@@ -311,10 +311,10 @@ impl PyTryFrom for PySequence {
 mod test {
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use objectprotocol::ObjectProtocol;
     use object::PyObject;
+    use objectprotocol::ObjectProtocol;
     use objects::PySequence;
-    use python::{ToPyPointer, Python};
+    use python::{Python, ToPyPointer};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

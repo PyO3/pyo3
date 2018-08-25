@@ -5,8 +5,8 @@ use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
 use python::{Python, ToPyPointer};
-use std;
 use std::os::raw::c_char;
+use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
@@ -51,7 +51,7 @@ impl PyByteArray {
         unsafe {
             let buffer = ffi::PyByteArray_AsString(self.0.as_ptr()) as *mut u8;
             let length = ffi::PyByteArray_Size(self.0.as_ptr()) as usize;
-            std::slice::from_raw_parts_mut(buffer, length)
+            slice::from_raw_parts_mut(buffer, length)
         }
     }
 

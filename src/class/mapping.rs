@@ -106,20 +106,15 @@ pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyMappingProtocolImpl {
-    fn tp_as_mapping() -> Option<ffi::PyMappingMethods>;
-    fn methods() -> Vec<PyMethodDef>;
-}
-
-impl<T> PyMappingProtocolImpl for T {
-    #[inline]
-    default fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
+    fn tp_as_mapping() -> Option<ffi::PyMappingMethods> {
         None
     }
-    #[inline]
-    default fn methods() -> Vec<PyMethodDef> {
+    fn methods() -> Vec<PyMethodDef> {
         Vec::new()
     }
 }
+
+impl<T> PyMappingProtocolImpl for T {}
 
 impl<'p, T> PyMappingProtocolImpl for T
 where
@@ -159,18 +154,12 @@ where
 }
 
 trait PyMappingLenProtocolImpl {
-    fn mp_length() -> Option<ffi::lenfunc>;
-}
-
-impl<'p, T> PyMappingLenProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn mp_length() -> Option<ffi::lenfunc> {
+    fn mp_length() -> Option<ffi::lenfunc> {
         None
     }
 }
+
+impl<'p, T> PyMappingLenProtocolImpl for T where T: PyMappingProtocol<'p> {}
 
 impl<T> PyMappingLenProtocolImpl for T
 where
@@ -183,18 +172,12 @@ where
 }
 
 trait PyMappingGetItemProtocolImpl {
-    fn mp_subscript() -> Option<ffi::binaryfunc>;
-}
-
-impl<'p, T> PyMappingGetItemProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn mp_subscript() -> Option<ffi::binaryfunc> {
+    fn mp_subscript() -> Option<ffi::binaryfunc> {
         None
     }
 }
+
+impl<'p, T> PyMappingGetItemProtocolImpl for T where T: PyMappingProtocol<'p> {}
 
 impl<T> PyMappingGetItemProtocolImpl for T
 where
@@ -212,18 +195,12 @@ where
 }
 
 trait PyMappingSetItemProtocolImpl {
-    fn mp_ass_subscript() -> Option<ffi::objobjargproc>;
-}
-
-impl<'p, T> PyMappingSetItemProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
+    fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
         None
     }
 }
+
+impl<'p, T> PyMappingSetItemProtocolImpl for T where T: PyMappingProtocol<'p> {}
 
 impl<T> PyMappingSetItemProtocolImpl for T
 where
@@ -236,18 +213,12 @@ where
 }
 
 trait PyMappingDelItemProtocolImpl {
-    fn mp_del_subscript() -> Option<ffi::objobjargproc>;
-}
-
-impl<'p, T> PyMappingDelItemProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
+    fn mp_del_subscript() -> Option<ffi::objobjargproc> {
         None
     }
 }
+
+impl<'p, T> PyMappingDelItemProtocolImpl for T where T: PyMappingProtocol<'p> {}
 
 impl<T> PyMappingDelItemProtocolImpl for T
 where
@@ -268,52 +239,36 @@ where
         py_func_set_del!(
             PyMappingSetItemProtocol,
             PyMappingDelItemProtocol,
-            T::__setitem__ / __delitem__
+            T,
+            __setitem__,
+            __delitem__
         )
     }
 }
 
 #[doc(hidden)]
 pub trait PyMappingContainsProtocolImpl {
-    fn __contains__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyMappingContainsProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn __contains__() -> Option<PyMethodDef> {
+    fn __contains__() -> Option<PyMethodDef> {
         None
     }
 }
+
+impl<'p, T> PyMappingContainsProtocolImpl for T where T: PyMappingProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyMappingReversedProtocolImpl {
-    fn __reversed__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyMappingReversedProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn __reversed__() -> Option<PyMethodDef> {
+    fn __reversed__() -> Option<PyMethodDef> {
         None
     }
 }
+
+impl<'p, T> PyMappingReversedProtocolImpl for T where T: PyMappingProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyMappingIterProtocolImpl {
-    fn __iter__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyMappingIterProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    #[inline]
-    default fn __iter__() -> Option<PyMethodDef> {
+    fn __iter__() -> Option<PyMethodDef> {
         None
     }
 }
+
+impl<'p, T> PyMappingIterProtocolImpl for T where T: PyMappingProtocol<'p> {}

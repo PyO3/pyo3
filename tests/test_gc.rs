@@ -263,7 +263,7 @@ fn inheritance_with_new_methods_with_drop() {
         let py = gil.python();
         let _typebase = py.get_type::<BaseClassWithDrop>();
         let typeobj = py.get_type::<SubClassWithDrop>();
-        let inst = typeobj.call(NoArgs, NoArgs).unwrap();
+        let inst = typeobj.call(NoArgs, None).unwrap();
 
         let obj = SubClassWithDrop::try_from_mut(inst).unwrap();
         obj.data = Some(Arc::clone(&drop_called1));

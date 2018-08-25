@@ -60,23 +60,15 @@ pub trait IntoPyPointer {
     fn into_ptr(self) -> *mut ffi::PyObject;
 }
 
-/// Conversion trait that allows various objects to be converted into `PyDict` object pointer.
-/// Primary use case for this trait is `call` and `call_method` methods as keywords argument.
-pub trait IntoPyDictPointer {
-    /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
-    /// depends on implementation.
-    fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject;
-}
-
 /// Convert `None` into a null pointer.
-impl<'p, T> ToPyPointer for Option<&'p T>
+impl<T> ToPyPointer for Option<T>
 where
     T: ToPyPointer,
 {
     #[inline]
-    default fn as_ptr(&self) -> *mut ffi::PyObject {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
         match *self {
-            Some(t) => t.as_ptr(),
+            Some(ref t) => t.as_ptr(),
             None => std::ptr::null_mut(),
         }
     }
@@ -102,10 +94,12 @@ where
     T: ToPyPointer,
 {
     #[inline]
-    default fn into_ptr(self) -> *mut ffi::PyObject {
+    fn into_ptr(self) -> *mut ffi::PyObject {
         let ptr = self.as_ptr();
-        unsafe {
-            ffi::Py_INCREF(ptr);
+        if ptr != std::ptr::null_mut() {
+            unsafe {
+                ffi::Py_INCREF(ptr);
+            }
         }
         ptr
     }

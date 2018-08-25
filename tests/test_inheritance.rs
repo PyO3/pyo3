@@ -62,6 +62,6 @@ fn inheritance_with_new_methods() {
     let py = gil.python();
     let _typebase = py.get_type::<BaseClass>();
     let typeobj = py.get_type::<SubClass>();
-    let inst = typeobj.call(NoArgs, NoArgs).unwrap();
+    let inst = typeobj.call(NoArgs, None).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
 }

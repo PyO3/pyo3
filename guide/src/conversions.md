@@ -76,11 +76,8 @@ fn main() {
 }
 ```
 
-`kwargs` argument is generate over
-[`IntoPyDictPointer`][IntoPyDictPointer] trait. `HashMap` or `BTreeMap` could be used as
-keyword arguments. rust tuple with up to 10 elements where each element is tuple with size 2
-could be used as kwargs as well. Or `NoArgs` object can be used to indicate that
-no keywords arguments are provided.
+`kwargs` can by `None` or `Some(PyDict)`. You can use the 
+[`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers, e.g. `HashMap`, `BTreeMap` as well as tuples with up to 10 elements and `Vec`s where each element is a two element tuple.
 
 ```rust
 extern crate pyo3;
@@ -130,4 +127,4 @@ TODO
 [IntoPyTuple]: https://docs.rs/pyo3/0.2.7/trait.IntoPyTuple.html
 [PyTuple]: https://docs.rs/pyo3/0.2.7/struct.PyTuple.html
 [ObjectProtocol]: https://docs.rs/pyo3/0.2.7/trait.ObjectProtocol.html
-[IntoPyDictPointer]: https://docs.rs/pyo3/0.2.7/trait.IntoPyDictPointer.html
+[IntoPyDict]: https://docs.rs/pyo3/0.2.7/trait.IntoPyDict.html

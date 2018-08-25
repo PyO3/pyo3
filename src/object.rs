@@ -8,8 +8,9 @@ use conversion::{
 use err::{PyDowncastError, PyErr, PyResult};
 use ffi;
 use instance::{AsPyRef, PyObjectWithToken};
+use objects::PyDict;
 use objects::{PyObjectRef, PyTuple};
-use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
+use python::{IntoPyPointer, Python, ToPyPointer};
 use pythonrun;
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
@@ -166,18 +167,19 @@ impl PyObject {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    pub fn call<A, K>(&self, py: Python, args: A, kwargs: K) -> PyResult<PyObject>
+    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<PyDict>) -> PyResult<PyObject>
     where
         A: IntoPyTuple,
-        K: IntoPyDictPointer,
     {
         let args = args.into_tuple(py).into_ptr();
-        let kwargs = kwargs.into_dict_ptr(py);
         let result = unsafe {
-            PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs))
+            PyObject::from_owned_ptr_or_err(
+                py,
+                ffi::PyObject_Call(self.as_ptr(), args, kwargs.into_ptr()),
+            )
         };
         py.xdecref(args);
-        py.xdecref(kwargs);
+        py.xdecref(kwargs.into_ptr());
         result
     }
 
@@ -219,15 +221,14 @@ impl PyObject {
         py: Python,
         name: &str,
         args: A,
-        kwargs: K,
+        kwargs: PyDict,
     ) -> PyResult<PyObject>
     where
         A: IntoPyTuple,
-        K: IntoPyDictPointer,
     {
         name.with_borrowed_ptr(py, |name| unsafe {
             let args = args.into_tuple(py).into_ptr();
-            let kwargs = kwargs.into_dict_ptr(py);
+            let kwargs = kwargs.into_ptr();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);

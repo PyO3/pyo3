@@ -1,15 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::{cmp, collections, hash, mem};
-
 use conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use err::{self, PyErr, PyResult};
 use ffi;
-use instance::{Py, PyObjectWithToken};
+use instance::PyObjectWithToken;
 use object::PyObject;
 use objects::{PyList, PyObjectRef};
-use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
+use python::{Python, ToPyPointer};
+use std;
+use std::{cmp, collections, hash, mem};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -19,8 +18,6 @@ pyobject_native_type!(PyDict, ffi::PyDict_Type, ffi::PyDict_Check);
 
 impl PyDict {
     /// Creates a new empty dictionary.
-    ///
-    /// May panic when running out of memory.
     pub fn new(py: Python) -> &PyDict {
         unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
     }
@@ -169,20 +166,6 @@ impl<'a> std::iter::IntoIterator for &'a PyDict {
     }
 }
 
-impl<'a> IntoPyDictPointer for &'a PyDict {
-    #[must_use]
-    fn into_dict_ptr(self, _py: Python) -> *mut ffi::PyObject {
-        self.into_ptr()
-    }
-}
-
-impl IntoPyDictPointer for Py<PyDict> {
-    #[must_use]
-    fn into_dict_ptr(self, _py: Python) -> *mut ffi::PyObject {
-        self.into_ptr()
-    }
-}
-
 impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
 where
     K: hash::Hash + cmp::Eq + ToPyObject,
@@ -245,19 +228,27 @@ where
     }
 }
 
-impl<K, V, I> IntoPyDictPointer for I
+/// Conversion trait that allows a sequence of tuples to be converted into `PyDict`
+/// Primary use case for this trait is `call` and `call_method` methods as keywords argument.
+pub trait IntoPyDict {
+    /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
+    /// depends on implementation.
+    fn into_py_dict(self, py: Python) -> &PyDict;
+}
+
+impl<K, V, I> IntoPyDict for I
 where
     K: ToPyObject,
     V: ToPyObject,
     I: IntoIterator<Item = (K, V)>,
 {
-    default fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
+    fn into_py_dict(self, py: Python) -> &PyDict {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value)
                 .expect("Failed to set_item on dict");
         }
-        dict.into_ptr()
+        dict
     }
 }
 
@@ -265,10 +256,11 @@ where
 mod test {
     use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
     use instance::AsPyRef;
+    use objects::dict::IntoPyDict;
     use objects::{PyDict, PyTuple};
-    use python::{IntoPyDictPointer, Python};
+    use python::Python;
     use std::collections::{BTreeMap, HashMap};
-    use {ObjectProtocol, PyObject};
+    use ObjectProtocol;
 
     #[test]
     fn test_new() {
@@ -558,12 +550,10 @@ mod test {
         let mut map = HashMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let m = map.into_dict_ptr(py);
-        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
-        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let py_map = map.into_py_dict(py);
 
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert_eq!(py_map.len(), 1);
+        assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
     }
 
     #[test]
@@ -589,12 +579,10 @@ mod test {
         let mut map = BTreeMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let m = map.into_dict_ptr(py);
-        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
-        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let py_map = map.into_py_dict(py);
 
-        assert!(py_map.len() == 1);
-        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert_eq!(py_map.len(), 1);
+        assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
     }
 
     #[test]
@@ -602,12 +590,10 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let map = vec![("a", 1), ("b", 2), ("c", 3)];
-        let m = map.into_dict_ptr(py);
-        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
-        let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let vec = vec![("a", 1), ("b", 2), ("c", 3)];
+        let py_map = vec.into_py_dict(py);
 
-        assert!(py_map.len() == 3);
-        assert!(py_map.get_item("b").unwrap().extract::<i32>().unwrap() == 2);
+        assert_eq!(py_map.len(), 3);
+        assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
     }
 }

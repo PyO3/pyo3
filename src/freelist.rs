@@ -1,11 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Free allocation list
-use std;
 
 use err::PyResult;
 use ffi;
 use python::Python;
+use std::mem;
 use std::os::raw::c_void;
 use typeob::{PyObjectAlloc, PyTypeInfo};
 
@@ -45,7 +45,7 @@ impl<T> FreeList<T> {
         if idx == 0 {
             None
         } else {
-            match std::mem::replace(&mut self.entries[idx - 1], Slot::Empty) {
+            match mem::replace(&mut self.entries[idx - 1], Slot::Empty) {
                 Slot::Filled(v) => {
                     self.split = idx - 1;
                     Some(v)

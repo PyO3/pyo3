@@ -24,7 +24,7 @@ macro_rules! py_run {
         d.set_item(stringify!($val), &$val).unwrap();
         $py.run(&common::indoc($code), None, Some(d))
             .map_err(|e| e.print($py))
-            .expect(&common::indoc($code));
+            .expect(&common::indoc($code))
     }};
 }
 

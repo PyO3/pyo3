@@ -1,16 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::cmp::Ordering;
-use std::os::raw::c_int;
-
 use conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
 use err::{self, PyDowncastError, PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
+use objects::PyDict;
 use objects::{PyIterator, PyObjectRef, PyString, PyTuple, PyType};
-use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
+use python::{IntoPyPointer, Python, ToPyPointer};
+use std;
+use std::cmp::Ordering;
+use std::os::raw::c_int;
 use typeob::PyTypeInfo;
 
 /// Python object model helper methods
@@ -85,10 +85,9 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
-    fn call<A, K>(&self, args: A, kwargs: K) -> PyResult<&PyObjectRef>
+    fn call<A>(&self, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
     where
-        A: IntoPyTuple,
-        K: IntoPyDictPointer;
+        A: IntoPyTuple;
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self()`
@@ -108,12 +107,11 @@ pub trait ObjectProtocol {
     /// let obj = SomePyObject::new();
     /// let args = (arg1, arg2, arg3);
     /// let kwargs = ((key1, value1), (key2, value2));
-    /// let pid = obj.call_method("do_something", args, kwargs);
+    /// let pid = obj.call_method("do_something", args, kwargs.into_py_dict());
     /// ```
-    fn call_method<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
+    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
     where
-        A: IntoPyTuple,
-        K: IntoPyDictPointer;
+        A: IntoPyTuple;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: `self.name()`
@@ -313,19 +311,17 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call<A, K>(&self, args: A, kwargs: K) -> PyResult<&PyObjectRef>
+    fn call<A>(&self, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
-        K: IntoPyDictPointer,
     {
         let args = args.into_tuple(self.py()).into_ptr();
-        let kw_ptr = kwargs.into_dict_ptr(self.py());
         let result = unsafe {
-            self.py()
-                .from_owned_ptr_or_err(ffi::PyObject_Call(self.as_ptr(), args, kw_ptr))
+            let return_value = ffi::PyObject_Call(self.as_ptr(), args, kwargs.into_ptr());
+            self.py().from_owned_ptr_or_err(return_value)
         };
         self.py().xdecref(args);
-        self.py().xdecref(kw_ptr);
+        self.py().xdecref(kwargs.into_ptr());
         result
     }
 
@@ -358,10 +354,9 @@ where
         result
     }
 
-    fn call_method<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
+    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
-        K: IntoPyDictPointer,
     {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
@@ -369,13 +364,12 @@ where
                 return Err(PyErr::fetch(self.py()));
             }
             let args = args.into_tuple(self.py()).into_ptr();
-            let kw_ptr = kwargs.into_dict_ptr(self.py());
-            let result = self
-                .py()
-                .from_owned_ptr_or_err(ffi::PyObject_Call(ptr, args, kw_ptr));
+            let kwargs = kwargs.into_ptr();
+            let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
+            let result = self.py().from_owned_ptr_or_err(result_ptr);
             ffi::Py_DECREF(ptr);
             self.py().xdecref(args);
-            self.py().xdecref(kw_ptr);
+            self.py().xdecref(kwargs);
             result
         })
     }
@@ -531,7 +525,6 @@ mod test {
     use super::*;
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use noargs::NoArgs;
     use objects::PyString;
     use python::Python;
 
@@ -559,7 +552,7 @@ mod test {
         let py = gil.python();
         let a = py.eval("42", None, None).unwrap();
         a.call_method0("__str__").unwrap(); // ok
-        assert!(a.call_method("nonexistent_method", (1,), NoArgs).is_err());
+        assert!(a.call_method("nonexistent_method", (1,), None).is_err());
         assert!(a.call_method0("nonexistent_method").is_err());
         assert!(a.call_method1("nonexistent_method", (1,)).is_err());
     }

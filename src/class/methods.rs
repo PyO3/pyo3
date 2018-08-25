@@ -124,22 +124,18 @@ impl PySetterDef {
 
 #[doc(hidden)]
 pub trait PyMethodsProtocolImpl {
-    fn py_methods() -> &'static [PyMethodDefType];
-}
-
-impl<T> PyMethodsProtocolImpl for T {
-    default fn py_methods() -> &'static [PyMethodDefType] {
+    fn py_methods() -> &'static [PyMethodDefType] {
         NO_PY_METHODS
     }
 }
+
+impl<T> PyMethodsProtocolImpl for T {}
 
 #[doc(hidden)]
 pub trait PyPropMethodsProtocolImpl {
-    fn py_methods() -> &'static [PyMethodDefType];
-}
-
-impl<T> PyPropMethodsProtocolImpl for T {
-    default fn py_methods() -> &'static [PyMethodDefType] {
+    fn py_methods() -> &'static [PyMethodDefType] {
         NO_PY_METHODS
     }
 }
+
+impl<T> PyPropMethodsProtocolImpl for T {}

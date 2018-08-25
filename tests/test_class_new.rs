@@ -24,7 +24,7 @@ fn empty_class_with_new() {
     let typeobj = py.get_type::<EmptyClassWithNew>();
     assert!(
         typeobj
-            .call(NoArgs, NoArgs)
+            .call(NoArgs, None)
             .unwrap()
             .cast_as::<EmptyClassWithNew>()
             .is_ok()
@@ -53,7 +53,7 @@ fn new_with_one_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let typeobj = py.get_type::<NewWithOneArg>();
-    let wrp = typeobj.call((42,), NoArgs).unwrap();
+    let wrp = typeobj.call((42,), None).unwrap();
     let obj = wrp.cast_as::<NewWithOneArg>().unwrap();
     assert_eq!(obj._data, 42);
 }
@@ -84,7 +84,7 @@ fn new_with_two_args() {
     let py = gil.python();
     let typeobj = py.get_type::<NewWithTwoArgs>();
     let wrp = typeobj
-        .call((10, 20), NoArgs)
+        .call((10, 20), None)
         .map_err(|e| e.print(py))
         .unwrap();
     let obj = wrp.cast_as::<NewWithTwoArgs>().unwrap();

@@ -250,36 +250,15 @@ where
         Ok(obj)
     }
 
-    #[cfg(Py_3)]
     default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         Self::drop(py, obj);
 
-        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
-            return;
-        }
-
-        match (*T::type_object()).tp_free {
-            Some(free) => free(obj as *mut c_void),
-            None => {
-                let ty = ffi::Py_TYPE(obj);
-                if ffi::PyType_IS_GC(ty) != 0 {
-                    ffi::PyObject_GC_Del(obj as *mut c_void);
-                } else {
-                    ffi::PyObject_Free(obj as *mut c_void);
-                }
-
-                // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-                // so we need to call DECREF here:
-                if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
-                }
+        #[cfg(Py_3)]
+        {
+            if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+                return;
             }
         }
-    }
-
-    #[cfg(not(Py_3))]
-    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        Self::drop(py, obj);
 
         match (*T::type_object()).tp_free {
             Some(free) => free(obj as *mut c_void),
@@ -357,7 +336,7 @@ where
 
 /// Register new type in python object system.
 #[cfg(not(Py_LIMITED_API))]
-pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyResult<()>
+pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<()>
 where
     T: PyObjectAlloc<T> + PyTypeInfo,
 {

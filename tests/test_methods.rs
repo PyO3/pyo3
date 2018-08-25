@@ -252,5 +252,4 @@ fn meth_args() {
         inst,
         "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]"
     );
-    // py_expect_exception!(py, inst, "inst.get_kwarg(100)", TypeError);
 }

@@ -406,17 +406,16 @@ macro_rules! py_func_del {
     }};
 }
 
-#[macro_export]
 #[doc(hidden)]
 macro_rules! py_func_set_del {
-    ($trait:ident, $trait2:ident, $class:ident :: $f:ident/$f2:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($trait1:ident, $trait2:ident, $generic:ident, $fn_set:ident, $fn_del:ident) => {{
+        unsafe extern "C" fn wrap<$generic>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
         ) -> $crate::libc::c_int
         where
-            T: for<'p> $trait<'p> + for<'p> $trait2<'p>,
+            T: for<'p> $trait1<'p> + for<'p> $trait2<'p>,
         {
             use $crate::ObjectProtocol;
 
@@ -425,33 +424,27 @@ macro_rules! py_func_set_del {
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let name = py.from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
+            let result;
             if value.is_null() {
-                let result = match name.extract() {
-                    Ok(name) => slf.$f2(name).into(),
+                result = match name.extract() {
+                    Ok(name) => slf.$fn_del(name).into(),
                     Err(e) => Err(e.into()),
                 };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
-                }
             } else {
                 let value = py.from_borrowed_ptr::<$crate::PyObjectRef>(value);
-                let result = match name.extract() {
+                result = match name.extract() {
                     Ok(name) => match value.extract() {
-                        Ok(value) => slf.$f(name, value).into(),
+                        Ok(value) => slf.$fn_set(name, value).into(),
                         Err(e) => Err(e.into()),
                     },
                     Err(e) => Err(e.into()),
                 };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+            }
+            match result {
+                Ok(_) => 0,
+                Err(e) => {
+                    e.restore(py);
+                    -1
                 }
             }
         }

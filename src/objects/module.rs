@@ -2,7 +2,6 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
@@ -13,7 +12,8 @@ use instance::PyObjectWithToken;
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use objects::{exc, PyDict, PyObjectRef, PyType};
-use python::{IntoPyDictPointer, Python, ToPyPointer};
+use python::{Python, ToPyPointer};
+use std::str;
 use typeob::{initialize_type, PyTypeInfo};
 
 /// Represents a Python `module` object.
@@ -80,7 +80,7 @@ impl PyModule {
             Err(PyErr::fetch(self.py()))
         } else {
             let slice = CStr::from_ptr(ptr).to_bytes();
-            match std::str::from_utf8(slice) {
+            match str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(exc::UnicodeDecodeError::new_utf8(
                     self.py(),
@@ -107,10 +107,9 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A, K>(&self, name: &str, args: A, kwargs: K) -> PyResult<&PyObjectRef>
+    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
-        K: IntoPyDictPointer,
     {
         self.getattr(name)?.call(args, kwargs)
     }

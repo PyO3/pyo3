@@ -150,26 +150,21 @@ pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyObjectProtocolImpl {
-    fn methods() -> Vec<PyMethodDef>;
-    fn tp_as_object(type_object: &mut ffi::PyTypeObject);
-    fn nb_bool_fn() -> Option<ffi::inquiry>;
-}
-
-impl<T> PyObjectProtocolImpl for T {
-    default fn methods() -> Vec<PyMethodDef> {
+    fn methods() -> Vec<PyMethodDef> {
         Vec::new()
     }
-    default fn tp_as_object(_type_object: &mut ffi::PyTypeObject) {}
-    default fn nb_bool_fn() -> Option<ffi::inquiry> {
+    fn tp_as_object(_type_object: &mut ffi::PyTypeObject) {}
+    fn nb_bool_fn() -> Option<ffi::inquiry> {
         None
     }
 }
+
+impl<T> PyObjectProtocolImpl for T {}
 
 impl<'p, T> PyObjectProtocolImpl for T
 where
     T: PyObjectProtocol<'p>,
 {
-    #[inline]
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
 
@@ -203,22 +198,15 @@ where
 }
 
 trait PyObjectGetAttrProtocolImpl {
-    fn tp_getattro() -> Option<ffi::binaryfunc>;
-}
-impl<'p, T> PyObjectGetAttrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_getattro() -> Option<ffi::binaryfunc> {
+    fn tp_getattro() -> Option<ffi::binaryfunc> {
         None
     }
 }
+impl<'p, T> PyObjectGetAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectGetAttrProtocolImpl for T
 where
     T: for<'p> PyObjectGetAttrProtocol<'p>,
 {
-    #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
         py_binary_func!(
             PyObjectGetAttrProtocol,
@@ -230,45 +218,31 @@ where
 }
 
 trait PyObjectSetAttrProtocolImpl {
-    fn tp_setattro() -> Option<ffi::setattrofunc>;
-}
-
-impl<'p, T> PyObjectSetAttrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_setattro() -> Option<ffi::setattrofunc> {
+    fn tp_setattro() -> Option<ffi::setattrofunc> {
         None
     }
 }
+
+impl<'p, T> PyObjectSetAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectSetAttrProtocolImpl for T
 where
     T: for<'p> PyObjectSetAttrProtocol<'p>,
 {
-    #[inline]
     fn tp_setattro() -> Option<ffi::setattrofunc> {
         py_func_set!(PyObjectSetAttrProtocol, T::__setattr__)
     }
 }
 
 trait PyObjectDelAttrProtocolImpl {
-    fn tp_delattro() -> Option<ffi::setattrofunc>;
-}
-impl<'p, T> PyObjectDelAttrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_delattro() -> Option<ffi::setattrofunc> {
+    fn tp_delattro() -> Option<ffi::setattrofunc> {
         None
     }
 }
+impl<'p, T> PyObjectDelAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectDelAttrProtocolImpl for T
 where
     T: for<'p> PyObjectDelAttrProtocol<'p>,
 {
-    #[inline]
     default fn tp_delattro() -> Option<ffi::setattrofunc> {
         py_func_del!(PyObjectDelAttrProtocol, T::__delattr__)
     }
@@ -277,33 +251,27 @@ impl<T> PyObjectDelAttrProtocolImpl for T
 where
     T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
 {
-    #[inline]
     fn tp_delattro() -> Option<ffi::setattrofunc> {
         py_func_set_del!(
             PyObjectSetAttrProtocol,
             PyObjectDelAttrProtocol,
-            T::__setattr__ / __delattr__
+            T,
+            __setattr__,
+            __delattr__
         )
     }
 }
 
 trait PyObjectStrProtocolImpl {
-    fn tp_str() -> Option<ffi::unaryfunc>;
-}
-impl<'p, T> PyObjectStrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_str() -> Option<ffi::unaryfunc> {
+    fn tp_str() -> Option<ffi::unaryfunc> {
         None
     }
 }
+impl<'p, T> PyObjectStrProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectStrProtocolImpl for T
 where
     T: for<'p> PyObjectStrProtocol<'p>,
 {
-    #[inline]
     fn tp_str() -> Option<ffi::unaryfunc> {
         py_unary_func!(
             PyObjectStrProtocol,
@@ -315,22 +283,15 @@ where
 }
 
 trait PyObjectReprProtocolImpl {
-    fn tp_repr() -> Option<ffi::unaryfunc>;
-}
-impl<'p, T> PyObjectReprProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_repr() -> Option<ffi::unaryfunc> {
+    fn tp_repr() -> Option<ffi::unaryfunc> {
         None
     }
 }
+impl<'p, T> PyObjectReprProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectReprProtocolImpl for T
 where
     T: for<'p> PyObjectReprProtocol<'p>,
 {
-    #[inline]
     fn tp_repr() -> Option<ffi::unaryfunc> {
         py_unary_func!(
             PyObjectReprProtocol,
@@ -343,63 +304,38 @@ where
 
 #[doc(hidden)]
 pub trait PyObjectFormatProtocolImpl {
-    fn __format__() -> Option<PyMethodDef>;
-}
-impl<'p, T> PyObjectFormatProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn __format__() -> Option<PyMethodDef> {
+    fn __format__() -> Option<PyMethodDef> {
         None
     }
 }
+impl<'p, T> PyObjectFormatProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyObjectBytesProtocolImpl {
-    fn __bytes__() -> Option<PyMethodDef>;
-}
-impl<'p, T> PyObjectBytesProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn __bytes__() -> Option<PyMethodDef> {
+    fn __bytes__() -> Option<PyMethodDef> {
         None
     }
 }
+impl<'p, T> PyObjectBytesProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyObjectUnicodeProtocolImpl {
-    fn __unicode__() -> Option<PyMethodDef>;
-}
-impl<'p, T> PyObjectUnicodeProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn __unicode__() -> Option<PyMethodDef> {
+    fn __unicode__() -> Option<PyMethodDef> {
         None
     }
 }
+impl<'p, T> PyObjectUnicodeProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
 trait PyObjectHashProtocolImpl {
-    fn tp_hash() -> Option<ffi::hashfunc>;
-}
-impl<'p, T> PyObjectHashProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_hash() -> Option<ffi::hashfunc> {
+    fn tp_hash() -> Option<ffi::hashfunc> {
         None
     }
 }
+impl<'p, T> PyObjectHashProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectHashProtocolImpl for T
 where
     T: for<'p> PyObjectHashProtocol<'p>,
 {
-    #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
         py_unary_func!(
             PyObjectHashProtocol,
@@ -412,22 +348,15 @@ where
 }
 
 trait PyObjectBoolProtocolImpl {
-    fn nb_bool() -> Option<ffi::inquiry>;
-}
-impl<'p, T> PyObjectBoolProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn nb_bool() -> Option<ffi::inquiry> {
+    fn nb_bool() -> Option<ffi::inquiry> {
         None
     }
 }
+impl<'p, T> PyObjectBoolProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectBoolProtocolImpl for T
 where
     T: for<'p> PyObjectBoolProtocol<'p>,
 {
-    #[inline]
     fn nb_bool() -> Option<ffi::inquiry> {
         py_unary_func!(
             PyObjectBoolProtocol,
@@ -440,22 +369,15 @@ where
 }
 
 trait PyObjectRichcmpProtocolImpl {
-    fn tp_richcompare() -> Option<ffi::richcmpfunc>;
-}
-impl<'p, T> PyObjectRichcmpProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_richcompare() -> Option<ffi::richcmpfunc> {
+    fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         None
     }
 }
+impl<'p, T> PyObjectRichcmpProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> PyObjectRichcmpProtocolImpl for T
 where
     T: for<'p> PyObjectRichcmpProtocol<'p>,
 {
-    #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
