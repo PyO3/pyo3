@@ -330,27 +330,21 @@ where
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
+            let result;
             if value.is_null() {
-                let result = slf.__delitem__(key as isize).into();
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
-                }
+                result = slf.__delitem__(key as isize).into();
             } else {
                 let value = py.from_borrowed_ptr::<PyObjectRef>(value);
-                let result = match value.extract() {
+                result = match value.extract() {
                     Ok(value) => slf.__setitem__(key as isize, value).into(),
                     Err(e) => Err(e),
                 };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+            }
+            match result {
+                Ok(_) => 0,
+                Err(e) => {
+                    e.restore(py);
+                    -1
                 }
             }
         }

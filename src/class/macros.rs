@@ -310,99 +310,95 @@ macro_rules! py_ternary_self_func {
     }};
 }
 
-#[macro_export]
 #[doc(hidden)]
 macro_rules! py_func_set {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        unsafe extern "C" fn wrap<T>(
+    ($trait_name:ident, $generic:ident, $fn_set:ident) => {{
+        unsafe extern "C" fn wrap<$generic>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
         ) -> $crate::libc::c_int
         where
-            T: for<'p> $trait<'p>,
+            T: for<'p> $trait_name<'p>,
         {
             use $crate::ObjectProtocol;
 
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
 
+            let result;
             if value.is_null() {
-                let e = $crate::PyErr::new::<exc::NotImplementedError, _>(format!(
+                result = Err($crate::PyErr::new::<exc::NotImplementedError, _>(format!(
                     "Subscript deletion not supported by {:?}",
-                    stringify!(T)
-                ));
-                e.restore(py);
-                -1
+                    stringify!($generic)
+                )));
             } else {
                 let name = py.mut_from_borrowed_ptr::<$crate::PyObjectRef>(name);
                 let value = py.from_borrowed_ptr::<$crate::PyObjectRef>(value);
-                let result = match name.extract() {
+                result = match name.extract() {
                     Ok(name) => match value.extract() {
-                        Ok(value) => slf.$f(name, value).into(),
+                        Ok(value) => slf.$fn_set(name, value).into(),
                         Err(e) => Err(e.into()),
                     },
                     Err(e) => Err(e.into()),
                 };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+            }
+            match result {
+                Ok(_) => 0,
+                Err(e) => {
+                    e.restore(py);
+                    -1
                 }
             }
         }
 
-        Some(wrap::<T>)
+        Some(wrap::<$generic>)
     }};
 }
 
-#[macro_export]
 #[doc(hidden)]
 macro_rules! py_func_del {
-    ($trait:ident, $class:ident :: $f:ident) => {{
-        #[allow(unused_mut)]
-        unsafe extern "C" fn wrap<T>(
+    ($trait_name:ident, $generic:ident, $fn_del:ident) => {{
+        unsafe extern "C" fn wrap<$generic>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
         ) -> $crate::libc::c_int
         where
-            T: for<'p> $trait<'p>,
+            T: for<'p> $trait_name<'p>,
         {
             use $crate::ObjectProtocol;
 
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
 
+            let result;
             if value.is_null() {
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
                 let name = py.from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
-                let result = match name.extract() {
-                    Ok(name) => slf.$f(name).into(),
+                result = match name.extract() {
+                    Ok(name) => slf.$fn_del(name).into(),
                     Err(e) => Err(e.into()),
                 };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
-                }
             } else {
-                let e = PyErr::new::<exc::NotImplementedError, _>(format!(
+                result = Err(PyErr::new::<exc::NotImplementedError, _>(format!(
                     "Subscript assignment not supported by {:?}",
-                    stringify!(T)
-                ));
-                e.restore(py);
-                -1
+                    stringify!($generic)
+                )));
+            }
+
+            match result {
+                Ok(_) => 0,
+                Err(e) => {
+                    e.restore(py);
+                    -1
+                }
             }
         }
 
-        Some(wrap::<T>)
+        Some(wrap::<$generic>)
     }};
 }
 
@@ -421,7 +417,7 @@ macro_rules! py_func_set_del {
 
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
             let name = py.from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
             let result;
@@ -448,6 +444,6 @@ macro_rules! py_func_set_del {
                 }
             }
         }
-        Some(wrap::<T>)
+        Some(wrap::<$generic>)
     }};
 }

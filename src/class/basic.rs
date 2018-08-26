@@ -4,6 +4,9 @@
 //!
 //! Check [python c-api information](https://docs.python.org/3/reference/datamodel.html#basic-customization)
 //! for more information.
+//!
+//! Parts of the documentation are copied from the respective methods from the
+//! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
 use std;
 use std::os::raw::c_int;
@@ -185,12 +188,7 @@ where
         type_object.tp_hash = Self::tp_hash();
         type_object.tp_getattro = Self::tp_getattro();
         type_object.tp_richcompare = Self::tp_richcompare();
-
-        type_object.tp_setattro = if let Some(df) = Self::tp_delattro() {
-            Some(df)
-        } else {
-            Self::tp_setattro()
-        };
+        type_object.tp_setattro = tp_setattro_impl::tp_setattro::<Self>();
     }
     fn nb_bool_fn() -> Option<ffi::inquiry> {
         Self::nb_bool()
@@ -202,7 +200,9 @@ trait PyObjectGetAttrProtocolImpl {
         None
     }
 }
+
 impl<'p, T> PyObjectGetAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
+
 impl<T> PyObjectGetAttrProtocolImpl for T
 where
     T: for<'p> PyObjectGetAttrProtocol<'p>,
@@ -217,48 +217,87 @@ where
     }
 }
 
-trait PyObjectSetAttrProtocolImpl {
-    fn tp_setattro() -> Option<ffi::setattrofunc> {
-        None
-    }
-}
+/// An object may support setting attributes (by implementing PyObjectSetAttrProtocol)
+/// and may support deleting attributes (by implementing PyObjectDelAttrProtocol)
+/// and we need to generate a single extern c function that supports only setting, only deleting
+/// or both, and return None in case none of the two is supported.
+mod tp_setattro_impl {
+    use super::*;
 
-impl<'p, T> PyObjectSetAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
-impl<T> PyObjectSetAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectSetAttrProtocol<'p>,
-{
-    fn tp_setattro() -> Option<ffi::setattrofunc> {
-        py_func_set!(PyObjectSetAttrProtocol, T::__setattr__)
+    /// setattrofunc PyTypeObject.tp_setattro
+    ///
+    /// An optional pointer to the function for setting and deleting attributes.
+    ///
+    /// The signature is the same as for PyObject_SetAttr(), but setting v to NULL to delete an
+    /// attribute must be supported. It is usually convenient to set this field to
+    /// PyObject_GenericSetAttr(), which implements the normal way of setting object attributes.
+    pub(super) fn tp_setattro<'p, T: PyObjectProtocol<'p>>() -> Option<ffi::setattrofunc> {
+        if let Some(set_del) = T::set_del_attr() {
+            Some(set_del)
+        } else if let Some(set) = T::set_attr() {
+            Some(set)
+        } else if let Some(del) = T::del_attr() {
+            Some(del)
+        } else {
+            None
+        }
     }
-}
 
-trait PyObjectDelAttrProtocolImpl {
-    fn tp_delattro() -> Option<ffi::setattrofunc> {
-        None
+    trait SetAttr {
+        fn set_attr() -> Option<ffi::setattrofunc> {
+            None
+        }
     }
-}
-impl<'p, T> PyObjectDelAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
-impl<T> PyObjectDelAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectDelAttrProtocol<'p>,
-{
-    default fn tp_delattro() -> Option<ffi::setattrofunc> {
-        py_func_del!(PyObjectDelAttrProtocol, T::__delattr__)
+
+    impl<'p, T: PyObjectProtocol<'p>> SetAttr for T {}
+
+    impl<T> SetAttr for T
+    where
+        T: for<'p> PyObjectSetAttrProtocol<'p>,
+    {
+        fn set_attr() -> Option<ffi::setattrofunc> {
+            py_func_set!(PyObjectSetAttrProtocol, T, __setattr__)
+        }
     }
-}
-impl<T> PyObjectDelAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
-{
-    fn tp_delattro() -> Option<ffi::setattrofunc> {
-        py_func_set_del!(
-            PyObjectSetAttrProtocol,
-            PyObjectDelAttrProtocol,
-            T,
-            __setattr__,
-            __delattr__
-        )
+
+    trait DelAttr {
+        fn del_attr() -> Option<ffi::setattrofunc> {
+            None
+        }
+    }
+
+    impl<'p, T> DelAttr for T where T: PyObjectProtocol<'p> {}
+
+    impl<T> DelAttr for T
+    where
+        T: for<'p> PyObjectDelAttrProtocol<'p>,
+    {
+        fn del_attr() -> Option<ffi::setattrofunc> {
+            py_func_del!(PyObjectDelAttrProtocol, T, __delattr__)
+        }
+    }
+
+    trait SetDelAttr {
+        fn set_del_attr() -> Option<ffi::setattrofunc> {
+            None
+        }
+    }
+
+    impl<'p, T> SetDelAttr for T where T: PyObjectProtocol<'p> {}
+
+    impl<T> SetDelAttr for T
+    where
+        T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
+    {
+        fn set_del_attr() -> Option<ffi::setattrofunc> {
+            py_func_set_del!(
+                PyObjectSetAttrProtocol,
+                PyObjectDelAttrProtocol,
+                T,
+                __setattr__,
+                __delattr__
+            )
+        }
     }
 }
 

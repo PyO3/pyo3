@@ -208,7 +208,7 @@ where
 {
     #[inline]
     fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
-        py_func_set!(PyMappingSetItemProtocol, T::__setitem__)
+        py_func_set!(PyMappingSetItemProtocol, T, __setitem__)
     }
 }
 
@@ -226,7 +226,7 @@ where
 {
     #[inline]
     default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
-        py_func_del!(PyMappingDelItemProtocol, T::__delitem__)
+        py_func_del!(PyMappingDelItemProtocol, T, __delitem__)
     }
 }
 
