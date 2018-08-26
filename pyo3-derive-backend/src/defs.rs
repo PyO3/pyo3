@@ -80,15 +80,15 @@ pub const OBJECT: Proto = Proto {
     py_methods: &[
         PyMethod {
             name: "__format__",
-            proto: "::pyo3::class::basic::PyObjectFormatProtocolImpl",
+            proto: "::pyo3::class::basic::FormatProtocolImpl",
         },
         PyMethod {
             name: "__bytes__",
-            proto: "::pyo3::class::basic::PyObjectBytesProtocolImpl",
+            proto: "::pyo3::class::basic::BytesProtocolImpl",
         },
         PyMethod {
             name: "__unicode__",
-            proto: "::pyo3::class::basic::PyObjectUnicodeProtocolImpl",
+            proto: "::pyo3::class::basic::UnicodeProtocolImpl",
         },
     ],
 };

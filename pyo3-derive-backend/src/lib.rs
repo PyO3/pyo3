@@ -4,8 +4,6 @@
 #![recursion_limit = "1024"]
 
 #[macro_use]
-extern crate log;
-#[macro_use]
 extern crate quote;
 #[macro_use]
 extern crate syn;

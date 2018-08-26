@@ -1,38 +1,34 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use proc_macro2::TokenStream;
-use quote::ToTokens;
-use syn;
-
 use defs;
 use func::impl_method_proto;
 use method::FnSpec;
+use proc_macro2::TokenStream;
 use py_method;
+use quote::ToTokens;
+use syn;
 
 pub fn build_py_proto(ast: &mut syn::ItemImpl) -> TokenStream {
     if let Some((_, ref mut path, _)) = ast.trait_ {
-        let tokens = if let Some(ref mut segment) = path.segments.last() {
-            let ty = &ast.self_ty;
-            let items = &mut ast.items;
+        let proto = if let Some(ref mut segment) = path.segments.last() {
             match segment.value().ident.to_string().as_str() {
-                "PyObjectProtocol" => impl_proto_impl(ty, items, &defs::OBJECT),
-                "PyAsyncProtocol" => impl_proto_impl(ty, items, &defs::ASYNC),
-                "PyMappingProtocol" => impl_proto_impl(ty, items, &defs::MAPPING),
-                "PyIterProtocol" => impl_proto_impl(ty, items, &defs::ITER),
-                "PyContextProtocol" => impl_proto_impl(ty, items, &defs::CONTEXT),
-                "PySequenceProtocol" => impl_proto_impl(ty, items, &defs::SEQ),
-                "PyNumberProtocol" => impl_proto_impl(ty, items, &defs::NUM),
-                "PyDescrProtocol" => impl_proto_impl(ty, items, &defs::DESCR),
-                "PyBufferProtocol" => impl_proto_impl(ty, items, &defs::BUFFER),
-                "PyGCProtocol" => impl_proto_impl(ty, items, &defs::GC),
-                _ => {
-                    warn!("#[pyproto] can not be used with this block");
-                    return TokenStream::new();
-                }
+                "PyObjectProtocol" => &defs::OBJECT,
+                "PyAsyncProtocol" => &defs::ASYNC,
+                "PyMappingProtocol" => &defs::MAPPING,
+                "PyIterProtocol" => &defs::ITER,
+                "PyContextProtocol" => &defs::CONTEXT,
+                "PySequenceProtocol" => &defs::SEQ,
+                "PyNumberProtocol" => &defs::NUM,
+                "PyDescrProtocol" => &defs::DESCR,
+                "PyBufferProtocol" => &defs::BUFFER,
+                "PyGCProtocol" => &defs::GC,
+                _ => panic!("#[pyproto] can not be used with this block"),
             }
         } else {
             panic!("#[pyproto] can only be used with protocol trait implementations")
         };
+
+        let tokens = impl_proto_impl(&ast.self_ty, &mut ast.items, proto);
 
         // attach lifetime
         let mut seg = path.segments.pop().unwrap().into_value();
