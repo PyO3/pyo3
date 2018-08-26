@@ -65,31 +65,6 @@ pub const PY_TYPE_FLAG_BASETYPE: usize = 1 << 2;
 /// The instances of this type have a dictionary containing instance variables
 pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 
-impl<'a, T: PyTypeInfo + ?Sized> PyTypeInfo for &'a T {
-    type Type = T::Type;
-    type BaseType = T::BaseType;
-    const NAME: &'static str = T::NAME;
-    const DESCRIPTION: &'static str = T::DESCRIPTION;
-    const SIZE: usize = T::SIZE;
-    const OFFSET: isize = T::OFFSET;
-    const FLAGS: usize = T::FLAGS;
-
-    #[inline]
-    default unsafe fn type_object() -> &'static mut ffi::PyTypeObject {
-        <T as PyTypeInfo>::type_object()
-    }
-
-    #[inline]
-    default fn is_instance(ptr: &PyObjectRef) -> bool {
-        <T as PyTypeInfo>::is_instance(ptr)
-    }
-
-    #[inline]
-    default fn is_exact_instance(ptr: &PyObjectRef) -> bool {
-        <T as PyTypeInfo>::is_exact_instance(ptr)
-    }
-}
-
 /// Special object that is used for python object creation.
 /// `pyo3` library automatically creates this object for class `__new__` method.
 /// Behavior is undefined if constructor of custom class does not initialze
