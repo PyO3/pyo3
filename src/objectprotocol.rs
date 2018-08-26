@@ -316,42 +316,27 @@ where
         A: IntoPyTuple,
     {
         let args = args.into_tuple(self.py()).into_ptr();
+        let kwargs = kwargs.into_ptr();
         let result = unsafe {
-            let return_value = ffi::PyObject_Call(self.as_ptr(), args, kwargs.into_ptr());
+            let return_value = ffi::PyObject_Call(self.as_ptr(), args, kwargs);
             self.py().from_owned_ptr_or_err(return_value)
         };
-        self.py().xdecref(args);
-        self.py().xdecref(kwargs.into_ptr());
+        unsafe {
+            ffi::Py_XDECREF(args);
+            ffi::Py_XDECREF(kwargs);
+        }
         result
     }
 
     fn call0(&self) -> PyResult<&PyObjectRef> {
-        let args = PyTuple::empty(self.py()).into_ptr();
-        let result = unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PyObject_Call(
-                self.as_ptr(),
-                args,
-                std::ptr::null_mut(),
-            ))
-        };
-        self.py().xdecref(args);
-        result
+        self.call(PyTuple::empty(self.py()), None)
     }
 
     fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
     {
-        let args = args.into_tuple(self.py()).into_ptr();
-        let result = unsafe {
-            self.py().from_owned_ptr_or_err(ffi::PyObject_Call(
-                self.as_ptr(),
-                args,
-                std::ptr::null_mut(),
-            ))
-        };
-        self.py().xdecref(args);
-        result
+        self.call(args, None)
     }
 
     fn call_method<A>(&self, name: &str, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
@@ -368,46 +353,18 @@ where
             let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
             let result = self.py().from_owned_ptr_or_err(result_ptr);
             ffi::Py_DECREF(ptr);
-            self.py().xdecref(args);
-            self.py().xdecref(kwargs);
+            ffi::Py_XDECREF(args);
+            ffi::Py_XDECREF(kwargs);
             result
         })
     }
 
     fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef> {
-        name.with_borrowed_ptr(self.py(), |name| unsafe {
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            if ptr.is_null() {
-                return Err(PyErr::fetch(self.py()));
-            }
-            let args = PyTuple::empty(self.py()).into_ptr();
-            let result = self.py().from_owned_ptr_or_err(ffi::PyObject_Call(
-                ptr,
-                args,
-                std::ptr::null_mut(),
-            ));
-            ffi::Py_DECREF(ptr);
-            self.py().xdecref(args);
-            result
-        })
+        self.call_method(name, PyTuple::empty(self.py()), None)
     }
 
     fn call_method1<A: IntoPyTuple>(&self, name: &str, args: A) -> PyResult<&PyObjectRef> {
-        name.with_borrowed_ptr(self.py(), |name| unsafe {
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            if ptr.is_null() {
-                return Err(PyErr::fetch(self.py()));
-            }
-            let args = args.into_tuple(self.py()).into_ptr();
-            let result = self.py().from_owned_ptr_or_err(ffi::PyObject_Call(
-                ptr,
-                args,
-                std::ptr::null_mut(),
-            ));
-            ffi::Py_DECREF(ptr);
-            self.py().xdecref(args);
-            result
-        })
+        self.call_method(name, args, None)
     }
 
     fn hash(&self) -> PyResult<isize> {

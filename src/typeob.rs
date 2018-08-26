@@ -508,8 +508,6 @@ fn py_class_method_defs<T>() -> PyResult<(
     let mut new = None;
     let mut init = None;
 
-    //<T as class::methods::PyPropMethodsProtocolImpl>::py_methods()
-
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
         match *def {
             PyMethodDefType::New(ref def) => {

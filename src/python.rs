@@ -96,7 +96,7 @@ where
     #[inline]
     fn into_ptr(self) -> *mut ffi::PyObject {
         let ptr = self.as_ptr();
-        if ptr != std::ptr::null_mut() {
+        if !ptr.is_null() {
             unsafe {
                 ffi::Py_INCREF(ptr);
             }
@@ -474,12 +474,9 @@ impl<'p> Python<'p> {
     }
 
     /// Release `ffi::PyObject` pointer.
-    /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub fn xdecref(self, ptr: *mut ffi::PyObject) {
-        if !ptr.is_null() {
-            unsafe { ffi::Py_DECREF(ptr) };
-        }
+    pub fn xdecref<T: IntoPyPointer>(self, ptr: T) {
+        unsafe { ffi::Py_XDECREF(ptr.into_ptr()) };
     }
 }
 

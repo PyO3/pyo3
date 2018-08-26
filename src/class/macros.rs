@@ -327,23 +327,22 @@ macro_rules! py_func_set {
             let py = $crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
 
-            let result;
-            if value.is_null() {
-                result = Err($crate::PyErr::new::<exc::NotImplementedError, _>(format!(
+            let result = if value.is_null() {
+                Err($crate::PyErr::new::<exc::NotImplementedError, _>(format!(
                     "Subscript deletion not supported by {:?}",
                     stringify!($generic)
-                )));
+                )))
             } else {
                 let name = py.mut_from_borrowed_ptr::<$crate::PyObjectRef>(name);
                 let value = py.from_borrowed_ptr::<$crate::PyObjectRef>(value);
-                result = match name.extract() {
+                match name.extract() {
                     Ok(name) => match value.extract() {
                         Ok(value) => slf.$fn_set(name, value).into(),
                         Err(e) => Err(e.into()),
                     },
                     Err(e) => Err(e.into()),
-                };
-            }
+                }
+            };
             match result {
                 Ok(_) => 0,
                 Err(e) => {
@@ -373,22 +372,20 @@ macro_rules! py_func_del {
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
 
-            let result;
-            if value.is_null() {
+            let result = if value.is_null() {
                 let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
                 let name = py.from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
-                result = match name.extract() {
+                match name.extract() {
                     Ok(name) => slf.$fn_del(name).into(),
                     Err(e) => Err(e.into()),
-                };
+                }
             } else {
-                result = Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+                Err(PyErr::new::<exc::NotImplementedError, _>(format!(
                     "Subscript assignment not supported by {:?}",
                     stringify!($generic)
-                )));
-            }
-
+                )))
+            };
             match result {
                 Ok(_) => 0,
                 Err(e) => {
@@ -420,22 +417,21 @@ macro_rules! py_func_set_del {
             let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
             let name = py.from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
-            let result;
-            if value.is_null() {
-                result = match name.extract() {
+            let result = if value.is_null() {
+                match name.extract() {
                     Ok(name) => slf.$fn_del(name).into(),
                     Err(e) => Err(e.into()),
-                };
+                }
             } else {
                 let value = py.from_borrowed_ptr::<$crate::PyObjectRef>(value);
-                result = match name.extract() {
+                match name.extract() {
                     Ok(name) => match value.extract() {
                         Ok(value) => slf.$fn_set(name, value).into(),
                         Err(e) => Err(e.into()),
                     },
                     Err(e) => Err(e.into()),
-                };
-            }
+                }
+            };
             match result {
                 Ok(_) => 0,
                 Err(e) => {

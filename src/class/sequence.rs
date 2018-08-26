@@ -234,19 +234,18 @@ where
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
-            let result;
-            if value.is_null() {
-                result = Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+            let result = if value.is_null() {
+                Err(PyErr::new::<exc::NotImplementedError, _>(format!(
                     "Item deletion not supported by {:?}",
                     stringify!(T)
-                )));
+                )))
             } else {
                 let value = py.from_borrowed_ptr::<PyObjectRef>(value);
-                result = match value.extract() {
+                match value.extract() {
                     Ok(value) => slf.__setitem__(key as isize, value).into(),
                     Err(e) => Err(e),
-                };
-            }
+                }
+            };
             match result {
                 Ok(_) => 0,
                 Err(e) => {
@@ -309,15 +308,14 @@ mod sq_ass_item_impl {
                 let py = Python::assume_gil_acquired();
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
-                let result;
-                if value.is_null() {
-                    result = slf.__delitem__(key as isize).into();
+                let result = if value.is_null() {
+                    slf.__delitem__(key as isize).into()
                 } else {
-                    result = Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+                    Err(PyErr::new::<exc::NotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
                         stringify!(T)
-                    )));
-                }
+                    )))
+                };
 
                 match result {
                     Ok(_) => 0,
@@ -356,16 +354,15 @@ mod sq_ass_item_impl {
                 let py = Python::assume_gil_acquired();
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
-                let result;
-                if value.is_null() {
-                    result = slf.__delitem__(key as isize).into();
+                let result = if value.is_null() {
+                    slf.__delitem__(key as isize).into()
                 } else {
                     let value = py.from_borrowed_ptr::<PyObjectRef>(value);
-                    result = match value.extract() {
+                    match value.extract() {
                         Ok(value) => slf.__setitem__(key as isize, value).into(),
                         Err(e) => Err(e),
-                    };
-                }
+                    }
+                };
                 match result {
                     Ok(_) => 0,
                     Err(e) => {

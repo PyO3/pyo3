@@ -54,7 +54,6 @@ where
     T: PyBufferProtocol<'p>,
 {
     #[inline]
-
     fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
         Some(ffi::PyBufferProcs {
             bf_getbuffer: Self::cb_bf_getbuffer(),

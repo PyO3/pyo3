@@ -565,7 +565,7 @@ mod typeobject {
         etype: *mut PyHeapTypeObject,
     ) -> *mut ffi3::structmember::PyMemberDef {
         let py_type = ffi3::object::Py_TYPE(etype as *mut ffi3::object::PyObject);
-        let ptr = (etype as *mut c_char).offset((*py_type).tp_basicsize);
+        let ptr = etype.offset((*py_type).tp_basicsize);
         ptr as *mut ffi3::structmember::PyMemberDef
     }
 }

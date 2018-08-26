@@ -279,7 +279,7 @@ impl PyTryFrom for PySequence {
     fn try_from(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
-                let ptr = value as *const _ as *mut u8 as *mut PySequence;
+                let ptr = value as *const _ as *mut PySequence;
                 Ok(&*ptr)
             } else {
                 Err(PyDowncastError)
@@ -294,7 +294,7 @@ impl PyTryFrom for PySequence {
     fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
-                let ptr = value as *const _ as *mut u8 as *mut PySequence;
+                let ptr = value as *const _ as *mut PySequence;
                 Ok(&mut *ptr)
             } else {
                 Err(PyDowncastError)

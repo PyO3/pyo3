@@ -172,29 +172,21 @@ impl PyObject {
         A: IntoPyTuple,
     {
         let args = args.into_tuple(py).into_ptr();
+        let kwargs = kwargs.into_ptr();
         let result = unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(self.as_ptr(), args, kwargs.into_ptr()),
-            )
+            PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs))
         };
-        py.xdecref(args);
-        py.xdecref(kwargs.into_ptr());
+        unsafe {
+            ffi::Py_XDECREF(args);
+            ffi::Py_XDECREF(kwargs);
+        }
         result
     }
 
     /// Calls the object without arguments.
     /// This is equivalent to the Python expression: 'self()'
     pub fn call0(&self, py: Python) -> PyResult<PyObject> {
-        let args = PyTuple::empty(py).into_ptr();
-        let result = unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(self.as_ptr(), args, std::ptr::null_mut()),
-            )
-        };
-        py.xdecref(args);
-        result
+        self.call(py, PyTuple::empty(py), None)
     }
 
     /// Calls the object.
@@ -203,25 +195,17 @@ impl PyObject {
     where
         A: IntoPyTuple,
     {
-        let args = args.into_tuple(py).into_ptr();
-        let result = unsafe {
-            PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(self.as_ptr(), args, std::ptr::null_mut()),
-            )
-        };
-        py.xdecref(args);
-        result
+        self.call(py, args, None)
     }
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
-    pub fn call_method<A, K>(
+    pub fn call_method<A>(
         &self,
         py: Python,
         name: &str,
         args: A,
-        kwargs: PyDict,
+        kwargs: Option<PyDict>,
     ) -> PyResult<PyObject>
     where
         A: IntoPyTuple,
@@ -232,8 +216,8 @@ impl PyObject {
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);
-            py.xdecref(args);
-            py.xdecref(kwargs);
+            ffi::Py_XDECREF(args);
+            ffi::Py_XDECREF(kwargs);
             result
         })
     }
@@ -241,17 +225,7 @@ impl PyObject {
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name()'
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
-        name.with_borrowed_ptr(py, |name| unsafe {
-            let args = PyTuple::empty(py).into_ptr();
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            let result = PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(ptr, args, std::ptr::null_mut()),
-            );
-            ffi::Py_DECREF(ptr);
-            py.xdecref(args);
-            result
-        })
+        self.call_method(py, name, PyTuple::empty(py), None)
     }
 
     /// Calls a method on the object.
@@ -260,17 +234,7 @@ impl PyObject {
     where
         A: IntoPyTuple,
     {
-        name.with_borrowed_ptr(py, |name| unsafe {
-            let args = args.into_tuple(py).into_ptr();
-            let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
-            let result = PyObject::from_owned_ptr_or_err(
-                py,
-                ffi::PyObject_Call(ptr, args, std::ptr::null_mut()),
-            );
-            ffi::Py_DECREF(ptr);
-            py.xdecref(args);
-            result
-        })
+        self.call_method(py, name, args, None)
     }
 }
 
@@ -287,7 +251,7 @@ impl AsPyRef<PyObjectRef> for PyObject {
 
 impl ToPyObject for PyObject {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
+    fn to_object(&self, py: Python) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
@@ -324,7 +288,7 @@ impl IntoPyPointer for PyObject {
     #[must_use]
     fn into_ptr(self) -> *mut ffi::PyObject {
         let ptr = self.0;
-        std::mem::forget(self);
+        std::mem::forget(self); // Avoid Drop
         ptr
     }
 }

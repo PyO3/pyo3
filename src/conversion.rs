@@ -28,7 +28,9 @@ pub trait ToBorrowedObject: ToPyObject {
     {
         let ptr = self.to_object(py).into_ptr();
         let result = f(ptr);
-        py.xdecref(ptr);
+        unsafe {
+            ffi::Py_XDECREF(ptr);
+        }
         result
     }
 }

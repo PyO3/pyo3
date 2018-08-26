@@ -57,9 +57,9 @@ impl PyDate {
     pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<Py<PyDate>> {
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromDate)(
-                year as c_int,
-                month as c_int,
-                day as c_int,
+                year,
+                c_int::from(month),
+                c_int::from(day),
                 PyDateTimeAPI.DateType,
             );
             Py::from_owned_ptr_or_err(py, ptr)
@@ -106,12 +106,12 @@ impl PyDateTime {
     ) -> PyResult<Py<PyDateTime>> {
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
-                year as c_int,
-                month as c_int,
-                day as c_int,
-                hour as c_int,
-                minute as c_int,
-                second as c_int,
+                year,
+                c_int::from(month),
+                c_int::from(day),
+                c_int::from(hour),
+                c_int::from(minute),
+                c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
                 PyDateTimeAPI.DateTimeType,
@@ -188,9 +188,9 @@ impl PyTime {
     ) -> PyResult<Py<PyTime>> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTime)(
-                hour as c_int,
-                minute as c_int,
-                second as c_int,
+                c_int::from(hour),
+                c_int::from(minute),
+                c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
                 PyDateTimeAPI.TimeType,
@@ -211,9 +211,9 @@ impl PyTime {
     ) -> PyResult<Py<PyTime>> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTimeAndFold)(
-                hour as c_int,
-                minute as c_int,
-                second as c_int,
+                c_int::from(hour),
+                c_int::from(minute),
+                c_int::from(second),
                 microsecond as c_int,
                 opt_to_pyobj(py, tzinfo),
                 fold as c_int,
