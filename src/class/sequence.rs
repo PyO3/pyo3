@@ -140,12 +140,6 @@ where
     T: PySequenceProtocol<'p>,
 {
     fn tp_as_sequence() -> Option<ffi::PySequenceMethods> {
-        let f = if let Some(df) = Self::sq_del_item() {
-            Some(df)
-        } else {
-            Self::sq_ass_item()
-        };
-
         #[cfg(Py_3)]
         return Some(ffi::PySequenceMethods {
             sq_length: Self::sq_length(),
@@ -153,7 +147,7 @@ where
             sq_repeat: Self::sq_repeat(),
             sq_item: Self::sq_item(),
             was_sq_slice: ::std::ptr::null_mut(),
-            sq_ass_item: f,
+            sq_ass_item: sq_ass_item_impl::sq_ass_item::<Self>(),
             was_sq_ass_slice: ::std::ptr::null_mut(),
             sq_contains: Self::sq_contains(),
             sq_inplace_concat: Self::sq_inplace_concat(),
@@ -240,99 +234,12 @@ where
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
-            if value.is_null() {
-                let e = PyErr::new::<exc::NotImplementedError, _>(format!(
-                    "Item deletion not supported by {:?}",
-                    stringify!(T)
-                ));
-                e.restore(py);
-                -1
-            } else {
-                let value = py.from_borrowed_ptr::<PyObjectRef>(value);
-                let result = match value.extract() {
-                    Ok(value) => slf.__setitem__(key as isize, value).into(),
-                    Err(e) => Err(e),
-                };
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
-                }
-            }
-        }
-        Some(wrap::<T>)
-    }
-}
-
-trait PySequenceDelItemProtocolImpl {
-    fn sq_del_item() -> Option<ffi::ssizeobjargproc> {
-        None
-    }
-}
-
-impl<'p, T> PySequenceDelItemProtocolImpl for T where T: PySequenceProtocol<'p> {}
-
-impl<T> PySequenceDelItemProtocolImpl for T
-where
-    T: for<'p> PySequenceDelItemProtocol<'p>,
-{
-    default fn sq_del_item() -> Option<ffi::ssizeobjargproc> {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            key: ffi::Py_ssize_t,
-            value: *mut ffi::PyObject,
-        ) -> c_int
-        where
-            T: for<'p> PySequenceDelItemProtocol<'p>,
-        {
-            let _pool = ::GILPool::new();
-            let py = Python::assume_gil_acquired();
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
-
-            if value.is_null() {
-                let result = slf.__delitem__(key as isize).into();
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
-                }
-            } else {
-                let e = PyErr::new::<exc::NotImplementedError, _>(format!(
-                    "Item assignment not supported by {:?}",
-                    stringify!(T)
-                ));
-                e.restore(py);
-                -1
-            }
-        }
-        Some(wrap::<T>)
-    }
-}
-
-impl<T> PySequenceDelItemProtocolImpl for T
-where
-    T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
-{
-    fn sq_del_item() -> Option<ffi::ssizeobjargproc> {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            key: ffi::Py_ssize_t,
-            value: *mut ffi::PyObject,
-        ) -> c_int
-        where
-            T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
-        {
-            let _pool = ::GILPool::new();
-            let py = Python::assume_gil_acquired();
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
-
             let result;
             if value.is_null() {
-                result = slf.__delitem__(key as isize).into();
+                result = Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+                    "Item deletion not supported by {:?}",
+                    stringify!(T)
+                )));
             } else {
                 let value = py.from_borrowed_ptr::<PyObjectRef>(value);
                 result = match value.extract() {
@@ -349,6 +256,126 @@ where
             }
         }
         Some(wrap::<T>)
+    }
+}
+
+/// It can be possible to delete and set items (PySequenceSetItemProtocol and
+/// PySequenceDelItemProtocol implemented), only to delete (PySequenceDelItemProtocol implemented)
+/// or no deleting or setting is possible
+mod sq_ass_item_impl {
+    use super::*;
+
+    /// ssizeobjargproc PySequenceMethods.sq_ass_item
+    ///
+    /// This function is used by PySequence_SetItem() and has the same signature. It is also used
+    /// by PyObject_SetItem() and PyObject_DelItem(), after trying the item assignment and deletion
+    /// via the mp_ass_subscript slot. This slot may be left to NULL if the object does not support
+    /// item assignment and deletion.
+    pub(super) fn sq_ass_item<'p, T>() -> Option<ffi::ssizeobjargproc>
+    where
+        T: PySequenceProtocol<'p>,
+    {
+        if let Some(del_set_item) = T::del_set_item() {
+            Some(del_set_item)
+        } else if let Some(del_item) = T::del_item() {
+            Some(del_item)
+        } else {
+            None
+        }
+    }
+
+    trait DelItem {
+        fn del_item() -> Option<ffi::ssizeobjargproc> {
+            None
+        }
+    }
+
+    impl<'p, T> DelItem for T where T: PySequenceProtocol<'p> {}
+
+    impl<T> DelItem for T
+    where
+        T: for<'p> PySequenceDelItemProtocol<'p>,
+    {
+        fn del_item() -> Option<ffi::ssizeobjargproc> {
+            unsafe extern "C" fn wrap<T>(
+                slf: *mut ffi::PyObject,
+                key: ffi::Py_ssize_t,
+                value: *mut ffi::PyObject,
+            ) -> c_int
+            where
+                T: for<'p> PySequenceDelItemProtocol<'p>,
+            {
+                let _pool = ::GILPool::new();
+                let py = Python::assume_gil_acquired();
+                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+
+                let result;
+                if value.is_null() {
+                    result = slf.__delitem__(key as isize).into();
+                } else {
+                    result = Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+                        "Item assignment not supported by {:?}",
+                        stringify!(T)
+                    )));
+                }
+
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
+                    }
+                }
+            }
+            Some(wrap::<T>)
+        }
+    }
+
+    trait DelSetItem {
+        fn del_set_item() -> Option<ffi::ssizeobjargproc> {
+            None
+        }
+    }
+
+    impl<'p, T> DelSetItem for T where T: PySequenceProtocol<'p> {}
+
+    impl<T> DelSetItem for T
+    where
+        T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
+    {
+        fn del_set_item() -> Option<ffi::ssizeobjargproc> {
+            unsafe extern "C" fn wrap<T>(
+                slf: *mut ffi::PyObject,
+                key: ffi::Py_ssize_t,
+                value: *mut ffi::PyObject,
+            ) -> c_int
+            where
+                T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
+            {
+                let _pool = ::GILPool::new();
+                let py = Python::assume_gil_acquired();
+                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+
+                let result;
+                if value.is_null() {
+                    result = slf.__delitem__(key as isize).into();
+                } else {
+                    let value = py.from_borrowed_ptr::<PyObjectRef>(value);
+                    result = match value.extract() {
+                        Ok(value) => slf.__setitem__(key as isize, value).into(),
+                        Err(e) => Err(e),
+                    };
+                }
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
+                    }
+                }
+            }
+            Some(wrap::<T>)
+        }
     }
 }
 
