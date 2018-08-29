@@ -161,7 +161,7 @@ where
             sq_repeat: Self::sq_repeat(),
             sq_item: Self::sq_item(),
             sq_slice: None,
-            sq_ass_item: f,
+            sq_ass_item: sq_ass_item_impl::sq_ass_item::<Self>(),
             sq_ass_slice: None,
             sq_contains: Self::sq_contains(),
             sq_inplace_concat: Self::sq_inplace_concat(),
