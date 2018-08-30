@@ -9,7 +9,6 @@
 [Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
-* [API Documentation](https://docs.rs/crate/pyo3/)
 
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust-cpython.html).
 
