@@ -18,7 +18,7 @@ Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust
 
 You can either write a native python module in rust or use python from a rust binary.
 
-### Using rust from python
+## Using rust from python
 
 Pyo3 can be used to generate a native python module.
 
@@ -26,11 +26,11 @@ Pyo3 can be used to generate a native python module.
 
 ```toml
 [package]
-name = "rust-py"
+name = "string-sum"
 version = "0.1.0"
 
 [lib]
-name = "rust_py"
+name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
@@ -56,14 +56,14 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 
 /// This module is a python moudle implemented in Rust.
 #[pymodinit]
-fn rust_py(py: Python, m: &PyModule) -> PyResult<()> {
+fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(sum_as_string))?;
 
     Ok(())
 }
 ```
 
-On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
+On windows and linux, you can build normally with `cargo build --release`. On Mac OS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
 
 ```toml
 [target.x86_64-apple-darwin]
@@ -73,11 +73,11 @@ rustflags = [
 ]
 ```
 
-Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
+For developing, you can copy and rename the shared librar: On macOS, from `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on linux from `libstring_sum.so` to `libstring_sum.so`. Then open a python shell in the same folder and you'll be to `import string_sum`. 
 
-[`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
+To build, test and publish your crate as python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
 
-### Using python from rust
+## Using python from rust
 
 Add `pyo3` this to your `Cargo.toml`:
 
