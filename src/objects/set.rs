@@ -22,8 +22,6 @@ pyobject_native_type!(PyFrozenSet, ffi::PyFrozenSet_Type, ffi::PyFrozenSet_Check
 
 impl PySet {
     /// Creates a new set.
-    ///
-    /// May panic when running out of memory.
     pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PySet> {
         let list = elements.to_object(py);
         unsafe { Py::from_owned_ptr_or_panic(ffi::PySet_New(list.as_ptr())) }

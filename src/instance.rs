@@ -210,19 +210,15 @@ where
     }
 }
 
-impl<T> AsPyRef<T> for Py<T>
-where
-    T: PyTypeInfo,
-{
-    #[inline]
-    default fn as_ref(&self, _py: Python) -> &T {
+/// Specialization workaround
+trait AsPyRefDispatch<T: PyTypeInfo>: ToPyPointer {
+    fn as_ref_dispatch(&self, _py: Python) -> &T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_ref().unwrap()
         }
     }
-    #[inline]
-    default fn as_mut(&mut self, _py: Python) -> &mut T {
+    fn as_mut_dispatch(&mut self, _py: Python) -> &mut T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_mut().unwrap()
@@ -230,17 +226,26 @@ where
     }
 }
 
-impl<T> AsPyRef<T> for Py<T>
-where
-    T: PyTypeInfo + PyNativeType,
-{
-    #[inline]
-    fn as_ref(&self, _py: Python) -> &T {
+impl<T: PyTypeInfo> AsPyRefDispatch<T> for Py<T> {}
+
+impl<T: PyTypeInfo + PyNativeType> AsPyRefDispatch<T> for Py<T> {
+    fn as_ref_dispatch(&self, _py: Python) -> &T {
         unsafe { &*(self as *const instance::Py<T> as *const T) }
     }
-    #[inline]
-    fn as_mut(&mut self, _py: Python) -> &mut T {
+    fn as_mut_dispatch(&mut self, _py: Python) -> &mut T {
         unsafe { &mut *(self as *const _ as *mut T) }
+    }
+}
+
+impl<T> AsPyRef<T> for Py<T>
+where
+    T: PyTypeInfo,
+{
+    fn as_ref(&self, py: Python) -> &T {
+        self.as_ref_dispatch(py)
+    }
+    fn as_mut(&mut self, py: Python) -> &mut T {
+        self.as_mut_dispatch(py)
     }
 }
 

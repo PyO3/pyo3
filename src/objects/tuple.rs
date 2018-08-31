@@ -1,8 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::slice;
-
 use super::exc;
 use conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
 use err::{PyErr, PyResult};
@@ -11,6 +8,7 @@ use instance::{AsPyRef, Py, PyObjectWithToken};
 use object::PyObject;
 use objects::PyObjectRef;
 use python::{IntoPyPointer, Python, ToPyPointer};
+use std::slice;
 
 /// Represents a Python `tuple` object.
 #[repr(transparent)]
@@ -20,11 +18,16 @@ pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.
-    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PyTuple> {
+    pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> Py<PyTuple>
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        let elements_iter = elements.into_iter();
+        let len = elements_iter.len();
         unsafe {
-            let len = elements.len();
             let ptr = ffi::PyTuple_New(len as Py_ssize_t);
-            for (i, e) in elements.iter().enumerate() {
+            for (i, e) in elements_iter.enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
             Py::from_owned_ptr_or_panic(ptr)
@@ -119,7 +122,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyTuple {
+impl<'a> IntoIterator for &'a PyTuple {
     type Item = &'a PyObjectRef;
     type IntoIter = PyTupleIterator<'a>;
 
@@ -267,6 +270,7 @@ mod test {
     use objectprotocol::ObjectProtocol;
     use objects::PyObjectRef;
     use python::Python;
+    use std::collections::HashSet;
     use PyTuple;
 
     #[test]
@@ -278,6 +282,11 @@ mod test {
         assert_eq!(3, ob.len());
         let ob: &PyObjectRef = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
+
+        let mut map = HashSet::new();
+        map.insert(1);
+        map.insert(2);
+        PyTuple::new(py, &map);
     }
 
     #[test]

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `as_mut` and friends take and `&mut self` instead of `&self`
  * `ObjectProtocol::call` now takes an `Option<PyDict>` for the kwargs instead of an `IntoPyDictPointer`.
  * `IntoPyDictPointer` was replace by `IntoPyDict` which doesn't convert `PyDict` itself anymore and returns a `PyDict` instead of `*mut PyObject`.
+ * `PyTuple::new` now takes an `IntoIterator` instead of a slice
 
 ### Fixed
 
