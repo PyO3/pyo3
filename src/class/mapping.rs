@@ -212,30 +212,34 @@ where
     }
 }
 
-trait PyMappingDelItemProtocolImpl {
+/// Returns `None` if PyMappingDelItemProtocol isn't implemented, otherwise dispatches to
+/// `DelSetItemDispatch`
+trait DeplItemDipatch {
     fn mp_del_subscript() -> Option<ffi::objobjargproc> {
         None
     }
 }
 
-impl<'p, T> PyMappingDelItemProtocolImpl for T where T: PyMappingProtocol<'p> {}
+impl<'p, T> DeplItemDipatch for T where T: PyMappingProtocol<'p> {}
 
-impl<T> PyMappingDelItemProtocolImpl for T
-where
-    T: for<'p> PyMappingDelItemProtocol<'p>,
-{
-    #[inline]
-    default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
-        py_func_del!(PyMappingDelItemProtocol, T, __delitem__)
+/// Returns `py_func_set_del` if PyMappingSetItemProtocol is implemented, otherwise `py_func_del`
+trait DelSetItemDispatch: Sized + for<'p> PyMappingDelItemProtocol<'p> {
+    fn det_set_dispatch() -> Option<ffi::objobjargproc> {
+        py_func_del!(
+            PyMappingDelItemProtocol,
+            Self,
+            __delitem__
+        )
     }
 }
 
-impl<T> PyMappingDelItemProtocolImpl for T
+impl<T> DelSetItemDispatch for T where T: Sized + for<'p> PyMappingDelItemProtocol<'p> {}
+
+impl<T> DelSetItemDispatch for T
 where
     T: for<'p> PyMappingSetItemProtocol<'p> + for<'p> PyMappingDelItemProtocol<'p>,
 {
-    #[inline]
-    fn mp_del_subscript() -> Option<ffi::objobjargproc> {
+    fn det_set_dispatch() -> Option<ffi::objobjargproc> {
         py_func_set_del!(
             PyMappingSetItemProtocol,
             PyMappingDelItemProtocol,
@@ -243,6 +247,15 @@ where
             __setitem__,
             __delitem__
         )
+    }
+}
+
+impl<T> DeplItemDipatch for T
+where
+    T: Sized + for<'p> PyMappingDelItemProtocol<'p>,
+{
+    fn mp_del_subscript() -> Option<ffi::objobjargproc> {
+        <T as DelSetItemDispatch>::det_set_dispatch()
     }
 }
 

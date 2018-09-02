@@ -359,13 +359,13 @@ macro_rules! py_func_set {
 #[doc(hidden)]
 macro_rules! py_func_del {
     ($trait_name:ident, $generic:ident, $fn_del:ident) => {{
-        unsafe extern "C" fn wrap<$generic>(
+        unsafe extern "C" fn wrap<U>(
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
         ) -> $crate::libc::c_int
         where
-            T: for<'p> $trait_name<'p>,
+            U: for<'p> $trait_name<'p>,
         {
             use $crate::ObjectProtocol;
 
@@ -373,7 +373,7 @@ macro_rules! py_func_del {
             let py = $crate::Python::assume_gil_acquired();
 
             let result = if value.is_null() {
-                let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
+                let slf = py.mut_from_borrowed_ptr::<U>(slf);
                 let name = py.from_borrowed_ptr::<$crate::PyObjectRef>(name);
 
                 match name.extract() {
@@ -381,10 +381,9 @@ macro_rules! py_func_del {
                     Err(e) => Err(e.into()),
                 }
             } else {
-                Err(PyErr::new::<exc::NotImplementedError, _>(format!(
-                    "Subscript assignment not supported by {:?}",
-                    stringify!($generic)
-                )))
+                Err(PyErr::new::<exc::NotImplementedError, _>(
+                    "Subscript assignment not supported",
+                ))
             };
             match result {
                 Ok(_) => 0,
