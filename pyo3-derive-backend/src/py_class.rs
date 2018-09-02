@@ -382,46 +382,34 @@ fn parse_attribute(
     syn::TypePath,
 ) {
     let mut params = HashMap::new();
+    // We need the 0 as value for the constant we're later building using quote for when there
+    // are no other flags
     let mut flags = vec![parse_quote! {0}];
     let mut base: syn::TypePath = parse_quote! {::pyo3::PyObjectRef};
 
     for expr in args.iter() {
         match expr {
             // Match a single flag
-            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => match exp
-                .path
-                .segments
-                .first()
-                .unwrap()
-                .value()
-                .ident
-                .to_string()
-                .as_str()
-            {
-                "gc" => {
-                    flags.push(syn::Expr::Path(
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_GC},
-                    ));
-                }
-                "weakref" => {
-                    flags.push(syn::Expr::Path(
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF},
-                    ));
-                }
-                "subclass" => {
-                    flags.push(syn::Expr::Path(
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_BASETYPE},
-                    ));
-                }
-                "dict" => {
-                    flags.push(syn::Expr::Path(
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT},
-                    ));
-                }
-                param => {
-                    println!("Unsupported parameter: {}", param);
-                }
-            },
+            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+                let flag = exp.path.segments.first().unwrap().value().ident.to_string();
+                let path = match flag.as_str() {
+                    "gc" => {
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_GC}
+                    }
+                    "weakref" => {
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF}
+                    }
+                    "subclass" => {
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_BASETYPE}
+                    }
+                    "dict" => {
+                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT}
+                    }
+                    param => panic!("Unsupported parameter: {}", param),
+                };
+
+                flags.push(syn::Expr::Path(path));
+            }
 
             // Match a key/value flag
             syn::Expr::Assign(ref ass) => {
@@ -441,7 +429,7 @@ fn parse_attribute(
                         syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
                             params.insert("name", exp.clone().into());
                         }
-                        _ => println!("Wrong 'name' format: {:?}", *ass.right),
+                        _ => panic!("Wrong 'name' format: {:?}", *ass.right),
                     },
                     "extends" => match *ass.right {
                         syn::Expr::Path(ref exp) => {
@@ -450,10 +438,10 @@ fn parse_attribute(
                                 qself: None,
                             };
                         }
-                        _ => println!("Wrong 'base' format: {:?}", *ass.right),
+                        _ => panic!("Wrong 'base' format: {:?}", *ass.right),
                     },
                     _ => {
-                        println!("Unsupported parameter: {:?}", key);
+                        panic!("Unsupported parameter: {:?}", key);
                     }
                 }
             }

@@ -19,7 +19,6 @@ struct MyClass {
 
 The above example generates implementations for `PyTypeInfo` and `PyTypeObject` for `MyClass`.
 
-If the class has a `PyToken` attribute, implementations for `PyObjectWithToken`, `ToPyObject`, `IntoPyObject` and `ToPyPointer` are also generated. You can only get a `PyToken` instance through the  `__new__` method.
 
 ## Customizing the class
 
@@ -54,7 +53,6 @@ attribute. Only the python `__new__` method can be specified, `__init__` is not 
 #[pyclass]
 struct MyClass {
    num: i32,
-   token: PyToken,
 }
 
 #[pymethods]
@@ -62,10 +60,9 @@ impl MyClass {
 
      #[new]
      fn __new__(obj: &PyRawObject, num: i32) -> PyResult<()> {
-         obj.init(|token| {
+         obj.init(|_| {
              MyClass {
                  num,
-                 token
              }
          })
      }
@@ -151,7 +148,6 @@ attributes. i.e.
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
-#    token: PyToken,
 # }
 #
 #[pymethods]
@@ -178,7 +174,6 @@ rust's special keywords like `type`.
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
-#    token: PyToken,
 # }
 #
 #[pymethods]
@@ -209,7 +204,6 @@ If parameter is specified, it is used and property name. i.e.
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
-#    token: PyToken,
 # }
 #
 #[pymethods]
@@ -259,7 +253,6 @@ class method static methods, etc.
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
-#    token: PyToken,
 # }
 #
 #[pymethods]
@@ -290,7 +283,6 @@ get injected by method wrapper. i.e
 # struct MyClass {
 #    num: i32,
 #    debug: bool,
-#    token: PyToken,
 # }
 
 #[pymethods]
@@ -316,7 +308,6 @@ with`#[classmethod]` attribute.
 # struct MyClass {
 #    num: i32,
 #    debug: bool,
-#    token: PyToken,
 # }
 
 #[pymethods]
@@ -350,7 +341,6 @@ for some `T` that implements `IntoPyObject`.
 # struct MyClass {
 #    num: i32,
 #    debug: bool,
-#    token: PyToken,
 # }
 
 #[pymethods]
@@ -375,7 +365,6 @@ with `#[call]` attribute. Arguments of the method are specified same as for inst
 # struct MyClass {
 #    num: i32,
 #    debug: bool,
-#    token: PyToken,
 # }
 
 #[pymethods]
@@ -383,7 +372,7 @@ impl MyClass {
      #[call]
      #[args(args="*")]
      fn __call__(&self, args: &PyTuple) -> PyResult<i32> {
-        println!("MyCLS has been called");
+        println!("MyClass has been called");
         Ok(self.num)
      }
 }
@@ -421,7 +410,6 @@ Example:
 # struct MyClass {
 #    num: i32,
 #    debug: bool,
-#    token: PyToken,
 # }
 #
 #[pymethods]
@@ -567,10 +555,10 @@ Example:
 
 ```rust
 #![feature(specialization)]
+
 extern crate pyo3;
 
 use pyo3::prelude::*;
-
 
 #[pyclass]
 struct MyIterator {

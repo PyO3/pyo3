@@ -8,9 +8,7 @@ use pyo3::prelude::*;
 mod common;
 
 #[pyclass]
-struct UnaryArithmetic {
-    token: PyToken,
-}
+struct UnaryArithmetic {}
 
 #[pyproto]
 impl PyNumberProtocol for UnaryArithmetic {
@@ -36,7 +34,7 @@ fn unary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| UnaryArithmetic { token: t }).unwrap();
+    let c = py.init(|_| UnaryArithmetic {}).unwrap();
     py_run!(py, c, "assert -c == 'neg'");
     py_run!(py, c, "assert +c == 'pos'");
     py_run!(py, c, "assert abs(c) == 'abs'");
@@ -44,9 +42,7 @@ fn unary_arithmetic() {
 }
 
 #[pyclass]
-struct BinaryArithmetic {
-    token: PyToken,
-}
+struct BinaryArithmetic {}
 
 #[pyproto]
 impl PyObjectProtocol for BinaryArithmetic {
@@ -58,7 +54,6 @@ impl PyObjectProtocol for BinaryArithmetic {
 #[pyclass]
 struct InPlaceOperations {
     value: u32,
-    token: PyToken,
 }
 
 #[pyproto]
@@ -117,7 +112,7 @@ fn inplace_operations() {
     let py = gil.python();
 
     let init = |value, code| {
-        let c = py.init(|t| InPlaceOperations { value, token: t }).unwrap();
+        let c = py.init(|_| InPlaceOperations { value }).unwrap();
         py_run!(py, c, code);
     };
 
@@ -171,7 +166,7 @@ fn binary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| BinaryArithmetic { token: t }).unwrap();
+    let c = py.init(|_| BinaryArithmetic {}).unwrap();
     py_run!(py, c, "assert c + c == 'BA + BA'");
     py_run!(py, c, "assert c + 1 == 'BA + 1'");
     py_run!(py, c, "assert 1 + c == '1 + BA'");
@@ -193,9 +188,7 @@ fn binary_arithmetic() {
 }
 
 #[pyclass]
-struct RichComparisons {
-    token: PyToken,
-}
+struct RichComparisons {}
 
 #[pyproto]
 impl PyObjectProtocol for RichComparisons {
@@ -226,7 +219,7 @@ impl PyObjectProtocol for RichComparisons2 {
         Ok("RC2")
     }
 
-    fn __richcmp__(&self, _other: &'p PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
+    fn __richcmp__(&self, _other: &PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
         match op {
             CompareOp::Eq => Ok(true.to_object(self.py())),
             CompareOp::Ne => Ok(false.to_object(self.py())),
@@ -240,7 +233,7 @@ fn rich_comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| RichComparisons { token: t }).unwrap();
+    let c = py.init(|_| RichComparisons {}).unwrap();
     py_run!(py, c, "assert (c < c) == 'RC < RC'");
     py_run!(py, c, "assert (c < 1) == 'RC < 1'");
     py_run!(py, c, "assert (1 < c) == 'RC > 1'");

@@ -72,15 +72,13 @@ fn instance_method_with_args() {
 }
 
 #[pyclass]
-struct ClassMethod {
-    token: PyToken,
-}
+struct ClassMethod {}
 
 #[pymethods]
 impl ClassMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|t| ClassMethod { token: t })
+        obj.init(|_| ClassMethod {})
     }
 
     #[classmethod]

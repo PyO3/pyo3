@@ -73,7 +73,7 @@ rustflags = [
 ]
 ```
 
-For developing, you can copy and rename the shared librar: On macOS, from `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on linux from `libstring_sum.so` to `libstring_sum.so`. Then open a python shell in the same folder and you'll be to `import string_sum`. 
+For developing, you can copy and rename the shared library from the target folder: On mac os, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `libstring_sum.so`. Then open a python shell in the same folder and you'll be able to `import string_sum`.
 
 To build, test and publish your crate as python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
 

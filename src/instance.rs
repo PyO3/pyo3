@@ -23,7 +23,6 @@ impl PyToken {
     }
 
     #[inline]
-
     pub fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }

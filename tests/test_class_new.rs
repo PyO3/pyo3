@@ -5,15 +5,13 @@ extern crate pyo3;
 use pyo3::prelude::*;
 
 #[pyclass]
-struct EmptyClassWithNew {
-    token: PyToken,
-}
+struct EmptyClassWithNew {}
 
 #[pymethods]
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|t| EmptyClassWithNew { token: t })
+        obj.init(|_| EmptyClassWithNew {})
     }
 }
 
@@ -34,17 +32,13 @@ fn empty_class_with_new() {
 #[pyclass]
 struct NewWithOneArg {
     _data: i32,
-    token: PyToken,
 }
 
 #[pymethods]
 impl NewWithOneArg {
     #[new]
     fn __new__(obj: &PyRawObject, arg: i32) -> PyResult<()> {
-        obj.init(|t| NewWithOneArg {
-            _data: arg,
-            token: t,
-        })
+        obj.init(|_| NewWithOneArg { _data: arg })
     }
 }
 
@@ -62,18 +56,15 @@ fn new_with_one_arg() {
 struct NewWithTwoArgs {
     _data1: i32,
     _data2: i32,
-
-    token: PyToken,
 }
 
 #[pymethods]
 impl NewWithTwoArgs {
     #[new]
     fn __new__(obj: &PyRawObject, arg1: i32, arg2: i32) -> PyResult<()> {
-        obj.init(|t| NewWithTwoArgs {
+        obj.init(|_| NewWithTwoArgs {
             _data1: arg1,
             _data2: arg2,
-            token: t,
         })
     }
 }
