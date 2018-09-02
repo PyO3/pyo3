@@ -9,13 +9,12 @@ extern crate proc_macro2;
 extern crate pyo3_derive_backend;
 #[macro_use]
 extern crate quote;
+#[macro_use]
 extern crate syn;
 
-use syn::buffer::TokenBuffer;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
-
 use pyo3_derive_backend::*;
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
 
 #[proc_macro_attribute]
 pub fn mod2init(
@@ -38,7 +37,7 @@ pub fn mod2init(
     // Create the module initialisation function
     let expanded = module::py2_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
-    quote! (
+    quote!(
         #ast
         #expanded
     ).into()
@@ -66,7 +65,7 @@ pub fn mod3init(
     // Create the module initialisation function
     let expanded = module::py3_init(&ast.ident, &modname, utils::get_doc(&ast.attrs, false));
 
-    quote! (
+    quote!(
         #ast
         #expanded
     ).into()
@@ -84,7 +83,7 @@ pub fn pyproto(
     // Build the output
     let expanded = py_proto::build_py_proto(&mut ast);
 
-    quote! (
+    quote!(
         #ast
         #expanded
     ).into()
@@ -100,19 +99,18 @@ pub fn pyclass(
         syn::parse(input).expect("#[pyclass] must be used on a `struct`");
 
     // Parse the macro arguments into a list of expressions
-    let args: Vec<syn::Expr> = {
-        let buffer = TokenBuffer::new(attr);
-        let punc = Punctuated::<syn::Expr, Comma>::parse_terminated(buffer.begin());
-        punc.expect("could not parse macro arguments")
-            .0
-            .into_iter()
-            .collect()
-    };
+    let parser = Punctuated::<syn::Expr, Token![,]>::parse_terminated;
+    let error_message = "The macro attributes should be a list of comma separated expressions";
+    let args = parser
+        .parse(attr)
+        .expect(error_message)
+        .into_iter()
+        .collect();
 
     // Build the output
     let expanded = py_class::build_py_class(&mut ast, &args);
 
-    quote! (
+    quote!(
         #ast
         #expanded
     ).into()
@@ -130,7 +128,7 @@ pub fn pymethods(
     // Build the output
     let expanded = py_impl::build_py_methods(&mut ast);
 
-    quote! (
+    quote!(
         #ast
         #expanded
     ).into()
@@ -148,7 +146,7 @@ pub fn pyfunction(
     let python_name = ast.ident.clone();
     let expanded = module::add_fn_to_module(&mut ast, &python_name, Vec::new());
 
-    quote! (
+    quote!(
         #ast
         #expanded
     ).into()

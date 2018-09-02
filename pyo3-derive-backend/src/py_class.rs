@@ -382,7 +382,7 @@ fn parse_attribute(
     syn::TypePath,
 ) {
     let mut params = HashMap::new();
-    let mut flags = vec![syn::Expr::Lit(parse_quote! {0})];
+    let mut flags = vec![parse_quote! {0}];
     let mut base: syn::TypePath = parse_quote! {::pyo3::PyObjectRef};
 
     for expr in args.iter() {

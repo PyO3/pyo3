@@ -14,6 +14,6 @@ license = "Apache-2.0"
 quote = "0.6.6"
 proc-macro2 = "0.4.13"
 
-[dependencies.syn]
-version = "0.14.8"
+[dependencies.syn-next]
+version = "0.15.0-rc"
 features = ["full", "extra-traits"]
