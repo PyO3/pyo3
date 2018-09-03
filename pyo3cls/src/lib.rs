@@ -15,6 +15,7 @@ extern crate syn;
 use pyo3_derive_backend::*;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
+use proc_macro2::Span;
 
 #[proc_macro_attribute]
 pub fn mod2init(
@@ -139,11 +140,10 @@ pub fn pyfunction(
     _: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[function] must be used on a `fn` block");
 
-    // Build the output
-    let python_name = ast.ident.clone();
+    // Workaround for https://github.com/dtolnay/syn/issues/478
+    let python_name = syn::Ident::new(&ast.ident.to_string().trim_left_matches("r#"), Span::call_site());
     let expanded = module::add_fn_to_module(&mut ast, &python_name, Vec::new());
 
     quote!(

@@ -24,13 +24,13 @@ libc = "0.2.43"
 spin = "0.4.9"
 num-traits = "0.2.5"
 pyo3cls = { path = "pyo3cls", version = "=0.5.0" }
-mashup = "0.1.5"
+mashup = "0.1.7"
 
 [dev-dependencies]
 docmatic = "0.1.2"
 
 [build-dependencies]
-regex = "1.0.2"
+regex = "1.0.4"
 version_check = "0.1.4"
 
 [features]

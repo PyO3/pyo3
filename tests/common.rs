@@ -1,3 +1,7 @@
+//! Useful tips for writing tests:
+//!  - Tests are run in parallel; There's still a race condition in test_owned with some other test
+//!  - You need to use flush=True to get any output from print
+
 /// Removes indentation from multiline strings in pyrun commands
 #[allow(unused)] // macro scoping is fooling the compiler
 pub fn indoc(commands: &str) -> String {

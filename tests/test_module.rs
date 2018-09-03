@@ -5,6 +5,9 @@ extern crate pyo3;
 
 use pyo3::prelude::*;
 
+#[macro_use]
+mod common;
+
 #[pyclass]
 struct EmptyClass {}
 
@@ -114,4 +117,25 @@ fn test_module_from_code() {
         .expect("The value should be able to be converted to an i32");
 
     assert_eq!(ret_value, 3);
+}
+
+#[pyfunction]
+fn r#move() -> usize {
+    42
+}
+
+#[pymodinit]
+fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    module.add_function(wrap_function!(r#move))
+}
+
+#[test]
+#[cfg(Py_3)]
+fn test_raw_idents() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let module = unsafe { PyObject::from_owned_ptr(py, PyInit_raw_ident_module()) };
+
+    py_assert!(py, module, "module.move() == 42");
 }

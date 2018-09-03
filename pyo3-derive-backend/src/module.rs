@@ -200,7 +200,11 @@ fn extract_pyfn_attrs(
 /// Coordinates the naming of a the add-function-to-python-module function
 fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
     // Make sure this ident matches the one of wrap_function
-    syn::parse_str(&format!("__pyo3_get_function_{}", &name)).unwrap()
+    // The trim_left_matches("r#") is for https://github.com/dtolnay/syn/issues/478
+    syn::Ident::new(
+        &format!("__pyo3_get_function_{}", name.to_string().trim_left_matches("r#")),
+        Span::call_site(),
+    )
 }
 
 /// Generates python wrapper over a function that allows adding it to a python module as a python
@@ -291,7 +295,7 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
             let _pool = ::pyo3::GILPool::new();
             let _py = ::pyo3::Python::assume_gil_acquired();
             let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-            let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+            let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
             #body_to_result
             ::pyo3::callback::cb_convert(
