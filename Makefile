@@ -17,6 +17,6 @@ default: test
 
 test:
 	cargo test $(CARGO_FLAGS)
-	pip install setuptools-rust pytest pytest-benchmark
+	pip install setuptools-rust pytest pytest-benchmark tox
 	cd examples/word-count && python setup.py install && pytest -v tests
-	cd examples/word-count-cls && python setup.py install && pytest -v tests
+	cd examples/rustapi_module && tox

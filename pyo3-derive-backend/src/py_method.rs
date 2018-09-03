@@ -89,7 +89,7 @@ pub fn impl_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec, noargs: bool
                 let _py = ::pyo3::Python::assume_gil_acquired();
                 let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
                 let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-                let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+                let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
                 #body_to_result
                 ::pyo3::callback::cb_convert(
@@ -116,7 +116,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tok
             let _py = ::pyo3::Python::assume_gil_acquired();
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
             let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-            let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+            let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
             let _result = {
                 #body
@@ -162,7 +162,7 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
             match ::pyo3::typeob::PyRawObject::new(_py, #cls::type_object(), _cls) {
                 Ok(_obj) => {
                     let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-                    let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+                    let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
                     #body_to_result
 
@@ -208,7 +208,7 @@ fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStr
             let _py = ::pyo3::Python::assume_gil_acquired();
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
             let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-            let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+            let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
             #body_to_result
             match _result {
@@ -254,7 +254,7 @@ pub fn impl_wrap_class(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tok
             let _py = ::pyo3::Python::assume_gil_acquired();
             let _cls = ::pyo3::PyType::from_type_ptr(_py, _cls as *mut ::pyo3::ffi::PyTypeObject);
             let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-            let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+            let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
             #body_to_result
             ::pyo3::callback::cb_convert(
@@ -294,7 +294,7 @@ pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> To
             let _pool = ::pyo3::GILPool::new();
             let _py = ::pyo3::Python::assume_gil_acquired();
             let _args = _py.from_borrowed_ptr::<::pyo3::PyTuple>(_args);
-            let _kwargs = ::pyo3::argparse::get_kwargs(_py, _kwargs);
+            let _kwargs: Option<&PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
             #body_to_result
             ::pyo3::callback::cb_convert(

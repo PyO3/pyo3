@@ -5,9 +5,7 @@
 //! Python argument parsing
 use conversion::PyTryFrom;
 use err::PyResult;
-use ffi;
 use objects::{exc, PyDict, PyObjectRef, PyString, PyTuple};
-use python::Python;
 
 #[derive(Debug)]
 /// Description of a python parameter; used for `parse_args()`.
@@ -102,14 +100,4 @@ pub fn parse_args<'p>(
         }
     }
     Ok(())
-}
-
-#[inline]
-#[doc(hidden)]
-pub unsafe fn get_kwargs(py: Python, ptr: *mut ffi::PyObject) -> Option<&PyDict> {
-    if ptr.is_null() {
-        None
-    } else {
-        Some(py.from_borrowed_ptr::<PyDict>(ptr))
-    }
 }
