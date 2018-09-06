@@ -93,7 +93,6 @@ impl<'a, T> IntoPyPointer for &'a T
 where
     T: ToPyPointer,
 {
-    #[inline]
     fn into_ptr(self) -> *mut ffi::PyObject {
         let ptr = self.as_ptr();
         if !ptr.is_null() {

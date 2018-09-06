@@ -86,37 +86,8 @@ fn impl_class(
     let extra = if let Some(token) = token {
         Some(quote! {
             impl ::pyo3::PyObjectWithToken for #cls {
-                #[inline]
                 fn py<'p>(&'p self) -> ::pyo3::Python<'p> {
                     self.#token.py()
-                }
-            }
-            impl ::pyo3::ToPyObject for #cls {
-                #[inline]
-                fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
-                    unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-                }
-            }
-            impl ::pyo3::ToBorrowedObject for #cls {
-                #[inline]
-                fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
-                    where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
-                {
-                    f(self.as_ptr())
-                }
-            }
-            impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
-                #[inline]
-                fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
-                    unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-                }
-            }
-            impl<'a> ::pyo3::ToBorrowedObject for &'a mut #cls {
-                #[inline]
-                fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
-                    where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
-                {
-                    f(self.as_ptr())
                 }
             }
             impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
@@ -125,26 +96,17 @@ fn impl_class(
                     unsafe{std::mem::transmute(ob)}
                 }
             }
-            impl ::pyo3::ToPyPointer for #cls {
-                #[inline]
-                fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
-                    unsafe {
-                        {self as *const _ as *mut u8}
-                        .offset(-<#cls as ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
-                    }
-                }
-            }
             impl std::fmt::Debug for #cls {
                 fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     use ::pyo3::ObjectProtocol;
-                    let s = try!(self.repr().map_err(|_| std::fmt::Error));
+                    let s = self.repr().map_err(|_| std::fmt::Error)?;
                     f.write_str(&s.to_string_lossy())
                 }
             }
             impl std::fmt::Display for #cls {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
                     use ::pyo3::ObjectProtocol;
-                    let s = try!(self.str().map_err(|_| std::fmt::Error));
+                    let s = self.str().map_err(|_| std::fmt::Error)?;
                     f.write_str(&s.to_string_lossy())
                 }
             }
@@ -260,6 +222,52 @@ fn impl_class(
                                             <#cls as ::pyo3::typeob::PyTypeInfo>::NAME).as_ref());
                     }
                 });
+            }
+        }
+
+        // TBH I'm not sure what exactely this does and I'm sure there's a better way,
+        // but for now it works and it only safe code and it is required to return custom
+        // objects, so for now I'm keeping it
+        impl ::pyo3::IntoPyObject for #cls {
+            fn into_object<'p>(self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+                ::pyo3::Py::new(py, |_| self).unwrap().into_object(py)
+            }
+        }
+
+        impl ::pyo3::ToPyObject for #cls {
+            fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+                unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+            }
+        }
+
+        impl ::pyo3::ToPyPointer for #cls {
+            fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
+                unsafe {
+                    {self as *const _ as *mut u8}
+                    .offset(-<#cls as ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
+                }
+            }
+        }
+
+        impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
+            fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+                unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+            }
+        }
+
+        impl ::pyo3::ToBorrowedObject for #cls {
+            fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
+                where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
+            {
+                f(self.as_ptr())
+            }
+        }
+
+        impl<'a> ::pyo3::ToBorrowedObject for &'a mut #cls {
+            fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
+                where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
+            {
+                f(self.as_ptr())
             }
         }
 

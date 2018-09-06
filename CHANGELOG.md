@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Added
+ 
+ * `#[pyclass]` objects can now be returned from rust functions
+
 ### Changed
 
  * Slowly removing specialization uses
