@@ -5,15 +5,11 @@ description = "Code generation for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3.git"
-documentation = "https://pyo3.github.io/pyo3/guide/"
+repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
 [dependencies]
-quote = "0.6.6"
-proc-macro2 = "0.4.13"
-
-[dependencies.syn-next]
-version = "0.15.0-rc"
-features = ["full", "extra-traits"]
+quote = "0.6.8"
+proc-macro2 = "0.4.18"
+syn = { version = "0.15.1", features = ["full", "extra-traits"] }

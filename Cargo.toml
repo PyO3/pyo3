@@ -30,7 +30,7 @@ mashup = "0.1.7"
 docmatic = "0.1.2"
 
 [build-dependencies]
-regex = "1.0.4"
+regex = "1.0.5"
 version_check = "0.1.4"
 
 [features]

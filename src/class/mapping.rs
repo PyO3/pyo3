@@ -225,11 +225,7 @@ impl<'p, T> DeplItemDipatch for T where T: PyMappingProtocol<'p> {}
 /// Returns `py_func_set_del` if PyMappingSetItemProtocol is implemented, otherwise `py_func_del`
 trait DelSetItemDispatch: Sized + for<'p> PyMappingDelItemProtocol<'p> {
     fn det_set_dispatch() -> Option<ffi::objobjargproc> {
-        py_func_del!(
-            PyMappingDelItemProtocol,
-            Self,
-            __delitem__
-        )
+        py_func_del!(PyMappingDelItemProtocol, Self, __delitem__)
     }
 }
 

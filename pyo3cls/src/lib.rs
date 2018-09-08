@@ -12,10 +12,10 @@ extern crate quote;
 #[macro_use]
 extern crate syn;
 
+use proc_macro2::Span;
 use pyo3_derive_backend::*;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
-use proc_macro2::Span;
 
 #[proc_macro_attribute]
 pub fn mod2init(
@@ -143,7 +143,10 @@ pub fn pyfunction(
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[function] must be used on a `fn` block");
 
     // Workaround for https://github.com/dtolnay/syn/issues/478
-    let python_name = syn::Ident::new(&ast.ident.to_string().trim_left_matches("r#"), Span::call_site());
+    let python_name = syn::Ident::new(
+        &ast.ident.to_string().trim_left_matches("r#"),
+        Span::call_site(),
+    );
     let expanded = module::add_fn_to_module(&mut ast, &python_name, Vec::new());
 
     quote!(

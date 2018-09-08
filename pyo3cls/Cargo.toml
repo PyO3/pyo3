@@ -5,8 +5,7 @@ description = "Proc macros for PyO3 package"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3.git"
-documentation = "https://docs.rs/pyo3cls"
+repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
@@ -14,13 +13,7 @@ license = "Apache-2.0"
 proc-macro = true
 
 [dependencies]
-quote= "0.6.6"
-proc-macro2 = "0.4.13"
-
-[dependencies.syn-next]
-version= "0.15.0-rc"
-features=["full", "extra-traits"]
-
-[dependencies.pyo3-derive-backend]
-path = "../pyo3-derive-backend"
-version = "=0.5.0"
+quote= "0.6.8"
+proc-macro2 = "0.4.18"
+syn = { version = "0.15.1", features = ["full", "extra-traits"] }
+pyo3-derive-backend = { path = "../pyo3-derive-backend", version = "=0.5.0" }

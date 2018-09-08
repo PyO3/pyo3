@@ -27,8 +27,14 @@ macro_rules! py_run {
         let d = PyDict::new($py);
         d.set_item(stringify!($val), &$val).unwrap();
         $py.run(&common::indoc($code), None, Some(d))
-            .map_err(|e| e.print($py))
-            .expect(&common::indoc($code))
+            .map_err(|e| {
+                e.print($py);
+                // So when this c api function the last line called printed the error to stderr,
+                // the output is only written into a buffer which is never flushed because we
+                // panic before flushing. This is where this hack comes into place
+                $py.run("import sys; sys.stderr.flush()", None, None)
+                    .unwrap();
+            }).expect(&common::indoc($code))
     }};
 }
 

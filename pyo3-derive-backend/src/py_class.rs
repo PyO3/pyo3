@@ -229,13 +229,13 @@ fn impl_class(
         // but for now it works and it only safe code and it is required to return custom
         // objects, so for now I'm keeping it
         impl ::pyo3::IntoPyObject for #cls {
-            fn into_object<'p>(self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+            fn into_object(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 ::pyo3::Py::new(py, |_| self).unwrap().into_object(py)
             }
         }
 
         impl ::pyo3::ToPyObject for #cls {
-            fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+            fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -250,7 +250,7 @@ fn impl_class(
         }
 
         impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
-            fn to_object<'p>(&self, py: ::pyo3::Python<'p>) -> ::pyo3::PyObject {
+            fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }

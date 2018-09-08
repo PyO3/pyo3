@@ -202,7 +202,10 @@ fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
     // Make sure this ident matches the one of wrap_function
     // The trim_left_matches("r#") is for https://github.com/dtolnay/syn/issues/478
     syn::Ident::new(
-        &format!("__pyo3_get_function_{}", name.to_string().trim_left_matches("r#")),
+        &format!(
+            "__pyo3_get_function_{}",
+            name.to_string().trim_left_matches("r#")
+        ),
         Span::call_site(),
     )
 }
