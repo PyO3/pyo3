@@ -1,10 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use spin;
-use std::{any, marker, rc, sync};
-
 use ffi;
 use objects::PyObjectRef;
 use python::Python;
+use spin;
+use std::{any, marker, rc, sync};
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -63,6 +62,18 @@ pub fn prepare_freethreaded_python() {
 
         init_once();
     });
+}
+
+/// This function is called in the generated module init code. We need to declare it the pyo3 crate
+/// because the user's crate won't have the cfg's.
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn PyEval_InitThreads_if_with_thread() {
+    #[cfg(py_sys_config = "WITH_THREAD")]
+    // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
+    // > to call it yourself anymore.
+    #[cfg(not(Py_3_7))]
+    ffi::PyEval_InitThreads();
 }
 
 #[doc(hidden)]

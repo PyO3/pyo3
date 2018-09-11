@@ -27,8 +27,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
             // so we'll do it here in the module initialization:
             MODULE_DEF.m_name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
 
-            #[cfg(py_sys_config = "WITH_THREAD")]
-            ::pyo3::ffi::PyEval_InitThreads();
+            ::pyo3::PyEval_InitThreads_if_with_thread();
 
             let _module = ::pyo3::ffi::PyModule_Create(&mut MODULE_DEF);
             if _module.is_null() {
@@ -65,7 +64,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
         pub unsafe extern "C" fn #cb_name() {
             // initialize python
             ::pyo3::init_once();
-            ::pyo3::ffi::PyEval_InitThreads();
+            ::pyo3::ffi::PyEval_InitThreads_if_with_thread();
 
             let _name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
             let _pool = ::pyo3::GILPool::new();
