@@ -83,7 +83,7 @@ Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.3"
+pyo3 = "0.4"
 ```
 
 Example program displaying the value of `sys.version`:
