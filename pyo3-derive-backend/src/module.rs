@@ -64,7 +64,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
         pub unsafe extern "C" fn #cb_name() {
             // initialize python
             ::pyo3::init_once();
-            ::pyo3::ffi::PyEval_InitThreads_if_with_thread();
+            ::pyo3::PyEval_InitThreads_if_with_thread();
 
             let _name = concat!(stringify!(#name), "\0").as_ptr() as *const _;
             let _pool = ::pyo3::GILPool::new();
