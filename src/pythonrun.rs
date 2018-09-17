@@ -64,18 +64,6 @@ pub fn prepare_freethreaded_python() {
     });
 }
 
-/// This function is called in the generated module init code. We need to declare it the pyo3 crate
-/// because the user's crate won't have the cfg's.
-#[doc(hidden)]
-#[allow(non_snake_case)]
-pub unsafe fn PyEval_InitThreads_if_with_thread() {
-    #[cfg(py_sys_config = "WITH_THREAD")]
-    // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
-    // > to call it yourself anymore.
-    #[cfg(not(Py_3_7))]
-    ffi::PyEval_InitThreads();
-}
-
 #[doc(hidden)]
 pub fn init_once() {
     START_PYO3.call_once(|| unsafe {

@@ -149,7 +149,7 @@ pub use object::PyObject;
 pub use objectprotocol::ObjectProtocol;
 pub use objects::*;
 pub use python::{IntoPyPointer, Python, ToPyPointer};
-pub use pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool, PyEval_InitThreads_if_with_thread};
+pub use pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
 pub use typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 pub mod class;
 pub use class::*;

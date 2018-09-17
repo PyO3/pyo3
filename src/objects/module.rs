@@ -2,19 +2,21 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-
 use conversion::{IntoPyTuple, ToPyObject};
 use err::{PyErr, PyResult};
 use ffi;
+use init_once;
 use instance::PyObjectWithToken;
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use objects::{exc, PyDict, PyObjectRef, PyType};
 use python::{Python, ToPyPointer};
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
+use std::ptr;
 use std::str;
 use typeob::{initialize_type, PyTypeInfo};
+use GILPool;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
@@ -190,5 +192,92 @@ impl PyModule {
             .getattr(self.py(), "__name__")
             .expect("A function must have a __name__");
         self.add(name.extract(self.py()).unwrap(), function)
+    }
+}
+
+#[cfg(Py_3)]
+#[doc(hidden)]
+/// Builds a module (or null) from a user given initializer. Used for `#[pymodinit]`.
+pub unsafe fn make_module(
+    name: &str,
+    doc: &str,
+    initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
+) -> *mut ffi::PyObject {
+    use python::IntoPyPointer;
+
+    init_once();
+
+    #[cfg(py_sys_config = "WITH_THREAD")]
+    // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
+    // > to call it yourself anymore.
+    #[cfg(not(Py_3_7))]
+    ffi::PyEval_InitThreads();
+
+    static mut MODULE_DEF: ffi::PyModuleDef = ffi::PyModuleDef_INIT;
+    // We can't convert &'static str to *const c_char within a static initializer,
+    // so we'll do it here in the module initialization:
+    MODULE_DEF.m_name = name.as_ptr() as *const _;
+
+    let module = ffi::PyModule_Create(&mut MODULE_DEF);
+    if module.is_null() {
+        return module;
+    }
+
+    let _pool = GILPool::new();
+    let py = Python::assume_gil_acquired();
+    let module = match py.from_owned_ptr_or_err::<PyModule>(module) {
+        Ok(m) => m,
+        Err(e) => {
+            e.restore(py);
+            return ptr::null_mut();
+        }
+    };
+
+    module
+        .add("__doc__", doc)
+        .expect("Failed to add doc for module");
+    match initializer(py, module) {
+        Ok(_) => module.into_ptr(),
+        Err(e) => {
+            e.restore(py);
+            ptr::null_mut()
+        }
+    }
+}
+
+#[cfg(not(Py_3))]
+#[doc(hidden)]
+/// Builds a module (or null) from a user given initializer. Used for `#[pymodinit]`.
+pub unsafe fn make_module(
+    name: &str,
+    doc: &str,
+    initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
+) {
+    init_once();
+
+    #[cfg(py_sys_config = "WITH_THREAD")]
+    ffi::PyEval_InitThreads();
+
+    let _name = name.as_ptr() as *const _;
+    let _pool = GILPool::new();
+    let py = Python::assume_gil_acquired();
+    let _module = ffi::Py_InitModule(_name, ptr::null_mut());
+    if _module.is_null() {
+        return;
+    }
+
+    let _module = match py.from_borrowed_ptr_or_err::<PyModule>(_module) {
+        Ok(m) => m,
+        Err(e) => {
+            e.restore(py);
+            return;
+        }
+    };
+
+    _module
+        .add("__doc__", doc)
+        .expect("Failed to add doc for module");
+    if let Err(e) = initializer(py, _module) {
+        e.restore(py)
     }
 }

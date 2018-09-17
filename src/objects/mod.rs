@@ -10,7 +10,7 @@ pub use self::dict::PyDict;
 pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
-pub use self::module::PyModule;
+pub use self::module::{make_module, PyModule};
 #[cfg(not(Py_3))]
 pub use self::num2::{PyInt, PyLong};
 #[cfg(Py_3)]
