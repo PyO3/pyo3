@@ -192,6 +192,13 @@ fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResu
     PyDateTime::from_timestamp(py, &args.to_object(py), &kwargs.to_object(py))
 }
 
+#[pyfunction]
+fn issue_219() -> PyResult<()> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(())
+}
+
 #[pymodinit]
 fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(make_date))?;
@@ -212,6 +219,8 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
         m.add_function(wrap_function!(get_time_tuple_fold));
         m.add_function(wrap_function!(get_datetime_tuple_fold));
     }
+
+    m.add_function(wrap_function!(issue_219))?;
 
     Ok(())
 }

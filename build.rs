@@ -175,7 +175,12 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
         .args(&["-c", script])
         .stderr(Stdio::inherit())
         .output()
-        .map_err(|e| format!("Failed to run the python interpreter at {}: {}", interpreter, e))?;
+        .map_err(|e| {
+            format!(
+                "Failed to run the python interpreter at {}: {}",
+                interpreter, e
+            )
+        })?;
 
     if !out.status.success() {
         return Err(format!("python script failed"));

@@ -261,3 +261,5 @@ def test_delta_err(args, err_type):
     with pytest.raises(err_type):
         rdt.make_delta(*args)
 
+def test_issue_219():
+    rdt.issue_219()
