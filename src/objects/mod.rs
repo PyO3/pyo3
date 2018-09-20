@@ -2,6 +2,7 @@
 
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
+pub use self::complex::PyComplex;
 pub use self::datetime::PyDeltaAccess;
 pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo};
 pub use self::datetime::{PyDateAccess, PyTimeAccess};
@@ -184,6 +185,7 @@ pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject
 
 mod boolobject;
 mod bytearray;
+mod complex;
 mod datetime;
 mod dict;
 pub mod exc;
