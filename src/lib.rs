@@ -128,6 +128,9 @@ extern crate spin;
 // We need that reexport for wrap_function
 #[doc(hidden)]
 pub extern crate mashup;
+#[cfg(test)]
+#[macro_use]
+extern crate assert_approx_eq;
 
 /// Rust FFI declarations for Python
 pub mod ffi;

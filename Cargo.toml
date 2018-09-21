@@ -27,6 +27,7 @@ pyo3cls = { path = "pyo3cls", version = "=0.5.0-alpha.1" }
 mashup = "0.1.7"
 
 [dev-dependencies]
+assert_approx_eq = "1.0"
 docmatic = "0.1.2"
 
 [build-dependencies]
