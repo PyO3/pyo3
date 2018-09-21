@@ -25,6 +25,7 @@ spin = "0.4.9"
 num-traits = "0.2.5"
 pyo3cls = { path = "pyo3cls", version = "=0.5.0-alpha.1" }
 mashup = "0.1.7"
+num-complex = { version = "0.2", optional = true}
 
 [dev-dependencies]
 assert_approx_eq = "1.0"

@@ -13,15 +13,18 @@ pub struct PyComplex(PyObject);
 pyobject_native_type!(PyComplex, ffi::PyComplex_Type, ffi::PyComplex_Check);
 
 impl PyComplex {
+    /// Creates a new Python `PyComplex` object, from its real and imaginary values.
     pub fn from_doubles<'p>(py: Python<'p>, real: c_double, imag: c_double) -> &'p PyComplex {
         unsafe {
             let ptr = ffi::PyComplex_FromDoubles(real, imag);
             py.from_owned_ptr(ptr)
         }
     }
+    /// Returns a real value of `PyComplex`.
     pub fn real(&self) -> c_double {
         unsafe { ffi::PyComplex_RealAsDouble(self.as_ptr()) }
     }
+    /// Returns a imaginary value of `PyComplex`.
     pub fn imag(&self) -> c_double {
         unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
     }
@@ -80,6 +83,102 @@ impl<'py> Div for &'py PyComplex {
             self.py()
                 .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_quot))
         }
+    }
+}
+
+#[cfg(feature = "num-complex")]
+mod complex_conversion {
+    extern crate num_complex;
+    use self::num_complex::Complex;
+    use super::*;
+    use conversion::{FromPyObject, IntoPyObject, ToPyObject};
+    use err::PyErr;
+    use objects::PyObjectRef;
+    use PyResult;
+    impl PyComplex {
+        /// Creates a new Python `PyComplex` object from num_complex::Complex.
+        pub fn from_complex<'py, F: Into<c_double>>(
+            py: Python<'py>,
+            complex: Complex<F>,
+        ) -> &'py PyComplex {
+            unsafe {
+                let ptr = ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into());
+                py.from_owned_ptr(ptr)
+            }
+        }
+    }
+    macro_rules! complex_conversion {
+        ($float: ty) => {
+            impl ToPyObject for Complex<$float> {
+                #[inline]
+                fn to_object(&self, py: Python) -> PyObject {
+                    IntoPyObject::into_object(self.to_owned(), py)
+                }
+            }
+            impl IntoPyObject for Complex<$float> {
+                fn into_object(self, py: Python) -> PyObject {
+                    unsafe {
+                        let raw_obj =
+                            ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);
+                        PyObject::from_owned_ptr_or_panic(py, raw_obj)
+                    }
+                }
+            }
+            #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+            impl<'source> FromPyObject<'source> for Complex<$float> {
+                fn extract(obj: &'source PyObjectRef) -> PyResult<Complex<$float>> {
+                    unsafe {
+                        let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
+                        if val.real == -1.0 && PyErr::occurred(obj.py()) {
+                            Err(PyErr::fetch(obj.py()))
+                        } else {
+                            Ok(Complex::new(val.real as $float, val.imag as $float))
+                        }
+                    }
+                }
+            }
+            #[cfg(all(Py_LIMITED_API, Py_3))]
+            impl<'source> FromPyObject<'source> for Complex<$float> {
+                fn extract(obj: &'source PyObjectRef) -> PyResult<Complex<$float>> {
+                    unsafe {
+                        let ptr = obj.as_ptr();
+                        let real = ffi::PyComplex_RealAsDouble(ptr);
+                        if real == -1.0 && PyErr::occurred(obj.py()) {
+                            return Err(PyErr::fetch(obj.py()));
+                        }
+                        let imag = ffi::PyComplex_ImagAsDouble(ptr);
+                        Ok(Complex::new(real as $float, imag as $float))
+                    }
+                }
+            }
+        };
+    }
+    complex_conversion!(f32);
+    complex_conversion!(f64);
+
+    #[test]
+    fn from_complex() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let complex = Complex::new(3.0, 1.2);
+        let py_c = PyComplex::from_complex(py, complex);
+        assert_eq!(py_c.real(), 3.0);
+        assert_eq!(py_c.imag(), 1.2);
+    }
+    #[test]
+    fn to_from_complex() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let val = Complex::new(3.0, 1.2);
+        let obj = val.to_object(py);
+        assert_eq!(obj.extract::<Complex<f64>>(py).unwrap(), val);
+    }
+    #[test]
+    fn from_complex_err() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = vec![1].to_object(py);
+        assert!(obj.extract::<Complex<f64>>(py).is_err());
     }
 }
 
