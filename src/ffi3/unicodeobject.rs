@@ -116,8 +116,14 @@ extern "C" {
     pub fn PyUnicode_FromOrdinal(ordinal: c_int) -> *mut PyObject;
     pub fn PyUnicode_ClearFreeList() -> c_int;
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg(Py_3_7)]
+    pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssize_t) -> *const c_char;
+    #[cfg(not(Py_3_7))]
     pub fn PyUnicode_AsUTF8AndSize(unicode: *mut PyObject, size: *mut Py_ssize_t) -> *mut c_char;
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg(Py_3_7)]
+    pub fn PyUnicode_AsUTF8(unicode: *mut PyObject) -> *const c_char;
+    #[cfg(not(Py_3_7))]
     pub fn PyUnicode_AsUTF8(unicode: *mut PyObject) -> *mut c_char;
     pub fn PyUnicode_GetDefaultEncoding() -> *const c_char;
     pub fn PyUnicode_Decode(
