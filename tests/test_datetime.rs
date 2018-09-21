@@ -2,10 +2,10 @@
 
 extern crate pyo3;
 
-use std::iter;
-
 use pyo3::ffi::*;
 use pyo3::prelude::*;
+use pyo3::types::{PyDate, PyDateTime, PyDict, PyObjectRef, PyTime};
+use std::iter;
 
 fn _get_subclasses<'p>(
     py: &'p Python,
@@ -40,6 +40,7 @@ fn _get_subclasses<'p>(
 macro_rules! assert_check_exact {
     ($check_func:ident, $obj: expr) => {
         unsafe {
+            use pyo3::ToPyPointer;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) != 0);
         }
@@ -49,6 +50,7 @@ macro_rules! assert_check_exact {
 macro_rules! assert_check_only {
     ($check_func:ident, $obj: expr) => {
         unsafe {
+            use pyo3::ToPyPointer;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) == 0);
         }

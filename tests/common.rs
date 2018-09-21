@@ -24,7 +24,7 @@ pub fn indoc(commands: &str) -> String {
 #[macro_export]
 macro_rules! py_run {
     ($py:expr, $val:expr, $code:expr) => {{
-        let d = PyDict::new($py);
+        let d = pyo3::types::PyDict::new($py);
         d.set_item(stringify!($val), &$val).unwrap();
         $py.run(&common::indoc($code), None, Some(d))
             .map_err(|e| {
@@ -48,11 +48,11 @@ macro_rules! py_assert {
 #[macro_export]
 macro_rules! py_expect_exception {
     ($py:expr, $val:ident, $code:expr, $err:ident) => {{
-        let d = PyDict::new($py);
+        let d = pyo3::types::PyDict::new($py);
         d.set_item(stringify!($val), &$val).unwrap();
         let res = $py.run($code, None, Some(d));
         let err = res.unwrap_err();
-        if !err.matches($py, $py.get_type::<exc::$err>()) {
+        if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()) {
             panic!(format!("Expected {} but got {:?}", stringify!($err), err))
         }
     }};

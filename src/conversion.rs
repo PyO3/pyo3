@@ -6,9 +6,9 @@ use err::{PyDowncastError, PyResult};
 use ffi;
 use instance::Py;
 use object::PyObject;
-use objects::{PyObjectRef, PyTuple};
 use python::{IntoPyPointer, Python, ToPyPointer};
 use typeob::PyTypeInfo;
+use types::{PyObjectRef, PyTuple};
 
 /// Conversion trait that allows various objects to be converted into `PyObject`
 pub trait ToPyObject {

@@ -236,6 +236,7 @@ fn impl_class(
 
         impl ::pyo3::ToPyObject for #cls {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
+                use ::pyo3::python::ToPyPointer;
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -251,6 +252,7 @@ fn impl_class(
 
         impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
+                use ::pyo3::python::ToPyPointer;
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
@@ -259,6 +261,7 @@ fn impl_class(
             fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
                 where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
             {
+                use ::pyo3::python::ToPyPointer;
                 f(self.as_ptr())
             }
         }
@@ -267,6 +270,7 @@ fn impl_class(
             fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
                 where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
             {
+                use ::pyo3::python::ToPyPointer;
                 f(self.as_ptr())
             }
         }
@@ -393,7 +397,7 @@ fn parse_attribute(
     // We need the 0 as value for the constant we're later building using quote for when there
     // are no other flags
     let mut flags = vec![parse_quote! {0}];
-    let mut base: syn::TypePath = parse_quote! {::pyo3::PyObjectRef};
+    let mut base: syn::TypePath = parse_quote! {::pyo3::types::PyObjectRef};
 
     for expr in args.iter() {
         match expr {

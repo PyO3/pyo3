@@ -3,8 +3,8 @@
 use conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
 use instance::Py;
 use object::PyObject;
-use objects::PyTuple;
 use python::Python;
+use types::PyTuple;
 
 /// An empty struct that represents the empty argument list.
 /// Corresponds to the empty tuple `()` in Python.

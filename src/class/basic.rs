@@ -17,9 +17,9 @@ use conversion::{FromPyObject, IntoPyObject};
 use err::{PyErr, PyResult};
 use ffi;
 use objectprotocol::ObjectProtocol;
-use objects::{exc, PyObjectRef};
 use python::{IntoPyPointer, Python};
 use typeob::PyTypeInfo;
+use types::{exceptions, PyObjectRef};
 use CompareOp;
 
 /// Basic python class customization
@@ -458,7 +458,7 @@ fn extract_op(op: c_int) -> PyResult<CompareOp> {
         ffi::Py_NE => Ok(CompareOp::Ne),
         ffi::Py_GT => Ok(CompareOp::Gt),
         ffi::Py_GE => Ok(CompareOp::Ge),
-        _ => Err(PyErr::new::<exc::ValueError, _>(
+        _ => Err(PyErr::new::<exceptions::ValueError, _>(
             "tp_richcompare called with invalid comparison operator",
         )),
     }

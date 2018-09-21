@@ -36,7 +36,7 @@ macro_rules! int_fits_larger_int(
                 let val = try!($crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj));
                 match cast::<$larger_type, $rust_type>(val) {
                     Some(v) => Ok(v),
-                    None => Err(exc::OverflowError.into())
+                    None => Err(exceptions::OverflowError.into())
                 }
             }
         }
@@ -188,8 +188,8 @@ mod test {
     fn test_u128_overflow() {
         use ffi;
         use object::PyObject;
-        use objects::exc;
         use std::os::raw::c_uchar;
+        use types::exceptions;
         let gil = Python::acquire_gil();
         let py = gil.python();
         let overflow_bytes: [c_uchar; 20] = [255; 20];
@@ -202,7 +202,7 @@ mod test {
             );
             let obj = PyObject::from_owned_ptr_or_panic(py, obj);
             let err = obj.extract::<u128>(py).unwrap_err();
-            assert!(err.is_instance::<exc::OverflowError>(py));
+            assert!(err.is_instance::<exceptions::OverflowError>(py));
         }
     }
 }

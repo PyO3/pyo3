@@ -7,7 +7,7 @@ You can use the `py_exception!` macro to define a new exception type:
 ```rust
 #[macro_use] extern crate pyo3;
 
-py_exception!(module, MyError, pyo3::exc::Exception);
+py_exception!(module, MyError, pyo3::exceptions::Exception);
 ```
 
 * `module` is the name of the containing module.
@@ -18,9 +18,10 @@ For example:
 ```rust
 #[macro_use] extern crate pyo3;
 
-use pyo3::{Python, PyDict};
+use pyo3::Python;
+use pyo3::types::PyDict;
 
-py_exception!(mymodule, CustomError, pyo3::exc::Exception);
+py_exception!(mymodule, CustomError, pyo3::exceptions::Exception);
 
 fn main() {
     let gil = Python::acquire_gil();
@@ -46,7 +47,7 @@ use pyo3::{Python, PyErr, exc};
 fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    PyErr::new::<exc::TypeError, _>("Error").restore(py);
+    PyErr::new::<exceptions::TypeError, _>("Error").restore(py);
     assert!(PyErr::occurred(py));
     drop(PyErr::fetch(py));
 }
@@ -69,7 +70,7 @@ have rust type as well.
 # fn check_for_error() -> bool {false}
 fn my_func(arg: PyObject) -> PyResult<()> {
     if check_for_error() {
-        Err(exc::ValueError::py_err("argument is wrong"))
+        Err(exceptions::ValueError::py_err("argument is wrong"))
     } else {
         Ok(())
     }
@@ -106,8 +107,8 @@ To check the type of an exception, you can simply do:
 # fn main() {
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let err = exc::TypeError::py_err(NoArgs);
-err.is_instance::<exc::TypeError>(py);
+# let err = exceptions::TypeError::py_err(NoArgs);
+err.is_instance::<exceptions::TypeError>(py);
 # }
 ```
 
@@ -139,7 +140,7 @@ use pyo3::{PyErr, PyResult, exc};
 
 impl std::convert::From<std::io::Error> for PyErr {
     fn from(err: std::io::Error) -> PyErr {
-        exc::OSError.into()
+        exceptions::OSError.into()
     }
 }
 
@@ -179,7 +180,7 @@ use pyo3::prelude::*;
 import_exception!(io, UnsupportedOperation);
 
 fn tell(file: PyObject) -> PyResult<u64> {
-    use pyo3::exc::*;
+    use pyo3::exceptions::*;
 
     let gil = Python::acquire_gil();
     let py = gil.python();

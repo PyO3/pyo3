@@ -34,6 +34,7 @@
 //! extern crate pyo3;
 //!
 //! use pyo3::prelude::*;
+//! use pyo3::types::PyDict;
 //!
 //! fn main() -> PyResult<()> {
 //!     let gil = Python::acquire_gil();
@@ -123,14 +124,29 @@
 // We need those types in the macro exports
 #[doc(hidden)]
 pub extern crate libc;
-extern crate pyo3cls;
-extern crate spin;
 // We need that reexport for wrap_function
 #[doc(hidden)]
 pub extern crate mashup;
 #[cfg(test)]
 #[macro_use]
 extern crate assert_approx_eq;
+extern crate pyo3cls;
+extern crate spin;
+
+pub use class::*;
+pub use conversion::{
+    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,
+    ToBorrowedObject, ToPyObject,
+};
+pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
+pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
+pub use noargs::NoArgs;
+pub use object::PyObject;
+pub use objectprotocol::ObjectProtocol;
+pub use python::{IntoPyPointer, Python, ToPyPointer};
+pub use pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
+pub use typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
+pub use types::exceptions;
 
 /// Rust FFI declarations for Python
 pub mod ffi;
@@ -141,32 +157,7 @@ mod ffi2;
 #[cfg(Py_3)]
 mod ffi3;
 
-pub use conversion::{
-    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,
-    ToBorrowedObject, ToPyObject,
-};
-pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
-pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
-pub use noargs::NoArgs;
-pub use object::PyObject;
-pub use objectprotocol::ObjectProtocol;
-pub use objects::*;
-pub use python::{IntoPyPointer, Python, ToPyPointer};
-pub use pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
-pub use typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 pub mod class;
-pub use class::*;
-
-/// The proc macro attributes
-pub mod proc_macro {
-    pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
-
-    #[cfg(Py_3)]
-    pub use pyo3cls::mod3init as pymodinit;
-
-    #[cfg(not(Py_3))]
-    pub use pyo3cls::mod2init as pymodinit;
-}
 
 /// Constructs a `&'static CStr` literal.
 macro_rules! cstr {
@@ -176,9 +167,37 @@ macro_rules! cstr {
     };
 }
 
+pub mod buffer;
+#[doc(hidden)]
+pub mod callback;
+mod conversion;
+#[doc(hidden)]
+pub mod derive_utils;
+mod err;
+pub mod freelist;
+mod instance;
+mod noargs;
+mod object;
+mod objectprotocol;
+pub mod prelude;
+pub mod python;
+mod pythonrun;
+pub mod typeob;
+pub mod types;
+
+/// The proc macros, which are also part of the prelude
+pub mod proc_macro {
+    #[cfg(not(Py_3))]
+    pub use pyo3cls::mod2init as pymodinit;
+    #[cfg(Py_3)]
+    pub use pyo3cls::mod3init as pymodinit;
+    /// The proc macro attributes
+    pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
+}
+
 /// Returns a function that takes a [Python] instance and returns a python function.
 ///
-/// Use this together with `#[function]` and [PyModule::add_function].
+/// Use this together with `#[function]` and [types::PyModule::add_function].
 #[macro_export]
 macro_rules! wrap_function {
     ($function_name:ident) => {{
@@ -195,21 +214,3 @@ macro_rules! wrap_function {
         }
     }};
 }
-
-#[doc(hidden)]
-pub mod argparse;
-pub mod buffer;
-#[doc(hidden)]
-pub mod callback;
-mod conversion;
-mod err;
-pub mod freelist;
-mod instance;
-mod noargs;
-mod object;
-mod objectprotocol;
-mod objects;
-pub mod prelude;
-pub mod python;
-mod pythonrun;
-pub mod typeob;

@@ -5,8 +5,6 @@
 use class::methods::PyMethodDefType;
 use err::{PyErr, PyResult};
 use instance::{Py, PyObjectWithToken, PyToken};
-use objects::PyObjectRef;
-use objects::PyType;
 use python::ToPyPointer;
 use python::{IntoPyPointer, Python};
 use std;
@@ -14,6 +12,8 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
 use std::os::raw::c_void;
+use types::PyObjectRef;
+use types::PyType;
 use {class, ffi, pythonrun};
 
 /// Python type information.

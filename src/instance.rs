@@ -10,10 +10,10 @@ use ffi;
 use instance;
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
-use objects::PyObjectRef;
 use python::{IntoPyPointer, Python, ToPyPointer};
 use pythonrun;
 use typeob::{PyTypeInfo, PyTypeObject};
+use types::PyObjectRef;
 
 pub struct PyToken(PhantomData<Rc<()>>);
 

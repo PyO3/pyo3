@@ -5,10 +5,10 @@ use err::{self, PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
-use objects::{PyList, PyObjectRef};
 use python::{Python, ToPyPointer};
 use std;
 use std::{cmp, collections, hash, mem};
+use types::{PyList, PyObjectRef};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -256,10 +256,10 @@ where
 mod test {
     use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use objects::dict::IntoPyDict;
-    use objects::{PyDict, PyTuple};
     use python::Python;
     use std::collections::{BTreeMap, HashMap};
+    use types::dict::IntoPyDict;
+    use types::{PyDict, PyTuple};
     use ObjectProtocol;
 
     #[test]

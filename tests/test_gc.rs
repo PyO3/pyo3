@@ -2,8 +2,16 @@
 
 extern crate pyo3;
 
+use pyo3::class::PyGCProtocol;
+use pyo3::class::PyTraverseError;
+use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
+use pyo3::python::ToPyPointer;
+use pyo3::types::PyObjectRef;
+use pyo3::types::PyTuple;
+use pyo3::PyObjectWithToken;
+use pyo3::PyRawObject;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

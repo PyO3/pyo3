@@ -8,8 +8,8 @@ use std::{isize, ptr};
 use conversion::IntoPyObject;
 use err::PyResult;
 use ffi::{self, Py_hash_t};
-use objects::exc::OverflowError;
 use python::{IntoPyPointer, Python};
+use types::exceptions::OverflowError;
 
 pub trait CallbackConverter<S> {
     type R;

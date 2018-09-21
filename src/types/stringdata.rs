@@ -6,8 +6,8 @@ use std::borrow::Cow;
 use std::{char, str};
 
 use err::{PyErr, PyResult};
-use objects::exc;
 use python::Python;
+use types::exceptions;
 
 /// Enum of possible Python string representations.
 #[derive(Clone, Copy, Debug)]
@@ -50,9 +50,9 @@ impl<'a> PyStringData<'a> {
         match self {
             PyStringData::Utf8(data) => match str::from_utf8(data) {
                 Ok(s) => Ok(Cow::Borrowed(s)),
-                Err(e) => Err(PyErr::from_instance(exc::UnicodeDecodeError::new_utf8(
-                    py, data, e,
-                )?)),
+                Err(e) => Err(PyErr::from_instance(
+                    exceptions::UnicodeDecodeError::new_utf8(py, data, e)?,
+                )),
             },
             PyStringData::Latin1(data) => {
                 if data.iter().all(|&b| b.is_ascii()) {
@@ -67,13 +67,15 @@ impl<'a> PyStringData<'a> {
                 }
                 match String::from_utf16(data) {
                     Ok(s) => Ok(Cow::Owned(s)),
-                    Err(_) => Err(PyErr::from_instance(exc::UnicodeDecodeError::new_err(
-                        py,
-                        cstr!("utf-16"),
-                        utf16_bytes(data),
-                        0..2 * data.len(),
-                        cstr!("invalid utf-16"),
-                    )?)),
+                    Err(_) => Err(PyErr::from_instance(
+                        exceptions::UnicodeDecodeError::new_err(
+                            py,
+                            cstr!("utf-16"),
+                            utf16_bytes(data),
+                            0..2 * data.len(),
+                            cstr!("invalid utf-16"),
+                        )?,
+                    )),
                 }
             }
             PyStringData::Utf32(data) => {
@@ -82,13 +84,15 @@ impl<'a> PyStringData<'a> {
                 }
                 match data.iter().map(|&u| char::from_u32(u)).collect() {
                     Some(s) => Ok(Cow::Owned(s)),
-                    None => Err(PyErr::from_instance(exc::UnicodeDecodeError::new_err(
-                        py,
-                        cstr!("utf-32"),
-                        utf32_bytes(data),
-                        0..4 * data.len(),
-                        cstr!("invalid utf-32"),
-                    )?)),
+                    None => Err(PyErr::from_instance(
+                        exceptions::UnicodeDecodeError::new_err(
+                            py,
+                            cstr!("utf-32"),
+                            utf32_bytes(data),
+                            0..4 * data.len(),
+                            cstr!("invalid utf-32"),
+                        )?,
+                    )),
                 }
             }
         }

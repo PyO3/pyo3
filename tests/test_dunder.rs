@@ -2,8 +2,15 @@
 
 extern crate pyo3;
 
+use pyo3::class::{
+    PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol, PySequenceProtocol,
+};
+use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::ffi;
 use pyo3::prelude::*;
+use pyo3::python::ToPyPointer;
+use pyo3::types::{PyBytes, PyDict, PyObjectRef, PySlice, PyString, PyType};
+use pyo3::PyObjectWithToken;
 use std::{isize, iter};
 
 #[macro_use]
@@ -171,7 +178,7 @@ impl PySequenceProtocol for Sequence {
 
     fn __getitem__(&self, key: isize) -> PyResult<isize> {
         if key == 5 {
-            return Err(PyErr::new::<exc::IndexError, NoArgs>(NoArgs));
+            return Err(PyErr::new::<IndexError, NoArgs>(NoArgs));
         }
         Ok(key)
     }
@@ -369,7 +376,7 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
         _traceback: Option<&'p PyObjectRef>,
     ) -> PyResult<bool> {
         self.exit_called = true;
-        if ty == Some(self.py().get_type::<exc::ValueError>()) {
+        if ty == Some(self.py().get_type::<ValueError>()) {
             Ok(true)
         } else {
             Ok(false)
@@ -435,7 +442,7 @@ impl<'p> PyMappingProtocol<'p> for Test {
                 return Ok("int".into_object(self.py()));
             }
         }
-        Err(PyErr::new::<exc::ValueError, _>("error"))
+        Err(PyErr::new::<ValueError, _>("error"))
     }
 }
 

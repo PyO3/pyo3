@@ -94,6 +94,7 @@ Example program displaying the value of `sys.version`:
 extern crate pyo3;
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 fn main() -> PyResult<()> {
     let gil = Python::acquire_gil();

@@ -1,5 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+//! Various types defined by the python interpreter such as `int`, `str` and `tuple`
+
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::complex::PyComplex;
@@ -11,7 +13,7 @@ pub use self::dict::PyDict;
 pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
-pub use self::module::{make_module, PyModule};
+pub use self::module::PyModule;
 #[cfg(not(Py_3))]
 pub use self::num2::{PyInt, PyLong};
 #[cfg(Py_3)]
@@ -31,9 +33,6 @@ pub use self::typeobject::PyType;
 use ffi;
 use python::ToPyPointer;
 
-#[macro_use]
-mod exc_impl;
-
 /// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
 /// parameter
 #[macro_export]
@@ -42,11 +41,11 @@ macro_rules! pyobject_downcast (
         impl<'a, $($type_param,)*> $crate::FromPyObject<'a> for &'a $name
         {
             /// Extracts `Self` from the source `PyObject`.
-            fn extract(ob: &'a $crate::PyObjectRef) -> $crate::PyResult<Self>
+            fn extract(ob: &'a $crate::types::PyObjectRef) -> $crate::PyResult<Self>
             {
                 unsafe {
                     if $checkfunction(ob.as_ptr()) != 0 {
-                        Ok(&*(ob as *const $crate::PyObjectRef as *const $name))
+                        Ok(&*(ob as *const $crate::types::PyObjectRef as *const $name))
                     } else {
                         Err($crate::PyDowncastError.into())
                     }
@@ -61,9 +60,9 @@ macro_rules! pyobject_native_type_named (
     ($name: ty $(,$type_param: ident)*) => {
         impl<$($type_param,)*> $crate::PyNativeType for $name {}
 
-        impl<$($type_param,)*> ::std::convert::AsRef<$crate::PyObjectRef> for $name {
-            fn as_ref(&self) -> &$crate::PyObjectRef {
-                unsafe{&*(self as *const $name as *const $crate::PyObjectRef)}
+        impl<$($type_param,)*> ::std::convert::AsRef<$crate::types::PyObjectRef> for $name {
+            fn as_ref(&self) -> &$crate::types::PyObjectRef {
+                unsafe{&*(self as *const $name as *const $crate::types::PyObjectRef)}
             }
         }
 
@@ -97,9 +96,9 @@ macro_rules! pyobject_native_type (
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
 
-        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::PyObjectRef {
+        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyObjectRef {
             fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::PyObjectRef)}
+                unsafe{&*(ob as *const $name as *const $crate::types::PyObjectRef)}
             }
         }
     };
@@ -110,7 +109,7 @@ macro_rules! pyobject_native_type_convert(
     ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
         impl<$($type_param,)*> $crate::typeob::PyTypeInfo for $name {
             type Type = ();
-            type BaseType = $crate::PyObjectRef;
+            type BaseType = $crate::types::PyObjectRef;
 
             const NAME: &'static str = stringify!($name);
             const SIZE: usize = ::std::mem::size_of::<$crate::ffi::PyObject>();
@@ -121,7 +120,7 @@ macro_rules! pyobject_native_type_convert(
                 &mut $typeobject
             }
 
-            fn is_instance(ptr: &$crate::objects::PyObjectRef) -> bool {
+            fn is_instance(ptr: &$crate::types::PyObjectRef) -> bool {
                 #[allow(unused_unsafe)]
                 unsafe { $checkfunction(ptr.as_ptr()) > 0 }
             }
@@ -132,8 +131,8 @@ macro_rules! pyobject_native_type_convert(
             fn init_type() {}
 
             #[inline]
-            fn type_object() -> $crate::Py<$crate::PyType> {
-                $crate::PyType::new::<$name>()
+            fn type_object() -> $crate::Py<$crate::types::PyType> {
+                $crate::types::PyType::new::<$name>()
             }
         }
 
@@ -188,7 +187,7 @@ mod bytearray;
 mod complex;
 mod datetime;
 mod dict;
-pub mod exc;
+pub mod exceptions;
 mod floatob;
 mod iterator;
 mod list;

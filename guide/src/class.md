@@ -48,7 +48,7 @@ attribute. Only the python `__new__` method can be specified, `__init__` is not 
 #
 # extern crate pyo3;
 # use pyo3::prelude::*;
-
+# use pyo3::PyRawObject;
 
 #[pyclass]
 struct MyClass {
@@ -92,7 +92,7 @@ with value of custom class struct. Subclass must call parent's `__new__` method.
 # #![feature(specialization)]
 # extern crate pyo3;
 # use pyo3::prelude::*;
-#
+# use pyo3::PyRawObject;
 #[pyclass]
 struct BaseClass {
    val1: usize,

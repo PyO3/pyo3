@@ -3,6 +3,9 @@
 extern crate pyo3;
 
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyString, PyTuple, PyType};
+use pyo3::PyObjectWithToken;
+use pyo3::PyRawObject;
 
 #[macro_use]
 mod common;

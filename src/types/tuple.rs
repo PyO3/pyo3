@@ -1,14 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use super::exc;
+use super::exceptions;
 use conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
 use err::{PyErr, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::{AsPyRef, Py, PyObjectWithToken};
 use object::PyObject;
-use objects::PyObjectRef;
 use python::{IntoPyPointer, Python, ToPyPointer};
 use std::slice;
+use types::PyObjectRef;
 
 /// Represents a Python `tuple` object.
 #[repr(transparent)]
@@ -159,7 +159,7 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
         expected_length,
         t.len()
     );
-    exc::ValueError::py_err(msg)
+    exceptions::ValueError::py_err(msg)
 }
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
@@ -268,10 +268,10 @@ mod test {
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
     use objectprotocol::ObjectProtocol;
-    use objects::PyObjectRef;
     use python::Python;
     use std::collections::HashSet;
-    use PyTuple;
+    use types::PyObjectRef;
+    use types::PyTuple;
 
     #[test]
     fn test_new() {

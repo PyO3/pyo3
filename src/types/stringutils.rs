@@ -2,9 +2,9 @@ use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use err::PyResult;
 use instance::PyObjectWithToken;
 use object::PyObject;
-use objects::{PyObjectRef, PyString};
 use python::Python;
 use std::borrow::Cow;
+use types::{PyObjectRef, PyString};
 use FromPyObject;
 
 /// Converts Rust `str` to Python object.

@@ -7,13 +7,13 @@ use err::{PyDowncastError, PyErr, PyResult};
 use ffi;
 use instance::{AsPyRef, Py, PyToken};
 use object::PyObject;
-use objects::{PyDict, PyModule, PyObjectRef, PyType};
 use pythonrun::{self, GILGuard};
 use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 use typeob::{PyObjectAlloc, PyTypeInfo, PyTypeObject};
+use types::{PyDict, PyModule, PyObjectRef, PyType};
 
 /// Marker type that indicates that the GIL is currently held.
 ///
@@ -482,7 +482,7 @@ impl<'p> Python<'p> {
 #[cfg(test)]
 mod test {
     use objectprotocol::ObjectProtocol;
-    use objects::{PyBool, PyDict, PyInt, PyList, PyObjectRef};
+    use types::{PyBool, PyDict, PyInt, PyList, PyObjectRef};
     use Python;
 
     #[test]

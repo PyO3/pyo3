@@ -11,10 +11,10 @@ use err::{PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
-use objects::{exc, PyObjectRef};
 use python::{Python, ToPyPointer};
 use std::i64;
 use std::os::raw::{c_long, c_uchar};
+use types::{exceptions, PyObjectRef};
 
 /// Represents a Python `int` object.
 ///
@@ -61,7 +61,7 @@ macro_rules! int_fits_c_long (
                 }?;
                 match cast::<c_long, $rust_type>(val) {
                     Some(v) => Ok(v),
-                    None => Err(exc::OverflowError.into())
+                    None => Err(exceptions::OverflowError.into())
                 }
             }
         }
@@ -148,7 +148,7 @@ mod test {
     macro_rules! test_common (
         ($test_mod_name:ident, $t:ty) => (
             mod $test_mod_name {
-                use objects::exc;
+                use types::exceptions;
                 use conversion::ToPyObject;
                 use python::Python;
 
@@ -159,7 +159,7 @@ mod test {
 
                     let obj = ("123").to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exc::TypeError>(py));
+                    assert!(err.is_instance::<exceptions::TypeError>(py));
                 }
 
                 #[test]
@@ -169,7 +169,7 @@ mod test {
 
                     let obj = (12.3).to_object(py);
                     let err = obj.extract::<$t>(py).unwrap_err();
-                    assert!(err.is_instance::<exc::TypeError>(py));
+                    assert!(err.is_instance::<exceptions::TypeError>(py));
                 }
 
                 #[test]

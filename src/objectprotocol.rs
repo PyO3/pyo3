@@ -5,13 +5,12 @@ use err::{self, PyDowncastError, PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
-use objects::PyDict;
-use objects::{PyIterator, PyObjectRef, PyString, PyTuple, PyType};
 use python::{IntoPyPointer, Python, ToPyPointer};
 use std;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 use typeob::PyTypeInfo;
+use types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
 
 /// Python object model helper methods
 pub trait ObjectProtocol {
@@ -269,7 +268,7 @@ where
             } else if result < 0 {
                 return Err(PyErr::fetch(py));
             }
-            Err(::exc::TypeError::py_err(
+            Err(::exceptions::TypeError::py_err(
                 "ObjectProtocol::compare(): All comparisons returned false",
             ))
         }
@@ -482,8 +481,8 @@ mod test {
     use super::*;
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use objects::PyString;
     use python::Python;
+    use types::PyString;
 
     #[test]
     fn test_debug_string() {

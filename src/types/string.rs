@@ -10,8 +10,8 @@ use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
-use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
+use types::PyObjectRef;
 
 /// Represents a Python `string`.
 #[repr(transparent)]
@@ -21,7 +21,9 @@ pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
 /// Represents a Python `unicode string`.
 /// Corresponds to `unicode` in Python 2, and `str` in Python 3.
-pub use PyString as PyUnicode;
+//pub use PyString as PyUnicode;
+
+pub struct PyUnicode();
 
 /// Represents a Python `byte` string.
 #[repr(transparent)]

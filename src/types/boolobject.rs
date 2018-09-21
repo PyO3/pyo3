@@ -2,8 +2,8 @@
 use conversion::{IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject};
 use ffi;
 use object::PyObject;
-use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
+use types::PyObjectRef;
 use FromPyObject;
 use PyResult;
 
@@ -81,8 +81,8 @@ impl<'source> FromPyObject<'source> for bool {
 mod test {
     use conversion::ToPyObject;
     use objectprotocol::ObjectProtocol;
-    use objects::{PyBool, PyObjectRef};
     use python::Python;
+    use types::{PyBool, PyObjectRef};
 
     #[test]
     fn test_true() {

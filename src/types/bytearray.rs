@@ -70,10 +70,10 @@ impl PyByteArray {
 
 #[cfg(test)]
 mod test {
-    use exc;
+    use exceptions;
     use object::PyObject;
-    use objects::PyByteArray;
     use python::Python;
+    use types::PyByteArray;
 
     #[test]
     fn test_bytearray() {
@@ -96,7 +96,7 @@ mod test {
 
         let none = py.None();
         if let Err(err) = PyByteArray::from(py, &none) {
-            assert!(err.is_instance::<exc::TypeError>(py));
+            assert!(err.is_instance::<exceptions::TypeError>(py));
         } else {
             panic!("error");
         }

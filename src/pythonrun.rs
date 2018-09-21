@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use ffi;
-use objects::PyObjectRef;
 use python::Python;
 use spin;
 use std::{any, marker, rc, sync};
+use types::PyObjectRef;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;

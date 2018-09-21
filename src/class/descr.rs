@@ -12,8 +12,8 @@ use class::methods::PyMethodDef;
 use conversion::{FromPyObject, IntoPyObject};
 use err::PyResult;
 use ffi;
-use objects::{PyObjectRef, PyType};
 use typeob::PyTypeInfo;
+use types::{PyObjectRef, PyType};
 
 /// Descriptor interface
 #[allow(unused_variables)]

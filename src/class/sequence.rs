@@ -8,10 +8,10 @@ use conversion::{FromPyObject, IntoPyObject};
 use err::{PyErr, PyResult};
 use ffi;
 use objectprotocol::ObjectProtocol;
-use objects::{exc, PyObjectRef};
 use python::Python;
 use std::os::raw::c_int;
 use typeob::PyTypeInfo;
+use types::{exceptions, PyObjectRef};
 
 /// Sequece interface
 #[allow(unused_variables)]
@@ -235,7 +235,7 @@ where
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let result = if value.is_null() {
-                Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+                Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                     "Item deletion not supported by {:?}",
                     stringify!(T)
                 )))
@@ -311,7 +311,7 @@ mod sq_ass_item_impl {
                 let result = if value.is_null() {
                     slf.__delitem__(key as isize).into()
                 } else {
-                    Err(PyErr::new::<exc::NotImplementedError, _>(format!(
+                    Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
                         stringify!(T)
                     )))

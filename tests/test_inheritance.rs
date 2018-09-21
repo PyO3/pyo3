@@ -3,6 +3,7 @@
 extern crate pyo3;
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use std::isize;
 
 #[macro_use]

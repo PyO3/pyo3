@@ -8,9 +8,9 @@ use class::methods::PyMethodDef;
 use conversion::{FromPyObject, IntoPyObject};
 use err::{PyErr, PyResult};
 use ffi;
-use objects::exc;
 use python::Python;
 use typeob::PyTypeInfo;
+use types::exceptions;
 
 /// Mapping interface
 #[allow(unused_variables)]

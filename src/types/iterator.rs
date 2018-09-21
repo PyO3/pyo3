@@ -5,8 +5,8 @@
 use err::{PyDowncastError, PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
-use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
+use types::PyObjectRef;
 
 /// A python iterator object.
 ///
@@ -69,9 +69,9 @@ mod tests {
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
     use objectprotocol::ObjectProtocol;
-    use objects::{PyList, PyObjectRef};
     use python::Python;
     use pythonrun::GILPool;
+    use types::{PyList, PyObjectRef};
 
     #[test]
     fn vec_iter() {

@@ -9,15 +9,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
  
  * `#[pyclass]` objects can now be returned from rust functions
+ * `PyComplex` by kngwyu in [#226](https://github.com/PyO3/pyo3/pull/226)
+
+### Removed
+ * Removed most entries from the prelude. The new prelude is small and clear.
+ * Slowly removing specialization uses
 
 ### Changed
-
- * Slowly removing specialization uses
+ * Removes the types from the root module and the prelude. They now live in `pyo3::types` instead.
  * All exceptions are consturcted with `py_err` instead of `new`, as they return `PyErr` and not `Self`.
  * `as_mut` and friends take and `&mut self` instead of `&self`
  * `ObjectProtocol::call` now takes an `Option<PyDict>` for the kwargs instead of an `IntoPyDictPointer`.
  * `IntoPyDictPointer` was replace by `IntoPyDict` which doesn't convert `PyDict` itself anymore and returns a `PyDict` instead of `*mut PyObject`.
  * `PyTuple::new` now takes an `IntoIterator` instead of a slice
+ * Updated to syn 0.15
 
 ### Fixed
 

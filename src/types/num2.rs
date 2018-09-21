@@ -13,8 +13,8 @@ use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
-use objects::{exc, PyObjectRef};
 use python::{IntoPyPointer, Python, ToPyPointer};
+use types::{exceptions, PyObjectRef};
 
 /// Represents a Python `int` object.
 ///
@@ -86,7 +86,7 @@ macro_rules! int_fits_c_long(
                 }
                 match cast::<c_long, $rust_type>(val) {
                     Some(v) => Ok(v),
-                    None => Err(exc::OverflowError.into())
+                    None => Err(exceptions::OverflowError.into())
                 }
             }
         }
@@ -128,7 +128,7 @@ macro_rules! int_convert_u64_or_i64 (
                     } else if ffi::PyInt_Check(ptr) != 0 {
                         match cast::<c_long, $rust_type>(ffi::PyInt_AS_LONG(ptr)) {
                             Some(v) => Ok(v),
-                            None => Err(exc::OverflowError.into())
+                            None => Err(exceptions::OverflowError.into())
                         }
                     } else {
                         let num = PyObject::from_owned_ptr_or_err(

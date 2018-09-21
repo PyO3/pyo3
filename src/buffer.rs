@@ -23,10 +23,10 @@ use std::os::raw;
 use std::{cell, mem, slice};
 
 use err::{self, PyResult};
-use exc;
+use exceptions;
 use ffi;
-use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
+use types::PyObjectRef;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 #[repr(transparent)]
@@ -460,7 +460,7 @@ impl PyBuffer {
         fort: u8,
     ) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return Err(exc::BufferError::py_err(
+            return Err(exceptions::BufferError::py_err(
                 "Slice length does not match buffer length.",
             ));
         }
@@ -563,7 +563,7 @@ impl PyBuffer {
             return buffer_readonly_error();
         }
         if mem::size_of_val(source) != self.len_bytes() {
-            return Err(exc::BufferError::py_err(
+            return Err(exceptions::BufferError::py_err(
                 "Slice length does not match buffer length.",
             ));
         }
@@ -593,13 +593,13 @@ impl PyBuffer {
 }
 
 fn incompatible_format_error() -> PyResult<()> {
-    Err(exc::BufferError::py_err(
+    Err(exceptions::BufferError::py_err(
         "Slice type is incompatible with buffer format.",
     ))
 }
 
 fn buffer_readonly_error() -> PyResult<()> {
-    Err(exc::BufferError::py_err(
+    Err(exceptions::BufferError::py_err(
         "Cannot write to read-only buffer.",
     ))
 }

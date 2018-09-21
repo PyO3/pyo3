@@ -8,10 +8,9 @@ use conversion::{
 use err::{PyDowncastError, PyErr, PyResult};
 use ffi;
 use instance::{AsPyRef, PyObjectWithToken};
-use objects::PyDict;
-use objects::{PyObjectRef, PyTuple};
 use python::{IntoPyPointer, Python, ToPyPointer};
 use pythonrun;
+use types::{PyDict, PyObjectRef, PyTuple};
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]

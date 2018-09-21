@@ -9,8 +9,8 @@ use err::{self, PyResult};
 use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
 use object::PyObject;
-use objects::PyObjectRef;
 use python::{IntoPyPointer, Python, ToPyPointer};
+use types::PyObjectRef;
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -191,8 +191,8 @@ mod test {
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
     use objectprotocol::ObjectProtocol;
-    use objects::PyList;
     use python::Python;
+    use types::PyList;
 
     #[test]
     fn test_new() {

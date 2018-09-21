@@ -7,8 +7,8 @@ use ffi::{self, Py_ssize_t};
 use instance::PyObjectWithToken;
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
-use objects::{PyList, PyObjectRef, PyTuple};
 use python::ToPyPointer;
+use types::{PyList, PyObjectRef, PyTuple};
 
 /// Represents a reference to a python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -313,8 +313,8 @@ mod test {
     use instance::AsPyRef;
     use object::PyObject;
     use objectprotocol::ObjectProtocol;
-    use objects::PySequence;
     use python::{Python, ToPyPointer};
+    use types::PySequence;
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

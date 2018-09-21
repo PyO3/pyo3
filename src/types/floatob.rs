@@ -8,9 +8,9 @@ use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
-use objects::PyObjectRef;
 use python::{Python, ToPyPointer};
 use std::os::raw::c_double;
+use types::PyObjectRef;
 use FromPyObject;
 use PyResult;
 
