@@ -20,13 +20,29 @@ impl PyComplex {
             py.from_owned_ptr(ptr)
         }
     }
-    /// Returns a real value of `PyComplex`.
+    /// Returns the real value of `PyComplex`.
     pub fn real(&self) -> c_double {
         unsafe { ffi::PyComplex_RealAsDouble(self.as_ptr()) }
     }
-    /// Returns a imaginary value of `PyComplex`.
+    /// Returns the imaginary value of `PyComplex`.
     pub fn imag(&self) -> c_double {
         unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
+    }
+    /// Returns `|self|`.
+    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    pub fn abs(&self) -> c_double {
+        unsafe {
+            let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
+            ffi::_Py_c_abs(val)
+        }
+    }
+    /// Returns `self ** other`
+    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    pub fn pow(&self, other: &PyComplex) -> &PyComplex {
+        unsafe {
+            self.py()
+                .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_pow))
+        }
     }
 }
 
@@ -82,6 +98,18 @@ impl<'py> Div for &'py PyComplex {
         unsafe {
             self.py()
                 .from_owned_ptr(complex_operation(self, other, ffi::_Py_c_quot))
+        }
+    }
+}
+
+#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+impl<'py> Neg for &'py PyComplex {
+    type Output = &'py PyComplex;
+    fn neg(self) -> &'py PyComplex {
+        unsafe {
+            let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
+            self.py()
+                .from_owned_ptr(ffi::PyComplex_FromCComplex(ffi::_Py_c_neg(val)))
         }
     }
 }
@@ -241,5 +269,37 @@ mod test {
         let res = l / r;
         assert_approx_eq!(res.real(), 0.7886597938144329);
         assert_approx_eq!(res.imag(), -0.8505154639175257);
+    }
+
+    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[test]
+    fn test_neg() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let val = PyComplex::from_doubles(py, 3.0, 1.2);
+        let res = -val;
+        assert_approx_eq!(res.real(), -3.0);
+        assert_approx_eq!(res.imag(), -1.2);
+    }
+
+    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[test]
+    fn test_abs() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let val = PyComplex::from_doubles(py, 3.0, 1.2);
+        assert_approx_eq!(val.abs(), 3.2310988842807022);
+    }
+
+    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[test]
+    fn test_pow() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let l = PyComplex::from_doubles(py, 3.0, 1.2);
+        let r = PyComplex::from_doubles(py, 1.2, 2.6);
+        let val = l.pow(r);
+        assert_approx_eq!(val.real(), -1.4193099970166037);
+        assert_approx_eq!(val.imag(), -0.5412974660335446);
     }
 }
