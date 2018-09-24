@@ -213,6 +213,9 @@ impl PyObject {
             let args = args.into_tuple(py).into_ptr();
             let kwargs = kwargs.into_ptr();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
+            if ptr.is_null() {
+                return Err(PyErr::fetch(py));
+            }
             let result = PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(ptr, args, kwargs));
             ffi::Py_DECREF(ptr);
             ffi::Py_XDECREF(args);
@@ -320,5 +323,23 @@ impl Drop for PyObject {
         unsafe {
             pythonrun::register_pointer(self.0);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::PyObject;
+    use python::Python;
+    use types::PyDict;
+
+    #[test]
+    fn test_call_for_non_existing_method() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj: PyObject = PyDict::new(py).into();
+        assert!(obj.call_method0(py, "asdf").is_err());
+        assert!(obj.call_method(py, "nonexistent_method", (1,), None).is_err());
+        assert!(obj.call_method0(py, "nonexistent_method").is_err());
+        assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
     }
 }

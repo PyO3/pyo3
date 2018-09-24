@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Added
- 
+
  * `#[pyclass]` objects can now be returned from rust functions
  * `PyComplex` by kngwyu in [#226](https://github.com/PyO3/pyo3/pull/226)
 
@@ -28,10 +28,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Added an explenation that the GIL can temporarily be released even while holding a GILGuard.
  * Lots of clippy errors
+ * Fix segfault on calling an unknown method on a PyObject
 
 ### Removed
 
- * The pyobject_extract macro   
+ * The pyobject_extract macro
 
 ## [0.4.1] - 2018-08-20
 
@@ -102,7 +103,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [0.2.5] - 2018-02-21
 
-### Added 
+### Added
 
 * CPython 3.7 support
 
@@ -121,7 +122,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Drop `RefFromPyObject` trait
 * Add Python::register_any() method
 
-### Fixed 
+### Fixed
 
 * Fix impl `FromPyObject` for `Py<T>`
 * Mark method that work with raw pointers as unsafe #95
@@ -160,7 +161,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Allow to add gc support without implementing PyGCProtocol #57
 * Refactor `PyErr` implementation. Drop `py` parameter from constructor.
 
-### Added 
+### Added
 
 * Added inheritance support #15
 * Added weakref support #56
