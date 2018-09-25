@@ -1,9 +1,9 @@
 #![cfg_attr(feature="cargo-clippy", allow(type_complexity))]
-/// FFI bindings to the functions and structs defined in `datetime.h`
-///
-/// This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
-/// and covers the various date and time related objects in the Python `datetime`
-/// standard library module.
+//! FFI bindings to the functions and structs defined in `datetime.h`
+//!
+//! This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
+//! and covers the various date and time related objects in the Python `datetime`
+//! standard library module.
 use ffi::PyCapsule_Import;
 use ffi::Py_hash_t;
 use ffi::{PyObject, PyTypeObject};
@@ -105,8 +105,8 @@ const _PyDateTime_DATETIME_DATASIZE: usize = 10;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+/// Structure representing a `datetime.date`
 pub struct PyDateTime_Date {
-    /// Structure representing a `datetime.date`
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
@@ -115,8 +115,8 @@ pub struct PyDateTime_Date {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+/// Structure representing a `datetime.time`
 pub struct PyDateTime_Time {
-    /// Structure representing a `datetime.time`
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
@@ -128,8 +128,8 @@ pub struct PyDateTime_Time {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+/// Structure representing a `datetime.datetime`
 pub struct PyDateTime_DateTime {
-    /// Structure representing a `datetime.datetime`
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub hastzinfo: c_char,
@@ -141,8 +141,8 @@ pub struct PyDateTime_DateTime {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+/// Structure representing a `datetime.timedelta`
 pub struct PyDateTime_Delta {
-    /// Structure representing a `datetime.timedelta`
     pub ob_base: PyObject,
     pub hashcode: Py_hash_t,
     pub days: c_int,
