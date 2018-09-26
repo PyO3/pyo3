@@ -25,10 +25,8 @@ fn get_date_tuple(py: Python, d: &PyDate) -> Py<PyTuple> {
 }
 
 #[pyfunction]
-fn date_from_timestamp(py: Python, ts: i64) -> PyResult<Py<PyDate>> {
-    let timestamp = ts.to_object(py);
-    let args = PyTuple::new(py, &[timestamp]);
-    PyDate::from_timestamp(py, &args.to_object(py))
+fn date_from_timestamp(py: Python, timestamp: i64) -> PyResult<Py<PyDate>> {
+    PyDate::from_timestamp(py, timestamp)
 }
 
 #[pyfunction]

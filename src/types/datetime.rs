@@ -26,6 +26,7 @@ use ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
 
 use instance::Py;
 use python::{Python, ToPyPointer};
+use types::PyTuple;
 
 // Traits
 pub trait PyDateAccess {
@@ -66,7 +67,9 @@ impl PyDate {
         }
     }
 
-    pub fn from_timestamp(py: Python, args: &PyObject) -> PyResult<Py<PyDate>> {
+    pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<Py<PyDate>> {
+        let args = PyTuple::new(py, &[timestamp]);
+
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, args.as_ptr());
             Py::from_owned_ptr_or_err(py, ptr)
