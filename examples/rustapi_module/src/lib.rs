@@ -213,9 +213,9 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     // Python 3.6+ functions
     #[cfg(Py_3_6)]
     {
-        m.add_function(wrap_function!(time_with_fold));
-        m.add_function(wrap_function!(get_time_tuple_fold));
-        m.add_function(wrap_function!(get_datetime_tuple_fold));
+        m.add_function(wrap_function!(time_with_fold))?;
+        m.add_function(wrap_function!(get_time_tuple_fold))?;
+        m.add_function(wrap_function!(get_datetime_tuple_fold))?;
     }
 
     m.add_function(wrap_function!(issue_219))?;

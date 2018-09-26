@@ -18,11 +18,11 @@ impl ModClass {
 
 #[pyfunction]
 fn double(x: i32) -> i32 {
-    x*2
+    x * 2
 }
 
 #[pymodinit]
-fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
+fn othermod(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(double))?;
     m.add_class::<ModClass>()?;
     Ok(())
