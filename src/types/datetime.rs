@@ -1,7 +1,10 @@
+use conversion::ToPyObject;
 use err::PyResult;
 use ffi;
 use ffi::PyDateTimeAPI;
 use ffi::{PyDateTime_Check, PyDateTime_DateTimeType};
+#[cfg(Py_3_6)]
+use ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
 use ffi::{
     PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
     PyDateTime_DATE_GET_SECOND,
@@ -18,14 +21,11 @@ use ffi::{
 };
 use ffi::{PyDateTime_TZInfoType, PyTZInfo_Check};
 use ffi::{PyDateTime_TimeType, PyTime_Check};
-use object::PyObject;
-use std::os::raw::c_int;
-
-#[cfg(Py_3_6)]
-use ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
-
 use instance::Py;
+use object::PyObject;
 use python::{Python, ToPyPointer};
+use std::os::raw::c_int;
+use std::ptr;
 use types::PyTuple;
 
 // Traits
@@ -125,14 +125,23 @@ impl PyDateTime {
 
     pub fn from_timestamp(
         py: Python,
-        args: &PyObject,
-        kwargs: &PyObject,
+        timestamp: f64,
+        time_zone_info: Option<&PyTzInfo>,
     ) -> PyResult<Py<PyDateTime>> {
+        let timestamp: PyObject = timestamp.to_object(py);
+
+        let time_zone_info: PyObject = match time_zone_info {
+            Some(time_zone_info) => time_zone_info.to_object(py),
+            None => py.None(),
+        };
+
+        let args = PyTuple::new(py, &[timestamp, time_zone_info]);
+
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromTimestamp)(
                 PyDateTimeAPI.DateTimeType,
                 args.as_ptr(),
-                kwargs.as_ptr(),
+                ptr::null_mut(),
             );
             Py::from_owned_ptr_or_err(py, ptr)
         }

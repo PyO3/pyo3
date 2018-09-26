@@ -5,7 +5,7 @@ use err::{self, PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
-use python::{Python, ToPyPointer, IntoPyPointer};
+use python::{IntoPyPointer, Python, ToPyPointer};
 use std;
 use std::{cmp, collections, hash, mem};
 use types::{PyList, PyObjectRef};
@@ -277,7 +277,7 @@ mod test {
     use python::Python;
     use std::collections::{BTreeMap, HashMap};
     use types::dict::IntoPyDict;
-    use types::{PyDict, PyTuple, PyList};
+    use types::{PyDict, PyList, PyTuple};
     use ObjectProtocol;
 
     #[test]

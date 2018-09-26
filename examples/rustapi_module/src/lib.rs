@@ -176,16 +176,7 @@ fn get_datetime_tuple_fold(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
 
 #[pyfunction]
 fn datetime_from_timestamp(py: Python, ts: f64, tz: Option<&PyTzInfo>) -> PyResult<Py<PyDateTime>> {
-    let timestamp: PyObject = ts.to_object(py);
-    let tzi: PyObject = match tz {
-        Some(t) => t.to_object(py),
-        None => py.None(),
-    };
-
-    let args = PyTuple::new(py, &[timestamp, tzi]);
-    let kwargs = PyDict::new(py);
-
-    PyDateTime::from_timestamp(py, &args.to_object(py), &kwargs.to_object(py))
+    PyDateTime::from_timestamp(py, ts, tz)
 }
 
 #[pyfunction]
