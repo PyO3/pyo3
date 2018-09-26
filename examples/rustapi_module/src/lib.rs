@@ -3,6 +3,8 @@
 #[macro_use]
 extern crate pyo3;
 
+pub mod othermod;
+
 use pyo3::prelude::*;
 use pyo3::types::{
     PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyTime, PyTimeAccess,

@@ -90,23 +90,23 @@ fn impl_class(
                     self.#token.py()
                 }
             }
-            impl<'a> std::convert::From<&'a mut #cls> for &'a #cls
+            impl<'a> ::std::convert::From<&'a mut #cls> for &'a #cls
             {
                 fn from(ob: &'a mut #cls) -> Self {
                     unsafe{std::mem::transmute(ob)}
                 }
             }
-            impl std::fmt::Debug for #cls {
-                fn fmt(&self, f : &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+            impl ::std::fmt::Debug for #cls {
+                fn fmt(&self, f : &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
                     use ::pyo3::ObjectProtocol;
-                    let s = self.repr().map_err(|_| std::fmt::Error)?;
+                    let s = self.repr().map_err(|_| ::std::fmt::Error)?;
                     f.write_str(&s.to_string_lossy())
                 }
             }
-            impl std::fmt::Display for #cls {
-                fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+            impl ::std::fmt::Display for #cls {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
                     use ::pyo3::ObjectProtocol;
-                    let s = self.str().map_err(|_| std::fmt::Error)?;
+                    let s = self.str().map_err(|_| ::std::fmt::Error)?;
                     f.write_str(&s.to_string_lossy())
                 }
             }
@@ -186,14 +186,14 @@ fn impl_class(
 
             const SIZE: usize = {
                 Self::OFFSET as usize +
-                std::mem::size_of::<#cls>() + #weakref + #dict
+                ::std::mem::size_of::<#cls>() + #weakref + #dict
             };
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
                 (
                     (<#base as ::pyo3::typeob::PyTypeInfo>::SIZE +
-                     std::mem::align_of::<#cls>() - 1)  /
-                        std::mem::align_of::<#cls>() * std::mem::align_of::<#cls>()
+                     ::std::mem::align_of::<#cls>() - 1)  /
+                        ::std::mem::align_of::<#cls>() * ::std::mem::align_of::<#cls>()
                 ) as isize
             };
 
@@ -207,7 +207,7 @@ fn impl_class(
         impl ::pyo3::typeob::PyTypeObject for #cls {
             #[inline]
             fn init_type() {
-                static START: std::sync::Once = std::sync::ONCE_INIT;
+                static START: ::std::sync::Once = ::std::sync::ONCE_INIT;
                 START.call_once(|| {
                     let ty = unsafe{<#cls as ::pyo3::typeob::PyTypeInfo>::type_object()};
 

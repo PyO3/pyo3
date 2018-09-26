@@ -154,7 +154,7 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
             _args: *mut ::pyo3::ffi::PyObject,
             _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
         {
-            use pyo3::typeob::PyTypeInfo;
+            use ::pyo3::typeob::PyTypeInfo;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = ::pyo3::GILPool::new();
@@ -307,7 +307,7 @@ pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> To
 pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStream {
     quote! {
         unsafe extern "C" fn __wrap(
-            _slf: *mut ::pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> *mut ::pyo3::ffi::PyObject
+            _slf: *mut ::pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> *mut ::pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
 
@@ -339,7 +339,7 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _slf: *mut ::pyo3::ffi::PyObject,
-            _value: *mut ::pyo3::ffi::PyObject, _: *mut std::os::raw::c_void) -> ::pyo3::libc::c_int
+            _value: *mut ::pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> ::pyo3::libc::c_int
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _pool = ::pyo3::GILPool::new();
