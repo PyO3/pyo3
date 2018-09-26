@@ -5,7 +5,7 @@ use err::{self, PyErr, PyResult};
 use ffi;
 use instance::PyObjectWithToken;
 use object::PyObject;
-use python::{Python, ToPyPointer};
+use python::{Python, ToPyPointer, IntoPyPointer};
 use std;
 use std::{cmp, collections, hash, mem};
 use types::{PyList, PyObjectRef};
@@ -20,6 +20,24 @@ impl PyDict {
     /// Creates a new empty dictionary.
     pub fn new(py: Python) -> &PyDict {
         unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
+    }
+
+    /// Creates a new dictionary from the sequence given.
+    ///
+    /// The sequence must consist of `(PyObject, PyObject)`. This is
+    /// equivalent to `dict([("a", 1), ("b", 2)])`.
+    ///
+    /// Returns an error on invalid input. In the case of key collisions,
+    /// this keeps the last entry seen.
+    pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
+        unsafe {
+            let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
+            match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
+                0 => Ok(dict),
+                -1 => Err(PyErr::fetch(py)),
+                _ => unreachable!(),
+            }
+        }
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.
@@ -259,7 +277,7 @@ mod test {
     use python::Python;
     use std::collections::{BTreeMap, HashMap};
     use types::dict::IntoPyDict;
-    use types::{PyDict, PyTuple};
+    use types::{PyDict, PyTuple, PyList};
     use ObjectProtocol;
 
     #[test]
@@ -270,6 +288,24 @@ mod test {
         dict.set_item(7, 32).unwrap();
         assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
         assert_eq!(None, dict.get_item(8i32));
+    }
+
+    #[test]
+    fn test_from_sequence() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
+        let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
+        assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
+        assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_from_sequence_err() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let items = PyList::new(py, &vec!["a", "b"]);
+        assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
     }
 
     #[test]

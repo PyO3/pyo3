@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * `#[pyclass]` objects can now be returned from rust functions
  * `PyComplex` by kngwyu in [#226](https://github.com/PyO3/pyo3/pull/226)
+ * `PyDict::from_sequence()`, equivalent to `dict([(key, val), ...])`
 
 ### Removed
  * Removed most entries from the prelude. The new prelude is small and clear.
