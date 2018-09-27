@@ -3,8 +3,7 @@ import rustapi_module.datetime as rdt
 import sys
 import datetime as pdt
 
-import pytest
-
+import pytest 
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
@@ -263,3 +262,12 @@ def test_delta_err(args, err_type):
 
 def test_issue_219():
     rdt.issue_219()
+
+def test_tz_class():
+    tzi = rdt.TzClass()
+
+    dt = pdt.datetime(2018, 1, 1, tzinfo=tzi)
+
+    assert dt.tzname() == "+01:00"
+    assert dt.utcoffset() == pdt.timedelta(hours=1)
+    assert dt.dst() is None
