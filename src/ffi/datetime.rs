@@ -1,9 +1,11 @@
-#![cfg_attr(feature="cargo-clippy", allow(type_complexity))]
+#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+
 //! FFI bindings to the functions and structs defined in `datetime.h`
 //!
 //! This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
+
 use ffi::PyCapsule_Import;
 use ffi::Py_hash_t;
 use ffi::{PyObject, PyTypeObject};
@@ -13,16 +15,6 @@ use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};
 use std::ptr;
 use std::sync::Once;
-
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
-    pub static mut PyDateTime_DateType: PyTypeObject;
-    pub static mut PyDateTime_TimeType: PyTypeObject;
-    pub static mut PyDateTime_DateTimeType: PyTypeObject;
-
-    pub static mut PyDateTime_DeltaType: PyTypeObject;
-    pub static mut PyDateTime_TZInfoType: PyTypeObject;
-}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

@@ -6,7 +6,7 @@ use conversion::ToPyObject;
 use err::PyResult;
 use ffi;
 use ffi::PyDateTimeAPI;
-use ffi::{PyDateTime_Check, PyDateTime_DateTimeType};
+use ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
 #[cfg(Py_3_6)]
 use ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
 use ffi::{
@@ -16,15 +16,11 @@ use ffi::{
 use ffi::{
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
 };
-use ffi::{PyDateTime_DateType, PyDate_Check};
-use ffi::{PyDateTime_DeltaType, PyDelta_Check};
 use ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
 use ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
-use ffi::{PyDateTime_TZInfoType, PyTZInfo_Check};
-use ffi::{PyDateTime_TimeType, PyTime_Check};
 use instance::Py;
 use object::PyObject;
 use python::{Python, ToPyPointer};
@@ -64,7 +60,7 @@ pub trait PyTimeAccess {
 
 /// Bindings around `datetime.date`
 pub struct PyDate(PyObject);
-pyobject_native_type!(PyDate, PyDateTime_DateType, PyDate_Check);
+pyobject_native_type!(PyDate, *PyDateTimeAPI.DateType, PyDate_Check);
 
 impl PyDate {
     pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<Py<PyDate>> {
@@ -108,7 +104,7 @@ impl PyDateAccess for PyDate {
 
 /// Bindings for `datetime.datetime`
 pub struct PyDateTime(PyObject);
-pyobject_native_type!(PyDateTime, PyDateTime_DateTimeType, PyDateTime_Check);
+pyobject_native_type!(PyDateTime, *PyDateTimeAPI.DateTimeType, PyDateTime_Check);
 
 impl PyDateTime {
     pub fn new(
@@ -205,7 +201,7 @@ impl PyTimeAccess for PyDateTime {
 
 /// Bindings for `datetime.time`
 pub struct PyTime(PyObject);
-pyobject_native_type!(PyTime, PyDateTime_TimeType, PyTime_Check);
+pyobject_native_type!(PyTime, *PyDateTimeAPI.TimeType, PyTime_Check);
 
 impl PyTime {
     pub fn new(
@@ -284,11 +280,11 @@ impl PyTimeAccess for PyTime {
 ///
 /// This is an abstract base class and should not be constructed directly.
 pub struct PyTzInfo(PyObject);
-pyobject_native_type!(PyTzInfo, PyDateTime_TZInfoType, PyTZInfo_Check);
+pyobject_native_type!(PyTzInfo, *PyDateTimeAPI.TZInfoType, PyTZInfo_Check);
 
 /// Bindings for `datetime.timedelta`
 pub struct PyDelta(PyObject);
-pyobject_native_type!(PyDelta, PyDateTime_DeltaType, PyDelta_Check);
+pyobject_native_type!(PyDelta, *PyDateTimeAPI.DeltaType, PyDelta_Check);
 
 impl PyDelta {
     pub fn new(
