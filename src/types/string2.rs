@@ -154,6 +154,8 @@ impl PyUnicode {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
+            // PyUnicode_AsUTF8String would return null if the pointer did not reference a valid
+            // unicode object, but because we have a valid PyUnicode, assume success
             let data: Py<PyBytes> = Py::from_owned_ptr(
                 ffi::PyUnicode_AsUTF8String(self.0.as_ptr()),
             );

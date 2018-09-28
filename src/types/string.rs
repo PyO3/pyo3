@@ -56,6 +56,8 @@ impl PyString {
         unsafe {
             let mut size: ffi::Py_ssize_t = mem::uninitialized();
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
+            // PyUnicode_AsUTF8AndSize would return null if the pointer did not reference a valid
+            // unicode object, but because we have a valid PyString, assume success
             debug_assert!(!data.is_null());
             std::slice::from_raw_parts(data, size as usize)
         }
