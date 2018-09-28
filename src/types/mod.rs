@@ -24,7 +24,7 @@ pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
 #[cfg(Py_3)]
-pub use self::string::{PyBytes, PyString, PyUnicode};
+pub use self::string::{PyBytes, PyString, PyString as PyUnicode};
 #[cfg(not(Py_3))]
 pub use self::string2::{PyBytes, PyString, PyUnicode};
 pub use self::stringdata::PyStringData;

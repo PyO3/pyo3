@@ -19,12 +19,6 @@ pub struct PyString(PyObject);
 
 pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
-/// Represents a Python `unicode string`.
-/// Corresponds to `unicode` in Python 2, and `str` in Python 3.
-//pub use PyString as PyUnicode;
-
-pub struct PyUnicode();
-
 /// Represents a Python `byte` string.
 #[repr(transparent)]
 pub struct PyBytes(PyObject);
