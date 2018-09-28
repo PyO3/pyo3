@@ -7,13 +7,14 @@ use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
 
-use super::{PyObjectRef, PyStringData};
-use err::PyResult;
+use super::PyObjectRef;
+use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use python::{Python, ToPyPointer};
+use types::exceptions;
 
 /// Represents a Python `string`.
 #[repr(transparent)]
@@ -62,16 +63,13 @@ impl PyString {
         }
     }
 
-    /// Gets the python string data in its underlying representation.
-    ///
-    /// For Python 2 byte strings, this function always returns `PyStringData::Utf8`,
-    /// even if the bytes are not valid UTF-8.
-    /// For unicode strings, returns the underlying representation used by Python.
-    pub fn data(&self) -> PyStringData {
+    /// Get the Python string as a byte slice.
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
         if let Ok(bytes) = self.cast_as::<PyBytes>() {
-            PyStringData::Utf8(bytes.data())
+            bytes.as_bytes()
         } else if let Ok(unicode) = self.cast_as::<PyUnicode>() {
-            unicode.data()
+            unicode.as_bytes()
         } else {
             panic!("PyString is neither `str` nor `unicode`")
         }
@@ -86,7 +84,12 @@ impl PyString {
     /// (containing unpaired surrogates, or a Python 2.7 byte string that is
     /// not valid UTF-8).
     pub fn to_string(&self) -> PyResult<Cow<str>> {
-        self.data().to_string(self.py())
+        match std::str::from_utf8(self.as_bytes()) {
+            Ok(s) => Ok(Cow::Borrowed(s)),
+            Err(e) => Err(PyErr::from_instance(
+                exceptions::UnicodeDecodeError::new_utf8(self.py(), self.as_bytes(), e)?,
+            ))
+        }
     }
 
     /// Convert the `PyString` into a Rust string.
@@ -97,7 +100,7 @@ impl PyString {
     /// Unpaired surrogates and (on Python 2.7) invalid UTF-8 sequences are
     /// replaced with U+FFFD REPLACEMENT CHARACTER.
     pub fn to_string_lossy(&self) -> Cow<str> {
-        self.data().to_string_lossy()
+        String::from_utf8_lossy(self.as_bytes())
     }
 }
 
@@ -112,11 +115,13 @@ impl PyBytes {
         unsafe { Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
-    /// Gets the Python string data as byte slice.
-    pub fn data(&self) -> &[u8] {
+    /// Get the Python string as a byte slice.
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
+            debug_assert!(!buffer.is_null());
             std::slice::from_raw_parts(buffer, length)
         }
     }
@@ -145,12 +150,19 @@ impl PyUnicode {
         }
     }
 
-    /// Gets the python string data in its underlying representation.
-    pub fn data(&self) -> PyStringData {
+    /// Get the Python string as a byte slice.
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
         unsafe {
-            let buffer = ffi::PyUnicode_AS_UNICODE(self.as_ptr());
-            let length = ffi::PyUnicode_GET_SIZE(self.as_ptr()) as usize;
-            std::slice::from_raw_parts(buffer, length).into()
+            // PyUnicode_AsUTF8String would return null if the pointer did not reference a valid
+            // unicode object, but because we have a valid PyUnicode, assume success
+            let data: Py<PyBytes> = Py::from_owned_ptr(
+                ffi::PyUnicode_AsUTF8String(self.0.as_ptr()),
+            );
+            let buffer = ffi::PyBytes_AsString(data.as_ptr()) as *const u8;
+            let length = ffi::PyBytes_Size(data.as_ptr()) as usize;
+            debug_assert!(!buffer.is_null());
+            std::slice::from_raw_parts(buffer, length)
         }
     }
 
@@ -159,14 +171,19 @@ impl PyUnicode {
     /// Returns a `UnicodeDecodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
     pub fn to_string(&self) -> PyResult<Cow<str>> {
-        self.data().to_string(self.py())
+        match std::str::from_utf8(self.as_bytes()) {
+            Ok(s) => Ok(Cow::Borrowed(s)),
+            Err(e) => Err(PyErr::from_instance(
+                exceptions::UnicodeDecodeError::new_utf8(self.py(), self.as_bytes(), e)?,
+            ))
+        }
     }
 
     /// Convert the `PyString` into a Rust string.
     ///
     /// Unpaired surrogates are replaced with U+FFFD REPLACEMENT CHARACTER.
     pub fn to_string_lossy(&self) -> Cow<str> {
-        self.data().to_string_lossy()
+        String::from_utf8_lossy(self.as_bytes())
     }
 }
 
@@ -188,9 +205,12 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 
 #[cfg(test)]
 mod test {
-    use conversion::{FromPyObject, ToPyObject};
+    use std::borrow::Cow;
+    use conversion::{FromPyObject, ToPyObject, PyTryFrom};
     use instance::AsPyRef;
     use python::Python;
+    use object::PyObject;
+    use super::PyString;
 
     #[test]
     fn test_non_bmp() {
@@ -210,5 +230,37 @@ mod test {
 
         let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
         assert_eq!(s, s2);
+    }
+
+    #[test]
+    fn test_as_bytes() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let s = "ascii 🐈";
+        let obj: PyObject = PyString::new(py, s).into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert_eq!(s.as_bytes(), py_string.as_bytes());
+    }
+
+    #[test]
+    fn test_to_string_ascii() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let s = "ascii";
+        let obj: PyObject = PyString::new(py, s).into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert!(py_string.to_string().is_ok());
+        assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
+    }
+
+    #[test]
+    fn test_to_string_unicode() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let s = "哈哈🐈";
+        let obj: PyObject = PyString::new(py, s).into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert!(py_string.to_string().is_ok());
+        assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
     }
 }

@@ -27,7 +27,6 @@ pub use self::slice::{PySlice, PySliceIndices};
 pub use self::string::{PyBytes, PyString, PyString as PyUnicode};
 #[cfg(not(Py_3))]
 pub use self::string2::{PyBytes, PyString, PyUnicode};
-pub use self::stringdata::PyStringData;
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 use ffi;
@@ -195,7 +194,6 @@ mod module;
 mod sequence;
 mod set;
 mod slice;
-mod stringdata;
 mod stringutils;
 mod tuple;
 mod typeobject;

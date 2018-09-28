@@ -12,10 +12,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `PyComplex` by kngwyu in [#226](https://github.com/PyO3/pyo3/pull/226)
  * `PyDict::from_sequence()`, equivalent to `dict([(key, val), ...])`
  * Bindings for the `datetime` standard library types: `PyDate`, `PyTime`, `PyDateTime`, `PyTzInfo`, `PyDelta` with associated `ffi` types, by pganssle [#200](https://github.com/PyO3/pyo3/pull/200).
+ * `PyString`, `PyUnicode`, and `PyBytes` now have an `as_bytes()` method that returns `&[u8]`.
 
 ### Removed
  * Removed most entries from the prelude. The new prelude is small and clear.
  * Slowly removing specialization uses
+ * `PyString`, `PyUnicode`, and `PyBytes` no longer have a `data()` method
+ (replaced by `as_bytes()`) and `PyStringData` has been removed.
 
 ### Changed
  * Removes the types from the root module and the prelude. They now live in `pyo3::types` instead.
