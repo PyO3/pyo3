@@ -186,6 +186,29 @@ fn issue_219() -> PyResult<()> {
     Ok(())
 }
 
+#[pyclass(extends=PyTzInfo)]
+pub struct TzClass {}
+
+#[pymethods]
+impl TzClass {
+    #[new]
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|_| TzClass {})
+    }
+
+    fn utcoffset(&self, py: Python, dt: &PyDateTime) -> PyResult<Py<PyDelta>> {
+        PyDelta::new(py, 0, 3600, 0, true)
+    }
+
+    fn tzname(&self, py: Python, dt: &PyDateTime) -> PyResult<String> {
+        Ok(String::from("+01:00"))
+    }
+
+    fn dst(&self, py: Python, dt: &PyDateTime) -> PyResult<Option<&PyDelta>> {
+        Ok(None)
+    }
+}
+
 #[pymodinit]
 fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(make_date))?;
@@ -209,5 +232,6 @@ fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_function(wrap_function!(issue_219))?;
 
+    m.add_class::<TzClass>()?;
     Ok(())
 }
