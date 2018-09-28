@@ -1,3 +1,7 @@
+//! Safe Rust wrappers for types defined in the Python `datetime` library
+//!
+//! For more details about these types, see the [Python
+//! documentation](https://docs.python.org/3/library/datetime.html)
 use conversion::ToPyObject;
 use err::PyResult;
 use ffi;
@@ -24,19 +28,27 @@ use std::os::raw::c_int;
 use std::ptr;
 use types::PyTuple;
 
-// Traits
+/// Access traits
+
+/// Trait for accessing the date components of a struct containing a date.
 pub trait PyDateAccess {
     fn get_year(&self) -> i32;
     fn get_month(&self) -> u8;
     fn get_day(&self) -> u8;
 }
 
+/// Trait for accessing the components of a struct containing a timedelta.
+///
+/// Note: These access the individual components of a (day, second,
+/// microsecond) representation of the delta, they are *not* intended as
+/// aliases for calculating the total duration in each of these units.
 pub trait PyDeltaAccess {
     fn get_days(&self) -> i32;
     fn get_seconds(&self) -> i32;
     fn get_microseconds(&self) -> i32;
 }
 
+/// Trait for accessing the time components of a struct containing a time.
 pub trait PyTimeAccess {
     fn get_hour(&self) -> u8;
     fn get_minute(&self) -> u8;
@@ -46,7 +58,7 @@ pub trait PyTimeAccess {
     fn get_fold(&self) -> u8;
 }
 
-// datetime.date bindings
+/// Bindings around `datetime.date`
 pub struct PyDate(PyObject);
 pyobject_native_type!(PyDate, *PyDateTimeAPI.DateType, PyDate_Check);
 
@@ -63,6 +75,9 @@ impl PyDate {
         }
     }
 
+    /// Construct a `datetime.date` from a POSIX timestamp
+    ///
+    /// This is equivalent to `datetime.date.fromtimestamp`
     pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<Py<PyDate>> {
         let args = PyTuple::new(py, &[timestamp]);
 
@@ -87,7 +102,7 @@ impl PyDateAccess for PyDate {
     }
 }
 
-// datetime.datetime bindings
+/// Bindings for `datetime.datetime`
 pub struct PyDateTime(PyObject);
 pyobject_native_type!(PyDateTime, *PyDateTimeAPI.DateTimeType, PyDateTime_Check);
 
@@ -119,6 +134,9 @@ impl PyDateTime {
         }
     }
 
+    /// Construct a `datetime` object from a POSIX timestamp
+    ///
+    /// This is equivalent to `datetime.datetime.from_timestamp`
     pub fn from_timestamp(
         py: Python,
         timestamp: f64,
@@ -181,7 +199,7 @@ impl PyTimeAccess for PyDateTime {
     }
 }
 
-// datetime.time
+/// Bindings for `datetime.time`
 pub struct PyTime(PyObject);
 pyobject_native_type!(PyTime, *PyDateTimeAPI.TimeType, PyTime_Check);
 
@@ -208,6 +226,9 @@ impl PyTime {
     }
 
     #[cfg(Py_3_6)]
+    /// Alternate constructor that takes a `fold` argument
+    ///
+    /// First available in Python 3.6.
     pub fn new_with_fold(
         py: Python,
         hour: u8,
@@ -255,11 +276,13 @@ impl PyTimeAccess for PyTime {
     }
 }
 
-// datetime.tzinfo bindings
+/// Bindings for `datetime.tzinfo`
+///
+/// This is an abstract base class and should not be constructed directly.
 pub struct PyTzInfo(PyObject);
 pyobject_native_type!(PyTzInfo, *PyDateTimeAPI.TZInfoType, PyTZInfo_Check);
 
-// datetime.timedelta bindings
+/// Bindings for `datetime.timedelta`
 pub struct PyDelta(PyObject);
 pyobject_native_type!(PyDelta, *PyDateTimeAPI.DeltaType, PyDelta_Check);
 

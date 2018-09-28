@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `#[pyclass]` objects can now be returned from rust functions
  * `PyComplex` by kngwyu in [#226](https://github.com/PyO3/pyo3/pull/226)
  * `PyDict::from_sequence()`, equivalent to `dict([(key, val), ...])`
+ * Bindings for the `datetime` standard library types: `PyDate`, `PyTime`, `PyDateTime`, `PyTzInfo`, `PyDelta` with associated `ffi` types, by pganssle [#200](https://github.com/PyO3/pyo3/pull/200).
 
 ### Removed
  * Removed most entries from the prelude. The new prelude is small and clear.
@@ -27,7 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Added an explenation that the GIL can temporarily be released even while holding a GILGuard.
+ * Added an explanation that the GIL can temporarily be released even while holding a GILGuard.
  * Lots of clippy errors
  * Fix segfault on calling an unknown method on a PyObject
 
