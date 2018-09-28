@@ -75,7 +75,8 @@ fn test_buffer() {
         .init(|t| TestClass {
             vec: vec![b' ', b'2', b'3'],
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();
@@ -92,7 +93,8 @@ fn test_buffer() {
         .init(|t| TestClass {
             vec: vec![b' ', b'2', b'3'],
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();

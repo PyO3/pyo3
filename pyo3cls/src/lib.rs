@@ -41,7 +41,8 @@ pub fn mod2init(
     quote!(
         #ast
         #expanded
-    ).into()
+    )
+    .into()
 }
 
 #[proc_macro_attribute]
@@ -69,7 +70,8 @@ pub fn mod3init(
     quote!(
         #ast
         #expanded
-    ).into()
+    )
+    .into()
 }
 
 #[proc_macro_attribute]
@@ -87,7 +89,8 @@ pub fn pyproto(
     quote!(
         #ast
         #expanded
-    ).into()
+    )
+    .into()
 }
 
 #[proc_macro_attribute]
@@ -114,7 +117,8 @@ pub fn pyclass(
     quote!(
         #ast
         #expanded
-    ).into()
+    )
+    .into()
 }
 
 #[proc_macro_attribute]
@@ -132,7 +136,8 @@ pub fn pymethods(
     quote!(
         #ast
         #expanded
-    ).into()
+    )
+    .into()
 }
 
 #[proc_macro_attribute]
@@ -152,5 +157,6 @@ pub fn pyfunction(
     quote!(
         #ast
         #expanded
-    ).into()
+    )
+    .into()
 }

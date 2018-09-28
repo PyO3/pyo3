@@ -34,7 +34,8 @@ macro_rules! py_run {
                 // panic before flushing. This is where this hack comes into place
                 $py.run("import sys; sys.stderr.flush()", None, None)
                     .unwrap();
-            }).expect(&common::indoc($code))
+            })
+            .expect(&common::indoc($code))
     }};
 }
 

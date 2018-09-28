@@ -44,7 +44,8 @@ fn len() {
     let inst = Py::new(py, |t| Len {
         l: (isize::MAX as usize) + 1,
         token: t,
-    }).unwrap();
+    })
+    .unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
 
@@ -73,7 +74,8 @@ fn iterator() {
     let inst = Py::new(py, |t| Iterator {
         iter: Box::new(5..8),
         token: t,
-    }).unwrap();
+    })
+    .unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
 }
@@ -246,7 +248,8 @@ fn setitem() {
             key: 0,
             val: 0,
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.key, 1);
     assert_eq!(c.val, 2);
@@ -306,7 +309,8 @@ fn setdelitem() {
         .init_ref(|t| SetDelItem {
             val: None,
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.val, Some(2));
     py_run!(py, c, "del c[1]");
@@ -393,7 +397,8 @@ fn context_manager() {
         .init_mut(|t| ContextManager {
             exit_called: false,
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
     py_run!(py, c, "with c as x: assert x == 42");
     assert!(c.exit_called);
 

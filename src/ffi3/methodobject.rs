@@ -85,15 +85,15 @@ pub const METH_NOARGS: c_int = 0x0004;
 pub const METH_O: c_int = 0x0008;
 
 /* METH_CLASS and METH_STATIC are a little different; these control
-   the construction of methods for a class.  These cannot be used for
-   functions in modules. */
+the construction of methods for a class.  These cannot be used for
+functions in modules. */
 pub const METH_CLASS: c_int = 0x0010;
 pub const METH_STATIC: c_int = 0x0020;
 
 /* METH_COEXIST allows a method to be entered eventhough a slot has
-   already filled the entry.  When defined, the flag allows a separate
-   method, "__contains__" for example, to coexist with a defined
-   slot like sq_contains. */
+already filled the entry.  When defined, the flag allows a separate
+method, "__contains__" for example, to coexist with a defined
+slot like sq_contains. */
 
 pub const METH_COEXIST: c_int = 0x0040;
 

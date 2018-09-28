@@ -357,8 +357,10 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                         }
                         _ => unreachable!(),
                     }
-                }).collect::<Vec<TokenStream>>()
-        }).collect();
+                })
+                .collect::<Vec<TokenStream>>()
+        })
+        .collect();
 
     quote! {
         #(#methods)*

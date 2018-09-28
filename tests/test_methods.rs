@@ -33,7 +33,8 @@ fn instance_method() {
         .init_ref(|t| InstanceMethod {
             member: 42,
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
     assert_eq!(obj.method().unwrap(), 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
@@ -65,7 +66,8 @@ fn instance_method_with_args() {
         .init_ref(|t| InstanceMethodWithArgs {
             member: 7,
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
     assert!(obj.method(6).unwrap() == 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
@@ -101,12 +103,14 @@ fn class_method() {
         "assert C.method() == 'ClassMethod.method()!'",
         None,
         Some(d),
-    ).unwrap();
+    )
+    .unwrap();
     py.run(
         "assert C().method() == 'ClassMethod.method()!'",
         None,
         Some(d),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[pyclass]
@@ -134,7 +138,8 @@ fn class_method_with_args() {
         "assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'",
         None,
         Some(d),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[pyclass]
@@ -167,12 +172,14 @@ fn static_method() {
         "assert C.method() == 'StaticMethod.method()!'",
         None,
         Some(d),
-    ).unwrap();
+    )
+    .unwrap();
     py.run(
         "assert C().method() == 'StaticMethod.method()!'",
         None,
         Some(d),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[pyclass]

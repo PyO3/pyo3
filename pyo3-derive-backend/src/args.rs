@@ -18,7 +18,8 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
 
     let args_str = quote! {
         #(#items),*
-    }.to_string();
+    }
+    .to_string();
 
     for item in items.iter() {
         match item {

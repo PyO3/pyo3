@@ -39,5 +39,6 @@ pub fn get_doc(attrs: &Vec<syn::Attribute>, null_terminated: bool) -> syn::Lit {
         format!("\"{}\0\"", doc)
     } else {
         format!("\"{}\"", doc)
-    }).unwrap()
+    })
+    .unwrap()
 }

@@ -55,7 +55,8 @@ fn test_module_with_functions() {
     let d = PyDict::new(py);
     d.set_item("module_with_functions", unsafe {
         PyObject::from_owned_ptr(py, PyInit_module_with_functions())
-    }).unwrap();
+    })
+    .unwrap();
 
     let run = |code| py.run(code, None, Some(d)).unwrap();
 
@@ -84,13 +85,15 @@ fn test_module_renaming() {
     let d = PyDict::new(py);
     d.set_item("different_name", unsafe {
         PyObject::from_owned_ptr(py, PyInit_other_name())
-    }).unwrap();
+    })
+    .unwrap();
 
     py.run(
         "assert different_name.__name__ == 'other_name'",
         None,
         Some(d),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[test]
@@ -104,7 +107,8 @@ fn test_module_from_code() {
         "def add(a,b):\n\treturn a+b",
         "adder_mod.py",
         "adder_mod",
-    ).expect("Module code should be loaded");
+    )
+    .expect("Module code should be loaded");
 
     let add_func = adder_mod
         .get("add")

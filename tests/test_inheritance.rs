@@ -30,7 +30,8 @@ fn subclass() {
         "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
         None,
         Some(d),
-    ).map_err(|e| e.print(py))
+    )
+    .map_err(|e| e.print(py))
     .unwrap();
 }
 

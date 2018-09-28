@@ -52,7 +52,7 @@ pub const CO_GENERATOR: c_int = 0x0020;
 */
 pub const CO_NOFREE: c_int = 0x0040;
 /* The CO_COROUTINE flag is set for coroutine functions (defined with
-   ``async def`` keywords) */
+``async def`` keywords) */
 pub const CO_COROUTINE: c_int = 0x0080;
 pub const CO_ITERABLE_COROUTINE: c_int = 0x0100;
 pub const CO_ASYNC_GENERATOR: c_int = 0x0200;

@@ -69,21 +69,21 @@ extern "C" {
     pub static mut PyImport_FrozenModules: *mut PyImport_Struct_frozen;
 
 /*for internal use only:
-    pub fn PyImport_Cleanup();
-    pub fn _PyImport_AcquireLock();
-    pub fn _PyImport_ReleaseLock() -> c_int;
-    pub fn _PyImport_FindModule(arg1: *const c_char,
-                                arg2: *mut PyObject,
-                                arg3: *mut c_char, arg4: size_t,
-                                arg5: *mut *mut FILE,
-                                arg6: *mut *mut PyObject)
-     -> *mut Struct_filedescr;
-    pub fn _PyImport_IsScript(arg1: *mut Struct_filedescr) -> c_int;
-    pub fn _PyImport_ReInitLock();
-    pub fn _PyImport_FindExtension(arg1: *mut c_char,
-                                   arg2: *mut c_char)
-     -> *mut PyObject;
-    pub fn _PyImport_FixupExtension(arg1: *mut c_char,
-                                    arg2: *mut c_char)
-     -> *mut PyObject;*/
+pub fn PyImport_Cleanup();
+pub fn _PyImport_AcquireLock();
+pub fn _PyImport_ReleaseLock() -> c_int;
+pub fn _PyImport_FindModule(arg1: *const c_char,
+                            arg2: *mut PyObject,
+                            arg3: *mut c_char, arg4: size_t,
+                            arg5: *mut *mut FILE,
+                            arg6: *mut *mut PyObject)
+ -> *mut Struct_filedescr;
+pub fn _PyImport_IsScript(arg1: *mut Struct_filedescr) -> c_int;
+pub fn _PyImport_ReInitLock();
+pub fn _PyImport_FindExtension(arg1: *mut c_char,
+                               arg2: *mut c_char)
+ -> *mut PyObject;
+pub fn _PyImport_FixupExtension(arg1: *mut c_char,
+                                arg2: *mut c_char)
+ -> *mut PyObject;*/
 }

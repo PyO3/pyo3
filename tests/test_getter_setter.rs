@@ -73,7 +73,8 @@ fn getter_setter_autogen() {
             num: 10,
             token: t,
             text: "Hello".to_string(),
-        }).unwrap();
+        })
+        .unwrap();
 
     py_run!(py, inst, "assert inst.num == 10");
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");

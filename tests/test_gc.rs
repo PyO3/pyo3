@@ -83,7 +83,8 @@ fn data_is_dropped() {
                     drop_called: Arc::clone(&drop_called2),
                 },
                 token: t,
-            }).unwrap();
+            })
+            .unwrap();
         assert!(!drop_called1.load(Ordering::Relaxed));
         assert!(!drop_called2.load(Ordering::Relaxed));
         drop(inst);
@@ -171,7 +172,8 @@ fn gc_integration() {
                 drop_called: Arc::clone(&drop_called),
             },
             token: t,
-        }).unwrap();
+        })
+        .unwrap();
 
         *inst.self_ref.borrow_mut() = inst.into();
     }

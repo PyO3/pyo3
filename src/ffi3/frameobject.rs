@@ -22,8 +22,8 @@ pub struct PyFrameObject {
     pub f_locals: *mut PyObject,          /* local symbol table (any mapping) */
     pub f_valuestack: *mut *mut PyObject, /* points after the last local */
     /* Next free slot in f_valuestack.  Frame creation sets to f_valuestack.
-       Frame evaluation usually NULLs it, but a frame that yields sets it
-       to the current stack top. */
+    Frame evaluation usually NULLs it, but a frame that yields sets it
+    to the current stack top. */
     pub f_stacktop: *mut *mut PyObject,
     pub f_trace: *mut PyObject, /* Trace function */
 
@@ -34,10 +34,10 @@ pub struct PyFrameObject {
 
     pub f_lasti: c_int, /* Last instruction if called */
     /* Call PyFrame_GetLineNumber() instead of reading this field
-       directly.  As of 2.3 f_lineno is only valid when tracing is
-       active (i.e. when f_trace is set).  At other times we use
-       PyCode_Addr2Line to calculate the line from the current
-      bytecode index. */
+     directly.  As of 2.3 f_lineno is only valid when tracing is
+     active (i.e. when f_trace is set).  At other times we use
+     PyCode_Addr2Line to calculate the line from the current
+    bytecode index. */
     pub f_lineno: c_int,                          /* Current line number */
     pub f_iblock: c_int,                          /* index in f_blockstack */
     pub f_executing: c_char,                      /* whether the frame is still executing */

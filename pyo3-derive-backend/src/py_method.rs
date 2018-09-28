@@ -139,7 +139,8 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Token
             } else {
                 syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
             }
-        }).collect();
+        })
+        .collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_obj, #(#names),*))
     };
@@ -234,7 +235,8 @@ pub fn impl_wrap_class(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> Tok
             } else {
                 syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
             }
-        }).collect();
+        })
+        .collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(&_cls, #(#names),*))
     };
@@ -275,7 +277,8 @@ pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> To
             } else {
                 syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
             }
-        }).collect();
+        })
+        .collect();
     let cb = quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#cls::#name(#(#names),*))
     };
@@ -373,7 +376,8 @@ fn impl_call(_cls: &syn::Type, fname: &syn::Ident, spec: &FnSpec) -> TokenStream
             } else {
                 syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
             }
-        }).collect();
+        })
+        .collect();
     quote! {
         ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(_slf.#fname(#(#names),*))
     }

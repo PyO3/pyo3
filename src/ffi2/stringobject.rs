@@ -94,52 +94,52 @@ extern "C" {
     ) -> *mut PyObject;
 
 /*
-    pub fn PyString_Repr(arg1: *mut PyObject, arg2: c_int)
-     -> *mut PyObject;
-    pub fn _PyString_Eq(arg1: *mut PyObject, arg2: *mut PyObject)
-     -> c_int;
-    pub fn _PyString_FormatLong(arg1: *mut PyObject, arg2: c_int,
-                                arg3: c_int, arg4: c_int,
-                                arg5: *mut *mut c_char,
-                                arg6: *mut c_int) -> *mut PyObject;
-    pub fn PyString_DecodeEscape(arg1: *const c_char,
-                                 arg2: Py_ssize_t,
-                                 arg3: *const c_char,
-                                 arg4: Py_ssize_t,
-                                 arg5: *const c_char)
-     -> *mut PyObject;
-    pub fn PyString_InternImmortal(arg1: *mut *mut PyObject);
-    pub fn _Py_ReleaseInternedStrings();
-    pub fn _PyString_Join(sep: *mut PyObject, x: *mut PyObject)
-     -> *mut PyObject;
-    pub fn PyString_AsEncodedString(str: *mut PyObject,
-                                    encoding: *const c_char,
-                                    errors: *const c_char)
-     -> *mut PyObject;
-    pub fn PyString_AsDecodedString(str: *mut PyObject,
-                                    encoding: *const c_char,
-                                    errors: *const c_char)
-     -> *mut PyObject;
+pub fn PyString_Repr(arg1: *mut PyObject, arg2: c_int)
+ -> *mut PyObject;
+pub fn _PyString_Eq(arg1: *mut PyObject, arg2: *mut PyObject)
+ -> c_int;
+pub fn _PyString_FormatLong(arg1: *mut PyObject, arg2: c_int,
+                            arg3: c_int, arg4: c_int,
+                            arg5: *mut *mut c_char,
+                            arg6: *mut c_int) -> *mut PyObject;
+pub fn PyString_DecodeEscape(arg1: *const c_char,
+                             arg2: Py_ssize_t,
+                             arg3: *const c_char,
+                             arg4: Py_ssize_t,
+                             arg5: *const c_char)
+ -> *mut PyObject;
+pub fn PyString_InternImmortal(arg1: *mut *mut PyObject);
+pub fn _Py_ReleaseInternedStrings();
+pub fn _PyString_Join(sep: *mut PyObject, x: *mut PyObject)
+ -> *mut PyObject;
+pub fn PyString_AsEncodedString(str: *mut PyObject,
+                                encoding: *const c_char,
+                                errors: *const c_char)
+ -> *mut PyObject;
+pub fn PyString_AsDecodedString(str: *mut PyObject,
+                                encoding: *const c_char,
+                                errors: *const c_char)
+ -> *mut PyObject;
 
-    pub fn _PyString_InsertThousandsGroupingLocale(buffer:
-                                                       *mut c_char,
-                                                   n_buffer: Py_ssize_t,
-                                                   digits:
-                                                       *mut c_char,
-                                                   n_digits: Py_ssize_t,
-                                                   min_width: Py_ssize_t)
-     -> Py_ssize_t;
-    pub fn _PyString_InsertThousandsGrouping(buffer: *mut c_char,
-                                             n_buffer: Py_ssize_t,
-                                             digits: *mut c_char,
-                                             n_digits: Py_ssize_t,
-                                             min_width: Py_ssize_t,
-                                             grouping: *const c_char,
-                                             thousands_sep:
-                                                 *const c_char)
-     -> Py_ssize_t;
-    pub fn _PyBytes_FormatAdvanced(obj: *mut PyObject,
-                                   format_spec: *mut c_char,
-                                   format_spec_len: Py_ssize_t)
-     -> *mut PyObject;*/
+pub fn _PyString_InsertThousandsGroupingLocale(buffer:
+                                                   *mut c_char,
+                                               n_buffer: Py_ssize_t,
+                                               digits:
+                                                   *mut c_char,
+                                               n_digits: Py_ssize_t,
+                                               min_width: Py_ssize_t)
+ -> Py_ssize_t;
+pub fn _PyString_InsertThousandsGrouping(buffer: *mut c_char,
+                                         n_buffer: Py_ssize_t,
+                                         digits: *mut c_char,
+                                         n_digits: Py_ssize_t,
+                                         min_width: Py_ssize_t,
+                                         grouping: *const c_char,
+                                         thousands_sep:
+                                             *const c_char)
+ -> Py_ssize_t;
+pub fn _PyBytes_FormatAdvanced(obj: *mut PyObject,
+                               format_spec: *mut c_char,
+                               format_spec_len: Py_ssize_t)
+ -> *mut PyObject;*/
 }

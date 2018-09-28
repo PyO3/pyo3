@@ -352,7 +352,8 @@ mod test {
             "assert isinstance(exc, email.errors.MessageError)",
             None,
             Some(d),
-        ).map_err(|e| e.print(py))
+        )
+        .map_err(|e| e.print(py))
         .expect("assertion failed");
     }
 }
