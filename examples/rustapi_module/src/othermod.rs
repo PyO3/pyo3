@@ -11,6 +11,13 @@ pub struct ModClass {
 
 #[pymethods]
 impl ModClass {
+    #[new]
+    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+        obj.init(|_| ModClass {
+            _somefield: String::from("contents"),
+        })
+    }
+
     fn noop(&self, x: usize) -> usize {
         x
     }
@@ -25,5 +32,9 @@ fn double(x: i32) -> i32 {
 fn othermod(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_function!(double))?;
     m.add_class::<ModClass>()?;
+
+    m.add("USIZE_MIN", usize::min_value())?;
+    m.add("USIZE_MAX", usize::max_value())?;
+
     Ok(())
 }
