@@ -162,6 +162,9 @@ pub trait ObjectProtocol {
     /// Gets the Python type object for this object's type.
     fn get_type(&self) -> &PyType;
 
+    /// Gets the Python type pointer for this object.
+    fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
+
     /// Gets the Python base object for this object.
     fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
     where
@@ -436,6 +439,11 @@ where
         unsafe { PyType::from_type_ptr(self.py(), (*self.as_ptr()).ob_type) }
     }
 
+    #[inline]
+    fn get_type_ptr(&self) -> *mut ffi::PyTypeObject {
+        unsafe { (*self.as_ptr()).ob_type }
+    }
+
     fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
     where
         Self: PyTypeInfo,
@@ -511,5 +519,13 @@ mod test {
         assert!(a.call_method("nonexistent_method", (1,), None).is_err());
         assert!(a.call_method0("nonexistent_method").is_err());
         assert!(a.call_method1("nonexistent_method", (1,)).is_err());
+    }
+
+    #[test]
+    fn test_type() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = py.eval("42", None, None).unwrap();
+        assert_eq!(unsafe { obj.get_type().as_type_ptr() }, obj.get_type_ptr())
     }
 }
