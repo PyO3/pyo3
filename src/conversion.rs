@@ -16,6 +16,10 @@ pub trait ToPyObject {
     fn to_object(&self, py: Python) -> PyObject;
 }
 
+/// This trait has two implementations: The slow one is implemented for
+/// all [ToPyObject] and creates a new object using [ToPyObject::to_object],
+/// while the fast one is only implemented for ToPyPointer (we know
+/// that every ToPyObject is also ToPyObject) and uses [ToPyPointer::as_ptr()]
 pub trait ToBorrowedObject: ToPyObject {
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -36,6 +40,18 @@ pub trait ToBorrowedObject: ToPyObject {
 }
 
 impl<T> ToBorrowedObject for T where T: ToPyObject {}
+
+impl<T> ToBorrowedObject for T
+where
+    T: ToPyObject + ToPyPointer,
+{
+    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
+    where
+        F: FnOnce(*mut ffi::PyObject) -> R,
+    {
+        f(self.as_ptr())
+    }
+}
 
 /// Conversion trait that allows various objects to be converted into `PyObject`
 /// by consuming original object.

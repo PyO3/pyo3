@@ -72,7 +72,9 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// Calling of `__new__` method of base class is developer's responsibility.
 ///
 /// Example of custom class implementation with `__new__` method:
-/// ```rust,ignore
+/// ```
+/// #![feature(specialization)]
+///
 /// use pyo3::prelude::*;
 ///
 /// #[pyclass]
@@ -84,8 +86,7 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(|token| MyClass{token: token});
-///        MyClass::BaseType::__new__(obj)
+///        obj.init(|token| MyClass { token })
 ///    }
 /// }
 /// ```

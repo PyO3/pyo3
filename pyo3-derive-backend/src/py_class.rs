@@ -257,24 +257,6 @@ fn impl_class(
             }
         }
 
-        impl ::pyo3::ToBorrowedObject for #cls {
-            fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
-                where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
-            {
-                use ::pyo3::python::ToPyPointer;
-                f(self.as_ptr())
-            }
-        }
-
-        impl<'a> ::pyo3::ToBorrowedObject for &'a mut #cls {
-            fn with_borrowed_ptr<F, R>(&self, _py: ::pyo3::Python, f: F) -> R
-                where F: FnOnce(*mut ::pyo3::ffi::PyObject) -> R
-            {
-                use ::pyo3::python::ToPyPointer;
-                f(self.as_ptr())
-            }
-        }
-
         #extra
     }
 }

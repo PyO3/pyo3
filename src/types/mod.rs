@@ -143,16 +143,6 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl<$($type_param,)*> $crate::ToBorrowedObject for $name
-        {
-            #[inline]
-            fn with_borrowed_ptr<F, R>(&self, _py: $crate::Python, f: F) -> R
-                where F: FnOnce(*mut $crate::ffi::PyObject) -> R
-            {
-                f(self.0.as_ptr())
-            }
-        }
-
         impl<$($type_param,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>

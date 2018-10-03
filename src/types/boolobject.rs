@@ -1,5 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use conversion::{IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject};
+use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use ffi;
 use object::PyObject;
 use python::{Python, ToPyPointer};
@@ -41,23 +41,6 @@ impl ToPyObject for bool {
                 },
             )
         }
-    }
-}
-
-impl ToBorrowedObject for bool {
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        // Avoid unnecessary Py_INCREF/Py_DECREF pair
-        f(unsafe {
-            if *self {
-                ffi::Py_True()
-            } else {
-                ffi::Py_False()
-            }
-        })
     }
 }
 

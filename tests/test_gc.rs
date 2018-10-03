@@ -52,6 +52,7 @@ fn class_with_freelist() {
 struct TestDropCall {
     drop_called: Arc<AtomicBool>,
 }
+
 impl Drop for TestDropCall {
     fn drop(&mut self) {
         self.drop_called.store(true, Ordering::Relaxed);
@@ -98,6 +99,7 @@ fn data_is_dropped() {
 struct ClassWithDrop {
     token: PyToken,
 }
+
 impl Drop for ClassWithDrop {
     fn drop(&mut self) {
         unsafe {
@@ -188,6 +190,7 @@ fn gc_integration() {
 struct GCIntegration2 {
     token: PyToken,
 }
+
 #[test]
 fn gc_integration2() {
     let gil = Python::acquire_gil();
@@ -200,6 +203,7 @@ fn gc_integration2() {
 struct WeakRefSupport {
     token: PyToken,
 }
+
 #[test]
 fn weakref_support() {
     let gil = Python::acquire_gil();
@@ -237,7 +241,7 @@ impl Drop for BaseClassWithDrop {
     }
 }
 
-#[pyclass(extends=BaseClassWithDrop)]
+#[pyclass(extends = BaseClassWithDrop)]
 struct SubClassWithDrop {
     token: PyToken,
     data: Option<Arc<AtomicBool>>,

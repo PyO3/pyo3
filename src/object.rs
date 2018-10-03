@@ -258,16 +258,6 @@ impl ToPyObject for PyObject {
     }
 }
 
-impl ToBorrowedObject for PyObject {
-    #[inline]
-    fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
-    where
-        F: FnOnce(*mut ffi::PyObject) -> R,
-    {
-        f(self.as_ptr())
-    }
-}
-
 impl ToPyPointer for PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
