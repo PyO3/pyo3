@@ -9,7 +9,6 @@ To define python custom class, rust struct needs to be annotated with `#[pyclass
 # extern crate pyo3;
 # use pyo3::prelude::*;
 
-
 #[pyclass]
 struct MyClass {
    num: i32,

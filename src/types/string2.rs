@@ -88,7 +88,7 @@ impl PyString {
             Ok(s) => Ok(Cow::Borrowed(s)),
             Err(e) => Err(PyErr::from_instance(
                 exceptions::UnicodeDecodeError::new_utf8(self.py(), self.as_bytes(), e)?,
-            ))
+            )),
         }
     }
 
@@ -156,9 +156,8 @@ impl PyUnicode {
         unsafe {
             // PyUnicode_AsUTF8String would return null if the pointer did not reference a valid
             // unicode object, but because we have a valid PyUnicode, assume success
-            let data: Py<PyBytes> = Py::from_owned_ptr(
-                ffi::PyUnicode_AsUTF8String(self.0.as_ptr()),
-            );
+            let data: Py<PyBytes> =
+                Py::from_owned_ptr(ffi::PyUnicode_AsUTF8String(self.0.as_ptr()));
             let buffer = ffi::PyBytes_AsString(data.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(data.as_ptr()) as usize;
             debug_assert!(!buffer.is_null());
@@ -175,7 +174,7 @@ impl PyUnicode {
             Ok(s) => Ok(Cow::Borrowed(s)),
             Err(e) => Err(PyErr::from_instance(
                 exceptions::UnicodeDecodeError::new_utf8(self.py(), self.as_bytes(), e)?,
-            ))
+            )),
         }
     }
 
@@ -205,12 +204,12 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
-    use conversion::{FromPyObject, ToPyObject, PyTryFrom};
-    use instance::AsPyRef;
-    use python::Python;
-    use object::PyObject;
     use super::PyString;
+    use conversion::{FromPyObject, PyTryFrom, ToPyObject};
+    use instance::AsPyRef;
+    use object::PyObject;
+    use python::Python;
+    use std::borrow::Cow;
 
     #[test]
     fn test_non_bmp() {

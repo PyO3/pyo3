@@ -125,7 +125,7 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        impl<$($type_param,)*> $crate::typeob::PyTypeObject for $name {
+        impl<$($type_param,)*> $crate::typeob::PyTypeCreate for $name {
             #[inline]
             fn init_type() {}
 

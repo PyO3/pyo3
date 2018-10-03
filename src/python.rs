@@ -12,7 +12,8 @@ use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
-use typeob::{PyObjectAlloc, PyTypeInfo, PyTypeObject};
+use typeob::PyTypeCreate;
+use typeob::{PyTypeInfo, PyTypeObject};
 use types::{PyDict, PyModule, PyObjectRef, PyType};
 
 /// Marker type that indicates that the GIL is currently held.
@@ -253,7 +254,7 @@ impl<'p> Python<'p> {
     pub fn init<T, F>(self, f: F) -> PyResult<Py<T>>
     where
         F: FnOnce(PyToken) -> T,
-        T: PyTypeInfo + PyObjectAlloc<T>,
+        T: PyTypeCreate,
     {
         Py::new(self, f)
     }
@@ -264,7 +265,7 @@ impl<'p> Python<'p> {
     pub fn init_ref<T, F>(self, f: F) -> PyResult<&'p T>
     where
         F: FnOnce(PyToken) -> T,
-        T: PyTypeInfo + PyObjectAlloc<T>,
+        T: PyTypeCreate,
     {
         Py::new_ref(self, f)
     }
@@ -275,7 +276,7 @@ impl<'p> Python<'p> {
     pub fn init_mut<T, F>(self, f: F) -> PyResult<&'p mut T>
     where
         F: FnOnce(PyToken) -> T,
-        T: PyTypeInfo + PyObjectAlloc<T>,
+        T: PyTypeCreate,
     {
         Py::new_mut(self, f)
     }

@@ -14,6 +14,7 @@ use python::{IntoPyPointer, Python, ToPyPointer};
 use pythonrun;
 use typeob::{PyTypeInfo, PyTypeObject};
 use types::PyObjectRef;
+use typeob::PyTypeCreate;
 
 pub struct PyToken(PhantomData<Rc<()>>);
 
@@ -175,7 +176,7 @@ where
         F: FnOnce(::PyToken) -> T,
         T: PyTypeObject + PyTypeInfo,
     {
-        let ob = <T as PyTypeObject>::create(py)?;
+        let ob = <T as PyTypeCreate>::create(py)?;
         ob.init(f)?;
 
         let ob = unsafe { Py::from_owned_ptr(ob.into_ptr()) };
@@ -189,7 +190,7 @@ where
         F: FnOnce(::PyToken) -> T,
         T: PyTypeObject + PyTypeInfo,
     {
-        let ob = <T as PyTypeObject>::create(py)?;
+        let ob = <T as PyTypeCreate>::create(py)?;
         ob.init(f)?;
 
         unsafe { Ok(py.from_owned_ptr(ob.into_ptr())) }
@@ -202,7 +203,7 @@ where
         F: FnOnce(::PyToken) -> T,
         T: PyTypeObject + PyTypeInfo,
     {
-        let ob = <T as PyTypeObject>::create(py)?;
+        let ob = <T as PyTypeCreate>::create(py)?;
         ob.init(f)?;
 
         unsafe { Ok(py.mut_from_owned_ptr(ob.into_ptr())) }

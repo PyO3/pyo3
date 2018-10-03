@@ -363,7 +363,7 @@ pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 
 #[repr(C)]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct PyTypeObject {
     pub ob_refcnt: Py_ssize_t,
     pub ob_type: *mut PyTypeObject,
@@ -414,13 +414,6 @@ pub struct PyTypeObject {
     pub tp_weaklist: *mut PyObject,
     pub tp_del: Option<destructor>,
     pub tp_version_tag: c_uint,
-}
-
-impl Clone for PyTypeObject {
-    #[inline]
-    fn clone(&self) -> PyTypeObject {
-        *self
-    }
 }
 
 #[cfg(py_sys_config = "Py_TRACE_REFS")]

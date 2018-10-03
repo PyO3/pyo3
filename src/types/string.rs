@@ -10,8 +10,8 @@ use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use python::{Python, ToPyPointer};
-use types::PyObjectRef;
 use types::exceptions;
+use types::PyObjectRef;
 
 /// Represents a Python `string`.
 #[repr(transparent)]
@@ -72,7 +72,7 @@ impl PyString {
             Ok(s) => Ok(Cow::Borrowed(s)),
             Err(e) => Err(PyErr::from_instance(
                 exceptions::UnicodeDecodeError::new_utf8(self.py(), self.as_bytes(), e)?,
-            ))
+            )),
         }
     }
 
@@ -120,12 +120,12 @@ impl PyBytes {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
-    use conversion::{FromPyObject, ToPyObject, PyTryFrom};
-    use instance::AsPyRef;
-    use python::Python;
-    use object::PyObject;
     use super::PyString;
+    use conversion::{FromPyObject, PyTryFrom, ToPyObject};
+    use instance::AsPyRef;
+    use object::PyObject;
+    use python::Python;
+    use std::borrow::Cow;
 
     #[test]
     fn test_non_bmp() {

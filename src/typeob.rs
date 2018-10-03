@@ -217,7 +217,7 @@ where
 
     default unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
-        T::init_type();
+        <T as PyTypeCreate>::init_type();
 
         let tp_ptr = T::type_object();
         let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
@@ -256,20 +256,42 @@ where
     }
 }
 
-/// Trait implemented by Python object types that have a corresponding type object.
+/// Python object types that have a corresponding type object.
 pub trait PyTypeObject {
     /// Initialize type object
     fn init_type();
 
     /// Retrieves the type object for this Python object type.
     fn type_object() -> Py<PyType>;
+}
+
+/// Python object types that have a corresponding type object and be
+/// instanciated with [Self::create()]
+pub trait PyTypeCreate: PyObjectAlloc<Self> + PyTypeInfo + Sized {
+    #[inline]
+    fn init_type() {
+        let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
+
+        if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
+            // automatically initialize the class on-demand
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+
+            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
+                panic!("An error occurred while initializing class {}", Self::NAME)
+            });
+        }
+    }
+
+    #[inline]
+    fn type_object() -> Py<PyType> {
+        <Self as PyTypeObject>::init_type();
+        PyType::new::<Self>()
+    }
 
     /// Create PyRawObject which can be initialized with rust value
     #[must_use]
-    fn create(py: Python) -> PyResult<PyRawObject>
-    where
-        Self: Sized + PyObjectAlloc<Self> + PyTypeInfo,
-    {
+    fn create(py: Python) -> PyResult<PyRawObject> {
         <Self as PyTypeObject>::init_type();
 
         unsafe {
@@ -284,29 +306,18 @@ pub trait PyTypeObject {
     }
 }
 
+impl<T> PyTypeCreate for T where T: PyObjectAlloc<Self> + PyTypeInfo + Sized {}
+
 impl<T> PyTypeObject for T
 where
-    T: PyObjectAlloc<T> + PyTypeInfo,
+    T: PyTypeCreate,
 {
-    #[inline]
-    default fn init_type() {
-        unsafe {
-            if ((*<T>::type_object()).tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
-                // automatically initialize the class on-demand
-                let gil = Python::acquire_gil();
-                let py = gil.python();
-
-                initialize_type::<T>(py, None).unwrap_or_else(|_| {
-                    panic!("An error occurred while initializing class {}", T::NAME)
-                });
-            }
-        }
+    fn init_type() {
+        <T as PyTypeCreate>::init_type()
     }
 
-    #[inline]
-    default fn type_object() -> Py<PyType> {
-        <T as PyTypeObject>::init_type();
-        PyType::new::<T>()
+    fn type_object() -> Py<PyType> {
+        <T as PyTypeCreate>::type_object()
     }
 }
 

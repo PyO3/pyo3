@@ -127,7 +127,7 @@ fn impl_class(
                                 FREELIST = Box::into_raw(Box::new(
                                     ::pyo3::freelist::FreeList::with_capacity(#freelist)));
 
-                                <#cls as ::pyo3::typeob::PyTypeObject>::init_type();
+                                <#cls as ::pyo3::typeob::PyTypeCreate>::init_type();
                             }
                             &mut *FREELIST
                         }
@@ -201,27 +201,6 @@ fn impl_class(
             unsafe fn type_object() -> &'static mut ::pyo3::ffi::PyTypeObject {
                 static mut TYPE_OBJECT: ::pyo3::ffi::PyTypeObject = ::pyo3::ffi::PyTypeObject_INIT;
                 &mut TYPE_OBJECT
-            }
-        }
-
-        impl ::pyo3::typeob::PyTypeObject for #cls {
-            #[inline]
-            fn init_type() {
-                static START: ::std::sync::Once = ::std::sync::ONCE_INIT;
-                START.call_once(|| {
-                    let ty = unsafe{<#cls as ::pyo3::typeob::PyTypeInfo>::type_object()};
-
-                    if (ty.tp_flags & ::pyo3::ffi::Py_TPFLAGS_READY) == 0 {
-                        let gil = ::pyo3::Python::acquire_gil();
-                        let py = gil.python();
-
-                        // automatically initialize the class on-demand
-                        ::pyo3::typeob::initialize_type::<#cls>(py, None)
-                            .map_err(|e| e.print(py))
-                            .expect(format!("An error occurred while initializing class {}",
-                                            <#cls as ::pyo3::typeob::PyTypeInfo>::NAME).as_ref());
-                    }
-                });
             }
         }
 
