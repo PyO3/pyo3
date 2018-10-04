@@ -16,8 +16,13 @@ fi
 # Build and then upload the guide to a specific folder on the gh-pages branch. This way we can have multiple versions
 # of the guide at the same time (See #165)
 
-# This builds the book in target/doc/guide. See https://github.com/rust-lang-nursery/mdBook/issues/698
-mdbook build -d ../target/doc/guide guide
+# This builds the book in target/guide. See https://github.com/rust-lang-nursery/mdBook/issues/698
+mdbook build -d ../target/guide guide
+
+# Build the doc
+# This builds the book in target/doc
+cargo doc --all-features --no-deps
+echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/doc/index.html
 
 # Get the lastest tag across all branches
 # https://stackoverflow.com/a/7261049/3549270
@@ -32,7 +37,8 @@ echo "pyo3.rs" > CNAME
 
 # For builds triggered by a tag, $TRAVIS_BRANCH will be set to the tag
 rm -rf "$TRAVIS_BRANCH"
-cp -r ../target/doc/guide "$TRAVIS_BRANCH"
+cp -r ../target/guide "$TRAVIS_BRANCH"
+cp -r ../target/doc "$TRAVIS_BRANCH"
 git add --all
 git commit -m "Upload documentation for $TRAVIS_BRANCH"
 

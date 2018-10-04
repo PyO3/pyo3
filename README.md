@@ -10,6 +10,8 @@
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 
+* API Documentation: [master](https://pyo3.rs/master/doc)
+
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust-cpython.html).
 
 ## Usage
