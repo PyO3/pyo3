@@ -2,7 +2,7 @@
 
 [Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
 
-[API documentation](../doc/index.html)
+[API documentation](./doc/index.html)
 
 ## Usage
 
