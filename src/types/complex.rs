@@ -121,7 +121,7 @@ mod complex_conversion {
     use super::*;
     use conversion::{FromPyObject, IntoPyObject, ToPyObject};
     use err::PyErr;
-    use objects::PyObjectRef;
+    use types::PyObjectRef;
     use PyResult;
     impl PyComplex {
         /// Creates a new Python `PyComplex` object from num_complex::Complex.
