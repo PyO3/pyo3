@@ -2,6 +2,8 @@
 
 [Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
 
+[API documentation](./doc/index.html)
+
 ## Usage
 
 Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.29.0-nightly 2018-07-16.
