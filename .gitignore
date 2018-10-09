@@ -3,6 +3,7 @@ Cargo.lock
 /doc
 /gh-pages
 build/
+*.py[co]
 __pycache__/
 .cache
 .pytest_cache/

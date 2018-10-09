@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-
 from .word_count import WordCounter, count_line
 
 __all__ = ["WordCounter", "count_line", "search_py"]
