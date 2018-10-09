@@ -44,7 +44,8 @@
 //!
 //!     let locals = PyDict::new(py);
 //!     locals.set_item("os", py.import("os")?)?;
-//!     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
+//!     let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
+//!     let user: String = py.eval(code, None, Some(&locals))?.extract()?;
 //!
 //!     println!("Hello {}, I'm Python {}", user, version);
 //!     Ok(())
