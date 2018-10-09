@@ -23,9 +23,8 @@ class PyTest(TestCommand):
         self.run_command("test_rust")
 
         import subprocess
-        import sys
 
-        subprocess.check_call([sys.executable, "-m", "pytest", "tests"])
+        subprocess.check_call(["pytest", "tests"])
 
 
 setup_requires = ["setuptools-rust>=0.10.1", "wheel"]
