@@ -1,12 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::ffi::CString;
-
 use ffi;
 use libc::c_int;
-
-static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
+use std;
+use std::ffi::CString;
 
 /// `PyMethodDefType` represents different types of python callable objects.
 /// It is used by `#[pymethods]` and `#[pyproto]` annotations.
@@ -123,9 +120,10 @@ impl PySetterDef {
 }
 
 #[doc(hidden)]
+/// The pymethods macro implements this trait so the methods are added to the object
 pub trait PyMethodsProtocolImpl {
     fn py_methods() -> &'static [PyMethodDefType] {
-        NO_PY_METHODS
+        &[]
     }
 }
 
@@ -134,7 +132,7 @@ impl<T> PyMethodsProtocolImpl for T {}
 #[doc(hidden)]
 pub trait PyPropMethodsProtocolImpl {
     fn py_methods() -> &'static [PyMethodDefType] {
-        NO_PY_METHODS
+        &[]
     }
 }
 

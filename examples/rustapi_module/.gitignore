@@ -1,6 +1,0 @@
-.pytest_cache
-.mypy_cache
-.hypothesis
-.tox
-
-*.py[co]

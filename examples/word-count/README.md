@@ -25,3 +25,11 @@ There is a benchmark in `tests/test_word_count.py`:
 ```shell
 pytest -v tests
 ```
+
+## Testing
+
+To test python 2.7, 3.5, 3.6 and 3.7, install tox globally and run 
+
+```shell
+tox
+```

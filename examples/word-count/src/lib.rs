@@ -11,8 +11,8 @@ use rayon::prelude::*;
 use std::fs;
 use std::path::PathBuf;
 
-#[pyclass]
 /// Represents a file that can be searched
+#[pyclass]
 struct WordCounter {
     path: PathBuf,
 }
@@ -66,8 +66,8 @@ fn matches(word: &str, needle: &str) -> bool {
     return needle.next().is_none();
 }
 
-#[pyfunction]
 /// Count the occurences of needle in line, case insensitive
+#[pyfunction]
 fn count_line(line: &str, needle: &str) -> usize {
     let mut total = 0;
     for word in line.split(' ') {
