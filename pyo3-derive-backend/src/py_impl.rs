@@ -1,13 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use syn;
-
 use proc_macro2::TokenStream;
 use py_method;
+use syn;
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {
     if ast.trait_.is_some() {
         panic!("#[pymethods] can not be used only with trait impl block");
+    } else if ast.generics != Default::default() {
+        panic!("#[pymethods] can not ve used with lifetime parameters or generics");
     } else {
         impl_methods(&ast.self_ty, &mut ast.items)
     }
