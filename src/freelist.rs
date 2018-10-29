@@ -7,7 +7,7 @@ use ffi;
 use python::Python;
 use std::mem;
 use std::os::raw::c_void;
-use typeob::{PyObjectAlloc, PyTypeInfo};
+use typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
 
 /// Implementing this trait for custom class adds free allocation list to class.
 /// The performance improvement applies to types that are often created and deleted in a row,
@@ -85,7 +85,7 @@ where
 
     #[cfg(Py_3)]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        Self::drop(py, obj);
+        pytype_drop::<T>(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
             return;
@@ -114,7 +114,7 @@ where
 
     #[cfg(not(Py_3))]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        Self::drop(py, obj);
+        pytype_drop::<T>(py, obj);
 
         if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
             match (*T::type_object()).tp_free {

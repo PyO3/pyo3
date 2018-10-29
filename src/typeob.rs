@@ -186,6 +186,14 @@ impl PyObjectWithToken for PyRawObject {
     }
 }
 
+pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObject) {
+    if T::OFFSET != 0 {
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
+        std::ptr::drop_in_place(ptr);
+        pytype_drop::<T::BaseType>(py, obj);
+    }
+}
+
 /// A Python object allocator that is usable as a base type for `#[pyclass]`
 pub trait PyObjectAlloc<T> {
     /// Allocates a new object (usually by calling ty->tp_alloc),
@@ -207,12 +215,7 @@ where
     #[allow(unconditional_recursion)]
     /// Calls the rust destructor for the object.
     default unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
-        if T::OFFSET != 0 {
-            let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
-            std::ptr::drop_in_place(ptr);
-
-            T::BaseType::drop(py, obj);
-        }
+        pytype_drop::<T>(py, obj);
     }
 
     default unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
