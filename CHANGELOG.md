@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added an explanation that the GIL can temporarily be released even while holding a GILGuard.
  * Lots of clippy errors
  * Fix segfault on calling an unknown method on a PyObject
+ * Work around a [bug](https://github.com/rust-lang/rust/issues/55380) in the rust compiler by kngwyu [#252](https://github.com/PyO3/pyo3/pull/252)
 
 ### Removed
 

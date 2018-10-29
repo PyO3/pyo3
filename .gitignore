@@ -11,6 +11,7 @@ dist/
 .tox/
 .mypy_cache/
 .hypothesis/
+.eggs/
 
 *.so
 *.out

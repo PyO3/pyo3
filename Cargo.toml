@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.5.0-alpha.1"
+version = "0.5.0-alpha.2"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -22,18 +22,18 @@ codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 [dependencies]
 libc = "0.2.43"
 spin = "0.4.9"
-num-traits = "0.2.5"
-pyo3cls = { path = "pyo3cls", version = "=0.5.0-alpha.1" }
-mashup = "0.1.7"
-num-complex = { version = "0.2", optional = true}
+num-traits = "0.2.6"
+pyo3cls = { path = "pyo3cls", version = "=0.5.0-alpha.2" }
+mashup = "0.1.9"
+num-complex = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
-assert_approx_eq = "1.0"
+assert_approx_eq = "1.0.0"
 docmatic = "0.1.2"
 
 [build-dependencies]
 regex = "1.0.5"
-version_check = "0.1.4"
+version_check = "0.1.5"
 
 [features]
 default = []

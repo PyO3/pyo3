@@ -1,7 +1,5 @@
 # PyO3
 
-**Note: Pyo3 doesn't compile on 1.31.0 nightly due to https://github.com/rust-lang/rust/issues/55380**
-
 [![Build Status](https://travis-ci.org/PyO3/pyo3.svg?branch=master)](https://travis-ci.org/PyO3/pyo3)
 [![Build Status](https://ci.appveyor.com/api/projects/status/github/PyO3/pyo3?branch=master&svg=true)](https://ci.appveyor.com/project/fafhrd91/pyo3)
 [![crates.io](http://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3)
