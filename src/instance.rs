@@ -12,9 +12,9 @@ use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use python::{IntoPyPointer, Python, ToPyPointer};
 use pythonrun;
+use typeob::PyTypeCreate;
 use typeob::{PyTypeInfo, PyTypeObject};
 use types::PyObjectRef;
-use typeob::PyTypeCreate;
 
 pub struct PyToken(PhantomData<Rc<()>>);
 

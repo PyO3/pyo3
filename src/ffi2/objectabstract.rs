@@ -216,10 +216,11 @@ pub unsafe fn PyObject_CheckBuffer(obj: *mut PyObject) -> c_int {
 #[inline]
 pub unsafe fn PyIter_Check(obj: *mut PyObject) -> c_int {
     let t = (*obj).ob_type;
-    (PyType_HasFeature(t, Py_TPFLAGS_HAVE_ITER) != 0 && match (*t).tp_iternext {
-        None => false,
-        Some(f) => f as *const c_void != _PyObject_NextNotImplemented as *const c_void,
-    }) as c_int
+    (PyType_HasFeature(t, Py_TPFLAGS_HAVE_ITER) != 0
+        && match (*t).tp_iternext {
+            None => false,
+            Some(f) => f as *const c_void != _PyObject_NextNotImplemented as *const c_void,
+        }) as c_int
 }
 
 #[inline]

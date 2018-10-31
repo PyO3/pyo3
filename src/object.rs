@@ -199,16 +199,13 @@ impl PyObject {
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
-    pub fn call_method<A>(
+    pub fn call_method(
         &self,
         py: Python,
         name: &str,
-        args: A,
-        kwargs: Option<PyDict>,
-    ) -> PyResult<PyObject>
-    where
-        A: IntoPyTuple,
-    {
+        args: impl IntoPyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
         name.with_borrowed_ptr(py, |name| unsafe {
             let args = args.into_tuple(py).into_ptr();
             let kwargs = kwargs.into_ptr();
@@ -232,10 +229,12 @@ impl PyObject {
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name(*args)'
-    pub fn call_method1<A>(&self, py: Python, name: &str, args: A) -> PyResult<PyObject>
-    where
-        A: IntoPyTuple,
-    {
+    pub fn call_method1(
+        &self,
+        py: Python,
+        name: &str,
+        args: impl IntoPyTuple,
+    ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
     }
 }
@@ -328,10 +327,9 @@ mod test {
         let py = gil.python();
         let obj: PyObject = PyDict::new(py).into();
         assert!(obj.call_method0(py, "asdf").is_err());
-        assert!(
-            obj.call_method(py, "nonexistent_method", (1,), None)
-                .is_err()
-        );
+        assert!(obj
+            .call_method(py, "nonexistent_method", (1,), None)
+            .is_err());
         assert!(obj.call_method0(py, "nonexistent_method").is_err());
         assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
     }

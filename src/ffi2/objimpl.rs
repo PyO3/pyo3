@@ -39,10 +39,11 @@ pub unsafe fn PyType_IS_GC(t: *mut PyTypeObject) -> c_int {
 /// Test if an object has a GC head
 #[inline]
 pub unsafe fn PyObject_IS_GC(o: *mut PyObject) -> c_int {
-    (PyType_IS_GC(Py_TYPE(o)) != 0 && match (*Py_TYPE(o)).tp_is_gc {
-        Some(tp_is_gc) => tp_is_gc(o) != 0,
-        None => true,
-    }) as c_int
+    (PyType_IS_GC(Py_TYPE(o)) != 0
+        && match (*Py_TYPE(o)).tp_is_gc {
+            Some(tp_is_gc) => tp_is_gc(o) != 0,
+            None => true,
+        }) as c_int
 }
 
 /* Test if a type supports weak references */

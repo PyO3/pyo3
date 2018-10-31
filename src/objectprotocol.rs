@@ -102,20 +102,23 @@ pub trait ObjectProtocol {
     /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`
     ///
     /// # Example
-    /// ```rust,ignore
-    /// let obj = SomePyObject::new();
-    /// let args = (arg1, arg2, arg3);
-    /// let kwargs = ((key1, value1), (key2, value2));
-    /// let pid = obj.call_method("do_something", args, kwargs.into_py_dict());
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    /// use pyo3::types::IntoPyDict;
+    ///
+    /// let gil = Python::acquire_gil();
+    /// let py = gil.python();
+    /// let list = vec![3, 6, 5, 4, 7].to_object(py);
+    /// let dict = vec![("reverse", true)].into_py_dict(py);
+    /// list.call_method(py, "sort", (), Some(dict)).unwrap();
+    /// assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     /// ```
-    fn call_method<A>(
+    fn call_method(
         &self,
         name: &str,
-        args: A,
+        args: impl IntoPyTuple,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple;
+    ) -> PyResult<&PyObjectRef>;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: `self.name()`
@@ -123,7 +126,7 @@ pub trait ObjectProtocol {
 
     /// Calls a method on the object with positional arguments only .
     /// This is equivalent to the Python expression: `self.name(*args)`
-    fn call_method1<A: IntoPyTuple>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>;
+    fn call_method1(&self, name: &str, args: impl IntoPyTuple) -> PyResult<&PyObjectRef>;
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: `hash(self)`
@@ -346,10 +349,12 @@ where
         self.call(args, None)
     }
 
-    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
+    fn call_method(
+        &self,
+        name: &str,
+        args: impl IntoPyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
@@ -371,7 +376,7 @@ where
         self.call_method(name, PyTuple::empty(self.py()), None)
     }
 
-    fn call_method1<A: IntoPyTuple>(&self, name: &str, args: A) -> PyResult<&PyObjectRef> {
+    fn call_method1(&self, name: &str, args: impl IntoPyTuple) -> PyResult<&PyObjectRef> {
         self.call_method(name, args, None)
     }
 
@@ -531,10 +536,10 @@ mod test {
     fn test_call_with_kwargs() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let list = py.eval("list([3, 6, 5, 4, 7])", None, None).unwrap();
+        let list = vec![3, 6, 5, 4, 7].to_object(py);
         let dict = vec![("reverse", true)].into_py_dict(py);
-        list.call_method("sort", (), Some(dict)).unwrap();
-        assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
+        list.call_method(py, "sort", (), Some(dict)).unwrap();
+        assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     }
 
     #[test]

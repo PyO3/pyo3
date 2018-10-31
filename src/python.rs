@@ -532,10 +532,9 @@ mod test {
     fn test_is_instance() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        assert!(
-            py.is_instance::<PyBool, PyObjectRef>(PyBool::new(py, true).into())
-                .unwrap()
-        );
+        assert!(py
+            .is_instance::<PyBool, PyObjectRef>(PyBool::new(py, true).into())
+            .unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
         assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
