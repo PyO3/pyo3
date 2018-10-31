@@ -12,7 +12,12 @@ use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
 
-/// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
+/// A python object
+///
+/// The python object's lifetime is managed by python's garbage
+/// collector.
+///
+/// Technically, it is a safe wrapper around the unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct PyObject(*mut ffi::PyObject);
@@ -285,6 +290,7 @@ impl IntoPyPointer for PyObject {
 }
 
 impl PartialEq for PyObject {
+    /// Checks for identity, not python's `__eq__`
     #[inline]
     fn eq(&self, o: &PyObject) -> bool {
         self.0 == o.0
