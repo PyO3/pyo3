@@ -4,12 +4,12 @@
 
 use std::ptr;
 
-use callback::{CallbackConverter, PyObjectCallbackConverter};
-use conversion::IntoPyObject;
-use err::PyResult;
-use ffi;
-use python::{IntoPyPointer, Python};
-use typeob::PyTypeInfo;
+use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
+use crate::conversion::IntoPyObject;
+use crate::err::PyResult;
+use crate::ffi;
+use crate::python::{IntoPyPointer, Python};
+use crate::typeob::PyTypeInfo;
 
 /// Python Iterator Interface.
 ///
@@ -33,12 +33,12 @@ pub trait PyIterProtocol<'p>: PyTypeInfo {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 

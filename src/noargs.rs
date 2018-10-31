@@ -1,10 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
-use instance::Py;
-use object::PyObject;
-use python::Python;
-use types::PyTuple;
+use crate::conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
+use crate::instance::Py;
+use crate::object::PyObject;
+use crate::python::Python;
+use crate::types::PyTuple;
 
 /// An empty struct that represents the empty argument list.
 /// Corresponds to the empty tuple `()` in Python.

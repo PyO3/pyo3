@@ -2,19 +2,19 @@
 
 //! Python type object information
 
-use class::methods::PyMethodDefType;
-use err::{PyErr, PyResult};
-use instance::{Py, PyObjectWithToken, PyToken};
-use python::ToPyPointer;
-use python::{IntoPyPointer, Python};
+use crate::class::methods::PyMethodDefType;
+use crate::err::{PyErr, PyResult};
+use crate::instance::{Py, PyObjectWithToken, PyToken};
+use crate::python::ToPyPointer;
+use crate::python::{IntoPyPointer, Python};
 use std;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
 use std::os::raw::c_void;
-use types::PyObjectRef;
-use types::PyType;
-use {class, ffi, pythonrun};
+use crate::types::PyObjectRef;
+use crate::types::PyType;
+use crate::{class, ffi, pythonrun};
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -459,7 +459,7 @@ where
 
 #[cfg(Py_3)]
 fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
-    if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
+    if let Some(meth) = <T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async() {
         type_info.tp_as_async = Box::into_raw(Box::new(meth));
     } else {
         type_info.tp_as_async = ::std::ptr::null_mut()
@@ -576,7 +576,7 @@ fn py_class_method_defs<T>() -> PyResult<(
 
 #[cfg(Py_3)]
 fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
-    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
+    for def in <T as class::pyasync::PyAsyncProtocolImpl>::methods() {
         defs.push(def.as_method_def());
     }
 }

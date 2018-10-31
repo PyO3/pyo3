@@ -1,7 +1,7 @@
-use ffi;
-use instance::PyObjectWithToken;
-use object::PyObject;
-use python::{Python, ToPyPointer};
+use crate::ffi;
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::python::{Python, ToPyPointer};
 #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
 use std::ops::*;
 use std::os::raw::c_double;
@@ -213,7 +213,7 @@ mod complex_conversion {
 #[cfg(test)]
 mod test {
     use super::PyComplex;
-    use python::Python;
+    use crate::python::Python;
     #[test]
     fn test_from_double() {
         let gil = Python::acquire_gil();

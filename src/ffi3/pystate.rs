@@ -1,7 +1,7 @@
 #[cfg(Py_3_6)]
-use ffi3::ceval::_PyFrameEvalFunction;
-use ffi3::moduleobject::PyModuleDef;
-use ffi3::object::PyObject;
+use crate::ffi3::ceval::_PyFrameEvalFunction;
+use crate::ffi3::moduleobject::PyModuleDef;
+use crate::ffi3::object::PyObject;
 use std::os::raw::{c_int, c_long};
 
 #[cfg(Py_3_6)]

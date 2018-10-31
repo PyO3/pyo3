@@ -3,15 +3,15 @@
 //! Python Sequence Interface
 //! Trait and support implementation for implementing sequence
 
-use callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
-use conversion::{FromPyObject, IntoPyObject};
-use err::{PyErr, PyResult};
-use ffi;
-use objectprotocol::ObjectProtocol;
-use python::Python;
+use crate::callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
+use crate::conversion::{FromPyObject, IntoPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::Python;
 use std::os::raw::c_int;
-use typeob::PyTypeInfo;
-use types::{exceptions, PyObjectRef};
+use crate::typeob::PyTypeInfo;
+use crate::types::{exceptions, PyObjectRef};
 
 /// Sequece interface
 #[allow(unused_variables)]
@@ -230,7 +230,7 @@ where
         where
             T: for<'p> PySequenceSetItemProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
@@ -304,7 +304,7 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let _pool = ::GILPool::new();
+                let _pool = crate::GILPool::new();
                 let py = Python::assume_gil_acquired();
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
@@ -350,7 +350,7 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let _pool = ::GILPool::new();
+                let _pool = crate::GILPool::new();
                 let py = Python::assume_gil_acquired();
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 

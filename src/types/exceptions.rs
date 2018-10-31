@@ -2,16 +2,16 @@
 
 //! This module contains the standard python exception types.
 
-use conversion::ToPyObject;
-use err::{PyErr, PyResult};
-use ffi;
-use instance::Py;
-use python::{Python, ToPyPointer};
+use crate::conversion::ToPyObject;
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::instance::Py;
+use crate::python::{Python, ToPyPointer};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, ops};
-use typeob::PyTypeObject;
-use types::{PyObjectRef, PyTuple, PyType};
+use crate::typeob::PyTypeObject;
+use crate::types::{PyObjectRef, PyTuple, PyType};
 
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
@@ -299,8 +299,8 @@ pub mod socket {
 
 #[cfg(test)]
 mod test {
-    use types::PyDict;
-    use {PyErr, Python};
+    use crate::types::PyDict;
+    use crate::{PyErr, Python};
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);

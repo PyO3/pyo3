@@ -2,31 +2,31 @@
 //!
 //! For more details about these types, see the [Python
 //! documentation](https://docs.python.org/3/library/datetime.html)
-use conversion::ToPyObject;
-use err::PyResult;
-use ffi;
-use ffi::PyDateTimeAPI;
-use ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
+use crate::conversion::ToPyObject;
+use crate::err::PyResult;
+use crate::ffi;
+use crate::ffi::PyDateTimeAPI;
+use crate::ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
 #[cfg(Py_3_6)]
-use ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
-use ffi::{
+use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
+use crate::ffi::{
     PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
     PyDateTime_DATE_GET_SECOND,
 };
-use ffi::{
+use crate::ffi::{
     PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
 };
-use ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
-use ffi::{
+use crate::ffi::{PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR};
+use crate::ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
-use instance::Py;
-use object::PyObject;
-use python::{Python, ToPyPointer};
+use crate::instance::Py;
+use crate::object::PyObject;
+use crate::python::{Python, ToPyPointer};
 use std::os::raw::c_int;
 use std::ptr;
-use types::PyTuple;
+use crate::types::PyTuple;
 
 /// Access traits
 

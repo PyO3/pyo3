@@ -8,11 +8,11 @@
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)
 //!
 
-use callback::PyObjectCallbackConverter;
-use class::methods::PyMethodDef;
-use err::PyResult;
-use ffi;
-use typeob::PyTypeInfo;
+use crate::callback::PyObjectCallbackConverter;
+use crate::class::methods::PyMethodDef;
+use crate::err::PyResult;
+use crate::ffi;
+use crate::typeob::PyTypeInfo;
 
 /// Python Async/Await support interface.
 ///
@@ -61,30 +61,30 @@ pub trait PyAsyncProtocol<'p>: PyTypeInfo {
 }
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
-    type ExcType: ::FromPyObject<'p>;
-    type ExcValue: ::FromPyObject<'p>;
-    type Traceback: ::FromPyObject<'p>;
-    type Success: ::IntoPyObject;
+    type ExcType: crate::FromPyObject<'p>;
+    type ExcValue: crate::FromPyObject<'p>;
+    type Traceback: crate::FromPyObject<'p>;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -189,10 +189,10 @@ impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p> {}
 #[cfg(Py_3)]
 mod anext {
     use super::{PyAsyncAnextProtocol, PyAsyncAnextProtocolImpl};
-    use callback::CallbackConverter;
-    use conversion::IntoPyObject;
-    use ffi;
-    use python::{IntoPyPointer, Python};
+    use crate::callback::CallbackConverter;
+    use crate::conversion::IntoPyObject;
+    use crate::ffi;
+    use crate::python::{IntoPyPointer, Python};
     use std::ptr;
 
     pub struct IterANextResultConverter;

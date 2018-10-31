@@ -6,10 +6,10 @@
 //! c-api
 use std::os::raw::c_int;
 
-use callback::UnitCallbackConverter;
-use err::PyResult;
-use ffi;
-use typeob::PyTypeInfo;
+use crate::callback::UnitCallbackConverter;
+use crate::err::PyResult;
+use crate::ffi;
+use crate::typeob::PyTypeInfo;
 
 /// Buffer protocol interface
 ///
@@ -85,12 +85,12 @@ where
         where
             T: for<'p> PyBufferGetBufferProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
-            let py = ::Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new();
+            let py = crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let result = slf.bf_getbuffer(arg1, arg2).into();
-            ::callback::cb_convert(UnitCallbackConverter, py, result)
+            crate::callback::cb_convert(UnitCallbackConverter, py, result)
         }
         Some(wrap::<T>)
     }

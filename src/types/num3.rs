@@ -6,15 +6,15 @@ extern crate num_traits;
 
 use self::num_traits::cast::cast;
 use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
-use conversion::{FromPyObject, IntoPyObject, ToPyObject};
-use err::{PyErr, PyResult};
-use ffi;
-use instance::PyObjectWithToken;
-use object::PyObject;
-use python::{Python, ToPyPointer};
+use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::python::{Python, ToPyPointer};
 use std::i64;
 use std::os::raw::{c_long, c_uchar};
-use types::{exceptions, PyObjectRef};
+use crate::types::{exceptions, PyObjectRef};
 
 /// Represents a Python `int` object.
 ///
@@ -148,9 +148,9 @@ mod test {
     macro_rules! test_common (
         ($test_mod_name:ident, $t:ty) => (
             mod $test_mod_name {
-                use types::exceptions;
-                use conversion::ToPyObject;
-                use python::Python;
+                use crate::types::exceptions;
+                use crate::conversion::ToPyObject;
+                use crate::python::Python;
 
                 #[test]
                 fn from_py_string_type_error() {

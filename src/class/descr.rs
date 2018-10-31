@@ -7,13 +7,13 @@
 
 use std::os::raw::c_int;
 
-use callback::{PyObjectCallbackConverter, UnitCallbackConverter};
-use class::methods::PyMethodDef;
-use conversion::{FromPyObject, IntoPyObject};
-use err::PyResult;
-use ffi;
-use typeob::PyTypeInfo;
-use types::{PyObjectRef, PyType};
+use crate::callback::{PyObjectCallbackConverter, UnitCallbackConverter};
+use crate::class::methods::PyMethodDef;
+use crate::conversion::{FromPyObject, IntoPyObject};
+use crate::err::PyResult;
+use crate::ffi;
+use crate::typeob::PyTypeInfo;
+use crate::types::{PyObjectRef, PyType};
 
 /// Descriptor interface
 #[allow(unused_variables)]

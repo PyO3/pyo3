@@ -1,11 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
-use ffi;
-use object::PyObject;
-use python::{Python, ToPyPointer};
-use types::PyObjectRef;
-use FromPyObject;
-use PyResult;
+use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
+use crate::ffi;
+use crate::object::PyObject;
+use crate::python::{Python, ToPyPointer};
+use crate::types::PyObjectRef;
+use crate::FromPyObject;
+use crate::PyResult;
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
@@ -23,7 +23,7 @@ impl PyBool {
     /// Gets whether this boolean is `true`.
     #[inline]
     pub fn is_true(&self) -> bool {
-        self.as_ptr() == unsafe { ::ffi::Py_True() }
+        self.as_ptr() == unsafe { crate::ffi::Py_True() }
     }
 }
 
@@ -62,10 +62,10 @@ impl<'source> FromPyObject<'source> for bool {
 
 #[cfg(test)]
 mod test {
-    use conversion::ToPyObject;
-    use objectprotocol::ObjectProtocol;
-    use python::Python;
-    use types::{PyBool, PyObjectRef};
+    use crate::conversion::ToPyObject;
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::python::Python;
+    use crate::types::{PyBool, PyObjectRef};
 
     #[test]
     fn test_true() {

@@ -1,7 +1,7 @@
 //! common macros for num2.rs and num3.rs
 
-use err::{PyErr, PyResult};
-use python::Python;
+use crate::err::{PyErr, PyResult};
+use crate::python::Python;
 use std::os::raw::c_int;
 
 pub(super) fn err_if_invalid_value<T: PartialEq>(
@@ -33,7 +33,7 @@ macro_rules! int_fits_larger_int(
 
         impl<'source> FromPyObject<'source> for $rust_type {
             fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
-                let val = try!($crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj));
+                let val = $crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj)?;
                 match cast::<$larger_type, $rust_type>(val) {
                     Some(v) => Ok(v),
                     None => Err(exceptions::OverflowError.into())
@@ -101,8 +101,8 @@ pub(super) const IS_LITTLE_ENDIAN: c_int = 0;
 
 #[cfg(test)]
 mod test {
-    use conversion::ToPyObject;
-    use python::Python;
+    use crate::conversion::ToPyObject;
+    use crate::python::Python;
     use std;
 
     #[test]
@@ -186,10 +186,10 @@ mod test {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_u128_overflow() {
-        use ffi;
-        use object::PyObject;
+        use crate::ffi;
+        use crate::object::PyObject;
         use std::os::raw::c_uchar;
-        use types::exceptions;
+        use crate::types::exceptions;
         let gil = Python::acquire_gil();
         let py = gil.python();
         let overflow_bytes: [c_uchar; 20] = [255; 20];

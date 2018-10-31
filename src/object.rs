@@ -2,15 +2,15 @@
 
 use std;
 
-use conversion::{
+use crate::conversion::{
     FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject,
 };
-use err::{PyDowncastError, PyErr, PyResult};
-use ffi;
-use instance::{AsPyRef, PyObjectWithToken};
-use python::{IntoPyPointer, Python, ToPyPointer};
-use pythonrun;
-use types::{PyDict, PyObjectRef, PyTuple};
+use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::ffi;
+use crate::instance::{AsPyRef, PyObjectWithToken};
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::pythonrun;
+use crate::types::{PyDict, PyObjectRef, PyTuple};
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl PyObject {
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObject {
         if ptr.is_null() {
-            ::err::panic_after_error();
+            crate::err::panic_after_error();
         } else {
             PyObject::from_owned_ptr(py, ptr)
         }
@@ -318,8 +318,8 @@ impl Drop for PyObject {
 #[cfg(test)]
 mod test {
     use super::PyObject;
-    use python::Python;
-    use types::PyDict;
+    use crate::python::Python;
+    use crate::types::PyDict;
 
     #[test]
     fn test_call_for_non_existing_method() {

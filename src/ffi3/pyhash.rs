@@ -1,4 +1,4 @@
-use ffi3::pyport::{Py_hash_t, Py_ssize_t};
+use crate::ffi3::pyport::{Py_hash_t, Py_ssize_t};
 use std::os::raw::{c_char, c_int, c_void};
 
 #[repr(C)]

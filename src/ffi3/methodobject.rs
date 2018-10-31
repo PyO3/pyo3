@@ -1,4 +1,4 @@
-use ffi3::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::ffi3::object::{PyObject, PyTypeObject, Py_TYPE};
 use std::os::raw::{c_char, c_int};
 use std::{mem, ptr};
 
@@ -19,7 +19,7 @@ pub type PyCFunction =
 pub type _PyCFunctionFast = unsafe extern "C" fn(
     slf: *mut PyObject,
     args: *mut *mut PyObject,
-    nargs: ::ffi3::pyport::Py_ssize_t,
+    nargs: crate::ffi3::pyport::Py_ssize_t,
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 

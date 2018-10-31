@@ -2,11 +2,11 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use err::{PyDowncastError, PyErr, PyResult};
-use ffi;
-use instance::PyObjectWithToken;
-use python::{Python, ToPyPointer};
-use types::PyObjectRef;
+use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::ffi;
+use crate::instance::PyObjectWithToken;
+use crate::python::{Python, ToPyPointer};
+use crate::types::PyObjectRef;
 
 /// A python iterator object.
 ///
@@ -66,12 +66,12 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
-    use conversion::{PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use objectprotocol::ObjectProtocol;
-    use python::Python;
-    use pythonrun::GILPool;
-    use types::{PyList, PyObjectRef};
+    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::python::Python;
+    use crate::pythonrun::GILPool;
+    use crate::types::{PyList, PyObjectRef};
 
     #[test]
     fn vec_iter() {

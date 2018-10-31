@@ -1,4 +1,4 @@
-use ffi3::pyport::{Py_hash_t, Py_ssize_t};
+use crate::ffi3::pyport::{Py_hash_t, Py_ssize_t};
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 
@@ -86,14 +86,14 @@ pub type objobjargproc =
 
 #[cfg(not(Py_LIMITED_API))]
 mod bufferinfo {
-    use ffi3::pyport::Py_ssize_t;
+    use crate::ffi3::pyport::Py_ssize_t;
     use std::os::raw::{c_char, c_int, c_void};
 
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct Py_buffer {
         pub buf: *mut c_void,
-        pub obj: *mut ::ffi3::PyObject,
+        pub obj: *mut crate::ffi3::PyObject,
         pub len: Py_ssize_t,
         pub itemsize: Py_ssize_t,
         pub readonly: c_int,
@@ -113,10 +113,10 @@ mod bufferinfo {
     }
 
     pub type getbufferproc =
-        unsafe extern "C" fn(arg1: *mut ::ffi3::PyObject, arg2: *mut Py_buffer, arg3: c_int)
+        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer, arg3: c_int)
             -> c_int;
     pub type releasebufferproc =
-        unsafe extern "C" fn(arg1: *mut ::ffi3::PyObject, arg2: *mut Py_buffer) -> ();
+        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer) -> ();
 
     /// Maximum number of dimensions
     pub const PyBUF_MAX_NDIM: c_int = 64;
@@ -196,8 +196,8 @@ mod typeobject {
 
 #[cfg(not(Py_LIMITED_API))]
 mod typeobject {
-    use ffi3::pyport::Py_ssize_t;
-    use ffi3::{self, object};
+    use crate::ffi3::pyport::Py_ssize_t;
+    use crate::ffi3::{self, object};
     use std::os::raw::{c_char, c_uint, c_ulong, c_void};
 
     #[repr(C)]

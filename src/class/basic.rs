@@ -11,16 +11,16 @@
 use std::os::raw::c_int;
 use std::ptr;
 
-use callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
-use class::methods::PyMethodDef;
-use conversion::{FromPyObject, IntoPyObject};
-use err::{PyErr, PyResult};
-use ffi;
-use objectprotocol::ObjectProtocol;
-use python::{IntoPyPointer, Python};
-use typeob::PyTypeInfo;
-use types::{exceptions, PyObjectRef};
-use CompareOp;
+use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
+use crate::class::methods::PyMethodDef;
+use crate::conversion::{FromPyObject, IntoPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::{IntoPyPointer, Python};
+use crate::typeob::PyTypeInfo;
+use crate::types::{exceptions, PyObjectRef};
+use crate::CompareOp;
 
 /// Basic python class customization
 #[allow(unused_variables)]
@@ -426,7 +426,7 @@ where
         where
             T: for<'p> PyObjectRichcmpProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.from_borrowed_ptr::<T>(slf);
             let arg = py.from_borrowed_ptr::<PyObjectRef>(arg);

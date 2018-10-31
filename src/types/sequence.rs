@@ -1,14 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use buffer;
-use conversion::{FromPyObject, PyTryFrom, ToBorrowedObject};
-use err::{self, PyDowncastError, PyErr, PyResult};
-use ffi::{self, Py_ssize_t};
-use instance::PyObjectWithToken;
-use object::PyObject;
-use objectprotocol::ObjectProtocol;
-use python::ToPyPointer;
-use types::{PyList, PyObjectRef, PyTuple};
+use crate::buffer;
+use crate::conversion::{FromPyObject, PyTryFrom, ToBorrowedObject};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::ffi::{self, Py_ssize_t};
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::ToPyPointer;
+use crate::types::{PyList, PyObjectRef, PyTuple};
 
 /// Represents a reference to a python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -309,12 +309,12 @@ impl PyTryFrom for PySequence {
 
 #[cfg(test)]
 mod test {
-    use conversion::{PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use object::PyObject;
-    use objectprotocol::ObjectProtocol;
-    use python::{Python, ToPyPointer};
-    use types::PySequence;
+    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::object::PyObject;
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::python::{Python, ToPyPointer};
+    use crate::types::PySequence;
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

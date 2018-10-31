@@ -1,4 +1,4 @@
-use ffi3::object::*;
+use crate::ffi3::object::*;
 use std::os::raw::c_int;
 
 pub enum PyWeakReference {}

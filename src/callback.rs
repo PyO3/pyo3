@@ -5,11 +5,11 @@
 use std::os::raw::c_int;
 use std::{isize, ptr};
 
-use conversion::IntoPyObject;
-use err::PyResult;
-use ffi::{self, Py_hash_t};
-use python::{IntoPyPointer, Python};
-use types::exceptions::OverflowError;
+use crate::conversion::IntoPyObject;
+use crate::err::PyResult;
+use crate::ffi::{self, Py_hash_t};
+use crate::python::{IntoPyPointer, Python};
+use crate::types::exceptions::OverflowError;
 
 pub trait CallbackConverter<S> {
     type R;

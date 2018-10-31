@@ -6,13 +6,13 @@ use std::ffi::CString;
 use std::io;
 use std::os::raw::c_char;
 
-use conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
-use ffi;
-use instance::Py;
-use object::PyObject;
-use python::{IntoPyPointer, Python, ToPyPointer};
-use typeob::PyTypeObject;
-use types::{exceptions, PyObjectRef, PyType};
+use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use crate::ffi;
+use crate::instance::Py;
+use crate::object::PyObject;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::typeob::PyTypeObject;
+use crate::types::{exceptions, PyObjectRef, PyType};
 
 /// Defines a new exception type.
 ///
@@ -617,8 +617,8 @@ pub fn error_on_minusone(py: Python, result: libc::c_int) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use types::exceptions;
-    use {PyErr, Python};
+    use crate::types::exceptions;
+    use crate::{PyErr, Python};
 
     #[test]
     fn set_typeerror() {

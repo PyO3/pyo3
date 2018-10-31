@@ -6,10 +6,10 @@
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
 
-use ffi::PyCapsule_Import;
-use ffi::Py_hash_t;
-use ffi::{PyObject, PyTypeObject};
-use ffi::{PyObject_TypeCheck, Py_TYPE};
+use crate::ffi::PyCapsule_Import;
+use crate::ffi::Py_hash_t;
+use crate::ffi::{PyObject, PyTypeObject};
+use crate::ffi::{PyObject_TypeCheck, Py_TYPE};
 use std::ffi::CString;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};

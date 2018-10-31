@@ -2,19 +2,19 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use conversion::PyTryFrom;
-use err::{PyDowncastError, PyErr, PyResult};
-use ffi;
-use instance::{AsPyRef, Py, PyToken};
-use object::PyObject;
-use pythonrun::{self, GILGuard};
+use crate::conversion::PyTryFrom;
+use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::ffi;
+use crate::instance::{AsPyRef, Py, PyToken};
+use crate::object::PyObject;
+use crate::pythonrun::{self, GILGuard};
 use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
-use typeob::PyTypeCreate;
-use typeob::{PyTypeInfo, PyTypeObject};
-use types::{PyDict, PyModule, PyObjectRef, PyType};
+use crate::typeob::PyTypeCreate;
+use crate::typeob::{PyTypeInfo, PyTypeObject};
+use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
 
 /// Marker type that indicates that the GIL is currently held.
 ///
@@ -326,7 +326,7 @@ impl<'p> Python<'p> {
 
     pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyObjectRef {
         if ptr.is_null() {
-            ::err::panic_after_error();
+            crate::err::panic_after_error();
         } else {
             pythonrun::register_borrowed(self, ptr)
         }
@@ -340,7 +340,7 @@ impl<'p> Python<'p> {
         T: PyTypeInfo,
     {
         if ptr.is_null() {
-            ::err::panic_after_error();
+            crate::err::panic_after_error();
         } else {
             let p = pythonrun::register_owned(self, ptr);
             self.unchecked_downcast(p)
@@ -354,7 +354,7 @@ impl<'p> Python<'p> {
         T: PyTypeInfo,
     {
         if ptr.is_null() {
-            ::err::panic_after_error();
+            crate::err::panic_after_error();
         } else {
             let p = pythonrun::register_owned(self, ptr);
             self.unchecked_mut_downcast(p)
@@ -413,7 +413,7 @@ impl<'p> Python<'p> {
         T: PyTypeInfo,
     {
         if ptr.is_null() {
-            ::err::panic_after_error();
+            crate::err::panic_after_error();
         } else {
             let p = pythonrun::register_borrowed(self, ptr);
             self.unchecked_mut_downcast(p)
@@ -482,9 +482,9 @@ impl<'p> Python<'p> {
 
 #[cfg(test)]
 mod test {
-    use objectprotocol::ObjectProtocol;
-    use types::{PyBool, PyDict, PyInt, PyList, PyObjectRef};
-    use Python;
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::types::{PyBool, PyDict, PyInt, PyList, PyObjectRef};
+    use crate::Python;
 
     #[test]
     fn test_eval() {

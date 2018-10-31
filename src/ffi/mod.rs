@@ -4,7 +4,7 @@
 pub use ffi2::*;
 
 #[cfg(Py_3)]
-pub use ffi3::*;
+pub use crate::ffi3::*;
 
 pub use self::datetime::*;
 

@@ -1,7 +1,7 @@
-use ffi3::object::*;
+use crate::ffi3::object::*;
 #[cfg(not(Py_LIMITED_API))]
-use ffi3::pyarena::PyArena;
-use ffi3::pystate::PyThreadState;
+use crate::ffi3::pyarena::PyArena;
+use crate::ffi3::pystate::PyThreadState;
 use libc::{wchar_t, FILE};
 use std::os::raw::{c_char, c_int};
 use std::ptr;

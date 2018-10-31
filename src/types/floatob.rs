@@ -2,17 +2,17 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use conversion::{IntoPyObject, ToPyObject};
-use err::PyErr;
-use ffi;
-use instance::{Py, PyObjectWithToken};
-use object::PyObject;
-use objectprotocol::ObjectProtocol;
-use python::{Python, ToPyPointer};
+use crate::conversion::{IntoPyObject, ToPyObject};
+use crate::err::PyErr;
+use crate::ffi;
+use crate::instance::{Py, PyObjectWithToken};
+use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::{Python, ToPyPointer};
 use std::os::raw::c_double;
-use types::PyObjectRef;
-use FromPyObject;
-use PyResult;
+use crate::types::PyObjectRef;
+use crate::FromPyObject;
+use crate::PyResult;
 
 /// Represents a Python `float` object.
 ///
@@ -83,8 +83,8 @@ impl<'source> FromPyObject<'source> for f32 {
 
 #[cfg(test)]
 mod test {
-    use conversion::ToPyObject;
-    use python::Python;
+    use crate::conversion::ToPyObject;
+    use crate::python::Python;
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (

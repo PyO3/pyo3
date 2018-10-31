@@ -2,12 +2,12 @@
 
 //! Free allocation list
 
-use err::PyResult;
-use ffi;
-use python::Python;
+use crate::err::PyResult;
+use crate::ffi;
+use crate::python::Python;
 use std::mem;
 use std::os::raw::c_void;
-use typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use crate::typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
 
 /// Implementing this trait for custom class adds free allocation list to class.
 /// The performance improvement applies to types that are often created and deleted in a row,

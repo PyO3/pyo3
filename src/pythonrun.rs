@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use ffi;
-use python::Python;
+use crate::ffi;
+use crate::python::Python;
 use spin;
 use std::{any, marker, rc, sync};
-use types::PyObjectRef;
+use crate::types::PyObjectRef;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -280,10 +280,10 @@ impl GILGuard {
 #[cfg(test)]
 mod test {
     use super::{GILPool, ReleasePool, POOL};
-    use conversion::ToPyObject;
-    use object::PyObject;
-    use python::{Python, ToPyPointer};
-    use {ffi, pythonrun};
+    use crate::conversion::ToPyObject;
+    use crate::object::PyObject;
+    use crate::python::{Python, ToPyPointer};
+    use crate::{ffi, pythonrun};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

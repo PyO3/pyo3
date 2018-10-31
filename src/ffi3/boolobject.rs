@@ -1,5 +1,5 @@
-use ffi3::longobject::PyLongObject;
-use ffi3::object::*;
+use crate::ffi3::longobject::PyLongObject;
+use crate::ffi3::object::*;
 use std::os::raw::{c_int, c_long};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

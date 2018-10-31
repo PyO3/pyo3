@@ -1,14 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use super::exceptions;
-use conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
-use err::{PyErr, PyResult};
-use ffi::{self, Py_ssize_t};
-use instance::{AsPyRef, Py, PyObjectWithToken};
-use object::PyObject;
-use python::{IntoPyPointer, Python, ToPyPointer};
+use crate::conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi::{self, Py_ssize_t};
+use crate::instance::{AsPyRef, Py, PyObjectWithToken};
+use crate::object::PyObject;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use std::slice;
-use types::PyObjectRef;
+use crate::types::PyObjectRef;
 
 /// Represents a Python `tuple` object.
 #[repr(transparent)]
@@ -199,7 +199,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $( try!(slice[$n].extract::<$T>(obj.py())), )+
+                    $( slice[$n].extract::<$T>(obj.py())?, )+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))
@@ -265,13 +265,13 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use conversion::{PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use objectprotocol::ObjectProtocol;
-    use python::Python;
+    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::python::Python;
     use std::collections::HashSet;
-    use types::PyObjectRef;
-    use types::PyTuple;
+    use crate::types::PyObjectRef;
+    use crate::types::PyTuple;
 
     #[test]
     fn test_new() {

@@ -29,8 +29,8 @@ pub use self::string::{PyBytes, PyString, PyString as PyUnicode};
 pub use self::string2::{PyBytes, PyString, PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
-use ffi;
-use python::ToPyPointer;
+use crate::ffi;
+use crate::python::ToPyPointer;
 
 /// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
 /// parameter
@@ -148,7 +148,7 @@ macro_rules! pyobject_native_type_convert(
                    -> Result<(), ::std::fmt::Error>
             {
                 use $crate::ObjectProtocol;
-                let s = try!(self.repr().map_err(|_| ::std::fmt::Error));
+                let s = self.repr().map_err(|_| ::std::fmt::Error)?;
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -158,7 +158,7 @@ macro_rules! pyobject_native_type_convert(
                    -> Result<(), ::std::fmt::Error>
             {
                 use $crate::ObjectProtocol;
-                let s = try!(self.str().map_err(|_| ::std::fmt::Error));
+                let s = self.str().map_err(|_| ::std::fmt::Error)?;
                 f.write_str(&s.to_string_lossy())
             }
         }
@@ -167,7 +167,7 @@ macro_rules! pyobject_native_type_convert(
 
 /// Represents general python instance.
 #[repr(transparent)]
-pub struct PyObjectRef(::PyObject);
+pub struct PyObjectRef(crate::PyObject);
 pyobject_native_type_named!(PyObjectRef);
 pyobject_native_type_convert!(PyObjectRef, ffi::PyBaseObject_Type, ffi::PyObject_Check);
 

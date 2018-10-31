@@ -1,14 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
-use err::{self, PyErr, PyResult};
-use ffi;
-use instance::PyObjectWithToken;
-use object::PyObject;
-use python::{IntoPyPointer, Python, ToPyPointer};
+use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use crate::err::{self, PyErr, PyResult};
+use crate::ffi;
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use std;
 use std::{cmp, collections, hash, mem};
-use types::{PyList, PyObjectRef};
+use crate::types::{PyList, PyObjectRef};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -272,13 +272,13 @@ where
 
 #[cfg(test)]
 mod test {
-    use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use python::Python;
+    use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::python::Python;
     use std::collections::{BTreeMap, HashMap};
-    use types::dict::IntoPyDict;
-    use types::{PyDict, PyList, PyTuple};
-    use ObjectProtocol;
+    use crate::types::dict::IntoPyDict;
+    use crate::types::{PyDict, PyList, PyTuple};
+    use crate::ObjectProtocol;
 
     #[test]
     fn test_new() {
@@ -385,7 +385,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let dict = PyDict::new(py);
             let none = py.None();
             cnt = none.get_refcnt();

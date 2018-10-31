@@ -4,17 +4,17 @@ use std;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use conversion::{FromPyObject, IntoPyObject, ToPyObject};
-use err::{PyErr, PyResult};
-use ffi;
-use instance;
-use object::PyObject;
-use objectprotocol::ObjectProtocol;
-use python::{IntoPyPointer, Python, ToPyPointer};
-use pythonrun;
-use typeob::PyTypeCreate;
-use typeob::{PyTypeInfo, PyTypeObject};
-use types::PyObjectRef;
+use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::instance;
+use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::pythonrun;
+use crate::typeob::PyTypeCreate;
+use crate::typeob::{PyTypeInfo, PyTypeObject};
+use crate::types::PyObjectRef;
 
 pub struct PyToken(PhantomData<Rc<()>>);
 
@@ -121,7 +121,7 @@ impl<T> Py<T> {
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
         if ptr.is_null() {
-            ::err::panic_after_error();
+            crate::err::panic_after_error();
         } else {
             Py::from_owned_ptr(ptr)
         }
@@ -173,7 +173,7 @@ where
     /// Returns `Py<T>`.
     pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
     where
-        F: FnOnce(::PyToken) -> T,
+        F: FnOnce(crate::PyToken) -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;
@@ -187,7 +187,7 @@ where
     /// Returns references to `T`
     pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
     where
-        F: FnOnce(::PyToken) -> T,
+        F: FnOnce(crate::PyToken) -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;
@@ -200,7 +200,7 @@ where
     /// Returns mutable references to `T`
     pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
     where
-        F: FnOnce(::PyToken) -> T,
+        F: FnOnce(crate::PyToken) -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;

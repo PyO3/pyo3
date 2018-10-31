@@ -2,13 +2,13 @@
 
 //! This module contains some conversion traits
 
-use err::{PyDowncastError, PyResult};
-use ffi;
-use instance::Py;
-use object::PyObject;
-use python::{IntoPyPointer, Python, ToPyPointer};
-use typeob::PyTypeInfo;
-use types::{PyObjectRef, PyTuple};
+use crate::err::{PyDowncastError, PyResult};
+use crate::ffi;
+use crate::instance::Py;
+use crate::object::PyObject;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::typeob::PyTypeInfo;
+use crate::types::{PyObjectRef, PyTuple};
 
 /// Conversion trait that allows various objects to be converted into `PyObject`
 pub trait ToPyObject {

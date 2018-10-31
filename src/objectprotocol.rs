@@ -1,16 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
-use err::{self, PyDowncastError, PyErr, PyResult};
-use ffi;
-use instance::PyObjectWithToken;
-use object::PyObject;
-use python::{IntoPyPointer, Python, ToPyPointer};
+use crate::conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
+use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::ffi;
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use std;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
-use typeob::PyTypeInfo;
-use types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
+use crate::typeob::PyTypeInfo;
+use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
 
 /// Python object model helper methods
 pub trait ObjectProtocol {
@@ -67,7 +67,7 @@ pub trait ObjectProtocol {
     ///   * CompareOp::Le: `self <= other`
     ///   * CompareOp::Gt: `self > other`
     ///   * CompareOp::Ge: `self >= other`
-    fn rich_compare<O>(&self, other: O, compare_op: ::CompareOp) -> PyResult<PyObject>
+    fn rich_compare<O>(&self, other: O, compare_op: crate::CompareOp) -> PyResult<PyObject>
     where
         O: ToPyObject;
 
@@ -279,7 +279,7 @@ where
             } else if result < 0 {
                 return Err(PyErr::fetch(py));
             }
-            Err(::exceptions::TypeError::py_err(
+            Err(crate::exceptions::TypeError::py_err(
                 "ObjectProtocol::compare(): All comparisons returned false",
             ))
         }
@@ -289,7 +289,7 @@ where
         })
     }
 
-    fn rich_compare<O>(&self, other: O, compare_op: ::CompareOp) -> PyResult<PyObject>
+    fn rich_compare<O>(&self, other: O, compare_op: crate::CompareOp) -> PyResult<PyObject>
     where
         O: ToPyObject,
     {
@@ -498,10 +498,10 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use conversion::{PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use python::Python;
-    use types::{IntoPyDict, PyString};
+    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::python::Python;
+    use crate::types::{IntoPyDict, PyString};
 
     #[test]
     fn test_debug_string() {

@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use ffi;
+use crate::ffi;
 use libc::c_int;
 use std;
 use std::ffi::CString;

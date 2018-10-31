@@ -4,13 +4,13 @@
 
 use std;
 
-use conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
-use err::{self, PyResult};
-use ffi::{self, Py_ssize_t};
-use instance::PyObjectWithToken;
-use object::PyObject;
-use python::{IntoPyPointer, Python, ToPyPointer};
-use types::PyObjectRef;
+use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use crate::err::{self, PyResult};
+use crate::ffi::{self, Py_ssize_t};
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::types::PyObjectRef;
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -188,11 +188,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use conversion::{PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use objectprotocol::ObjectProtocol;
-    use python::Python;
-    use types::PyList;
+    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::python::Python;
+    use crate::types::PyList;
 
     #[test]
     fn test_new() {
@@ -262,7 +262,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let v = vec![2];
             let ob = v.to_object(py);
             let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
@@ -297,7 +297,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let list = PyList::empty(py);
             let none = py.None();
             cnt = none.get_refcnt();
@@ -326,7 +326,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let list = PyList::empty(py);
             let none = py.None();
             cnt = none.get_refcnt();

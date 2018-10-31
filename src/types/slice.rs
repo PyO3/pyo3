@@ -2,12 +2,12 @@
 
 use std::os::raw::c_long;
 
-use conversion::ToPyObject;
-use err::{PyErr, PyResult};
-use ffi::{self, Py_ssize_t};
-use instance::PyObjectWithToken;
-use object::PyObject;
-use python::{Python, ToPyPointer};
+use crate::conversion::ToPyObject;
+use crate::err::{PyErr, PyResult};
+use crate::ffi::{self, Py_ssize_t};
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::python::{Python, ToPyPointer};
 
 /// Represents a Python `slice`.
 ///

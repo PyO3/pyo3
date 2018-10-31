@@ -134,20 +134,20 @@ extern crate assert_approx_eq;
 extern crate pyo3cls;
 extern crate spin;
 
-pub use class::*;
-pub use conversion::{
+pub use crate::class::*;
+pub use crate::conversion::{
     FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,
     ToBorrowedObject, ToPyObject,
 };
-pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
-pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
-pub use noargs::NoArgs;
-pub use object::PyObject;
-pub use objectprotocol::ObjectProtocol;
-pub use python::{IntoPyPointer, Python, ToPyPointer};
-pub use pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
-pub use typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
-pub use types::exceptions;
+pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
+pub use crate::instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
+pub use crate::noargs::NoArgs;
+pub use crate::object::PyObject;
+pub use crate::objectprotocol::ObjectProtocol;
+pub use crate::python::{IntoPyPointer, Python, ToPyPointer};
+pub use crate::pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
+pub use crate::typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
+pub use crate::types::exceptions;
 
 /// Rust FFI declarations for Python
 pub mod ffi;

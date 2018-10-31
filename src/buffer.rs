@@ -22,11 +22,11 @@ use std::ffi::CStr;
 use std::os::raw;
 use std::{cell, mem, slice};
 
-use err::{self, PyResult};
-use exceptions;
-use ffi;
-use python::{Python, ToPyPointer};
-use types::PyObjectRef;
+use crate::err::{self, PyResult};
+use crate::exceptions;
+use crate::ffi;
+use crate::python::{Python, ToPyPointer};
+use crate::types::PyObjectRef;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 #[repr(transparent)]
@@ -661,17 +661,17 @@ impl_element!(f64, Float);
 #[cfg(test)]
 mod test {
     use super::PyBuffer;
-    use python::Python;
+    use crate::python::Python;
     use std;
 
     #[allow(unused_imports)]
-    use objectprotocol::ObjectProtocol;
+    use crate::objectprotocol::ObjectProtocol;
 
     #[test]
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()
         assert_eq!(
-            std::mem::size_of::<::ffi::Py_ssize_t>(),
+            std::mem::size_of::<crate::ffi::Py_ssize_t>(),
             std::mem::size_of::<usize>()
         );
     }

@@ -5,12 +5,12 @@
 use std::borrow::Cow;
 use std::ffi::CStr;
 
-use err::{PyErr, PyResult};
-use ffi;
-use instance::{Py, PyObjectWithToken};
-use object::PyObject;
-use python::{Python, ToPyPointer};
-use typeob::{PyTypeInfo, PyTypeObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::instance::{Py, PyObjectWithToken};
+use crate::object::PyObject;
+use crate::python::{Python, ToPyPointer};
+use crate::typeob::{PyTypeInfo, PyTypeObject};
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]

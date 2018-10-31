@@ -10,18 +10,18 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use conversion::{FromPyObject, IntoPyObject, PyTryFrom, PyTryInto, ToPyObject};
-pub use err::{PyErr, PyResult};
-pub use instance::{AsPyRef, Py, PyToken};
-pub use noargs::NoArgs;
-pub use object::PyObject;
-pub use objectprotocol::ObjectProtocol;
-pub use python::Python;
-pub use pythonrun::GILGuard;
+pub use crate::conversion::{FromPyObject, IntoPyObject, PyTryFrom, PyTryInto, ToPyObject};
+pub use crate::err::{PyErr, PyResult};
+pub use crate::instance::{AsPyRef, Py, PyToken};
+pub use crate::noargs::NoArgs;
+pub use crate::object::PyObject;
+pub use crate::objectprotocol::ObjectProtocol;
+pub use crate::python::Python;
+pub use crate::pythonrun::GILGuard;
 // This is only part of the prelude because we need it for the pymodinit function
-pub use types::PyModule;
+pub use crate::types::PyModule;
 // This is required for the constructor
-pub use PyRawObject;
+pub use crate::PyRawObject;
 
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 

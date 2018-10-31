@@ -2,18 +2,18 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use conversion::{IntoPyTuple, ToPyObject};
-use err::{PyErr, PyResult};
-use ffi;
-use instance::PyObjectWithToken;
-use object::PyObject;
-use objectprotocol::ObjectProtocol;
-use python::{Python, ToPyPointer};
+use crate::conversion::{IntoPyTuple, ToPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::instance::PyObjectWithToken;
+use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::{Python, ToPyPointer};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
-use typeob::{initialize_type, PyTypeInfo};
-use types::{exceptions, PyDict, PyObjectRef, PyType};
+use crate::typeob::{initialize_type, PyTypeInfo};
+use crate::types::{exceptions, PyDict, PyObjectRef, PyType};
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
@@ -61,7 +61,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as ::conversion::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            <&PyModule as crate::conversion::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 

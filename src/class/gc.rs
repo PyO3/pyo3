@@ -5,9 +5,9 @@
 
 use std::os::raw::{c_int, c_void};
 
-use ffi;
-use python::{Python, ToPyPointer};
-use typeob::PyTypeInfo;
+use crate::ffi;
+use crate::python::{Python, ToPyPointer};
+use crate::typeob::PyTypeInfo;
 
 #[repr(transparent)]
 pub struct PyTraverseError(c_int);
@@ -91,7 +91,7 @@ where
         where
             T: for<'p> PyGCTraverseProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
@@ -128,7 +128,7 @@ where
         where
             T: for<'p> PyGCClearProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
