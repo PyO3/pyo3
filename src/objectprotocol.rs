@@ -84,7 +84,7 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
-    fn call<A>(&self, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
+    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple;
 
@@ -108,7 +108,12 @@ pub trait ObjectProtocol {
     /// let kwargs = ((key1, value1), (key2, value2));
     /// let pid = obj.call_method("do_something", args, kwargs.into_py_dict());
     /// ```
-    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
+    fn call_method<A>(
+        &self,
+        name: &str,
+        args: A,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple;
 
@@ -313,7 +318,7 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call<A>(&self, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
+    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
     {
@@ -341,19 +346,20 @@ where
         self.call(args, None)
     }
 
-    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<PyDict>) -> PyResult<&PyObjectRef>
+    fn call_method<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
     where
         A: IntoPyTuple,
     {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
+            let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
-                return Err(PyErr::fetch(self.py()));
+                return Err(PyErr::fetch(py));
             }
-            let args = args.into_tuple(self.py()).into_ptr();
+            let args = args.into_tuple(py).into_ptr();
             let kwargs = kwargs.into_ptr();
             let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
-            let result = self.py().from_owned_ptr_or_err(result_ptr);
+            let result = py.from_owned_ptr_or_err(result_ptr);
             ffi::Py_DECREF(ptr);
             ffi::Py_XDECREF(args);
             ffi::Py_XDECREF(kwargs);
