@@ -496,7 +496,7 @@ mod test {
     use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
     use python::Python;
-    use types::PyString;
+    use types::{IntoPyDict, PyString};
 
     #[test]
     fn test_debug_string() {
@@ -525,6 +525,16 @@ mod test {
         assert!(a.call_method("nonexistent_method", (1,), None).is_err());
         assert!(a.call_method0("nonexistent_method").is_err());
         assert!(a.call_method1("nonexistent_method", (1,)).is_err());
+    }
+
+    #[test]
+    fn test_call_with_kwargs() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = py.eval("list([3, 6, 5, 4, 7])", None, None).unwrap();
+        let dict = vec![("reverse", true)].into_py_dict(py);
+        list.call_method("sort", (), Some(dict)).unwrap();
+        assert_eq!(list.extract::<Vec<i32>>().unwrap(), vec![7, 6, 5, 4, 3]);
     }
 
     #[test]
