@@ -12,6 +12,7 @@ dist/
 .mypy_cache/
 .hypothesis/
 .eggs/
+venv*
 
 *.so
 *.out

@@ -7,8 +7,7 @@ readme = "README.md"
 keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
 repository = "https://github.com/pyo3/pyo3"
-# Reactivate this once docs.rs is fixed
-#documentation = "https://docs.rs/crate/pyo3/"
+documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 exclude = ["/.gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]

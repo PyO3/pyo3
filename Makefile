@@ -1,4 +1,4 @@
-.PHONY: default test
+.PHONY: default test publish
 
 ifndef PY
 PY := $(word 2, $(subst ., ,$(shell python --version 2>&1)))
@@ -20,3 +20,8 @@ test:
 	pip install tox
 	cd examples/word-count && tox
 	cd examples/rustapi_module && tox
+
+publish:
+	cargo publish --manifest-path pyo3-derive-backend/Cargo.toml
+	cargo publish --manifest-path pyo3cls/Cargo.toml
+	cargo publish
