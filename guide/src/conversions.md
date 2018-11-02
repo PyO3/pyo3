@@ -2,9 +2,9 @@
 
 `PyO3` provides some handy traits to convert between Python types and Rust types.
 
-## `.extract()?`
+## `.extract()`
 
-The easiest way to convert a python object to a rust value is using `.extract()`.
+The easiest way to convert a python object to a rust value is using `.extract()?`.
 
 ## `ToPyObject` and `IntoPyObject` trait
 
@@ -76,7 +76,7 @@ fn main() {
 }
 ```
 
-`kwargs` can by `None` or `Some(PyDict)`. You can use the 
+`kwargs` can by `None` or `Some(&PyDict)`. You can use the
 [`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers, e.g. `HashMap`, `BTreeMap` as well as tuples with up to 10 elements and `Vec`s where each element is a two element tuple.
 
 ```rust
