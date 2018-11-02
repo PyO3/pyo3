@@ -136,3 +136,36 @@ mod tests {
         assert_eq!(count, none.get_refcnt());
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::objectprotocol::ObjectProtocol;
+    use crate::GILGuard;
+    use crate::types::PyDict;
+
+    #[test]
+    fn fibonacci_generator() {
+        let fibonacci_generator = indoc!(
+            r#"
+            def fibonacci(target):
+                a = 1
+                b = 1
+                for _ in range(target):
+                    yield a
+                    a, b = b, a + b
+        "#
+        );
+
+        let gil = GILGuard::acquire();
+        let py = gil.python();
+
+        let context = PyDict::new(py);
+        py.run(fibonacci_generator, None, Some(context)).unwrap();
+
+        let generator = py.eval("fibonacci(5)", None, Some(context)).unwrap();
+        for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
+            let actual = actual.unwrap().extract::<usize>().unwrap();
+            assert_eq!(actual, *expected)
+        }
+    }
+}
