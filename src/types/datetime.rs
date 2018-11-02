@@ -24,9 +24,9 @@ use crate::ffi::{
 use crate::instance::Py;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
+use crate::types::PyTuple;
 use std::os::raw::c_int;
 use std::ptr;
-use crate::types::PyTuple;
 
 /// Access traits
 

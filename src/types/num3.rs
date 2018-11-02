@@ -12,9 +12,9 @@ use crate::ffi;
 use crate::instance::PyObjectWithToken;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
+use crate::types::{exceptions, PyObjectRef};
 use std::i64;
 use std::os::raw::{c_long, c_uchar};
-use crate::types::{exceptions, PyObjectRef};
 
 /// Represents a Python `int` object.
 ///

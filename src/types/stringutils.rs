@@ -3,9 +3,9 @@ use crate::err::PyResult;
 use crate::instance::PyObjectWithToken;
 use crate::object::PyObject;
 use crate::python::Python;
-use std::borrow::Cow;
 use crate::types::{PyObjectRef, PyString};
 use crate::FromPyObject;
+use std::borrow::Cow;
 
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.

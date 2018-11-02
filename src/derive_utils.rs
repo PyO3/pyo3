@@ -9,11 +9,11 @@ use crate::err::PyResult;
 use crate::exceptions::TypeError;
 use crate::ffi;
 use crate::init_once;
-use std::ptr;
 use crate::types::PyModule;
 use crate::types::{PyDict, PyObjectRef, PyString, PyTuple};
 use crate::GILPool;
 use crate::Python;
+use std::ptr;
 
 #[derive(Debug)]
 /// Description of a python parameter; used for `parse_args()`.

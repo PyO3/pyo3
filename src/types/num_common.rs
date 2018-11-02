@@ -188,8 +188,8 @@ mod test {
     fn test_u128_overflow() {
         use crate::ffi;
         use crate::object::PyObject;
-        use std::os::raw::c_uchar;
         use crate::types::exceptions;
+        use std::os::raw::c_uchar;
         let gil = Python::acquire_gil();
         let py = gil.python();
         let overflow_bytes: [c_uchar; 20] = [255; 20];

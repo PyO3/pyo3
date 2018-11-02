@@ -45,7 +45,8 @@ extern "C" {
 // TODO: Py_EnterRecursiveCall etc.
 
 #[cfg(Py_3_6)]
-pub type _PyFrameEvalFunction = extern "C" fn(*mut crate::ffi3::PyFrameObject, c_int) -> *mut PyObject;
+pub type _PyFrameEvalFunction =
+    extern "C" fn(*mut crate::ffi3::PyFrameObject, c_int) -> *mut PyObject;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -54,7 +55,10 @@ extern "C" {
     pub fn PyEval_GetCallStats(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyEval_EvalFrame(arg1: *mut crate::ffi3::PyFrameObject) -> *mut PyObject;
     #[cfg(Py_3_6)]
-    pub fn _PyEval_EvalFrameDefault(arg1: *mut crate::ffi3::PyFrameObject, exc: c_int) -> *mut PyObject;
+    pub fn _PyEval_EvalFrameDefault(
+        arg1: *mut crate::ffi3::PyFrameObject,
+        exc: c_int,
+    ) -> *mut PyObject;
     #[cfg(Py_3_6)]
     pub fn _PyEval_RequestCodeExtraIndex(func: FreeFunc) -> c_int;
     pub fn PyEval_EvalFrameEx(f: *mut crate::ffi3::PyFrameObject, exc: c_int) -> *mut PyObject;

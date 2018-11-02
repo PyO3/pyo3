@@ -71,7 +71,8 @@ mod tests {
     use crate::objectprotocol::ObjectProtocol;
     use crate::python::Python;
     use crate::pythonrun::GILPool;
-    use crate::types::{PyList, PyObjectRef};
+    use crate::types::{PyDict, PyList, PyObjectRef};
+    use crate::GILGuard;
 
     #[test]
     fn vec_iter() {
@@ -135,13 +136,6 @@ mod tests {
         }
         assert_eq!(count, none.get_refcnt());
     }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::objectprotocol::ObjectProtocol;
-    use crate::GILGuard;
-    use crate::types::PyDict;
 
     #[test]
     fn fibonacci_generator() {

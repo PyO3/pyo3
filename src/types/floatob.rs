@@ -9,10 +9,10 @@ use crate::instance::{Py, PyObjectWithToken};
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};
-use std::os::raw::c_double;
 use crate::types::PyObjectRef;
 use crate::FromPyObject;
 use crate::PyResult;
+use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
 ///

@@ -9,9 +9,9 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::Python;
-use std::os::raw::c_int;
 use crate::typeob::PyTypeInfo;
 use crate::types::{exceptions, PyObjectRef};
+use std::os::raw::c_int;
 
 /// Sequece interface
 #[allow(unused_variables)]

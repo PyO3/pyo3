@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::ffi;
 use crate::python::Python;
+use crate::types::PyObjectRef;
 use spin;
 use std::{any, marker, rc, sync};
-use crate::types::PyObjectRef;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;

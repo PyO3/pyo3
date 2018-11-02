@@ -7,11 +7,11 @@ use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::Py;
 use crate::python::{Python, ToPyPointer};
+use crate::typeob::PyTypeObject;
+use crate::types::{PyObjectRef, PyTuple, PyType};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, ops};
-use crate::typeob::PyTypeObject;
-use crate::types::{PyObjectRef, PyTuple, PyType};
 
 // Copyright (c) 2017-present PyO3 Project and Contributors
 

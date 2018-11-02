@@ -7,14 +7,14 @@ use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyObjectWithToken, PyToken};
 use crate::python::ToPyPointer;
 use crate::python::{IntoPyPointer, Python};
+use crate::types::PyObjectRef;
+use crate::types::PyType;
+use crate::{class, ffi, pythonrun};
 use std;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
 use std::os::raw::c_void;
-use crate::types::PyObjectRef;
-use crate::types::PyType;
-use crate::{class, ffi, pythonrun};
 
 /// Python type information.
 pub trait PyTypeInfo {

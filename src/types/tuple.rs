@@ -7,8 +7,8 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::{AsPyRef, Py, PyObjectWithToken};
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use std::slice;
 use crate::types::PyObjectRef;
+use std::slice;
 
 /// Represents a Python `tuple` object.
 #[repr(transparent)]
@@ -269,9 +269,9 @@ mod test {
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
     use crate::python::Python;
-    use std::collections::HashSet;
     use crate::types::PyObjectRef;
     use crate::types::PyTuple;
+    use std::collections::HashSet;
 
     #[test]
     fn test_new() {

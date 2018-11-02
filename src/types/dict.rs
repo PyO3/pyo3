@@ -6,9 +6,9 @@ use crate::ffi;
 use crate::instance::PyObjectWithToken;
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::types::{PyList, PyObjectRef};
 use std;
 use std::{cmp, collections, hash, mem};
-use crate::types::{PyList, PyObjectRef};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -275,10 +275,10 @@ mod test {
     use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::python::Python;
-    use std::collections::{BTreeMap, HashMap};
     use crate::types::dict::IntoPyDict;
     use crate::types::{PyDict, PyList, PyTuple};
     use crate::ObjectProtocol;
+    use std::collections::{BTreeMap, HashMap};
 
     #[test]
     fn test_new() {
