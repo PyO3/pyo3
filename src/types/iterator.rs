@@ -12,6 +12,23 @@ use crate::types::PyObjectRef;
 ///
 /// Unlike other python objects, this class includes a `Python<'p>` token
 /// so that `PyIterator` can implement the rust `Iterator` trait.
+///
+/// # Example
+///
+/// ```rust
+/// # use pyo3::prelude::*;
+/// use pyo3::types::PyIterator;
+///
+/// # fn main() -> PyResult<()> {
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
+/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(ObjectProtocol::extract::<usize>)).collect();
+/// let sum: usize = numbers?.iter().sum();
+/// assert_eq!(sum, 10);
+/// # Ok(())
+/// # }
+/// ```
 pub struct PyIterator<'p>(&'p PyObjectRef);
 
 impl<'p> PyIterator<'p> {
