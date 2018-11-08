@@ -271,3 +271,11 @@ def test_tz_class():
     assert dt.tzname() == "+01:00"
     assert dt.utcoffset() == pdt.timedelta(hours=1)
     assert dt.dst() is None
+
+@pytest.mark.skip(reason='to debug with the latest master')
+def test_tz_class_introspection():
+    tzi = rdt.TzClass()
+
+    assert tzi.__class__ == rdt.TzClass
+    assert repr(tzi) == "TzClass()"
+
