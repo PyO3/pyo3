@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::ffi;
-use crate::python::Python;
+use crate::python::{Python, NonNullPyObject};
 use crate::types::PyObjectRef;
 use spin;
 use std::{any, marker, rc, sync};
@@ -230,12 +230,12 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
         .unwrap()
 }
 
-pub unsafe fn register_pointer(obj: *mut ffi::PyObject) {
+pub unsafe fn register_pointer(obj: NonNullPyObject) {
     let pool: &'static mut ReleasePool = &mut *POOL;
 
     let mut v = pool.p.lock();
     let pool: &'static mut Vec<*mut ffi::PyObject> = &mut *(*v);
-    pool.push(obj);
+    pool.push(obj.as_ptr());
 }
 
 pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {

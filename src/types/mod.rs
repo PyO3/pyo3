@@ -60,6 +60,7 @@ macro_rules! pyobject_native_type_named (
         impl<$($type_param,)*> $crate::PyNativeType for $name {}
 
         impl<$($type_param,)*> ::std::convert::AsRef<$crate::types::PyObjectRef> for $name {
+            #[inline]
             fn as_ref(&self) -> &$crate::types::PyObjectRef {
                 unsafe{&*(self as *const $name as *const $crate::types::PyObjectRef)}
             }

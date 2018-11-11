@@ -163,6 +163,7 @@ impl PyRawObject {
 }
 
 impl<T: PyTypeInfo> AsRef<T> for PyRawObject {
+    #[inline]
     fn as_ref(&self) -> &T {
         // TODO: check is object initialized
         unsafe {

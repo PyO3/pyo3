@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
+use std::ptr::NonNull;
 
 use crate::conversion::{
     FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject,
@@ -8,7 +9,7 @@ use crate::conversion::{
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{AsPyRef, PyObjectWithToken};
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::python::{IntoPyPointer, Python, ToPyPointer, NonNullPyObject};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
 
@@ -20,7 +21,7 @@ use crate::types::{PyDict, PyObjectRef, PyTuple};
 /// Technically, it is a safe wrapper around the unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct PyObject(*mut ffi::PyObject);
+pub struct PyObject(NonNullPyObject);
 
 // `PyObject` is thread-safe, any python related operations require a Python<'p> token.
 unsafe impl Send for PyObject {}
@@ -36,18 +37,17 @@ impl PyObject {
             !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
         );
-        PyObject(ptr)
+        PyObject(NonNull::new_unchecked(ptr))
     }
 
     /// Creates a `PyObject` instance for the given FFI pointer.
     /// Panics if the pointer is `null`.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(py: Python, ptr: *mut ffi::PyObject) -> PyObject {
-        if ptr.is_null() {
-            crate::err::panic_after_error();
-        } else {
-            PyObject::from_owned_ptr(py, ptr)
+    pub unsafe fn from_owned_ptr_or_panic(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => { PyObject(nonnull_ptr) },
+            None => { crate::err::panic_after_error(); }
         }
     }
 
@@ -55,21 +55,19 @@ impl PyObject {
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject> {
-        if ptr.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(PyObject::from_owned_ptr(py, ptr))
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => { Ok(PyObject(nonnull_ptr)) },
+            None => { Err(PyErr::fetch(py)) }
         }
     }
 
     /// Construct `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
     /// Returns `None` if the pointer is `null`.
-    pub unsafe fn from_owned_ptr_or_opt(py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject> {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(PyObject::from_owned_ptr(py, ptr))
+    pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject> {
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => { Some(PyObject(nonnull_ptr)) },
+            None => { None }
         }
     }
 
@@ -83,7 +81,7 @@ impl PyObject {
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
         );
         ffi::Py_INCREF(ptr);
-        PyObject(ptr)
+        PyObject(NonNull::new_unchecked(ptr))
     }
 
     /// Creates a `PyObject` instance for the given Python FFI pointer.
@@ -116,7 +114,7 @@ impl PyObject {
 
     /// Gets the reference count of the ffi::PyObject pointer.
     pub fn get_refcnt(&self) -> isize {
-        unsafe { ffi::Py_REFCNT(self.0) }
+        unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
     /// Clone self, Calls Py_INCREF() on the ptr.
@@ -266,7 +264,7 @@ impl ToPyPointer for PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0
+        self.0.as_ptr()
     }
 }
 
@@ -274,7 +272,7 @@ impl<'a> ToPyPointer for &'a PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0
+        self.0.as_ptr()
     }
 }
 
@@ -283,7 +281,7 @@ impl IntoPyPointer for PyObject {
     #[inline]
     #[must_use]
     fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.0;
+        let ptr = self.0.as_ptr();
         std::mem::forget(self); // Avoid Drop
         ptr
     }

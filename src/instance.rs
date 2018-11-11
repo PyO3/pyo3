@@ -2,6 +2,7 @@
 
 use std;
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 use std::rc::Rc;
 
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
@@ -10,7 +11,7 @@ use crate::ffi;
 use crate::instance;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
+use crate::python::{IntoPyPointer, Python, ToPyPointer, NonNullPyObject};
 use crate::pythonrun;
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
@@ -96,7 +97,7 @@ pub trait AsPyRef<T>: Sized {
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer with specified type information.
 #[derive(Debug)]
-pub struct Py<T>(pub *mut ffi::PyObject, std::marker::PhantomData<T>);
+pub struct Py<T>(NonNullPyObject, std::marker::PhantomData<T>);
 
 // `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
 unsafe impl<T> Send for Py<T> {}
@@ -112,7 +113,7 @@ impl<T> Py<T> {
             !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
         );
-        Py(ptr, std::marker::PhantomData)
+        Py(NonNull::new_unchecked(ptr), std::marker::PhantomData)
     }
 
     /// Creates a `Py<T>` instance for the given FFI pointer.
@@ -120,10 +121,9 @@ impl<T> Py<T> {
     /// Undefined behavior if the pointer is invalid.
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
-        if ptr.is_null() {
-            crate::err::panic_after_error();
-        } else {
-            Py::from_owned_ptr(ptr)
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => { Py(nonnull_ptr, std::marker::PhantomData) },
+            None => { crate::err::panic_after_error(); }
         }
     }
 
@@ -132,10 +132,9 @@ impl<T> Py<T> {
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
-        if ptr.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(Py::from_owned_ptr(ptr))
+        match NonNull::new(ptr) {
+            Some(nonnull_ptr) => { Ok(Py(nonnull_ptr, std::marker::PhantomData)) },
+            None => { Err(PyErr::fetch(py)) }
         }
     }
 
@@ -149,19 +148,19 @@ impl<T> Py<T> {
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
         );
         ffi::Py_INCREF(ptr);
-        Py::from_owned_ptr(ptr)
+        Py(NonNull::new_unchecked(ptr), std::marker::PhantomData)
     }
 
     /// Gets the reference count of the ffi::PyObject pointer.
     #[inline]
     pub fn get_refcnt(&self) -> isize {
-        unsafe { ffi::Py_REFCNT(self.0) }
+        unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
     /// Clone self, Calls Py_INCREF() on the ptr.
     #[inline]
     pub fn clone_ref(&self, _py: Python) -> Py<T> {
-        unsafe { Py::from_borrowed_ptr(self.0) }
+        unsafe { Py::from_borrowed_ptr(self.0.as_ptr()) }
     }
 }
 
@@ -241,9 +240,11 @@ impl<T> AsPyRef<T> for Py<T>
 where
     T: PyTypeInfo,
 {
+    #[inline]
     fn as_ref(&self, py: Python) -> &T {
         self.as_ref_dispatch(py)
     }
+    #[inline]
     fn as_mut(&mut self, py: Python) -> &mut T {
         self.as_mut_dispatch(py)
     }
@@ -269,7 +270,7 @@ impl<T> ToPyPointer for Py<T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0
+        self.0.as_ptr()
     }
 }
 
@@ -278,7 +279,7 @@ impl<T> IntoPyPointer for Py<T> {
     #[inline]
     #[must_use]
     fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.0;
+        let ptr = self.0.as_ptr();
         std::mem::forget(self);
         ptr
     }
