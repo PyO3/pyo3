@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Slowly removing specialization uses
  * `PyString`, `PyUnicode`, and `PyBytes` no longer have a `data()` method
  (replaced by `as_bytes()`) and `PyStringData` has been removed.
+ * The pyobject_extract macro
 
 ### Changed
  * Removes the types from the root module and the prelude. They now live in `pyo3::types` instead.
@@ -43,10 +44,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fix segfault on calling an unknown method on a PyObject
  * Work around a [bug](https://github.com/rust-lang/rust/issues/55380) in the rust compiler by kngwyu [#252](https://github.com/PyO3/pyo3/pull/252)
  * Fixed a segfault with subclassing pyo3 create classes and using `__class__` by kngwyu [#263](https://github.com/PyO3/pyo3/pull/263)
-
-### Removed
-
- * The pyobject_extract macro
 
 ## [0.4.1] - 2018-08-20
 

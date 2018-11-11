@@ -18,6 +18,7 @@ default: test
 test:
 	cargo test $(CARGO_FLAGS)
 	pip install tox
+	tox
 	cd examples/word-count && tox
 	cd examples/rustapi_module && tox
 
