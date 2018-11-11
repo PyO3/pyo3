@@ -115,32 +115,6 @@ fn impl_class(
         None
     };
 
-    let extra = {
-        if let Some(freelist) = params.get("freelist") {
-            Some(quote! {
-                impl ::pyo3::freelist::PyObjectWithFreeList for #cls {
-                    #[inline]
-                    fn get_free_list() -> &'static mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
-                        static mut FREELIST: *mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> = 0 as *mut _;
-                        unsafe {
-                            if FREELIST.is_null() {
-                                FREELIST = Box::into_raw(Box::new(
-                                    ::pyo3::freelist::FreeList::with_capacity(#freelist)));
-
-                                <#cls as ::pyo3::typeob::PyTypeCreate>::init_type();
-                            }
-                            &mut *FREELIST
-                        }
-                    }
-                }
-
-                #extra
-            })
-        } else {
-            extra
-        }
-    };
-
     let extra = if !descriptors.is_empty() {
         let ty = syn::parse_str(&cls.to_string()).expect("no name");
         let desc_impls = impl_descriptors(&ty, descriptors);
@@ -396,10 +370,6 @@ fn parse_attribute(
                 };
 
                 match key.as_str() {
-                    "freelist" => {
-                        // TODO: check if int literal
-                        params.insert("freelist", *ass.right.clone());
-                    }
                     "name" => match *ass.right {
                         syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
                             params.insert("name", exp.clone().into());

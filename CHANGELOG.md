@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Removed
+ * `pyo3::freelist` removed.
+
 ## [0.5.0] - 2018-11-11
 
 ### Added
@@ -26,7 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
  * Removes the types from the root module and the prelude. They now live in `pyo3::types` instead.
- * All exceptions are consturcted with `py_err` instead of `new`, as they return `PyErr` and not `Self`.
+ * All exceptions are constructed with `py_err` instead of `new`, as they return `PyErr` and not `Self`.
  * `as_mut` and friends take and `&mut self` instead of `&self`
  * `ObjectProtocol::call` now takes an `Option<&PyDict>` for the kwargs instead of an `IntoPyDictPointer`.
  * `IntoPyDictPointer` was replace by `IntoPyDict` which doesn't convert `PyDict` itself anymore and returns a `PyDict` instead of `*mut PyObject`.

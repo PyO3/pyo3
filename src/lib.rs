@@ -178,7 +178,6 @@ mod conversion;
 #[doc(hidden)]
 pub mod derive_utils;
 mod err;
-pub mod freelist;
 mod instance;
 mod noargs;
 mod object;

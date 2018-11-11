@@ -219,7 +219,7 @@ where
         pytype_drop::<T>(py, obj);
     }
 
-    default unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
+    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
         <T as PyTypeCreate>::init_type();
 
@@ -230,7 +230,7 @@ where
         Ok(obj)
     }
 
-    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         Self::drop(py, obj);
 
         #[cfg(Py_3)]

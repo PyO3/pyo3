@@ -19,36 +19,6 @@ use std::sync::Arc;
 #[macro_use]
 mod common;
 
-#[pyclass(freelist = 2)]
-struct ClassWithFreelist {
-    token: PyToken,
-}
-
-#[test]
-fn class_with_freelist() {
-    let ptr;
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let inst = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
-        let _inst2 = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
-        ptr = inst.as_ptr();
-        drop(inst);
-    }
-
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let inst3 = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
-        assert_eq!(ptr, inst3.as_ptr());
-
-        let inst4 = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
-        assert_ne!(ptr, inst4.as_ptr())
-    }
-}
-
 struct TestDropCall {
     drop_called: Arc<AtomicBool>,
 }
