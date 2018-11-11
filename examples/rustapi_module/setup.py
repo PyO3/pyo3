@@ -25,10 +25,11 @@ def get_py_version_cfgs():
 
     py3_min = 5
     out_cfg = []
-    for minor in range(py3_min, version[1]+1):
+    for minor in range(py3_min, version[1] + 1):
         out_cfg.append('--cfg=Py_3_%d' % minor)
 
     return out_cfg
+
 
 install_requires = []
 tests_require = install_requires + ['pytest', 'pytest-benchmark']
@@ -49,6 +50,8 @@ setup(
     rust_extensions=[RustExtension('rustapi_module.othermod', 'Cargo.toml',
                                    rustc_flags=get_py_version_cfgs()),
                      RustExtension('rustapi_module.datetime', 'Cargo.toml',
+                                   rustc_flags=get_py_version_cfgs()),
+                     RustExtension('rustapi_module.subclassing', 'Cargo.toml',
                                    rustc_flags=get_py_version_cfgs())],
     install_requires=install_requires,
     tests_require=tests_require,
