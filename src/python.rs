@@ -11,11 +11,11 @@ use crate::pythonrun::{self, GILGuard};
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
+use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 use std::ptr::NonNull;
-use std;
 
 pub type NonNullPyObject = NonNull<ffi::PyObject>;
 

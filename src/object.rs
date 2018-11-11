@@ -9,7 +9,7 @@ use crate::conversion::{
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{AsPyRef, PyObjectWithToken};
-use crate::python::{IntoPyPointer, Python, ToPyPointer, NonNullPyObject};
+use crate::python::{IntoPyPointer, NonNullPyObject, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
 
@@ -46,8 +46,10 @@ impl PyObject {
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => { PyObject(nonnull_ptr) },
-            None => { crate::err::panic_after_error(); }
+            Some(nonnull_ptr) => PyObject(nonnull_ptr),
+            None => {
+                crate::err::panic_after_error();
+            }
         }
     }
 
@@ -56,8 +58,8 @@ impl PyObject {
     /// Returns `Err(PyErr)` if the pointer is `null`.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => { Ok(PyObject(nonnull_ptr)) },
-            None => { Err(PyErr::fetch(py)) }
+            Some(nonnull_ptr) => Ok(PyObject(nonnull_ptr)),
+            None => Err(PyErr::fetch(py)),
         }
     }
 
@@ -66,8 +68,8 @@ impl PyObject {
     /// Returns `None` if the pointer is `null`.
     pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => { Some(PyObject(nonnull_ptr)) },
-            None => { None }
+            Some(nonnull_ptr) => Some(PyObject(nonnull_ptr)),
+            None => None,
         }
     }
 

@@ -11,7 +11,7 @@ use crate::ffi;
 use crate::instance;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::{IntoPyPointer, Python, ToPyPointer, NonNullPyObject};
+use crate::python::{IntoPyPointer, NonNullPyObject, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
@@ -122,8 +122,10 @@ impl<T> Py<T> {
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => { Py(nonnull_ptr, std::marker::PhantomData) },
-            None => { crate::err::panic_after_error(); }
+            Some(nonnull_ptr) => Py(nonnull_ptr, std::marker::PhantomData),
+            None => {
+                crate::err::panic_after_error();
+            }
         }
     }
 
@@ -133,8 +135,8 @@ impl<T> Py<T> {
     /// Unsafe because the pointer might be invalid.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => { Ok(Py(nonnull_ptr, std::marker::PhantomData)) },
-            None => { Err(PyErr::fetch(py)) }
+            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, std::marker::PhantomData)),
+            None => Err(PyErr::fetch(py)),
         }
     }
 

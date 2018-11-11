@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::ffi;
-use crate::python::{Python, NonNullPyObject};
+use crate::python::{NonNullPyObject, Python};
 use crate::types::PyObjectRef;
 use spin;
 use std::{any, marker, rc, sync};

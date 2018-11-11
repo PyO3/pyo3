@@ -1,19 +1,20 @@
-import rustapi_module.datetime as rdt
-
-import sys
 import datetime as pdt
+import sys
 
-import pytest 
+import pytest
+import rustapi_module.datetime as rdt
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
 
+
 # Constants
 def _get_utc():
-    timezone = getattr(pdt, 'timezone', None)
+    timezone = getattr(pdt, "timezone", None)
     if timezone:
         return timezone.utc
     else:
+
         class UTC(pdt.tzinfo):
             def utcoffset(self, dt):
                 return pdt.timedelta(0)
@@ -25,6 +26,7 @@ def _get_utc():
                 return "UTC"
 
         return UTC()
+
 
 UTC = _get_utc()
 
@@ -42,19 +44,22 @@ except Exception:
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
-HAS_FOLD = getattr(pdt.datetime, 'fold', False)
-
+HAS_FOLD = getattr(pdt.datetime, "fold", False)
 
 # Helper functions
-get_timestamp = getattr(pdt.datetime, 'timestamp', None)
+get_timestamp = getattr(pdt.datetime, "timestamp", None)
 if get_timestamp is None:
+
     def get_timestamp(dt):
         # Python 2 compatibility
         return (dt - pdt.datetime(1970, 1, 1)).total_seconds()
 
 
-xfail_date_bounds = pytest.mark.xfail(sys.version_info < (3, 6),
-    reason="Date bounds were not checked in the C constructor prior to version 3.6")
+xfail_date_bounds = pytest.mark.xfail(
+    sys.version_info < (3, 6),
+    reason="Date bounds were not checked in the C constructor prior to version 3.6",
+)
+
 
 # Tests
 def test_date():
@@ -81,11 +86,14 @@ def test_date_from_timestamp(d):
     assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
 
 
-@pytest.mark.parametrize('args, kwargs', [
-    ((0, 0, 0, 0, None), {}),
-    ((1, 12, 14, 124731), {}),
-    ((1, 12, 14, 124731), {'tzinfo': UTC}),
-])
+@pytest.mark.parametrize(
+    "args, kwargs",
+    [
+        ((0, 0, 0, 0, None), {}),
+        ((1, 12, 14, 124731), {}),
+        ((1, 12, 14, 124731), {"tzinfo": UTC}),
+    ],
+)
 def test_time(args, kwargs):
     act = rdt.make_time(*args, **kwargs)
     exp = pdt.time(*args, **kwargs)
@@ -116,55 +124,58 @@ def test_time_fold(t):
 
 
 @pytest.mark.skipif(not HAS_FOLD, reason="Feature not available before 3.6")
-@pytest.mark.parametrize('fold', [False, True])
+@pytest.mark.parametrize("fold", [False, True])
 def test_time_fold(fold):
     t = rdt.time_with_fold(0, 0, 0, 0, None, fold)
     assert t.fold == fold
 
 
 @pytest.mark.xfail
-@pytest.mark.parametrize('args', [
-    (-1, 0, 0, 0),
-    (0, -1, 0, 0),
-    (0, 0, -1, 0),
-    (0, 0, 0, -1),
-])
+@pytest.mark.parametrize(
+    "args", [(-1, 0, 0, 0), (0, -1, 0, 0), (0, 0, -1, 0), (0, 0, 0, -1)]
+)
 def test_invalid_time_fails_xfail(args):
     with pytest.raises(ValueError):
         rdt.make_time(*args)
 
 
 @xfail_date_bounds
-@pytest.mark.parametrize('args', [
-    (24, 0, 0, 0),
-    (25, 0, 0, 0),
-    (0, 60, 0, 0),
-    (0, 61, 0, 0),
-    (0, 0, 60, 0),
-    (0, 0, 61, 0),
-    (0, 0, 0, 1000000)
-])
+@pytest.mark.parametrize(
+    "args",
+    [
+        (24, 0, 0, 0),
+        (25, 0, 0, 0),
+        (0, 60, 0, 0),
+        (0, 61, 0, 0),
+        (0, 0, 60, 0),
+        (0, 0, 61, 0),
+        (0, 0, 0, 1000000),
+    ],
+)
 def test_invalid_time_fails(args):
     with pytest.raises(ValueError):
         rdt.make_time(*args)
 
 
-@pytest.mark.parametrize('args', [
-    ('0', 0, 0, 0),
-    (0, '0', 0, 0),
-    (0, 0, '0', 0),
-    (0, 0, 0, '0'),
-    (0, 0, 0, 0, 'UTC')
-])
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("0", 0, 0, 0),
+        (0, "0", 0, 0),
+        (0, 0, "0", 0),
+        (0, 0, 0, "0"),
+        (0, 0, 0, 0, "UTC"),
+    ],
+)
 def test_time_typeerror(args):
     with pytest.raises(TypeError):
         rdt.make_time(*args)
 
 
-@pytest.mark.parametrize('args, kwargs', [
-    ((2017, 9, 1, 12, 45, 30, 0), {}),
-    ((2017, 9, 1, 12, 45, 30, 0), {'tzinfo': UTC}),
-])
+@pytest.mark.parametrize(
+    "args, kwargs",
+    [((2017, 9, 1, 12, 45, 30, 0), {}), ((2017, 9, 1, 12, 45, 30, 0), {"tzinfo": UTC})],
+)
 def test_datetime(args, kwargs):
     act = rdt.make_datetime(*args, **kwargs)
     exp = pdt.datetime(*args, **kwargs)
@@ -176,7 +187,7 @@ def test_datetime(args, kwargs):
 @given(dt=st.datetimes())
 def test_datetime_tuple(dt):
     act = rdt.get_datetime_tuple(dt)
-    exp = dt.timetuple()[0:6] + (dt.microsecond, )
+    exp = dt.timetuple()[0:6] + (dt.microsecond,)
 
     assert act == exp
 
@@ -202,7 +213,7 @@ def test_invalid_datetime_fails():
 
 def test_datetime_typeerror():
     with pytest.raises(TypeError):
-        rdt.make_datetime('2011', 1, 1, 0, 0, 0, 0)
+        rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
 
 
 @given(dt=datetimes())
@@ -219,17 +230,20 @@ def test_datetime_from_timestamp_tzinfo():
     assert d1.tzinfo is d2.tzinfo
 
 
-@pytest.mark.parametrize('args', [
-    (0, 0, 0),
-    (1, 0, 0),
-    (-1, 0, 0),
-    (0, 1, 0),
-    (0, -1, 0),
-    (1, -1, 0),
-    (-1, 1, 0),
-    (0, 0, 123456),
-    (0, 0, -123456),
-])
+@pytest.mark.parametrize(
+    "args",
+    [
+        (0, 0, 0),
+        (1, 0, 0),
+        (-1, 0, 0),
+        (0, 1, 0),
+        (0, -1, 0),
+        (1, -1, 0),
+        (-1, 1, 0),
+        (0, 0, 123456),
+        (0, 0, -123456),
+    ],
+)
 def test_delta(args):
     act = pdt.timedelta(*args)
     exp = rdt.make_delta(*args)
@@ -245,23 +259,28 @@ def test_delta_accessors(td):
     assert act == exp
 
 
-@pytest.mark.parametrize('args,err_type', [
-    ((MAX_DAYS + 1, 0, 0), OverflowError),
-    ((MIN_DAYS - 1, 0, 0), OverflowError),
-    ((0, MAX_SECONDS + 1, 0), OverflowError),
-    ((0, MIN_SECONDS - 1, 0), OverflowError),
-    ((0, 0, MAX_MICROSECONDS + 1), OverflowError),
-    ((0, 0, MIN_MICROSECONDS - 1), OverflowError),
-    (('0', 0, 0), TypeError),
-    ((0, '0', 0), TypeError),
-    ((0, 0, '0'), TypeError),
-])
+@pytest.mark.parametrize(
+    "args,err_type",
+    [
+        ((MAX_DAYS + 1, 0, 0), OverflowError),
+        ((MIN_DAYS - 1, 0, 0), OverflowError),
+        ((0, MAX_SECONDS + 1, 0), OverflowError),
+        ((0, MIN_SECONDS - 1, 0), OverflowError),
+        ((0, 0, MAX_MICROSECONDS + 1), OverflowError),
+        ((0, 0, MIN_MICROSECONDS - 1), OverflowError),
+        (("0", 0, 0), TypeError),
+        ((0, "0", 0), TypeError),
+        ((0, 0, "0"), TypeError),
+    ],
+)
 def test_delta_err(args, err_type):
     with pytest.raises(err_type):
         rdt.make_delta(*args)
 
+
 def test_issue_219():
     rdt.issue_219()
+
 
 def test_tz_class():
     tzi = rdt.TzClass()
@@ -272,9 +291,9 @@ def test_tz_class():
     assert dt.utcoffset() == pdt.timedelta(hours=1)
     assert dt.dst() is None
 
+
 def test_tz_class_introspection():
     tzi = rdt.TzClass()
 
     assert tzi.__class__ == rdt.TzClass
-    assert repr(tzi).startswith('<rustapi_module.datetime.TzClass object at')
-
+    assert repr(tzi).startswith("<rustapi_module.datetime.TzClass object at")
