@@ -442,11 +442,6 @@ where
 
     // set type flags
     py_class_flags::<T>(type_object);
-    if type_object.tp_base
-        != unsafe { &ffi::PyBaseObject_Type as *const ffi::PyTypeObject as *mut ffi::PyTypeObject }
-    {
-        type_object.tp_flags |= ffi::Py_TPFLAGS_HEAPTYPE
-    }
 
     // register type object
     unsafe {
