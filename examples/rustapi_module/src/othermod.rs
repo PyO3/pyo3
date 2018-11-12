@@ -13,7 +13,7 @@ pub struct ModClass {
 impl ModClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| ModClass {
+        obj.init(|| ModClass {
             _somefield: String::from("contents"),
         })
     }

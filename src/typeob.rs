@@ -8,14 +8,14 @@ use std::ffi::CString;
 use std::mem;
 use std::os::raw::c_void;
 
-use crate::{class, ffi, pythonrun};
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Py, PyObjectWithToken, PyToken};
-use crate::python::{IntoPyPointer, Python};
+use crate::instance::{Py, PyObjectWithToken};
 use crate::python::ToPyPointer;
+use crate::python::{IntoPyPointer, Python};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
+use crate::{class, ffi, pythonrun};
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -85,7 +85,7 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(|_| MyClass { })
+///        obj.init(||   MyClass { })
 ///    }
 /// }
 /// ```
@@ -142,11 +142,11 @@ impl PyRawObject {
     }
 
     pub fn init<T, F>(&self, f: F) -> PyResult<()>
-        where
-            F: FnOnce(PyToken) -> T,
-            T: PyTypeInfo,
+    where
+        F: FnOnce() -> T,
+        T: PyTypeInfo,
     {
-        let value = f(PyToken::new());
+        let value = f();
 
         unsafe {
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
@@ -208,7 +208,9 @@ pub trait PyObjectAlloc: PyTypeInfo {
     unsafe fn drop(_py: Python, _obj: *mut ffi::PyObject) {}
 }
 
-impl<T> PyObjectAlloc for T where T: PyTypeInfo
+impl<T> PyObjectAlloc for T
+where
+    T: PyTypeInfo,
 {
     #[allow(unconditional_recursion)]
     /// Calls the rust destructor for the object.
@@ -231,11 +233,11 @@ impl<T> PyObjectAlloc for T where T: PyTypeInfo
         Self::drop(py, obj);
 
         #[cfg(Py_3)]
-            {
-                if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
-                    return;
-                }
+        {
+            if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+                return;
             }
+        }
 
         match Self::type_object().tp_free {
             Some(free) => free(obj as *mut c_void),
@@ -310,8 +312,8 @@ pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
 impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeInfo + Sized {}
 
 impl<T> PyTypeObject for T
-    where
-        T: PyTypeCreate,
+where
+    T: PyTypeCreate,
 {
     fn init_type() {
         <T as PyTypeCreate>::init_type()
@@ -325,8 +327,8 @@ impl<T> PyTypeObject for T
 /// Register new type in python object system.
 #[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<()>
-    where
-        T: PyObjectAlloc + PyTypeInfo,
+where
+    T: PyObjectAlloc + PyTypeInfo,
 {
     // type name
     let name = match module_name {
@@ -463,8 +465,8 @@ fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
 fn async_methods<T>(_type_info: &mut ffi::PyTypeObject) {}
 
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
-    where
-        T: PyObjectAlloc,
+where
+    T: PyObjectAlloc,
 {
     let _pool = pythonrun::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
@@ -476,9 +478,9 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     if type_object.tp_traverse != None
         || type_object.tp_clear != None
         || T::FLAGS & PY_TYPE_FLAG_GC != 0
-        {
-            type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
-        } else {
+    {
+        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
+    } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
     }
     if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
@@ -491,10 +493,10 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     if type_object.tp_traverse != None
         || type_object.tp_clear != None
         || T::FLAGS & PY_TYPE_FLAG_GC != 0
-        {
-            type_object.tp_flags =
-                ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
-        } else {
+    {
+        type_object.tp_flags =
+            ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
+    } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
     }
     if !type_object.tp_as_buffer.is_null() {
@@ -583,27 +585,27 @@ fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods()
         .iter()
         .chain(<T as class::methods::PyPropMethodsProtocolImpl>::py_methods().iter())
-        {
-            match *def {
-                PyMethodDefType::Getter(ref getter) => {
-                    let name = getter.name.to_string();
-                    if !defs.contains_key(&name) {
-                        let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
-                    }
-                    let def = defs.get_mut(&name).expect("Failed to call get_mut");
-                    getter.copy_to(def);
+    {
+        match *def {
+            PyMethodDefType::Getter(ref getter) => {
+                let name = getter.name.to_string();
+                if !defs.contains_key(&name) {
+                    let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
                 }
-                PyMethodDefType::Setter(ref setter) => {
-                    let name = setter.name.to_string();
-                    if !defs.contains_key(&name) {
-                        let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
-                    }
-                    let def = defs.get_mut(&name).expect("Failed to call get_mut");
-                    setter.copy_to(def);
-                }
-                _ => (),
+                let def = defs.get_mut(&name).expect("Failed to call get_mut");
+                getter.copy_to(def);
             }
+            PyMethodDefType::Setter(ref setter) => {
+                let name = setter.name.to_string();
+                if !defs.contains_key(&name) {
+                    let _ = defs.insert(name.clone(), ffi::PyGetSetDef_INIT);
+                }
+                let def = defs.get_mut(&name).expect("Failed to call get_mut");
+                setter.copy_to(def);
+            }
+            _ => (),
         }
+    }
 
     defs.values().cloned().collect()
 }

@@ -12,7 +12,7 @@
 
 pub use crate::conversion::{FromPyObject, IntoPyObject, PyTryFrom, PyTryInto, ToPyObject};
 pub use crate::err::{PyErr, PyResult};
-pub use crate::instance::{AsPyRef, Py, PyToken};
+pub use crate::instance::{AsPyRef, Py};
 pub use crate::noargs::NoArgs;
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;

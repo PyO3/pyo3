@@ -71,7 +71,7 @@ fn test_buffer() {
     let py = gil.python();
 
     let t = py
-        .init(|_| TestClass {
+        .init(|| TestClass {
             vec: vec![b' ', b'2', b'3'],
         })
         .unwrap();
@@ -88,7 +88,7 @@ fn test_buffer() {
     let py = gil.python();
 
     let t = py
-        .init(|_| TestClass {
+        .init(|| TestClass {
             vec: vec![b' ', b'2', b'3'],
         })
         .unwrap();

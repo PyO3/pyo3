@@ -12,7 +12,7 @@ struct EmptyClassWithNew {}
 impl EmptyClassWithNew {
     #[__new__]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| EmptyClassWithNew {})
+        obj.init(|| EmptyClassWithNew {})
     }
 }
 
@@ -37,7 +37,7 @@ struct NewWithOneArg {
 impl NewWithOneArg {
     #[new]
     fn __new__(obj: &PyRawObject, arg: i32) -> PyResult<()> {
-        obj.init(|_| NewWithOneArg { _data: arg })
+        obj.init(|| NewWithOneArg { _data: arg })
     }
 }
 
@@ -61,7 +61,7 @@ struct NewWithTwoArgs {
 impl NewWithTwoArgs {
     #[new]
     fn __new__(obj: &PyRawObject, arg1: i32, arg2: i32) -> PyResult<()> {
-        obj.init(|_| NewWithTwoArgs {
+        obj.init(|| NewWithTwoArgs {
             _data1: arg1,
             _data2: arg2,
         })

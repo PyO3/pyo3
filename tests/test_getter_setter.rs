@@ -35,7 +35,7 @@ fn class_with_properties() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|_| ClassWithProperties { num: 10 }).unwrap();
+    let inst = py.init(|| ClassWithProperties { num: 10 }).unwrap();
 
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
@@ -65,7 +65,7 @@ fn getter_setter_autogen() {
     let py = gil.python();
 
     let inst = py
-        .init(|_| GetterSetter {
+        .init(|| GetterSetter {
             num: 10,
             text: "Hello".to_string(),
         })

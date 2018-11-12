@@ -10,29 +10,20 @@ use utils;
 pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> TokenStream {
     let (params, flags, base) = parse_attribute(attr);
     let doc = utils::get_doc(&class.attrs, true);
-    let mut token: Option<syn::Ident> = None;
     let mut descriptors = Vec::new();
 
     if let syn::Fields::Named(ref mut fields) = class.fields {
         for field in fields.named.iter_mut() {
-            if is_python_token(field) {
-                if token.is_none() {
-                    token = field.ident.clone();
-                } else {
-                    panic!("You can only have one PyToken per class");
-                }
-            } else {
-                let field_descs = parse_descriptors(field);
-                if !field_descs.is_empty() {
-                    descriptors.push((field.clone(), field_descs));
-                }
+            let field_descs = parse_descriptors(field);
+            if !field_descs.is_empty() {
+                descriptors.push((field.clone(), field_descs));
             }
         }
     } else {
         panic!("#[pyclass] can only be used with C-style structs")
     }
 
-    impl_class(&class.ident, &base, token, doc, params, flags, descriptors)
+    impl_class(&class.ident, &base, doc, params, flags, descriptors)
 }
 
 fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
@@ -72,7 +63,6 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
 fn impl_class(
     cls: &syn::Ident,
     base: &syn::TypePath,
-    token: Option<syn::Ident>,
     doc: syn::Lit,
     params: HashMap<&'static str, syn::Expr>,
     flags: Vec<syn::Expr>,
@@ -81,38 +71,6 @@ fn impl_class(
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.to_string(),
         None => quote! { #cls }.to_string(),
-    };
-
-    let extra = if let Some(token) = token {
-        Some(quote! {
-            impl ::pyo3::PyObjectWithToken for #cls {
-                fn py<'p>(&'p self) -> ::pyo3::Python<'p> {
-                    self.#token.py()
-                }
-            }
-            impl<'a> ::std::convert::From<&'a mut #cls> for &'a #cls
-            {
-                fn from(ob: &'a mut #cls) -> Self {
-                    unsafe{std::mem::transmute(ob)}
-                }
-            }
-            impl ::std::fmt::Debug for #cls {
-                fn fmt(&self, f : &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-                    use ::pyo3::ObjectProtocol;
-                    let s = self.repr().map_err(|_| ::std::fmt::Error)?;
-                    f.write_str(&s.to_string_lossy())
-                }
-            }
-            impl ::std::fmt::Display for #cls {
-                fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-                    use ::pyo3::ObjectProtocol;
-                    let s = self.str().map_err(|_| ::std::fmt::Error)?;
-                    f.write_str(&s.to_string_lossy())
-                }
-            }
-        })
-    } else {
-        None
     };
 
     let extra = {
@@ -133,11 +91,9 @@ fn impl_class(
                         }
                     }
                 }
-
-                #extra
             })
         } else {
-            extra
+            None
         }
     };
 
@@ -209,7 +165,7 @@ fn impl_class(
         // objects, so for now I'm keeping it
         impl ::pyo3::IntoPyObject for #cls {
             fn into_object(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
-                ::pyo3::Py::new(py, |_| self).unwrap().into_object(py)
+                ::pyo3::Py::new(py, || self).unwrap().into_object(py)
             }
         }
 
@@ -335,18 +291,6 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
             }
         }
     }
-}
-
-fn is_python_token(field: &syn::Field) -> bool {
-    match field.ty {
-        syn::Type::Path(ref typath) => {
-            if let Some(segment) = typath.path.segments.last() {
-                return segment.value().ident.to_string() == "PyToken";
-            }
-        }
-        _ => (),
-    }
-    return false;
 }
 
 fn parse_attribute(

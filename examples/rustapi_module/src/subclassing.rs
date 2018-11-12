@@ -9,7 +9,7 @@ pub struct Subclassable {}
 impl Subclassable {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| Subclassable {})
+        obj.init(|| Subclassable {})
     }
 }
 

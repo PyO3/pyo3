@@ -1,9 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::rc::Rc;
 
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use crate::err::{PyErr, PyResult};
@@ -16,19 +14,6 @@ use crate::pythonrun;
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
-
-pub struct PyToken(PhantomData<Rc<()>>);
-
-impl PyToken {
-    pub(crate) fn new() -> PyToken {
-        PyToken(PhantomData)
-    }
-
-    #[inline]
-    pub fn py(&self) -> Python {
-        unsafe { Python::assume_gil_acquired() }
-    }
-}
 
 /// Any instance that is managed Python can have access to `gil`.
 pub trait PyObjectWithToken: Sized {
@@ -174,7 +159,7 @@ where
     /// Returns `Py<T>`.
     pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
     where
-        F: FnOnce(crate::PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;
@@ -188,7 +173,7 @@ where
     /// Returns references to `T`
     pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
     where
-        F: FnOnce(crate::PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;
@@ -201,7 +186,7 @@ where
     /// Returns mutable references to `T`
     pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
     where
-        F: FnOnce(crate::PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;
