@@ -14,6 +14,7 @@ use crate::types::{exceptions, PyDict, PyObjectRef, PyType};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
+use PyObjectAlloc;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
@@ -149,7 +150,7 @@ impl PyModule {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()>
     where
-        T: PyTypeInfo,
+        T: PyTypeInfo + PyObjectAlloc,
     {
         let ty = unsafe {
             let ty = <T as PyTypeInfo>::type_object();

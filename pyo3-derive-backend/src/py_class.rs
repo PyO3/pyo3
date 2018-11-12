@@ -75,7 +75,7 @@ fn impl_class(
 
     let extra = {
         if let Some(freelist) = params.get("freelist") {
-            Some(quote! {
+            quote! {
                 impl ::pyo3::freelist::PyObjectWithFreeList for #cls {
                     #[inline]
                     fn get_free_list() -> &'static mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
@@ -91,19 +91,21 @@ fn impl_class(
                         }
                     }
                 }
-            })
+            }
         } else {
-            None
+            quote! {
+                impl ::pyo3::typeob::PyObjectAlloc for #cls {}
+            }
         }
     };
 
     let extra = if !descriptors.is_empty() {
         let ty = syn::parse_str(&cls.to_string()).expect("no name");
         let desc_impls = impl_descriptors(&ty, descriptors);
-        Some(quote! {
+        quote! {
             #desc_impls
             #extra
-        })
+        }
     } else {
         extra
     };
