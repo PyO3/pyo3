@@ -5,7 +5,7 @@ use std::os::raw::c_long;
 use crate::conversion::ToPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 

@@ -7,7 +7,7 @@ use std::{mem, str};
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithToken};
+use crate::instance::{Py, PyObjectWithGIL};
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 use crate::types::exceptions;

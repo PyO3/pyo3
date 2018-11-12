@@ -4,7 +4,7 @@
 use crate::conversion::{ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, Py, PyObjectWithToken};
+use crate::instance::{AsPyRef, Py, PyObjectWithGIL};
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 use std::{collections, hash};

@@ -3,7 +3,7 @@
 use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::{PyList, PyObjectRef};

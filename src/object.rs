@@ -8,7 +8,7 @@ use crate::conversion::{
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, PyObjectWithToken};
+use crate::instance::{AsPyRef, PyObjectWithGIL};
 use crate::python::{IntoPyPointer, NonNullPyObject, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};

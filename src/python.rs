@@ -5,7 +5,7 @@
 use crate::conversion::PyTryFrom;
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, Py, PyToken};
+use crate::instance::{AsPyRef, Py};
 use crate::object::PyObject;
 use crate::pythonrun::{self, GILGuard};
 use crate::typeob::PyTypeCreate;
@@ -256,7 +256,7 @@ impl<'p> Python<'p> {
     #[inline]
     pub fn init<T, F>(self, f: F) -> PyResult<Py<T>>
     where
-        F: FnOnce(PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeCreate,
     {
         Py::new(self, f)
@@ -267,7 +267,7 @@ impl<'p> Python<'p> {
     #[inline]
     pub fn init_ref<T, F>(self, f: F) -> PyResult<&'p T>
     where
-        F: FnOnce(PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeCreate,
     {
         Py::new_ref(self, f)
@@ -278,7 +278,7 @@ impl<'p> Python<'p> {
     #[inline]
     pub fn init_mut<T, F>(self, f: F) -> PyResult<&'p mut T>
     where
-        F: FnOnce(PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeCreate,
     {
         Py::new_mut(self, f)

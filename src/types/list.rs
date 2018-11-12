@@ -7,7 +7,7 @@ use std;
 use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::PyObjectRef;

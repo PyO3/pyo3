@@ -4,7 +4,7 @@ use super::exceptions;
 use crate::conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::{AsPyRef, Py, PyObjectWithToken};
+use crate::instance::{AsPyRef, Py, PyObjectWithGIL};
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::PyObjectRef;

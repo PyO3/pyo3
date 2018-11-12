@@ -10,7 +10,7 @@ use std::str;
 use super::PyObjectRef;
 use err::{PyErr, PyResult};
 use ffi;
-use instance::{Py, PyObjectWithToken};
+use instance::{Py, PyObjectWithGIL};
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use python::{Python, ToPyPointer};
