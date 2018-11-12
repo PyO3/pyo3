@@ -15,9 +15,6 @@ use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
-use std::ptr::NonNull;
-
-pub type NonNullPyObject = NonNull<ffi::PyObject>;
 
 /// Marker type that indicates that the GIL is currently held.
 ///

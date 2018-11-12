@@ -661,6 +661,7 @@ impl_element!(f64, Float);
 #[cfg(test)]
 mod test {
     use super::PyBuffer;
+    use crate::ffi;
     use crate::python::Python;
     use std;
 
@@ -671,7 +672,7 @@ mod test {
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()
         assert_eq!(
-            std::mem::size_of::<crate::ffi::Py_ssize_t>(),
+            std::mem::size_of::<ffi::Py_ssize_t>(),
             std::mem::size_of::<usize>()
         );
     }

@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
+use std::mem;
 use std::ptr::NonNull;
 
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
@@ -9,7 +10,7 @@ use crate::ffi;
 use crate::instance;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::{IntoPyPointer, NonNullPyObject, Python, ToPyPointer};
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
@@ -85,10 +86,12 @@ pub trait AsPyRef<T>: Sized {
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer with specified type information.
 #[derive(Debug)]
-pub struct Py<T>(NonNullPyObject, std::marker::PhantomData<T>);
+#[repr(transparent)]
+pub struct Py<T>(NonNull<ffi::PyObject>, std::marker::PhantomData<T>);
 
 // `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
 unsafe impl<T> Send for Py<T> {}
+
 unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T> {
@@ -151,6 +154,15 @@ impl<T> Py<T> {
     #[inline]
     pub fn clone_ref(&self, _py: Python) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(self.0.as_ptr()) }
+    }
+
+    /// Returns the inner pointer without decreasing the refcount
+    ///
+    /// This will eventually move into its own trait
+    pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
+        let pointer = self.0;
+        mem::forget(self);
+        pointer
     }
 }
 
@@ -251,8 +263,8 @@ impl<T> IntoPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    fn into_object(self, _py: Python) -> PyObject {
-        unsafe { std::mem::transmute(self) }
+    fn into_object(self, py: Python) -> PyObject {
+        unsafe { PyObject::from_owned_ptr(py, self.into_ptr()) }
     }
 }
 
@@ -294,7 +306,7 @@ impl<T> Drop for Py<T> {
 impl<T> std::convert::From<Py<T>> for PyObject {
     #[inline]
     fn from(ob: Py<T>) -> Self {
-        unsafe { std::mem::transmute(ob) }
+        unsafe { PyObject::from_not_null(ob.into_non_null()) }
     }
 }
 

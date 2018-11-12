@@ -1,8 +1,9 @@
 //! common macros for num2.rs and num3.rs
 
+use std::os::raw::c_int;
+
 use crate::err::{PyErr, PyResult};
 use crate::python::Python;
-use std::os::raw::c_int;
 
 pub(super) fn err_if_invalid_value<T: PartialEq>(
     py: Python,
@@ -17,7 +18,7 @@ pub(super) fn err_if_invalid_value<T: PartialEq>(
 }
 
 #[macro_export]
-macro_rules! int_fits_larger_int(
+macro_rules! int_fits_larger_int (
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
             #[inline]
@@ -56,6 +57,9 @@ macro_rules! int_convert_bignum (
         impl IntoPyObject for $rust_type {
             fn into_object(self, py: Python) -> PyObject {
                 unsafe {
+                    // TODO: Replace this with functions from the from_bytes family
+                    // Once they are stabilized
+                    // https://github.com/rust-lang/rust/issues/52963
                     let bytes = ::std::mem::transmute::<_, [c_uchar; $byte_size]>(self);
                     let obj = ffi::_PyLong_FromByteArray(
                         bytes.as_ptr() as *const c_uchar,
@@ -101,9 +105,10 @@ pub(super) const IS_LITTLE_ENDIAN: c_int = 0;
 
 #[cfg(test)]
 mod test {
+    use std;
+
     use crate::conversion::ToPyObject;
     use crate::python::Python;
-    use std;
 
     #[test]
     fn test_u32_max() {

@@ -9,7 +9,7 @@ use crate::conversion::{
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{AsPyRef, PyObjectWithGIL};
-use crate::python::{IntoPyPointer, NonNullPyObject, Python, ToPyPointer};
+use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
 
@@ -21,13 +21,18 @@ use crate::types::{PyDict, PyObjectRef, PyTuple};
 /// Technically, it is a safe wrapper around the unsafe `*mut ffi::PyObject` pointer.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct PyObject(NonNullPyObject);
+pub struct PyObject(NonNull<ffi::PyObject>);
 
 // `PyObject` is thread-safe, any python related operations require a Python<'p> token.
 unsafe impl Send for PyObject {}
 unsafe impl Sync for PyObject {}
 
 impl PyObject {
+    /// For internal conversions
+    pub(crate) unsafe fn from_not_null(ptr: NonNull<ffi::PyObject>) -> PyObject {
+        PyObject(ptr)
+    }
+
     /// Creates a `PyObject` instance for the given FFI pointer.
     /// This moves ownership over the pointer into the `PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.

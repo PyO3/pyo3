@@ -70,18 +70,10 @@ impl PyMethodDef {
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
-            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe {
-                std::mem::transmute::<ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
-            },
-            PyMethodType::PyNoArgsFunction(meth) => unsafe {
-                std::mem::transmute::<ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
-            },
-            PyMethodType::PyNewFunc(meth) => unsafe {
-                std::mem::transmute::<ffi::newfunc, ffi::PyCFunction>(meth)
-            },
-            PyMethodType::PyInitFunc(meth) => unsafe {
-                std::mem::transmute::<ffi::initproc, ffi::PyCFunction>(meth)
-            },
+            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyNoArgsFunction(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyNewFunc(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyInitFunc(meth) => unsafe { std::mem::transmute(meth) },
         };
 
         ffi::PyMethodDef {

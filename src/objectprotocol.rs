@@ -2,6 +2,7 @@
 
 use crate::conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::exceptions::TypeError;
 use crate::ffi;
 use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
@@ -279,7 +280,7 @@ where
             } else if result < 0 {
                 return Err(PyErr::fetch(py));
             }
-            Err(crate::exceptions::TypeError::py_err(
+            Err(TypeError::py_err(
                 "ObjectProtocol::compare(): All comparisons returned false",
             ))
         }

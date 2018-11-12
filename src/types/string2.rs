@@ -7,14 +7,16 @@ use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
 
-use super::PyObjectRef;
 use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithGIL};
 use object::PyObject;
 use objectprotocol::ObjectProtocol;
+use python::IntoPyPointer;
 use python::{Python, ToPyPointer};
 use types::exceptions;
+
+use super::PyObjectRef;
 
 /// Represents a Python `string`.
 #[repr(transparent)]
@@ -190,7 +192,7 @@ impl PyUnicode {
 impl std::convert::From<Py<PyBytes>> for Py<PyString> {
     #[inline]
     fn from(ob: Py<PyBytes>) -> Py<PyString> {
-        unsafe { std::mem::transmute(ob) }
+        unsafe { Py::from_owned_ptr(ob.into_ptr()) }
     }
 }
 
@@ -198,18 +200,20 @@ impl std::convert::From<Py<PyBytes>> for Py<PyString> {
 impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
     #[inline]
     fn from(ob: Py<PyUnicode>) -> Py<PyString> {
-        unsafe { std::mem::transmute(ob) }
+        unsafe { Py::from_owned_ptr(ob.into_ptr()) }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::PyString;
+    use std::borrow::Cow;
+
     use conversion::{FromPyObject, PyTryFrom, ToPyObject};
     use instance::AsPyRef;
     use object::PyObject;
     use python::Python;
-    use std::borrow::Cow;
+
+    use super::PyString;
 
     #[test]
     fn test_non_bmp() {
