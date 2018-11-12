@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * `PyToken` was removed due to unsoundness (See [#94](https://github.com/PyO3/pyo3/issues/94)).
  * Removed the unnecessary type parameter from `PyObjectAlloc`
 
 ## [0.5.0] - 2018-11-11

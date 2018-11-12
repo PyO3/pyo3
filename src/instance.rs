@@ -16,6 +16,9 @@ use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
 
 /// Any instance that is managed Python can have access to `gil`.
+///
+/// Originally, this was given to all classes with a `PyToken` field, but since `PyToken` was
+/// removed this is only given to native types.
 pub trait PyObjectWithGIL: Sized {
     fn py(&self) -> Python;
 }
