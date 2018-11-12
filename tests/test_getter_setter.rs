@@ -11,7 +11,6 @@ mod common;
 #[pyclass]
 struct ClassWithProperties {
     num: i32,
-    token: PyToken,
 }
 
 #[pymethods]
@@ -36,9 +35,7 @@ fn class_with_properties() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py
-        .init(|t| ClassWithProperties { num: 10, token: t })
-        .unwrap();
+    let inst = py.init(|_| ClassWithProperties { num: 10 }).unwrap();
 
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
@@ -49,7 +46,6 @@ fn class_with_properties() {
 
 #[pyclass]
 struct GetterSetter {
-    token: PyToken,
     #[prop(get, set)]
     num: i32,
     #[prop(get, set)]
@@ -69,9 +65,8 @@ fn getter_setter_autogen() {
     let py = gil.python();
 
     let inst = py
-        .init(|t| GetterSetter {
+        .init(|_| GetterSetter {
             num: 10,
-            token: t,
             text: "Hello".to_string(),
         })
         .unwrap();

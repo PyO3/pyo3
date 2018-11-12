@@ -13,7 +13,6 @@ mod common;
 #[pyclass]
 struct MutRefArg {
     n: i32,
-    token: PyToken,
 }
 
 #[pymethods]
@@ -31,8 +30,8 @@ impl MutRefArg {
 fn mut_ref_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst1 = py.init(|t| MutRefArg { token: t, n: 0 }).unwrap();
-    let inst2 = py.init(|t| MutRefArg { token: t, n: 0 }).unwrap();
+    let inst1 = py.init(|_| MutRefArg { n: 0 }).unwrap();
+    let inst2 = py.init(|_| MutRefArg { n: 0 }).unwrap();
 
     let d = PyDict::new(py);
     d.set_item("inst1", &inst1).unwrap();

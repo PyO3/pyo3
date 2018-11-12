@@ -5,7 +5,6 @@ extern crate pyo3;
 use pyo3::class::*;
 use pyo3::prelude::*;
 use pyo3::types::PyObjectRef;
-use pyo3::PyObjectWithToken;
 
 #[macro_use]
 mod common;
@@ -212,9 +211,7 @@ impl PyObjectProtocol for RichComparisons {
 }
 
 #[pyclass]
-struct RichComparisons2 {
-    py: PyToken,
-}
+struct RichComparisons2 {}
 
 #[pyproto]
 impl PyObjectProtocol for RichComparisons2 {
@@ -223,10 +220,11 @@ impl PyObjectProtocol for RichComparisons2 {
     }
 
     fn __richcmp__(&self, _other: &PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
+        let gil = GILGuard::acquire();
         match op {
-            CompareOp::Eq => Ok(true.to_object(self.py())),
-            CompareOp::Ne => Ok(false.to_object(self.py())),
-            _ => Ok(self.py().NotImplemented()),
+            CompareOp::Eq => Ok(true.to_object(gil.python())),
+            CompareOp::Ne => Ok(false.to_object(gil.python())),
+            _ => Ok(gil.python().NotImplemented()),
         }
     }
 }
@@ -263,7 +261,7 @@ fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c2 = py.init(|t| RichComparisons2 { py: t }).unwrap();
+    let c2 = py.init(|_| RichComparisons2 {}).unwrap();
     py_expect_exception!(py, c2, "c2 < c2", TypeError);
     py_expect_exception!(py, c2, "c2 < 1", TypeError);
     py_expect_exception!(py, c2, "1 < c2", TypeError);

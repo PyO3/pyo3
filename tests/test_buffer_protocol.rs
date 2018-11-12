@@ -14,7 +14,6 @@ use pyo3::types::PyDict;
 #[pyclass]
 struct TestClass {
     vec: Vec<u8>,
-    token: PyToken,
 }
 
 #[pyproto]
@@ -72,9 +71,8 @@ fn test_buffer() {
     let py = gil.python();
 
     let t = py
-        .init(|t| TestClass {
+        .init(|_| TestClass {
             vec: vec![b' ', b'2', b'3'],
-            token: t,
         })
         .unwrap();
 
@@ -90,9 +88,8 @@ fn test_buffer() {
     let py = gil.python();
 
     let t = py
-        .init(|t| TestClass {
+        .init(|_| TestClass {
             vec: vec![b' ', b'2', b'3'],
-            token: t,
         })
         .unwrap();
 

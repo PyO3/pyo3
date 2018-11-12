@@ -95,14 +95,13 @@ with value of custom class struct. Subclass must call parent's `__new__` method.
 #[pyclass]
 struct BaseClass {
    val1: usize,
-   token: PyToken,
 }
 
 #[pymethods]
 impl BaseClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       obj.init(|token| BaseClass{val1: 10, token})
+       obj.init(|_| BaseClass{ val1: 10 })
    }
 
    pub fn method(&self) -> PyResult<()> {
@@ -113,14 +112,13 @@ impl BaseClass {
 #[pyclass(extends=BaseClass)]
 struct SubClass {
    val2: usize,
-   token: PyToken,
 }
 
 #[pymethods]
 impl SubClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       obj.init(|token| SubClass{val2: 10, token});
+       obj.init(|_| SubClass{ val2: 10 });
        BaseClass::__new__(obj)
    }
 
@@ -513,7 +511,6 @@ use pyo3::prelude::*;
 #[pyclass]
 struct ClassWithGCSupport {
     obj: Option<PyObject>,
-    token: PyToken,
 }
 
 #[pyproto]
@@ -562,7 +559,6 @@ use pyo3::prelude::*;
 #[pyclass]
 struct MyIterator {
     iter: Box<Iterator<Item=PyObject> + Send>,
-    token: PyToken,
 }
 
 #[pyproto]

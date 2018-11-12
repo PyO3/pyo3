@@ -86,8 +86,8 @@ fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a syn::Ident) -> Option<m
             let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
             Some(method::FnArg {
                 name: ident,
-                mutability: mutability,
-                by_ref: by_ref,
+                mutability,
+                by_ref,
                 ty: &cap.ty,
                 optional: opt,
                 py,
