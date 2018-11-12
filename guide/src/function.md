@@ -12,7 +12,7 @@ extern crate pyo3;
 use pyo3::prelude::*;
 
 
-#[pymodinit]
+#[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
@@ -45,7 +45,7 @@ fn double(x: usize) -> usize {
     x * 2
 }
 
-#[pymodinit]
+#[pymodule]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_function!(double)).unwrap();
 

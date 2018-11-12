@@ -37,7 +37,7 @@ pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
     }
 }
 
-/// Finds and takes care of the #[pyfn(...)] in `#[pymodinit]`
+/// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
 pub fn process_functions_in_module(func: &mut syn::ItemFn) {
     let mut stmts: Vec<syn::Stmt> = Vec::new();
 

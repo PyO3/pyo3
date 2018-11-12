@@ -47,7 +47,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 }
 
 /// This module is a python moudle implemented in Rust.
-#[pymodinit]
+#[pymodule]
 fn rust_py(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_function!(sum_as_string))?;
 

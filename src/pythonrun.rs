@@ -27,7 +27,7 @@ static START_PYO3: sync::Once = sync::ONCE_INIT;
 /// thread (the thread which originally initialized Python) also initializes
 /// threading.
 ///
-/// When writing an extension module, the `#[pymodinit]` macro
+/// When writing an extension module, the `#[pymodule]` macro
 /// will ensure that Python threading is initialized.
 ///
 pub fn prepare_freethreaded_python() {

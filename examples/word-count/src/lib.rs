@@ -78,7 +78,7 @@ fn count_line(line: &str, needle: &str) -> usize {
     total
 }
 
-#[pymodinit]
+#[pymodule]
 fn word_count(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_function!(count_line))?;
     m.add_class::<WordCounter>()?;

@@ -202,7 +202,7 @@ impl TzClass {
     }
 }
 
-#[pymodinit]
+#[pymodule]
 fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_function!(make_date))?;
     m.add_wrapped(wrap_function!(get_date_tuple))?;

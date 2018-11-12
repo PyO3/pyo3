@@ -28,7 +28,7 @@ fn double(x: i32) -> i32 {
     x * 2
 }
 
-#[pymodinit]
+#[pymodule]
 fn othermod(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_function!(double))?;
     m.add_class::<ModClass>()?;

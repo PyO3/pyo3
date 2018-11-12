@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::RuntimeError;
 use pyo3::types::PyDict;
 
-#[pymodinit(test_dict)]
+#[pymodule]
 fn test_dict(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<DictSize>()?;
     Ok(())

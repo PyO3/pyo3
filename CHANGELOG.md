@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added a `wrap_module!` macro similar to the existing `wrap_function!` macro. Only available on python 3
 
 ### Changed
+
  * Renamed `add_function` to `add_wrapped` as it now also supports modules.
+ * Renamed `#[pymodinit]` to `#[pymodule]`.
 
 ### Removed
 

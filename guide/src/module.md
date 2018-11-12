@@ -11,7 +11,7 @@ use pyo3::{PyResult, Python, PyModule};
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 /// This module is implemented in Rust.
-#[pymodinit]
+#[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
     // pyo3 aware function. All of our python interface could be declared in a separate module.
@@ -34,7 +34,7 @@ fn sum_as_string(a:i64, b:i64) -> String {
 # fn main() {}
 ```
 
-The `#[pymodinit]` procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, which must be the name of the `.so` or `.pyd` file.
+The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, which must be the name of the `.so` or `.pyd` file.
 
 To import the module, either copy the shared library as described in [Get Started](./overview.md) or use a tool, e.g. `pyo3-pack develop` with [pyo3-pack](https://github.com/PyO3/pyo3-pack) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 

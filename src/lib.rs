@@ -56,8 +56,8 @@
 //!
 //! To allow Python to load the rust code as a Python extension
 //! module, you need an initialization function with `Fn(Python, &PyModule) -> PyResult<()>`
-//! that is annotates with `#[pymodinit]`. By default the function name will become the module name,
-//! but you can override that with `#[pymodinit(name)]`.
+//! that is annotates with `#[pymodule]`. By default the function name will become the module name,
+//! but you can override that with `#[pymodule(name)]`.
 //!
 //! To creates a Python callable object that invokes a Rust function, specify rust
 //! function and decorate it with `#[pyfn()]` attribute. `pyfn()` accepts three parameters.
@@ -78,7 +78,7 @@
 //! // Add bindings to the generated python module
 //! // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
 //! /// This module is implemented in Rust.
-//! #[pymodinit]
+//! #[pymodule]
 //! fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 //!
 //!     #[pyfn(m, "sum_as_string")]
@@ -192,9 +192,9 @@ pub mod types;
 /// The proc macros, which are also part of the prelude
 pub mod proc_macro {
     #[cfg(not(Py_3))]
-    pub use pyo3cls::mod2init as pymodinit;
+    pub use pyo3cls::mod2init as pymodule;
     #[cfg(Py_3)]
-    pub use pyo3cls::mod3init as pymodinit;
+    pub use pyo3cls::mod3init as pymodule;
     /// The proc macro attributes
     pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 }
