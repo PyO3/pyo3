@@ -12,7 +12,7 @@ use proc_macro2::{Span, TokenStream};
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
 pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
-    let cb_name: syn::Ident = syn::parse_str(&format!("PyInit_{}", name)).unwrap();
+    let cb_name = syn::Ident::new(&format!("PyInit_{}", name), Span::call_site());
 
     quote! {
         #[no_mangle]
@@ -26,7 +26,7 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
 }
 
 pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
-    let cb_name: syn::Ident = syn::parse_str(&format!("init{}", name)).unwrap();
+    let cb_name = syn::Ident::new(&format!("init{}", name), Span::call_site());
 
     quote! {
         #[no_mangle]
@@ -51,7 +51,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
                 let item: syn::ItemFn = parse_quote!{
                     fn block_wrapper() {
                         #function_to_python
-                        #module_name.add_function(&#function_wrapper_ident)?;
+                        #module_name.add_wrapped(&#function_wrapper_ident)?;
                     }
                 };
                 stmts.extend(item.block.stmts.into_iter());

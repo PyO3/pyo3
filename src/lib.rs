@@ -201,7 +201,7 @@ pub mod proc_macro {
 
 /// Returns a function that takes a [Python] instance and returns a python function.
 ///
-/// Use this together with `#[function]` and [types::PyModule::add_function].
+/// Use this together with `#[pyfunction]` and [types::PyModule::add_wrapped].
 #[macro_export]
 macro_rules! wrap_function {
     ($function_name:ident) => {{
@@ -215,6 +215,25 @@ macro_rules! wrap_function {
 
         m! {
             &"method"
+        }
+    }};
+}
+
+/// Returns a function that takes a [Python] instance and returns a python module.
+///
+/// Use this together with `#[pymodule]` and [types::PyModule::add_wrapped].
+#[cfg(Py_3)]
+#[macro_export]
+macro_rules! wrap_module {
+    ($module_name:ident) => {{
+        use $crate::mashup::*;
+
+        mashup! {
+            m["method"] = PyInit_ $module_name;
+        }
+
+        m! {
+            &|py| unsafe { crate::PyObject::from_owned_ptr(py, "method"()) }
         }
     }};
 }

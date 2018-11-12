@@ -169,12 +169,14 @@ impl PyModule {
         self.setattr(T::NAME, ty)
     }
 
-    /// Adds a function to a module, using the functions __name__ as name.
+    /// Adds a function or a (sub)module to a module, using the functions __name__ as name.
     ///
-    /// Use this together with the`#[pyfunction]` and [wrap_function!] macro.
+    /// Use this together with the`#[pyfunction]` and [wrap_function!] or `#[pymodule]` and
+    /// [wrap_module!].
     ///
     /// ```rust,ignore
-    /// m.add_function(wrap_function!(double));
+    /// m.add_wrapped(wrap_function!(double));
+    /// m.add_wrapped(wrap_module!(utils));
     /// ```
     ///
     /// You can also add a function with a custom name using [add](PyModule::add):
@@ -182,11 +184,11 @@ impl PyModule {
     /// ```rust,ignore
     /// m.add("also_double", wrap_function!(double)(py));
     /// ```
-    pub fn add_function(&self, wrapper: &Fn(Python) -> PyObject) -> PyResult<()> {
+    pub fn add_wrapped(&self, wrapper: &Fn(Python) -> PyObject) -> PyResult<()> {
         let function = wrapper(self.py());
         let name = function
             .getattr(self.py(), "__name__")
-            .expect("A function must have a __name__");
+            .expect("A function or module must have a __name__");
         self.add(name.extract(self.py()).unwrap(), function)
     }
 }

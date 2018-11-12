@@ -204,26 +204,26 @@ impl TzClass {
 
 #[pymodinit]
 fn datetime(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_function!(make_date))?;
-    m.add_function(wrap_function!(get_date_tuple))?;
-    m.add_function(wrap_function!(date_from_timestamp))?;
-    m.add_function(wrap_function!(make_time))?;
-    m.add_function(wrap_function!(get_time_tuple))?;
-    m.add_function(wrap_function!(make_delta))?;
-    m.add_function(wrap_function!(get_delta_tuple))?;
-    m.add_function(wrap_function!(make_datetime))?;
-    m.add_function(wrap_function!(get_datetime_tuple))?;
-    m.add_function(wrap_function!(datetime_from_timestamp))?;
+    m.add_wrapped(wrap_function!(make_date))?;
+    m.add_wrapped(wrap_function!(get_date_tuple))?;
+    m.add_wrapped(wrap_function!(date_from_timestamp))?;
+    m.add_wrapped(wrap_function!(make_time))?;
+    m.add_wrapped(wrap_function!(get_time_tuple))?;
+    m.add_wrapped(wrap_function!(make_delta))?;
+    m.add_wrapped(wrap_function!(get_delta_tuple))?;
+    m.add_wrapped(wrap_function!(make_datetime))?;
+    m.add_wrapped(wrap_function!(get_datetime_tuple))?;
+    m.add_wrapped(wrap_function!(datetime_from_timestamp))?;
 
     // Python 3.6+ functions
     #[cfg(Py_3_6)]
     {
-        m.add_function(wrap_function!(time_with_fold))?;
-        m.add_function(wrap_function!(get_time_tuple_fold))?;
-        m.add_function(wrap_function!(get_datetime_tuple_fold))?;
+        m.add_wrapped(wrap_function!(time_with_fold))?;
+        m.add_wrapped(wrap_function!(get_time_tuple_fold))?;
+        m.add_wrapped(wrap_function!(get_datetime_tuple_fold))?;
     }
 
-    m.add_function(wrap_function!(issue_219))?;
+    m.add_wrapped(wrap_function!(issue_219))?;
 
     m.add_class::<TzClass>()?;
     Ok(())

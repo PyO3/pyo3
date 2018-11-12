@@ -29,7 +29,7 @@ fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 ```
 
 The other is annotating a function with `#[py::function]` and then adding it
-to the module using the `add_function_to_module!` macro, which takes the module
+to the module using the `add_wrapped_to_module!` macro, which takes the module
 as first parameter, the function name as second and an instance of `Python`
 as third.
 
@@ -47,7 +47,7 @@ fn double(x: usize) -> usize {
 
 #[pymodinit]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_function!(double)).unwrap();
+    m.add_wrapped(wrap_function!(double)).unwrap();
 
     Ok(())
 }
