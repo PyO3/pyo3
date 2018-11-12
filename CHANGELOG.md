@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Removed
+
+ * Removed the unnecessary type parameter from `PyObjectAlloc`
+
 ## [0.5.0] - 2018-11-11
 
 ### Added

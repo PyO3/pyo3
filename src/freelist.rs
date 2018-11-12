@@ -68,16 +68,16 @@ impl<T> FreeList<T> {
     }
 }
 
-impl<T> PyObjectAlloc<T> for T
+impl<T> PyObjectAlloc for T
 where
     T: PyObjectWithFreeList,
 {
     unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
-        let obj = if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().pop() {
-            ffi::PyObject_Init(obj, <T as PyTypeInfo>::type_object());
+        let obj = if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().pop() {
+            ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object());
             obj
         } else {
-            ffi::PyType_GenericAlloc(<T as PyTypeInfo>::type_object(), 0)
+            ffi::PyType_GenericAlloc(<Self as PyTypeInfo>::type_object(), 0)
         };
 
         Ok(obj)
@@ -85,14 +85,14 @@ where
 
     #[cfg(Py_3)]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        pytype_drop::<T>(py, obj);
+        pytype_drop::<Self>(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
             return;
         }
 
-        if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            match (*T::type_object()).tp_free {
+        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
+            match Self::type_object().tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => {
                     let ty = ffi::Py_TYPE(obj);
@@ -114,10 +114,10 @@ where
 
     #[cfg(not(Py_3))]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        pytype_drop::<T>(py, obj);
+        pytype_drop::<Self>(py, obj);
 
-        if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            match (*T::type_object()).tp_free {
+        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
+            match Self::type_object().tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => {
                     let ty = ffi::Py_TYPE(obj);
