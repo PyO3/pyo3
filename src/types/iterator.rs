@@ -4,7 +4,7 @@
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::python::{Python, ToPyPointer};
 use crate::types::PyObjectRef;
 

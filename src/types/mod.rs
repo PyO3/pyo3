@@ -66,7 +66,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> $crate::PyObjectWithToken for $name {
+        impl<$($type_param,)*> $crate::PyObjectWithGIL for $name {
             #[inline]
             fn py(&self) -> $crate::Python {
                 unsafe { $crate::Python::assume_gil_acquired() }

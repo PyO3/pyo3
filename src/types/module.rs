@@ -5,7 +5,7 @@
 use crate::conversion::{IntoPyTuple, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};

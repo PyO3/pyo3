@@ -4,7 +4,7 @@ use crate::buffer;
 use crate::conversion::{FromPyObject, PyTryFrom, ToBorrowedObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::ToPyPointer;

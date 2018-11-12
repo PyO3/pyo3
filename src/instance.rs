@@ -16,12 +16,12 @@ use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
 
 /// Any instance that is managed Python can have access to `gil`.
-pub trait PyObjectWithToken: Sized {
+pub trait PyObjectWithGIL: Sized {
     fn py(&self) -> Python;
 }
 
 #[doc(hidden)]
-pub trait PyNativeType: PyObjectWithToken {}
+pub trait PyNativeType: PyObjectWithGIL {}
 
 /// Trait implements object reference extraction from python managed pointer.
 pub trait AsPyRef<T>: Sized {

@@ -10,7 +10,7 @@ use std::os::raw::c_void;
 
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Py, PyObjectWithToken};
+use crate::instance::{Py, PyObjectWithGIL};
 use crate::python::ToPyPointer;
 use crate::python::{IntoPyPointer, Python};
 use crate::types::PyObjectRef;
@@ -179,7 +179,7 @@ impl IntoPyPointer for PyRawObject {
     }
 }
 
-impl PyObjectWithToken for PyRawObject {
+impl PyObjectWithGIL for PyRawObject {
     #[inline]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }

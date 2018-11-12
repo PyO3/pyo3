@@ -1,5 +1,5 @@
 use crate::ffi;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]

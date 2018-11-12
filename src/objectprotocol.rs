@@ -3,7 +3,7 @@
 use crate::conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::typeob::PyTypeInfo;
@@ -207,7 +207,7 @@ pub trait ObjectProtocol {
 
 impl<T> ObjectProtocol for T
 where
-    T: PyObjectWithToken + ToPyPointer,
+    T: PyObjectWithGIL + ToPyPointer,
 {
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where

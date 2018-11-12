@@ -5,7 +5,7 @@
 use crate::conversion::{IntoPyObject, ToPyObject};
 use crate::err::PyErr;
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithToken};
+use crate::instance::{Py, PyObjectWithGIL};
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};

@@ -1,6 +1,6 @@
 use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use crate::err::PyResult;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::Python;
 use crate::types::{PyObjectRef, PyString};

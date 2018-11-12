@@ -2,7 +2,7 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithToken;
+use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 use std::os::raw::c_char;

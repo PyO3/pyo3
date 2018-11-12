@@ -11,7 +11,7 @@ use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 use conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use err::{PyErr, PyResult};
 use ffi;
-use instance::{Py, PyObjectWithToken};
+use instance::{Py, PyObjectWithGIL};
 use object::PyObject;
 use python::{IntoPyPointer, Python, ToPyPointer};
 use types::{exceptions, PyObjectRef};
