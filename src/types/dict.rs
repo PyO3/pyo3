@@ -8,7 +8,7 @@ use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::{PyList, PyObjectRef};
 use std;
-use std::{cmp, collections, hash, marker::PhantomData, mem};
+use std::{cmp, collections, hash, mem, ops::Drop};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -152,19 +152,19 @@ impl PyDict {
         PyDictIterator {
             dict: self.to_object(py),
             pos: 0,
-            __marker: PhantomData,
+            py,
         }
     }
 }
 
-pub struct PyDictIterator<'dict> {
+pub struct PyDictIterator<'py> {
     dict: PyObject,
     pos: isize,
-    __marker: PhantomData<&'dict ()>,
+    py: Python<'py>,
 }
 
-impl<'a> Iterator for PyDictIterator<'a> {
-    type Item = (&'a PyObjectRef, &'a PyObjectRef);
+impl<'py> Iterator for PyDictIterator<'py> {
+    type Item = (&'py PyObjectRef, &'py PyObjectRef);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -172,12 +172,18 @@ impl<'a> Iterator for PyDictIterator<'a> {
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
-                let py = Python::assume_gil_acquired();
+                let py = self.py;
                 Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
             } else {
                 None
             }
         }
+    }
+}
+
+impl<'py> Drop for PyDictIterator<'py> {
+    fn drop(&mut self) {
+        unsafe { ffi::Py_DECREF(self.dict.as_ptr()) }
     }
 }
 

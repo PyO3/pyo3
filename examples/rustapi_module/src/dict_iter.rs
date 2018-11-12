@@ -1,9 +1,9 @@
 use pyo3::prelude::*;
 
-use pyo3::exceptions as exc;
+use pyo3::exceptions::RuntimeError;
 use pyo3::types::PyDict;
 
-#[pymodinit(_test_dict)]
+#[pymodinit(test_dict)]
 fn test_dict(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<DictSize>()?;
     Ok(())
@@ -18,7 +18,7 @@ pub struct DictSize {
 impl DictSize {
     #[new]
     fn __new__(obj: &PyRawObject, expected: u32) -> PyResult<()> {
-        obj.init(|_t| DictSize { expected })
+        obj.init(|| DictSize { expected })
     }
 
     fn iter_dict(&mut self, _py: Python, dict: &PyDict) -> PyResult<u32> {
@@ -31,12 +31,13 @@ impl DictSize {
             );
         }
 
-        match seen == self.expected {
-            true => Ok(seen),
-            _ => Err(PyErr::new::<exc::TypeError, _>(format!(
+        if seen == self.expected {
+            Ok(seen)
+        } else {
+            Err(PyErr::new::<RuntimeError, _>(format!(
                 "Expected {} iterations - performed {}",
                 self.expected, seen
-            ))),
+            )))
         }
     }
 }
