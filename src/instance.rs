@@ -156,7 +156,7 @@ impl<T> Py<T> {
 
 impl<T> Py<T>
 where
-    T: PyTypeInfo,
+    T: PyTypeCreate,
 {
     /// Create new instance of T and move it under python management
     /// Returns `Py<T>`.

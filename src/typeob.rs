@@ -195,30 +195,11 @@ pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObj
 }
 
 /// A Python object allocator that is usable as a base type for `#[pyclass]`
-pub trait PyObjectAlloc: PyTypeInfo {
-    /// Allocates a new object (usually by calling ty->tp_alloc),
-    unsafe fn alloc(py: Python) -> PyResult<*mut ffi::PyObject>;
-
-    /// Calls the rust destructor for the object and frees the memory
-    /// (usually by calling ptr->ob_type->tp_free).
-    /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
-
-    /// Calls the rust destructor for the object.
-    unsafe fn drop(_py: Python, _obj: *mut ffi::PyObject) {}
-}
-
-impl<T> PyObjectAlloc for T
-where
-    T: PyTypeInfo,
-{
-    #[allow(unconditional_recursion)]
-    /// Calls the rust destructor for the object.
-    default unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
-        pytype_drop::<Self>(py, obj);
-    }
-
-    default unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
+///
+/// All native types and all `#[pyclass]` types use the default functions, while
+/// [PyObjectWithFreeList](crate::freelist::PyObjectWithFreeList) gets a special version.
+pub trait PyObjectAlloc: PyTypeInfo + Sized {
+    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
         <Self as PyTypeCreate>::init_type();
 
@@ -229,7 +210,10 @@ where
         Ok(obj)
     }
 
-    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         Self::drop(py, obj);
 
         #[cfg(Py_3)]
@@ -256,6 +240,12 @@ where
                 }
             }
         }
+    }
+
+    #[allow(unconditional_recursion)]
+    /// Calls the rust destructor for the object.
+    unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
+        pytype_drop::<Self>(py, obj);
     }
 }
 
