@@ -181,12 +181,6 @@ impl<'py> Iterator for PyDictIterator<'py> {
     }
 }
 
-impl<'py> Drop for PyDictIterator<'py> {
-    fn drop(&mut self) {
-        unsafe { ffi::Py_DECREF(self.dict.as_ptr()) }
-    }
-}
-
 impl<'a> std::iter::IntoIterator for &'a PyDict {
     type Item = (&'a PyObjectRef, &'a PyObjectRef);
     type IntoIter = PyDictIterator<'a>;
