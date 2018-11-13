@@ -148,17 +148,23 @@ impl PyDict {
     /// Note that it's unsafe to use when the dictionary might be changed
     /// by other python code.
     pub fn iter(&self) -> PyDictIterator {
-        PyDictIterator { dict: self, pos: 0 }
+        let py = self.py();
+        PyDictIterator {
+            dict: self.to_object(py),
+            pos: 0,
+            py,
+        }
     }
 }
 
-pub struct PyDictIterator<'a> {
-    dict: &'a PyDict,
+pub struct PyDictIterator<'py> {
+    dict: PyObject,
     pos: isize,
+    py: Python<'py>,
 }
 
-impl<'a> Iterator for PyDictIterator<'a> {
-    type Item = (&'a PyObjectRef, &'a PyObjectRef);
+impl<'py> Iterator for PyDictIterator<'py> {
+    type Item = (&'py PyObjectRef, &'py PyObjectRef);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -166,7 +172,7 @@ impl<'a> Iterator for PyDictIterator<'a> {
             let mut key: *mut ffi::PyObject = mem::uninitialized();
             let mut value: *mut ffi::PyObject = mem::uninitialized();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
-                let py = self.dict.py();
+                let py = self.py;
                 Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
             } else {
                 None
