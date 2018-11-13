@@ -8,7 +8,7 @@ use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::{PyList, PyObjectRef};
 use std;
-use std::{cmp, collections, hash, mem, ops::Drop};
+use std::{cmp, collections, hash, mem};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]

@@ -1,5 +1,6 @@
-from rustapi_module._test_dict import DictSize
+from rustapi_module.test_dict import DictSize
 import pytest
+
 
 @pytest.mark.parametrize(
     "size",
