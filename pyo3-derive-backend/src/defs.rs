@@ -332,13 +332,13 @@ pub const SEQ: Proto = Proto {
             name: "__setitem__",
             arg: "Value",
             pyres: false,
-            proto: "pyo3::class::sequence::PyMappingSetItemProtocol",
+            proto: "pyo3::class::sequence::PySequenceSetItemProtocol",
         },
         MethodProto::Binary {
             name: "__delitem__",
             arg: "Key",
             pyres: false,
-            proto: "pyo3::class::mapping::PyMappingDelItemProtocol",
+            proto: "pyo3::class::sequence::PySequenceDelItemProtocol",
         },
         MethodProto::Binary {
             name: "__contains__",
