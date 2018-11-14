@@ -108,11 +108,11 @@ impl Drop for GILGuard {
 
 /// Release pool
 struct ReleasePool {
-    owned: Vec<*mut ffi::PyObject>,
-    borrowed: Vec<*mut ffi::PyObject>,
-    pointers: *mut Vec<*mut ffi::PyObject>,
+    owned: Vec<NonNull<ffi::PyObject>>,
+    borrowed: Vec<NonNull<ffi::PyObject>>,
+    pointers: *mut Vec<NonNull<ffi::PyObject>>,
     obj: Vec<Box<any::Any>>,
-    p: spin::Mutex<*mut Vec<*mut ffi::PyObject>>,
+    p: spin::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
 impl ReleasePool {
@@ -131,7 +131,7 @@ impl ReleasePool {
 
         // vec of pointers
         let ptr = *v;
-        let vec: &'static mut Vec<*mut ffi::PyObject> = &mut *ptr;
+        let vec: &'static mut Vec<_> = &mut *ptr;
         if vec.is_empty() {
             return;
         }
@@ -143,7 +143,7 @@ impl ReleasePool {
 
         // release py objects
         for ptr in vec.iter_mut() {
-            ffi::Py_DECREF(*ptr);
+            ffi::Py_DECREF(ptr.as_ptr());
         }
         vec.set_len(0);
     }
@@ -152,7 +152,7 @@ impl ReleasePool {
         let len = self.owned.len();
         if owned < len {
             for ptr in &mut self.owned[owned..len] {
-                ffi::Py_DECREF(*ptr);
+                ffi::Py_DECREF(ptr.as_ptr());
             }
             self.owned.set_len(owned);
         }
@@ -235,20 +235,20 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
     let pool: &'static mut ReleasePool = &mut *POOL;
 
     let mut v = pool.p.lock();
-    let pool: &'static mut Vec<*mut ffi::PyObject> = &mut *(*v);
-    pool.push(obj.as_ptr());
+    let pool: &'static mut Vec<_> = &mut *(*v);
+    pool.push(obj);
 }
 
-pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
+pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
     pool.owned.push(obj);
-    &*(&pool.owned[pool.owned.len() - 1] as *const *mut ffi::PyObject as *const PyObjectRef)
+    &*(&pool.owned[pool.owned.len() - 1] as *const _ as *const PyObjectRef)
 }
 
-pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
+pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
     pool.borrowed.push(obj);
-    &*(&pool.borrowed[pool.borrowed.len() - 1] as *const *mut ffi::PyObject as *const PyObjectRef)
+    &*(&pool.borrowed[pool.borrowed.len() - 1] as *const _ as *const PyObjectRef)
 }
 
 impl GILGuard {
@@ -280,7 +280,7 @@ impl GILGuard {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, ReleasePool, POOL};
+    use super::{GILPool, ReleasePool, POOL, NonNull};
     use crate::conversion::ToPyObject;
     use crate::object::PyObject;
     use crate::python::{Python, ToPyPointer};
@@ -311,7 +311,7 @@ mod test {
 
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = pythonrun::register_owned(py, empty);
+                let _ = pythonrun::register_owned(py, NonNull::new_unchecked(empty));
 
                 assert_eq!(p.owned.len(), 1);
             }
@@ -341,14 +341,15 @@ mod test {
                 // empty tuple is singleton
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = pythonrun::register_owned(py, empty);
+
+                let _ = pythonrun::register_owned(py, NonNull::new_unchecked(empty));
 
                 assert_eq!(p.owned.len(), 1);
 
                 {
                     let _pool = GILPool::new();
                     let empty = ffi::PyTuple_New(0);
-                    let _ = pythonrun::register_owned(py, empty);
+                    let _ = pythonrun::register_owned(py, NonNull::new_unchecked(empty));
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
@@ -376,7 +377,7 @@ mod test {
                 assert_eq!(p.borrowed.len(), 0);
 
                 cnt = ffi::Py_REFCNT(obj_ptr);
-                pythonrun::register_borrowed(py, obj_ptr);
+                pythonrun::register_borrowed(py, NonNull::new_unchecked(obj_ptr));
 
                 assert_eq!(p.borrowed.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
@@ -405,7 +406,7 @@ mod test {
                 assert_eq!(p.borrowed.len(), 0);
 
                 cnt = ffi::Py_REFCNT(obj_ptr);
-                pythonrun::register_borrowed(py, obj_ptr);
+                pythonrun::register_borrowed(py, NonNull::new_unchecked(obj_ptr));
 
                 assert_eq!(p.borrowed.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
@@ -413,7 +414,7 @@ mod test {
                 {
                     let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
-                    pythonrun::register_borrowed(py, obj_ptr);
+                    pythonrun::register_borrowed(py, NonNull::new_unchecked(obj_ptr));
                     assert_eq!(p.borrowed.len(), 2);
                 }
 

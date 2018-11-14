@@ -14,6 +14,7 @@ use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
 use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 use std::os::raw::c_int;
 
 /// Marker type that indicates that the GIL is currently held.
@@ -308,7 +309,7 @@ impl<'p> Python<'p> {
     {
         let p;
         unsafe {
-            p = pythonrun::register_owned(self, obj.into_ptr());
+            p = pythonrun::register_owned(self, obj.into_nonnull());
         }
         <T as PyTryFrom>::try_from(p)
     }
@@ -318,17 +319,15 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        let p = pythonrun::register_owned(self, obj.into_ptr());
+        let p = pythonrun::register_owned(self, obj.into_nonnull());
         self.unchecked_downcast(p)
     }
 
     /// Register `ffi::PyObject` pointer in release pool
-
     pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyObjectRef {
-        if ptr.is_null() {
-            crate::err::panic_after_error();
-        } else {
-            pythonrun::register_borrowed(self, ptr)
+        match NonNull::new(ptr) {
+            Some(p) => pythonrun::register_borrowed(self, p),
+            None => crate::err::panic_after_error(),
         }
     }
 
@@ -339,11 +338,12 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            crate::err::panic_after_error();
-        } else {
-            let p = pythonrun::register_owned(self, ptr);
-            self.unchecked_downcast(p)
+        match NonNull::new(ptr) {
+            Some(p) => {
+                let p = pythonrun::register_owned(self, p);
+                self.unchecked_downcast(p)
+            }
+            None => crate::err::panic_after_error(),
         }
     }
 
@@ -353,56 +353,58 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            crate::err::panic_after_error();
-        } else {
-            let p = pythonrun::register_owned(self, ptr);
-            self.unchecked_mut_downcast(p)
+        match NonNull::new(ptr) {
+            Some(p) => {
+                let p = pythonrun::register_owned(self, p);
+                self.unchecked_mut_downcast(p)
+            }
+            None => crate::err::panic_after_error(),
         }
     }
 
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
-
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            Err(PyErr::fetch(self))
-        } else {
-            let p = pythonrun::register_owned(self, ptr);
-            Ok(self.unchecked_downcast(p))
+        match NonNull::new(ptr) {
+            Some(p) => {
+                let p = pythonrun::register_owned(self, p);
+                Ok(self.unchecked_downcast(p))
+            }
+            None => Err(PyErr::fetch(self)),
         }
     }
 
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific type.
-
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            None
-        } else {
-            let p = pythonrun::register_owned(self, ptr);
-            Some(self.unchecked_downcast(p))
-        }
+        NonNull::new(ptr).map(|p| {
+            let p = pythonrun::register_owned(self, p);
+            self.unchecked_downcast(p)
+        })
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Panics if the pointer is `null`.
     /// do unchecked downcast to specific type.
-
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
         T: PyTypeInfo,
     {
-        let p = pythonrun::register_borrowed(self, ptr);
-        self.unchecked_downcast(p)
+        match NonNull::new(ptr) {
+            Some(p) => {
+                let p = pythonrun::register_borrowed(self, p);
+                self.unchecked_downcast(p)
+            }
+            None => crate::err::panic_after_error(),
+        }
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
@@ -412,44 +414,42 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            crate::err::panic_after_error();
-        } else {
-            let p = pythonrun::register_borrowed(self, ptr);
-            self.unchecked_mut_downcast(p)
+        match NonNull::new(ptr) {
+            Some(p) => {
+                let p = pythonrun::register_borrowed(self, p);
+                self.unchecked_mut_downcast(p)
+            }
+            None => crate::err::panic_after_error(),
         }
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
-
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            Err(PyErr::fetch(self))
-        } else {
-            let p = pythonrun::register_borrowed(self, ptr);
-            Ok(self.unchecked_downcast(p))
+        match NonNull::new(ptr) {
+            Some(p) => {
+                let p = pythonrun::register_borrowed(self, p);
+                Ok(self.unchecked_downcast(p))
+            }
+            None => Err(PyErr::fetch(self)),
         }
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific `T`.
-
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
         T: PyTypeInfo,
     {
-        if ptr.is_null() {
-            None
-        } else {
-            let p = pythonrun::register_borrowed(self, ptr);
-            Some(self.unchecked_downcast(p))
-        }
+        NonNull::new(ptr).map(|p| {
+            let p = pythonrun::register_borrowed(self, p);
+            self.unchecked_downcast(p)
+        })
     }
 
     #[doc(hidden)]
