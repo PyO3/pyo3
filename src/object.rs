@@ -176,7 +176,7 @@ impl PyObject {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<PyDict>) -> PyResult<PyObject>
+    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
     where
         A: IntoPyTuple,
     {

@@ -2,6 +2,9 @@
 //!
 //! For more details about these types, see the [Python
 //! documentation](https://docs.python.org/3/library/datetime.html)
+
+#![allow(clippy::too_many_arguments)]
+
 use crate::conversion::ToPyObject;
 use crate::err::PyResult;
 use crate::ffi;

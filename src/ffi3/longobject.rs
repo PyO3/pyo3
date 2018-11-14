@@ -5,10 +5,10 @@ use std::os::raw::{
     c_char, c_double, c_int, c_long, c_longlong, c_uchar, c_ulong, c_ulonglong, c_void,
 };
 
+/// In the python doc this opaque, but we know we can cast, so we make clippy happy by telling
+/// it that it actually looks like a PyObject
 #[repr(C)]
-pub struct PyLongObject {
-    _private: [u8; 0],
-}
+pub struct PyLongObject(PyObject);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

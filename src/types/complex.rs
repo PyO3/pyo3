@@ -14,7 +14,7 @@ pyobject_native_type!(PyComplex, ffi::PyComplex_Type, ffi::PyComplex_Check);
 
 impl PyComplex {
     /// Creates a new Python `PyComplex` object, from its real and imaginary values.
-    pub fn from_doubles<'p>(py: Python<'p>, real: c_double, imag: c_double) -> &'p PyComplex {
+    pub fn from_doubles(py: Python, real: c_double, imag: c_double) -> &PyComplex {
         unsafe {
             let ptr = ffi::PyComplex_FromDoubles(real, imag);
             py.from_owned_ptr(ptr)

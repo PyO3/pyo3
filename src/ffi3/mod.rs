@@ -1,7 +1,7 @@
 //! Rust FFI declarations for Python 3
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
 #![cfg_attr(Py_LIMITED_API, allow(unused_imports))]
-#![cfg_attr(feature="cargo-clippy", allow(inline_always))]
+#![cfg_attr(feature="cargo-clippy", allow(clippy::inline_always))]
 
 pub use self::pymem::*;
 pub use self::pyport::*;

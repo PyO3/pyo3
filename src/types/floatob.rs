@@ -51,7 +51,7 @@ impl IntoPyObject for f64 {
 
 impl<'source> FromPyObject<'source> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
-    #![cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
+    #![cfg_attr(feature = "cargo-clippy", allow(clippy::float_cmp))]
     fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 

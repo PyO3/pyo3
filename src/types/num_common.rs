@@ -5,7 +5,7 @@ use std::os::raw::c_int;
 use crate::err::{PyErr, PyResult};
 use crate::python::Python;
 
-pub(super) fn err_if_invalid_value<T: PartialEq>(
+pub(super) fn err_if_invalid_value<T: PartialEq + Copy>(
     py: Python,
     invalid_value: T,
     actual_value: T,

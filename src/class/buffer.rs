@@ -54,6 +54,7 @@ where
     T: PyBufferProtocol<'p>,
 {
     #[inline]
+    #[allow(clippy::needless_update)] // For python 2 it's not useless
     fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
         Some(ffi::PyBufferProcs {
             bf_getbuffer: Self::cb_bf_getbuffer(),

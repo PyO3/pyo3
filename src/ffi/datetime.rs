@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::type_complexity))]
 
 //! FFI bindings to the functions and structs defined in `datetime.h`
 //!

@@ -85,7 +85,7 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(||   MyClass { })
+///        obj.init(|| MyClass { })
 ///    }
 /// }
 /// ```
@@ -149,7 +149,7 @@ impl PyRawObject {
         let value = f();
 
         unsafe {
-            let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
+            let ptr = self.ptr.offset(T::OFFSET) as *mut T;
             std::ptr::write(ptr, value);
         }
         Ok(())
