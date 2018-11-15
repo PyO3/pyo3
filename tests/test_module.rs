@@ -4,26 +4,33 @@
 extern crate pyo3;
 
 use pyo3::prelude::*;
+
+#[cfg(Py_3)]
 use pyo3::types::PyDict;
 
+#[cfg(Py_3)]
 #[macro_use]
 mod common;
 
 #[pyclass]
+#[cfg(Py_3)]
 struct EmptyClass {}
 
+#[cfg(Py_3)]
 fn sum_as_string(a: i64, b: i64) -> String {
     format!("{}", a + b).to_string()
 }
 
 #[pyfunction]
+#[cfg(Py_3)]
 /// Doubles the given value
 fn double(x: usize) -> usize {
     x * 2
 }
 
 /// This module is implemented in Rust.
-#[pymodinit]
+#[pymodule]
+#[cfg(Py_3)]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
@@ -40,7 +47,7 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar").unwrap();
 
-    m.add_function(wrap_function!(double)).unwrap();
+    m.add_wrapped(wrap_function!(double)).unwrap();
     m.add("also_double", wrap_function!(double)(py)).unwrap();
 
     Ok(())
@@ -53,9 +60,10 @@ fn test_module_with_functions() {
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item("module_with_functions", unsafe {
-        PyObject::from_owned_ptr(py, PyInit_module_with_functions())
-    })
+    d.set_item(
+        "module_with_functions",
+        wrap_module!(module_with_functions)(py),
+    )
     .unwrap();
 
     let run = |code| py.run(code, None, Some(d)).unwrap();
@@ -71,7 +79,7 @@ fn test_module_with_functions() {
     run("assert module_with_functions.also_double.__doc__ == 'Doubles the given value'");
 }
 
-#[pymodinit(other_name)]
+#[pymodule(other_name)]
 fn some_name(_: Python, _: &PyModule) -> PyResult<()> {
     Ok(())
 }
@@ -125,13 +133,15 @@ fn test_module_from_code() {
 }
 
 #[pyfunction]
+#[cfg(Py_3)]
 fn r#move() -> usize {
     42
 }
 
-#[pymodinit]
+#[pymodule]
+#[cfg(Py_3)]
 fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_function(wrap_function!(r#move))
+    module.add_wrapped(wrap_function!(r#move))
 }
 
 #[test]
@@ -140,7 +150,53 @@ fn test_raw_idents() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let module = unsafe { PyObject::from_owned_ptr(py, PyInit_raw_ident_module()) };
+    let module = wrap_module!(raw_ident_module)(py);
 
     py_assert!(py, module, "module.move() == 42");
+}
+
+#[pyfunction]
+#[cfg(Py_3)]
+fn subfunction() -> String {
+    "Subfunction".to_string()
+}
+
+#[cfg(Py_3)]
+#[pymodule]
+fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
+    module.add_wrapped(wrap_function!(subfunction))?;
+    Ok(())
+}
+
+#[cfg(Py_3)]
+#[pyfunction]
+fn superfunction() -> String {
+    "Superfunction".to_string()
+}
+
+#[cfg(Py_3)]
+#[pymodule]
+fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
+    module.add_wrapped(wrap_function!(superfunction))?;
+    module.add_wrapped(wrap_module!(submodule))?;
+    Ok(())
+}
+
+#[test]
+#[cfg(Py_3)]
+fn test_module_nesting() {
+    let gil = GILGuard::acquire();
+    let py = gil.python();
+    let supermodule = wrap_module!(supermodule)(py);
+
+    py_assert!(
+        py,
+        supermodule,
+        "supermodule.superfunction() == 'Superfunction'"
+    );
+    py_assert!(
+        py,
+        supermodule,
+        "supermodule.submodule.subfunction() == 'Subfunction'"
+    );
 }

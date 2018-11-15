@@ -112,7 +112,7 @@ pub fn parse_fn_args<'p>(
 
 #[cfg(Py_3)]
 #[doc(hidden)]
-/// Builds a module (or null) from a user given initializer. Used for `#[pymodinit]`.
+/// Builds a module (or null) from a user given initializer. Used for `#[pymodule]`.
 pub unsafe fn make_module(
     name: &str,
     doc: &str,
@@ -162,7 +162,7 @@ pub unsafe fn make_module(
 
 #[cfg(not(Py_3))]
 #[doc(hidden)]
-/// Builds a module (or null) from a user given initializer. Used for `#[pymodinit]`.
+/// Builds a module (or null) from a user given initializer. Used for `#[pymodule]`.
 pub unsafe fn make_module(
     name: &str,
     doc: &str,

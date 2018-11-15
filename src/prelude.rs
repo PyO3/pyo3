@@ -18,7 +18,7 @@ pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::python::Python;
 pub use crate::pythonrun::GILGuard;
-// This is only part of the prelude because we need it for the pymodinit function
+// This is only part of the prelude because we need it for the pymodule function
 pub use crate::types::PyModule;
 // This is required for the constructor
 pub use crate::PyRawObject;
@@ -26,7 +26,7 @@ pub use crate::PyRawObject;
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 
 #[cfg(Py_3)]
-pub use pyo3cls::mod3init as pymodinit;
+pub use pyo3cls::mod3init as pymodule;
 
 #[cfg(not(Py_3))]
-pub use pyo3cls::mod2init as pymodinit;
+pub use pyo3cls::mod2init as pymodule;

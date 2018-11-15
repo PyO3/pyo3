@@ -28,7 +28,7 @@ Then in the Python bridge, we have a function `search` exposed to Python runtime
 `Python::allow_threads` method to enable true parallelism:
 
 ```rust,ignore
-#[pymodinit]
+#[pymodule]
 fn word_count(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "search")]

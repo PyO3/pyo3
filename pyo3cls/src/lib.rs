@@ -23,7 +23,7 @@ pub fn mod2init(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
-    let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodinit] must be used on a function");
+    let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodule] must be used on a function");
 
     let modname: syn::Ident;
     if attr.is_empty() {
@@ -52,7 +52,7 @@ pub fn mod3init(
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn =
-        syn::parse(input).expect("#[pymodinit] must be used on a `fn` block");
+        syn::parse(input).expect("#[pymodule] must be used on a `fn` block");
 
     let modname: syn::Ident;
     if attr.is_empty() {
