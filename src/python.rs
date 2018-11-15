@@ -14,8 +14,8 @@ use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
 use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
-use std::ptr::NonNull;
 use std::os::raw::c_int;
+use std::ptr::NonNull;
 
 /// Marker type that indicates that the GIL is currently held.
 ///

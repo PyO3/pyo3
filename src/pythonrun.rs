@@ -280,7 +280,7 @@ impl GILGuard {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, ReleasePool, POOL, NonNull};
+    use super::{GILPool, NonNull, ReleasePool, POOL};
     use crate::conversion::ToPyObject;
     use crate::object::PyObject;
     use crate::python::{Python, ToPyPointer};
