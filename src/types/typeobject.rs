@@ -35,7 +35,7 @@ impl PyType {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> &PyType {
-        py.from_borrowed_ptr::<PyType>(p as *mut ffi::PyObject)
+        py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
     /// Gets the name of the PyType.

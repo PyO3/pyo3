@@ -3,6 +3,7 @@
 set -ex
 
 cargo build --features $FEATURES
+cargo clippy --features $FEATURES
 cargo test --features $FEATURES
 
 for example in examples/*; do

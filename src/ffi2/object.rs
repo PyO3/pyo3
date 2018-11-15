@@ -545,6 +545,7 @@ impl Clone for PyHeapTypeObject {
 
 // access macro to the members which are floating "behind" the object
 #[inline]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::cast_ptr_alignment))]
 pub unsafe fn PyHeapType_GET_MEMBERS(
     etype: *mut PyHeapTypeObject,
 ) -> *mut ffi2::structmember::PyMemberDef {
@@ -671,6 +672,8 @@ extern "C" {
 // Flag bits for printing:
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
+// https://github.com/rust-lang-nursery/rust-clippy/issues/3430
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::identity_op))]
 // PyBufferProcs contains bf_getcharbuffer
 pub const Py_TPFLAGS_HAVE_GETCHARBUFFER: c_long = (1 << 0);
 
@@ -745,8 +748,7 @@ pub const Py_TPFLAGS_DEFAULT: c_long = (Py_TPFLAGS_HAVE_GETCHARBUFFER
     | Py_TPFLAGS_HAVE_ITER
     | Py_TPFLAGS_HAVE_CLASS
     | Py_TPFLAGS_HAVE_STACKLESS_EXTENSION
-    | Py_TPFLAGS_HAVE_INDEX
-    | 0);
+    | Py_TPFLAGS_HAVE_INDEX);
 
 #[inline]
 pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_long) -> c_int {
