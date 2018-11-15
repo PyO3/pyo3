@@ -33,6 +33,12 @@ impl PyObject {
         PyObject(ptr)
     }
 
+    pub(crate) unsafe fn into_nonnull(self) -> NonNull<ffi::PyObject> {
+        let res = self.0;
+        std::mem::forget(self); // Avoid Drop
+        res
+    }
+
     /// Creates a `PyObject` instance for the given FFI pointer.
     /// This moves ownership over the pointer into the `PyObject`.
     /// Undefined behavior if the pointer is NULL or invalid.
