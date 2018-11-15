@@ -491,7 +491,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
     }
     if !type_object.tp_as_buffer.is_null() {
-        type_object.tp_flags = type_object.tp_flags | ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
+        type_object.tp_flags |= ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
     }
     if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
         type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
