@@ -149,7 +149,7 @@ impl PyRawObject {
         let value = f();
 
         unsafe {
-            // Do not remove the `as *mut u8` part or you'll get some weird overflow error
+            // The `as *mut u8` part is required because the offset is in bytes
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
             std::ptr::write(ptr, value);
         }
