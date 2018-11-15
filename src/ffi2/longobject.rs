@@ -5,7 +5,9 @@ use std::os::raw::{
     c_char, c_double, c_int, c_long, c_longlong, c_uchar, c_ulong, c_ulonglong, c_void,
 };
 
-pub enum PyLongObject {}
+/// This is an opaque type in the python c api
+#[repr(transparent)]
+pub struct PyLongObject(*mut c_void);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

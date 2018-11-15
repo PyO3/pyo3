@@ -149,7 +149,8 @@ impl PyRawObject {
         let value = f();
 
         unsafe {
-            let ptr = self.ptr.offset(T::OFFSET) as *mut T;
+            // Do not remove the `as *mut u8` part or you'll get some weird overflow error
+            let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
             std::ptr::write(ptr, value);
         }
         Ok(())
