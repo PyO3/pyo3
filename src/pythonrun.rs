@@ -311,7 +311,7 @@ mod test {
 
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = pythonrun::register_owned(py, NonNull::new_unchecked(empty));
+                let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
             }
@@ -342,14 +342,14 @@ mod test {
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
 
-                let _ = pythonrun::register_owned(py, NonNull::new_unchecked(empty));
+                let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
 
                 {
                     let _pool = GILPool::new();
                     let empty = ffi::PyTuple_New(0);
-                    let _ = pythonrun::register_owned(py, NonNull::new_unchecked(empty));
+                    let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
@@ -377,7 +377,7 @@ mod test {
                 assert_eq!(p.borrowed.len(), 0);
 
                 cnt = ffi::Py_REFCNT(obj_ptr);
-                pythonrun::register_borrowed(py, NonNull::new_unchecked(obj_ptr));
+                pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
@@ -406,7 +406,7 @@ mod test {
                 assert_eq!(p.borrowed.len(), 0);
 
                 cnt = ffi::Py_REFCNT(obj_ptr);
-                pythonrun::register_borrowed(py, NonNull::new_unchecked(obj_ptr));
+                pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
@@ -414,7 +414,7 @@ mod test {
                 {
                     let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
-                    pythonrun::register_borrowed(py, NonNull::new_unchecked(obj_ptr));
+                    pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
                     assert_eq!(p.borrowed.len(), 2);
                 }
 
