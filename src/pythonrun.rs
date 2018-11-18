@@ -5,7 +5,6 @@ use crate::types::PyObjectRef;
 use spin;
 use std::ptr::NonNull;
 use std::{any, marker, rc, sync};
-use std::collections::LinkedList;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -109,20 +108,20 @@ impl Drop for GILGuard {
 
 /// Release pool
 struct ReleasePool {
-    owned: LinkedList<NonNull<ffi::PyObject>>,
-    borrowed: LinkedList<NonNull<ffi::PyObject>>,
+    owned: ArrayList<NonNull<ffi::PyObject>>,
+    borrowed: ArrayList<NonNull<ffi::PyObject>>,
     pointers: *mut Vec<NonNull<ffi::PyObject>>,
-    obj: LinkedList<Box<any::Any>>,
+    obj: Vec<Box<any::Any>>,
     p: spin::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
 impl ReleasePool {
     fn new() -> ReleasePool {
         ReleasePool {
-            owned: LinkedList::new(),
-            borrowed: LinkedList::new(),
+            owned: ArrayList::new(),
+            borrowed: ArrayList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
-            obj: LinkedList::new(),
+            obj: Vec::new(),
             p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
         }
     }
@@ -218,9 +217,9 @@ impl Drop for GILPool {
 pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
     let pool: &'static mut ReleasePool = &mut *POOL;
 
-    pool.obj.push_back(Box::new(obj));
+    pool.obj.push(Box::new(obj));
     pool.obj
-        .back()
+        .last()
         .unwrap()
         .as_ref()
         .downcast_ref::<T>()
@@ -237,14 +236,12 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
 
 pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.owned.push_back(obj);
-    &*(pool.owned.back().unwrap() as *const _ as *const PyObjectRef)
+    &*(pool.owned.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.borrowed.push_back(obj);
-    &*(pool.borrowed.back().unwrap() as *const _ as *const PyObjectRef)
+    &*(pool.borrowed.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
 impl GILGuard {
@@ -271,6 +268,57 @@ impl GILGuard {
     #[inline]
     pub fn python(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
+    }
+}
+
+use self::array_list::ArrayList;
+
+mod array_list {
+    use std::mem;
+    use std::collections::LinkedList;
+
+    const BLOCK_SIZE: usize = 256;
+    pub(super) struct ArrayList<T> {
+        inner: LinkedList<[T; BLOCK_SIZE]>,
+        last_length: usize,
+        length: usize,
+    }
+
+    impl<T> ArrayList<T> {
+        pub fn new() -> Self {
+            let init: [T; BLOCK_SIZE] = unsafe { mem::uninitialized() };
+            let mut inner = LinkedList::new();
+            inner.push_back(init);
+            ArrayList {
+                inner,
+                last_length: 0,
+                length: 0,
+            }
+        }
+        pub fn push_back(&mut self, item: T) -> &T {
+            if self.last_length == BLOCK_SIZE {
+                self.last_length = 0;
+                self.inner.push_back(unsafe { mem::uninitialized() });
+            }
+            self.inner.back_mut().unwrap()[self.last_length] = item;
+            self.last_length += 1;
+            self.length += 1;
+            self.inner.back().unwrap().last().unwrap()
+        }
+        pub fn pop_back(&mut self) -> Option<&T> {
+            if self.last_length == 0 {
+                let _ = self.inner.pop_back()?;
+                self.last_length = BLOCK_SIZE;
+            }
+            self.last_length -= 1;
+            self.length -= 1;
+            self.inner.back().map(|arr| {
+                &arr[self.last_length]
+            })
+        }
+        pub fn len(&self) -> usize {
+            self.length
+        }
     }
 }
 
