@@ -5,6 +5,7 @@ use crate::types::PyObjectRef;
 use spin;
 use std::ptr::NonNull;
 use std::{any, marker, rc, sync};
+use std::collections::LinkedList;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -108,20 +109,20 @@ impl Drop for GILGuard {
 
 /// Release pool
 struct ReleasePool {
-    owned: Vec<NonNull<ffi::PyObject>>,
-    borrowed: Vec<NonNull<ffi::PyObject>>,
+    owned: LinkedList<NonNull<ffi::PyObject>>,
+    borrowed: LinkedList<NonNull<ffi::PyObject>>,
     pointers: *mut Vec<NonNull<ffi::PyObject>>,
-    obj: Vec<Box<any::Any>>,
+    obj: LinkedList<Box<any::Any>>,
     p: spin::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
 impl ReleasePool {
     fn new() -> ReleasePool {
         ReleasePool {
-            owned: Vec::with_capacity(256),
-            borrowed: Vec::with_capacity(256),
+            owned: LinkedList::new(),
+            borrowed: LinkedList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
-            obj: Vec::with_capacity(8),
+            obj: LinkedList::new(),
             p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
         }
     }
@@ -149,17 +150,12 @@ impl ReleasePool {
     }
 
     pub unsafe fn drain(&mut self, owned: usize, borrowed: usize, pointers: bool) {
-        let len = self.owned.len();
-        if owned < len {
-            for ptr in &mut self.owned[owned..len] {
-                ffi::Py_DECREF(ptr.as_ptr());
-            }
-            self.owned.set_len(owned);
+        while owned < self.owned.len() {
+            let last = self.owned.pop_back().unwrap();
+            ffi::Py_DECREF(last.as_ptr());
         }
-
-        let len = self.borrowed.len();
-        if borrowed < len {
-            self.borrowed.set_len(borrowed);
+        while borrowed < self.borrowed.len() {
+            self.borrowed.pop_back();
         }
 
         if pointers {
@@ -222,9 +218,9 @@ impl Drop for GILPool {
 pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
     let pool: &'static mut ReleasePool = &mut *POOL;
 
-    pool.obj.push(Box::new(obj));
+    pool.obj.push_back(Box::new(obj));
     pool.obj
-        .last()
+        .back()
         .unwrap()
         .as_ref()
         .downcast_ref::<T>()
@@ -241,14 +237,14 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
 
 pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.owned.push(obj);
-    &*(&pool.owned[pool.owned.len() - 1] as *const _ as *const PyObjectRef)
+    pool.owned.push_back(obj);
+    &*(pool.owned.back().unwrap() as *const _ as *const PyObjectRef)
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.borrowed.push(obj);
-    &*(&pool.borrowed[pool.borrowed.len() - 1] as *const _ as *const PyObjectRef)
+    pool.borrowed.push_back(obj);
+    &*(pool.borrowed.back().unwrap() as *const _ as *const PyObjectRef)
 }
 
 impl GILGuard {
