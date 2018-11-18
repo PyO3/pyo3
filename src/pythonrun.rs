@@ -303,7 +303,7 @@ mod array_list {
             self.inner.back_mut().unwrap()[self.last_length] = item;
             self.last_length += 1;
             self.length += 1;
-            self.inner.back().unwrap().last().unwrap()
+            &self.inner.back().unwrap()[self.last_length - 1]
         }
         pub fn pop_back(&mut self) -> Option<&T> {
             if self.last_length == 0 {
