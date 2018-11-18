@@ -279,7 +279,7 @@ mod array_list {
         length: usize,
     }
 
-    impl<T> ArrayList<T> {
+    impl<T: Clone> ArrayList<T> {
         pub fn new() -> Self {
             ArrayList {
                 inner: LinkedList::new(),
@@ -287,20 +287,22 @@ mod array_list {
             }
         }
         pub fn push_back(&mut self, item: T) -> &T {
-            let last_idx = self.last_idx();
-            if last_idx == 0 {
+            let next_idx = self.next_idx();
+            if next_idx == 0 {
                 self.inner.push_back(unsafe { mem::uninitialized() });
             }
-            self.inner.back_mut().unwrap()[last_idx] = item;
+            self.inner.back_mut().unwrap()[next_idx] = item;
             self.length += 1;
-            &self.inner.back().unwrap()[last_idx]
+            &self.inner.back().unwrap()[next_idx]
         }
-        pub fn pop_back(&mut self) -> Option<&T> {
-            if self.last_idx() == 0 {
-                self.inner.pop_back()?;
-            }
+        pub fn pop_back(&mut self) -> Option<T> {
             self.length -= 1;
-            self.inner.back().map(|arr| &arr[self.last_idx()])
+            let current_idx = self.next_idx();
+            if self.length >= BLOCK_SIZE && current_idx == 0 {
+                let last_list = self.inner.pop_back()?;
+                return Some(last_list[0].clone());
+            }
+            self.inner.back().map(|arr| arr[current_idx].clone())
         }
         pub fn len(&self) -> usize {
             self.length
@@ -314,7 +316,7 @@ mod array_list {
             }
             self.length = new_len;
         }
-        fn last_idx(&self) -> usize {
+        fn next_idx(&self) -> usize {
             self.length % BLOCK_SIZE
         }
     }
