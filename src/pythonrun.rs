@@ -128,21 +128,17 @@ impl ReleasePool {
 
     unsafe fn release_pointers(&mut self) {
         let mut v = self.p.lock();
-
-        // vec of pointers
-        let ptr = *v;
-        let vec: &'static mut Vec<_> = &mut *ptr;
+        let vec = &mut **v;
         if vec.is_empty() {
             return;
         }
 
         // switch vectors
-        *v = self.pointers;
-        self.pointers = ptr;
+        std::mem::swap(&mut self.pointers, &mut *v);
         drop(v);
 
-        // release py objects
-        for ptr in vec.iter_mut() {
+        // release PyObjects
+        for ptr in vec.iter() {
             ffi::Py_DECREF(ptr.as_ptr());
         }
         vec.set_len(0);
@@ -227,20 +223,17 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
 }
 
 pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-
-    let mut v = pool.p.lock();
-    let pool: &'static mut Vec<_> = &mut *(*v);
-    pool.push(obj);
+    let pool = &mut *POOL;
+    (**pool.p.lock()).push(obj);
 }
 
 pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
-    let pool: &'static mut ReleasePool = &mut *POOL;
+    let pool = &mut *POOL;
     &*(pool.owned.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
-    let pool: &'static mut ReleasePool = &mut *POOL;
+    let pool = &mut *POOL;
     &*(pool.borrowed.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
