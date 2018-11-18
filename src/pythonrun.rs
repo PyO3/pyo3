@@ -149,13 +149,13 @@ impl ReleasePool {
     }
 
     pub unsafe fn drain(&mut self, owned: usize, borrowed: usize, pointers: bool) {
+        // Release owned objects(call decref)
         while owned < self.owned.len() {
             let last = self.owned.pop_back().unwrap();
             ffi::Py_DECREF(last.as_ptr());
         }
-        while borrowed < self.borrowed.len() {
-            self.borrowed.pop_back();
-        }
+        // Release borrowed objects(don't call decref)
+        self.borrowed.truncate(borrowed);
 
         if pointers {
             self.release_pointers();
@@ -274,50 +274,55 @@ impl GILGuard {
 use self::array_list::ArrayList;
 
 mod array_list {
-    use std::mem;
     use std::collections::LinkedList;
+    use std::mem;
 
     const BLOCK_SIZE: usize = 256;
+
+    /// A container type for Release Pool
+    /// See #271 for why this is crated
     pub(super) struct ArrayList<T> {
         inner: LinkedList<[T; BLOCK_SIZE]>,
-        last_length: usize,
         length: usize,
     }
 
     impl<T> ArrayList<T> {
         pub fn new() -> Self {
-            let init: [T; BLOCK_SIZE] = unsafe { mem::uninitialized() };
-            let mut inner = LinkedList::new();
-            inner.push_back(init);
             ArrayList {
-                inner,
-                last_length: 0,
+                inner: LinkedList::new(),
                 length: 0,
             }
         }
         pub fn push_back(&mut self, item: T) -> &T {
-            if self.last_length == BLOCK_SIZE {
-                self.last_length = 0;
+            let last_idx = self.last_idx();
+            if last_idx == 0 {
                 self.inner.push_back(unsafe { mem::uninitialized() });
             }
-            self.inner.back_mut().unwrap()[self.last_length] = item;
-            self.last_length += 1;
+            self.inner.back_mut().unwrap()[last_idx] = item;
             self.length += 1;
-            &self.inner.back().unwrap()[self.last_length - 1]
+            &self.inner.back().unwrap()[last_idx]
         }
         pub fn pop_back(&mut self) -> Option<&T> {
-            if self.last_length == 0 {
-                let _ = self.inner.pop_back()?;
-                self.last_length = BLOCK_SIZE;
+            if self.last_idx() == 0 {
+                self.inner.pop_back()?;
             }
-            self.last_length -= 1;
             self.length -= 1;
-            self.inner.back().map(|arr| {
-                &arr[self.last_length]
-            })
+            self.inner.back().map(|arr| &arr[self.last_idx()])
         }
         pub fn len(&self) -> usize {
             self.length
+        }
+        pub fn truncate(&mut self, new_len: usize) {
+            if self.length <= new_len {
+                return;
+            }
+            while self.inner.len() > new_len / BLOCK_SIZE + 1 {
+                self.inner.pop_back();
+            }
+            self.length = new_len;
+        }
+        fn last_idx(&self) -> usize {
+            self.length % BLOCK_SIZE
         }
     }
 }
