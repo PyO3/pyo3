@@ -18,6 +18,3 @@ cargo rustc --profile=check -- -Z unstable-options --pretty=expanded -Z trace-ma
 
 See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate version of those commands.
 
-## Linking
-
-When building, you can set `PYTHON_SYS_EXECUTABLE` to the python interpreter that pyo3 should be linked to. You might need to set the `python2` or `python3` feature accordingly. On linux/mac you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a python installation. Also make sure that python is in `PATH` when you're not using  `PYTHON_SYS_EXECUTABLE`.
