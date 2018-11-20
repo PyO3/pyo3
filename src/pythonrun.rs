@@ -121,7 +121,7 @@ impl ReleasePool {
             owned: ArrayList::new(),
             borrowed: ArrayList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
-            obj: Vec::new(),
+            obj: Vec::with_capacity(8),
             p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
         }
     }
@@ -138,7 +138,7 @@ impl ReleasePool {
         drop(v);
 
         // release PyObjects
-        for ptr in vec.iter() {
+        for ptr in vec.iter_mut() {
             ffi::Py_DECREF(ptr.as_ptr());
         }
         vec.set_len(0);
@@ -311,7 +311,7 @@ mod array_list {
             if self.length <= new_len {
                 return;
             }
-            while self.inner.len() > new_len / BLOCK_SIZE + 1 {
+            while self.inner.len() > (new_len + BLOCK_SIZE - 1) / BLOCK_SIZE {
                 self.inner.pop_back();
             }
             self.length = new_len;
