@@ -1,5 +1,7 @@
 language: python
 
+dist: xenial
+
 cache:
   pip: true
   cargo: true
@@ -12,10 +14,7 @@ matrix:
       env: FEATURES=python3
     - python: "3.6"
       env: FEATURES=python3
-    - python: "3.7-dev"
-      env: FEATURES=python3
-  allow_failures:
-    - python: "3.7-dev"
+    - python: "3.7"
       env: FEATURES=python3
 
 env:
