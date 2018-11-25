@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::ffi;
-use crate::python::{NonNullPyObject, Python};
+use crate::python::Python;
 use crate::types::PyObjectRef;
 use spin;
 use std::{any, marker, rc, sync};
@@ -107,8 +107,8 @@ impl Drop for GILGuard {
 
 /// Release pool
 struct ReleasePool {
-    owned: Vec<*mut ffi::PyObject>,
-    borrowed: Vec<*mut ffi::PyObject>,
+    owned: ArrayList<*mut ffi::PyObject>,
+    borrowed: ArrayList<*mut ffi::PyObject>,
     pointers: *mut Vec<*mut ffi::PyObject>,
     obj: Vec<Box<any::Any>>,
     p: spin::Mutex<*mut Vec<*mut ffi::PyObject>>,
@@ -117,8 +117,8 @@ struct ReleasePool {
 impl ReleasePool {
     fn new() -> ReleasePool {
         ReleasePool {
-            owned: Vec::with_capacity(256),
-            borrowed: Vec::with_capacity(256),
+            owned: ArrayList::new(),
+            borrowed: ArrayList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
             obj: Vec::with_capacity(8),
             p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
@@ -127,20 +127,16 @@ impl ReleasePool {
 
     unsafe fn release_pointers(&mut self) {
         let mut v = self.p.lock();
-
-        // vec of pointers
-        let ptr = *v;
-        let vec: &'static mut Vec<*mut ffi::PyObject> = &mut *ptr;
+        let vec = &mut **v;
         if vec.is_empty() {
             return;
         }
 
         // switch vectors
-        *v = self.pointers;
-        self.pointers = ptr;
+        std::mem::swap(&mut self.pointers, &mut *v);
         drop(v);
 
-        // release py objects
+        // release PyObjects
         for ptr in vec.iter_mut() {
             ffi::Py_DECREF(*ptr);
         }
@@ -148,18 +144,13 @@ impl ReleasePool {
     }
 
     pub unsafe fn drain(&mut self, owned: usize, borrowed: usize, pointers: bool) {
-        let len = self.owned.len();
-        if owned < len {
-            for ptr in &mut self.owned[owned..len] {
-                ffi::Py_DECREF(*ptr);
-            }
-            self.owned.set_len(owned);
+        // Release owned objects(call decref)
+        while owned < self.owned.len() {
+            let last = self.owned.pop_back().unwrap();
+            ffi::Py_DECREF(last);
         }
-
-        let len = self.borrowed.len();
-        if borrowed < len {
-            self.borrowed.set_len(borrowed);
-        }
+        // Release borrowed objects(don't call decref)
+        self.borrowed.truncate(borrowed);
 
         if pointers {
             self.release_pointers();
@@ -230,24 +221,19 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
         .unwrap()
 }
 
-pub unsafe fn register_pointer(obj: NonNullPyObject) {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-
-    let mut v = pool.p.lock();
-    let pool: &'static mut Vec<*mut ffi::PyObject> = &mut *(*v);
-    pool.push(obj.as_ptr());
+pub unsafe fn register_pointer(obj: *mut ffi::PyObject) {
+    let pool = &mut *POOL;
+    (**pool.p.lock()).push(obj);
 }
 
 pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.owned.push(obj);
-    &*(&pool.owned[pool.owned.len() - 1] as *const *mut ffi::PyObject as *const PyObjectRef)
+    let pool = &mut *POOL;
+    &*(pool.owned.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.borrowed.push(obj);
-    &*(&pool.borrowed[pool.borrowed.len() - 1] as *const *mut ffi::PyObject as *const PyObjectRef)
+    let pool = &mut *POOL;
+    &*(pool.borrowed.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
 impl GILGuard {
@@ -274,6 +260,64 @@ impl GILGuard {
     #[inline]
     pub fn python(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
+    }
+}
+
+use self::array_list::ArrayList;
+
+mod array_list {
+    use std::collections::LinkedList;
+    use std::mem;
+
+    const BLOCK_SIZE: usize = 256;
+
+    /// A container type for Release Pool
+    /// See #271 for why this is crated
+    pub(super) struct ArrayList<T> {
+        inner: LinkedList<[T; BLOCK_SIZE]>,
+        length: usize,
+    }
+
+    impl<T: Clone> ArrayList<T> {
+        pub fn new() -> Self {
+            ArrayList {
+                inner: LinkedList::new(),
+                length: 0,
+            }
+        }
+        pub fn push_back(&mut self, item: T) -> &T {
+            let next_idx = self.next_idx();
+            if next_idx == 0 {
+                self.inner.push_back(unsafe { mem::uninitialized() });
+            }
+            self.inner.back_mut().unwrap()[next_idx] = item;
+            self.length += 1;
+            &self.inner.back().unwrap()[next_idx]
+        }
+        pub fn pop_back(&mut self) -> Option<T> {
+            self.length -= 1;
+            let current_idx = self.next_idx();
+            if self.length >= BLOCK_SIZE && current_idx == 0 {
+                let last_list = self.inner.pop_back()?;
+                return Some(last_list[0].clone());
+            }
+            self.inner.back().map(|arr| arr[current_idx].clone())
+        }
+        pub fn len(&self) -> usize {
+            self.length
+        }
+        pub fn truncate(&mut self, new_len: usize) {
+            if self.length <= new_len {
+                return;
+            }
+            while self.inner.len() > (new_len + BLOCK_SIZE - 1) / BLOCK_SIZE {
+                self.inner.pop_back();
+            }
+            self.length = new_len;
+        }
+        fn next_idx(&self) -> usize {
+            self.length % BLOCK_SIZE
+        }
     }
 }
 

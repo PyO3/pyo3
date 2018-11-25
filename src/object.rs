@@ -316,7 +316,7 @@ impl<'a> FromPyObject<'a> for PyObject {
 impl Drop for PyObject {
     fn drop(&mut self) {
         unsafe {
-            pythonrun::register_pointer(self.0);
+            pythonrun::register_pointer(self.0.as_ptr());
         }
     }
 }

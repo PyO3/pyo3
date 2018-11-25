@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.5.2] - 2018-11-26
+
+### Fixed
+
+ * Fix undeterministic segfaults when creating many objects by kngwyu in [#281](https://github.com/PyO3/pyo3/pull/281)
+
+## 0.5.1 - 2018-11-24
+
+Yanked
+
+## [0.5.0] - 2018-11-11
 
 ### Added
 
@@ -20,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Slowly removing specialization uses
  * `PyString`, `PyUnicode`, and `PyBytes` no longer have a `data()` method
  (replaced by `as_bytes()`) and `PyStringData` has been removed.
+ * The pyobject_extract macro
 
 ### Changed
  * Removes the types from the root module and the prelude. They now live in `pyo3::types` instead.
@@ -31,7 +42,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Updated to syn 0.15
  * Splitted `PyTypeObject` into `PyTypeObject` without the create method and `PyTypeCreate` with requires `PyObjectAlloc<Self> + PyTypeInfo + Sized`.
  * Ran `cargo edition --fix` which prefixed path with `crate::` for rust 2018
- * Renamed `async` to `pyasync` as async will be a keyword in the 2018 edition.  
+ * Renamed `async` to `pyasync` as async will be a keyword in the 2018 edition.
+ * Starting to use `NonNull<*mut PyObject>` for Py and PyObject by ijl [#260](https://github.com/PyO3/pyo3/pull/260)
 
 ### Fixed
 
@@ -39,10 +51,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Lots of clippy errors
  * Fix segfault on calling an unknown method on a PyObject
  * Work around a [bug](https://github.com/rust-lang/rust/issues/55380) in the rust compiler by kngwyu [#252](https://github.com/PyO3/pyo3/pull/252)
-
-### Removed
-
- * The pyobject_extract macro
+ * Fixed a segfault with subclassing pyo3 create classes and using `__class__` by kngwyu [#263](https://github.com/PyO3/pyo3/pull/263)
 
 ## [0.4.1] - 2018-08-20
 
@@ -187,6 +196,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 * Initial release
 
+[0.5.2]: https://github.com/pyo3/pyo3/compare/v0.5.0...v0.5.2
+[0.5.0]: https://github.com/pyo3/pyo3/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/pyo3/pyo3/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/pyo3/pyo3/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/pyo3/pyo3/compare/v0.3.1...v0.3.2
