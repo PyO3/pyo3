@@ -20,12 +20,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `PyToken` was removed due to unsoundness (See [#94](https://github.com/PyO3/pyo3/issues/94)).
  * Removed the unnecessary type parameter from `PyObjectAlloc`
 
-## [0.5.1] - 2018-11-24
+## [0.5.2] - 2018-11-26
 
 ### Fixed
 
  * Fix undeterministic segfaults when creating many objects by kngwyu in [#281](https://github.com/PyO3/pyo3/pull/281)
 
+## [0.5.1] - 2018-11-24
+
+Yanked
 
 ## [0.5.0] - 2018-11-11
 
@@ -210,6 +213,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Initial release
 
 [Unreleased]: https://github.com/pyo3/pyo3/compare/v0.5.0...HEAD
+[0.5.2]: https://github.com/pyo3/pyo3/compare/v0.5.0...v0.5.2
 [0.5.0]: https://github.com/pyo3/pyo3/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/pyo3/pyo3/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/pyo3/pyo3/compare/v0.3.2...v0.4.0
