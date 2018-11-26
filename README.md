@@ -19,6 +19,14 @@ Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust
 
 You can either write a native python module in rust or use python from a rust binary.
 
+On some OSs, you need some additional packages.
+
+E.g. if you are on Ubuntu18.04, please run
+
+```bash
+sudo apt install python3-dev python-dev
+```
+
 ## Using rust from python
 
 Pyo3 can be used to generate a native python module.
