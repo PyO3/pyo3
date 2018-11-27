@@ -335,7 +335,7 @@ pub trait ReturnTypeIntoPyResult {
 impl<T: IntoPyObject> ReturnTypeIntoPyResult for T {
     type Inner = T;
 
-    default fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
+    fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
         Ok(self)
     }
 }
