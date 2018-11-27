@@ -1,10 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use libc;
-use std;
-use std::error::Error;
-use std::ffi::CString;
-use std::io;
-use std::os::raw::c_char;
 
 use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::ffi;
@@ -13,101 +7,12 @@ use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::typeob::PyTypeObject;
 use crate::types::{exceptions, PyObjectRef, PyType};
-
-/// Defines a new exception type.
-///
-/// # Syntax
-/// `py_exception!(module, MyError, pyo3::exceptions::Exception)`
-///
-/// * `module` is the name of the containing module.
-/// * `MyError` is the name of the new exception type.
-/// * `pyo3::exceptions::Exception` is the name of the base type
-///
-/// # Example
-/// ```
-/// #[macro_use]
-/// extern crate pyo3;
-///
-/// use pyo3::Python;
-/// use pyo3::types::PyDict;
-///
-/// py_exception!(mymodule, CustomError, pyo3::exceptions::Exception);
-///
-/// fn main() {
-///     let gil = Python::acquire_gil();
-///     let py = gil.python();
-///     let ctx = PyDict::new(py);
-///
-///     ctx.set_item("CustomError", py.get_type::<CustomError>()).unwrap();
-///
-///     py.run("assert str(CustomError) == \"<class 'mymodule.CustomError'>\"",
-///            None, Some(&ctx)).unwrap();
-///     py.run("assert CustomError('oops').args == ('oops',)", None, Some(ctx)).unwrap();
-/// }
-/// ```
-#[macro_export]
-macro_rules! py_exception {
-    ($module: ident, $name: ident, $base: ty) => {
-        pub struct $name;
-
-        impl std::convert::From<$name> for $crate::PyErr {
-            fn from(_err: $name) -> $crate::PyErr {
-                $crate::PyErr::new::<$name, _>(())
-            }
-        }
-
-        impl<T> std::convert::Into<$crate::PyResult<T>> for $name {
-            fn into(self) -> $crate::PyResult<T> {
-                $crate::PyErr::new::<$name, _>(()).into()
-            }
-        }
-
-        impl $name {
-            pub fn py_err<T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyErr {
-                $crate::PyErr::new::<$name, T>(args)
-            }
-            pub fn into<R, T: $crate::ToPyObject + 'static>(args: T) -> $crate::PyResult<R> {
-                $crate::PyErr::new::<$name, T>(args).into()
-            }
-            #[inline]
-            fn type_object() -> *mut $crate::ffi::PyTypeObject {
-                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject =
-                    0 as *mut $crate::ffi::PyTypeObject;
-
-                unsafe {
-                    if TYPE_OBJECT.is_null() {
-                        let gil = $crate::Python::acquire_gil();
-                        let py = gil.python();
-
-                        TYPE_OBJECT = $crate::PyErr::new_type(
-                            py,
-                            concat!(stringify!($module), ".", stringify!($name)),
-                            Some(py.get_type::<$base>()),
-                            None,
-                        );
-                    }
-                    TYPE_OBJECT
-                }
-            }
-        }
-
-        impl $crate::typeob::PyTypeObject for $name {
-            #[inline]
-            fn init_type() {
-                let _ = $name::type_object();
-            }
-
-            #[inline]
-            fn type_object() -> $crate::Py<$crate::types::PyType> {
-                unsafe {
-                    $crate::Py::from_borrowed_ptr(
-                        $name::type_object() as *const _ as *mut $crate::ffi::PyObject
-                    )
-                }
-            }
-        }
-    };
-}
+use libc::c_int;
+use std;
+use std::error::Error;
+use std::ffi::CString;
+use std::io;
+use std::os::raw::c_char;
 
 /// Represents a `PyErr` value
 pub enum PyErrValue {
@@ -607,7 +512,7 @@ pub fn panic_after_error() -> ! {
 
 /// Returns Ok if the error code is not -1.
 #[inline]
-pub fn error_on_minusone(py: Python, result: libc::c_int) -> PyResult<()> {
+pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
     if result != -1 {
         Ok(())
     } else {

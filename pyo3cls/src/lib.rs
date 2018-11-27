@@ -18,7 +18,7 @@ use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 
 #[proc_macro_attribute]
-pub fn mod2init(
+pub fn pymodule2(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
@@ -46,7 +46,7 @@ pub fn mod2init(
 }
 
 #[proc_macro_attribute]
-pub fn mod3init(
+pub fn pymodule3(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {

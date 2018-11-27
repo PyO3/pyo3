@@ -192,9 +192,9 @@ pub mod types;
 /// The proc macros, which are also part of the prelude
 pub mod proc_macro {
     #[cfg(not(Py_3))]
-    pub use pyo3cls::mod2init as pymodule;
+    pub use pyo3cls::pymodule2 as pymodule;
     #[cfg(Py_3)]
-    pub use pyo3cls::mod3init as pymodule;
+    pub use pyo3cls::pymodule3 as pymodule;
     /// The proc macro attributes
     pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 }

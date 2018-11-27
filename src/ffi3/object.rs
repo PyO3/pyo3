@@ -1,4 +1,5 @@
 use crate::ffi3::pyport::{Py_hash_t, Py_ssize_t};
+use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 
@@ -24,7 +25,7 @@ pub const PyObject_HEAD_INIT: PyObject = PyObject {
 #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
 pub const PyObject_HEAD_INIT: PyObject = PyObject {
     ob_refcnt: 1,
-    ob_type: ::std::ptr::null_mut(),
+    ob_type: ptr::null_mut(),
 };
 
 #[repr(C)]
@@ -87,6 +88,7 @@ pub type objobjargproc =
 #[cfg(not(Py_LIMITED_API))]
 mod bufferinfo {
     use crate::ffi3::pyport::Py_ssize_t;
+    use std::mem;
     use std::os::raw::{c_char, c_int, c_void};
 
     #[repr(C)]
@@ -108,7 +110,7 @@ mod bufferinfo {
     impl Default for Py_buffer {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
 
@@ -198,7 +200,9 @@ mod typeobject {
 mod typeobject {
     use crate::ffi3::pyport::Py_ssize_t;
     use crate::ffi3::{self, object};
+    use std::mem;
     use std::os::raw::{c_char, c_uint, c_ulong, c_void};
+    use std::ptr;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -244,7 +248,7 @@ mod typeobject {
     impl Default for PyNumberMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     macro_rules! as_expr {
@@ -320,7 +324,7 @@ mod typeobject {
     impl Default for PySequenceMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PySequenceMethods_INIT: PySequenceMethods = PySequenceMethods {
@@ -328,9 +332,9 @@ mod typeobject {
         sq_concat: None,
         sq_repeat: None,
         sq_item: None,
-        was_sq_slice: ::std::ptr::null_mut(),
+        was_sq_slice: ptr::null_mut(),
         sq_ass_item: None,
-        was_sq_ass_slice: ::std::ptr::null_mut(),
+        was_sq_ass_slice: ptr::null_mut(),
         sq_contains: None,
         sq_inplace_concat: None,
         sq_inplace_repeat: None,
@@ -346,7 +350,7 @@ mod typeobject {
     impl Default for PyMappingMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PyMappingMethods_INIT: PyMappingMethods = PyMappingMethods {
@@ -365,7 +369,7 @@ mod typeobject {
     impl Default for PyAsyncMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PyAsyncMethods_INIT: PyAsyncMethods = PyAsyncMethods {
@@ -383,7 +387,7 @@ mod typeobject {
     impl Default for PyBufferProcs {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PyBufferProcs_INIT: PyBufferProcs = PyBufferProcs {
@@ -462,37 +466,37 @@ mod typeobject {
                         ob_base: ffi3::object::PyObject_HEAD_INIT,
                         ob_size: 0
                     },
-                    tp_name: ::std::ptr::null(),
+                    tp_name: ptr::null(),
                     tp_basicsize: 0,
                     tp_itemsize: 0,
                     tp_dealloc: None,
                     tp_print: None,
                     tp_getattr: None,
                     tp_setattr: None,
-                    $tp_as_async: ::std::ptr::null_mut(),
+                    $tp_as_async: ptr::null_mut(),
                     tp_repr: None,
-                    tp_as_number: ::std::ptr::null_mut(),
-                    tp_as_sequence: ::std::ptr::null_mut(),
-                    tp_as_mapping: ::std::ptr::null_mut(),
+                    tp_as_number: ptr::null_mut(),
+                    tp_as_sequence: ptr::null_mut(),
+                    tp_as_mapping: ptr::null_mut(),
                     tp_hash: None,
                     tp_call: None,
                     tp_str: None,
                     tp_getattro: None,
                     tp_setattro: None,
-                    tp_as_buffer: ::std::ptr::null_mut(),
+                    tp_as_buffer: ptr::null_mut(),
                     tp_flags: ffi3::object::Py_TPFLAGS_DEFAULT,
-                    tp_doc: ::std::ptr::null(),
+                    tp_doc: ptr::null(),
                     tp_traverse: None,
                     tp_clear: None,
                     tp_richcompare: None,
                     tp_weaklistoffset: 0,
                     tp_iter: None,
                     tp_iternext: None,
-                    tp_methods: ::std::ptr::null_mut(),
-                    tp_members: ::std::ptr::null_mut(),
-                    tp_getset: ::std::ptr::null_mut(),
-                    tp_base: ::std::ptr::null_mut(),
-                    tp_dict: ::std::ptr::null_mut(),
+                    tp_methods: ptr::null_mut(),
+                    tp_members: ptr::null_mut(),
+                    tp_getset: ptr::null_mut(),
+                    tp_base: ptr::null_mut(),
+                    tp_dict: ptr::null_mut(),
                     tp_descr_get: None,
                     tp_descr_set: None,
                     tp_dictoffset: 0,
@@ -501,11 +505,11 @@ mod typeobject {
                     tp_new: None,
                     tp_free: None,
                     tp_is_gc: None,
-                    tp_bases: ::std::ptr::null_mut(),
-                    tp_mro: ::std::ptr::null_mut(),
-                    tp_cache: ::std::ptr::null_mut(),
-                    tp_subclasses: ::std::ptr::null_mut(),
-                    tp_weaklist: ::std::ptr::null_mut(),
+                    tp_bases: ptr::null_mut(),
+                    tp_mro: ptr::null_mut(),
+                    tp_cache: ptr::null_mut(),
+                    tp_subclasses: ptr::null_mut(),
+                    tp_weaklist: ptr::null_mut(),
                     tp_del: None,
                     tp_version_tag: 0,
                     $($tail)*
@@ -522,8 +526,8 @@ mod typeobject {
                 tp_allocs: 0,
                 tp_frees: 0,
                 tp_maxalloc: 0,
-                tp_prev: ::std::ptr::null_mut(),
-                tp_next: ::std::ptr::null_mut(),
+                tp_prev: ptr::null_mut(),
+                tp_next: ptr::null_mut(),
             )
         }
     }
@@ -556,7 +560,7 @@ mod typeobject {
     impl Default for PyHeapTypeObject {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
 
@@ -582,7 +586,7 @@ pub struct PyType_Slot {
 
 impl Default for PyType_Slot {
     fn default() -> PyType_Slot {
-        unsafe { ::std::mem::zeroed() }
+        unsafe { mem::zeroed() }
     }
 }
 
@@ -598,7 +602,7 @@ pub struct PyType_Spec {
 
 impl Default for PyType_Spec {
     fn default() -> PyType_Spec {
-        unsafe { ::std::mem::zeroed() }
+        unsafe { mem::zeroed() }
     }
 }
 
