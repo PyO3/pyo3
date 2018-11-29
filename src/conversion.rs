@@ -168,7 +168,7 @@ where
     T: PyTryFrom,
 {
     #[inline]
-    fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T> {
+    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T> {
         Ok(T::try_from(ob)?)
     }
 }
@@ -179,7 +179,7 @@ where
     T: PyTryFrom,
 {
     #[inline]
-    fn extract(ob: &'a PyObjectRef) -> PyResult<&'a mut T> {
+    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a mut T> {
         Ok(T::try_from_mut(ob)?)
     }
 }
