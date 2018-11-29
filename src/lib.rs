@@ -226,13 +226,13 @@ macro_rules! wrap_function {
 #[macro_export]
 macro_rules! wrap_module {
     ($module_name:ident) => {{
-        use $crate::mashup::*;
+        use $crate::mashup;
 
-        mashup! {
+        mashup::mashup! {
             m["method"] = PyInit_ $module_name;
         }
 
-        m! {
+        mashup::m! {
             &|py| unsafe { crate::PyObject::from_owned_ptr(py, "method"()) }
         }
     }};
