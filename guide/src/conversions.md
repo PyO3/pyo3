@@ -121,10 +121,10 @@ fn main() {
 
 TODO
 
-[`ToPyObject`]: https://docs.rs/pyo3/0.2.7/trait.ToPyObject.html
-[IntoPyObject]: https://docs.rs/pyo3/0.2.7/trait.IntoPyObject.html
-[PyObject]: https://docs.rs/pyo3/0.2.7/struct.PyObject.html
-[IntoPyTuple]: https://docs.rs/pyo3/0.2.7/trait.IntoPyTuple.html
-[PyTuple]: https://docs.rs/pyo3/0.2.7/struct.PyTuple.html
-[ObjectProtocol]: https://docs.rs/pyo3/0.2.7/trait.ObjectProtocol.html
-[IntoPyDict]: https://docs.rs/pyo3/0.2.7/trait.IntoPyDict.html
+[`ToPyObject`]: https://docs.rs/pyo3/0.5.2/trait.ToPyObject.html
+[IntoPyObject]: https://docs.rs/pyo3/0.5.2/trait.IntoPyObject.html
+[PyObject]: https://docs.rs/pyo3/0.5.2/struct.PyObject.html
+[IntoPyTuple]: https://docs.rs/pyo3/0.5.2/trait.IntoPyTuple.html
+[PyTuple]: https://docs.rs/pyo3/0.5.2/struct.PyTuple.html
+[ObjectProtocol]: https://docs.rs/pyo3/0.5.2/trait.ObjectProtocol.html
+[IntoPyDict]: https://docs.rs/pyo3/0.5.2/trait.IntoPyDict.html

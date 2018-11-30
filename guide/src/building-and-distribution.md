@@ -14,7 +14,7 @@ If you have e.g. a library crate and a profiling crate alongside, you need to us
 
 ```toml
 [dependencies]
-pyo3 = "0.5.0"
+pyo3 = "0.5.1"
 
 [lib]
 name = "hyperjson"
@@ -29,7 +29,7 @@ And this in the profiling crate:
 ```toml
 [dependencies]
 my_main_crate = { path = "..", default-features = false }
-pyo3 = "0.5.0"
+pyo3 = "0.5.2"
 ```
 
 On linux/mac you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a python installation.
