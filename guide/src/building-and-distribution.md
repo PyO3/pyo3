@@ -14,7 +14,7 @@ If you have e.g. a library crate and a profiling crate alongside, you need to us
 
 ```toml
 [dependencies]
-pyo3 = "0.5.1"
+pyo3 = "0.5.2"
 
 [lib]
 name = "hyperjson"
