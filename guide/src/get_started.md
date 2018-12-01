@@ -26,7 +26,7 @@ name = "rust_py"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.3"
+version = "0.5"
 features = ["extension-module"]
 ```
 
@@ -75,7 +75,7 @@ Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.3"
+pyo3 = "0.5"
 ```
 
 Example program displaying the value of `sys.version`:
