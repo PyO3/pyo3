@@ -237,6 +237,11 @@ pub trait PyTryFrom: Sized {
     /// Cast a PyObjectRef to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
     unsafe fn try_from_unchecked(value: &PyObjectRef) -> &Self;
+
+    /// Cast a PyObjectRef to a specific type of PyObject. The caller must
+    /// have already verified the reference is for this type.
+    #[allow(clippy::mut_from_ref)]
+    unsafe fn try_from_mut_unchecked(value: &PyObjectRef) -> &mut Self;
 }
 
 // TryFrom implies TryInto
@@ -287,12 +292,7 @@ where
     fn try_from_mut(value: &PyObjectRef) -> Result<&mut T, PyDowncastError> {
         unsafe {
             if T::is_instance(value) {
-                let ptr = if T::OFFSET == 0 {
-                    value as *const _ as *mut u8 as *mut T
-                } else {
-                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
-                };
-                Ok(&mut *ptr)
+                Ok(PyTryFrom::try_from_mut_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
@@ -302,12 +302,7 @@ where
     fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut T, PyDowncastError> {
         unsafe {
             if T::is_exact_instance(value) {
-                let ptr = if T::OFFSET == 0 {
-                    value as *const _ as *mut u8 as *mut T
-                } else {
-                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
-                };
-                Ok(&mut *ptr)
+                Ok(PyTryFrom::try_from_mut_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
@@ -322,6 +317,16 @@ where
             (value.as_ptr() as *const u8).offset(T::OFFSET) as *const T
         };
         &*ptr
+    }
+
+    #[inline]
+    unsafe fn try_from_mut_unchecked(value: &PyObjectRef) -> &mut T {
+        let ptr = if T::OFFSET == 0 {
+            value as *const _ as *mut u8 as *mut T
+        } else {
+            (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
+        };
+        &mut *ptr
     }
 }
 
