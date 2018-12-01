@@ -2,12 +2,12 @@
 
 ## Define a new exception
 
-You can use the `py_exception!` macro to define a new exception type:
+You can use the `create_exception!` macro to define a new exception type:
 
 ```rust
 #[macro_use] extern crate pyo3;
 
-py_exception!(module, MyError, pyo3::exceptions::Exception);
+create_exception!(module, MyError, pyo3::exceptions::Exception);
 ```
 
 * `module` is the name of the containing module.
@@ -20,8 +20,9 @@ For example:
 
 use pyo3::Python;
 use pyo3::types::PyDict;
+use pyo3::exceptions::Exception;
 
-py_exception!(mymodule, CustomError, pyo3::exceptions::Exception);
+create_exception!(mymodule, CustomError, Exception);
 
 fn main() {
     let gil = Python::acquire_gil();
@@ -61,7 +62,7 @@ PyErr::from_instance(py, err).restore(py);
 
 If rust type exists for exception, then it is possible to use `new` method.
 For example each standard exception defined in `exc` module
-has corresponding rust type, exceptions defined by `py_exception!` and `import_exception!` macro
+has corresponding rust type, exceptions defined by `create_exception!` and `import_exception!` macro
 have rust type as well.
 
 ```rust

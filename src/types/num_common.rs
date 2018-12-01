@@ -58,8 +58,8 @@ macro_rules! int_convert_bignum (
             fn into_object(self, py: Python) -> PyObject {
                 unsafe {
                     // TODO: Replace this with functions from the from_bytes family
-                    // Once they are stabilized
-                    // https://github.com/rust-lang/rust/issues/52963
+                    //       Once they are stabilized
+                    //       https://github.com/rust-lang/rust/issues/52963
                     let bytes = ::std::mem::transmute::<_, [c_uchar; $byte_size]>(self);
                     let obj = ffi::_PyLong_FromByteArray(
                         bytes.as_ptr() as *const c_uchar,

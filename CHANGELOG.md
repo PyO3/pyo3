@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Renamed `add_function` to `add_wrapped` as it now also supports modules.
  * Renamed `#[pymodinit]` to `#[pymodule]`.
+ * Renamed `py_exception` to `create_exception` and refactored the error macros.
 
 ### Removed
 
