@@ -233,6 +233,10 @@ pub trait PyTryFrom: Sized {
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
     fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut Self, PyDowncastError>;
+
+    /// Cast a PyObjectRef to a specific type of PyObject. The caller must
+    /// have already verified the reference is for this type.
+    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &Self;
 }
 
 // TryFrom implies TryInto
@@ -263,12 +267,7 @@ where
     fn try_from(value: &PyObjectRef) -> Result<&T, PyDowncastError> {
         unsafe {
             if T::is_instance(value) {
-                let ptr = if T::OFFSET == 0 {
-                    value as *const _ as *mut u8 as *mut T
-                } else {
-                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
-                };
-                Ok(&*ptr)
+                Ok(PyTryFrom::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
@@ -278,12 +277,7 @@ where
     fn try_from_exact(value: &PyObjectRef) -> Result<&T, PyDowncastError> {
         unsafe {
             if T::is_exact_instance(value) {
-                let ptr = if T::OFFSET == 0 {
-                    value as *const _ as *mut u8 as *mut T
-                } else {
-                    (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
-                };
-                Ok(&*ptr)
+                Ok(PyTryFrom::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
@@ -319,6 +313,16 @@ where
             }
         }
     }
+
+    #[inline]
+    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &T {
+        let ptr = if T::OFFSET == 0 {
+            value as *const _ as *const u8 as *const T
+        } else {
+            (value.as_ptr() as *const u8).offset(T::OFFSET) as *const T
+        };
+        &*ptr
+    }
 }
 
 /// This trait wraps a T: IntoPyObject into PyResult<T> while PyResult<T> remains PyResult<T>.
@@ -345,5 +349,21 @@ impl<T: IntoPyObject> ReturnTypeIntoPyResult for PyResult<T> {
 
     fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
         self
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::Python;
+    use crate::types::PyList;
+    use super::PyTryFrom;
+
+    #[test]
+    fn test_try_from_unchecked() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = PyList::new(py, &[1, 2, 3]);
+        let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
+        assert_eq!(list, val);
     }
 }

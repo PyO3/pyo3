@@ -279,8 +279,7 @@ impl PyTryFrom for PySequence {
     fn try_from(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
-                let ptr = value as *const _ as *mut PySequence;
-                Ok(&*ptr)
+                Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
@@ -304,6 +303,12 @@ impl PyTryFrom for PySequence {
 
     fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
         PySequence::try_from_mut(value)
+    }
+
+    #[inline]
+    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &PySequence {
+        let ptr = value as *const _ as *const PySequence;
+        &*ptr
     }
 }
 
@@ -628,5 +633,17 @@ mod test {
             .extract()
             .unwrap();
         assert!(v == b"abc");
+    }
+
+    #[test]
+    fn test_seq_try_from_unchecked() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec!["foo", "bar"];
+        let ob = v.to_object(py);
+        let seq = ob.cast_as::<PySequence>(py).unwrap();
+        let type_ptr = seq.as_ref();
+        let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
+        assert!(seq_from.list().is_ok());
     }
 }
