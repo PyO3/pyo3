@@ -55,6 +55,36 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
+### Making the function signature available to Python
+
+In order to make the function signature available to Python to be retrieved via
+`inspect.signature`, simply make sure the first line of your doc-string is
+formatted like in the example below. Please note that the new-line after the
+`--` is mandatory. The `/` signifies the end of positional only arguments. This
+is not a feature of this library in particular, but the general format used by
+CPython for annotating signatures of built-in functions. Function signatures for
+built-ins are new in Python 3 — in Python 2, it is simply considered to be part
+of the doc-string.
+
+```rust
+/// add(a, b, /)
+/// --
+///
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
+When annotated like this, signatures are also correctly displayed in IPython.
+```
+>>> pyo3_test.add?
+Signature: pyo3_test.add(a, b, /)
+Docstring: This function adds two unsigned 64-bit integers.
+Type:      builtin_function_or_method
+```
+
 ## Closures
 
 Currently, there are no conversions between `Fn`s in rust and callables in python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:
