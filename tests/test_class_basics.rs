@@ -76,3 +76,13 @@ fn empty_class_in_module() {
         "test_module.nested"
     );
 }
+
+#[pyclass]
+struct SimpleGeneric<T> {
+    foo: T,
+}
+
+#[pyclass]
+struct GenericWithBounds<T> where T: Iterator {
+    bar: Box<T>,
+}

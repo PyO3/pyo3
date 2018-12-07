@@ -3,6 +3,7 @@
 use method::{FnArg, FnSpec, FnType};
 use proc_macro2::{Span, TokenStream};
 use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
+use quote::ToTokens;
 use std::collections::HashMap;
 use syn;
 use utils;
@@ -23,7 +24,15 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> Tok
         panic!("#[pyclass] can only be used with C-style structs")
     }
 
-    impl_class(&class.ident, &base, doc, params, flags, descriptors)
+    impl_class(
+        &class.ident,
+        &base,
+        doc,
+        params,
+        flags,
+        descriptors,
+        class.generics.clone(),
+    )
 }
 
 fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
@@ -67,16 +76,21 @@ fn impl_class(
     params: HashMap<&'static str, syn::Expr>,
     flags: Vec<syn::Expr>,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
+    generics: syn::Generics,
 ) -> TokenStream {
     let cls_name = match params.get("name") {
         Some(name) => quote! { #name }.to_string(),
         None => quote! { #cls }.to_string(),
     };
 
+    let targs = generics.params.into_token_stream();
+    let where_clause = generics.where_clause.into_token_stream();
+    let cls = quote! { #cls < #targs > };
+
     let extra = {
         if let Some(freelist) = params.get("freelist") {
             quote! {
-                impl ::pyo3::freelist::PyObjectWithFreeList for #cls {
+                impl<#targs> ::pyo3::freelist::PyObjectWithFreeList for #cls #where_clause {
                     #[inline]
                     fn get_free_list() -> &'static mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> = 0 as *mut _;
@@ -94,14 +108,14 @@ fn impl_class(
             }
         } else {
             quote! {
-                impl ::pyo3::typeob::PyObjectAlloc for #cls {}
+                impl<#targs> ::pyo3::typeob::PyObjectAlloc for #cls #where_clause {}
             }
         }
     };
 
     let extra = if !descriptors.is_empty() {
         let ty = syn::parse_str(&cls.to_string()).expect("no name");
-        let desc_impls = impl_descriptors(&ty, descriptors);
+        let desc_impls = impl_descriptors(&ty, &targs, &where_clause, descriptors);
         quote! {
             #desc_impls
             #extra
@@ -134,7 +148,7 @@ fn impl_class(
     };
 
     quote! {
-        impl ::pyo3::typeob::PyTypeInfo for #cls {
+        impl <#targs> ::pyo3::typeob::PyTypeInfo for #cls #where_clause {
             type Type = #cls;
             type BaseType = #base;
 
@@ -165,20 +179,20 @@ fn impl_class(
         // TBH I'm not sure what exactely this does and I'm sure there's a better way,
         // but for now it works and it only safe code and it is required to return custom
         // objects, so for now I'm keeping it
-        impl ::pyo3::IntoPyObject for #cls {
+        impl <#targs> ::pyo3::IntoPyObject for #cls #where_clause {
             fn into_object(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 ::pyo3::Py::new(py, || self).unwrap().into_object(py)
             }
         }
 
-        impl ::pyo3::ToPyObject for #cls {
+        impl <#targs> ::pyo3::ToPyObject for #cls #where_clause {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 use ::pyo3::python::ToPyPointer;
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 
-        impl ::pyo3::ToPyPointer for #cls {
+        impl <#targs> ::pyo3::ToPyPointer for #cls #where_clause {
             fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
                 unsafe {
                     {self as *const _ as *mut u8}
@@ -187,7 +201,7 @@ fn impl_class(
             }
         }
 
-        impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
+        impl<'a, #targs> ::pyo3::ToPyObject for &'a mut #cls #where_clause {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 use ::pyo3::python::ToPyPointer;
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
@@ -198,7 +212,12 @@ fn impl_class(
     }
 }
 
-fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> TokenStream {
+fn impl_descriptors(
+    cls: &syn::Type,
+    targs: &TokenStream,
+    where_clause: &TokenStream,
+    descriptors: Vec<(syn::Field, Vec<FnType>)>,
+) -> TokenStream {
     let methods: Vec<TokenStream> = descriptors
         .iter()
         .flat_map(|&(ref field, ref fns)| {
@@ -220,7 +239,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());
                             quote! {
-                                impl #cls {
+                                impl<#targs> #cls #where_clause {
                                     fn #setter_name(&mut self, value: #field_ty) -> ::pyo3::PyResult<()> {
                                         self.#name = value;
                                         Ok(())
@@ -284,7 +303,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
     quote! {
         #(#methods)*
 
-        impl ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
+        impl<#targs> ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls #where_clause {
             fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#py_methods),*
