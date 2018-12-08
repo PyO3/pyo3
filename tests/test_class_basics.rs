@@ -78,11 +78,11 @@ fn empty_class_in_module() {
 }
 
 #[pyclass]
-struct SimpleGeneric<T> {
-    foo: T,
+struct SimpleGeneric<T: 'static> {
+    _foo: T,
 }
 
 #[pyclass]
-struct GenericWithBounds<T> where T: Iterator {
-    bar: Box<T>,
+struct GenericWithBounds<T> where T: Iterator + 'static {
+    _bar: Box<T>,
 }
