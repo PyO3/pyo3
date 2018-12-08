@@ -3,7 +3,6 @@
 use method::{FnArg, FnSpec, FnType};
 use proc_macro2::{Span, TokenStream};
 use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
-use quote::ToTokens;
 use std::collections::HashMap;
 use syn;
 use utils;
@@ -83,14 +82,14 @@ fn impl_class(
         None => quote! { #cls }.to_string(),
     };
 
-    let targs = generics.params.clone().into_token_stream();
-    let where_clause = generics.where_clause.into_token_stream();
-    let cls = quote! { #cls < #targs > };
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let extra = {
         if let Some(freelist) = params.get("freelist") {
             quote! {
-                impl<#targs> ::pyo3::freelist::PyObjectWithFreeList for #cls #where_clause {
+                impl #impl_generics ::pyo3::freelist::PyObjectWithFreeList
+                    for #cls #ty_generics #where_clause
+                {
                     #[inline]
                     fn get_free_list() -> &'static mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut ::pyo3::freelist::FreeList<*mut ::pyo3::ffi::PyObject> = 0 as *mut _;
@@ -99,7 +98,7 @@ fn impl_class(
                                 FREELIST = Box::into_raw(Box::new(
                                     ::pyo3::freelist::FreeList::with_capacity(#freelist)));
 
-                                <#cls as ::pyo3::typeob::PyTypeCreate>::init_type();
+                                <#cls #ty_generics as ::pyo3::typeob::PyTypeCreate>::init_type();
                             }
                             &mut *FREELIST
                         }
@@ -108,14 +107,20 @@ fn impl_class(
             }
         } else {
             quote! {
-                impl<#targs> ::pyo3::typeob::PyObjectAlloc for #cls #where_clause {}
+                impl #impl_generics ::pyo3::typeob::PyObjectAlloc for #cls #ty_generics #where_clause {}
             }
         }
     };
 
     let extra = if !descriptors.is_empty() {
         let ty = syn::parse_str(&cls.to_string()).expect("no name");
-        let desc_impls = impl_descriptors(&ty, &targs, &where_clause, descriptors);
+        let desc_impls = impl_descriptors(
+            &ty,
+            &impl_generics,
+            &ty_generics,
+            &where_clause,
+            descriptors,
+        );
         quote! {
             #desc_impls
             #extra
@@ -161,7 +166,7 @@ fn impl_class(
         quote! {
             use std::collections::hash_map::Entry;
             let mut map = ::pyo3::typeob::PY_TYPE_OBJ_MAP.lock().unwrap();
-            let obj = match map.entry(std::any::TypeId::of::<#cls>()) {
+            let obj = match map.entry(std::any::TypeId::of::<#cls #ty_generics>()) {
                 Entry::Occupied(o) => o.into_mut(),
                 Entry::Vacant(v) => v.insert(::pyo3::ffi::PyTypeObject_INIT),
             };
@@ -171,9 +176,20 @@ fn impl_class(
         }
     };
 
+    // Create a variant of our generics with lifetime 'a prepended.
+    let mut gen_with_a = generics.clone();
+    gen_with_a.params.insert(
+        0,
+        syn::GenericParam::Lifetime(syn::LifetimeDef::new(syn::Lifetime::new(
+            "'a",
+            Span::call_site(),
+        ))),
+    );
+    let impl_with_a = gen_with_a.split_for_impl().0;
+
     quote! {
-        impl <#targs> ::pyo3::typeob::PyTypeInfo for #cls #where_clause {
-            type Type = #cls;
+        impl #impl_generics ::pyo3::typeob::PyTypeInfo for #cls #ty_generics #where_clause {
+            type Type = #cls #ty_generics;
             type BaseType = #base;
 
             const NAME: &'static str = #cls_name;
@@ -182,14 +198,15 @@ fn impl_class(
 
             const SIZE: usize = {
                 Self::OFFSET as usize +
-                ::std::mem::size_of::<#cls>() + #weakref + #dict
+                ::std::mem::size_of::<#cls #ty_generics>() + #weakref + #dict
             };
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
                 (
                     (<#base as ::pyo3::typeob::PyTypeInfo>::SIZE +
-                     ::std::mem::align_of::<#cls>() - 1)  /
-                        ::std::mem::align_of::<#cls>() * ::std::mem::align_of::<#cls>()
+                     ::std::mem::align_of::<#cls #ty_generics>() - 1) /
+                        ::std::mem::align_of::<#cls #ty_generics>() *
+                        ::std::mem::align_of::<#cls #ty_generics>()
                 ) as isize
             };
 
@@ -202,29 +219,30 @@ fn impl_class(
         // TBH I'm not sure what exactely this does and I'm sure there's a better way,
         // but for now it works and it only safe code and it is required to return custom
         // objects, so for now I'm keeping it
-        impl <#targs> ::pyo3::IntoPyObject for #cls #where_clause {
+        impl #impl_generics ::pyo3::IntoPyObject for #cls #ty_generics #where_clause {
             fn into_object(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 ::pyo3::Py::new(py, || self).unwrap().into_object(py)
             }
         }
 
-        impl <#targs> ::pyo3::ToPyObject for #cls #where_clause {
+        impl #impl_generics ::pyo3::ToPyObject for #cls #ty_generics #where_clause {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 use ::pyo3::python::ToPyPointer;
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
 
-        impl <#targs> ::pyo3::ToPyPointer for #cls #where_clause {
+        impl #impl_generics ::pyo3::ToPyPointer for #cls #ty_generics #where_clause {
             fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
                 unsafe {
                     {self as *const _ as *mut u8}
-                    .offset(-<#cls as ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
+                    .offset(-<#cls #ty_generics as
+                        ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
                 }
             }
         }
 
-        impl<'a, #targs> ::pyo3::ToPyObject for &'a mut #cls #where_clause {
+        impl #impl_with_a ::pyo3::ToPyObject for &'a mut #cls #ty_generics #where_clause {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 use ::pyo3::python::ToPyPointer;
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
@@ -237,8 +255,9 @@ fn impl_class(
 
 fn impl_descriptors(
     cls: &syn::Type,
-    targs: &TokenStream,
-    where_clause: &TokenStream,
+    impl_generics: &syn::ImplGenerics,
+    ty_generics: &syn::TypeGenerics,
+    where_clause: &Option<&syn::WhereClause>,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> TokenStream {
     let methods: Vec<TokenStream> = descriptors
@@ -251,7 +270,7 @@ fn impl_descriptors(
                     match *desc {
                         FnType::Getter(_) => {
                             quote! {
-                                impl #cls {
+                                impl #impl_generics #cls #ty_generics #where_clause {
                                     fn #name(&self) -> ::pyo3::PyResult<#field_ty> {
                                         Ok(self.#name.clone())
                                     }
@@ -262,7 +281,7 @@ fn impl_descriptors(
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());
                             quote! {
-                                impl<#targs> #cls #where_clause {
+                                impl #impl_generics #cls #ty_generics #where_clause {
                                     fn #setter_name(&mut self, value: #field_ty) -> ::pyo3::PyResult<()> {
                                         self.#name = value;
                                         Ok(())
@@ -326,7 +345,9 @@ fn impl_descriptors(
     quote! {
         #(#methods)*
 
-        impl<#targs> ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls #where_clause {
+        impl #impl_generics ::pyo3::class::methods::PyPropMethodsProtocolImpl
+            for #cls #ty_generics #where_clause
+        {
             fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
                 static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
                     #(#py_methods),*
