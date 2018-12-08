@@ -159,17 +159,15 @@ fn impl_class(
             &mut TYPE_OBJECT
         }
     }
-    // If there are t-args, lacking support for t-arg dependent statics in Rust,
-    // we fall back to using a global hash map for resolving the correct type
-    // object using TypeId.
+    // If the struct is generic, lacking support for type argument dependent
+    // statics in Rust, we fall back to using a global hash map for resolving
+    // the correct type object using TypeId.
     else {
         quote! {
-            use std::collections::hash_map::Entry;
             let mut map = ::pyo3::typeob::PY_TYPE_OBJ_MAP.lock().unwrap();
-            let obj = match map.entry(std::any::TypeId::of::<#cls #ty_generics>()) {
-                Entry::Occupied(o) => o.into_mut(),
-                Entry::Vacant(v) => v.insert(::pyo3::ffi::PyTypeObject_INIT),
-            };
+            let obj = map
+                .entry(std::any::TypeId::of::<Self>())
+                .or_insert_with(|| ::pyo3::ffi::PyTypeObject_INIT);
 
             // Erase ownership info using raw pointer
             &mut *(obj as *mut _)
@@ -198,15 +196,15 @@ fn impl_class(
 
             const SIZE: usize = {
                 Self::OFFSET as usize +
-                ::std::mem::size_of::<#cls #ty_generics>() + #weakref + #dict
+                ::std::mem::size_of::<Self>() + #weakref + #dict
             };
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
                 (
                     (<#base as ::pyo3::typeob::PyTypeInfo>::SIZE +
-                     ::std::mem::align_of::<#cls #ty_generics>() - 1) /
-                        ::std::mem::align_of::<#cls #ty_generics>() *
-                        ::std::mem::align_of::<#cls #ty_generics>()
+                     ::std::mem::align_of::<Self>() - 1) /
+                        ::std::mem::align_of::<Self>() *
+                        ::std::mem::align_of::<Self>()
                 ) as isize
             };
 
@@ -235,9 +233,9 @@ fn impl_class(
         impl #impl_generics ::pyo3::ToPyPointer for #cls #ty_generics #where_clause {
             fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
                 unsafe {
-                    {self as *const _ as *mut u8}
-                    .offset(-<#cls #ty_generics as
-                        ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
+                    (self as *const _ as *mut u8).offset(
+                        -<Self as ::pyo3::typeob::PyTypeInfo>::OFFSET
+                    ) as *mut ::pyo3::ffi::PyObject
                 }
             }
         }
