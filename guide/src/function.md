@@ -1,6 +1,6 @@
 # Python Function
 
-Pyo3 supports two ways to define a function in python. Both require registering
+PyO3 supports two ways to define a function in python. Both require registering
 the function to a [module](./module.md)
 
 One way is defining the function in the module definition.
@@ -28,7 +28,7 @@ fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
-The other is annotating a function with `#[py::function]` and then adding it
+The other is annotating a function with `#[pyfunction]` and then adding it
 to the module using the `add_wrapped_to_module!` macro, which takes the module
 as first parameter, the function name as second and an instance of `Python`
 as third.
@@ -55,13 +55,43 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
+### Making the function signature available to Python
+
+In order to make the function signature available to Python to be retrieved via
+`inspect.signature`, simply make sure the first line of your doc-string is
+formatted like in the example below. Please note that the new-line after the
+`--` is mandatory. The `/` signifies the end of positional only arguments. This
+is not a feature of this library in particular, but the general format used by
+CPython for annotating signatures of built-in functions. Function signatures for
+built-ins are new in Python 3 — in Python 2, it is simply considered to be part
+of the doc-string.
+
+```rust
+/// add(a, b, /)
+/// --
+///
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
+When annotated like this, signatures are also correctly displayed in IPython.
+```
+>>> pyo3_test.add?
+Signature: pyo3_test.add(a, b, /)
+Docstring: This function adds two unsigned 64-bit integers.
+Type:      builtin_function_or_method
+```
+
 ## Closures
 
 Currently, there are no conversions between `Fn`s in rust and callables in python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:
 
 ### Calling a python function in rust
 
-You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `NoArgs`) as second paramter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the args.
+You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `NoArgs`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the args.
 
 ### Calling rust `Fn`s in python
 
