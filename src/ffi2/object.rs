@@ -416,6 +416,8 @@ pub struct PyTypeObject {
     pub tp_version_tag: c_uint,
 }
 
+unsafe impl Send for PyTypeObject {}
+
 #[cfg(py_sys_config = "Py_TRACE_REFS")]
 pub const PyTypeObject_INIT: PyTypeObject = PyTypeObject {
     _ob_next: ::std::ptr::null_mut(),

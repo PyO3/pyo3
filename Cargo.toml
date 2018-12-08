@@ -25,6 +25,7 @@ num-traits = "0.2.6"
 pyo3cls = { path = "pyo3cls", version = "=0.5.0" }
 mashup = "0.1.9"
 num-complex = { version = "0.2.1", optional = true }
+lazy_static = "1.2.0"
 
 [dev-dependencies]
 assert_approx_eq = "1.0.0"

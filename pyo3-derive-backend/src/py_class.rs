@@ -83,7 +83,7 @@ fn impl_class(
         None => quote! { #cls }.to_string(),
     };
 
-    let targs = generics.params.into_token_stream();
+    let targs = generics.params.clone().into_token_stream();
     let where_clause = generics.where_clause.into_token_stream();
     let cls = quote! { #cls < #targs > };
 
@@ -147,6 +147,30 @@ fn impl_class(
         quote! {0}
     };
 
+    // If there are no type arguments, simply use a static variable.
+    let type_object_impl = if generics.params.is_empty() {
+        quote! {
+            static mut TYPE_OBJECT: ::pyo3::ffi::PyTypeObject = ::pyo3::ffi::PyTypeObject_INIT;
+            &mut TYPE_OBJECT
+        }
+    }
+    // If there are t-args, lacking support for t-arg dependent statics in Rust,
+    // we fall back to using a global hash map for resolving the correct type
+    // object using TypeId.
+    else {
+        quote! {
+            use std::collections::hash_map::Entry;
+            let mut map = ::pyo3::typeob::PY_TYPE_OBJ_MAP.lock().unwrap();
+            let obj = match map.entry(std::any::TypeId::of::<#cls>()) {
+                Entry::Occupied(o) => o.into_mut(),
+                Entry::Vacant(v) => v.insert(::pyo3::ffi::PyTypeObject_INIT),
+            };
+
+            // Erase ownership info using raw pointer
+            &mut *(obj as *mut _)
+        }
+    };
+
     quote! {
         impl <#targs> ::pyo3::typeob::PyTypeInfo for #cls #where_clause {
             type Type = #cls;
@@ -171,8 +195,7 @@ fn impl_class(
 
             #[inline]
             unsafe fn type_object() -> &'static mut ::pyo3::ffi::PyTypeObject {
-                static mut TYPE_OBJECT: ::pyo3::ffi::PyTypeObject = ::pyo3::ffi::PyTypeObject_INIT;
-                &mut TYPE_OBJECT
+                #type_object_impl
             }
         }
 
