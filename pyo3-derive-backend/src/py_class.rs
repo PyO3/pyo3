@@ -166,17 +166,17 @@ fn impl_class(
         quote! {
             use std::{sync::Mutex, collections::HashMap, any::TypeId};
             lazy_static! {
-                pub static ref OBJ_MAP: Mutex<HashMap<TypeId, ::pyo3::ffi::PyTypeObject>>
+                pub static ref OBJ_MAP: Mutex<HashMap<TypeId, Box<::pyo3::ffi::PyTypeObject>>>
                     = Mutex::new(HashMap::new());
             }
 
             let mut map = OBJ_MAP.lock().unwrap();
             let obj = map
                 .entry(std::any::TypeId::of::<Self>())
-                .or_insert_with(|| ::pyo3::ffi::PyTypeObject_INIT);
+                .or_insert_with(|| Box::new(::pyo3::ffi::PyTypeObject_INIT));
 
             // Erase ownership info using raw pointer
-            &mut *(obj as *mut _)
+            &mut *(&mut **obj as *mut _)
         }
     };
 
