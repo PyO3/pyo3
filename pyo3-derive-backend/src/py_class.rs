@@ -164,7 +164,13 @@ fn impl_class(
     // the correct type object using TypeId.
     else {
         quote! {
-            let mut map = ::pyo3::typeob::PY_TYPE_OBJ_MAP.lock().unwrap();
+            use std::{sync::Mutex, collections::HashMap, any::TypeId};
+            lazy_static! {
+                pub static ref OBJ_MAP: Mutex<HashMap<TypeId, ::pyo3::ffi::PyTypeObject>>
+                    = Mutex::new(HashMap::new());
+            }
+
+            let mut map = OBJ_MAP.lock().unwrap();
             let obj = map
                 .entry(std::any::TypeId::of::<Self>())
                 .or_insert_with(|| ::pyo3::ffi::PyTypeObject_INIT);

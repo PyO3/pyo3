@@ -4,9 +4,7 @@
 
 use std;
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::ffi::CString;
-use std::any::TypeId;
 use std::mem;
 use std::os::raw::c_void;
 
@@ -54,12 +52,6 @@ pub trait PyTypeInfo {
     fn is_exact_instance(object: &PyObjectRef) -> bool {
         unsafe { (*object.as_ptr()).ob_type == Self::type_object() }
     }
-}
-
-lazy_static! {
-    /// Type object lookup map for types with template arguments.
-    pub static ref PY_TYPE_OBJ_MAP: Mutex<HashMap<TypeId, ffi::PyTypeObject>>
-        = Mutex::new(HashMap::new());
 }
 
 /// Type object supports python GC

@@ -139,6 +139,8 @@ extern crate spin;
 
 #[macro_use]
 extern crate lazy_static;
+#[doc(hidden)]
+pub use lazy_static::*;
 
 pub use crate::class::*;
 pub use crate::conversion::{
