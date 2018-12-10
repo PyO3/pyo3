@@ -3,12 +3,20 @@
 use method::{FnArg, FnSpec, FnType};
 use proc_macro2::{Span, TokenStream};
 use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
-use std::collections::HashMap;
 use syn;
 use utils;
 
+#[derive(Default, Debug)]
+struct PyClassAttributes {
+    flags: Vec<syn::Expr>,
+    freelist: Option<syn::Expr>,
+    name: Option<syn::Expr>,
+    base: Option<syn::TypePath>,
+    variants: Option<Vec<(String, syn::AngleBracketedGenericArguments)>>,
+}
+
 pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> TokenStream {
-    let (params, flags, base) = parse_attribute(attr);
+    let attrs = parse_attribute(attr);
     let doc = utils::get_doc(&class.attrs, true);
     let mut descriptors = Vec::new();
 
@@ -25,10 +33,8 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> Tok
 
     impl_class(
         &class.ident,
-        &base,
+        &attrs,
         doc,
-        params,
-        flags,
         descriptors,
         class.generics.clone(),
     )
@@ -70,22 +76,36 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
 
 fn impl_class(
     cls: &syn::Ident,
-    base: &syn::TypePath,
+    attrs: &PyClassAttributes,
     doc: syn::Lit,
-    params: HashMap<&'static str, syn::Expr>,
-    flags: Vec<syn::Expr>,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
-    generics: syn::Generics,
+    mut generics: syn::Generics,
 ) -> TokenStream {
-    let cls_name = match params.get("name") {
-        Some(name) => quote! { #name }.to_string(),
+    let cls_name = match attrs.name {
+        Some(ref name) => quote! { #name }.to_string(),
         None => quote! { #cls }.to_string(),
     };
 
+    if attrs.variants.is_none() && generics.params.len() != 0 {
+        panic!(
+            "The `variants` parameter is required when using generic structs, \
+             e.g. `#[pyclass(variants(\"{}U32<u32>\", \"{}F32<f32>\"))]`.",
+            cls_name, cls_name,
+        );
+    }
+
+    // Split generics into pieces for impls using them.
+    generics.make_where_clause();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let mut where_clause = where_clause.unwrap().clone();
+
+    // Insert `MyStruct<T>: PyTypeInfo` bound.
+    where_clause.predicates.push(parse_quote! {
+        #cls #ty_generics: ::pyo3::typeob::PyTypeInfo
+    });
 
     let extra = {
-        if let Some(freelist) = params.get("freelist") {
+        if let Some(ref freelist) = attrs.freelist {
             quote! {
                 impl #impl_generics ::pyo3::freelist::PyObjectWithFreeList
                     for #cls #ty_generics #where_clause
@@ -132,7 +152,7 @@ fn impl_class(
     // insert space for weak ref
     let mut has_weakref = false;
     let mut has_dict = false;
-    for f in flags.iter() {
+    for f in attrs.flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
             if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
@@ -152,51 +172,30 @@ fn impl_class(
         quote! {0}
     };
 
-    // If there are no type arguments, simply use a static variable.
-    let type_object_impl = if generics.params.is_empty() {
-        quote! {
-            static mut TYPE_OBJECT: ::pyo3::ffi::PyTypeObject = ::pyo3::ffi::PyTypeObject_INIT;
-            &mut TYPE_OBJECT
-        }
-    }
-    // If the struct is generic, lacking support for type argument dependent
-    // statics in Rust, we fall back to using a global hash map for resolving
-    // the correct type object using TypeId.
-    else {
-        quote! {
-            use std::{sync::Mutex, collections::HashMap, any::TypeId};
-            lazy_static! {
-                pub static ref OBJ_MAP: Mutex<HashMap<TypeId, Box<::pyo3::ffi::PyTypeObject>>>
-                    = Mutex::new(HashMap::new());
-            }
-
-            let mut map = OBJ_MAP.lock().unwrap();
-            let obj = map
-                .entry(std::any::TypeId::of::<Self>())
-                .or_insert_with(|| Box::new(::pyo3::ffi::PyTypeObject_INIT));
-
-            // Erase ownership info using raw pointer
-            &mut *(&mut **obj as *mut _)
-        }
-    };
-
     // Create a variant of our generics with lifetime 'a prepended.
     let mut gen_with_a = generics.clone();
-    gen_with_a.params.insert(
-        0,
-        syn::GenericParam::Lifetime(syn::LifetimeDef::new(syn::Lifetime::new(
-            "'a",
-            Span::call_site(),
-        ))),
-    );
+    gen_with_a.params.insert(0, parse_quote! { 'a });
     let impl_with_a = gen_with_a.split_for_impl().0;
 
-    quote! {
-        impl #impl_generics ::pyo3::typeob::PyTypeInfo for #cls #ty_generics #where_clause {
-            type Type = #cls #ty_generics;
+    // Generate one PyTypeInfo per generic variant.
+    use quote::ToTokens;
+    let variant_iter: Box<dyn Iterator<Item = (String, TokenStream)>> = match attrs.variants {
+        Some(ref x) => Box::new(
+            x.clone()
+                .into_iter()
+                .map(|(a, b)| (a, b.into_token_stream())),
+        ),
+        None => Box::new(std::iter::once((cls_name, TokenStream::new()))),
+    };
+
+    let base = &attrs.base;
+    let flags = &attrs.flags;
+    let type_info_impls: Vec<_> = variant_iter.map(|(name, for_ty)| quote! {
+        impl ::pyo3::typeob::PyTypeInfo for #cls #for_ty {
+            type Type = #cls #for_ty;
             type BaseType = #base;
 
-            const NAME: &'static str = #cls_name;
+            const NAME: &'static str = #name;
             const DESCRIPTION: &'static str = #doc;
             const FLAGS: usize = #(#flags)|*;
 
@@ -216,9 +215,14 @@ fn impl_class(
 
             #[inline]
             unsafe fn type_object() -> &'static mut ::pyo3::ffi::PyTypeObject {
-                #type_object_impl
+                static mut TYPE_OBJECT: ::pyo3::ffi::PyTypeObject = ::pyo3::ffi::PyTypeObject_INIT;
+                &mut TYPE_OBJECT
             }
         }
+    }).collect();
+
+    quote! {
+        #(#type_info_impls)*
 
         // TBH I'm not sure what exactely this does and I'm sure there's a better way,
         // but for now it works and it only safe code and it is required to return custom
@@ -261,7 +265,7 @@ fn impl_descriptors(
     cls: &syn::Type,
     impl_generics: &syn::ImplGenerics,
     ty_generics: &syn::TypeGenerics,
-    where_clause: &Option<&syn::WhereClause>,
+    where_clause: &syn::WhereClause,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> TokenStream {
     let methods: Vec<TokenStream> = descriptors
@@ -362,23 +366,21 @@ fn impl_descriptors(
     }
 }
 
-fn parse_attribute(
-    args: &Vec<syn::Expr>,
-) -> (
-    HashMap<&'static str, syn::Expr>,
-    Vec<syn::Expr>,
-    syn::TypePath,
-) {
-    let mut params = HashMap::new();
-    // We need the 0 as value for the constant we're later building using quote for when there
-    // are no other flags
-    let mut flags = vec![parse_quote! {0}];
-    let mut base: syn::TypePath = parse_quote! {::pyo3::types::PyObjectRef};
+fn parse_attribute(args: &Vec<syn::Expr>) -> PyClassAttributes {
+    use syn::Expr::*;
+
+    let mut attrs = PyClassAttributes {
+        // We need the 0 as value for the constant we're later building using
+        // quote for when there are no other flags
+        flags: vec![parse_quote! {0}],
+        base: Some(parse_quote! {::pyo3::types::PyObjectRef}),
+        ..Default::default()
+    };
 
     for expr in args.iter() {
         match expr {
             // Match a single flag
-            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+            Path(ref exp) if exp.path.segments.len() == 1 => {
                 let flag = exp.path.segments.first().unwrap().value().ident.to_string();
                 let path = match flag.as_str() {
                     "gc" => {
@@ -396,13 +398,13 @@ fn parse_attribute(
                     param => panic!("Unsupported parameter: {}", param),
                 };
 
-                flags.push(syn::Expr::Path(path));
+                attrs.flags.push(Path(path));
             }
 
             // Match a key/value flag
-            syn::Expr::Assign(ref ass) => {
+            Assign(ref ass) => {
                 let key = match *ass.left {
-                    syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+                    Path(ref exp) if exp.path.segments.len() == 1 => {
                         exp.path.segments.first().unwrap().value().ident.to_string()
                     }
                     _ => panic!("could not parse argument: {:?}", ass),
@@ -411,20 +413,20 @@ fn parse_attribute(
                 match key.as_str() {
                     "freelist" => {
                         // TODO: check if int literal
-                        params.insert("freelist", *ass.right.clone());
+                        attrs.freelist = Some(*ass.right.clone());
                     }
                     "name" => match *ass.right {
-                        syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
-                            params.insert("name", exp.clone().into());
+                        Path(ref exp) if exp.path.segments.len() == 1 => {
+                            attrs.name = Some(exp.clone().into());
                         }
                         _ => panic!("Wrong 'name' format: {:?}", *ass.right),
                     },
                     "extends" => match *ass.right {
-                        syn::Expr::Path(ref exp) => {
-                            base = syn::TypePath {
+                        Path(ref exp) => {
+                            attrs.base = Some(syn::TypePath {
                                 path: exp.path.clone(),
                                 qself: None,
-                            };
+                            });
                         }
                         _ => panic!("Wrong 'base' format: {:?}", *ass.right),
                     },
@@ -434,9 +436,63 @@ fn parse_attribute(
                 }
             }
 
-            _ => panic!("could not parse arguments"),
+            // Match variants (e.g. `variants("MyTypeU32<u32>", "MyTypeF32<f32>")`)
+            Call(ref call) => {
+                let path = match *call.func {
+                    Path(ref expr_path) => expr_path,
+                    _ => panic!("Unsupported argument syntax"),
+                };
+                let path_segments = &path.path.segments;
+
+                if path_segments.len() != 1
+                    || path_segments.first().unwrap().value().ident.to_string() != "variants"
+                {
+                    panic!("Unsupported argument syntax");
+                }
+
+                attrs.variants = Some(
+                    call.args
+                        .iter()
+                        .map(|x| {
+                            // Extract string argument.
+                            let lit = match x {
+                                Lit(syn::ExprLit {
+                                    lit: syn::Lit::Str(ref lit),
+                                    ..
+                                }) => lit.value(),
+                                _ => panic!("Unsupported argument syntax"),
+                            };
+
+                            // Parse string as type.
+                            let ty: syn::Type =
+                                syn::parse_str(&lit).expect("Invalid type definition");
+
+                            let path_segs = match ty {
+                                syn::Type::Path(syn::TypePath { ref path, .. }) => {
+                                    path.segments.clone()
+                                }
+                                _ => panic!("Unsupported type syntax"),
+                            };
+
+                            if path_segs.len() != 1 {
+                                panic!("Type path is expected to have exactly one segment.");
+                            }
+
+                            let seg = path_segs.iter().nth(0).unwrap();
+                            let args = match seg.arguments {
+                                syn::PathArguments::AngleBracketed(ref args) => args.clone(),
+                                _ => panic!("Expected angle bracketed type arguments"),
+                            };
+
+                            (seg.ident.to_string(), args)
+                        })
+                        .collect(),
+                );
+            }
+
+            _ => panic!("Could not parse arguments"),
         }
     }
 
-    (params, flags, base)
+    attrs
 }
