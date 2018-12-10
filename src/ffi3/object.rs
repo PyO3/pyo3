@@ -458,8 +458,6 @@ mod typeobject {
         pub tp_next: *mut PyTypeObject,
     }
 
-    unsafe impl Send for PyTypeObject {}
-
     macro_rules! py_type_object_init {
         ($tp_as_async:ident, $($tail:tt)*) => {
             as_expr! {
