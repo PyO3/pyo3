@@ -4,7 +4,7 @@
 extern crate pyo3;
 
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyTuple};
 use std::isize;
 
 #[macro_use]
@@ -88,6 +88,26 @@ fn intopytuple_pyclass() {
     let py = gil.python();
 
     let tup = (SimplePyClass {}, SimplePyClass {});
+    py_assert!(py, tup, "tup[0].__name__ == 'SimplePyClass'");
+    py_assert!(py, tup, "tup[0].__name__ == tup[1].__name__");
+    py_assert!(py, tup, "tup[0] != tup[1]");
+}
+
+#[test]
+fn pytuple_primitive_iter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = PyTuple::new(py, [1u32, 2, 3].into_iter());
+    py_assert!(py, tup, "tup == (1, 2, 3)");
+}
+
+#[test]
+fn pytuple_pyclass_iter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = PyTuple::new(py, [SimplePyClass {}, SimplePyClass {}].into_iter());
     py_assert!(py, tup, "tup[0].__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "tup[0].__name__ == tup[1].__name__");
     py_assert!(py, tup, "tup[0] != tup[1]");
