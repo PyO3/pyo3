@@ -76,7 +76,7 @@ fn intopytuple_primitive() {
     py_assert!(py, tup, "tup == (1, 2, 'foo')");
     py_assert!(py, tup, "tup[0] == 1");
     py_assert!(py, tup, "tup[1] == 2");
-    py_assert!(py, tup, "tup[3] == 'foo'");
+    py_assert!(py, tup, "tup[2] == 'foo'");
 }
 
 #[pyclass]
@@ -87,9 +87,12 @@ fn intopytuple_pyclass() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let tup = (SimplePyClass {}, SimplePyClass {});
-    py_assert!(py, tup, "tup[0].__name__ == 'SimplePyClass'");
-    py_assert!(py, tup, "tup[0].__name__ == tup[1].__name__");
+    let tup = (
+        py.init(|| SimplePyClass {}).unwrap(),
+        py.init(|| SimplePyClass {}).unwrap(),
+    );
+    py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
+    py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
     py_assert!(py, tup, "tup[0] != tup[1]");
 }
 
@@ -107,8 +110,11 @@ fn pytuple_pyclass_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let tup = PyTuple::new(py, [SimplePyClass {}, SimplePyClass {}].into_iter());
-    py_assert!(py, tup, "tup[0].__name__ == 'SimplePyClass'");
-    py_assert!(py, tup, "tup[0].__name__ == tup[1].__name__");
+    let tup = PyTuple::new(py, [
+        py.init(|| SimplePyClass {}).unwrap(),
+        py.init(|| SimplePyClass {}).unwrap(),
+    ].into_iter());
+    py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
+    py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
     py_assert!(py, tup, "tup[0] != tup[1]");
 }
