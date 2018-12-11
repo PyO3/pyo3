@@ -18,15 +18,72 @@ pub fn gen_py_method<'a>(
     let doc = utils::get_doc(&meth_attrs, true);
     let spec = FnSpec::parse(name, sig, meth_attrs);
 
+    macro_rules! make_py_method_def {
+        ($def_type:ident, $meth_type:ident, $flags:expr, $wrapper:expr $(,)*) => {{
+            let wrapper = $wrapper;
+            quote! {
+                ::pyo3::class::PyMethodDefType::$def_type({
+                    #wrapper
+
+                    ::pyo3::class::PyMethodDef {
+                        ml_name: stringify!(#name),
+                        ml_meth: ::pyo3::class::PyMethodType::$meth_type(__wrap),
+                        ml_flags: $flags,
+                        ml_doc: #doc,
+                    }
+                })
+            }
+        }};
+    }
+
     match spec.tp {
-        FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
-        FnType::FnNew => impl_py_method_def_new(name, doc, &impl_wrap_new(cls, name, &spec)),
-        FnType::FnInit => impl_py_method_def_init(name, doc, &impl_wrap_init(cls, name, &spec)),
-        FnType::FnCall => impl_py_method_def_call(name, doc, &impl_wrap(cls, name, &spec, false)),
-        FnType::FnClass => impl_py_method_def_class(name, doc, &impl_wrap_class(cls, name, &spec)),
-        FnType::FnStatic => {
-            impl_py_method_def_static(name, doc, &impl_wrap_static(cls, name, &spec))
+        FnType::Fn => {
+            if spec.args.is_empty() {
+                make_py_method_def!(
+                    Method,
+                    PyNoArgsFunction,
+                    ::pyo3::ffi::METH_NOARGS,
+                    &impl_wrap(cls, name, &spec, true),
+                )
+            } else {
+                make_py_method_def!(
+                    Method,
+                    PyCFunctionWithKeywords,
+                    ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
+                    &impl_wrap(cls, name, &spec, true),
+                )
+            }
         }
+        FnType::FnNew => make_py_method_def!(
+            New,
+            PyNewFunc,
+            ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
+            &impl_wrap_new(cls, name, &spec),
+        ),
+        FnType::FnInit => make_py_method_def!(
+            Init,
+            PyInitFunc,
+            ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
+            &impl_wrap_init(cls, name, &spec),
+        ),
+        FnType::FnCall => make_py_method_def!(
+            Call,
+            PyCFunctionWithKeywords,
+            ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
+            &impl_wrap(cls, name, &spec, false),
+        ),
+        FnType::FnClass => make_py_method_def!(
+            Class,
+            PyCFunctionWithKeywords,
+            ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS | ::pyo3::ffi::METH_CLASS,
+            &impl_wrap_class(cls, name, &spec),
+        ),
+        FnType::FnStatic => make_py_method_def!(
+            Static,
+            PyCFunctionWithKeywords,
+            ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS | ::pyo3::ffi::METH_STATIC,
+            &impl_wrap_static(cls, name, &spec),
+        ),
         FnType::Getter(ref getter) => {
             impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name))
         }
@@ -81,7 +138,8 @@ pub fn impl_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec, noargs: bool
             unsafe extern "C" fn __wrap(
                 _slf: *mut ::pyo3::ffi::PyObject,
                 _args: *mut ::pyo3::ffi::PyObject,
-                _kwargs: *mut ::pyo3::ffi::PyObject) -> *mut ::pyo3::ffi::PyObject
+                _kwargs: *mut ::pyo3::ffi::PyObject,
+            ) -> *mut ::pyo3::ffi::PyObject
             {
                 const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
@@ -334,7 +392,11 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStrea
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub(crate) fn impl_wrap_setter(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     if spec.args.len() < 1 {
-        println!("Not enough arguments for setter {}::{}", quote!{#cls}, name);
+        println!(
+            "Not enough arguments for setter {}::{}",
+            quote! {#cls},
+            name
+        );
     }
     let val_ty = spec.args[0].ty;
 
@@ -552,137 +614,6 @@ fn impl_arg_param(arg: &FnArg, spec: &FnSpec, body: &TokenStream, idx: usize) ->
                     })
             }
         }
-    }
-}
-
-pub fn impl_py_method_def(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    spec: &FnSpec,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    if spec.args.is_empty() {
-        quote! {
-            ::pyo3::class::PyMethodDefType::Method({
-                #wrapper
-
-                ::pyo3::class::PyMethodDef {
-                    ml_name: stringify!(#name),
-                    ml_meth: ::pyo3::class::PyMethodType::PyNoArgsFunction(__wrap),
-                    ml_flags: ::pyo3::ffi::METH_NOARGS,
-                    ml_doc: #doc,
-                }
-            })
-        }
-    } else {
-        quote! {
-            ::pyo3::class::PyMethodDefType::Method({
-                #wrapper
-
-                ::pyo3::class::PyMethodDef {
-                    ml_name: stringify!(#name),
-                    ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                    ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
-                    ml_doc: #doc,
-                }
-            })
-        }
-    }
-}
-
-pub fn impl_py_method_def_new(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
-        ::pyo3::class::PyMethodDefType::New({
-            #wrapper
-
-            ::pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: ::pyo3::class::PyMethodType::PyNewFunc(__wrap),
-                ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            }
-        })
-    }
-}
-
-pub fn impl_py_method_def_init(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
-        ::pyo3::class::PyMethodDefType::Init({
-            #wrapper
-
-            ::pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: ::pyo3::class::PyMethodType::PyInitFunc(__wrap),
-                ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            }
-        })
-    }
-}
-
-pub fn impl_py_method_def_class(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
-        ::pyo3::class::PyMethodDefType::Class({
-            #wrapper
-
-            ::pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS |
-                ::pyo3::ffi::METH_CLASS,
-                ml_doc: #doc,
-            }
-        })
-    }
-}
-
-pub fn impl_py_method_def_static(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
-        ::pyo3::class::PyMethodDefType::Static({
-            #wrapper
-
-            ::pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS | ::pyo3::ffi::METH_STATIC,
-                ml_doc: #doc,
-            }
-        })
-    }
-}
-
-pub fn impl_py_method_def_call(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
-        ::pyo3::class::PyMethodDefType::Call({
-            #wrapper
-
-            ::pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            }
-        })
     }
 }
 
