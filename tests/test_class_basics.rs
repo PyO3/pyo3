@@ -79,5 +79,34 @@ fn empty_class_in_module() {
 
 #[pyclass(variants("SimpleGenericU32<u32>", "SimpleGenericF32<f32>"))]
 struct SimpleGeneric<T: 'static> {
-    _foo: T,
+    foo: T,
+}
+
+#[test]
+fn generic_names() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let ty_u32 = py.get_type::<SimpleGeneric<u32>>();
+    py_assert!(py, ty_u32, "ty_u32.__name__ == 'SimpleGenericU32'");
+
+    let ty_f32 = py.get_type::<SimpleGeneric<f32>>();
+    py_assert!(py, ty_f32, "ty_f32.__name__ == 'SimpleGenericF32'");
+}
+
+#[test]
+fn generic_type_eq() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = (
+        (SimpleGeneric { foo: 1u32 }).into_object(py),
+        (SimpleGeneric { foo: 1u32 }).into_object(py),
+        (SimpleGeneric { foo: 1f32 }).into_object(py),
+        (SimpleGeneric { foo: 1f32 }).into_object(py),
+    );
+
+    py_assert!(py, tup, "type(tup[0]) == type(tup[1])");
+    py_assert!(py, tup, "type(tup[2]) == type(tup[3])");
+    py_assert!(py, tup, "type(tup[0]) != type(tup[2])");
 }
