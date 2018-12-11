@@ -66,3 +66,29 @@ fn return_custom_class() {
     let get_zero = wrap_function!(get_zero)(py);
     py_assert!(py, get_zero, "get_zero().value == 0");
 }
+
+#[test]
+fn intopytuple_primitive() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = (1, 2, "foo");
+    py_assert!(py, tup, "tup == (1, 2, 'foo')");
+    py_assert!(py, tup, "tup[0] == 1");
+    py_assert!(py, tup, "tup[1] == 2");
+    py_assert!(py, tup, "tup[3] == 'foo'");
+}
+
+#[pyclass]
+struct SimplePyClass {}
+
+#[test]
+fn intopytuple_pyclass() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = (SimplePyClass {}, SimplePyClass {});
+    py_assert!(py, tup, "tup[0].__name__ == 'SimplePyClass'");
+    py_assert!(py, tup, "tup[0].__name__ == tup[1].__name__");
+    py_assert!(py, tup, "tup[0] != tup[1]");
+}
