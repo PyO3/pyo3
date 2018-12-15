@@ -99,39 +99,39 @@ pub const ASYNC: Proto = Proto {
         MethodProto::Unary {
             name: "__await__",
             pyres: true,
-            proto: "::pyo3::class::async::PyAsyncAwaitProtocol",
+            proto: "::pyo3::class::pyasync::PyAsyncAwaitProtocol",
         },
         MethodProto::Unary {
             name: "__aiter__",
             pyres: true,
-            proto: "::pyo3::class::async::PyAsyncAiterProtocol",
+            proto: "::pyo3::class::pyasync::PyAsyncAiterProtocol",
         },
         MethodProto::Unary {
             name: "__anext__",
             pyres: true,
-            proto: "::pyo3::class::async::PyAsyncAnextProtocol",
+            proto: "::pyo3::class::pyasync::PyAsyncAnextProtocol",
         },
         MethodProto::Unary {
             name: "__aenter__",
             pyres: true,
-            proto: "::pyo3::class::async::PyAsyncAenterProtocol",
+            proto: "::pyo3::class::pyasync::PyAsyncAenterProtocol",
         },
         MethodProto::Quaternary {
             name: "__aexit__",
             arg1: "ExcType",
             arg2: "ExcValue",
             arg3: "Traceback",
-            proto: "::pyo3::class::async::PyAsyncAexitProtocol",
+            proto: "::pyo3::class::pyasync::PyAsyncAexitProtocol",
         },
     ],
     py_methods: &[
         PyMethod {
             name: "__aenter__",
-            proto: "::pyo3::class::async::PyAsyncAenterProtocolImpl",
+            proto: "::pyo3::class::pyasync::PyAsyncAenterProtocolImpl",
         },
         PyMethod {
             name: "__aexit__",
-            proto: "::pyo3::class::async::PyAsyncAexitProtocolImpl",
+            proto: "::pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
         },
     ],
 };
