@@ -95,7 +95,7 @@ fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, Stri
     }
 
     let stdout = run_python_script(python_path, &script)?;
-    let split_stdout: Vec<&str> = stdout.trim_right().lines().collect();
+    let split_stdout: Vec<&str> = stdout.trim_end().lines().collect();
     if split_stdout.len() != SYSCONFIG_VALUES.len() + SYSCONFIG_FLAGS.len() {
         return Err(format!(
             "python stdout len didn't return expected number of lines: {}",
@@ -216,7 +216,7 @@ else:
     print("static")
 "#;
     let out = run_python_script("python", script).unwrap();
-    Ok(out.trim_right().to_owned())
+    Ok(out.trim_end().to_owned())
 }
 
 #[cfg(target_os = "macos")]

@@ -16,7 +16,7 @@ pub fn indoc(commands: &str) -> String {
     }
 
     commands
-        .trim_right()
+        .trim_end()
         .replace(&("\n".to_string() + &indent), "\n")
         + "\n"
 }

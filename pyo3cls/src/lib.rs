@@ -148,7 +148,7 @@ pub fn pyfunction(
 
     // Workaround for https://github.com/dtolnay/syn/issues/478
     let python_name = syn::Ident::new(
-        &ast.ident.to_string().trim_left_matches("r#"),
+        &ast.ident.to_string().trim_start_matches("r#"),
         Span::call_site(),
     );
     let expanded = module::add_fn_to_module(&mut ast, &python_name, Vec::new());
