@@ -40,7 +40,7 @@ extern "C" {
     pub fn PyTuple_ClearFreeList() -> c_int;
 }
 
-// Macro, trading safety for speed
+/// Macro, trading safety for speed
 #[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
