@@ -31,7 +31,7 @@ pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == u) as c_int
 }
 
-// Macro, trading safety for speed
+/// Macro, trading safety for speed
 #[inline]
 pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     *(*(op as *mut PyTupleObject))
