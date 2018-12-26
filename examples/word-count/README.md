@@ -20,7 +20,7 @@ WordCounter("path/to/file").search_sequential("word")
 
 ## Benchmark
 
-There is a benchmark in `tests/test_word_count.py`:
+There is a benchmark in `tests/test_word_count.py`, install pytest and pytest-benchmark to run it
 
 ```shell
 pytest -v tests
