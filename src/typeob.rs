@@ -5,7 +5,6 @@
 use std;
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::mem;
 use std::os::raw::c_void;
 
 use crate::class::methods::PyMethodDefType;
@@ -404,8 +403,7 @@ where
     let (new, init, call, mut methods) = py_class_method_defs::<T>()?;
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
-        type_object.tp_methods = methods.as_mut_ptr();
-        mem::forget(methods);
+        type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as *mut _;
     }
 
     if let (None, Some(_)) = (new, init) {
@@ -426,8 +424,7 @@ where
     let mut props = py_class_properties::<T>();
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
-        type_object.tp_getset = props.as_mut_ptr();
-        mem::forget(props);
+        type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as *mut _;
     }
 
     // set type flags
