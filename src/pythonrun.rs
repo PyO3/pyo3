@@ -297,7 +297,7 @@ mod array_list {
         pub fn pop_back(&mut self) -> Option<T> {
             self.length -= 1;
             let current_idx = self.next_idx();
-            if self.length >= BLOCK_SIZE && current_idx == 0 {
+            if current_idx == 0 {
                 let last_list = self.inner.pop_back()?;
                 return Some(last_list[0].clone());
             }
