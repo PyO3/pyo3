@@ -1,10 +1,8 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
 use pyo3::prelude::*;
-
-use pyo3::py::class as pyclass;
 
 #[macro_use]
 mod common;
@@ -18,7 +16,7 @@ fn empty_class() {
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClass>();
     // By default, don't allow creating instances from python.
-    assert!(typeobj.call(NoArgs, NoArgs).is_err());
+    assert!(typeobj.call(NoArgs, None).is_err());
 
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }

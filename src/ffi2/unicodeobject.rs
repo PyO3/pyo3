@@ -36,35 +36,35 @@ extern "C" {
     pub static mut PyUnicode_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyUnicode_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyUnicode_GET_SIZE(o: *mut PyObject) -> Py_ssize_t {
     (*(o as *mut PyUnicodeObject)).length
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyUnicode_GET_DATA_SIZE(o: *mut PyObject) -> Py_ssize_t {
     (*(o as *mut PyUnicodeObject)).length * Py_UNICODE_SIZE
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyUnicode_AS_UNICODE(o: *mut PyObject) -> *mut Py_UNICODE {
     (*(o as *mut PyUnicodeObject)).data
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyUnicode_AS_DATA(o: *mut PyObject) -> *const c_char {
     (*(o as *mut PyUnicodeObject)).data as *const c_char
 }
@@ -746,13 +746,13 @@ pub unsafe fn PyUnicode_AsUTF8String(u: *mut PyObject) -> *mut PyObject {
     PyUnicodeUCS4_AsUTF8String(u)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(not(py_sys_config = "Py_UNICODE_SIZE_4"))]
 pub unsafe fn PyUnicode_AsUTF8String(u: *mut PyObject) -> *mut PyObject {
     PyUnicodeUCS2_AsUTF8String(u)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(py_sys_config = "Py_UNICODE_SIZE_4")]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromEncodedObject")]
 pub unsafe fn PyUnicode_FromEncodedObject(
@@ -763,7 +763,7 @@ pub unsafe fn PyUnicode_FromEncodedObject(
     PyUnicodeUCS4_FromEncodedObject(obj, encoding, errors)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(not(py_sys_config = "Py_UNICODE_SIZE_4"))]
 pub unsafe fn PyUnicode_FromEncodedObject(
     obj: *mut PyObject,

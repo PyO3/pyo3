@@ -91,7 +91,7 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCode_Type) as c_int
 }

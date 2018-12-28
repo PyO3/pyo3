@@ -16,19 +16,18 @@ extern "C" {
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }
 
-#[inline(always)]
 #[cfg_attr(PyPy, link_name = "PyPyBool_Check")]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyBool_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_False() -> *mut PyObject {
     &mut _Py_ZeroStruct as *mut PyBoolObject as *mut PyObject
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_True() -> *mut PyObject {
     &mut _Py_TrueStruct as *mut PyBoolObject as *mut PyObject
 }

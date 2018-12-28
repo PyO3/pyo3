@@ -1,12 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Free allocation list
-use std;
 
-use err::PyResult;
-use ffi;
-use python::Python;
-use typeob::{PyObjectAlloc, PyTypeInfo};
+use crate::err::PyResult;
+use crate::ffi;
+use crate::python::Python;
+use crate::typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use std::mem;
+use std::os::raw::c_void;
 
 /// Implementing this trait for custom class adds free allocation list to class.
 /// The performance improvement applies to types that are often created and deleted in a row,
@@ -32,9 +33,9 @@ impl<T> FreeList<T> {
         let entries = (0..capacity).map(|_| Slot::Empty).collect::<Vec<_>>();
 
         FreeList {
-            entries: entries,
+            entries,
             split: 0,
-            capacity: capacity,
+            capacity,
         }
     }
 
@@ -44,7 +45,7 @@ impl<T> FreeList<T> {
         if idx == 0 {
             None
         } else {
-            match std::mem::replace(&mut self.entries[idx - 1], Slot::Empty) {
+            match mem::replace(&mut self.entries[idx - 1], Slot::Empty) {
                 Slot::Filled(v) => {
                     self.split = idx - 1;
                     Some(v)
@@ -67,16 +68,16 @@ impl<T> FreeList<T> {
     }
 }
 
-impl<T> PyObjectAlloc<T> for T
+impl<T> PyObjectAlloc for T
 where
     T: PyObjectWithFreeList,
 {
     unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
-        let obj = if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().pop() {
-            ffi::PyObject_Init(obj, <T as PyTypeInfo>::type_object());
+        let obj = if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().pop() {
+            ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object());
             obj
         } else {
-            ffi::PyType_GenericAlloc(<T as PyTypeInfo>::type_object(), 0)
+            ffi::PyType_GenericAlloc(<Self as PyTypeInfo>::type_object(), 0)
         };
 
         Ok(obj)
@@ -84,21 +85,21 @@ where
 
     #[cfg(Py_3)]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        Self::drop(py, obj);
+        pytype_drop::<Self>(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
             return;
         }
 
-        if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            match (*T::type_object()).tp_free {
-                Some(free) => free(obj as *mut ::c_void),
+        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
+            match Self::type_object().tp_free {
+                Some(free) => free(obj as *mut c_void),
                 None => {
                     let ty = ffi::Py_TYPE(obj);
                     if ffi::PyType_IS_GC(ty) != 0 {
-                        ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                        ffi::PyObject_GC_Del(obj as *mut c_void);
                     } else {
-                        ffi::PyObject_Free(obj as *mut ::c_void);
+                        ffi::PyObject_Free(obj as *mut c_void);
                     }
 
                     // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
@@ -113,17 +114,17 @@ where
 
     #[cfg(not(Py_3))]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        Self::drop(py, obj);
+        pytype_drop::<Self>(py, obj);
 
-        if let Some(obj) = <T as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            match (*T::type_object()).tp_free {
-                Some(free) => free(obj as *mut ::c_void),
+        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
+            match Self::type_object().tp_free {
+                Some(free) => free(obj as *mut c_void),
                 None => {
                     let ty = ffi::Py_TYPE(obj);
                     if ffi::PyType_IS_GC(ty) != 0 {
-                        ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                        ffi::PyObject_GC_Del(obj as *mut c_void);
                     } else {
-                        ffi::PyObject_Free(obj as *mut ::c_void);
+                        ffi::PyObject_Free(obj as *mut c_void);
                     }
 
                     // For heap types, PyType_GenericAlloc calls INCREF on the type objects,

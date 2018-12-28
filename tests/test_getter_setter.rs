@@ -1,12 +1,9 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
 use pyo3::prelude::*;
 use std::isize;
-
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
 
 #[macro_use]
 mod common;
@@ -14,7 +11,6 @@ mod common;
 #[pyclass]
 struct ClassWithProperties {
     num: i32,
-    token: PyToken,
 }
 
 #[pymethods]
@@ -39,9 +35,7 @@ fn class_with_properties() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py
-        .init(|t| ClassWithProperties { num: 10, token: t })
-        .unwrap();
+    let inst = py.init(|| ClassWithProperties { num: 10 }).unwrap();
 
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
@@ -54,7 +48,8 @@ fn class_with_properties() {
 struct GetterSetter {
     #[prop(get, set)]
     num: i32,
-    token: PyToken,
+    #[prop(get, set)]
+    text: String,
 }
 
 #[pymethods]
@@ -69,8 +64,18 @@ fn getter_setter_autogen() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = py.init(|t| GetterSetter { num: 10, token: t }).unwrap();
+    let inst = py
+        .init(|| GetterSetter {
+            num: 10,
+            text: "Hello".to_string(),
+        })
+        .unwrap();
 
     py_run!(py, inst, "assert inst.num == 10");
     py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+    py_run!(
+        py,
+        inst,
+        "assert inst.text == 'Hello'; inst.text = 'There'; assert inst.text == 'There'"
+    );
 }

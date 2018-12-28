@@ -1,11 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::ffi;
+use libc::c_int;
 use std;
 use std::ffi::CString;
-
-use ffi;
-
-static NO_PY_METHODS: &'static [PyMethodDefType] = &[];
 
 /// `PyMethodDefType` represents different types of python callable objects.
 /// It is used by `#[pymethods]` and `#[pyproto]` annotations.
@@ -42,7 +40,7 @@ pub enum PyMethodType {
 pub struct PyMethodDef {
     pub ml_name: &'static str,
     pub ml_meth: PyMethodType,
-    pub ml_flags: ::c_int,
+    pub ml_flags: c_int,
     pub ml_doc: &'static str,
 }
 
@@ -72,18 +70,10 @@ impl PyMethodDef {
     pub fn as_method_def(&self) -> ffi::PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
-            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe {
-                std::mem::transmute::<ffi::PyCFunctionWithKeywords, ffi::PyCFunction>(meth)
-            },
-            PyMethodType::PyNoArgsFunction(meth) => unsafe {
-                std::mem::transmute::<ffi::PyNoArgsFunction, ffi::PyCFunction>(meth)
-            },
-            PyMethodType::PyNewFunc(meth) => unsafe {
-                std::mem::transmute::<ffi::newfunc, ffi::PyCFunction>(meth)
-            },
-            PyMethodType::PyInitFunc(meth) => unsafe {
-                std::mem::transmute::<ffi::initproc, ffi::PyCFunction>(meth)
-            },
+            PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyNoArgsFunction(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyNewFunc(meth) => unsafe { std::mem::transmute(meth) },
+            PyMethodType::PyInitFunc(meth) => unsafe { std::mem::transmute(meth) },
         };
 
         ffi::PyMethodDef {
@@ -122,23 +112,20 @@ impl PySetterDef {
 }
 
 #[doc(hidden)]
+/// The pymethods macro implements this trait so the methods are added to the object
 pub trait PyMethodsProtocolImpl {
-    fn py_methods() -> &'static [PyMethodDefType];
-}
-
-impl<T> PyMethodsProtocolImpl for T {
-    default fn py_methods() -> &'static [PyMethodDefType] {
-        NO_PY_METHODS
+    fn py_methods() -> &'static [PyMethodDefType] {
+        &[]
     }
 }
+
+impl<T> PyMethodsProtocolImpl for T {}
 
 #[doc(hidden)]
 pub trait PyPropMethodsProtocolImpl {
-    fn py_methods() -> &'static [PyMethodDefType];
-}
-
-impl<T> PyPropMethodsProtocolImpl for T {
-    default fn py_methods() -> &'static [PyMethodDefType] {
-        NO_PY_METHODS
+    fn py_methods() -> &'static [PyMethodDefType] {
+        &[]
     }
 }
+
+impl<T> PyPropMethodsProtocolImpl for T {}

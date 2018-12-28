@@ -7,8 +7,6 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_Type")]
     pub static mut PyBuffer_Type: PyTypeObject;
 }
-
-#[inline(always)]
 pub unsafe fn PyBuffer_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyBuffer_Type;
     (Py_TYPE(op) == u) as c_int

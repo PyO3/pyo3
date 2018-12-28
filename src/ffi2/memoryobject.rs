@@ -8,19 +8,19 @@ extern "C" {
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyMemoryView_Check")]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyMemoryView_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMemoryView_GET_BUFFER(op: *mut PyObject) -> *mut Py_buffer {
     &mut (*(op as *mut PyMemoryViewObject)).view
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMemoryView_GET_BASE(op: *mut PyObject) -> *mut PyObject {
     (*(op as *mut PyMemoryViewObject)).view.obj
 }

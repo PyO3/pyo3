@@ -1,24 +1,26 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
-use pyo3::ffi;
-use pyo3::prelude::*;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
-use pyo3::py::proto as pyproto;
+use pyo3::class::PyGCProtocol;
+use pyo3::class::PyTraverseError;
+use pyo3::class::PyVisit;
+use pyo3::ffi;
+use pyo3::prelude::*;
+use pyo3::python::ToPyPointer;
+use pyo3::types::PyObjectRef;
+use pyo3::types::PyTuple;
+use pyo3::PyRawObject;
 
 #[macro_use]
 mod common;
 
 #[pyclass(freelist = 2)]
-struct ClassWithFreelist {
-    token: PyToken,
-}
+struct ClassWithFreelist {}
 
 #[test]
 fn class_with_freelist() {
@@ -27,8 +29,8 @@ fn class_with_freelist() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let inst = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
-        let _inst2 = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
+        let inst = Py::new(py, || ClassWithFreelist {}).unwrap();
+        let _inst2 = Py::new(py, || ClassWithFreelist {}).unwrap();
         ptr = inst.as_ptr();
         drop(inst);
     }
@@ -37,10 +39,10 @@ fn class_with_freelist() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let inst3 = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
+        let inst3 = Py::new(py, || ClassWithFreelist {}).unwrap();
         assert_eq!(ptr, inst3.as_ptr());
 
-        let inst4 = Py::new(py, |t| ClassWithFreelist { token: t }).unwrap();
+        let inst4 = Py::new(py, || ClassWithFreelist {}).unwrap();
         assert_ne!(ptr, inst4.as_ptr())
     }
 }
@@ -48,6 +50,7 @@ fn class_with_freelist() {
 struct TestDropCall {
     drop_called: Arc<AtomicBool>,
 }
+
 impl Drop for TestDropCall {
     fn drop(&mut self) {
         self.drop_called.store(true, Ordering::Relaxed);
@@ -59,7 +62,6 @@ impl Drop for TestDropCall {
 struct DataIsDropped {
     member1: TestDropCall,
     member2: TestDropCall,
-    token: PyToken,
 }
 
 #[test]
@@ -71,14 +73,13 @@ fn data_is_dropped() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let inst = py
-            .init(|t| DataIsDropped {
+            .init(|| DataIsDropped {
                 member1: TestDropCall {
                     drop_called: Arc::clone(&drop_called1),
                 },
                 member2: TestDropCall {
                     drop_called: Arc::clone(&drop_called2),
                 },
-                token: t,
             })
             .unwrap();
         assert!(!drop_called1.load(Ordering::Relaxed));
@@ -91,9 +92,8 @@ fn data_is_dropped() {
 }
 
 #[pyclass]
-struct ClassWithDrop {
-    token: PyToken,
-}
+struct ClassWithDrop {}
+
 impl Drop for ClassWithDrop {
     fn drop(&mut self) {
         unsafe {
@@ -119,7 +119,7 @@ fn create_pointers_in_drop() {
         let empty = PyTuple::empty(py);
         ptr = empty.as_ptr();
         cnt = empty.get_refcnt() - 1;
-        let inst = py.init(|t| ClassWithDrop { token: t }).unwrap();
+        let inst = py.init(|| ClassWithDrop {}).unwrap();
         drop(inst);
     }
 
@@ -141,7 +141,6 @@ fn create_pointers_in_drop() {
 struct GCIntegration {
     self_ref: RefCell<PyObject>,
     dropped: TestDropCall,
-    token: PyToken,
 }
 
 #[pyproto]
@@ -151,7 +150,8 @@ impl PyGCProtocol for GCIntegration {
     }
 
     fn __clear__(&mut self) {
-        *self.self_ref.borrow_mut() = self.py().None();
+        let gil = GILGuard::acquire();
+        *self.self_ref.borrow_mut() = gil.python().None();
     }
 }
 
@@ -162,12 +162,11 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = Py::new_ref(py, |t| GCIntegration {
+        let inst = Py::new_ref(py, || GCIntegration {
             self_ref: RefCell::new(py.None()),
             dropped: TestDropCall {
                 drop_called: Arc::clone(&drop_called),
             },
-            token: t,
         })
         .unwrap();
 
@@ -181,26 +180,24 @@ fn gc_integration() {
 }
 
 #[pyclass(gc)]
-struct GCIntegration2 {
-    token: PyToken,
-}
+struct GCIntegration2 {}
+
 #[test]
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, |t| GCIntegration2 { token: t }).unwrap();
+    let inst = Py::new_ref(py, || GCIntegration2 {}).unwrap();
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
 #[pyclass(weakref)]
-struct WeakRefSupport {
-    token: PyToken,
-}
+struct WeakRefSupport {}
+
 #[test]
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, |t| WeakRefSupport { token: t }).unwrap();
+    let inst = Py::new_ref(py, || WeakRefSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -210,7 +207,6 @@ fn weakref_support() {
 
 #[pyclass]
 struct BaseClassWithDrop {
-    token: PyToken,
     data: Option<Arc<AtomicBool>>,
 }
 
@@ -218,10 +214,7 @@ struct BaseClassWithDrop {
 impl BaseClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|t| BaseClassWithDrop {
-            token: t,
-            data: None,
-        })
+        obj.init(|| BaseClassWithDrop { data: None })
     }
 }
 
@@ -233,9 +226,8 @@ impl Drop for BaseClassWithDrop {
     }
 }
 
-#[pyclass(base=BaseClassWithDrop)]
+#[pyclass(extends = BaseClassWithDrop)]
 struct SubClassWithDrop {
-    token: PyToken,
     data: Option<Arc<AtomicBool>>,
 }
 
@@ -243,10 +235,7 @@ struct SubClassWithDrop {
 impl SubClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|t| SubClassWithDrop {
-            token: t,
-            data: None,
-        })?;
+        obj.init(|| SubClassWithDrop { data: None })?;
         BaseClassWithDrop::__new__(obj)
     }
 }
@@ -269,12 +258,13 @@ fn inheritance_with_new_methods_with_drop() {
         let py = gil.python();
         let _typebase = py.get_type::<BaseClassWithDrop>();
         let typeobj = py.get_type::<SubClassWithDrop>();
-        let inst = typeobj.call(NoArgs, NoArgs).unwrap();
+        let inst = typeobj.call(NoArgs, None).unwrap();
 
         let obj = SubClassWithDrop::try_from_mut(inst).unwrap();
         obj.data = Some(Arc::clone(&drop_called1));
 
-        let base = obj.get_mut_base();
+        let base: &mut <SubClassWithDrop as pyo3::PyTypeInfo>::BaseType =
+            unsafe { py.mut_from_borrowed_ptr(obj.as_ptr()) };
         base.data = Some(Arc::clone(&drop_called2));
     }
 

@@ -1,7 +1,7 @@
-use ffi3::methodobject::PyMethodDef;
-use ffi3::moduleobject::PyModuleDef;
-use ffi3::object::PyObject;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::methodobject::PyMethodDef;
+use crate::ffi3::moduleobject::PyModuleDef;
+use crate::ffi3::object::PyObject;
+use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_long};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

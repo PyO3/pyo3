@@ -12,12 +12,12 @@ extern "C" {
     pub fn PyCallIter_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PySeqIter_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PySeqIter_Type) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCallIter_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCallIter_Type) as c_int
 }

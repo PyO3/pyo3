@@ -1,5 +1,5 @@
-use ffi3::object::*;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::object::*;
+use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -9,12 +9,12 @@ extern "C" {
     pub static mut PyBytesIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyBytes_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_BYTES_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyBytes_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyBytes_Type) as c_int
 }

@@ -1,7 +1,7 @@
 #[cfg(Py_3_6)]
-use ffi3::code::FreeFunc;
-use ffi3::object::PyObject;
-use ffi3::pystate::PyThreadState;
+use crate::ffi3::code::FreeFunc;
+use crate::ffi3::object::PyObject;
+use crate::ffi3::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -55,14 +55,15 @@ extern "C" {
 #[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
 // TODO: Py_EnterRecursiveCall etc.
 #[cfg(Py_3_6)]
-pub type _PyFrameEvalFunction = extern "C" fn(*mut ::ffi3::PyFrameObject, c_int) -> *mut PyObject;
+pub type _PyFrameEvalFunction =
+    extern "C" fn(*mut crate::ffi3::PyFrameObject, c_int) -> *mut PyObject;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyEval_GetFuncName(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetFuncDesc(arg1: *mut PyObject) -> *const c_char;
     pub fn PyEval_GetCallStats(arg1: *mut PyObject) -> *mut PyObject;
-    pub fn PyEval_EvalFrame(arg1: *mut ::ffi3::PyFrameObject) -> *mut PyObject;
+    pub fn PyEval_EvalFrame(arg1: *mut crate::ffi3::PyFrameObject) -> *mut PyObject;
     #[cfg(Py_3_6)]
     pub fn _PyEval_EvalFrameDefault(arg1: *mut ::ffi3::PyFrameObject, exc: c_int) -> *mut PyObject;
     #[cfg(Py_3_6)]

@@ -7,7 +7,7 @@ extern "C" {
     pub static mut PyCObject_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCObject_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCObject_Type) as c_int
 }

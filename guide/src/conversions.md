@@ -2,6 +2,10 @@
 
 `PyO3` provides some handy traits to convert between Python types and Rust types.
 
+## `.extract()`
+
+The easiest way to convert a python object to a rust value is using `.extract()?`.
+
 ## `ToPyObject` and `IntoPyObject` trait
 
 [`ToPyObject`] trait is a conversion trait that allows various objects to be converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the same purpose except it consumes `self`.
@@ -72,11 +76,8 @@ fn main() {
 }
 ```
 
-`kwargs` argument is generate over
-[`IntoPyDictPointer`][IntoPyDictPointer] trait. `HashMap` or `BTreeMap` could be used as
-keyword arguments. rust tuple with up to 10 elements where each element is tuple with size 2
-could be used as kwargs as well. Or `NoArgs` object can be used to indicate that
-no keywords arguments are provided.
+`kwargs` can by `None` or `Some(&PyDict)`. You can use the
+[`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers, e.g. `HashMap`, `BTreeMap` as well as tuples with up to 10 elements and `Vec`s where each element is a two element tuple.
 
 ```rust
 extern crate pyo3;
@@ -120,10 +121,10 @@ fn main() {
 
 TODO
 
-[`ToPyObject`]: https://pyo3.github.io/pyo3/pyo3/trait.ToPyObject.html
-[IntoPyObject]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyObject.html
-[PyObject]: https://pyo3.github.io/pyo3/pyo3/struct.PyObject.html
-[IntoPyTuple]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyTuple.html
-[PyTuple]: https://pyo3.github.io/pyo3/pyo3/struct.PyTuple.html
-[ObjectProtocol]: https://pyo3.github.io/pyo3/pyo3/trait.ObjectProtocol.html
-[IntoPyDictPointer]: https://pyo3.github.io/pyo3/pyo3/trait.IntoPyDictPointer.html
+[`ToPyObject`]: https://docs.rs/pyo3/0.5.2/trait.ToPyObject.html
+[IntoPyObject]: https://docs.rs/pyo3/0.5.2/trait.IntoPyObject.html
+[PyObject]: https://docs.rs/pyo3/0.5.2/struct.PyObject.html
+[IntoPyTuple]: https://docs.rs/pyo3/0.5.2/trait.IntoPyTuple.html
+[PyTuple]: https://docs.rs/pyo3/0.5.2/struct.PyTuple.html
+[ObjectProtocol]: https://docs.rs/pyo3/0.5.2/trait.ObjectProtocol.html
+[IntoPyDict]: https://docs.rs/pyo3/0.5.2/trait.IntoPyDict.html

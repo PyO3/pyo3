@@ -108,17 +108,17 @@ extern "C" {
     pub fn PyMethod_ClearFreeList() -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_GET_FUNCTION(meth: *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_func
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_GET_SELF(meth: *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_self
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyMethod_GET_CLASS(meth: *mut PyObject) -> *mut PyObject {
     (*(meth as *mut PyMethodObject)).im_class
 }

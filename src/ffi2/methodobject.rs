@@ -7,8 +7,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
-
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyCFunction_Check")]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyCFunction_Type;
@@ -126,7 +125,7 @@ extern "C" {
     pub fn PyCFunction_ClearFreeList() -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
     PyCFunction_NewEx(ml, slf, ptr::null_mut())
 }

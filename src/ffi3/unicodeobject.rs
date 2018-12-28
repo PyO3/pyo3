@@ -1,5 +1,5 @@
-use ffi3::object::*;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::object::*;
+use crate::ffi3::pyport::Py_ssize_t;
 use libc::wchar_t;
 use std::os::raw::{c_char, c_int, c_void};
 
@@ -17,13 +17,13 @@ extern "C" {
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
 pub unsafe fn PyUnicode_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyUnicode_Type) as c_int

@@ -22,13 +22,14 @@ use std::ffi::CStr;
 use std::os::raw;
 use std::{cell, mem, slice};
 
-use err::{self, PyResult};
-use exc;
-use ffi;
-use objects::PyObjectRef;
-use python::{Python, ToPyPointer};
+use crate::err::{self, PyResult};
+use crate::exceptions;
+use crate::ffi;
+use crate::python::{Python, ToPyPointer};
+use crate::types::PyObjectRef;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
+#[repr(transparent)]
 pub struct PyBuffer(Box<ffi::Py_buffer>); // use Box<> because Python expects that the Py_buffer struct has a stable memory address
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
@@ -256,7 +257,7 @@ impl PyBuffer {
     }
 
     /// An array of length ndim.
-    /// If suboffsets[n] >= 0, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
+    /// If `suboffsets[n] >= 0`, the values stored along the nth dimension are pointers and the suboffset value dictates how many bytes to add to each pointer after de-referencing.
     /// A suboffset value that is negative indicates that no de-referencing should occur (striding in a contiguous memory block).
     ///
     /// If all suboffsets are negative (i.e. no de-referencing is needed), then this field must be NULL (the default value).
@@ -459,7 +460,7 @@ impl PyBuffer {
         fort: u8,
     ) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return Err(exc::BufferError::new(
+            return Err(exceptions::BufferError::py_err(
                 "Slice length does not match buffer length.",
             ));
         }
@@ -562,7 +563,7 @@ impl PyBuffer {
             return buffer_readonly_error();
         }
         if mem::size_of_val(source) != self.len_bytes() {
-            return Err(exc::BufferError::new(
+            return Err(exceptions::BufferError::py_err(
                 "Slice length does not match buffer length.",
             ));
         }
@@ -592,13 +593,15 @@ impl PyBuffer {
 }
 
 fn incompatible_format_error() -> PyResult<()> {
-    Err(exc::BufferError::new(
+    Err(exceptions::BufferError::py_err(
         "Slice type is incompatible with buffer format.",
     ))
 }
 
 fn buffer_readonly_error() -> PyResult<()> {
-    Err(exc::BufferError::new("Cannot write to read-only buffer."))
+    Err(exceptions::BufferError::py_err(
+        "Cannot write to read-only buffer.",
+    ))
 }
 
 impl Drop for PyBuffer {
@@ -613,6 +616,7 @@ impl Drop for PyBuffer {
 /// `&ReadOnlyCell<T>` is basically a safe version of `*const T`:
 ///  The data cannot be modified through the reference, but other references may
 ///  be modifying the data.
+#[repr(transparent)]
 pub struct ReadOnlyCell<T>(cell::UnsafeCell<T>);
 
 impl<T: Copy> ReadOnlyCell<T> {
@@ -657,17 +661,18 @@ impl_element!(f64, Float);
 #[cfg(test)]
 mod test {
     use super::PyBuffer;
-    use python::Python;
+    use crate::ffi;
+    use crate::python::Python;
     use std;
 
     #[allow(unused_imports)]
-    use objectprotocol::ObjectProtocol;
+    use crate::objectprotocol::ObjectProtocol;
 
     #[test]
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()
         assert_eq!(
-            std::mem::size_of::<::ffi::Py_ssize_t>(),
+            std::mem::size_of::<ffi::Py_ssize_t>(),
             std::mem::size_of::<usize>()
         );
     }
@@ -716,7 +721,7 @@ mod test {
         let array = py
             .import("array")
             .unwrap()
-            .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), ::NoArgs)
+            .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
             .unwrap();
         let buffer = PyBuffer::get(py, array.into()).unwrap();
         assert_eq!(buffer.dimensions(), 1);

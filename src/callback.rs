@@ -5,16 +5,16 @@
 use std::os::raw::c_int;
 use std::{isize, ptr};
 
-use conversion::IntoPyObject;
-use err::PyResult;
-use ffi::{self, Py_hash_t};
-use objects::exc::OverflowError;
-use python::{IntoPyPointer, Python};
+use crate::conversion::IntoPyObject;
+use crate::err::PyResult;
+use crate::ffi::{self, Py_hash_t};
+use crate::python::{IntoPyPointer, Python};
+use crate::types::exceptions::OverflowError;
 
 pub trait CallbackConverter<S> {
     type R;
 
-    fn convert(S, Python) -> Self::R;
+    fn convert(s: S, p: Python) -> Self::R;
     fn error_value() -> Self::R;
 }
 
@@ -61,7 +61,7 @@ impl CallbackConverter<usize> for LenResultConverter {
         if val <= (isize::MAX as usize) {
             val as isize
         } else {
-            OverflowError::new(()).restore(py);
+            OverflowError::py_err(()).restore(py);
             -1
         }
     }
@@ -138,7 +138,6 @@ where
 }
 
 #[inline]
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub unsafe fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::R
 where
     C: CallbackConverter<T>,

@@ -1,6 +1,6 @@
-use ffi3::code::{PyCodeObject, CO_MAXBLOCKS};
-use ffi3::object::*;
-use ffi3::pystate::PyThreadState;
+use crate::ffi3::code::{PyCodeObject, CO_MAXBLOCKS};
+use crate::ffi3::object::*;
+use crate::ffi3::pystate::PyThreadState;
 use std::os::raw::{c_char, c_int};
 
 #[repr(C)]

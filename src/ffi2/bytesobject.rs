@@ -8,7 +8,6 @@ pub use ffi2::stringobject::PyString_CheckExact as PyBytes_CheckExact;
 pub use ffi2::stringobject::PyString_Concat as PyBytes_Concat;
 pub use ffi2::stringobject::PyString_ConcatAndDel as PyBytes_ConcatAndDel;
 pub use ffi2::stringobject::PyString_Format as PyBytes_Format;
-#[cfg_attr(PyPy, link_name = "PyPyString_FromFormat")]
 pub use ffi2::stringobject::PyString_FromFormat as PyBytes_FromFormat;
 pub use ffi2::stringobject::PyString_FromString as PyBytes_FromString;
 pub use ffi2::stringobject::PyString_FromStringAndSize as PyBytes_FromStringAndSize;

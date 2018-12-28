@@ -1,4 +1,4 @@
-use ffi3::object::*;
+use crate::ffi3::object::*;
 use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -9,7 +9,7 @@ extern "C" {
     pub static mut PyLongRangeIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyRange_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyRange_Type) as c_int
 }

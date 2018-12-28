@@ -1,50 +1,18 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
+#[macro_use]
 extern crate pyo3;
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use std::isize;
-
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
 
 #[macro_use]
 mod common;
 
-#[pyclass(dict)]
-struct DunderDictSupport {
-    token: PyToken,
-}
-
-#[test]
-fn dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = Py::new_ref(py, |t| DunderDictSupport { token: t }).unwrap();
-    py_run!(py, inst, "inst.a = 1; assert inst.a == 1");
-}
-
-#[pyclass(weakref, dict)]
-struct WeakRefDunderDictSupport {
-    token: PyToken,
-}
-
-#[test]
-fn weakref_dunder_dict_support() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport { token: t }).unwrap();
-    py_run!(
-        py,
-        inst,
-        "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
-    );
-}
-
 #[pyclass]
 struct MutRefArg {
     n: i32,
-    token: PyToken,
 }
 
 #[pymethods]
@@ -62,8 +30,8 @@ impl MutRefArg {
 fn mut_ref_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst1 = py.init(|t| MutRefArg { token: t, n: 0 }).unwrap();
-    let inst2 = py.init(|t| MutRefArg { token: t, n: 0 }).unwrap();
+    let inst1 = py.init(|| MutRefArg { n: 0 }).unwrap();
+    let inst2 = py.init(|| MutRefArg { n: 0 }).unwrap();
 
     let d = PyDict::new(py);
     d.set_item("inst1", &inst1).unwrap();
@@ -71,4 +39,30 @@ fn mut_ref_arg() {
 
     py.run("inst1.set_other(inst2)", None, Some(d)).unwrap();
     assert_eq!(inst2.as_ref(py).n, 100);
+}
+
+#[pyclass]
+struct PyUsize {
+    #[prop(get)]
+    pub value: usize,
+}
+
+#[pyfunction]
+fn get_zero() -> PyResult<PyUsize> {
+    Ok(PyUsize { value: 0 })
+}
+
+#[test]
+/// Checks that we can use return a custom class in arbitrary function and use those functions
+/// both in rust and python
+fn return_custom_class() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    // Using from rust
+    assert_eq!(get_zero().unwrap().value, 0);
+
+    // Using from python
+    let get_zero = wrap_function!(get_zero)(py);
+    py_assert!(py, get_zero, "get_zero().value == 0");
 }

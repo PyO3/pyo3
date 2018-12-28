@@ -1,5 +1,5 @@
-use ffi3::object::*;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::object::*;
+use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -8,7 +8,7 @@ extern "C" {
     static mut _Py_EllipsisObject: PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_Ellipsis() -> *mut PyObject {
     &mut _Py_EllipsisObject
 }
@@ -20,7 +20,7 @@ extern "C" {
     pub static mut PyEllipsis_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPySlice_Check")]
 pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PySlice_Type) as c_int

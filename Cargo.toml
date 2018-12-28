@@ -1,39 +1,44 @@
 [package]
 name = "pyo3"
-version = "0.2.5"
+version = "0.5.0"
 description = "Bindings to Python interpreter"
-authors = ["PyO3 Project and Contributors"]
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
-keywords = ["pyo3", "python", "cpython"]
+keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3.git"
-documentation = "https://pyo3.github.io/pyo3/pyo3/"
+repository = "https://github.com/pyo3/pyo3"
+documentation = "https://docs.rs/crate/pyo3/"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
-exclude = [".gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
+exclude = ["/.gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
 build = "build.rs"
 
 [badges]
 travis-ci = { repository = "PyO3/pyo3", branch = "master" }
-appveyor = { repository = "PyO3/pyo3" }
+appveyor = { repository = "fafhrd91/pyo3" }
 codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 
 [dependencies]
-log = "0.4"
-libc = "0.2"
-spin = "0.4.6"
-num-traits = "0.2"
-pyo3cls = { version = "^0.2.1" }
+libc = "0.2.43"
+num-traits = "0.2.6"
+spin = "0.4.9"
+pyo3cls = { path = "pyo3cls", version = "=0.5.0" }
+num-complex = { version = "0.2.1", optional = true }
+mashup = "0.1.9"
 
 [build-dependencies]
 regex = "0.2"
 version_check = "0.1"
 pretty_assertions = "0.5.1"
 pyo3-build-utils = {version = "*", path="pyo3build"}
-
+regex = "1.0.5"
+version_check = "0.1.5"
 [dev-dependencies]
 pretty_assertions = "0.5.1"
 docmatic = "^0.1.2"
+assert_approx_eq = "1.0.0"
+docmatic = "0.1.2"
+indoc = "0.3.1"
 
 [features]
 default = []
@@ -46,11 +51,19 @@ python3 = []
 
 # Use this feature when building pypy binding.
 # pypy = []
-
-# Enable additional features that require nightly rust
-# nightly = []
-
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.
 extension-module = []
+
+# The stable cpython abi as defined in PEP 384. Currently broken with
+# many compilation errors. Pull Requests working towards fixing that
+# are welcome.
+# abi3 = []
+
+[workspace]
+members = [
+    "pyo3cls",
+    "pyo3-derive-backend",
+    "examples/*"
+]

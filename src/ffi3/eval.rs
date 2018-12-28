@@ -1,4 +1,4 @@
-use ffi3::object::PyObject;
+use crate::ffi3::object::PyObject;
 use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

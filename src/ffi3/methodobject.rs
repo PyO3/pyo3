@@ -1,4 +1,4 @@
-use ffi3::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::ffi3::object::{PyObject, PyTypeObject, Py_TYPE};
 use std::os::raw::{c_char, c_int};
 use std::{mem, ptr};
 
@@ -7,8 +7,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
-
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyCFunction_Check")]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
@@ -68,7 +67,7 @@ impl Default for PyMethodDef {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCFunction_New(ml: *mut PyMethodDef, slf: *mut PyObject) -> *mut PyObject {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
     PyCFunction_NewEx(ml, slf, ptr::null_mut())

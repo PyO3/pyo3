@@ -34,11 +34,9 @@ impl Clone for PyGetSetDef {
     }
 }
 
-pub type wrapperfunc = unsafe extern "C" fn(
-    slf: *mut PyObject,
-    args: *mut PyObject,
-    wrapped: *mut c_void,
-) -> *mut PyObject;
+pub type wrapperfunc =
+    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject, wrapped: *mut c_void)
+        -> *mut PyObject;
 
 pub type wrapperfunc_kwds = unsafe extern "C" fn(
     slf: *mut PyObject,
@@ -94,7 +92,7 @@ extern "C" {
     ) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDescr_IsData(d: *mut PyObject) -> c_int {
     (*Py_TYPE(d)).tp_descr_set.is_some() as c_int
 }

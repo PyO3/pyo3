@@ -1,12 +1,10 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use std::isize;
-
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
 
 #[macro_use]
 mod common;
@@ -41,11 +39,11 @@ fn subclass() {
 impl BaseClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| BaseClass { val1: 10 })
+        obj.init(|| BaseClass { val1: 10 })
     }
 }
 
-#[pyclass(base=BaseClass)]
+#[pyclass(extends=BaseClass)]
 struct SubClass {
     #[prop(get)]
     val2: usize,
@@ -55,7 +53,7 @@ struct SubClass {
 impl SubClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|_| SubClass { val2: 5 })?;
+        obj.init(|| SubClass { val2: 5 })?;
         BaseClass::__new__(obj)
     }
 }
@@ -66,6 +64,6 @@ fn inheritance_with_new_methods() {
     let py = gil.python();
     let _typebase = py.get_type::<BaseClass>();
     let typeobj = py.get_type::<SubClass>();
-    let inst = typeobj.call(NoArgs, NoArgs).unwrap();
+    let inst = typeobj.call(NoArgs, None).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
 }

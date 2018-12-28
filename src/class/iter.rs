@@ -4,12 +4,12 @@
 
 use std::ptr;
 
-use callback::{CallbackConverter, PyObjectCallbackConverter};
-use conversion::IntoPyObject;
-use err::PyResult;
-use ffi;
-use python::{IntoPyPointer, Python};
-use typeob::PyTypeInfo;
+use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
+use crate::conversion::IntoPyObject;
+use crate::err::PyResult;
+use crate::ffi;
+use crate::python::{IntoPyPointer, Python};
+use crate::typeob::PyTypeInfo;
 
 /// Python Iterator Interface.
 ///
@@ -33,24 +33,21 @@ pub trait PyIterProtocol<'p>: PyTypeInfo {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
-    type Success: ::IntoPyObject;
+    type Success: crate::IntoPyObject;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 #[doc(hidden)]
 pub trait PyIterProtocolImpl {
-    fn tp_as_iter(typeob: &mut ffi::PyTypeObject);
+    fn tp_as_iter(_typeob: &mut ffi::PyTypeObject) {}
 }
 
-impl<T> PyIterProtocolImpl for T {
-    #[inline]
-    default fn tp_as_iter(_: &mut ffi::PyTypeObject) {}
-}
+impl<T> PyIterProtocolImpl for T {}
 
 impl<'p, T> PyIterProtocolImpl for T
 where
@@ -64,18 +61,12 @@ where
 }
 
 trait PyIterIterProtocolImpl {
-    fn tp_iter() -> Option<ffi::getiterfunc>;
-}
-
-impl<'p, T> PyIterIterProtocolImpl for T
-where
-    T: PyIterProtocol<'p>,
-{
-    #[inline]
-    default fn tp_iter() -> Option<ffi::getiterfunc> {
+    fn tp_iter() -> Option<ffi::getiterfunc> {
         None
     }
 }
+
+impl<'p, T> PyIterIterProtocolImpl for T where T: PyIterProtocol<'p> {}
 
 impl<T> PyIterIterProtocolImpl for T
 where
@@ -93,18 +84,12 @@ where
 }
 
 trait PyIterNextProtocolImpl {
-    fn tp_iternext() -> Option<ffi::iternextfunc>;
-}
-
-impl<'p, T> PyIterNextProtocolImpl for T
-where
-    T: PyIterProtocol<'p>,
-{
-    #[inline]
-    default fn tp_iternext() -> Option<ffi::iternextfunc> {
+    fn tp_iternext() -> Option<ffi::iternextfunc> {
         None
     }
 }
+
+impl<'p, T> PyIterNextProtocolImpl for T where T: PyIterProtocol<'p> {}
 
 impl<T> PyIterNextProtocolImpl for T
 where

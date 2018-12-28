@@ -1,7 +1,7 @@
-use ffi3::code::*;
-use ffi3::object::PyObject;
-use ffi3::pyarena::*;
-use ffi3::pythonrun::*;
+use crate::ffi3::code::*;
+use crate::ffi3::object::PyObject;
+use crate::ffi3::pyarena::*;
+use crate::ffi3::pythonrun::*;
 use std::os::raw::{c_char, c_int};
 
 #[repr(C)]

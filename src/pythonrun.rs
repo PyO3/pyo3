@@ -1,10 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::ffi;
+use crate::python::Python;
+use crate::types::PyObjectRef;
 use spin;
-use std::{any, marker, mem, rc, sync};
-
-use ffi;
-use objects::PyObjectRef;
-use python::Python;
+use std::ptr::NonNull;
+use std::{any, marker, rc, sync};
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -27,7 +27,7 @@ static START_PYO3: sync::Once = sync::ONCE_INIT;
 /// thread (the thread which originally initialized Python) also initializes
 /// threading.
 ///
-/// When writing an extension module, the `#[pymodinit(..)]` macro
+/// When writing an extension module, the `#[pymodule]` macro
 /// will ensure that Python threading is initialized.
 ///
 pub fn prepare_freethreaded_python() {
@@ -61,12 +61,12 @@ pub fn prepare_freethreaded_python() {
             // and will be restored by PyGILState_Ensure.
         }
 
-        prepare_pyo3_library();
+        init_once();
     });
 }
 
 #[doc(hidden)]
-pub fn prepare_pyo3_library() {
+pub fn init_once() {
     START_PYO3.call_once(|| unsafe {
         // initialize release pool
         POOL = Box::into_raw(Box::new(ReleasePool::new()));
@@ -108,18 +108,18 @@ impl Drop for GILGuard {
 
 /// Release pool
 struct ReleasePool {
-    owned: Vec<*mut ffi::PyObject>,
-    borrowed: Vec<*mut ffi::PyObject>,
-    pointers: *mut Vec<*mut ffi::PyObject>,
+    owned: ArrayList<NonNull<ffi::PyObject>>,
+    borrowed: ArrayList<NonNull<ffi::PyObject>>,
+    pointers: *mut Vec<NonNull<ffi::PyObject>>,
     obj: Vec<Box<any::Any>>,
-    p: spin::Mutex<*mut Vec<*mut ffi::PyObject>>,
+    p: spin::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
 impl ReleasePool {
     fn new() -> ReleasePool {
         ReleasePool {
-            owned: Vec::with_capacity(256),
-            borrowed: Vec::with_capacity(256),
+            owned: ArrayList::new(),
+            borrowed: ArrayList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
             obj: Vec::with_capacity(8),
             p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
@@ -128,39 +128,30 @@ impl ReleasePool {
 
     unsafe fn release_pointers(&mut self) {
         let mut v = self.p.lock();
-
-        // vec of pointers
-        let ptr = *v;
-        let vec: &'static mut Vec<*mut ffi::PyObject> = &mut *ptr;
+        let vec = &mut **v;
         if vec.is_empty() {
             return;
         }
 
         // switch vectors
-        *v = self.pointers;
-        self.pointers = ptr;
+        std::mem::swap(&mut self.pointers, &mut *v);
         drop(v);
 
-        // release py objects
+        // release PyObjects
         for ptr in vec.iter_mut() {
-            ffi::Py_DECREF(*ptr);
+            ffi::Py_DECREF(ptr.as_ptr());
         }
         vec.set_len(0);
     }
 
     pub unsafe fn drain(&mut self, owned: usize, borrowed: usize, pointers: bool) {
-        let len = self.owned.len();
-        if owned < len {
-            for ptr in &mut self.owned[owned..len] {
-                ffi::Py_DECREF(*ptr);
-            }
-            self.owned.set_len(owned);
+        // Release owned objects(call decref)
+        while owned < self.owned.len() {
+            let last = self.owned.pop_back().unwrap();
+            ffi::Py_DECREF(last.as_ptr());
         }
-
-        let len = self.borrowed.len();
-        if borrowed < len {
-            self.borrowed.set_len(borrowed);
-        }
+        // Release borrowed objects(don't call decref)
+        self.borrowed.truncate(borrowed);
 
         if pointers {
             self.release_pointers();
@@ -231,24 +222,19 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
         .unwrap()
 }
 
-pub unsafe fn register_pointer(obj: *mut ffi::PyObject) {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-
-    let mut v = pool.p.lock();
-    let pool: &'static mut Vec<*mut ffi::PyObject> = &mut *(*v);
-    pool.push(obj);
+pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
+    let pool = &mut *POOL;
+    (**pool.p.lock()).push(obj);
 }
 
-pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.owned.push(obj);
-    mem::transmute(&pool.owned[pool.owned.len() - 1])
+pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
+    let pool = &mut *POOL;
+    &*(pool.owned.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
-pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
-    let pool: &'static mut ReleasePool = &mut *POOL;
-    pool.borrowed.push(obj);
-    mem::transmute(&pool.borrowed[pool.borrowed.len() - 1])
+pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
+    let pool = &mut *POOL;
+    &*(pool.borrowed.push_back(obj) as *const _ as *const PyObjectRef)
 }
 
 impl GILGuard {
@@ -265,7 +251,7 @@ impl GILGuard {
             GILGuard {
                 owned: pool.owned.len(),
                 borrowed: pool.borrowed.len(),
-                gstate: gstate,
+                gstate,
                 no_send: marker::PhantomData,
             }
         }
@@ -278,16 +264,85 @@ impl GILGuard {
     }
 }
 
+use self::array_list::ArrayList;
+
+mod array_list {
+    use std::collections::LinkedList;
+    use std::mem;
+
+    const BLOCK_SIZE: usize = 256;
+
+    /// A container type for Release Pool
+    /// See #271 for why this is crated
+    pub(super) struct ArrayList<T> {
+        inner: LinkedList<[T; BLOCK_SIZE]>,
+        length: usize,
+    }
+
+    impl<T: Clone> ArrayList<T> {
+        pub fn new() -> Self {
+            ArrayList {
+                inner: LinkedList::new(),
+                length: 0,
+            }
+        }
+        pub fn push_back(&mut self, item: T) -> &T {
+            let next_idx = self.next_idx();
+            if next_idx == 0 {
+                self.inner.push_back(unsafe { mem::uninitialized() });
+            }
+            self.inner.back_mut().unwrap()[next_idx] = item;
+            self.length += 1;
+            &self.inner.back().unwrap()[next_idx]
+        }
+        pub fn pop_back(&mut self) -> Option<T> {
+            self.length -= 1;
+            let current_idx = self.next_idx();
+            if self.length >= BLOCK_SIZE && current_idx == 0 {
+                let last_list = self.inner.pop_back()?;
+                return Some(last_list[0].clone());
+            }
+            self.inner.back().map(|arr| arr[current_idx].clone())
+        }
+        pub fn len(&self) -> usize {
+            self.length
+        }
+        pub fn truncate(&mut self, new_len: usize) {
+            if self.length <= new_len {
+                return;
+            }
+            while self.inner.len() > (new_len + BLOCK_SIZE - 1) / BLOCK_SIZE {
+                self.inner.pop_back();
+            }
+            self.length = new_len;
+        }
+        fn next_idx(&self) -> usize {
+            self.length % BLOCK_SIZE
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::{GILPool, ReleasePool, POOL};
-    use object::PyObject;
-    use python::Python;
-    use {ffi, pythonrun};
+    use super::{GILPool, NonNull, ReleasePool, POOL};
+    use crate::conversion::ToPyObject;
+    use crate::object::PyObject;
+    use crate::python::{Python, ToPyPointer};
+    use crate::{ffi, pythonrun};
+
+    fn get_object() -> PyObject {
+        // Convenience function for getting a single unique object
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let obj = py.eval("object()", None, None).unwrap();
+
+        obj.to_object(py)
+    }
 
     #[test]
     fn test_owned() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -300,7 +355,7 @@ mod test {
 
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = pythonrun::register_owned(py, empty);
+                let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
             }
@@ -314,7 +369,7 @@ mod test {
 
     #[test]
     fn test_owned_nested() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -330,14 +385,15 @@ mod test {
                 // empty tuple is singleton
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = pythonrun::register_owned(py, empty);
+
+                let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
 
                 {
                     let _pool = GILPool::new();
                     let empty = ffi::PyTuple_New(0);
-                    let _ = pythonrun::register_owned(py, empty);
+                    let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
@@ -351,71 +407,75 @@ mod test {
 
     #[test]
     fn test_borrowed() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
+            let obj = get_object();
+            let obj_ptr = obj.as_ptr();
             let cnt;
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 assert_eq!(p.borrowed.len(), 0);
 
-                cnt = ffi::Py_REFCNT(ffi::Py_True());
-                pythonrun::register_borrowed(py, ffi::Py_True());
+                cnt = ffi::Py_REFCNT(obj_ptr);
+                pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
         }
     }
 
     #[test]
     fn test_borrowed_nested() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
+            let obj = get_object();
+            let obj_ptr = obj.as_ptr();
             let cnt;
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 assert_eq!(p.borrowed.len(), 0);
 
-                cnt = ffi::Py_REFCNT(ffi::Py_True());
-                pythonrun::register_borrowed(py, ffi::Py_True());
+                cnt = ffi::Py_REFCNT(obj_ptr);
+                pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
 
                 {
                     let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
-                    pythonrun::register_borrowed(py, ffi::Py_True());
+                    pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
                     assert_eq!(p.borrowed.len(), 2);
                 }
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(ffi::Py_True()), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
             }
         }
     }
 
     #[test]
     fn test_pyobject_drop() {
-        pythonrun::prepare_pyo3_library();
+        pythonrun::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;

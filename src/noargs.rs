@@ -1,23 +1,22 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-
-use conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
-use ffi;
-use instance::Py;
-use object::PyObject;
-use objects::PyTuple;
-use python::{IntoPyDictPointer, Python};
+use crate::conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
+use crate::instance::Py;
+use crate::object::PyObject;
+use crate::python::Python;
+use crate::types::PyTuple;
 
 /// An empty struct that represents the empty argument list.
 /// Corresponds to the empty tuple `()` in Python.
 ///
 /// # Example
 /// ```
-/// let gil = pyo3::Python::acquire_gil();
+/// # use pyo3::prelude::*;
+///
+/// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let os = py.import("os").unwrap();
-/// let pid = os.call("get_pid", pyo3::NoArgs, pyo3::NoArgs);
+/// let pid = os.call("get_pid", NoArgs, None);
 /// ```
 #[derive(Copy, Clone, Debug)]
 pub struct NoArgs;
@@ -47,19 +46,5 @@ impl ToPyObject for NoArgs {
 impl IntoPyObject for NoArgs {
     fn into_object(self, py: Python) -> PyObject {
         PyTuple::empty(py).into()
-    }
-}
-
-/// Converts `NoArgs` to an null pointer.
-impl IntoPyDictPointer for NoArgs {
-    fn into_dict_ptr(self, _: Python) -> *mut ffi::PyObject {
-        std::ptr::null_mut()
-    }
-}
-
-/// Converts `()` to an null pointer.
-impl IntoPyDictPointer for () {
-    fn into_dict_ptr(self, _: Python) -> *mut ffi::PyObject {
-        std::ptr::null_mut()
     }
 }

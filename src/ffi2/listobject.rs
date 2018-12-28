@@ -22,25 +22,25 @@ extern "C" {
     pub static mut PyList_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyList_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LIST_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyList_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyList_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-// Macro, trading safety for speed
-#[inline(always)]
+/// Macro, trading safety for speed
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyList_GET_ITEM")]
 pub unsafe fn PyList_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     *(*(op as *mut PyListObject)).ob_item.offset(i as isize)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyList_GET_SIZE")]
 pub unsafe fn PyList_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     Py_SIZE(op)

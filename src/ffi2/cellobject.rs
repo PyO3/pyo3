@@ -20,7 +20,7 @@ extern "C" {
     pub static mut PyCell_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCell_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCell_Type) as c_int
 }
@@ -32,12 +32,12 @@ extern "C" {
     pub fn PyCell_Set(op: *mut PyObject, obj: *mut PyObject) -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCell_GET(op: *mut PyObject) -> *mut PyObject {
     (*(op as *mut PyCellObject)).ob_ref
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyCell_SET(op: *mut PyObject, obj: *mut PyObject) {
     (*(op as *mut PyCellObject)).ob_ref = obj;
 }

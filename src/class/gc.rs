@@ -5,10 +5,11 @@
 
 use std::os::raw::{c_int, c_void};
 
-use ffi;
-use python::{Python, ToPyPointer};
-use typeob::PyTypeInfo;
+use crate::ffi;
+use crate::python::{Python, ToPyPointer};
+use crate::typeob::PyTypeInfo;
 
+#[repr(transparent)]
 pub struct PyTraverseError(c_int);
 
 /// GC support
@@ -28,12 +29,10 @@ pub trait PyGCClearProtocol<'p>: PyGCProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyGCProtocolImpl {
-    fn update_type_object(type_object: &mut ffi::PyTypeObject);
+    fn update_type_object(_type_object: &mut ffi::PyTypeObject) {}
 }
 
-impl<'p, T> PyGCProtocolImpl for T {
-    default fn update_type_object(_type_object: &mut ffi::PyTypeObject) {}
-}
+impl<'p, T> PyGCProtocolImpl for T {}
 
 impl<'p, T> PyGCProtocolImpl for T
 where
@@ -70,18 +69,12 @@ impl<'p> PyVisit<'p> {
 }
 
 trait PyGCTraverseProtocolImpl {
-    fn tp_traverse() -> Option<ffi::traverseproc>;
-}
-
-impl<'p, T> PyGCTraverseProtocolImpl for T
-where
-    T: PyGCProtocol<'p>,
-{
-    #[inline]
-    default fn tp_traverse() -> Option<ffi::traverseproc> {
+    fn tp_traverse() -> Option<ffi::traverseproc> {
         None
     }
 }
+
+impl<'p, T> PyGCTraverseProtocolImpl for T where T: PyGCProtocol<'p> {}
 
 #[doc(hidden)]
 impl<T> PyGCTraverseProtocolImpl for T
@@ -98,13 +91,13 @@ where
         where
             T: for<'p> PyGCTraverseProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let visit = PyVisit {
-                visit: visit,
-                arg: arg,
+                visit,
+                arg,
                 _py: py,
             };
             match slf.__traverse__(visit) {
@@ -118,18 +111,12 @@ where
 }
 
 trait PyGCClearProtocolImpl {
-    fn tp_clear() -> Option<ffi::inquiry>;
-}
-
-impl<'p, T> PyGCClearProtocolImpl for T
-where
-    T: PyGCProtocol<'p>,
-{
-    #[inline]
-    default fn tp_clear() -> Option<ffi::inquiry> {
+    fn tp_clear() -> Option<ffi::inquiry> {
         None
     }
 }
+
+impl<'p, T> PyGCClearProtocolImpl for T where T: PyGCProtocol<'p> {}
 
 impl<T> PyGCClearProtocolImpl for T
 where
@@ -141,7 +128,7 @@ where
         where
             T: for<'p> PyGCClearProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 

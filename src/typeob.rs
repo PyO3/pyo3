@@ -4,15 +4,18 @@
 
 use std;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::mem;
+use std::os::raw::c_void;
 
-use class::methods::PyMethodDefType;
-use err::{PyErr, PyResult};
-use instance::{Py, PyObjectWithToken, PyToken};
-use objects::PyType;
-use python::{IntoPyPointer, Python};
-use {class, ffi, pythonrun};
+use crate::class::methods::PyMethodDefType;
+use crate::err::{PyErr, PyResult};
+use crate::instance::{Py, PyObjectWithGIL};
+use crate::python::ToPyPointer;
+use crate::python::{IntoPyPointer, Python};
+use crate::types::PyObjectRef;
+use crate::types::PyType;
+use crate::{class, ffi, pythonrun};
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -41,15 +44,13 @@ pub trait PyTypeInfo {
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
-    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
-    fn is_instance(ptr: *mut ffi::PyObject) -> bool {
-        unsafe { ffi::PyObject_TypeCheck(ptr, Self::type_object()) != 0 }
+    fn is_instance(object: &PyObjectRef) -> bool {
+        unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object()) != 0 }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
-    #[cfg_attr(feature = "cargo-clippy", allow(not_unsafe_ptr_arg_deref))]
-    fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
-        unsafe { (*ptr).ob_type == Self::type_object() }
+    fn is_exact_instance(object: &PyObjectRef) -> bool {
+        unsafe { (*object.as_ptr()).ob_type == Self::type_object() }
     }
 }
 
@@ -65,34 +66,6 @@ pub const PY_TYPE_FLAG_BASETYPE: usize = 1 << 2;
 /// The instances of this type have a dictionary containing instance variables
 pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 
-impl<'a, T: ?Sized> PyTypeInfo for &'a T
-where
-    T: PyTypeInfo,
-{
-    type Type = T::Type;
-    type BaseType = T::BaseType;
-    const NAME: &'static str = T::NAME;
-    const DESCRIPTION: &'static str = T::DESCRIPTION;
-    const SIZE: usize = T::SIZE;
-    const OFFSET: isize = T::OFFSET;
-    const FLAGS: usize = T::FLAGS;
-
-    #[inline]
-    default unsafe fn type_object() -> &'static mut ffi::PyTypeObject {
-        <T as PyTypeInfo>::type_object()
-    }
-
-    #[inline]
-    default fn is_instance(ptr: *mut ffi::PyObject) -> bool {
-        <T as PyTypeInfo>::is_instance(ptr)
-    }
-
-    #[inline]
-    default fn is_exact_instance(ptr: *mut ffi::PyObject) -> bool {
-        <T as PyTypeInfo>::is_exact_instance(ptr)
-    }
-}
-
 /// Special object that is used for python object creation.
 /// `pyo3` library automatically creates this object for class `__new__` method.
 /// Behavior is undefined if constructor of custom class does not initialze
@@ -100,21 +73,19 @@ where
 /// Calling of `__new__` method of base class is developer's responsibility.
 ///
 /// Example of custom class implementation with `__new__` method:
-/// ```rust,ignore
-/// use pyo3::py::class as pyclass;
-/// use pyo3::py::methods as pymethods;
+/// ```
+/// #![feature(specialization)]
+///
+/// use pyo3::prelude::*;
 ///
 /// #[pyclass]
-/// struct MyClass {
-///    token: PyToken
-/// }
+/// struct MyClass { }
 ///
 /// #[pymethods]
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(|token| MyClass{token: token});
-///        MyClass::BaseType::__new__(obj)
+///        obj.init(|| MyClass { })
 ///    }
 /// }
 /// ```
@@ -141,9 +112,9 @@ impl PyRawObject {
 
         if !ptr.is_null() {
             Ok(PyRawObject {
-                ptr: ptr,
-                tp_ptr: tp_ptr,
-                curr_ptr: curr_ptr,
+                ptr,
+                tp_ptr,
+                curr_ptr,
                 // initialized: 0,
             })
         } else {
@@ -160,9 +131,9 @@ impl PyRawObject {
     ) -> PyResult<PyRawObject> {
         if !ptr.is_null() {
             Ok(PyRawObject {
-                ptr: ptr,
-                tp_ptr: tp_ptr,
-                curr_ptr: curr_ptr,
+                ptr,
+                tp_ptr,
+                curr_ptr,
                 // initialized: 0,
             })
         } else {
@@ -172,12 +143,13 @@ impl PyRawObject {
 
     pub fn init<T, F>(&self, f: F) -> PyResult<()>
     where
-        F: FnOnce(PyToken) -> T,
+        F: FnOnce() -> T,
         T: PyTypeInfo,
     {
-        let value = f(PyToken::new());
+        let value = f();
 
         unsafe {
+            // The `as *mut u8` part is required because the offset is in bytes
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
             std::ptr::write(ptr, value);
         }
@@ -188,10 +160,11 @@ impl PyRawObject {
     pub fn type_object(&self) -> &PyType {
         unsafe { PyType::from_type_ptr(self.py(), self.curr_ptr) }
     }
+}
 
-    /// Return reference to object.
-    #[cfg_attr(feature = "cargo-clippy", allow(should_implement_trait))]
-    pub fn as_ref<T: PyTypeInfo>(&self) -> &T {
+impl<T: PyTypeInfo> AsRef<T> for PyRawObject {
+    #[inline]
+    fn as_ref(&self) -> &T {
         // TODO: check is object initialized
         unsafe {
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
@@ -207,70 +180,58 @@ impl IntoPyPointer for PyRawObject {
     }
 }
 
-impl PyObjectWithToken for PyRawObject {
-    #[cfg_attr(feature = "cargo-clippy", allow(inline_always))]
-    #[inline(always)]
+impl PyObjectWithGIL for PyRawObject {
+    #[inline]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
 }
 
-/// A Python object allocator that is usable as a base type for #[class]
-pub trait PyObjectAlloc<T> {
-    /// Allocates a new object (usually by calling ty->tp_alloc),
-    unsafe fn alloc(py: Python) -> PyResult<*mut ffi::PyObject>;
-
-    /// Calls the rust destructor for the object and frees the memory
-    /// (usually by calling ptr->ob_type->tp_free).
-    /// This function is used as tp_dealloc implementation.
-    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject);
-
-    /// Calls the rust destructor for the object.
-    unsafe fn drop(_py: Python, _obj: *mut ffi::PyObject) {}
+pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObject) {
+    if T::OFFSET != 0 {
+        let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
+        std::ptr::drop_in_place(ptr);
+        pytype_drop::<T::BaseType>(py, obj);
+    }
 }
 
-impl<T> PyObjectAlloc<T> for T
-where
-    T: PyTypeInfo,
-{
-    #[allow(unconditional_recursion)]
-    /// Calls the rust destructor for the object.
-    default unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
-        if T::OFFSET != 0 {
-            let ptr = (obj as *mut u8).offset(T::OFFSET) as *mut T;
-            std::ptr::drop_in_place(ptr);
-
-            T::BaseType::drop(py, obj);
-        }
-    }
-
-    default unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
+/// A Python object allocator that is usable as a base type for `#[pyclass]`
+///
+/// All native types and all `#[pyclass]` types use the default functions, while
+/// [PyObjectWithFreeList](crate::freelist::PyObjectWithFreeList) gets a special version.
+pub trait PyObjectAlloc: PyTypeInfo + Sized {
+    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
-        T::init_type();
+        <Self as PyTypeCreate>::init_type();
 
-        let tp_ptr = T::type_object();
+        let tp_ptr = Self::type_object();
         let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
         let obj = alloc(tp_ptr, 0);
 
         Ok(obj)
     }
 
-    #[cfg(Py_3)]
-    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
+    /// Calls the rust destructor for the object and frees the memory
+    /// (usually by calling ptr->ob_type->tp_free).
+    /// This function is used as tp_dealloc implementation.
+    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         Self::drop(py, obj);
 
-        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
-            return;
+        #[cfg(Py_3)]
+        {
+            if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+                return;
+            }
         }
 
-        match (*T::type_object()).tp_free {
-            Some(free) => free(obj as *mut ::c_void),
+        match Self::type_object().tp_free {
+            Some(free) => free(obj as *mut c_void),
             None => {
                 let ty = ffi::Py_TYPE(obj);
                 if ffi::PyType_IS_GC(ty) != 0 {
-                    ffi::PyObject_GC_Del(obj as *mut ::c_void);
+                    ffi::PyObject_GC_Del(obj as *mut c_void);
                 } else {
-                    ffi::PyObject_Free(obj as *mut ::c_void);
+                    ffi::PyObject_Free(obj as *mut c_void);
                 }
 
                 // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
@@ -282,48 +243,53 @@ where
         }
     }
 
-    #[cfg(not(Py_3))]
-    default unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        Self::drop(py, obj);
-
-        match (*T::type_object()).tp_free {
-            Some(free) => free(obj as *mut ::c_void),
-            None => {
-                let ty = ffi::Py_TYPE(obj);
-                if ffi::PyType_IS_GC(ty) != 0 {
-                    ffi::PyObject_GC_Del(obj as *mut ::c_void);
-                } else {
-                    ffi::PyObject_Free(obj as *mut ::c_void);
-                }
-
-                // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-                // so we need to call DECREF here:
-                if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                    ffi::Py_DECREF(ty as *mut ffi::PyObject);
-                }
-            }
-        }
+    #[allow(unconditional_recursion)]
+    /// Calls the rust destructor for the object.
+    unsafe fn drop(py: Python, obj: *mut ffi::PyObject) {
+        pytype_drop::<Self>(py, obj);
     }
 }
 
-/// Trait implemented by Python object types that have a corresponding type object.
+/// Python object types that have a corresponding type object.
 pub trait PyTypeObject {
     /// Initialize type object
     fn init_type();
 
     /// Retrieves the type object for this Python object type.
     fn type_object() -> Py<PyType>;
+}
+
+/// Python object types that have a corresponding type object and be
+/// instanciated with [Self::create()]
+pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
+    #[inline]
+    fn init_type() {
+        let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
+
+        if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
+            // automatically initialize the class on-demand
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+
+            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
+                panic!("An error occurred while initializing class {}", Self::NAME)
+            });
+        }
+    }
+
+    #[inline]
+    fn type_object() -> Py<PyType> {
+        <Self as PyTypeObject>::init_type();
+        PyType::new::<Self>()
+    }
 
     /// Create PyRawObject which can be initialized with rust value
     #[must_use]
-    fn create(py: Python) -> PyResult<PyRawObject>
-    where
-        Self: Sized + PyObjectAlloc<Self> + PyTypeInfo,
-    {
+    fn create(py: Python) -> PyResult<PyRawObject> {
         <Self as PyTypeObject>::init_type();
 
         unsafe {
-            let ptr = <Self as PyObjectAlloc<Self>>::alloc(py)?;
+            let ptr = <Self as PyObjectAlloc>::alloc(py)?;
             PyRawObject::new_with_ptr(
                 py,
                 ptr,
@@ -334,36 +300,26 @@ pub trait PyTypeObject {
     }
 }
 
+impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeInfo + Sized {}
+
 impl<T> PyTypeObject for T
 where
-    T: PyObjectAlloc<T> + PyTypeInfo,
+    T: PyTypeCreate,
 {
-    #[inline]
-    default fn init_type() {
-        unsafe {
-            if ((*<T>::type_object()).tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
-                // automatically initialize the class on-demand
-                let gil = Python::acquire_gil();
-                let py = gil.python();
-
-                initialize_type::<T>(py, None).expect(
-                    format!("An error occurred while initializing class {}", T::NAME).as_ref(),
-                );
-            }
-        }
+    fn init_type() {
+        <T as PyTypeCreate>::init_type()
     }
 
-    #[inline]
-    default fn type_object() -> Py<PyType> {
-        <T as PyTypeObject>::init_type();
-        PyType::new::<T>()
+    fn type_object() -> Py<PyType> {
+        <T as PyTypeCreate>::type_object()
     }
 }
 
 /// Register new type in python object system.
-pub fn initialize_type<'p, T>(py: Python<'p>, module_name: Option<&str>) -> PyResult<()>
+#[cfg(not(Py_LIMITED_API))]
+pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<()>
 where
-    T: PyObjectAlloc<T> + PyTypeInfo,
+    T: PyObjectAlloc + PyTypeInfo,
 {
     // type name
     let name = match module_name {
@@ -476,11 +432,6 @@ where
 
     // set type flags
     py_class_flags::<T>(type_object);
-    if type_object.tp_base
-        != unsafe { &ffi::PyBaseObject_Type as *const ffi::PyTypeObject as *mut ffi::PyTypeObject }
-    {
-        type_object.tp_flags |= ffi::Py_TPFLAGS_HEAPTYPE
-    }
 
     // register type object
     unsafe {
@@ -494,7 +445,7 @@ where
 
 #[cfg(Py_3)]
 fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
-    if let Some(meth) = <T as class::async::PyAsyncProtocolImpl>::tp_as_async() {
+    if let Some(meth) = <T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async() {
         type_info.tp_as_async = Box::into_raw(Box::new(meth));
     } else {
         type_info.tp_as_async = ::std::ptr::null_mut()
@@ -506,16 +457,11 @@ fn async_methods<T>(_type_info: &mut ffi::PyTypeObject) {}
 
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 where
-    T: PyObjectAlloc<T>,
+    T: PyObjectAlloc,
 {
-    debug!(
-        "DEALLOC: {:?} - {:?}",
-        obj,
-        CStr::from_ptr((*(*obj).ob_type).tp_name).to_string_lossy()
-    );
     let _pool = pythonrun::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
-    <T as PyObjectAlloc<T>>::dealloc(py, obj)
+    <T as PyObjectAlloc>::dealloc(py, obj)
 }
 
 #[cfg(Py_3)]
@@ -545,14 +491,13 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
     }
     if !type_object.tp_as_buffer.is_null() {
-        type_object.tp_flags = type_object.tp_flags | ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
+        type_object.tp_flags |= ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
     }
     if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
         type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
 fn py_class_method_defs<T>() -> PyResult<(
     Option<ffi::newfunc>,
     Option<ffi::initproc>,
@@ -563,8 +508,6 @@ fn py_class_method_defs<T>() -> PyResult<(
     let mut call = None;
     let mut new = None;
     let mut init = None;
-
-    //<T as class::methods::PyPropMethodsProtocolImpl>::py_methods()
 
     for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
         match *def {
@@ -619,7 +562,7 @@ fn py_class_method_defs<T>() -> PyResult<(
 
 #[cfg(Py_3)]
 fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
-    for def in <T as class::async::PyAsyncProtocolImpl>::methods() {
+    for def in <T as class::pyasync::PyAsyncProtocolImpl>::methods() {
         defs.push(def.as_method_def());
     }
 }

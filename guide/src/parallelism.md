@@ -4,7 +4,7 @@ CPython has an infamous GIL(Global Interpreter Lock) prevents developers
 getting true parallelism. With `pyo3` you can release GIL when executing
 Rust code to achieve true parallelism.
 
-The [`Python::allow_threads`](https://pyo3.github.io/pyo3/pyo3/struct.Python.html#method.allow_threads)
+The [`Python::allow_threads`](https://docs.rs/pyo3/0.2.7/struct.Python.html#method.allow_threads)
 method temporarily releases the GIL, thus allowing other Python threads to run.
 
 ```rust,ignore
@@ -28,8 +28,8 @@ Then in the Python bridge, we have a function `search` exposed to Python runtime
 `Python::allow_threads` method to enable true parallelism:
 
 ```rust,ignore
-#[pymodinit(_word_count)]
-fn init_mod(py: Python, m: &PyModule) -> PyResult<()> {
+#[pymodule]
+fn word_count(py: Python, m: &PyModule) -> PyResult<()> {
 
     #[pyfn(m, "search")]
     fn search(py: Python, path: String, search: String) -> PyResult<i32> {

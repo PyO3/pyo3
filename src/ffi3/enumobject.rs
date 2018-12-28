@@ -1,4 +1,4 @@
-use ffi3::object::PyTypeObject;
+use crate::ffi3::object::PyTypeObject;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

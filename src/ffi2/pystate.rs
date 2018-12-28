@@ -102,13 +102,13 @@ extern "C" {
 }
 
 #[cfg(py_sys_config = "Py_DEBUG")]
-#[inline(always)]
+#[inline]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }
 
 #[cfg(not(py_sys_config = "Py_DEBUG"))]
-#[inline(always)]
+#[inline]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     _PyThreadState_Current
 }

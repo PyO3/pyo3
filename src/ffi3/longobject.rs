@@ -1,22 +1,26 @@
-use ffi3::object::*;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::object::*;
+use crate::ffi3::pyport::Py_ssize_t;
 use libc::size_t;
-use std::os::raw::{c_char, c_double, c_int, c_long, c_longlong, c_ulong, c_ulonglong, c_void};
+use std::os::raw::{
+    c_char, c_double, c_int, c_long, c_longlong, c_uchar, c_ulong, c_ulonglong, c_void,
+};
 
-pub enum PyLongObject {}
+/// This is an opaque type in the python c api
+#[repr(transparent)]
+pub struct PyLongObject(*mut c_void);
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyLong_Type")]
     pub static mut PyLong_Type: PyTypeObject;
 }
-
+#[inline]
 #[inline(always)]
 pub unsafe fn PyLong_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_LONG_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyLong_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyLong_Type) as c_int
 }
@@ -72,4 +76,23 @@ extern "C" {
     ) -> *mut PyObject;
     pub fn PyOS_strtoul(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_ulong;
     pub fn PyOS_strtol(arg1: *const c_char, arg2: *mut *mut c_char, arg3: c_int) -> c_long;
+}
+
+#[cfg(not(Py_LIMITED_API))]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    pub fn _PyLong_FromByteArray(
+        bytes: *const c_uchar,
+        n: size_t,
+        little_endian: c_int,
+        is_signed: c_int,
+    ) -> *mut PyObject;
+
+    pub fn _PyLong_AsByteArray(
+        v: *mut PyLongObject,
+        bytes: *const c_uchar,
+        n: size_t,
+        little_endian: c_int,
+        is_signed: c_int,
+    ) -> c_int;
 }

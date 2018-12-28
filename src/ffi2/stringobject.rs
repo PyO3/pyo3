@@ -23,12 +23,12 @@ extern "C" {
     pub static mut PyString_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyString_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_STRING_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyBaseString_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(
         Py_TYPE(op),
@@ -36,18 +36,18 @@ pub unsafe fn PyBaseString_Check(op: *mut PyObject) -> c_int {
     )
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyString_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyString_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyString_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     (*(op as *mut PyStringObject)).ob_size
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyString_AS_STRING(op: *mut PyObject) -> *mut c_char {
     (*(op as *mut PyStringObject)).ob_sval.as_mut_ptr()
 }

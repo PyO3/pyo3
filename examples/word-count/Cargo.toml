@@ -4,10 +4,8 @@ name = "word-count"
 version = "0.1.0"
 
 [dependencies]
-rayon = "0.8"
-
-[dependencies.pyo3]
-path = "../../"
+rayon = "1.0.2"
+pyo3 = { path = "../..", features = ["extension-module"] }
 
 [lib]
 name = "word_count"

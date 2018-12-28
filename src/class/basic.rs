@@ -4,20 +4,23 @@
 //!
 //! Check [python c-api information](https://docs.python.org/3/reference/datamodel.html#basic-customization)
 //! for more information.
+//!
+//! Parts of the documentation are copied from the respective methods from the
+//! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
-use std;
 use std::os::raw::c_int;
+use std::ptr;
 
-use callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
-use class::methods::PyMethodDef;
-use conversion::{FromPyObject, IntoPyObject};
-use err::{PyErr, PyResult};
-use ffi;
-use objectprotocol::ObjectProtocol;
-use objects::{exc, PyObjectRef};
-use python::{IntoPyPointer, Python};
-use typeob::PyTypeInfo;
-use CompareOp;
+use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
+use crate::class::methods::PyMethodDef;
+use crate::conversion::{FromPyObject, IntoPyObject};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::{IntoPyPointer, Python};
+use crate::typeob::PyTypeInfo;
+use crate::types::{exceptions, PyObjectRef};
+use crate::CompareOp;
 
 /// Basic python class customization
 #[allow(unused_variables)]
@@ -150,36 +153,31 @@ pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyObjectProtocolImpl {
-    fn methods() -> Vec<PyMethodDef>;
-    fn tp_as_object(type_object: &mut ffi::PyTypeObject);
-    fn nb_bool_fn() -> Option<ffi::inquiry>;
-}
-
-impl<T> PyObjectProtocolImpl for T {
-    default fn methods() -> Vec<PyMethodDef> {
+    fn methods() -> Vec<PyMethodDef> {
         Vec::new()
     }
-    default fn tp_as_object(_type_object: &mut ffi::PyTypeObject) {}
-    default fn nb_bool_fn() -> Option<ffi::inquiry> {
+    fn tp_as_object(_type_object: &mut ffi::PyTypeObject) {}
+    fn nb_bool_fn() -> Option<ffi::inquiry> {
         None
     }
 }
+
+impl<T> PyObjectProtocolImpl for T {}
 
 impl<'p, T> PyObjectProtocolImpl for T
 where
     T: PyObjectProtocol<'p>,
 {
-    #[inline]
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
 
-        if let Some(def) = <Self as PyObjectFormatProtocolImpl>::__format__() {
+        if let Some(def) = <Self as FormatProtocolImpl>::__format__() {
             methods.push(def)
         }
-        if let Some(def) = <Self as PyObjectBytesProtocolImpl>::__bytes__() {
+        if let Some(def) = <Self as BytesProtocolImpl>::__bytes__() {
             methods.push(def)
         }
-        if let Some(def) = <Self as PyObjectUnicodeProtocolImpl>::__unicode__() {
+        if let Some(def) = <Self as UnicodeProtocolImpl>::__unicode__() {
             methods.push(def)
         }
         methods
@@ -190,35 +188,25 @@ where
         type_object.tp_hash = Self::tp_hash();
         type_object.tp_getattro = Self::tp_getattro();
         type_object.tp_richcompare = Self::tp_richcompare();
-
-        type_object.tp_setattro = if let Some(df) = Self::tp_delattro() {
-            Some(df)
-        } else {
-            Self::tp_setattro()
-        };
+        type_object.tp_setattro = tp_setattro_impl::tp_setattro::<Self>();
     }
     fn nb_bool_fn() -> Option<ffi::inquiry> {
         Self::nb_bool()
     }
 }
 
-trait PyObjectGetAttrProtocolImpl {
-    fn tp_getattro() -> Option<ffi::binaryfunc>;
-}
-impl<'p, T> PyObjectGetAttrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_getattro() -> Option<ffi::binaryfunc> {
+trait GetAttrProtocolImpl {
+    fn tp_getattro() -> Option<ffi::binaryfunc> {
         None
     }
 }
-impl<T> PyObjectGetAttrProtocolImpl for T
+
+impl<'p, T> GetAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
+
+impl<T> GetAttrProtocolImpl for T
 where
     T: for<'p> PyObjectGetAttrProtocol<'p>,
 {
-    #[inline]
     fn tp_getattro() -> Option<ffi::binaryfunc> {
         py_binary_func!(
             PyObjectGetAttrProtocol,
@@ -229,81 +217,101 @@ where
     }
 }
 
-trait PyObjectSetAttrProtocolImpl {
-    fn tp_setattro() -> Option<ffi::setattrofunc>;
-}
+/// An object may support setting attributes (by implementing PyObjectSetAttrProtocol)
+/// and may support deleting attributes (by implementing PyObjectDelAttrProtocol)
+/// and we need to generate a single extern c function that supports only setting, only deleting
+/// or both, and return None in case none of the two is supported.
+mod tp_setattro_impl {
+    use super::*;
 
-impl<'p, T> PyObjectSetAttrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_setattro() -> Option<ffi::setattrofunc> {
-        None
-    }
-}
-impl<T> PyObjectSetAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectSetAttrProtocol<'p>,
-{
-    #[inline]
-    fn tp_setattro() -> Option<ffi::setattrofunc> {
-        py_func_set!(PyObjectSetAttrProtocol, T::__setattr__)
-    }
-}
-
-trait PyObjectDelAttrProtocolImpl {
-    fn tp_delattro() -> Option<ffi::setattrofunc>;
-}
-impl<'p, T> PyObjectDelAttrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_delattro() -> Option<ffi::setattrofunc> {
-        None
-    }
-}
-impl<T> PyObjectDelAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectDelAttrProtocol<'p>,
-{
-    #[inline]
-    default fn tp_delattro() -> Option<ffi::setattrofunc> {
-        py_func_del!(PyObjectDelAttrProtocol, T::__delattr__)
-    }
-}
-impl<T> PyObjectDelAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
-{
-    #[inline]
-    fn tp_delattro() -> Option<ffi::setattrofunc> {
-        py_func_set_del!(
-            PyObjectSetAttrProtocol,
-            PyObjectDelAttrProtocol,
-            T::__setattr__ / __delattr__
-        )
+    /// setattrofunc PyTypeObject.tp_setattro
+    ///
+    /// An optional pointer to the function for setting and deleting attributes.
+    ///
+    /// The signature is the same as for PyObject_SetAttr(), but setting v to NULL to delete an
+    /// attribute must be supported. It is usually convenient to set this field to
+    /// PyObject_GenericSetAttr(), which implements the normal way of setting object attributes.
+    pub(super) fn tp_setattro<'p, T: PyObjectProtocol<'p>>() -> Option<ffi::setattrofunc> {
+        if let Some(set_del) = T::set_del_attr() {
+            Some(set_del)
+        } else if let Some(set) = T::set_attr() {
+            Some(set)
+        } else if let Some(del) = T::del_attr() {
+            Some(del)
+        } else {
+            None
+        }
     }
 }
 
-trait PyObjectStrProtocolImpl {
-    fn tp_str() -> Option<ffi::unaryfunc>;
+    trait SetAttr {
+        fn set_attr() -> Option<ffi::setattrofunc> {
+            None
+        }
+    }
+
+    impl<'p, T: PyObjectProtocol<'p>> SetAttr for T {}
+
+    impl<T> SetAttr for T
+    where
+        T: for<'p> PyObjectSetAttrProtocol<'p>,
+    {
+        fn set_attr() -> Option<ffi::setattrofunc> {
+            py_func_set!(PyObjectSetAttrProtocol, T, __setattr__)
+        }
+    }
+
+    trait DelAttr {
+        fn del_attr() -> Option<ffi::setattrofunc> {
+            None
+        }
+    }
+
+    impl<'p, T> DelAttr for T where T: PyObjectProtocol<'p> {}
+
+    impl<T> DelAttr for T
+    where
+        T: for<'p> PyObjectDelAttrProtocol<'p>,
+    {
+        fn del_attr() -> Option<ffi::setattrofunc> {
+            py_func_del!(PyObjectDelAttrProtocol, T, __delattr__)
+        }
+    }
+
+    trait SetDelAttr {
+        fn set_del_attr() -> Option<ffi::setattrofunc> {
+            None
+        }
+    }
+
+    impl<'p, T> SetDelAttr for T where T: PyObjectProtocol<'p> {}
+
+    impl<T> SetDelAttr for T
+    where
+        T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
+    {
+        fn set_del_attr() -> Option<ffi::setattrofunc> {
+            py_func_set_del!(
+                PyObjectSetAttrProtocol,
+                PyObjectDelAttrProtocol,
+                T,
+                __setattr__,
+                __delattr__
+            )
+        }
+    }
 }
-impl<'p, T> PyObjectStrProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_str() -> Option<ffi::unaryfunc> {
+
+trait StrProtocolImpl {
+    fn tp_str() -> Option<ffi::unaryfunc> {
         None
     }
 }
-impl<T> PyObjectStrProtocolImpl for T
+impl<'p, T> StrProtocolImpl for T where T: PyObjectProtocol<'p> {}
+impl<T> StrProtocolImpl for T
 where
     T: for<'p> PyObjectStrProtocol<'p>,
 {
-    #[inline]
     fn tp_str() -> Option<ffi::unaryfunc> {
         py_unary_func!(
             PyObjectStrProtocol,
@@ -314,23 +322,16 @@ where
     }
 }
 
-trait PyObjectReprProtocolImpl {
-    fn tp_repr() -> Option<ffi::unaryfunc>;
-}
-impl<'p, T> PyObjectReprProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_repr() -> Option<ffi::unaryfunc> {
+trait ReprProtocolImpl {
+    fn tp_repr() -> Option<ffi::unaryfunc> {
         None
     }
 }
-impl<T> PyObjectReprProtocolImpl for T
+impl<'p, T> ReprProtocolImpl for T where T: PyObjectProtocol<'p> {}
+impl<T> ReprProtocolImpl for T
 where
     T: for<'p> PyObjectReprProtocol<'p>,
 {
-    #[inline]
     fn tp_repr() -> Option<ffi::unaryfunc> {
         py_unary_func!(
             PyObjectReprProtocol,
@@ -342,64 +343,39 @@ where
 }
 
 #[doc(hidden)]
-pub trait PyObjectFormatProtocolImpl {
-    fn __format__() -> Option<PyMethodDef>;
-}
-impl<'p, T> PyObjectFormatProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn __format__() -> Option<PyMethodDef> {
+pub trait FormatProtocolImpl {
+    fn __format__() -> Option<PyMethodDef> {
         None
     }
 }
+impl<'p, T> FormatProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
 #[doc(hidden)]
-pub trait PyObjectBytesProtocolImpl {
-    fn __bytes__() -> Option<PyMethodDef>;
-}
-impl<'p, T> PyObjectBytesProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn __bytes__() -> Option<PyMethodDef> {
+pub trait BytesProtocolImpl {
+    fn __bytes__() -> Option<PyMethodDef> {
         None
     }
 }
+impl<'p, T> BytesProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
 #[doc(hidden)]
-pub trait PyObjectUnicodeProtocolImpl {
-    fn __unicode__() -> Option<PyMethodDef>;
-}
-impl<'p, T> PyObjectUnicodeProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn __unicode__() -> Option<PyMethodDef> {
+pub trait UnicodeProtocolImpl {
+    fn __unicode__() -> Option<PyMethodDef> {
         None
     }
 }
+impl<'p, T> UnicodeProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
-trait PyObjectHashProtocolImpl {
-    fn tp_hash() -> Option<ffi::hashfunc>;
-}
-impl<'p, T> PyObjectHashProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_hash() -> Option<ffi::hashfunc> {
+trait HashProtocolImpl {
+    fn tp_hash() -> Option<ffi::hashfunc> {
         None
     }
 }
-impl<T> PyObjectHashProtocolImpl for T
+impl<'p, T> HashProtocolImpl for T where T: PyObjectProtocol<'p> {}
+impl<T> HashProtocolImpl for T
 where
     T: for<'p> PyObjectHashProtocol<'p>,
 {
-    #[inline]
     fn tp_hash() -> Option<ffi::hashfunc> {
         py_unary_func!(
             PyObjectHashProtocol,
@@ -411,23 +387,16 @@ where
     }
 }
 
-trait PyObjectBoolProtocolImpl {
-    fn nb_bool() -> Option<ffi::inquiry>;
-}
-impl<'p, T> PyObjectBoolProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn nb_bool() -> Option<ffi::inquiry> {
+trait BoolProtocolImpl {
+    fn nb_bool() -> Option<ffi::inquiry> {
         None
     }
 }
-impl<T> PyObjectBoolProtocolImpl for T
+impl<'p, T> BoolProtocolImpl for T where T: PyObjectProtocol<'p> {}
+impl<T> BoolProtocolImpl for T
 where
     T: for<'p> PyObjectBoolProtocol<'p>,
 {
-    #[inline]
     fn nb_bool() -> Option<ffi::inquiry> {
         py_unary_func!(
             PyObjectBoolProtocol,
@@ -439,23 +408,16 @@ where
     }
 }
 
-trait PyObjectRichcmpProtocolImpl {
-    fn tp_richcompare() -> Option<ffi::richcmpfunc>;
-}
-impl<'p, T> PyObjectRichcmpProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
-{
-    #[inline]
-    default fn tp_richcompare() -> Option<ffi::richcmpfunc> {
+trait RichcmpProtocolImpl {
+    fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         None
     }
 }
-impl<T> PyObjectRichcmpProtocolImpl for T
+impl<'p, T> RichcmpProtocolImpl for T where T: PyObjectProtocol<'p> {}
+impl<T> RichcmpProtocolImpl for T
 where
     T: for<'p> PyObjectRichcmpProtocol<'p>,
 {
-    #[inline]
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
@@ -465,7 +427,7 @@ where
         where
             T: for<'p> PyObjectRichcmpProtocol<'p>,
         {
-            let _pool = ::GILPool::new();
+            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.from_borrowed_ptr::<T>(slf);
             let arg = py.from_borrowed_ptr::<PyObjectRef>(arg);
@@ -481,7 +443,7 @@ where
                 Ok(val) => val.into_object(py).into_ptr(),
                 Err(e) => {
                     e.restore(py);
-                    std::ptr::null_mut()
+                    ptr::null_mut()
                 }
             }
         }
@@ -497,7 +459,7 @@ fn extract_op(op: c_int) -> PyResult<CompareOp> {
         ffi::Py_NE => Ok(CompareOp::Ne),
         ffi::Py_GT => Ok(CompareOp::Gt),
         ffi::Py_GE => Ok(CompareOp::Ge),
-        _ => Err(PyErr::new::<exc::ValueError, _>(
+        _ => Err(PyErr::new::<exceptions::ValueError, _>(
             "tp_richcompare called with invalid comparison operator",
         )),
     }

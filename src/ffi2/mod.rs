@@ -1,7 +1,5 @@
 //! Rust FFI declarations for Python 2
-#![no_std]
 #![allow(non_camel_case_types, non_upper_case_globals, non_snake_case)]
-#![cfg_attr(feature="cargo-clippy", allow(inline_always))]
 
 use std::os::raw::c_int;
 
@@ -132,14 +130,14 @@ pub const Py_file_input: c_int = 257;
 pub const Py_eval_input: c_int = 258;
 
 #[cfg(not(py_sys_config = "Py_USING_UNICODE"))]
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
 pub fn PyUnicode_Check(op: *mut PyObject) -> libc::c_int {
     0
 }
 
 #[cfg(not(py_sys_config = "Py_USING_UNICODE"))]
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
 pub fn PyUnicode_CheckExact(op: *mut PyObject) -> libc::c_int {
     0

@@ -1,6 +1,6 @@
-use ffi3::methodobject::PyMethodDef;
-use ffi3::object::*;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::methodobject::PyMethodDef;
+use crate::ffi3::object::*;
+use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -9,13 +9,13 @@ extern "C" {
     pub static mut PyModule_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyModule_Check")]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyModule_Type)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyModule_Type) as c_int
 }

@@ -1,5 +1,5 @@
-use ffi3::object::*;
-use ffi3::pyport::Py_ssize_t;
+use crate::ffi3::object::*;
+use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
 #[repr(C)]
@@ -16,12 +16,12 @@ extern "C" {
     pub static mut PyTupleIter_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTuple_Type) as c_int
 }
@@ -47,8 +47,8 @@ extern "C" {
     pub fn PyTuple_ClearFreeList() -> c_int;
 }
 
-// Macro, trading safety for speed
-#[inline(always)]
+/// Macro, trading safety for speed
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObject {
     *(*(op as *mut PyTupleObject))
@@ -57,14 +57,14 @@ pub unsafe fn PyTuple_GET_ITEM(op: *mut PyObject, i: Py_ssize_t) -> *mut PyObjec
         .offset(i as isize)
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyTuple_GET_SIZE(op: *mut PyObject) -> Py_ssize_t {
     Py_SIZE(op)
 }
 
 /// Macro, *only* to be used to fill in brand new tuples
-#[inline(always)]
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyTuple_SET_ITEM(op: *mut PyObject, i: Py_ssize_t, v: *mut PyObject) {
     *(*(op as *mut PyTupleObject))

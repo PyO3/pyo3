@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! The `PyO3` Prelude
+//! A collection of items you most likely want to have in scope when working with pyo3
 //!
 //! The purpose of this module is to alleviate imports of many common pyo3 traits
 //! by adding a glob import to the top of pyo3 heavy modules:
@@ -10,17 +10,23 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use super::py;
-pub use class::*;
-pub use conversion::{
-    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ToBorrowedObject, ToPyObject,
-};
-pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
-pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
-pub use noargs::NoArgs;
-pub use object::PyObject;
-pub use objectprotocol::ObjectProtocol;
-pub use objects::*;
-pub use python::{IntoPyPointer, Python, ToPyPointer};
-pub use pythonrun::GILGuard;
-pub use typeob::PyRawObject;
+pub use crate::conversion::{FromPyObject, IntoPyObject, PyTryFrom, PyTryInto, ToPyObject};
+pub use crate::err::{PyErr, PyResult};
+pub use crate::instance::{AsPyRef, Py};
+pub use crate::noargs::NoArgs;
+pub use crate::object::PyObject;
+pub use crate::objectprotocol::ObjectProtocol;
+pub use crate::python::Python;
+pub use crate::pythonrun::GILGuard;
+// This is only part of the prelude because we need it for the pymodule function
+pub use crate::types::PyModule;
+// This is required for the constructor
+pub use crate::PyRawObject;
+
+pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
+
+#[cfg(Py_3)]
+pub use pyo3cls::pymodule3 as pymodule;
+
+#[cfg(not(Py_3))]
+pub use pyo3cls::pymodule2 as pymodule;

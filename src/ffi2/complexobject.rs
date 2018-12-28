@@ -38,14 +38,14 @@ extern "C" {
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
-#[inline(always)]
 #[cfg_attr(PyPy, link_name = "PyPyComplex_Check")]
+#[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyComplex_Type)
 }
 
-#[inline(always)]
 #[cfg_attr(PyPy, link_name = "PyPyComplex_CheckExact")]
+#[inline]
 pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyComplex_Type;
     (Py_TYPE(op) == u) as c_int

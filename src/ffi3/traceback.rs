@@ -1,4 +1,4 @@
-use ffi3::object::*;
+use crate::ffi3::object::*;
 use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -11,7 +11,7 @@ extern "C" {
     pub static mut PyTraceBack_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyTraceBack_Check")]
 pub unsafe fn PyTraceBack_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyTraceBack_Type) as c_int

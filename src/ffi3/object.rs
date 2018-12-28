@@ -1,5 +1,5 @@
-use ffi3::pyerrors::{PyErr_Format, PyExc_TypeError};
-use ffi3::pyport::{Py_hash_t, Py_ssize_t};
+use crate::ffi3::pyport::{Py_hash_t, Py_ssize_t};
+use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
 use std::ptr;
 
@@ -137,14 +137,15 @@ pub type objobjargproc =
 
 #[cfg(not(Py_LIMITED_API))]
 mod bufferinfo {
-    use ffi3::pyport::Py_ssize_t;
+    use crate::ffi3::pyport::Py_ssize_t;
+    use std::mem;
     use std::os::raw::{c_char, c_int, c_void};
 
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct Py_buffer {
         pub buf: *mut c_void,
-        pub obj: *mut ::ffi3::PyObject,
+        pub obj: *mut crate::ffi3::PyObject,
         pub len: Py_ssize_t,
         pub itemsize: Py_ssize_t,
         pub readonly: c_int,
@@ -159,17 +160,15 @@ mod bufferinfo {
     impl Default for Py_buffer {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
-    }
 
-    pub type getbufferproc = unsafe extern "C" fn(
-        arg1: *mut ::ffi3::PyObject,
-        arg2: *mut Py_buffer,
-        arg3: c_int,
-    ) -> c_int;
+    }
+    pub type getbufferproc =
+            -> c_int;
     pub type releasebufferproc =
-        unsafe extern "C" fn(arg1: *mut ::ffi3::PyObject, arg2: *mut Py_buffer) -> ();
+        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer, arg3: c_int)
+        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer) -> ();
 
     /// Maximum number of dimensions
     pub const PyBUF_MAX_NDIM: c_int = 64;
@@ -229,31 +228,31 @@ pub type richcmpfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
 pub type getiterfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type iternextfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-pub type descrgetfunc = unsafe extern "C" fn(
-    arg1: *mut PyObject,
-    arg2: *mut PyObject,
-    arg3: *mut PyObject,
-) -> *mut PyObject;
+pub type descrgetfunc =
+    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
+        -> *mut PyObject;
 pub type descrsetfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
 pub type initproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-pub type newfunc = unsafe extern "C" fn(
-    arg1: *mut PyTypeObject,
-    arg2: *mut PyObject,
-    arg3: *mut PyObject,
-) -> *mut PyObject;
+pub type newfunc =
+    unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: *mut PyObject, arg3: *mut PyObject)
+        -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 
 #[cfg(Py_LIMITED_API)]
-pub enum PyTypeObject {}
+mod typeobject {
+    pub enum PyTypeObject {}
+}
 
 #[cfg(not(Py_LIMITED_API))]
 mod typeobject {
-    use ffi3::pyport::Py_ssize_t;
-    use ffi3::{self, object};
+    use crate::ffi3::pyport::Py_ssize_t;
+    use crate::ffi3::{self, object};
+    use std::mem;
     use std::os::raw::{c_char, c_uint, c_ulong, c_void};
+    use std::ptr;
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -299,7 +298,7 @@ mod typeobject {
     impl Default for PyNumberMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     macro_rules! as_expr {
@@ -375,7 +374,7 @@ mod typeobject {
     impl Default for PySequenceMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PySequenceMethods_INIT: PySequenceMethods = PySequenceMethods {
@@ -383,9 +382,9 @@ mod typeobject {
         sq_concat: None,
         sq_repeat: None,
         sq_item: None,
-        was_sq_slice: ::std::ptr::null_mut(),
+        was_sq_slice: ptr::null_mut(),
         sq_ass_item: None,
-        was_sq_ass_slice: ::std::ptr::null_mut(),
+        was_sq_ass_slice: ptr::null_mut(),
         sq_contains: None,
         sq_inplace_concat: None,
         sq_inplace_repeat: None,
@@ -401,7 +400,7 @@ mod typeobject {
     impl Default for PyMappingMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PyMappingMethods_INIT: PyMappingMethods = PyMappingMethods {
@@ -420,7 +419,7 @@ mod typeobject {
     impl Default for PyAsyncMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PyAsyncMethods_INIT: PyAsyncMethods = PyAsyncMethods {
@@ -438,7 +437,7 @@ mod typeobject {
     impl Default for PyBufferProcs {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
     pub const PyBufferProcs_INIT: PyBufferProcs = PyBufferProcs {
@@ -517,37 +516,37 @@ mod typeobject {
                         ob_base: ffi3::object::PyObject_HEAD_INIT,
                         ob_size: 0
                     },
-                    tp_name: ::std::ptr::null(),
+                    tp_name: ptr::null(),
                     tp_basicsize: 0,
                     tp_itemsize: 0,
                     tp_dealloc: None,
                     tp_print: None,
                     tp_getattr: None,
                     tp_setattr: None,
-                    $tp_as_async: ::std::ptr::null_mut(),
+                    $tp_as_async: ptr::null_mut(),
                     tp_repr: None,
-                    tp_as_number: ::std::ptr::null_mut(),
-                    tp_as_sequence: ::std::ptr::null_mut(),
-                    tp_as_mapping: ::std::ptr::null_mut(),
+                    tp_as_number: ptr::null_mut(),
+                    tp_as_sequence: ptr::null_mut(),
+                    tp_as_mapping: ptr::null_mut(),
                     tp_hash: None,
                     tp_call: None,
                     tp_str: None,
                     tp_getattro: None,
                     tp_setattro: None,
-                    tp_as_buffer: ::std::ptr::null_mut(),
+                    tp_as_buffer: ptr::null_mut(),
                     tp_flags: ffi3::object::Py_TPFLAGS_DEFAULT,
-                    tp_doc: ::std::ptr::null(),
+                    tp_doc: ptr::null(),
                     tp_traverse: None,
                     tp_clear: None,
                     tp_richcompare: None,
                     tp_weaklistoffset: 0,
                     tp_iter: None,
                     tp_iternext: None,
-                    tp_methods: ::std::ptr::null_mut(),
-                    tp_members: ::std::ptr::null_mut(),
-                    tp_getset: ::std::ptr::null_mut(),
-                    tp_base: ::std::ptr::null_mut(),
-                    tp_dict: ::std::ptr::null_mut(),
+                    tp_methods: ptr::null_mut(),
+                    tp_members: ptr::null_mut(),
+                    tp_getset: ptr::null_mut(),
+                    tp_base: ptr::null_mut(),
+                    tp_dict: ptr::null_mut(),
                     tp_descr_get: None,
                     tp_descr_set: None,
                     tp_dictoffset: 0,
@@ -556,11 +555,11 @@ mod typeobject {
                     tp_new: None,
                     tp_free: None,
                     tp_is_gc: None,
-                    tp_bases: ::std::ptr::null_mut(),
-                    tp_mro: ::std::ptr::null_mut(),
-                    tp_cache: ::std::ptr::null_mut(),
-                    tp_subclasses: ::std::ptr::null_mut(),
-                    tp_weaklist: ::std::ptr::null_mut(),
+                    tp_bases: ptr::null_mut(),
+                    tp_mro: ptr::null_mut(),
+                    tp_cache: ptr::null_mut(),
+                    tp_subclasses: ptr::null_mut(),
+                    tp_weaklist: ptr::null_mut(),
                     tp_del: None,
                     tp_version_tag: 0,
                     $($tail)*
@@ -577,8 +576,8 @@ mod typeobject {
                 tp_allocs: 0,
                 tp_frees: 0,
                 tp_maxalloc: 0,
-                tp_prev: ::std::ptr::null_mut(),
-                tp_next: ::std::ptr::null_mut(),
+                tp_prev: ptr::null_mut(),
+                tp_next: ptr::null_mut(),
             )
         }
     }
@@ -611,7 +610,7 @@ mod typeobject {
     impl Default for PyHeapTypeObject {
         #[inline]
         fn default() -> Self {
-            unsafe { ::std::mem::zeroed() }
+            unsafe { mem::zeroed() }
         }
     }
 
@@ -619,12 +618,13 @@ mod typeobject {
     pub unsafe fn PyHeapType_GET_MEMBERS(
         etype: *mut PyHeapTypeObject,
     ) -> *mut ffi3::structmember::PyMemberDef {
-        (etype as *mut c_char).offset(
-            (*ffi3::object::Py_TYPE(etype as *mut ffi3::object::PyObject)).tp_basicsize as isize,
-        ) as *mut ffi3::structmember::PyMemberDef
+        let py_type = ffi3::object::Py_TYPE(etype as *mut ffi3::object::PyObject);
+        let ptr = etype.offset((*py_type).tp_basicsize);
+        ptr as *mut ffi3::structmember::PyMemberDef
     }
 }
-#[cfg(not(Py_LIMITED_API))]
+
+// The exported types depend on whether Py_LIMITED_API is set
 pub use self::typeobject::*;
 
 #[repr(C)]
@@ -652,7 +652,7 @@ pub struct PyType_Spec {
 
 impl Default for PyType_Spec {
     fn default() -> PyType_Spec {
-        unsafe { ::std::mem::zeroed() }
+        unsafe { mem::zeroed() }
     }
 }
 
@@ -673,7 +673,7 @@ extern "C" {
     pub fn PyType_IsSubtype(a: *mut PyTypeObject, b: *mut PyTypeObject) -> c_int;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyObject_TypeCheck(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp || PyType_IsSubtype(Py_TYPE(ob), tp) != 0) as c_int
 }
@@ -692,12 +692,12 @@ extern "C" {
     pub fn PyType_GetFlags(arg1: *mut PyTypeObject) -> c_ulong;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TYPE_SUBCLASS)
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyType_Type) as c_int
 }
@@ -839,13 +839,13 @@ pub const Py_TPFLAGS_DEFAULT: c_ulong =
 
 pub const Py_TPFLAGS_HAVE_FINALIZE: c_ulong = 1;
 
-#[inline(always)]
+#[inline]
 #[cfg(Py_LIMITED_API)]
 pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     ((PyType_GetFlags(t) & f) != 0) as c_int
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(not(Py_LIMITED_API))]
 pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     (((*t).tp_flags & f) != 0) as c_int
@@ -863,7 +863,7 @@ extern "C" {
 }
 
 // Reference counting macros.
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
     if cfg!(py_sys_config = "Py_REF_DEBUG") {
         #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
@@ -873,7 +873,7 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
     if cfg!(py_sys_config = "Py_REF_DEBUG") {
         #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
@@ -886,7 +886,7 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
     let tmp = *op;
     if !tmp.is_null() {
@@ -895,14 +895,14 @@ pub unsafe fn Py_CLEAR(op: &mut *mut PyObject) {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_XINCREF(op: *mut PyObject) {
     if !op.is_null() {
         Py_INCREF(op)
     }
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_XDECREF(op: *mut PyObject) {
     if !op.is_null() {
         Py_DECREF(op)
@@ -920,12 +920,12 @@ extern "C" {
     static mut _Py_NotImplementedStruct: PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_None() -> *mut PyObject {
     &mut _Py_NoneStruct
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_NotImplemented() -> *mut PyObject {
     &mut _Py_NotImplementedStruct
 }

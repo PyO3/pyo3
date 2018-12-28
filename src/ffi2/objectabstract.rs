@@ -384,17 +384,16 @@ pub unsafe fn PyMapping_DelItem(o: *mut PyObject, key: *mut PyObject) -> c_int {
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyMapping_Keys")]
 pub unsafe fn PyMapping_Keys(o: *mut PyObject) -> *mut PyObject {
-    PyObject_CallMethod(o, "keys\0".as_ptr() as *mut i8, ptr::null_mut())
+    PyObject_CallMethod(o, "keys\0".as_ptr() as *mut c_char, ptr::null_mut())
 }
 
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyMapping_Values")]
 pub unsafe fn PyMapping_Values(o: *mut PyObject) -> *mut PyObject {
-    PyObject_CallMethod(o, "values\0".as_ptr() as *mut i8, ptr::null_mut())
+    PyObject_CallMethod(o, "values\0".as_ptr() as *mut c_char, ptr::null_mut())
 }
-
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyMapping_Items")]
 pub unsafe fn PyMapping_Items(o: *mut PyObject) -> *mut PyObject {
-    PyObject_CallMethod(o, "items\0".as_ptr() as *mut i8, ptr::null_mut())
+    PyObject_CallMethod(o, "items\0".as_ptr() as *mut c_char, ptr::null_mut())
 }

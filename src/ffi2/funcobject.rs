@@ -7,7 +7,7 @@ extern "C" {
     pub static mut PyFunction_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 #[cfg_attr(PyPy, link_name = "PyPyFunction_Check")]
 pub unsafe fn PyFunction_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyFunction_Type;
