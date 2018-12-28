@@ -1,10 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use std::{any, sync, rc, marker, mem};
 use spin;
+use std::{any, marker, mem, rc, sync};
 
 use ffi;
-use python::Python;
 use objects::PyObjectRef;
+use python::Python;
 
 static START: sync::Once = sync::ONCE_INIT;
 static START_PYO3: sync::Once = sync::ONCE_INIT;
@@ -65,7 +65,6 @@ pub fn prepare_freethreaded_python() {
     });
 }
 
-
 #[doc(hidden)]
 pub fn prepare_pyo3_library() {
     START_PYO3.call_once(|| unsafe {
@@ -92,7 +91,7 @@ pub struct GILGuard {
     gstate: ffi::PyGILState_STATE,
     // hack to opt out of Send on stable rust, which doesn't
     // have negative impls
-    no_send: marker::PhantomData<rc::Rc<()>>
+    no_send: marker::PhantomData<rc::Rc<()>>,
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
@@ -106,7 +105,6 @@ impl Drop for GILGuard {
         }
     }
 }
-
 
 /// Release pool
 struct ReleasePool {
@@ -135,7 +133,7 @@ impl ReleasePool {
         let ptr = *v;
         let vec: &'static mut Vec<*mut ffi::PyObject> = &mut *ptr;
         if vec.is_empty() {
-            return
+            return;
         }
 
         // switch vectors
@@ -186,10 +184,12 @@ impl Default for GILPool {
     #[inline]
     fn default() -> GILPool {
         let p: &'static mut ReleasePool = unsafe { &mut *POOL };
-        GILPool {owned: p.owned.len(),
-                 borrowed: p.borrowed.len(),
-                 pointers: true,
-                 no_send: marker::PhantomData}
+        GILPool {
+            owned: p.owned.len(),
+            borrowed: p.borrowed.len(),
+            pointers: true,
+            no_send: marker::PhantomData,
+        }
     }
 }
 
@@ -201,10 +201,12 @@ impl GILPool {
     #[inline]
     pub fn new_no_pointers() -> GILPool {
         let p: &'static mut ReleasePool = unsafe { &mut *POOL };
-        GILPool {owned: p.owned.len(),
-                 borrowed: p.borrowed.len(),
-                 pointers: false,
-                 no_send: marker::PhantomData}
+        GILPool {
+            owned: p.owned.len(),
+            borrowed: p.borrowed.len(),
+            pointers: false,
+            no_send: marker::PhantomData,
+        }
     }
 }
 
@@ -217,16 +219,19 @@ impl Drop for GILPool {
     }
 }
 
-pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T
-{
+pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
     let pool: &'static mut ReleasePool = &mut *POOL;
 
     pool.obj.push(Box::new(obj));
-    pool.obj.last().unwrap().as_ref().downcast_ref::<T>().unwrap()
+    pool.obj
+        .last()
+        .unwrap()
+        .as_ref()
+        .downcast_ref::<T>()
+        .unwrap()
 }
 
-pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
-{
+pub unsafe fn register_pointer(obj: *mut ffi::PyObject) {
     let pool: &'static mut ReleasePool = &mut *POOL;
 
     let mut v = pool.p.lock();
@@ -234,18 +239,16 @@ pub unsafe fn register_pointer(obj: *mut ffi::PyObject)
     pool.push(obj);
 }
 
-pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
-{
+pub unsafe fn register_owned(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
     pool.owned.push(obj);
-    mem::transmute(&pool.owned[pool.owned.len()-1])
+    mem::transmute(&pool.owned[pool.owned.len() - 1])
 }
 
-pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef
-{
+pub unsafe fn register_borrowed(_py: Python, obj: *mut ffi::PyObject) -> &PyObjectRef {
     let pool: &'static mut ReleasePool = &mut *POOL;
     pool.borrowed.push(obj);
-    mem::transmute(&pool.borrowed[pool.borrowed.len()-1])
+    mem::transmute(&pool.borrowed[pool.borrowed.len() - 1])
 }
 
 impl GILGuard {
@@ -259,10 +262,12 @@ impl GILGuard {
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
             let pool: &'static mut ReleasePool = &mut *POOL;
-            GILGuard { owned: pool.owned.len(),
-                       borrowed: pool.borrowed.len(),
-                       gstate: gstate,
-                       no_send: marker::PhantomData }
+            GILGuard {
+                owned: pool.owned.len(),
+                borrowed: pool.borrowed.len(),
+                gstate: gstate,
+                no_send: marker::PhantomData,
+            }
         }
     }
 
@@ -275,10 +280,10 @@ impl GILGuard {
 
 #[cfg(test)]
 mod test {
-    use {ffi, pythonrun};
-    use python::Python;
-    use object::PyObject;
     use super::{GILPool, ReleasePool, POOL};
+    use object::PyObject;
+    use python::Python;
+    use {ffi, pythonrun};
 
     #[test]
     fn test_owned() {

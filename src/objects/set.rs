@@ -1,14 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 
-use std::{hash, collections};
+use conversion::{ToBorrowedObject, ToPyObject};
+use err::{self, PyErr, PyResult};
 use ffi;
-use python::{Python, ToPyPointer};
-use object::PyObject;
-use conversion::{ToPyObject, ToBorrowedObject};
 use instance::{AsPyRef, Py, PyObjectWithToken};
-use err::{self, PyResult, PyErr};
-
+use object::PyObject;
+use python::{Python, ToPyPointer};
+use std::{collections, hash};
 
 /// Represents a Python `set`
 pub struct PySet(PyObject);
@@ -27,15 +26,15 @@ impl PySet {
     /// May panic when running out of memory.
     pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PySet> {
         let list = elements.to_object(py);
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PySet_New(list.as_ptr()))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PySet_New(list.as_ptr())) }
     }
 
     /// Remove all elements from the set.
     #[inline]
     pub fn clear(&self) {
-        unsafe { ffi::PySet_Clear(self.as_ptr()); }
+        unsafe {
+            ffi::PySet_Clear(self.as_ptr());
+        }
     }
 
     /// Return the number of items in the set.
@@ -52,25 +51,34 @@ impl PySet {
 
     /// Determine if the set contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToPyObject {
+    pub fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToPyObject,
+    {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PySet_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py()))
+                _ => Err(PyErr::fetch(self.py())),
             }
         })
     }
 
     /// Remove element from the set if it is present.
-    pub fn discard<K>(&self, key: K) where K: ToPyObject {
+    pub fn discard<K>(&self, key: K)
+    where
+        K: ToPyObject,
+    {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             ffi::PySet_Discard(self.as_ptr(), key);
         })
     }
 
     /// Add element to the set.
-    pub fn add<K>(&self, key: K) -> PyResult<()> where K: ToPyObject {
+    pub fn add<K>(&self, key: K) -> PyResult<()>
+    where
+        K: ToPyObject,
+    {
         key.with_borrowed_ptr(self.py(), move |key| unsafe {
             err::error_on_minusone(self.py(), ffi::PySet_Add(self.as_ptr(), key))
         })
@@ -78,14 +86,13 @@ impl PySet {
 
     /// Remove and return an arbitrary element from the set
     pub fn pop(&self) -> Option<PyObject> {
-        unsafe {
-            PyObject::from_owned_ptr_or_opt(self.py(), ffi::PySet_Pop(self.as_ptr()))
-        }
+        unsafe { PyObject::from_owned_ptr_or_opt(self.py(), ffi::PySet_Pop(self.as_ptr())) }
     }
 }
 
 impl<T> ToPyObject for collections::HashSet<T>
-    where T: hash::Hash + Eq + ToPyObject
+where
+    T: hash::Hash + Eq + ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
@@ -100,7 +107,8 @@ impl<T> ToPyObject for collections::HashSet<T>
 }
 
 impl<T> ToPyObject for collections::BTreeSet<T>
-    where T: hash::Hash + Eq + ToPyObject
+where
+    T: hash::Hash + Eq + ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
         let set = PySet::new::<T>(py, &[]);
@@ -120,9 +128,7 @@ impl PyFrozenSet {
     /// May panic when running out of memory.
     pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PyFrozenSet> {
         let list = elements.to_object(py);
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyFrozenSet_New(list.as_ptr()))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyFrozenSet_New(list.as_ptr())) }
     }
 
     /// Return the number of items in the set.
@@ -139,12 +145,15 @@ impl PyFrozenSet {
 
     /// Determine if the set contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToBorrowedObject {
+    pub fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToBorrowedObject,
+    {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PySet_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py()))
+                _ => Err(PyErr::fetch(self.py())),
             }
         })
     }
@@ -152,12 +161,12 @@ impl PyFrozenSet {
 
 #[cfg(test)]
 mod test {
-    use std::collections::{HashSet};
-    use super::{PySet, PyFrozenSet};
-    use python::Python;
-    use conversion::{ToPyObject, PyTryFrom};
-    use objectprotocol::ObjectProtocol;
+    use super::{PyFrozenSet, PySet};
+    use conversion::{PyTryFrom, ToPyObject};
     use instance::AsPyRef;
+    use objectprotocol::ObjectProtocol;
+    use python::Python;
+    use std::collections::HashSet;
 
     #[test]
     fn test_set_new() {
@@ -220,7 +229,7 @@ mod test {
         let py = gil.python();
         let ob = PySet::new(py, &[1, 2]);
         let set = ob.as_ref(py);
-        set.add(1).unwrap();  // Add a dupliated element
+        set.add(1).unwrap(); // Add a dupliated element
         assert!(set.contains(1).unwrap());
     }
 

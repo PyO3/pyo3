@@ -7,13 +7,13 @@ use std::os::raw::c_long;
 extern crate num_traits;
 use self::num_traits::cast::cast;
 
+use conversion::{FromPyObject, IntoPyObject, ToPyObject};
+use err::{PyErr, PyResult};
 use ffi;
-use object::PyObject;
-use python::{ToPyPointer, Python};
-use err::{PyResult, PyErr};
-use objects::{exc, PyObjectRef};
 use instance::PyObjectWithToken;
-use conversion::{ToPyObject, IntoPyObject, FromPyObject};
+use object::PyObject;
+use objects::{exc, PyObjectRef};
+use python::{Python, ToPyPointer};
 
 /// Represents a Python `int` object.
 ///
@@ -25,7 +25,6 @@ pub struct PyLong(PyObject);
 
 pyobject_convert!(PyLong);
 pyobject_nativetype!(PyLong, PyLong_Type, PyLong_Check);
-
 
 macro_rules! int_fits_c_long(
     ($rust_type:ty) => (
@@ -65,7 +64,6 @@ macro_rules! int_fits_c_long(
     )
 );
 
-
 macro_rules! int_fits_larger_int(
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
@@ -89,12 +87,12 @@ macro_rules! int_fits_larger_int(
     )
 );
 
-
-
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
-fn err_if_invalid_value<T: PartialEq>
-    (py: Python, invalid_value: T, actual_value: T) -> PyResult<T>
-{
+fn err_if_invalid_value<T: PartialEq>(
+    py: Python,
+    invalid_value: T,
+    actual_value: T,
+) -> PyResult<T> {
     if actual_value == invalid_value && PyErr::occurred(py) {
         Err(PyErr::fetch(py))
     } else {
@@ -139,7 +137,6 @@ macro_rules! int_convert_u64_or_i64 (
     )
 );
 
-
 int_fits_c_long!(i8);
 int_fits_c_long!(u8);
 int_fits_c_long!(i16);
@@ -147,34 +144,37 @@ int_fits_c_long!(u16);
 int_fits_c_long!(i32);
 
 // If c_long is 64-bits, we can use more types with int_fits_c_long!:
-#[cfg(all(target_pointer_width="64", not(target_os="windows")))]
+#[cfg(all(target_pointer_width = "64", not(target_os = "windows")))]
 int_fits_c_long!(u32);
-#[cfg(any(target_pointer_width="32", target_os="windows"))]
+#[cfg(any(target_pointer_width = "32", target_os = "windows"))]
 int_fits_larger_int!(u32, u64);
 
-#[cfg(all(target_pointer_width="64", not(target_os="windows")))]
+#[cfg(all(target_pointer_width = "64", not(target_os = "windows")))]
 int_fits_c_long!(i64);
 
 // manual implementation for i64 on systems with 32-bit long
-#[cfg(any(target_pointer_width="32", target_os="windows"))]
+#[cfg(any(target_pointer_width = "32", target_os = "windows"))]
 int_convert_u64_or_i64!(i64, ffi::PyLong_FromLongLong, ffi::PyLong_AsLongLong);
 
-#[cfg(all(target_pointer_width="64", not(target_os="windows")))]
+#[cfg(all(target_pointer_width = "64", not(target_os = "windows")))]
 int_fits_c_long!(isize);
-#[cfg(any(target_pointer_width="32", target_os="windows"))]
+#[cfg(any(target_pointer_width = "32", target_os = "windows"))]
 int_fits_larger_int!(isize, i64);
 
 int_fits_larger_int!(usize, u64);
 
 // u64 has a manual implementation as it never fits into signed long
-int_convert_u64_or_i64!(u64, ffi::PyLong_FromUnsignedLongLong, ffi::PyLong_AsUnsignedLongLong);
-
+int_convert_u64_or_i64!(
+    u64,
+    ffi::PyLong_FromUnsignedLongLong,
+    ffi::PyLong_AsUnsignedLongLong
+);
 
 #[cfg(test)]
 mod test {
-    use std;
-    use python::Python;
     use conversion::ToPyObject;
+    use python::Python;
+    use std;
 
     macro_rules! test_common (
         ($test_mod_name:ident, $t:ty) => (

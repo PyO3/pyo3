@@ -1,20 +1,21 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-#[macro_use] mod exc_impl;
+#[macro_use]
+mod exc_impl;
 
-pub use self::typeobject::PyType;
-pub use self::module::PyModule;
-pub use self::iterator::PyIterator;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
-pub use self::tuple::PyTuple;
 pub use self::dict::PyDict;
-pub use self::list::PyList;
 pub use self::floatob::PyFloat;
+pub use self::iterator::PyIterator;
+pub use self::list::PyList;
+pub use self::module::PyModule;
 pub use self::sequence::PySequence;
+pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-pub use self::set::{PySet, PyFrozenSet};
 pub use self::stringdata::PyStringData;
+pub use self::tuple::PyTuple;
+pub use self::typeobject::PyType;
 
 #[cfg(Py_3)]
 pub use self::string::{PyBytes, PyString};
@@ -29,7 +30,6 @@ pub use self::num3::PyLong as PyInt;
 
 #[cfg(not(Py_3))]
 pub use self::num2::{PyInt, PyLong};
-
 
 macro_rules! pyobject_downcast(
     ($name: ident, $checkfunction: ident) => (
@@ -195,28 +195,27 @@ macro_rules! pyobject_extract(
     }
 );
 
-
 use python::ToPyPointer;
 
 /// Represents general python instance.
 pub struct PyObjectRef(::PyObject);
 pyobject_nativetype!(PyObjectRef, PyBaseObject_Type, PyObject_Check);
 
-mod typeobject;
-mod module;
-mod dict;
-mod iterator;
 mod boolobject;
 mod bytearray;
-mod tuple;
-mod list;
+mod dict;
+pub mod exc;
 mod floatob;
+mod iterator;
+mod list;
+mod module;
 mod sequence;
+mod set;
 mod slice;
 mod stringdata;
 mod stringutils;
-mod set;
-pub mod exc;
+mod tuple;
+mod typeobject;
 
 #[cfg(Py_3)]
 mod num3;

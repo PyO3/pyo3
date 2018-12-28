@@ -11,7 +11,6 @@ use pyo3::py::methods as pymethods;
 #[macro_use]
 mod common;
 
-
 #[pyclass(dict)]
 struct DunderDictSupport {
     token: PyToken,
@@ -21,7 +20,7 @@ struct DunderDictSupport {
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, |t| DunderDictSupport{token: t}).unwrap();
+    let inst = Py::new_ref(py, |t| DunderDictSupport { token: t }).unwrap();
     py_run!(py, inst, "inst.a = 1; assert inst.a == 1");
 }
 
@@ -34,10 +33,13 @@ struct WeakRefDunderDictSupport {
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport{token: t}).unwrap();
-    py_run!(py, inst, "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1");
+    let inst = Py::new_ref(py, |t| WeakRefDunderDictSupport { token: t }).unwrap();
+    py_run!(
+        py,
+        inst,
+        "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
+    );
 }
-
 
 #[pyclass]
 struct MutRefArg {
@@ -47,7 +49,6 @@ struct MutRefArg {
 
 #[pymethods]
 impl MutRefArg {
-
     fn get(&self) -> PyResult<i32> {
         Ok(self.n)
     }
@@ -61,8 +62,8 @@ impl MutRefArg {
 fn mut_ref_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst1 = py.init(|t| MutRefArg{token: t, n: 0}).unwrap();
-    let inst2 = py.init(|t| MutRefArg{token: t, n: 0}).unwrap();
+    let inst1 = py.init(|t| MutRefArg { token: t, n: 0 }).unwrap();
+    let inst2 = py.init(|t| MutRefArg { token: t, n: 0 }).unwrap();
 
     let d = PyDict::new(py);
     d.set_item("inst1", &inst1).unwrap();

@@ -12,14 +12,15 @@
 
 pub use super::py;
 pub use class::*;
-pub use objects::*;
-pub use objectprotocol::ObjectProtocol;
-pub use object::PyObject;
+pub use conversion::{
+    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ToBorrowedObject, ToPyObject,
+};
+pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
+pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
 pub use noargs::NoArgs;
-pub use python::{Python, ToPyPointer, IntoPyPointer};
-pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
+pub use object::PyObject;
+pub use objectprotocol::ObjectProtocol;
+pub use objects::*;
+pub use python::{IntoPyPointer, Python, ToPyPointer};
 pub use pythonrun::GILGuard;
 pub use typeob::PyRawObject;
-pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
-pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
-                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};

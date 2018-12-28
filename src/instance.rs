@@ -1,24 +1,22 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::rc::Rc;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
+use conversion::{FromPyObject, IntoPyObject, ToPyObject};
+use err::{PyErr, PyResult};
 use ffi;
-use pythonrun;
-use err::{PyResult, PyErr};
 use object::PyObject;
-use objects::PyObjectRef;
 use objectprotocol::ObjectProtocol;
-use conversion::{ToPyObject, IntoPyObject, FromPyObject};
-use python::{Python, IntoPyPointer, ToPyPointer};
+use objects::PyObjectRef;
+use python::{IntoPyPointer, Python, ToPyPointer};
+use pythonrun;
 use typeob::{PyTypeInfo, PyTypeObject};
-
 
 pub struct PyToken(PhantomData<Rc<()>>);
 
 impl PyToken {
-
     pub(crate) fn new() -> PyToken {
         PyToken(PhantomData)
     }
@@ -38,10 +36,8 @@ pub trait PyObjectWithToken: Sized {
 #[doc(hidden)]
 pub trait PyNativeType: PyObjectWithToken {}
 
-
 /// Trait implements object reference extraction from python managed pointer.
 pub trait AsPyRef<T>: Sized {
-
     /// Return reference to object.
     fn as_ref(&self, py: Python) -> &T;
 
@@ -50,7 +46,9 @@ pub trait AsPyRef<T>: Sized {
     fn as_mut(&self, py: Python) -> &mut T;
 
     /// Acquire python gil and call closure with object reference.
-    fn with<F, R>(&self, f: F) -> R where F: FnOnce(Python, &T) -> R
+    fn with<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(Python, &T) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -59,7 +57,9 @@ pub trait AsPyRef<T>: Sized {
     }
 
     /// Acquire python gil and call closure with mutable object reference.
-    fn with_mut<F, R>(&self, f: F) -> R where F: FnOnce(Python, &mut T) -> R
+    fn with_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(Python, &mut T) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -68,7 +68,9 @@ pub trait AsPyRef<T>: Sized {
     }
 
     fn into_py<F, R>(self, f: F) -> R
-        where Self: IntoPyPointer, F: FnOnce(Python, &T) -> R
+    where
+        Self: IntoPyPointer,
+        F: FnOnce(Python, &T) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -79,7 +81,9 @@ pub trait AsPyRef<T>: Sized {
     }
 
     fn into_mut_py<F, R>(self, f: F) -> R
-        where Self: IntoPyPointer, F: FnOnce(Python, &mut T) -> R
+    where
+        Self: IntoPyPointer,
+        F: FnOnce(Python, &mut T) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -98,15 +102,16 @@ pub struct Py<T>(pub *mut ffi::PyObject, std::marker::PhantomData<T>);
 unsafe impl<T> Send for Py<T> {}
 unsafe impl<T> Sync for Py<T> {}
 
-
 impl<T> Py<T> {
     /// Creates a `Py<T>` instance for the given FFI pointer.
     /// This moves ownership over the pointer into the `Py<T>`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_owned_ptr(ptr: *mut ffi::PyObject) -> Py<T> {
-        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
-                      format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr)));
+        debug_assert!(
+            !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
+            format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
+        );
         Py(ptr, std::marker::PhantomData)
     }
 
@@ -114,8 +119,7 @@ impl<T> Py<T> {
     /// Panics if the pointer is `null`.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
-    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T>
-    {
+    pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
         if ptr.is_null() {
             ::err::panic_after_error();
         } else {
@@ -127,8 +131,7 @@ impl<T> Py<T> {
     /// returns a new reference (owned pointer).
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// Unsafe because the pointer might be invalid.
-    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>>
-    {
+    pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
         if ptr.is_null() {
             Err(PyErr::fetch(py))
         } else {
@@ -141,8 +144,10 @@ impl<T> Py<T> {
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> Py<T> {
-        debug_assert!(!ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
-                      format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr)));
+        debug_assert!(
+            !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
+            format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
+        );
         ffi::Py_INCREF(ptr);
         Py::from_owned_ptr(ptr)
     }
@@ -160,56 +165,55 @@ impl<T> Py<T> {
     }
 }
 
-
-impl<T> Py<T> where T: PyTypeInfo,
+impl<T> Py<T>
+where
+    T: PyTypeInfo,
 {
     /// Create new instance of T and move it under python management
     /// Returns `Py<T>`.
     pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
-        where F: FnOnce(::PyToken) -> T,
-              T: PyTypeObject + PyTypeInfo
+    where
+        F: FnOnce(::PyToken) -> T,
+        T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeObject>::create(py)?;
         ob.init(f)?;
 
-        let ob = unsafe {
-            Py::from_owned_ptr(ob.into_ptr())
-        };
+        let ob = unsafe { Py::from_owned_ptr(ob.into_ptr()) };
         Ok(ob)
     }
 
     /// Create new instance of `T` and move it under python management.
     /// Returns references to `T`
     pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
-        where F: FnOnce(::PyToken) -> T,
-              T: PyTypeObject + PyTypeInfo
+    where
+        F: FnOnce(::PyToken) -> T,
+        T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeObject>::create(py)?;
         ob.init(f)?;
 
-        unsafe {
-            Ok(py.from_owned_ptr(ob.into_ptr()))
-        }
+        unsafe { Ok(py.from_owned_ptr(ob.into_ptr())) }
     }
 
     /// Create new instance of `T` and move it under python management.
     /// Returns mutable references to `T`
     pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
-        where F: FnOnce(::PyToken) -> T,
-              T: PyTypeObject + PyTypeInfo
+    where
+        F: FnOnce(::PyToken) -> T,
+        T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeObject>::create(py)?;
         ob.init(f)?;
 
-        unsafe {
-            Ok(py.mut_from_owned_ptr(ob.into_ptr()))
-        }
+        unsafe { Ok(py.mut_from_owned_ptr(ob.into_ptr())) }
     }
-
 }
 
-impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
-
+impl<T> AsPyRef<T> for Py<T>
+where
+    T: PyTypeInfo,
+{
     #[inline]
     default fn as_ref(&self, _py: Python) -> &T {
         unsafe {
@@ -226,11 +230,13 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo {
     }
 }
 
-impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo + PyNativeType {
-
+impl<T> AsPyRef<T> for Py<T>
+where
+    T: PyTypeInfo + PyNativeType,
+{
     #[inline]
     fn as_ref(&self, _py: Python) -> &T {
-        unsafe {std::mem::transmute(self)}
+        unsafe { std::mem::transmute(self) }
     }
     #[inline]
     fn as_mut(&self, _py: Python) -> &mut T {
@@ -241,9 +247,7 @@ impl<T> AsPyRef<T> for Py<T> where T: PyTypeInfo + PyNativeType {
 impl<T> ToPyObject for Py<T> {
     /// Converts `Py` instance -> PyObject.
     fn to_object(&self, py: Python) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(py, self.as_ptr())
-        }
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
@@ -284,22 +288,23 @@ impl<T> PartialEq for Py<T> {
 
 /// Dropping a `Py` instance decrements the reference count on the object by 1.
 impl<T> Drop for Py<T> {
-
     fn drop(&mut self) {
-        unsafe { pythonrun::register_pointer(self.0); }
+        unsafe {
+            pythonrun::register_pointer(self.0);
+        }
     }
 }
-
 
 impl<T> std::convert::From<Py<T>> for PyObject {
     #[inline]
     fn from(ob: Py<T>) -> Self {
-        unsafe {std::mem::transmute(ob)}
+        unsafe { std::mem::transmute(ob) }
     }
 }
 
 impl<'a, T> std::convert::From<&'a T> for Py<T>
-    where T: ToPyPointer
+where
+    T: ToPyPointer,
 {
     fn from(ob: &'a T) -> Self {
         unsafe { Py::from_borrowed_ptr(ob.as_ptr()) }
@@ -307,7 +312,8 @@ impl<'a, T> std::convert::From<&'a T> for Py<T>
 }
 
 impl<'a, T> std::convert::From<&'a mut T> for Py<T>
-    where T: ToPyPointer
+where
+    T: ToPyPointer,
 {
     fn from(ob: &'a mut T) -> Self {
         unsafe { Py::from_borrowed_ptr(ob.as_ptr()) }
@@ -315,7 +321,8 @@ impl<'a, T> std::convert::From<&'a mut T> for Py<T>
 }
 
 impl<'a, T> std::convert::From<&'a T> for PyObject
-    where T: ToPyPointer,
+where
+    T: ToPyPointer,
 {
     fn from(ob: &'a T) -> Self {
         unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
@@ -323,7 +330,8 @@ impl<'a, T> std::convert::From<&'a T> for PyObject
 }
 
 impl<'a, T> std::convert::From<&'a mut T> for PyObject
-    where T: ToPyPointer,
+where
+    T: ToPyPointer,
 {
     fn from(ob: &'a mut T) -> Self {
         unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
@@ -331,13 +339,15 @@ impl<'a, T> std::convert::From<&'a mut T> for PyObject
 }
 
 impl<'a, T> FromPyObject<'a> for Py<T>
-    where T: ToPyPointer, &'a T: 'a + FromPyObject<'a>
+where
+    T: ToPyPointer,
+    &'a T: 'a + FromPyObject<'a>,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyObjectRef) -> PyResult<Self>
-    {
+    fn extract(ob: &'a PyObjectRef) -> PyResult<Self> {
         unsafe {
-            ob.extract::<&T>().map(|val| Py::from_borrowed_ptr(val.as_ptr()))
+            ob.extract::<&T>()
+                .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
         }
     }
 }

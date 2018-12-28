@@ -3,17 +3,17 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use std;
-use std::str;
 use std::borrow::Cow;
 use std::os::raw::c_char;
+use std::str;
 
-use ffi;
-use err::PyResult;
-use object::PyObject;
-use instance::{Py, PyObjectWithToken};
-use python::{Python, ToPyPointer};
-use objectprotocol::ObjectProtocol;
 use super::{PyObjectRef, PyStringData};
+use err::PyResult;
+use ffi;
+use instance::{Py, PyObjectWithToken};
+use object::PyObject;
+use objectprotocol::ObjectProtocol;
+use python::{Python, ToPyPointer};
 
 /// Represents a Python `string`.
 pub struct PyString(PyObject);
@@ -32,7 +32,6 @@ pub struct PyBytes(PyObject);
 
 pyobject_convert!(PyBytes);
 pyobject_nativetype!(PyBytes, PyBaseString_Type, PyString_Check);
-
 
 impl PyString {
     /// Creates a new Python string object.
@@ -53,11 +52,13 @@ impl PyString {
     pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
-                src.py(), ffi::PyUnicode_FromEncodedObject(
+                src.py(),
+                ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const c_char,
-                    errors.as_ptr() as *const c_char))?
-            )
+                    errors.as_ptr() as *const c_char,
+                ),
+            )?)
         }
     }
 
@@ -108,9 +109,7 @@ impl PyBytes {
     pub fn new(_py: Python, s: &[u8]) -> Py<PyBytes> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
     /// Gets the Python string data as byte slice.
@@ -121,7 +120,6 @@ impl PyBytes {
             std::slice::from_raw_parts(buffer, length)
         }
     }
-
 }
 
 impl PyUnicode {
@@ -131,19 +129,19 @@ impl PyUnicode {
     pub fn new(_py: Python, s: &str) -> Py<PyUnicode> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>>
-    {
+    pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
-                src.py(), ffi::PyUnicode_FromEncodedObject(
+                src.py(),
+                ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const c_char,
-                    errors.as_ptr() as *const c_char))?)
+                    errors.as_ptr() as *const c_char,
+                ),
+            )?)
         }
     }
 
@@ -176,7 +174,7 @@ impl PyUnicode {
 impl std::convert::From<Py<PyBytes>> for Py<PyString> {
     #[inline]
     fn from(ob: Py<PyBytes>) -> Py<PyString> {
-        unsafe{std::mem::transmute(ob)}
+        unsafe { std::mem::transmute(ob) }
     }
 }
 
@@ -184,16 +182,15 @@ impl std::convert::From<Py<PyBytes>> for Py<PyString> {
 impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
     #[inline]
     fn from(ob: Py<PyUnicode>) -> Py<PyString> {
-        unsafe{std::mem::transmute(ob)}
+        unsafe { std::mem::transmute(ob) }
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use python::Python;
+    use conversion::{FromPyObject, ToPyObject};
     use instance::AsPyRef;
-    use conversion::{ToPyObject, FromPyObject};
+    use python::Python;
 
     #[test]
     fn test_non_bmp() {

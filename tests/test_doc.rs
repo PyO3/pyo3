@@ -1,12 +1,16 @@
 extern crate docmatic;
 
-use std::path::{Path, PathBuf};
 use std::default::Default;
+use std::path::{Path, PathBuf};
 
 fn assert_file<P: AsRef<Path>>(path: P) {
     let mut doc = docmatic::Assert::default();
     if cfg!(windows) {
-        doc.library_path(option_env!("PYTHON").map(|py| PathBuf::from(py).join("libs")).unwrap());
+        doc.library_path(
+            option_env!("PYTHON")
+                .map(|py| PathBuf::from(py).join("libs"))
+                .unwrap(),
+        );
     }
     doc.test_file(path.as_ref())
 }

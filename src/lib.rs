@@ -123,7 +123,7 @@
 //! cp ./target/debug/libhello.so ./hello.so
 //! ```
 //!
-//! (Note: on macOS you will have to rename `libhello.dynlib` to `libhello.so`. 
+//! (Note: on macOS you will have to rename `libhello.dynlib` to `libhello.so`.
 //! To build on macOS, use `-C link-arg=-undefined -C link-arg=dynamic_lookup`
 //! is required to build the library.
 //! `setuptools-rust` includes this by default.
@@ -138,9 +138,10 @@
 //! ```
 
 extern crate libc;
-extern crate spin;
 extern crate pyo3cls;
-#[macro_use] extern crate log;
+extern crate spin;
+#[macro_use]
+extern crate log;
 
 #[macro_use]
 extern crate pretty_assertions;
@@ -160,23 +161,24 @@ pub mod ffi {
     pub use ffi3::*;
 }
 
-pub use err::{PyErr, PyErrValue, PyResult, PyDowncastError, PyErrArguments};
-pub use objects::*;
-pub use objectprotocol::ObjectProtocol;
-pub use object::PyObject;
+pub use conversion::{
+    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ToBorrowedObject, ToPyObject,
+};
+pub use err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
+pub use instance::{AsPyRef, Py, PyNativeType, PyObjectWithToken, PyToken};
 pub use noargs::NoArgs;
-pub use typeob::{PyTypeInfo, PyRawObject, PyObjectAlloc};
-pub use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
-pub use pythonrun::{GILGuard, GILPool, prepare_freethreaded_python, prepare_pyo3_library};
-pub use instance::{PyToken, PyObjectWithToken, AsPyRef, Py, PyNativeType};
-pub use conversion::{FromPyObject, PyTryFrom, PyTryInto,
-                     ToPyObject, ToBorrowedObject, IntoPyObject, IntoPyTuple};
+pub use object::PyObject;
+pub use objectprotocol::ObjectProtocol;
+pub use objects::*;
+pub use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
+pub use pythonrun::{prepare_freethreaded_python, prepare_pyo3_library, GILGuard, GILPool};
+pub use typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 pub mod class;
 pub use class::*;
 
 /// Procedural macros
 pub mod py {
-    pub use pyo3cls::{proto, class, methods};
+    pub use pyo3cls::{class, methods, proto};
 
     #[cfg(Py_3)]
     pub use pyo3cls::mod3init as modinit;
@@ -195,23 +197,23 @@ macro_rules! cstr(
     );
 );
 
-mod python;
-mod err;
-mod conversion;
-mod instance;
-mod object;
-mod objects;
-mod objectprotocol;
-mod noargs;
-mod pythonrun;
-#[doc(hidden)]
-pub mod callback;
-pub mod typeob;
 #[doc(hidden)]
 pub mod argparse;
 pub mod buffer;
+#[doc(hidden)]
+pub mod callback;
+mod conversion;
+mod err;
 pub mod freelist;
+mod instance;
+mod noargs;
+mod object;
+mod objectprotocol;
+mod objects;
 pub mod prelude;
+mod python;
+mod pythonrun;
+pub mod typeob;
 
 // re-export for simplicity
 #[doc(hidden)]

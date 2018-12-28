@@ -1,17 +1,17 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::{mem, str};
 use std::borrow::Cow;
 use std::os::raw::c_char;
+use std::{mem, str};
 
+use super::PyStringData;
+use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithToken};
 use object::PyObject;
 use objects::PyObjectRef;
-use python::{ToPyPointer, Python};
-use err::{PyResult, PyErr};
-use super::PyStringData;
+use python::{Python, ToPyPointer};
 
 /// Represents a Python `string`.
 pub struct PyString(PyObject);
@@ -29,29 +29,28 @@ pub struct PyBytes(PyObject);
 pyobject_convert!(PyBytes);
 pyobject_nativetype!(PyBytes, PyBytes_Type, PyBytes_Check);
 
-
 impl PyString {
-
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
     pub fn new(_py: Python, s: &str) -> Py<PyString> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    pub fn from_object<'p>(src: &'p PyObjectRef, encoding: &str, errors: &str)
-                           -> PyResult<&'p PyString>
-    {
+    pub fn from_object<'p>(
+        src: &'p PyObjectRef,
+        encoding: &str,
+        errors: &str,
+    ) -> PyResult<&'p PyString> {
         unsafe {
-            src.py().from_owned_ptr_or_err::<PyString>(
-                ffi::PyUnicode_FromEncodedObject(
+            src.py()
+                .from_owned_ptr_or_err::<PyString>(ffi::PyUnicode_FromEncodedObject(
                     src.as_ptr(),
                     encoding.as_ptr() as *const c_char,
-                    errors.as_ptr() as *const  c_char))
+                    errors.as_ptr() as *const c_char,
+                ))
         }
     }
 
@@ -87,7 +86,6 @@ impl PyString {
     }
 }
 
-
 impl PyBytes {
     /// Creates a new Python byte string object.
     /// The byte string is initialized by copying the data from the `&[u8]`.
@@ -96,17 +94,17 @@ impl PyBytes {
     pub fn new(_py: Python, s: &[u8]) -> Py<PyBytes> {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe {
-            Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len))
-        }
+        unsafe { Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
     /// Creates a new Python byte string object from raw pointer.
     ///
     /// Panics if out of memory.
     pub unsafe fn from_ptr(_py: Python, ptr: *const u8, len: usize) -> Py<PyBytes> {
-        Py::from_owned_ptr_or_panic(
-            ffi::PyBytes_FromStringAndSize(ptr as *const _, len as isize))
+        Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(
+            ptr as *const _,
+            len as isize,
+        ))
     }
 
     /// Gets the Python string data as byte slice.
@@ -119,12 +117,11 @@ impl PyBytes {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use python::Python;
-    use instance::AsPyRef;
     use conversion::{FromPyObject, ToPyObject};
+    use instance::AsPyRef;
+    use python::Python;
 
     #[test]
     fn test_non_bmp() {

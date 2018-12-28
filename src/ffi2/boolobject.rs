@@ -1,24 +1,25 @@
-use std::os::raw::{c_int, c_long};
-use ffi2::object::*;
 use ffi2::intobject::PyIntObject;
+use ffi2::object::*;
+use std::os::raw::{c_int, c_long};
 
 pub type PyBoolObject = PyIntObject;
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="PyPyBool_Type")]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyBool_Type")]
     pub static mut PyBool_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name="_PyPy_ZeroStruct")]
+    #[cfg_attr(PyPy, link_name = "_PyPy_ZeroStruct")]
     static mut _Py_ZeroStruct: PyIntObject;
-    #[cfg_attr(PyPy, link_name="_PyPy_TrueStruct")]
+    #[cfg_attr(PyPy, link_name = "_PyPy_TrueStruct")]
     static mut _Py_TrueStruct: PyIntObject;
-    #[cfg_attr(PyPy, link_name="PyPyBool_FromLong")]
+    #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }
 
 #[inline(always)]
-#[cfg_attr(PyPy, link_name="PyPyBool_Check")]
-pub unsafe fn PyBool_Check(op : *mut PyObject) -> c_int {
-    let u : *mut PyTypeObject = &mut PyBool_Type;
+#[cfg_attr(PyPy, link_name = "PyPyBool_Check")]
+pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
+    let u: *mut PyTypeObject = &mut PyBool_Type;
     (Py_TYPE(op) == u) as c_int
 }
 

@@ -1,15 +1,15 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use std;
-use std::{mem, collections, hash, cmp};
+use std::{cmp, collections, hash, mem};
 
+use conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use err::{self, PyErr, PyResult};
 use ffi;
-use object::PyObject;
 use instance::{Py, PyObjectWithToken};
-use python::{Python, ToPyPointer, IntoPyPointer, IntoPyDictPointer};
-use conversion::{ToPyObject, ToBorrowedObject, IntoPyObject};
-use objects::{PyObjectRef, PyList};
-use err::{self, PyResult, PyErr};
+use object::PyObject;
+use objects::{PyList, PyObjectRef};
+use python::{IntoPyDictPointer, IntoPyPointer, Python, ToPyPointer};
 
 /// Represents a Python `dict`.
 pub struct PyDict(PyObject);
@@ -17,22 +17,20 @@ pub struct PyDict(PyObject);
 pyobject_convert!(PyDict);
 pyobject_nativetype!(PyDict, PyDict_Type, PyDict_Check);
 
-
 impl PyDict {
     /// Creates a new empty dictionary.
     ///
     /// May panic when running out of memory.
     pub fn new(py: Python) -> &PyDict {
-        unsafe {
-            py.from_owned_ptr::<PyDict>(ffi::PyDict_New())
-        }
+        unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
     }
 
     /// Return a new dictionary that contains the same key-value pairs as self.
     /// Corresponds to `dict(self)` in Python.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
-            self.py().from_owned_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
+            self.py()
+                .from_owned_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
         }
     }
 
@@ -54,45 +52,53 @@ impl PyDict {
 
     /// Determine if the dictionary contains the specified key.
     /// This is equivalent to the Python expression `key in self`.
-    pub fn contains<K>(&self, key: K) -> PyResult<bool> where K: ToBorrowedObject {
+    pub fn contains<K>(&self, key: K) -> PyResult<bool>
+    where
+        K: ToBorrowedObject,
+    {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
             match ffi::PyDict_Contains(self.as_ptr(), key) {
                 1 => Ok(true),
                 0 => Ok(false),
-                _ => Err(PyErr::fetch(self.py()))
+                _ => Err(PyErr::fetch(self.py())),
             }
         })
     }
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef> where K: ToBorrowedObject {
+    pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef>
+    where
+        K: ToBorrowedObject,
+    {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
-            self.py().from_borrowed_ptr_or_opt(
-                ffi::PyDict_GetItem(self.as_ptr(), key))
+            self.py()
+                .from_borrowed_ptr_or_opt(ffi::PyDict_GetItem(self.as_ptr(), key))
         })
     }
 
     /// Sets an item value.
     /// This is equivalent to the Python expression `self[key] = value`.
     pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
-        where K: ToPyObject, V: ToPyObject
+    where
+        K: ToPyObject,
+        V: ToPyObject,
     {
-        key.with_borrowed_ptr(
-            self.py(), move |key|
+        key.with_borrowed_ptr(self.py(), move |key| {
             value.with_borrowed_ptr(self.py(), |value| unsafe {
-                err::error_on_minusone(
-                    self.py(), ffi::PyDict_SetItem(self.as_ptr(), key, value))
-            }))
+                err::error_on_minusone(self.py(), ffi::PyDict_SetItem(self.as_ptr(), key, value))
+            })
+        })
     }
 
     /// Deletes an item.
     /// This is equivalent to the Python expression `del self[key]`.
-    pub fn del_item<K>(&self, key: K) -> PyResult<()> where K: ToBorrowedObject
+    pub fn del_item<K>(&self, key: K) -> PyResult<()>
+    where
+        K: ToBorrowedObject,
     {
         key.with_borrowed_ptr(self.py(), |key| unsafe {
-            err::error_on_minusone(
-                self.py(), ffi::PyDict_DelItem(self.as_ptr(), key))
+            err::error_on_minusone(self.py(), ffi::PyDict_DelItem(self.as_ptr(), key))
         })
     }
 
@@ -100,7 +106,8 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.keys())`.
     pub fn keys(&self) -> &PyList {
         unsafe {
-            self.py().from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
+            self.py()
+                .from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
         }
     }
 
@@ -108,7 +115,8 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.values())`.
     pub fn values(&self) -> &PyList {
         unsafe {
-            self.py().from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
+            self.py()
+                .from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
         }
     }
 
@@ -116,7 +124,8 @@ impl PyDict {
     /// This is equivalent to the python expression `list(dict.items())`.
     pub fn items(&self) -> &PyList {
         unsafe {
-            self.py().from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
+            self.py()
+                .from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
         }
     }
 
@@ -130,7 +139,7 @@ impl PyDict {
 
 pub struct PyDictIterator<'a> {
     dict: &'a PyDict,
-    pos: isize
+    pos: isize,
 }
 
 impl<'a> Iterator for PyDictIterator<'a> {
@@ -174,85 +183,97 @@ impl IntoPyDictPointer for Py<PyDict> {
     }
 }
 
-impl <K, V, H> ToPyObject for collections::HashMap<K, V, H>
-    where K: hash::Hash+cmp::Eq+ToPyObject,
-          V: ToPyObject,
-          H: hash::BuildHasher
+impl<K, V, H> ToPyObject for collections::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + ToPyObject,
+    V: ToPyObject,
+    H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+            dict.set_item(key, value)
+                .expect("Failed to set_item on dict");
+        }
         dict.into()
     }
 }
 
-impl <K, V> ToPyObject for collections::BTreeMap<K, V>
-    where K: cmp::Eq+ToPyObject,
-          V: ToPyObject
+impl<K, V> ToPyObject for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + ToPyObject,
+    V: ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+            dict.set_item(key, value)
+                .expect("Failed to set_item on dict");
+        }
         dict.into()
     }
 }
 
-impl <K, V, H> IntoPyObject for collections::HashMap<K, V, H>
-    where K: hash::Hash+cmp::Eq+ToPyObject,
-          V: ToPyObject,
-          H: hash::BuildHasher
+impl<K, V, H> IntoPyObject for collections::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + ToPyObject,
+    V: ToPyObject,
+    H: hash::BuildHasher,
 {
     fn into_object(self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+            dict.set_item(key, value)
+                .expect("Failed to set_item on dict");
+        }
         dict.into()
     }
 }
 
-impl <K, V> IntoPyObject for collections::BTreeMap<K, V>
-    where K: cmp::Eq+ToPyObject,
-          V: ToPyObject
+impl<K, V> IntoPyObject for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + ToPyObject,
+    V: ToPyObject,
 {
     fn into_object(self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+            dict.set_item(key, value)
+                .expect("Failed to set_item on dict");
+        }
         dict.into()
     }
 }
 
-impl <K, V, H> IntoPyDictPointer for collections::HashMap<K, V, H>
-    where K: hash::Hash+cmp::Eq+ToPyObject,
-          V: ToPyObject,
-          H: hash::BuildHasher
+impl<K, V, H> IntoPyDictPointer for collections::HashMap<K, V, H>
+where
+    K: hash::Hash + cmp::Eq + ToPyObject,
+    V: ToPyObject,
+    H: hash::BuildHasher,
 {
     #[must_use]
     fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+            dict.set_item(key, value)
+                .expect("Failed to set_item on dict");
+        }
         dict.into_ptr()
     }
 }
 
-impl <K, V> IntoPyDictPointer for collections::BTreeMap<K, V>
-    where K: cmp::Eq+ToPyObject,
-          V: ToPyObject
+impl<K, V> IntoPyDictPointer for collections::BTreeMap<K, V>
+where
+    K: cmp::Eq + ToPyObject,
+    V: ToPyObject,
 {
     #[must_use]
     fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value).expect("Failed to set_item on dict");
-        };
+            dict.set_item(key, value)
+                .expect("Failed to set_item on dict");
+        }
         dict.into_ptr()
     }
 }
@@ -260,7 +281,8 @@ impl <K, V> IntoPyDictPointer for collections::BTreeMap<K, V>
 impl<K: ToPyObject, V: ToPyObject> IntoPyDictPointer for (K, V) {
     default fn into_dict_ptr(self, py: Python) -> *mut ffi::PyObject {
         let dict = PyDict::new(py);
-        dict.set_item(self.0, self.1).expect("Failed to set_item on dict");
+        dict.set_item(self.0, self.1)
+            .expect("Failed to set_item on dict");
         dict.into_ptr()
     }
 }
@@ -278,30 +300,72 @@ macro_rules! dict_conversion ({$length:expr,$(($refN:ident, $n:tt, $T1:ident, $T
 dict_conversion!(1, (ref0, 0, A1, A2));
 dict_conversion!(2, (ref0, 0, A1, A2), (ref1, 1, B1, B2));
 dict_conversion!(3, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2));
-dict_conversion!(4, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
-                 (ref3, 3, D1, D2));
-dict_conversion!(5, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
-                 (ref3, 3, D1, D2), (ref4, 4, E1, E2));
-dict_conversion!(6, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
-                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2));
-dict_conversion!(7, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
-                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2), (ref6, 6, G1, G2));
-dict_conversion!(8, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
-                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2), (ref6, 6, G1, G2),
-                 (ref7, 7, H1, H2));
-dict_conversion!(9, (ref0, 0, A1, A2), (ref1, 1, B1, B2), (ref2, 2, C1, C2),
-                 (ref3, 3, D1, D2), (ref4, 4, E1, E2), (ref5, 5, F1, F2), (ref6, 6, G1, G2),
-                 (ref7, 7, H1, H2), (ref8, 8, I1, I2));
-
+dict_conversion!(
+    4,
+    (ref0, 0, A1, A2),
+    (ref1, 1, B1, B2),
+    (ref2, 2, C1, C2),
+    (ref3, 3, D1, D2)
+);
+dict_conversion!(
+    5,
+    (ref0, 0, A1, A2),
+    (ref1, 1, B1, B2),
+    (ref2, 2, C1, C2),
+    (ref3, 3, D1, D2),
+    (ref4, 4, E1, E2)
+);
+dict_conversion!(
+    6,
+    (ref0, 0, A1, A2),
+    (ref1, 1, B1, B2),
+    (ref2, 2, C1, C2),
+    (ref3, 3, D1, D2),
+    (ref4, 4, E1, E2),
+    (ref5, 5, F1, F2)
+);
+dict_conversion!(
+    7,
+    (ref0, 0, A1, A2),
+    (ref1, 1, B1, B2),
+    (ref2, 2, C1, C2),
+    (ref3, 3, D1, D2),
+    (ref4, 4, E1, E2),
+    (ref5, 5, F1, F2),
+    (ref6, 6, G1, G2)
+);
+dict_conversion!(
+    8,
+    (ref0, 0, A1, A2),
+    (ref1, 1, B1, B2),
+    (ref2, 2, C1, C2),
+    (ref3, 3, D1, D2),
+    (ref4, 4, E1, E2),
+    (ref5, 5, F1, F2),
+    (ref6, 6, G1, G2),
+    (ref7, 7, H1, H2)
+);
+dict_conversion!(
+    9,
+    (ref0, 0, A1, A2),
+    (ref1, 1, B1, B2),
+    (ref2, 2, C1, C2),
+    (ref3, 3, D1, D2),
+    (ref4, 4, E1, E2),
+    (ref5, 5, F1, F2),
+    (ref6, 6, G1, G2),
+    (ref7, 7, H1, H2),
+    (ref8, 8, I1, I2)
+);
 
 #[cfg(test)]
 mod test {
-    use std::collections::{BTreeMap, HashMap};
-    use python::{Python, IntoPyDictPointer};
+    use conversion::{IntoPyObject, PyTryFrom, ToPyObject};
     use instance::AsPyRef;
-    use conversion::{PyTryFrom, ToPyObject, IntoPyObject};
     use objects::{PyDict, PyTuple};
-    use {PyObject, ObjectProtocol};
+    use python::{IntoPyDictPointer, Python};
+    use std::collections::{BTreeMap, HashMap};
+    use {ObjectProtocol, PyObject};
 
     #[test]
     fn test_new() {
@@ -373,8 +437,14 @@ mod test {
         let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
-        assert_eq!(42i32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
-        assert_eq!(123i32, dict.get_item(8i32).unwrap().extract::<i32>().unwrap());
+        assert_eq!(
+            42i32,
+            dict.get_item(7i32).unwrap().extract::<i32>().unwrap()
+        );
+        assert_eq!(
+            123i32,
+            dict.get_item(8i32).unwrap().extract::<i32>().unwrap()
+        );
     }
 
     #[test]
@@ -586,7 +656,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.into_dict_ptr(py);
-        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
         let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
@@ -617,7 +687,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.into_dict_ptr(py);
-        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
         let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
@@ -630,14 +700,14 @@ mod test {
         let py = gil.python();
 
         let m = ((1, 1),).into_dict_ptr(py);
-        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
         let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
-        assert!( py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
 
         let m = ((1, 1), (2, 3)).into_dict_ptr(py);
-        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
         let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 2);
@@ -651,7 +721,7 @@ mod test {
         let py = gil.python();
 
         let m = (1, 1).into_dict_ptr(py);
-        let ob = unsafe{PyObject::from_owned_ptr(py, m)};
+        let ob = unsafe { PyObject::from_owned_ptr(py, m) };
         let py_map = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);

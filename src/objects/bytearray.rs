@@ -1,12 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use err::{PyErr, PyResult};
+use ffi;
+use instance::PyObjectWithToken;
+use object::PyObject;
+use python::{Python, ToPyPointer};
 use std;
 use std::os::raw::c_char;
-use ffi;
-use object::PyObject;
-use instance::PyObjectWithToken;
-use python::{Python, ToPyPointer};
-use err::{PyResult, PyErr};
 
 /// Represents a Python `bytearray`.
 pub struct PyByteArray(PyObject);
@@ -22,30 +22,23 @@ impl PyByteArray {
     pub fn new<'p>(py: Python<'p>, src: &[u8]) -> &'p PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
-        unsafe {
-            py.from_owned_ptr::<PyByteArray>(
-                ffi::PyByteArray_FromStringAndSize(ptr, len))
-        }
+        unsafe { py.from_owned_ptr::<PyByteArray>(ffi::PyByteArray_FromStringAndSize(ptr, len)) }
     }
 
     /// Creates a new Python bytearray object
     /// from other PyObject, that implements the buffer protocol.
     pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
-        where I: ToPyPointer
+    where
+        I: ToPyPointer,
     {
-        unsafe {
-            py.from_owned_ptr_or_err(
-                ffi::PyByteArray_FromObject(src.as_ptr()))
-        }
+        unsafe { py.from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr())) }
     }
 
     /// Gets the length of the bytearray.
     #[inline]
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
-        unsafe {
-            ffi::PyByteArray_Size(self.0.as_ptr()) as usize
-        }
+        unsafe { ffi::PyByteArray_Size(self.0.as_ptr()) as usize }
     }
 
     /// Check if bytearray is empty.
@@ -76,13 +69,12 @@ impl PyByteArray {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use exc;
-    use python::Python;
     use object::PyObject;
     use objects::PyByteArray;
+    use python::Python;
 
     #[test]
     fn test_bytearray() {

@@ -5,7 +5,6 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::py::{class, modinit};
 
-
 #[class]
 struct EmptyClass {}
 
@@ -41,10 +40,34 @@ fn test_module_with_functions() {
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item("module_with_functions", unsafe { PyObject::from_owned_ptr(py, PyInit_module_with_functions()) }).unwrap();
-    py.run("assert module_with_functions.__doc__.strip() == 'This module is implemented in Rust.'", None, Some(d)).unwrap();
-    py.run("assert module_with_functions.sum_as_string(1, 2) == '3'", None, Some(d)).unwrap();
-    py.run("assert module_with_functions.no_parameters() == 42", None, Some(d)).unwrap();
-    py.run("assert module_with_functions.foo == 'bar'", None, Some(d)).unwrap();
-    py.run("assert module_with_functions.EmptyClass != None", None, Some(d)).unwrap();
+    d.set_item("module_with_functions", unsafe {
+        PyObject::from_owned_ptr(py, PyInit_module_with_functions())
+    })
+    .unwrap();
+    py.run(
+        "assert module_with_functions.__doc__.strip() == 'This module is implemented in Rust.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert module_with_functions.sum_as_string(1, 2) == '3'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert module_with_functions.no_parameters() == 42",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run("assert module_with_functions.foo == 'bar'", None, Some(d))
+        .unwrap();
+    py.run(
+        "assert module_with_functions.EmptyClass != None",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }

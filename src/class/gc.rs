@@ -13,13 +13,14 @@ pub struct PyTraverseError(c_int);
 
 /// GC support
 #[allow(unused_variables)]
-pub trait PyGCProtocol<'p> : PyTypeInfo {
+pub trait PyGCProtocol<'p>: PyTypeInfo {
+    fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError> {
+        unimplemented!()
+    }
 
-    fn __traverse__(&'p self, visit: PyVisit)
-                    -> Result<(), PyTraverseError> { unimplemented!() }
-
-    fn __clear__(&'p mut self) { unimplemented!() }
-
+    fn __clear__(&'p mut self) {
+        unimplemented!()
+    }
 }
 
 pub trait PyGCTraverseProtocol<'p>: PyGCProtocol<'p> {}
@@ -34,7 +35,9 @@ impl<'p, T> PyGCProtocolImpl for T {
     default fn update_type_object(_type_object: &mut ffi::PyTypeObject) {}
 }
 
-impl<'p, T> PyGCProtocolImpl for T where T: PyGCProtocol<'p>
+impl<'p, T> PyGCProtocolImpl for T
+where
+    T: PyGCProtocol<'p>,
 {
     fn update_type_object(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_traverse = Self::tp_traverse();
@@ -49,12 +52,13 @@ pub struct PyVisit<'p> {
     /// VisitProc contains a Python instance to ensure that
     /// 1) it is cannot be moved out of the traverse() call
     /// 2) it cannot be sent to other threads
-    _py: Python<'p>
+    _py: Python<'p>,
 }
 
-impl <'p> PyVisit<'p> {
+impl<'p> PyVisit<'p> {
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
-        where T: ToPyPointer
+    where
+        T: ToPyPointer,
     {
         let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
         if r == 0 {
@@ -69,7 +73,9 @@ trait PyGCTraverseProtocolImpl {
     fn tp_traverse() -> Option<ffi::traverseproc>;
 }
 
-impl<'p, T> PyGCTraverseProtocolImpl for T where T: PyGCProtocol<'p>
+impl<'p, T> PyGCTraverseProtocolImpl for T
+where
+    T: PyGCProtocol<'p>,
 {
     #[inline]
     default fn tp_traverse() -> Option<ffi::traverseproc> {
@@ -78,23 +84,32 @@ impl<'p, T> PyGCTraverseProtocolImpl for T where T: PyGCProtocol<'p>
 }
 
 #[doc(hidden)]
-impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
+impl<T> PyGCTraverseProtocolImpl for T
+where
+    T: for<'p> PyGCTraverseProtocol<'p>,
 {
     #[inline]
     fn tp_traverse() -> Option<ffi::traverseproc> {
-        unsafe extern "C" fn tp_traverse<T>(slf: *mut ffi::PyObject,
-                                            visit: ffi::visitproc,
-                                            arg: *mut c_void) -> c_int
-            where T: for<'p> PyGCTraverseProtocol<'p>
+        unsafe extern "C" fn tp_traverse<T>(
+            slf: *mut ffi::PyObject,
+            visit: ffi::visitproc,
+            arg: *mut c_void,
+        ) -> c_int
+        where
+            T: for<'p> PyGCTraverseProtocol<'p>,
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
-            let visit = PyVisit { visit: visit, arg: arg, _py: py };
+            let visit = PyVisit {
+                visit: visit,
+                arg: arg,
+                _py: py,
+            };
             match slf.__traverse__(visit) {
                 Ok(()) => 0,
-                Err(PyTraverseError(code)) => code
+                Err(PyTraverseError(code)) => code,
             }
         }
 
@@ -102,12 +117,13 @@ impl<T> PyGCTraverseProtocolImpl for T where T: for<'p> PyGCTraverseProtocol<'p>
     }
 }
 
-
 trait PyGCClearProtocolImpl {
     fn tp_clear() -> Option<ffi::inquiry>;
 }
 
-impl<'p, T> PyGCClearProtocolImpl for T where T: PyGCProtocol<'p>
+impl<'p, T> PyGCClearProtocolImpl for T
+where
+    T: PyGCProtocol<'p>,
 {
     #[inline]
     default fn tp_clear() -> Option<ffi::inquiry> {
@@ -115,12 +131,15 @@ impl<'p, T> PyGCClearProtocolImpl for T where T: PyGCProtocol<'p>
     }
 }
 
-impl<T> PyGCClearProtocolImpl for T where T: for<'p> PyGCClearProtocol<'p>
+impl<T> PyGCClearProtocolImpl for T
+where
+    T: for<'p> PyGCClearProtocol<'p>,
 {
     #[inline]
     fn tp_clear() -> Option<ffi::inquiry> {
         unsafe extern "C" fn tp_clear<T>(slf: *mut ffi::PyObject) -> c_int
-            where T: for<'p> PyGCClearProtocol<'p>
+        where
+            T: for<'p> PyGCClearProtocol<'p>,
         {
             let _pool = ::GILPool::new();
             let py = Python::assume_gil_acquired();
