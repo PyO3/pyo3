@@ -20,6 +20,7 @@ codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 
 [dependencies]
 log = "0.4"
+pretty_assertions = "0.5.1"
 libc = "0.2"
 spin = "0.4.6"
 num-traits = "0.2"
@@ -39,16 +40,16 @@ docmatic = "^0.1.2"
 default = []
 
 # Use this feature when building python2 binding.
-# python2 = []
+ python2 = []
 
 # Use this feature when building python3 binding.
-python3 = []
+#python3 = []
 
 # Use this feature when building pypy binding.
-# pypy = []
+ pypy = []
 
 # Enable additional features that require nightly rust
-# nightly = []
+ nightly = []
 
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
