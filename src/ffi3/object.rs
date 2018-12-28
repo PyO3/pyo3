@@ -165,9 +165,8 @@ mod bufferinfo {
 
     }
     pub type getbufferproc =
-            -> c_int;
+        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer, arg3: c_int) -> c_int;
     pub type releasebufferproc =
-        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer, arg3: c_int)
         unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer) -> ();
 
     /// Maximum number of dimensions

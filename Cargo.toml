@@ -27,17 +27,15 @@ num-complex = { version = "0.2.1", optional = true }
 mashup = "0.1.9"
 
 [build-dependencies]
-regex = "0.2"
-version_check = "0.1"
+version_check = "0.1.5"
 pretty_assertions = "0.5.1"
 pyo3-build-utils = {version = "*", path="pyo3build"}
 regex = "1.0.5"
-version_check = "0.1.5"
+
 [dev-dependencies]
 pretty_assertions = "0.5.1"
 docmatic = "^0.1.2"
 assert_approx_eq = "1.0.0"
-docmatic = "0.1.2"
 indoc = "0.3.1"
 
 [features]

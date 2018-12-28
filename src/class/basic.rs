@@ -26,79 +26,79 @@ use crate::CompareOp;
 #[allow(unused_variables)]
 pub trait PyObjectProtocol<'p>: PyTypeInfo {
     fn __getattr__(&'p self, name: Self::Name) -> Self::Result
-    where
-        Self: PyObjectGetAttrProtocol<'p>,
+        where
+            Self: PyObjectGetAttrProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __setattr__(&'p mut self, name: Self::Name, value: Self::Value) -> Self::Result
-    where
-        Self: PyObjectSetAttrProtocol<'p>,
+        where
+            Self: PyObjectSetAttrProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __delattr__(&'p mut self, name: Self::Name) -> Self::Result
-    where
-        Self: PyObjectDelAttrProtocol<'p>,
+        where
+            Self: PyObjectDelAttrProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __str__(&'p self) -> Self::Result
-    where
-        Self: PyObjectStrProtocol<'p>,
+        where
+            Self: PyObjectStrProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __repr__(&'p self) -> Self::Result
-    where
-        Self: PyObjectReprProtocol<'p>,
+        where
+            Self: PyObjectReprProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __format__(&'p self, format_spec: Self::Format) -> Self::Result
-    where
-        Self: PyObjectFormatProtocol<'p>,
+        where
+            Self: PyObjectFormatProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __hash__(&'p self) -> Self::Result
-    where
-        Self: PyObjectHashProtocol<'p>,
+        where
+            Self: PyObjectHashProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __bool__(&'p self) -> Self::Result
-    where
-        Self: PyObjectBoolProtocol<'p>,
+        where
+            Self: PyObjectBoolProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __bytes__(&'p self) -> Self::Result
-    where
-        Self: PyObjectBytesProtocol<'p>,
+        where
+            Self: PyObjectBytesProtocol<'p>,
     {
         unimplemented!()
     }
 
     /// This method is used by Python2 only.
     fn __unicode__(&'p self) -> Self::Result
-    where
-        Self: PyObjectUnicodeProtocol<'p>,
+        where
+            Self: PyObjectUnicodeProtocol<'p>,
     {
         unimplemented!()
     }
 
     fn __richcmp__(&'p self, other: Self::Other, op: CompareOp) -> Self::Result
-    where
-        Self: PyObjectRichcmpProtocol<'p>,
+        where
+            Self: PyObjectRichcmpProtocol<'p>,
     {
         unimplemented!()
     }
@@ -165,8 +165,8 @@ pub trait PyObjectProtocolImpl {
 impl<T> PyObjectProtocolImpl for T {}
 
 impl<'p, T> PyObjectProtocolImpl for T
-where
-    T: PyObjectProtocol<'p>,
+    where
+        T: PyObjectProtocol<'p>,
 {
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
@@ -204,8 +204,8 @@ trait GetAttrProtocolImpl {
 impl<'p, T> GetAttrProtocolImpl for T where T: PyObjectProtocol<'p> {}
 
 impl<T> GetAttrProtocolImpl for T
-where
-    T: for<'p> PyObjectGetAttrProtocol<'p>,
+    where
+        T: for<'p> PyObjectGetAttrProtocol<'p>,
 {
     fn tp_getattro() -> Option<ffi::binaryfunc> {
         py_binary_func!(
@@ -242,7 +242,6 @@ mod tp_setattro_impl {
             None
         }
     }
-}
 
     trait SetAttr {
         fn set_attr() -> Option<ffi::setattrofunc> {
@@ -253,8 +252,8 @@ mod tp_setattro_impl {
     impl<'p, T: PyObjectProtocol<'p>> SetAttr for T {}
 
     impl<T> SetAttr for T
-    where
-        T: for<'p> PyObjectSetAttrProtocol<'p>,
+        where
+            T: for<'p> PyObjectSetAttrProtocol<'p>,
     {
         fn set_attr() -> Option<ffi::setattrofunc> {
             py_func_set!(PyObjectSetAttrProtocol, T, __setattr__)
@@ -270,8 +269,8 @@ mod tp_setattro_impl {
     impl<'p, T> DelAttr for T where T: PyObjectProtocol<'p> {}
 
     impl<T> DelAttr for T
-    where
-        T: for<'p> PyObjectDelAttrProtocol<'p>,
+        where
+            T: for<'p> PyObjectDelAttrProtocol<'p>,
     {
         fn del_attr() -> Option<ffi::setattrofunc> {
             py_func_del!(PyObjectDelAttrProtocol, T, __delattr__)
@@ -287,8 +286,8 @@ mod tp_setattro_impl {
     impl<'p, T> SetDelAttr for T where T: PyObjectProtocol<'p> {}
 
     impl<T> SetDelAttr for T
-    where
-        T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
+        where
+            T: for<'p> PyObjectSetAttrProtocol<'p> + for<'p> PyObjectDelAttrProtocol<'p>,
     {
         fn set_del_attr() -> Option<ffi::setattrofunc> {
             py_func_set_del!(
@@ -309,8 +308,8 @@ trait StrProtocolImpl {
 }
 impl<'p, T> StrProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> StrProtocolImpl for T
-where
-    T: for<'p> PyObjectStrProtocol<'p>,
+    where
+        T: for<'p> PyObjectStrProtocol<'p>,
 {
     fn tp_str() -> Option<ffi::unaryfunc> {
         py_unary_func!(
@@ -329,8 +328,8 @@ trait ReprProtocolImpl {
 }
 impl<'p, T> ReprProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> ReprProtocolImpl for T
-where
-    T: for<'p> PyObjectReprProtocol<'p>,
+    where
+        T: for<'p> PyObjectReprProtocol<'p>,
 {
     fn tp_repr() -> Option<ffi::unaryfunc> {
         py_unary_func!(
@@ -373,8 +372,8 @@ trait HashProtocolImpl {
 }
 impl<'p, T> HashProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> HashProtocolImpl for T
-where
-    T: for<'p> PyObjectHashProtocol<'p>,
+    where
+        T: for<'p> PyObjectHashProtocol<'p>,
 {
     fn tp_hash() -> Option<ffi::hashfunc> {
         py_unary_func!(
@@ -394,8 +393,8 @@ trait BoolProtocolImpl {
 }
 impl<'p, T> BoolProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> BoolProtocolImpl for T
-where
-    T: for<'p> PyObjectBoolProtocol<'p>,
+    where
+        T: for<'p> PyObjectBoolProtocol<'p>,
 {
     fn nb_bool() -> Option<ffi::inquiry> {
         py_unary_func!(
@@ -415,8 +414,8 @@ trait RichcmpProtocolImpl {
 }
 impl<'p, T> RichcmpProtocolImpl for T where T: PyObjectProtocol<'p> {}
 impl<T> RichcmpProtocolImpl for T
-where
-    T: for<'p> PyObjectRichcmpProtocol<'p>,
+    where
+        T: for<'p> PyObjectRichcmpProtocol<'p>,
 {
     fn tp_richcompare() -> Option<ffi::richcmpfunc> {
         unsafe extern "C" fn wrap<T>(
@@ -424,8 +423,8 @@ where
             arg: *mut ffi::PyObject,
             op: c_int,
         ) -> *mut ffi::PyObject
-        where
-            T: for<'p> PyObjectRichcmpProtocol<'p>,
+            where
+                T: for<'p> PyObjectRichcmpProtocol<'p>,
         {
             let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
