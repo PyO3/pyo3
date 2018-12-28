@@ -2,8 +2,8 @@ extern crate version_check;
 use self::version_check::{is_min_date, is_min_version, supports_features};
 
 // Specifies the minimum nightly version needed to compile pyo3.
-const MIN_DATE: &'static str = "2017-11-07";
-const MIN_VERSION: &'static str = "1.23.0-nightly";
+const MIN_DATE: &'static str = "2018-11-02";
+const MIN_VERSION: &'static str = "1.32.0-nightly";
 
 pub fn check_rustc_version() {
     let ok_channel = supports_features();
