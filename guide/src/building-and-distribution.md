@@ -2,7 +2,7 @@
 
 ## Python version
 
-pyo3 uses a build script to determine the python version and set the correct linker arguments. By default it uses the `python3` executable. With the `python2` feature it uses the `python2` executable. You can override the python interpreter by setting `PYTHON_SYS_EXECUTABLE`. Note that you still need to activate the `python2` with  `PYTHON_SYS_EXECUTABLE=python2` (see [pyo3/pyo3#276](https://github.com/PyO3/pyo3/issues/276) for details).
+pyo3 uses a build script to determine the python version and set the correct linker arguments. By default it uses the `python3` executable. With the `python2` feature it uses the `python2` executable. You can override the python interpreter by setting `PYTHON_SYS_EXECUTABLE`.
 
 ## Linking
 

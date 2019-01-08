@@ -267,35 +267,42 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 /// 4. `python{major version}.{minor version}`
 ///
 /// If none of the above works, an error is returned
-fn find_interpreter_and_get_config(
-    expected_version: &PythonVersion,
-) -> Result<(PythonVersion, String, Vec<String>), String> {
+fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<String>), String> {
+    let version = version_from_env();
+
     if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
         let interpreter_path = sys_executable
             .to_str()
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
         let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
-
-        if expected_version == &interpreter_version {
-            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
-        } else {
-            return Err(format!(
+        if version != None && version.as_ref().unwrap() != &interpreter_version {
+            panic!(
                 "Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
                  \tmin version {} != found {}",
-                interpreter_path, expected_version, interpreter_version
-            ));
+                interpreter_path,
+                version.unwrap(),
+                interpreter_version
+            );
+        } else {
+            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
         }
-    }
+    };
+
+    let expected_version = version.unwrap_or(PythonVersion {
+        major: 3,
+        minor: None,
+    });
+
     // check default python
     let interpreter_path = "python";
     let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
-    if expected_version == &interpreter_version {
+    if expected_version == interpreter_version {
         return Ok((interpreter_version, interpreter_path.to_owned(), lines));
     }
 
     let major_interpreter_path = &format!("python{}", expected_version.major);
     let (interpreter_version, lines) = get_config_from_interpreter(major_interpreter_path)?;
-    if expected_version == &interpreter_version {
+    if expected_version == interpreter_version {
         return Ok((
             interpreter_version,
             major_interpreter_path.to_owned(),
@@ -306,7 +313,7 @@ fn find_interpreter_and_get_config(
     if let Some(minor) = expected_version.minor {
         let minor_interpreter_path = &format!("python{}.{}", expected_version.major, minor);
         let (interpreter_version, lines) = get_config_from_interpreter(minor_interpreter_path)?;
-        if expected_version == &interpreter_version {
+        if expected_version == interpreter_version {
             return Ok((
                 interpreter_version,
                 minor_interpreter_path.to_owned(),
@@ -336,14 +343,7 @@ print(sys.exec_prefix)
     Ok((interpreter_version, lines))
 }
 
-/// Deduce configuration from the 'python' in the current PATH and print
-/// cargo vars to stdout.
-///
-/// Note that if the python doesn't satisfy expected_version, this will error.
-fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, String), String> {
-    let (interpreter_version, interpreter_path, lines) =
-        find_interpreter_and_get_config(expected_version)?;
-
+fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<(String), String> {
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
     let ld_version: &str = &lines[3];
@@ -373,7 +373,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
         if let Some(minor) = some_minor {
-            if minor < PY3_MIN_MINOR {
+            if minor < &PY3_MIN_MINOR {
                 return Err(format!(
                     "Python 3 required version is 3.{}, current version is 3.{}",
                     PY3_MIN_MINOR, minor
@@ -389,7 +389,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
         println!("cargo:rustc-cfg=Py_2");
         flags += format!("CFG_Py_2,").as_ref();
     }
-    return Ok((interpreter_path, flags));
+    return Ok(flags);
 }
 
 /// Determine the python version we're supposed to be building
@@ -397,7 +397,7 @@ fn configure_from_path(expected_version: &PythonVersion) -> Result<(String, Stri
 ///
 /// The environment variable can choose to omit a minor
 /// version if the user doesn't care.
-fn version_from_env() -> Result<PythonVersion, String> {
+fn version_from_env() -> Option<PythonVersion> {
     let re = Regex::new(r"CARGO_FEATURE_PYTHON(\d+)(_(\d+))?").unwrap();
     // sort env::vars so we get more explicit version specifiers first
     // so if the user passes e.g. the python-3 feature and the python-3-5
@@ -407,7 +407,7 @@ fn version_from_env() -> Result<PythonVersion, String> {
     for (key, _) in vars {
         match re.captures(&key) {
             Some(cap) => {
-                return Ok(PythonVersion {
+                return Some(PythonVersion {
                     major: cap.get(1).unwrap().as_str().parse().unwrap(),
                     minor: match cap.get(3) {
                         Some(s) => Some(s.as_str().parse().unwrap()),
@@ -418,12 +418,7 @@ fn version_from_env() -> Result<PythonVersion, String> {
             None => (),
         }
     }
-
-    Err(
-        "Python version feature was not found. At least one python version \
-         feature must be enabled."
-            .to_owned(),
-    )
+    None
 }
 
 fn check_rustc_version() {
@@ -478,18 +473,11 @@ fn main() {
     // If you have troubles with your shell accepting '.' in a var name,
     // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
-    let version = match version_from_env() {
-        Ok(v) => v,
-        Err(_) => PythonVersion {
-            major: 3,
-            minor: None,
-        },
-    };
-    let (python_interpreter_path, flags) = configure_from_path(&version).unwrap();
-    let mut config_map = get_config_vars(&python_interpreter_path).unwrap();
+    let (interpreter_version, interpreter_path, lines) = find_interpreter_and_get_config().unwrap();
+    let flags = configure(&interpreter_version, lines).unwrap();
+    let mut config_map = get_config_vars(&interpreter_path).unwrap();
 
     // WITH_THREAD is always on for 3.7
-    let (interpreter_version, _, _) = find_interpreter_and_get_config(&version).unwrap();
     if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
     }
