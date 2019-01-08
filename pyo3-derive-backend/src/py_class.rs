@@ -438,56 +438,7 @@ fn parse_attribute(args: &Vec<syn::Expr>) -> PyClassAttributes {
 
             // Match variants (e.g. `variants("MyTypeU32<u32>", "MyTypeF32<f32>")`)
             Call(ref call) => {
-                let path = match *call.func {
-                    Path(ref expr_path) => expr_path,
-                    _ => panic!("Unsupported argument syntax"),
-                };
-                let path_segments = &path.path.segments;
-
-                if path_segments.len() != 1
-                    || path_segments.first().unwrap().value().ident.to_string() != "variants"
-                {
-                    panic!("Unsupported argument syntax");
-                }
-
-                attrs.variants = Some(
-                    call.args
-                        .iter()
-                        .map(|x| {
-                            // Extract string argument.
-                            let lit = match x {
-                                Lit(syn::ExprLit {
-                                    lit: syn::Lit::Str(ref lit),
-                                    ..
-                                }) => lit.value(),
-                                _ => panic!("Unsupported argument syntax"),
-                            };
-
-                            // Parse string as type.
-                            let ty: syn::Type =
-                                syn::parse_str(&lit).expect("Invalid type definition");
-
-                            let path_segs = match ty {
-                                syn::Type::Path(syn::TypePath { ref path, .. }) => {
-                                    path.segments.clone()
-                                }
-                                _ => panic!("Unsupported type syntax"),
-                            };
-
-                            if path_segs.len() != 1 {
-                                panic!("Type path is expected to have exactly one segment.");
-                            }
-
-                            let seg = path_segs.iter().nth(0).unwrap();
-                            let args = match seg.arguments {
-                                syn::PathArguments::AngleBracketed(ref args) => args.clone(),
-                                _ => panic!("Expected angle bracketed type arguments"),
-                            };
-
-                            (seg.ident.to_string(), args)
-                        })
-                        .collect(),
-                );
+                attrs.variants = Some(utils::parse_variants(call));
             }
 
             _ => panic!("Could not parse arguments"),

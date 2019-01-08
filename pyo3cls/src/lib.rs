@@ -9,13 +9,10 @@ extern crate proc_macro2;
 extern crate pyo3_derive_backend;
 #[macro_use]
 extern crate quote;
-#[macro_use]
 extern crate syn;
 
 use proc_macro2::Span;
 use pyo3_derive_backend::*;
-use syn::parse::Parser;
-use syn::punctuated::Punctuated;
 
 #[proc_macro_attribute]
 pub fn pymodule2(
@@ -100,15 +97,7 @@ pub fn pyclass(
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemStruct =
         syn::parse(input).expect("#[pyclass] must be used on a `struct`");
-
-    // Parse the macro arguments into a list of expressions
-    let parser = Punctuated::<syn::Expr, Token![,]>::parse_terminated;
-    let error_message = "The macro attributes should be a list of comma separated expressions";
-    let args = parser
-        .parse(attr)
-        .expect(error_message)
-        .into_iter()
-        .collect();
+    let args = utils::parse_attrs(attr);
 
     // Build the output
     let expanded = py_class::build_py_class(&mut ast, &args);
@@ -122,15 +111,16 @@ pub fn pyclass(
 
 #[proc_macro_attribute]
 pub fn pymethods(
-    _: proc_macro::TokenStream,
+    attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemImpl =
         syn::parse(input.clone()).expect("#[pymethods] must be used on an `impl` block");
+    let args = utils::parse_attrs(attr);
 
     // Build the output
-    let expanded = py_impl::build_py_methods(&mut ast);
+    let expanded = py_impl::build_py_methods(&mut ast, &args);
 
     quote!(
         #ast
