@@ -223,14 +223,14 @@ where
 
 impl<K, V, H> IntoPyObject for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
+    K: hash::Hash + cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
     H: hash::BuildHasher,
 {
     fn into_object(self, py: Python) -> PyObject {
         let dict = PyDict::new(py);
         for (key, value) in self {
-            dict.set_item(key, value)
+            dict.set_item(key.into_object(py), value.into_object(py))
                 .expect("Failed to set_item on dict");
         }
         dict.into()
