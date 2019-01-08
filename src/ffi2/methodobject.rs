@@ -15,9 +15,11 @@ pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
 
 pub type PyCFunction =
     unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject) -> *mut PyObject;
-pub type PyCFunctionWithKeywords =
-    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject, kwds: *mut PyObject)
-        -> *mut PyObject;
+pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
+    slf: *mut PyObject,
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+) -> *mut PyObject;
 pub type PyNoArgsFunction = unsafe extern "C" fn(slf: *mut PyObject) -> *mut PyObject;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

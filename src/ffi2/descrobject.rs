@@ -34,9 +34,11 @@ impl Clone for PyGetSetDef {
     }
 }
 
-pub type wrapperfunc =
-    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject, wrapped: *mut c_void)
-        -> *mut PyObject;
+pub type wrapperfunc = unsafe extern "C" fn(
+    slf: *mut PyObject,
+    args: *mut PyObject,
+    wrapped: *mut c_void,
+) -> *mut PyObject;
 
 pub type wrapperfunc_kwds = unsafe extern "C" fn(
     slf: *mut PyObject,

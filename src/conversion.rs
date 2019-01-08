@@ -359,9 +359,9 @@ impl<T: IntoPyObject> ReturnTypeIntoPyResult for PyResult<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::Python;
-    use crate::types::PyList;
     use super::PyTryFrom;
+    use crate::types::PyList;
+    use crate::Python;
 
     #[test]
     fn test_try_from_unchecked() {

@@ -23,9 +23,11 @@ pub type _PyCFunctionFast = unsafe extern "C" fn(
     kwnames: *mut PyObject,
 ) -> *mut PyObject;
 
-pub type PyCFunctionWithKeywords =
-    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject, kwds: *mut PyObject)
-        -> *mut PyObject;
+pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
+    slf: *mut PyObject,
+    args: *mut PyObject,
+    kwds: *mut PyObject,
+) -> *mut PyObject;
 
 pub type PyNoArgsFunction = unsafe extern "C" fn(slf: *mut PyObject) -> *mut PyObject;
 

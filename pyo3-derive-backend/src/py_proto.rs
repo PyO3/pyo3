@@ -32,9 +32,9 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> TokenStream {
 
         // attach lifetime
         let mut seg = path.segments.pop().unwrap().into_value();
-        seg.arguments = syn::PathArguments::AngleBracketed(parse_quote!{<'p>});
+        seg.arguments = syn::PathArguments::AngleBracketed(parse_quote! {<'p>});
         path.segments.push(seg);
-        ast.generics.params = parse_quote!{'p};
+        ast.generics.params = parse_quote! {'p};
 
         tokens
     } else {

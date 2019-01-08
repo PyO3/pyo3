@@ -334,7 +334,11 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStrea
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub(crate) fn impl_wrap_setter(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec) -> TokenStream {
     if spec.args.len() < 1 {
-        println!("Not enough arguments for setter {}::{}", quote!{#cls}, name);
+        println!(
+            "Not enough arguments for setter {}::{}",
+            quote! {#cls},
+            name
+        );
     }
     let val_ty = spec.args[0].ty;
 

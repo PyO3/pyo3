@@ -184,7 +184,7 @@ mod test {
     use syn;
 
     fn items(s: TokenStream) -> Vec<syn::NestedMeta> {
-        let dummy: syn::ItemFn = parse_quote!{#s fn dummy() {}};
+        let dummy: syn::ItemFn = parse_quote! {#s fn dummy() {}};
         match dummy.attrs[0].interpret_meta() {
             Some(syn::Meta::List(syn::MetaList { nested, .. })) => {
                 nested.iter().map(Clone::clone).collect()
@@ -195,20 +195,22 @@ mod test {
 
     #[test]
     fn test_errs() {
-        assert!(parse_arguments(&items(quote!{#[args(test="1", test2)]})).is_empty());
-        assert!(parse_arguments(&items(quote!{#[args(test=1, "*", args="*")]})).is_empty());
-        assert!(parse_arguments(&items(quote!{#[args(test=1, kwargs="**", args="*")]})).is_empty());
-        assert!(parse_arguments(&items(quote!{#[args(test=1, kwargs="**", args)]})).is_empty());
+        assert!(parse_arguments(&items(quote! {#[args(test="1", test2)]})).is_empty());
+        assert!(parse_arguments(&items(quote! {#[args(test=1, "*", args="*")]})).is_empty());
+        assert!(
+            parse_arguments(&items(quote! {#[args(test=1, kwargs="**", args="*")]})).is_empty()
+        );
+        assert!(parse_arguments(&items(quote! {#[args(test=1, kwargs="**", args)]})).is_empty());
     }
 
     #[test]
     fn test_simple_args() {
-        let args = parse_arguments(&items(quote!{#[args(test1, test2, test3="None")]}));
+        let args = parse_arguments(&items(quote! {#[args(test1, test2, test3="None")]}));
         assert!(
             args == vec![
-                Argument::Arg(parse_quote!{test1}, None),
-                Argument::Arg(parse_quote!{test2}, None),
-                Argument::Arg(parse_quote!{test3}, Some("None".to_owned())),
+                Argument::Arg(parse_quote! {test1}, None),
+                Argument::Arg(parse_quote! {test2}, None),
+                Argument::Arg(parse_quote! {test3}, Some("None".to_owned())),
             ]
         );
     }
@@ -216,14 +218,14 @@ mod test {
     #[test]
     fn test_varargs() {
         let args = parse_arguments(&items(
-            quote!{#[args(test1, test2="None", "*", test3="None")]},
+            quote! {#[args(test1, test2="None", "*", test3="None")]},
         ));
         assert!(
             args == vec![
-                Argument::Arg(parse_quote!{test1}, None),
-                Argument::Arg(parse_quote!{test2}, Some("None".to_owned())),
+                Argument::Arg(parse_quote! {test1}, None),
+                Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
                 Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote!{test3}, "None".to_owned()),
+                Argument::Kwarg(parse_quote! {test3}, "None".to_owned()),
             ]
         );
     }
@@ -231,15 +233,15 @@ mod test {
     #[test]
     fn test_all() {
         let args = parse_arguments(&items(
-            quote!{#[args(test1, test2="None", args="*", test3="None", kwargs="**")]},
+            quote! {#[args(test1, test2="None", args="*", test3="None", kwargs="**")]},
         ));
         assert!(
             args == vec![
-                Argument::Arg(parse_quote!{test1}, None),
-                Argument::Arg(parse_quote!{test2}, Some("None".to_owned())),
-                Argument::VarArgs(parse_quote!{args}),
-                Argument::Kwarg(parse_quote!{test3}, "None".to_owned()),
-                Argument::KeywordArgs(parse_quote!{kwargs}),
+                Argument::Arg(parse_quote! {test1}, None),
+                Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
+                Argument::VarArgs(parse_quote! {args}),
+                Argument::Kwarg(parse_quote! {test3}, "None".to_owned()),
+                Argument::KeywordArgs(parse_quote! {kwargs}),
             ]
         );
     }

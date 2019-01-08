@@ -55,9 +55,11 @@ pub unsafe fn Py_SIZE(ob: *mut PyObject) -> Py_ssize_t {
 pub type unaryfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type binaryfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
-pub type ternaryfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> *mut PyObject;
+pub type ternaryfunc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: *mut PyObject,
+    arg3: *mut PyObject,
+) -> *mut PyObject;
 pub type inquiry = unsafe extern "C" fn(arg1: *mut PyObject) -> c_int;
 pub type lenfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> Py_ssize_t;
 pub type coercion =
@@ -68,9 +70,12 @@ pub type ssizessizeargfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: Py_ssize_t) -> *mut PyObject;
 pub type intobjargproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int, arg3: *mut PyObject) -> c_int;
-pub type intintobjargproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int, arg3: c_int, arg4: *mut PyObject)
-        -> c_int;
+pub type intintobjargproc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: c_int,
+    arg3: c_int,
+    arg4: *mut PyObject,
+) -> c_int;
 pub type ssizeobjargproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
 pub type ssizessizeobjargproc = unsafe extern "C" fn(
@@ -88,17 +93,23 @@ pub type getwritebufferproc =
 pub type getsegcountproc = unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut c_int) -> c_int;
 pub type getcharbufferproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: c_int, arg3: *mut *mut c_char) -> c_int;
-pub type readbufferproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut *mut c_void)
-        -> Py_ssize_t;
-pub type writebufferproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut *mut c_void)
-        -> Py_ssize_t;
+pub type readbufferproc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: Py_ssize_t,
+    arg3: *mut *mut c_void,
+) -> Py_ssize_t;
+pub type writebufferproc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: Py_ssize_t,
+    arg3: *mut *mut c_void,
+) -> Py_ssize_t;
 pub type segcountproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut Py_ssize_t) -> Py_ssize_t;
-pub type charbufferproc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut *mut c_char)
-        -> Py_ssize_t;
+pub type charbufferproc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: Py_ssize_t,
+    arg3: *mut *mut c_char,
+) -> Py_ssize_t;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -349,16 +360,20 @@ pub type richcmpfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
 pub type getiterfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type iternextfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-pub type descrgetfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> *mut PyObject;
+pub type descrgetfunc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: *mut PyObject,
+    arg3: *mut PyObject,
+) -> *mut PyObject;
 pub type descrsetfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
 pub type initproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-pub type newfunc =
-    unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> *mut PyObject;
+pub type newfunc = unsafe extern "C" fn(
+    arg1: *mut PyTypeObject,
+    arg2: *mut PyObject,
+    arg3: *mut PyObject,
+) -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 

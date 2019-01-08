@@ -39,7 +39,7 @@ pub struct FnSpec<'a> {
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
     match output {
-        syn::ReturnType::Default => syn::Type::Infer(parse_quote!{_}),
+        syn::ReturnType::Default => syn::Type::Infer(parse_quote! {_}),
         syn::ReturnType::Type(_, ref ty) => *ty.clone(),
     }
 }

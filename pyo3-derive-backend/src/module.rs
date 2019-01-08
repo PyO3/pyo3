@@ -48,7 +48,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
             {
                 let function_to_python = add_fn_to_module(func, &python_name, pyfn_attrs);
                 let function_wrapper_ident = function_wrapper_ident(&func.ident);
-                let item: syn::ItemFn = parse_quote!{
+                let item: syn::ItemFn = parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
                         #module_name.add_wrapped(&#function_wrapper_ident)?;
