@@ -79,7 +79,7 @@ fn empty_class_in_module() {
 
 #[pyclass(variants("SimpleGenericU32<u32>", "SimpleGenericF32<f32>"))]
 struct SimpleGeneric<T: 'static> {
-    _foo: T,
+    foo: T,
 }
 
 #[test]
