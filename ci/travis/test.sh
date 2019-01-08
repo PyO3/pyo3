@@ -1,18 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 set -ex
 
-cargo build --features $FEATURES
-cargo clippy --features $FEATURES
+cargo fmt --all -- --check
 cargo test --features $FEATURES
+cargo clippy --features $FEATURES
 
 for example in examples/*; do
-  cd $example
-  if [ -f tox.ini ]; then
-      tox -e py
-  else
-    pip install -e .
-    pytest -v tests
-  fi
-  cd $TRAVIS_BUILD_DIR
+    tox -e py --workdir $example
 done

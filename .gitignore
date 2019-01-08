@@ -13,6 +13,8 @@ dist/
 .hypothesis/
 .eggs/
 venv*
+guide/book/
+examples/*/py
 
 *.so
 *.out
