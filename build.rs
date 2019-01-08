@@ -276,13 +276,13 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
         let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
         if version != None && version.as_ref().unwrap() != &interpreter_version {
-            panic!(format!(
+            panic!(
                 "Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
                  \tmin version {} != found {}",
                 interpreter_path,
                 version.unwrap(),
                 interpreter_version
-            ));
+            );
         } else {
             return Ok((interpreter_version, interpreter_path.to_owned(), lines));
         }
