@@ -1,11 +1,12 @@
 #!/bin/bash
+# Note: Avoid using "-e" globally, its behaviour may sometimes be convoluted.
+# For more details, see http://mywiki.wooledge.org/BashFAQ/105
+set -x
 
-set -ex
+cargo fmt --all -- --check || exit 1
+cargo test --features "$FEATURES" || exit 1
+cargo clippy --features "$FEATURES" || exit 1
 
-cargo fmt --all -- --check
-cargo test --features $FEATURES
-cargo clippy --features $FEATURES
-
-for example in examples/*; do
-    tox -e py --workdir $example
+for example_dir in examples/*; do
+    tox -c "$example_dir/tox.ini" -e py || exit 1
 done
