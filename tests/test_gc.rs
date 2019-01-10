@@ -186,8 +186,11 @@ struct GCIntegration2 {}
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
+    // Temporarily disable pythons garbage collector to avoid a race condition
+    py.run("import gc; gc.disable()", None, None).unwrap();
     let inst = Py::new_ref(py, || GCIntegration2 {}).unwrap();
-    py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
+    py_run!(py, inst, "assert inst in gc.get_objects()");
+    py.run("gc.enable()", None, None).unwrap();
 }
 
 #[pyclass(weakref)]
