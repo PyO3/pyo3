@@ -1,11 +1,10 @@
 #!/bin/bash
-
 set -ex
 
 cargo fmt --all -- --check
-cargo test --features $FEATURES
-cargo clippy --features $FEATURES
+cargo test --features "$FEATURES"
+cargo clippy --features "$FEATURES"
 
-for example in examples/*; do
-    tox -e py --workdir $example
+for example_dir in examples/*; do
+    tox -c "$example_dir/tox.ini" -e py
 done
