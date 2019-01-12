@@ -52,7 +52,26 @@ where
 impl<T> GenericSquarer<T>
 where
     T: std::ops::Mul<Output = T> + Copy + 'static,
+    // #[pyclass] only implements `PyTypeInfo` for the given variants,
+    // so we need this constraint below.
+    GenericSquarer<T>: pyo3::typeob::PyTypeInfo,
 {
+    #[new]
+    fn __new__(obj: &PyRawObject, val: T) -> PyResult<()> {
+        obj.init(|| Self { val })
+    }
+
+    #[getter]
+    fn get_val(&self) -> PyResult<T> {
+        Ok(self.val)
+    }
+
+    #[setter]
+    fn set_val(&mut self, value: T) -> PyResult<()> {
+        self.val = value;
+        Ok(())
+    }
+
     fn square(&self) -> PyResult<T> {
         Ok(self.val * self.val)
     }
@@ -64,10 +83,43 @@ fn generic_squarer() {
     let py = gil.python();
 
     let u64_squarer = py.init(|| GenericSquarer { val: 42u64 }).unwrap();
-    py_assert!(py, u64_squarer, "type(u64_squarer).__name__ == 'GenericSquarerU64'");
+    py_assert!(
+        py,
+        u64_squarer,
+        "type(u64_squarer).__name__ == 'GenericSquarerU64'"
+    );
     py_assert!(py, u64_squarer, "u64_squarer.square() == 42 ** 2");
 
     let f64_squarer = py.init(|| GenericSquarer { val: 42f64 }).unwrap();
-    py_assert!(py, f64_squarer, "type(f64_squarer).__name__ == 'GenericSquarerF64'");
+    py_assert!(
+        py,
+        f64_squarer,
+        "type(f64_squarer).__name__ == 'GenericSquarerF64'"
+    );
     py_assert!(py, f64_squarer, "f64_squarer.square() == 42. ** 2.");
+}
+
+#[test]
+fn generic_squarer_getter_setter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let u64_squarer = py.init(|| GenericSquarer { val: 1337u64 }).unwrap();
+    py_assert!(py, u64_squarer, "u64_squarer.val == 1337");
+    py_run!(py, u64_squarer, "u64_squarer.val = 42");
+    py_assert!(py, u64_squarer, "u64_squarer.val == 42");
+    py_assert!(py, u64_squarer, "u64_squarer.square() == 42 ** 2");
+}
+
+#[test]
+fn generic_squarer_pynew() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let u64_squarer_ty = py.get_type::<GenericSquarer<u64>>();
+    py_assert!(
+        py,
+        u64_squarer_ty,
+        "u64_squarer_ty(111).square() == 111 ** 2"
+    );
 }
