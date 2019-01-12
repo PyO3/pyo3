@@ -10,13 +10,13 @@ use utils;
 pub fn gen_py_method<'a>(
     cls: &syn::Type,
     name: &syn::Ident,
-    sig: &mut syn::MethodSig,
-    meth_attrs: &mut Vec<syn::Attribute>,
+    sig: &syn::MethodSig,
+    meth_attrs: &Vec<syn::Attribute>,
+    spec: &FnSpec,
 ) -> TokenStream {
     check_generic(name, sig);
 
     let doc = utils::get_doc(&meth_attrs, true);
-    let spec = FnSpec::parse(name, sig, meth_attrs);
 
     macro_rules! make_py_method_def {
         ($def_type:ident, $meth_type:ident, $flags:expr, $wrapper:expr $(,)*) => {{

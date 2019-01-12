@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use method::FnSpec;
 use proc_macro2::TokenStream;
 use py_method;
 use syn;
@@ -34,6 +35,18 @@ pub fn impl_methods(
     } else {
         vec![syn::PathArguments::None]
     };
+
+    // Parse method info.
+    let untouched_impls = impls.clone();
+    let fn_specs: Vec<_> = impls
+        .iter_mut()
+        .filter_map(|x| match x {
+            syn::ImplItem::Method(meth) => {
+                Some(FnSpec::parse(&meth.sig.ident, &meth.sig, &mut meth.attrs))
+            }
+            _ => None,
+        })
+        .collect();
 
     // Emit one `PyMethodsProtocolImpl` impl for each variant.
     let impls = variants.into_iter().map(|variant_args| {
@@ -74,14 +87,14 @@ pub fn impl_methods(
 
         // Generate wrappers for Python methods.
         let mut methods = Vec::new();
-        for iimpl in impls.iter_mut() {
-            if let syn::ImplItem::Method(ref mut meth) = iimpl {
-                let name = meth.sig.ident.clone();
+        for (iimpl, fn_spec) in untouched_impls.iter().zip(&fn_specs) {
+            if let syn::ImplItem::Method(meth) = iimpl {
                 methods.push(py_method::gen_py_method(
                     &variant_ty,
-                    &name,
-                    &mut meth.sig,
-                    &mut meth.attrs,
+                    &meth.sig.ident,
+                    &meth.sig,
+                    &meth.attrs,
+                    fn_spec,
                 ));
             }
         }
