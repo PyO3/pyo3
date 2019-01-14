@@ -20,7 +20,7 @@ codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 
 [dependencies]
 libc = "0.2.43"
-spin = "0.4.9"
+spin = "0.5.0"
 num-traits = "0.2.6"
 pyo3cls = { path = "pyo3cls", version = "=0.6.0-alpha.1" }
 mashup = "0.1.9"
