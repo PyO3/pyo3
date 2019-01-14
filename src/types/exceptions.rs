@@ -171,9 +171,9 @@ macro_rules! create_exception {
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name;
 
-        impl_exception_boilerplate!($name);
+        $crate::impl_exception_boilerplate!($name);
 
-        create_exception_type_object!($module, $name, $base);
+        $crate::create_exception_type_object!($module, $name, $base);
     };
 }
 
