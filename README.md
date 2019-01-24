@@ -27,6 +27,18 @@ E.g. if you are on Ubuntu18.04, please run
 sudo apt install python3-dev python-dev
 ```
 
+### Cross Compiling
+
+Cross compiling Pyo3 modules requires setting the following environment
+variables:
+
+- `PYO3_XC`: This variable must be set to indicate a cross compilation
+   environment. The value does not matter.
+- `PYO3_XC_PYTHON_INCLUDE_DIR`: This variable must be set to the directory
+   containing the headers for the target's python interpreter.
+- `PYO3_XC_PYTHON_LIB_DIR`: This variable must be set to the directory
+   containing the target's libpython DSO.
+
 ## Using rust from python
 
 Pyo3 can be used to generate a native python module.
