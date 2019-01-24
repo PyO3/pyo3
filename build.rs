@@ -3,8 +3,12 @@ extern crate version_check;
 
 use regex::Regex;
 use std::collections::HashMap;
+use std::convert::AsRef;
 use std::env;
 use std::fmt;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 use version_check::{is_min_date, is_min_version, supports_features};
@@ -74,11 +78,99 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
     "Py_UNICODE_SIZE", // note - not present on python 3.3+, which is always wide
 ];
 
+/// Attempts to parse the header at the given path, returning a map of definitions to their values.
+/// Each entry in the map directly corresponds to a `#define` in the given header.
+fn parse_header_defines<P: AsRef<Path>>(
+    pyconfig_path: P,
+) -> Result<HashMap<String, String>, String> {
+    let define_regex =
+        Regex::new(r"^\s*#define\s+(?P<ident>[a-zA-Z0-9_]+)\s+(?P<value>.+)\s*$").unwrap();
+
+    let header_file = File::open(pyconfig_path).map_err(|e| e.to_string())?;
+    let header_reader = BufReader::new(&header_file);
+
+    let definitions = header_reader
+        .lines()
+        .filter_map(|maybe_line| {
+            let line = if let Ok(l) = maybe_line {
+                l
+            } else {
+                return None;
+            };
+            let captures = if let Some(c) = define_regex.captures(&line) {
+                c
+            } else {
+                return None;
+            };
+
+            if captures.name("ident").is_some() && captures.name("value").is_some() {
+                Some((
+                    captures.name("ident").unwrap().as_str().to_owned(),
+                    captures.name("value").unwrap().as_str().to_owned(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(definitions)
+}
+
+fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, String> {
+    if let Some("1") = config_map.get("Py_DEBUG").as_ref().map(|s| s.as_str()) {
+        config_map.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
+        config_map.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
+        config_map.insert("COUNT_ALLOCS".to_owned(), "1".to_owned());
+    }
+
+    config_map
+}
+
+fn load_cross_compile_info() -> Result<(PythonVersion, HashMap<String, String>, Vec<String>), String>
+{
+    let python_include_dir =
+        env::var("PYO3_XC_PYTHON_INCLUDE_DIR").expect("PYO3_XC_PYTHON_INCLUDE_DIR must be defined");
+    let python_include_dir = Path::new(&python_include_dir);
+
+    let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
+
+    let major = patchlevel_defines
+        .get("PY_MAJOR_VERSION")
+        .and_then(|major| major.parse::<u8>().ok())
+        .expect("PY_MAJOR_VERSION undefined");
+
+    let minor = patchlevel_defines
+        .get("PY_MINOR_VERSION")
+        .and_then(|minor| minor.parse::<u8>().ok())
+        .expect("PY_MINOR_VERSION undefined");
+
+    let python_version = PythonVersion {
+        major,
+        minor: Some(minor),
+    };
+
+    let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
+
+    let config_lines = vec![
+        "".to_owned(), // compatibility, not used when cross compiling.
+        env::var("PYO3_XC_PYTHON_LIB_DIR").expect("PYO3_XC_PYTHON_LIB_DIR must be defined"),
+        config_map
+            .get("Py_ENABLE_SHARED")
+            .expect("Py_ENABLE_SHARED undefined")
+            .to_owned(),
+        format!("{}.{}", major, minor),
+        "".to_owned(), // compatibility, not used when cross compiling.
+    ];
+
+    Ok((python_version, fix_config_map(config_map), config_lines))
+}
+
 /// Examine python's compile flags to pass to cfg by launching
 /// the interpreter and printing variables of interest from
 /// sysconfig.get_config_vars.
 #[cfg(not(target_os = "windows"))]
-fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, String> {
+fn get_config_vars(python_path: &str) -> Result<HashMap<String, String>, String> {
     // FIXME: We can do much better here using serde:
     // import json, sysconfig; print(json.dumps({k:str(v) for k, v in sysconfig.get_config_vars().items()}))
 
@@ -103,7 +195,7 @@ fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, Stri
         ));
     }
     let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
-    let mut all_vars = all_vars.zip(split_stdout.iter()).fold(
+    let all_vars = all_vars.zip(split_stdout.iter()).fold(
         HashMap::new(),
         |mut memo: HashMap<String, String>, (&k, &v)| {
             if !(v.to_owned() == "None" && is_value(k)) {
@@ -113,18 +205,11 @@ fn get_config_vars(python_path: &String) -> Result<HashMap<String, String>, Stri
         },
     );
 
-    let debug = Some(&"1".to_string()) == all_vars.get("Py_DEBUG");
-    if debug {
-        all_vars.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
-        all_vars.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
-        all_vars.insert("COUNT_ALLOCS".to_owned(), "1".to_owned());
-    }
-
-    Ok(all_vars)
+    Ok(fix_config_map(all_vars))
 }
 
 #[cfg(target_os = "windows")]
-fn get_config_vars(_: &String) -> Result<HashMap<String, String>, String> {
+fn get_config_vars(_: &str) -> Result<HashMap<String, String>, String> {
     // sysconfig is missing all the flags on windows, so we can't actually
     // query the interpreter directly for its build flags.
     //
@@ -267,7 +352,8 @@ fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<Strin
 /// 4. `python{major version}.{minor version}`
 ///
 /// If none of the above works, an error is returned
-fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<String>), String> {
+fn find_interpreter_and_get_config(
+) -> Result<(PythonVersion, HashMap<String, String>, Vec<String>), String> {
     let version = version_from_env();
 
     if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
@@ -284,7 +370,11 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
                 interpreter_version
             );
         } else {
-            return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+            return Ok((
+                interpreter_version,
+                fix_config_map(get_config_vars(interpreter_path)?),
+                lines,
+            ));
         }
     };
 
@@ -297,7 +387,11 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
     let interpreter_path = "python";
     let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
     if expected_version == interpreter_version {
-        return Ok((interpreter_version, interpreter_path.to_owned(), lines));
+        return Ok((
+            interpreter_version,
+            fix_config_map(get_config_vars(interpreter_path)?),
+            lines,
+        ));
     }
 
     let major_interpreter_path = &format!("python{}", expected_version.major);
@@ -305,7 +399,7 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
     if expected_version == interpreter_version {
         return Ok((
             interpreter_version,
-            major_interpreter_path.to_owned(),
+            fix_config_map(get_config_vars(major_interpreter_path)?),
             lines,
         ));
     }
@@ -316,7 +410,7 @@ fn find_interpreter_and_get_config() -> Result<(PythonVersion, String, Vec<Strin
         if expected_version == interpreter_version {
             return Ok((
                 interpreter_version,
-                minor_interpreter_path.to_owned(),
+                fix_config_map(get_config_vars(minor_interpreter_path)?),
                 lines,
             ));
         }
@@ -463,19 +557,25 @@ fn check_rustc_version() {
 
 fn main() {
     check_rustc_version();
-    // 1. Setup cfg variables so we can do conditional compilation in this
-    // library based on the python interpeter's compilation flags. This is
-    // necessary for e.g. matching the right unicode and threading interfaces.
-    //
-    // This locates the python interpreter based on the PATH, which should
-    // work smoothly with an activated virtualenv.
+    // 1. Setup cfg variables so we can do conditional compilation in this library based on the
+    // python interpeter's compilation flags. This is necessary for e.g. matching the right unicode
+    // and threading interfaces.  First check if we're cross compiling, if so, we cannot run the
+    // target Python interpreter and have to parse pyconfig.h instead. If we're not cross
+    // compiling, locate the python interpreter based on the PATH, which should work smoothly with
+    // an activated virtualenv, and load from there.
     //
     // If you have troubles with your shell accepting '.' in a var name,
     // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
-    let (interpreter_version, interpreter_path, lines) = find_interpreter_and_get_config().unwrap();
+    let cross_compiling = env::var("PYO3_XC").is_ok();
+    let (interpreter_version, mut config_map, lines) = if cross_compiling {
+        load_cross_compile_info()
+    } else {
+        find_interpreter_and_get_config()
+    }
+    .unwrap();
+
     let flags = configure(&interpreter_version, lines).unwrap();
-    let mut config_map = get_config_vars(&interpreter_path).unwrap();
 
     // WITH_THREAD is always on for 3.7
     if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {
