@@ -45,7 +45,7 @@ pub fn parse_fn_args<'p>(
 ) -> PyResult<()> {
     let nargs = args.len();
     let nkeywords = kwargs.map_or(0, |d| d.len());
-    if !accept_args && (nargs + nkeywords > params.len()) {
+    if !accept_args && !accept_kwargs && (nargs + nkeywords > params.len()) {
         return Err(TypeError::py_err(format!(
             "{}{} takes at most {} argument{} ({} given)",
             fname.unwrap_or("function"),
