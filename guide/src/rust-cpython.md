@@ -6,7 +6,7 @@ This chapter is based on the discussion in [PyO3/pyo3#55](https://github.com/PyO
 
 ## Macros
 
-While rust-cpython has a macro based dsl for declaring modules and classes, pyo3 use proc macros and spezialization. Pyo3 also doesn't change your struct and functions so you can still use them as normal rust functions. The disadvantage is that proc macros and spezialization currently only work on nightly.
+While rust-cpython has a macro based dsl for declaring modules and classes, pyo3 use proc macros and specialization. Pyo3 also doesn't change your struct and functions so you can still use them as normal rust functions. The disadvantage is that proc macros and specialization currently only work on nightly.
 
 **rust-cpython**
 
