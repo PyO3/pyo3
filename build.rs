@@ -124,8 +124,7 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
 
 fn load_cross_compile_info() -> Result<(PythonVersion, HashMap<String, String>, Vec<String>), String>
 {
-    let python_include_dir =
-        env::var("PYO3_XC_PYTHON_INCLUDE_DIR").expect("PYO3_XC_PYTHON_INCLUDE_DIR must be defined");
+    let python_include_dir = env::var("PYO3_CROSS_INCLUDE_DIR").unwrap();
     let python_include_dir = Path::new(&python_include_dir);
 
     let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
@@ -149,7 +148,7 @@ fn load_cross_compile_info() -> Result<(PythonVersion, HashMap<String, String>, 
 
     let config_lines = vec![
         "".to_owned(), // compatibility, not used when cross compiling.
-        env::var("PYO3_XC_PYTHON_LIB_DIR").expect("PYO3_XC_PYTHON_LIB_DIR must be defined"),
+        env::var("PYO3_CROSS_LIB_DIR").unwrap(),
         config_map
             .get("Py_ENABLE_SHARED")
             .expect("Py_ENABLE_SHARED undefined")
@@ -562,7 +561,8 @@ fn main() {
     // If you have troubles with your shell accepting '.' in a var name,
     // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
-    let cross_compiling = env::var("PYO3_XC").is_ok();
+    let cross_compiling =
+        env::var("PYO3_CROSS_INCLUDE_DIR").is_ok() && env::var("PYO3_CROSS_LIB_DIR").is_ok();
     let (interpreter_version, mut config_map, lines) = if cross_compiling {
         load_cross_compile_info()
     } else {
