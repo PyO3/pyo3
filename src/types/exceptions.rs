@@ -51,21 +51,27 @@ macro_rules! impl_exception_boilerplate {
 ///
 /// # Example
 /// ```
-/// #[macro_use] extern crate pyo3;
+///extern crate pyo3;
 ///
-/// use pyo3::Python;
-/// use pyo3::types::PyDict;
+///use pyo3::import_exception;
+///use pyo3::types::PyDict;
+///use pyo3::Python;
+///import_exception!(socket, gaierror);
 ///
-/// import_exception!(socket, gaierror);
+///fn main() {
+///    let gil = Python::acquire_gil();
+///    let py = gil.python();
+///    let ctx = PyDict::new(py);
 ///
-/// fn main() {
-///     let gil = Python::acquire_gil();
-///     let py = gil.python();
-///     let ctx = PyDict::new(py);
+///    ctx.set_item("gaierror", py.get_type::<gaierror>()).unwrap();
+///    py.run(
+///        "import socket; assert gaierror is socket.gaierror",
+///        None,
+///        Some(ctx),
+///    )
+///    .unwrap();
+///}
 ///
-///     ctx.set_item("gaierror", py.get_type::<gaierror>()).unwrap();
-///     py.run("import socket; assert gaierror is socket.gaierror", None, Some(ctx)).unwrap();
-/// }
 /// ```
 #[macro_export]
 macro_rules! import_exception {
@@ -73,9 +79,9 @@ macro_rules! import_exception {
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name;
 
-        impl_exception_boilerplate!($name);
+        $crate::impl_exception_boilerplate!($name);
 
-        import_exception_type_object!($module, $name);
+        $crate::import_exception_type_object!($module, $name);
     };
 }
 
