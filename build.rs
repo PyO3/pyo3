@@ -83,6 +83,9 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
 fn parse_header_defines<P: AsRef<Path>>(
     pyconfig_path: P,
 ) -> Result<HashMap<String, String>, String> {
+    // This regex picks apart a C style, single line `#define` statement into an identifier and a
+    // value. e.g. for the line `#define Py_DEBUG 1`, this regex will capture `Py_DEBUG` into
+    // `ident` and `1` into `value`.
     let define_regex =
         Regex::new(r"^\s*#define\s+(?P<ident>[a-zA-Z0-9_]+)\s+(?P<value>.+)\s*$").unwrap();
 
