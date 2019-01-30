@@ -37,3 +37,28 @@ On linux/mac you might have to change `LD_LIBRARY_PATH` to include libpython, wh
 ## Distribution
 
 There are two ways to distribute your module as python package: The old [setuptools-rust](https://github.com/PyO3/setuptools-rust) and the new [pyo3-pack](https://github.com/pyo3/pyo3-pack). setuptools-rust needs some configuration files (`setup.py`,  `MANIFEST.in`, `build-wheels.sh`, etc.) and external tools (docker, twine). pyo3-pack doesn't need any configuration files. It can not yet build sdist though ([pyo3/pyo3-pack#2](https://github.com/PyO3/pyo3-pack/issues/2)).
+
+## Cross Compiling
+
+Cross compiling Pyo3 modules is relatively straightforward and requires a few pieces of software:
+
+* A toolchain for your target.
+* The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.
+* A Python interpreter that's already been compiled for your target.
+* The headers that match the above interpreter.
+
+See https://github.com/japaric/rust-cross for a primer on cross compiling Rust in general.
+
+After you've obtained the above, you can build a cross compiled Pyo3 module by setting a few extra environment variables:
+
+* `PYO3_CROSS_INCLUDE_DIR`: This variable must be set to the directory containing the headers for the target's python interpreter.
+* `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO.
+
+An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):
+
+```sh
+export PYO3_CROSS_INCLUDE_DIR="/home/pyo3/cross/sysroot/usr/include"
+export PYO3_CROSS_LIB_DIR="/home/pyo3/cross/sysroot/usr/lib"
+
+cargo build --target armv7-unknown-linux-gnueabihf
+```
