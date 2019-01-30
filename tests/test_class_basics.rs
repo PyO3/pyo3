@@ -66,11 +66,14 @@ fn empty_class_in_module() {
         ty.getattr("__name__").unwrap().extract::<String>().unwrap(),
         "EmptyClassInModule"
     );
+    // Rationale: The class can be added to many modules, but will only be initialized once.
+    // We currently have no way of determining a canonical module, so builtins is better
+    // than using whatever calls init first.
     assert_eq!(
         ty.getattr("__module__")
             .unwrap()
             .extract::<String>()
             .unwrap(),
-        "test_module.nested"
+        "builtins"
     );
 }

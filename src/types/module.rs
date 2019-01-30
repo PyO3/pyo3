@@ -9,13 +9,11 @@ use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};
-use crate::typeob::{initialize_type, PyTypeInfo};
-use crate::types::{exceptions, PyDict, PyObjectRef, PyType};
-use crate::PyObjectAlloc;
-use class::methods::PyMethodsProtocol;
+use crate::types::{exceptions, PyDict, PyObjectRef};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
+use typeob::PyTypeCreate;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
@@ -151,23 +149,9 @@ impl PyModule {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()>
     where
-        T: PyTypeInfo + PyObjectAlloc + PyMethodsProtocol,
+        T: PyTypeCreate,
     {
-        let ty = unsafe {
-            let ty = <T as PyTypeInfo>::type_object();
-
-            if ((*ty).tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-                PyType::new::<T>()
-            } else {
-                // automatically initialize the class
-                initialize_type::<T>(self.py(), Some(self.name()?)).unwrap_or_else(|_| {
-                    panic!("An error occurred while initializing class {}", T::NAME)
-                });
-                PyType::new::<T>()
-            }
-        };
-
-        self.setattr(T::NAME, ty)
+        self.setattr(T::NAME, <T as PyTypeCreate>::type_object())
     }
 
     /// Adds a function or a (sub)module to a module, using the functions __name__ as name.

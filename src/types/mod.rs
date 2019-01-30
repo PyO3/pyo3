@@ -127,14 +127,6 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
-        // We currently need to fulfill this trait bound for PyTypeCreate, even though we know
-        // that the function will never actuall be called
-        impl<$($type_param,)*> $crate::class::methods::PyMethodsProtocol for $name {
-            fn py_methods() -> Vec<&'static $crate::class::methods::PyMethodDefType> {
-                unreachable!();
-            }
-        }
-
         impl<$($type_param,)*> $crate::typeob::PyObjectAlloc for $name {}
 
         impl<$($type_param,)*> $crate::typeob::PyTypeCreate for $name {

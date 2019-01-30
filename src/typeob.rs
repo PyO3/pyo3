@@ -197,11 +197,8 @@ pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObj
 ///
 /// All native types and all `#[pyclass]` types use the default functions, while
 /// [PyObjectWithFreeList](crate::freelist::PyObjectWithFreeList) gets a special version.
-pub trait PyObjectAlloc: PyTypeInfo + PyMethodsProtocol + Sized {
+pub trait PyObjectAlloc: PyTypeInfo + Sized {
     unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
-        // TODO: remove this
-        <Self as PyTypeCreate>::init_type();
-
         let tp_ptr = Self::type_object();
         let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
         let obj = alloc(tp_ptr, 0);
@@ -259,21 +256,8 @@ pub trait PyTypeObject {
 
 /// Python object types that have a corresponding type object and be
 /// instanciated with [Self::create()]
-pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + Sized {
-    #[inline]
-    fn init_type() {
-        let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
-
-        if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
-            // automatically initialize the class on-demand
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-
-            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
-                panic!("An error occurred while initializing class {}", Self::NAME)
-            });
-        }
-    }
+pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
+    fn init_type();
 
     #[inline]
     fn type_object() -> Py<PyType> {
@@ -298,7 +282,25 @@ pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + Sized {
     }
 }
 
-impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol {}
+impl<T> PyTypeCreate for T
+where
+    T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
+{
+    #[inline]
+    fn init_type() {
+        let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
+
+        if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
+            // automatically initialize the class on-demand
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+
+            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
+                panic!("An error occurred while initializing class {}", Self::NAME)
+            });
+        }
+    }
+}
 
 impl<T> PyTypeObject for T
 where
@@ -314,8 +316,10 @@ where
 }
 
 /// Register new type in python object system.
+///
+/// Currently, module_name is always None, so it defaults to builtins.
 #[cfg(not(Py_LIMITED_API))]
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<()>
+pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
 where
     T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
 {
@@ -432,7 +436,7 @@ where
     // register type object
     unsafe {
         if ffi::PyType_Ready(type_object) == 0 {
-            Ok(())
+            Ok(type_object as *mut ffi::PyTypeObject)
         } else {
             PyErr::fetch(py).into()
         }
