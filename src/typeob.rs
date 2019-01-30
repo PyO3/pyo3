@@ -10,6 +10,7 @@ use crate::python::{IntoPyPointer, Python};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
 use crate::{class, ffi, pythonrun};
+use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::os::raw::c_void;
@@ -196,7 +197,7 @@ pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObj
 ///
 /// All native types and all `#[pyclass]` types use the default functions, while
 /// [PyObjectWithFreeList](crate::freelist::PyObjectWithFreeList) gets a special version.
-pub trait PyObjectAlloc: PyTypeInfo + Sized {
+pub trait PyObjectAlloc: PyTypeInfo + PyMethodsProtocol + Sized {
     unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         // TODO: remove this
         <Self as PyTypeCreate>::init_type();
@@ -258,7 +259,7 @@ pub trait PyTypeObject {
 
 /// Python object types that have a corresponding type object and be
 /// instanciated with [Self::create()]
-pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
+pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + Sized {
     #[inline]
     fn init_type() {
         let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
@@ -297,7 +298,7 @@ pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
     }
 }
 
-impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeInfo + Sized {}
+impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol {}
 
 impl<T> PyTypeObject for T
 where
@@ -316,7 +317,7 @@ where
 #[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<()>
 where
-    T: PyObjectAlloc + PyTypeInfo,
+    T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
 {
     // type name
     let name = match module_name {
@@ -493,7 +494,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
-fn py_class_method_defs<T>() -> PyResult<(
+fn py_class_method_defs<T: PyMethodsProtocol>() -> PyResult<(
     Option<ffi::newfunc>,
     Option<ffi::initproc>,
     Option<ffi::PyCFunctionWithKeywords>,
@@ -504,7 +505,7 @@ fn py_class_method_defs<T>() -> PyResult<(
     let mut new = None;
     let mut init = None;
 
-    for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
+    for def in T::py_methods() {
         match *def {
             PyMethodDefType::New(ref def) => {
                 if let class::methods::PyMethodType::PyNewFunc(meth) = def.ml_meth {
@@ -565,13 +566,10 @@ fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
 #[cfg(not(Py_3))]
 fn py_class_async_methods<T>(_defs: &mut Vec<ffi::PyMethodDef>) {}
 
-fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
+fn py_class_properties<T: PyMethodsProtocol>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();
 
-    for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods()
-        .iter()
-        .chain(<T as class::methods::PyPropMethodsProtocolImpl>::py_methods().iter())
-    {
+    for def in T::py_methods() {
         match *def {
             PyMethodDefType::Getter(ref getter) => {
                 let name = getter.name.to_string();

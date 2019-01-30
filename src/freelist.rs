@@ -6,6 +6,7 @@ use crate::err::PyResult;
 use crate::ffi;
 use crate::python::Python;
 use crate::typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use class::methods::PyMethodsProtocol;
 use std::mem;
 use std::os::raw::c_void;
 
@@ -70,7 +71,7 @@ impl<T> FreeList<T> {
 
 impl<T> PyObjectAlloc for T
 where
-    T: PyObjectWithFreeList,
+    T: PyObjectWithFreeList + PyMethodsProtocol,
 {
     unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
         let obj = if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().pop() {

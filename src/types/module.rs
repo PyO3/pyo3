@@ -12,6 +12,7 @@ use crate::python::{Python, ToPyPointer};
 use crate::typeob::{initialize_type, PyTypeInfo};
 use crate::types::{exceptions, PyDict, PyObjectRef, PyType};
 use crate::PyObjectAlloc;
+use class::methods::PyMethodsProtocol;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -150,7 +151,7 @@ impl PyModule {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()>
     where
-        T: PyTypeInfo + PyObjectAlloc,
+        T: PyTypeInfo + PyObjectAlloc + PyMethodsProtocol,
     {
         let ty = unsafe {
             let ty = <T as PyTypeInfo>::type_object();

@@ -556,3 +556,13 @@ impl PyIterProtocol for MyIterator {
     }
 }
 ```
+
+## Manually implementing pyclass
+
+TODO: Which traits to implement (basically `PyTypeCreate: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + Sized`) and what they mean.
+
+## How methods are implemented
+
+Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while pyo3 needs a trait with a function that returns all methods. Since it's impossible make the code generation in pyclass dependent on whether there is an impl block, we'd need to make to implement the trait on `#[pyclass]` and override the implementation in `#[pymethods]`, which is to my best knowledge only possible with the specialization feature, which is can't be used on stable.
+
+To escape this we use [inventory](https://github.com/dtolnay/inventory), which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class::impl_inventory` for more details.
