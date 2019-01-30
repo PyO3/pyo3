@@ -19,7 +19,7 @@ matrix:
 
 env:
   global:
-    - TRAVIS_RUST_VERSION=nightly
+    - TRAVIS_RUST_VERSION=nightly-2019-01-12
     - RUST_BACKTRACE=1
 
 addons:
