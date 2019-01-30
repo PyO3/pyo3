@@ -80,31 +80,23 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
 
 /// Attempts to parse the header at the given path, returning a map of definitions to their values.
 /// Each entry in the map directly corresponds to a `#define` in the given header.
-fn parse_header_defines<P: AsRef<Path>>(
-    pyconfig_path: P,
-) -> Result<HashMap<String, String>, String> {
+fn parse_header_defines<P: AsRef<Path>>(header_path: P) -> Result<HashMap<String, String>, String> {
     // This regex picks apart a C style, single line `#define` statement into an identifier and a
     // value. e.g. for the line `#define Py_DEBUG 1`, this regex will capture `Py_DEBUG` into
     // `ident` and `1` into `value`.
     let define_regex =
         Regex::new(r"^\s*#define\s+(?P<ident>[a-zA-Z0-9_]+)\s+(?P<value>.+)\s*$").unwrap();
 
-    let header_file = File::open(pyconfig_path).map_err(|e| e.to_string())?;
+    let header_file = File::open(header_path.as_ref()).map_err(|e| e.to_string())?;
     let header_reader = BufReader::new(&header_file);
 
     let definitions = header_reader
         .lines()
         .filter_map(|maybe_line| {
-            let line = if let Ok(l) = maybe_line {
-                l
-            } else {
-                return None;
-            };
-            let captures = if let Some(c) = define_regex.captures(&line) {
-                c
-            } else {
-                return None;
-            };
+            let line = maybe_line.unwrap_or_else(|err| {
+                panic!("failed to read {}: {}", header_path.as_ref().display(), err);
+            });
+            let captures = define_regex.captures(&line)?;
 
             if captures.name("ident").is_some() && captures.name("value").is_some() {
                 Some((
