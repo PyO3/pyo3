@@ -1,5 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
@@ -12,6 +11,7 @@ use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
 use std::mem;
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 /// Any instance that is managed Python can have access to `gil`.
@@ -24,6 +24,72 @@ pub trait PyObjectWithGIL: Sized {
 
 #[doc(hidden)]
 pub trait PyNativeType: PyObjectWithGIL {}
+
+#[derive(Debug)]
+pub struct PyRef<'a, T> {
+    inner: &'a T,
+}
+
+impl<'a, T> PyRef<'a, T> {
+    pub(crate) fn new(t: &'a T) -> Self {
+        PyRef { inner: t }
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyPointer for PyRef<'a, T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        unsafe { (self.inner as *const _ as *mut u8).offset(-T::OFFSET) as *mut _ }
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyObject for PyRef<'a, T> {
+    fn to_object(&self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<'a, T> Deref for PyRef<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.inner
+    }
+}
+
+#[derive(Debug)]
+pub struct PyRefMut<'a, T> {
+    inner: &'a mut T,
+}
+
+impl<'a, T> PyRefMut<'a, T> {
+    pub(crate) fn new(t: &'a mut T) -> Self {
+        PyRefMut { inner: t }
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyPointer for PyRefMut<'a, T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        unsafe { (self.inner as *const _ as *mut u8).offset(-T::OFFSET) as *mut _ }
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyObject for PyRefMut<'a, T> {
+    fn to_object(&self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<'a, T> Deref for PyRefMut<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.inner
+    }
+}
+
+impl<'a, T> DerefMut for PyRefMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.inner
+    }
+}
 
 /// Trait implements object reference extraction from python managed pointer.
 pub trait AsPyRef<T>: Sized {
@@ -184,7 +250,7 @@ where
 
     /// Create new instance of `T` and move it under python management.
     /// Returns references to `T`
-    pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
+    pub fn new_ref<F>(py: Python, f: F) -> PyResult<PyRef<T>>
     where
         F: FnOnce() -> T,
         T: PyTypeObject + PyTypeInfo,
@@ -192,12 +258,12 @@ where
         let ob = <T as PyTypeCreate>::create(py)?;
         ob.init(f)?;
 
-        unsafe { Ok(py.from_owned_ptr(ob.into_ptr())) }
+        unsafe { Ok(PyRef::new(py.from_owned_ptr(ob.into_ptr()))) }
     }
 
     /// Create new instance of `T` and move it under python management.
     /// Returns mutable references to `T`
-    pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
+    pub fn new_mut<F>(py: Python, f: F) -> PyResult<PyRefMut<T>>
     where
         F: FnOnce() -> T,
         T: PyTypeObject + PyTypeInfo,
@@ -205,7 +271,7 @@ where
         let ob = <T as PyTypeCreate>::create(py)?;
         ob.init(f)?;
 
-        unsafe { Ok(py.mut_from_owned_ptr(ob.into_ptr())) }
+        unsafe { Ok(PyRefMut::new(py.mut_from_owned_ptr(ob.into_ptr()))) }
     }
 }
 

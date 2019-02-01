@@ -357,6 +357,8 @@ impl<T: IntoPyObject> ReturnTypeIntoPyResult for PyResult<T> {
     }
 }
 
+
+
 #[cfg(test)]
 mod test {
     use super::PyTryFrom;

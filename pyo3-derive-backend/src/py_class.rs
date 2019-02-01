@@ -210,6 +210,7 @@ fn impl_class(
             }
         }
 
+<<<<<<< HEAD
         impl ::pyo3::ToPyObject for #cls {
             fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
                 use ::pyo3::python::ToPyPointer;
@@ -235,6 +236,8 @@ fn impl_class(
 
         #inventory_impl
 
+=======
+>>>>>>> Remove ToPyPointer and so on from pyclass
         #extra
     }
 }

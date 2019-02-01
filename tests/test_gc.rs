@@ -165,7 +165,7 @@ fn gc_integration() {
         })
         .unwrap();
 
-        *inst.self_ref.borrow_mut() = inst.into();
+        *inst.self_ref.borrow_mut() = inst.to_object(py);
     }
 
     let gil = Python::acquire_gil();
@@ -262,7 +262,7 @@ fn inheritance_with_new_methods_with_drop() {
         obj.data = Some(Arc::clone(&drop_called1));
 
         let base: &mut <SubClassWithDrop as pyo3::PyTypeInfo>::BaseType =
-            unsafe { py.mut_from_borrowed_ptr(obj.as_ptr()) };
+            unsafe { py.mut_from_borrowed_ptr(inst.as_ptr()) };
         base.data = Some(Arc::clone(&drop_called2));
     }
 
