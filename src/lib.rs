@@ -55,8 +55,6 @@
 //! **`src/lib.rs`**
 //!
 //! ```rust
-//! #![feature(specialization)]
-//!
 //! use pyo3::prelude::*;
 //! use pyo3::wrap_pyfunction;
 //!
@@ -101,8 +99,6 @@
 //! Example program displaying the value of `sys.version`:
 //!
 //! ```rust
-//! #![feature(specialization)]
-//!
 //! use pyo3::prelude::*;
 //! use pyo3::types::PyDict;
 //!
@@ -146,12 +142,12 @@ pub use crate::pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GIL
 pub use crate::typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 pub use crate::types::exceptions;
 
-// We need those types in the macro exports
-#[doc(hidden)]
-pub use libc;
 // We need that reexport for wrap_function
 #[doc(hidden)]
 pub use mashup;
+// We need that reexport for pymethods
+#[doc(hidden)]
+pub use inventory;
 
 /// Rust FFI declarations for Python
 pub mod ffi;
@@ -207,7 +203,7 @@ pub mod proc_macro {
 macro_rules! wrap_pyfunction {
     ($function_name:ident) => {{
         // Get the mashup macro and its helpers into scope
-        use mashup::*;
+        use pyo3::mashup::*;
 
         mashup! {
             // Make sure this ident matches the one in function_wrapper_ident
@@ -227,7 +223,7 @@ macro_rules! wrap_pyfunction {
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
-        use mashup::*;
+        use pyo3::mashup::*;
 
         mashup! {
             m["method"] = PyInit_ $module_name;

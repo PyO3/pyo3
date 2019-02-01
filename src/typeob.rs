@@ -2,6 +2,12 @@
 
 //! Python type object information
 
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::os::raw::c_void;
+
+use class::methods::PyMethodsProtocol;
+
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyObjectWithGIL};
@@ -10,10 +16,6 @@ use crate::python::{IntoPyPointer, Python};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
 use crate::{class, ffi, pythonrun};
-use class::methods::PyMethodsProtocol;
-use std::collections::HashMap;
-use std::ffi::CString;
-use std::os::raw::c_void;
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -72,8 +74,6 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 ///
 /// Example of custom class implementation with `__new__` method:
 /// ```
-/// #![feature(specialization)]
-///
 /// use pyo3::prelude::*;
 ///
 /// #[pyclass]
@@ -295,7 +295,7 @@ where
             let gil = Python::acquire_gil();
             let py = gil.python();
 
-            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
+            initialize_type::<Self>(py).unwrap_or_else(|_| {
                 panic!("An error occurred while initializing class {}", Self::NAME)
             });
         }
@@ -317,26 +317,19 @@ where
 
 /// Register new type in python object system.
 ///
-/// Currently, module_name is always None, so it defaults to builtins.
+/// Currently, module_name is always None, so it defaults to pyo3_extension
 #[cfg(not(Py_LIMITED_API))]
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
+pub fn initialize_type<T>(py: Python) -> PyResult<*mut ffi::PyTypeObject>
 where
     T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
 {
-    // type name
-    let name = match module_name {
-        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME)),
-        None => CString::new(T::NAME),
-    };
-    let name = name
-        .expect("Module name/type name must not contain NUL byte")
-        .into_raw();
+    let type_name = CString::new(T::NAME).expect("class name must not contain NUL byte");
 
-    let type_object: &mut ffi::PyTypeObject = unsafe { &mut *T::type_object() };
+    let type_object: &mut ffi::PyTypeObject = unsafe { T::type_object() };
     let base_type_object: &mut ffi::PyTypeObject =
-        unsafe { &mut *<T::BaseType as PyTypeInfo>::type_object() };
+        unsafe { <T::BaseType as PyTypeInfo>::type_object() };
 
-    type_object.tp_name = name;
+    type_object.tp_name = type_name.into_raw();
     type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
     type_object.tp_base = base_type_object;
 

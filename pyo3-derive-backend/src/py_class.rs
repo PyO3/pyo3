@@ -326,8 +326,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
         #(#methods)*
 
         ::pyo3::inventory::submit! {
-            #![crate = pyo3]
-            {
+            #![crate = pyo3] {
                 type ClsInventory = <#cls as ::pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;
                 <ClsInventory as ::pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }

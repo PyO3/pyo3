@@ -9,11 +9,11 @@ use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};
+use crate::typeob::PyTypeCreate;
 use crate::types::{exceptions, PyDict, PyObjectRef};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
-use typeob::PyTypeCreate;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
