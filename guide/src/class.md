@@ -5,7 +5,6 @@
 To define python custom class, rust struct needs to be annotated with `#[pyclass]` attribute.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -42,11 +41,8 @@ To declare a constructor, you need to define a class method and annotate it with
 attribute. Only the python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
-# #![feature(specialization)]
-#
 # use pyo3::prelude::*;
 # use pyo3::PyRawObject;
-
 #[pyclass]
 struct MyClass {
    num: i32,
@@ -86,7 +82,6 @@ By default `PyObject` is used as default base class. To override default base cl
 with value of custom class struct. Subclass must call parent's `__new__` method.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # use pyo3::PyRawObject;
 #[pyclass]
@@ -136,7 +131,6 @@ Descriptor methods can be defined in
 attributes. i.e.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -161,7 +155,6 @@ Descriptor name becomes function name with prefix removed. This is useful in cas
 rust's special keywords like `type`.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -190,7 +183,6 @@ Also both `#[getter]` and `#[setter]` attributes accepts one parameter.
 If parameter is specified, it is used and property name. i.e.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -218,7 +210,6 @@ In this case property `number` is defined. And it is available from python code 
 For simple cases you can also define getters and setters in your Rust struct field definition, for example:
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -237,7 +228,6 @@ wrappers for all functions in this block with some variations, like descriptors,
 class method static methods, etc.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -265,7 +255,6 @@ The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject
 get injected by method wrapper. i.e
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -289,7 +278,6 @@ To specify class method for custom class, method needs to be annotated
 with`#[classmethod]` attribute.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -321,7 +309,6 @@ with `#[staticmethod]` attribute. The return type must be `PyResult<T>`
 for some `T` that implements `IntoPyObject`.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -344,7 +331,6 @@ To specify custom `__call__` method for custom class, call method needs to be an
 with `#[call]` attribute. Arguments of the method are specified same as for instance method.
 
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -387,7 +373,6 @@ Each parameter could one of following type:
 
 Example:
 ```rust
-# #![feature(specialization)]
 # use pyo3::prelude::*;
 #
 # #[pyclass]
@@ -556,3 +541,13 @@ impl PyIterProtocol for MyIterator {
     }
 }
 ```
+
+## Manually implementing pyclass
+
+TODO: Which traits to implement (basically `PyTypeCreate: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + Sized`) and what they mean.
+
+## How methods are implemented
+
+Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while pyo3 needs a trait with a function that returns all methods. Since it's impossible make the code generation in pyclass dependent on whether there is an impl block, we'd need to make to implement the trait on `#[pyclass]` and override the implementation in `#[pymethods]`, which is to my best knowledge only possible with the specialization feature, which is can't be used on stable.
+
+To escape this we use [inventory](https://github.com/dtolnay/inventory), which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class::impl_inventory` for more details.

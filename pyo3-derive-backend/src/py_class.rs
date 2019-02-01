@@ -63,6 +63,40 @@ fn parse_descriptors(item: &mut syn::Field) -> Vec<FnType> {
     descs
 }
 
+/// The orphan rule disallows using a generic inventory struct, so we create the whole boilerplate
+/// once per class
+fn impl_inventory(cls: &syn::Ident) -> TokenStream {
+    // Try to build a unique type that gives a hint about it's function when
+    // it comes up in error messages
+    let name = cls.to_string() + "GeneratedPyo3Inventory";
+    let inventory_cls = syn::Ident::new(&name, Span::call_site());
+
+    quote! {
+        #[doc(hidden)]
+        pub struct #inventory_cls {
+            methods: &'static [::pyo3::class::PyMethodDefType],
+        }
+
+        impl ::pyo3::class::methods::PyMethodsInventory for #inventory_cls {
+            fn new(methods: &'static [::pyo3::class::PyMethodDefType]) -> Self {
+                Self {
+                    methods
+                }
+            }
+
+            fn get_methods(&self) -> &'static [::pyo3::class::PyMethodDefType] {
+                self.methods
+            }
+        }
+
+        impl ::pyo3::class::methods::PyMethodsInventoryDispatch for #cls {
+            type InventoryType = #inventory_cls;
+        }
+
+        ::pyo3::inventory::collect!(#inventory_cls);
+    }
+}
+
 fn impl_class(
     cls: &syn::Ident,
     base: &syn::TypePath,
@@ -136,6 +170,8 @@ fn impl_class(
         quote! {0}
     };
 
+    let inventory_impl = impl_inventory(&cls);
+
     quote! {
         impl ::pyo3::typeob::PyTypeInfo for #cls {
             type Type = #cls;
@@ -196,6 +232,8 @@ fn impl_class(
                 unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
             }
         }
+
+        #inventory_impl
 
         #extra
     }
@@ -287,12 +325,10 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
     quote! {
         #(#methods)*
 
-        impl ::pyo3::class::methods::PyPropMethodsProtocolImpl for #cls {
-            fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
-                static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
-                    #(#py_methods),*
-                ];
-                METHODS
+        ::pyo3::inventory::submit! {
+            #![crate = pyo3] {
+                type ClsInventory = <#cls as ::pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;
+                <ClsInventory as ::pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }
         }
     }

@@ -2,6 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
+use super::PyObjectRef;
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{Py, PyObjectWithGIL};
@@ -13,8 +14,6 @@ use crate::types::exceptions;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
-
-use super::PyObjectRef;
 
 /// Represents a Python `string`.
 #[repr(transparent)]

@@ -31,12 +31,10 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
     }
 
     quote! {
-        impl ::pyo3::class::methods::PyMethodsProtocolImpl for #ty {
-            fn py_methods() -> &'static [::pyo3::class::PyMethodDefType] {
-                static METHODS: &'static [::pyo3::class::PyMethodDefType] = &[
-                    #(#methods),*
-                ];
-                METHODS
+       ::pyo3::inventory::submit! {
+            #![crate = pyo3] {
+                type TyInventory = <#ty as ::pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;
+                <TyInventory as ::pyo3::class::methods::PyMethodsInventory>::new(&[#(#methods),*])
             }
         }
     }
