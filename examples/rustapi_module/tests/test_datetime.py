@@ -296,4 +296,4 @@ def test_tz_class_introspection():
     tzi = rdt.TzClass()
 
     assert tzi.__class__ == rdt.TzClass
-    assert repr(tzi).startswith("<rustapi_module.datetime.TzClass object at")
+    assert repr(tzi).startswith("<TzClass object at")

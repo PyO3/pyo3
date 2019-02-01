@@ -4,7 +4,11 @@ test:
 	cargo test
 	cargo clippy
 	tox
-	for example in examples/*; do tox -e py --workdir $$example; done
+	for example in examples/*; do tox -e py -c $$example/tox.ini; done
+
+test_py3:
+	tox -e py3
+	for example in examples/*; do tox -e py3 -c $$example/tox.ini; done
 
 publish:
 	cargo test
