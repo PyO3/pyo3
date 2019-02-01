@@ -2,11 +2,6 @@
 
 //! Python type object information
 
-use std;
-use std::collections::HashMap;
-use std::ffi::CString;
-use std::os::raw::c_void;
-
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyObjectWithGIL};
@@ -15,6 +10,9 @@ use crate::python::{IntoPyPointer, Python};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
 use crate::{class, ffi, pythonrun};
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::os::raw::c_void;
 
 /// Python type information.
 pub trait PyTypeInfo {

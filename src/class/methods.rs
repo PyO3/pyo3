@@ -2,7 +2,6 @@
 
 use crate::ffi;
 use libc::c_int;
-use std;
 use std::ffi::CString;
 
 /// `PyMethodDefType` represents different types of python callable objects.

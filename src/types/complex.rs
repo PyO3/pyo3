@@ -116,13 +116,13 @@ impl<'py> Neg for &'py PyComplex {
 
 #[cfg(feature = "num-complex")]
 mod complex_conversion {
-    extern crate num_complex;
-    use self::num_complex::Complex;
     use super::*;
-    use conversion::{FromPyObject, IntoPyObject, ToPyObject};
-    use err::PyErr;
-    use types::PyObjectRef;
-    use PyResult;
+    use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
+    use crate::err::PyErr;
+    use crate::types::PyObjectRef;
+    use crate::PyResult;
+    use num_complex::Complex;
+
     impl PyComplex {
         /// Creates a new Python `PyComplex` object from num_complex::Complex.
         pub fn from_complex<'py, F: Into<c_double>>(
@@ -153,6 +153,7 @@ mod complex_conversion {
                 }
             }
             #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+            #[allow(clippy::float_cmp)] // The comparison is for an error value
             impl<'source> FromPyObject<'source> for Complex<$float> {
                 fn extract(obj: &'source PyObjectRef) -> PyResult<Complex<$float>> {
                     unsafe {
@@ -166,6 +167,7 @@ mod complex_conversion {
                 }
             }
             #[cfg(all(Py_LIMITED_API, Py_3))]
+            #[allow(clippy::float_cmp)] // The comparison is for an error value
             impl<'source> FromPyObject<'source> for Complex<$float> {
                 fn extract(obj: &'source PyObjectRef) -> PyResult<Complex<$float>> {
                     unsafe {
@@ -214,6 +216,8 @@ mod complex_conversion {
 mod test {
     use super::PyComplex;
     use crate::python::Python;
+    use assert_approx_eq::assert_approx_eq;
+
     #[test]
     fn test_from_double() {
         let gil = Python::acquire_gil();

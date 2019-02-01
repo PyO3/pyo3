@@ -1,8 +1,5 @@
 #![feature(specialization)]
 
-#[macro_use]
-extern crate pyo3;
-
 use pyo3::prelude::*;
 
 #[cfg(Py_3)]
@@ -32,6 +29,8 @@ fn double(x: usize) -> usize {
 #[pymodule]
 #[cfg(Py_3)]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+    use pyo3::{wrap_pyfunction, wrap_pymodule};
+
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
         let out = sum_as_string(a, b);
@@ -47,8 +46,8 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar").unwrap();
 
-    m.add_wrapped(wrap_function!(double)).unwrap();
-    m.add("also_double", wrap_function!(double)(py)).unwrap();
+    m.add_wrapped(wrap_pyfunction!(double)).unwrap();
+    m.add("also_double", wrap_pyfunction!(double)(py)).unwrap();
 
     Ok(())
 }
@@ -56,13 +55,15 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 #[test]
 #[cfg(Py_3)]
 fn test_module_with_functions() {
+    use pyo3::wrap_pymodule;
+
     let gil = Python::acquire_gil();
     let py = gil.python();
 
     let d = PyDict::new(py);
     d.set_item(
         "module_with_functions",
-        wrap_module!(module_with_functions)(py),
+        wrap_pymodule!(module_with_functions)(py),
     )
     .unwrap();
 
@@ -141,16 +142,20 @@ fn r#move() -> usize {
 #[pymodule]
 #[cfg(Py_3)]
 fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(r#move))
+    use pyo3::wrap_pyfunction;
+
+    module.add_wrapped(wrap_pyfunction!(r#move))
 }
 
 #[test]
 #[cfg(Py_3)]
 fn test_raw_idents() {
+    use pyo3::wrap_pymodule;
+
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let module = wrap_module!(raw_ident_module)(py);
+    let module = wrap_pymodule!(raw_ident_module)(py);
 
     py_assert!(py, module, "module.move() == 42");
 }
@@ -164,7 +169,9 @@ fn subfunction() -> String {
 #[cfg(Py_3)]
 #[pymodule]
 fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(subfunction))?;
+    use pyo3::wrap_pyfunction;
+
+    module.add_wrapped(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
@@ -177,17 +184,21 @@ fn superfunction() -> String {
 #[cfg(Py_3)]
 #[pymodule]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(superfunction))?;
-    module.add_wrapped(wrap_module!(submodule))?;
+    use pyo3::{wrap_pyfunction, wrap_pymodule};
+
+    module.add_wrapped(wrap_pyfunction!(superfunction))?;
+    module.add_wrapped(wrap_pymodule!(submodule))?;
     Ok(())
 }
 
 #[test]
 #[cfg(Py_3)]
 fn test_module_nesting() {
+    use pyo3::wrap_pymodule;
+
     let gil = GILGuard::acquire();
     let py = gil.python();
-    let supermodule = wrap_module!(supermodule)(py);
+    let supermodule = wrap_pymodule!(supermodule)(py);
 
     py_assert!(
         py,

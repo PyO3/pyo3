@@ -1,11 +1,5 @@
 #![feature(specialization)]
 
-extern crate pyo3;
-
-use std::cell::RefCell;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-
 use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
@@ -15,6 +9,9 @@ use pyo3::python::ToPyPointer;
 use pyo3::types::PyObjectRef;
 use pyo3::types::PyTuple;
 use pyo3::PyRawObject;
+use std::cell::RefCell;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[macro_use]
 mod common;

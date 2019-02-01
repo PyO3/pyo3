@@ -1,5 +1,5 @@
-use ffi2::object::*;
-use ffi2::pyport::Py_ssize_t;
+use crate::ffi2::object::*;
+use crate::ffi2::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[repr(C)]
@@ -95,5 +95,5 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
-    ::ffi2::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
+    crate::ffi2::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }

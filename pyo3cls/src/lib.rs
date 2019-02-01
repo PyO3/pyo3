@@ -2,26 +2,18 @@
 //! This crate declares only the proc macro attributes, as a crate defining proc macro attributes
 //! must not contain any other public items.
 
-#![recursion_limit = "1024"]
-
 extern crate proc_macro;
-extern crate proc_macro2;
-extern crate pyo3_derive_backend;
-#[macro_use]
-extern crate quote;
-#[macro_use]
-extern crate syn;
-
+use proc_macro::TokenStream;
 use proc_macro2::Span;
-use pyo3_derive_backend::*;
+use pyo3_derive_backend::{module, py_class, py_impl, py_proto, utils};
+use quote::quote;
+use syn;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
+use syn::Token;
 
 #[proc_macro_attribute]
-pub fn pymodule2(
-    attr: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn pymodule2(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodule] must be used on a function");
 
@@ -46,10 +38,7 @@ pub fn pymodule2(
 }
 
 #[proc_macro_attribute]
-pub fn pymodule3(
-    attr: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn pymodule3(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[pymodule] must be used on a `fn` block");
 
@@ -74,10 +63,7 @@ pub fn pymodule3(
 }
 
 #[proc_macro_attribute]
-pub fn pyproto(
-    _: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn pyproto(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemImpl =
         syn::parse(input).expect("#[pyproto] must be used on an `impl` block");
@@ -93,10 +79,7 @@ pub fn pyproto(
 }
 
 #[proc_macro_attribute]
-pub fn pyclass(
-    attr: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn pyclass(attr: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemStruct =
         syn::parse(input).expect("#[pyclass] must be used on a `struct`");
@@ -121,10 +104,7 @@ pub fn pyclass(
 }
 
 #[proc_macro_attribute]
-pub fn pymethods(
-    _: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
     // Parse the token stream into a syntax tree
     let mut ast: syn::ItemImpl =
         syn::parse(input.clone()).expect("#[pymethods] must be used on an `impl` block");
@@ -140,10 +120,7 @@ pub fn pymethods(
 }
 
 #[proc_macro_attribute]
-pub fn pyfunction(
-    _: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn pyfunction(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast: syn::ItemFn = syn::parse(input).expect("#[function] must be used on a `fn` block");
 
     // Workaround for https://github.com/dtolnay/syn/issues/478

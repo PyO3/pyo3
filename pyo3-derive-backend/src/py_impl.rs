@@ -1,7 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use crate::py_method;
 use proc_macro2::TokenStream;
-use py_method;
+use quote::quote;
 use syn;
 
 pub fn build_py_methods(ast: &mut syn::ItemImpl) -> TokenStream {

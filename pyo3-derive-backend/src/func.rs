@@ -1,7 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::utils::print_err;
 use proc_macro2::{Span, TokenStream};
+use quote::quote;
 use syn;
-use utils::print_err;
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -87,7 +88,7 @@ pub fn impl_method_proto(
                 let p: syn::Path = syn::parse_str(proto).unwrap();
                 let (ty, succ) = get_res_success(ty);
 
-                let tmp: syn::ItemFn = parse_quote! {
+                let tmp: syn::ItemFn = syn::parse_quote! {
                     fn test(&self) -> <#cls as #p<'p>>::Result {}
                 };
                 sig.decl.output = tmp.decl.output;
@@ -124,11 +125,11 @@ pub fn impl_method_proto(
                 let arg_ty = get_arg_ty(sig, 1);
                 let (ty, succ) = get_res_success(ty);
 
-                let tmp = extract_decl(parse_quote! {
+                let tmp = extract_decl(syn::parse_quote! {
                     fn test(&self,arg: <#cls as #p<'p>>::#arg_name)-> <#cls as #p<'p>>::Result {}
                 });
 
-                let tmp2 = extract_decl(parse_quote! {
+                let tmp2 = extract_decl(syn::parse_quote! {
                     fn test( &self, arg: Option<<#cls as #p<'p>>::#arg_name>) -> <#cls as #p<'p>>::Result {}
                 });
 
@@ -171,11 +172,11 @@ pub fn impl_method_proto(
                 let (ty, succ) = get_res_success(ty);
 
                 // rewrite ty
-                let tmp = extract_decl(parse_quote! {fn test(
+                let tmp = extract_decl(syn::parse_quote! {fn test(
                 arg1: <#cls as #p<'p>>::#arg1_name,
                 arg2: <#cls as #p<'p>>::#arg2_name)
                     -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(parse_quote! {fn test(
+                let tmp2 = extract_decl(syn::parse_quote! {fn test(
                 arg1: Option<<#cls as #p<'p>>::#arg1_name>,
                 arg2: Option<<#cls as #p<'p>>::#arg2_name>)
                     -> <#cls as #p<'p>>::Result {}});
@@ -220,12 +221,12 @@ pub fn impl_method_proto(
                 let (ty, succ) = get_res_success(ty);
 
                 // rewrite ty
-                let tmp = extract_decl(parse_quote! {fn test(
+                let tmp = extract_decl(syn::parse_quote! {fn test(
                 &self,
                 arg1: <#cls as #p<'p>>::#arg1_name,
                 arg2: <#cls as #p<'p>>::#arg2_name)
                     -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(parse_quote! {fn test(
+                let tmp2 = extract_decl(syn::parse_quote! {fn test(
                 &self,
                 arg1: Option<<#cls as #p<'p>>::#arg1_name>,
                 arg2: Option<<#cls as #p<'p>>::#arg2_name>)
@@ -275,12 +276,12 @@ pub fn impl_method_proto(
                 let (ty, succ) = get_res_success(ty);
 
                 // rewrite ty
-                let tmp = extract_decl(parse_quote! {fn test(
+                let tmp = extract_decl(syn::parse_quote! {fn test(
                 arg1: <#cls as #p<'p>>::#arg1_name,
                 arg2: <#cls as #p<'p>>::#arg2_name,
                 arg3: <#cls as #p<'p>>::#arg3_name)
                     -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(parse_quote! {fn test(
+                let tmp2 = extract_decl(syn::parse_quote! {fn test(
                 arg1: Option<<#cls as #p<'p>>::#arg1_name>,
                 arg2: Option<<#cls as #p<'p>>::#arg2_name>,
                 arg3: Option<<#cls as #p<'p>>::#arg3_name>)
@@ -331,13 +332,13 @@ pub fn impl_method_proto(
                 let (ty, succ) = get_res_success(ty);
 
                 // rewrite ty
-                let tmp = extract_decl(parse_quote! {fn test(
+                let tmp = extract_decl(syn::parse_quote! {fn test(
                 &self,
                 arg1: <#cls as #p<'p>>::#arg1_name,
                 arg2: <#cls as #p<'p>>::#arg2_name,
                 arg3: <#cls as #p<'p>>::#arg3_name)
                     -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(parse_quote! {fn test(
+                let tmp2 = extract_decl(syn::parse_quote! {fn test(
                 &self,
                 arg1: Option<<#cls as #p<'p>>::#arg1_name>,
                 arg2: Option<<#cls as #p<'p>>::#arg2_name>,
@@ -395,7 +396,7 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Type {
 
     // Add a lifetime if there is none
     if let syn::Type::Reference(ref mut r) = ty {
-        r.lifetime.get_or_insert(parse_quote! {'p});
+        r.lifetime.get_or_insert(syn::parse_quote! {'p});
     }
 
     ty
@@ -492,7 +493,7 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize, decl1: &syn::FnDecl, decl
 
 fn modify_self_ty(sig: &mut syn::MethodSig) {
     if let syn::FnArg::SelfRef(ref mut r) = sig.decl.inputs[0] {
-        r.lifetime = Some(parse_quote! {'p});
+        r.lifetime = Some(syn::parse_quote! {'p});
     } else {
         panic!("not supported")
     }

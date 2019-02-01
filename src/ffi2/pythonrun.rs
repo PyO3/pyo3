@@ -1,7 +1,7 @@
-use ffi2::code::*;
-use ffi2::object::*;
-use ffi2::pyarena::PyArena;
-use ffi2::pystate::PyThreadState;
+use crate::ffi2::code::*;
+use crate::ffi2::object::*;
+use crate::ffi2::pyarena::PyArena;
+use crate::ffi2::pystate::PyThreadState;
 use libc::{c_char, c_int, FILE};
 
 pub const PyCF_MASK: c_int = (CO_FUTURE_DIVISION

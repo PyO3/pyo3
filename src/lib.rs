@@ -2,7 +2,10 @@
 
 //! Rust bindings to the Python interpreter.
 //!
+//! Look at [the guide](https://pyo3.rs/) for a detailed introduction.
+//!
 //! # Ownership and Lifetimes
+//!
 //! In Python, all objects are implicitly reference counted.
 //! In rust, we will use the `PyObject` type to represent a reference to a Python object.
 //!
@@ -28,10 +31,77 @@
 //!
 //! # Example
 //!
+//! ## Using rust from python
+//!
+//! Pyo3 can be used to generate a native python module.
+//!
+//! **`Cargo.toml`**
+//!
+//! ```toml
+//! [package]
+//! name = "string-sum"
+//! version = "0.1.0"
+//! edition = "2018"
+//!
+//! [lib]
+//! name = "string_sum"
+//! crate-type = ["cdylib"]
+//!
+//! [dependencies.pyo3]
+//! version = "0.6.0-alpha.2"
+//! features = ["extension-module"]
+//! ```
+//!
+//! **`src/lib.rs`**
+//!
 //! ```rust
 //! #![feature(specialization)]
 //!
-//! extern crate pyo3;
+//! use pyo3::prelude::*;
+//! use pyo3::wrap_pyfunction;
+//!
+//! #[pyfunction]
+//! /// Formats the sum of two numbers as string
+//! fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
+//!     Ok((a + b).to_string())
+//! }
+//!
+//! /// This module is a python module implemented in Rust.
+//! #[pymodule]
+//! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
+//!     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! On windows and linux, you can build normally with `cargo build --release`. On macOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
+//!
+//! ```toml
+//! [target.x86_64-apple-darwin]
+//! rustflags = [
+//!   "-C", "link-arg=-undefined",
+//!   "-C", "link-arg=dynamic_lookup",
+//! ]
+//! ```
+//!
+//! For developing, you can copy and rename the shared library from the target folder: On macOS, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `string_sum.so`. Then open a python shell in the same folder and you'll be able to `import string_sum`.
+//!
+//! To build, test and publish your crate as python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
+//!
+//! ## Using python from rust
+//!
+//! Add `pyo3` this to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! pyo3 = "0.6.0-alpha.2"
+//! ```
+//!
+//! Example program displaying the value of `sys.version`:
+//!
+//! ```rust
+//! #![feature(specialization)]
 //!
 //! use pyo3::prelude::*;
 //! use pyo3::types::PyDict;
@@ -51,91 +121,15 @@
 //!     Ok(())
 //! }
 //! ```
-//!
-//! # Python extension
-//!
-//! To allow Python to load the rust code as a Python extension
-//! module, you need an initialization function with `Fn(Python, &PyModule) -> PyResult<()>`
-//! that is annotates with `#[pymodule]`. By default the function name will become the module name,
-//! but you can override that with `#[pymodule(name)]`.
-//!
-//! To creates a Python callable object that invokes a Rust function, specify rust
-//! function and decorate it with `#[pyfn()]` attribute. `pyfn()` accepts three parameters.
-//!
-//! 1. `m`: The module name.
-//! 2. name of function visible to Python code.
-//! 3. comma separated arguments, i.e. param="None", "*", param3="55"
-//!
-//!
-//! # Example
-//!
-//! ```rust
-//! #![feature(specialization)]
-//!
-//! extern crate pyo3;
-//! use pyo3::prelude::*;
-//!
-//! // Add bindings to the generated python module
-//! // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-//! /// This module is implemented in Rust.
-//! #[pymodule]
-//! fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
-//!
-//!     #[pyfn(m, "sum_as_string")]
-//!     // ``#[pyfn()]` converts the arguments from Python objects to Rust values
-//!     // and the Rust return value back into a Python object.
-//!     fn sum_as_string_py(a:i64, b:i64) -> PyResult<String> {
-//!        let out = sum_as_string(a, b);
-//!        Ok(out)
-//!     }
-//!
-//!     Ok(())
-//! }
-//!
-//! // The logic can be implemented as a normal rust function
-//! fn sum_as_string(a:i64, b:i64) -> String {
-//!     format!("{}", a + b).to_string()
-//! }
-//!
-//! # fn main() {}
-//! ```
-//!
-//! In your `Cargo.toml`, use the `extension-module` feature for the `pyo3` dependency:
-//!
-//! ```cargo
-//! [dependencies.pyo3]
-//! version = "*"
-//! features = ["extension-module"]
-//! ```
-//!
-//! On windows and linux, you can build normally with `cargo build --release`. On Mac Os, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
-//!
-//! ```toml
-//! [target.x86_64-apple-darwin]
-//! rustflags = [
-//!   "-C", "link-arg=-undefined",
-//!   "-C", "link-arg=dynamic_lookup",
-//! ]
-//! ```
-//!
-//! Also on macOS, you will need to rename the output from \*.dylib to \*.so. On Windows, you will need to rename the output from \*.dll to \*.pyd.
-//!
-//! [`setuptools-rust`](https://github.com/PyO3/setuptools-rust) can be used to generate a python package and includes the commands above by default. See [examples/word-count](examples/word-count) and the associated setup.py.
 
-#[cfg(test)]
-#[macro_use]
-extern crate assert_approx_eq;
-#[cfg(test)]
-#[macro_use]
-extern crate indoc;
-// We need those types in the macro exports
-#[doc(hidden)]
-pub extern crate libc;
-// We need that reexport for wrap_function
-#[doc(hidden)]
-pub extern crate mashup;
-extern crate pyo3cls;
-extern crate spin;
+//pub extern crate libc;
+//pub extern crate mashup;
+//extern crate pyo3cls;
+//extern crate num_traits;
+//extern crate spin;
+//extern crate indoc;
+//#[macro_use]
+//extern crate assert_approx_eq;
 
 pub use crate::class::*;
 pub use crate::conversion::{
@@ -151,6 +145,13 @@ pub use crate::python::{IntoPyPointer, Python, ToPyPointer};
 pub use crate::pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
 pub use crate::typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 pub use crate::types::exceptions;
+
+// We need those types in the macro exports
+#[doc(hidden)]
+pub use libc;
+// We need that reexport for wrap_function
+#[doc(hidden)]
+pub use mashup;
 
 /// Rust FFI declarations for Python
 pub mod ffi;
@@ -203,7 +204,7 @@ pub mod proc_macro {
 ///
 /// Use this together with `#[pyfunction]` and [types::PyModule::add_wrapped].
 #[macro_export]
-macro_rules! wrap_function {
+macro_rules! wrap_pyfunction {
     ($function_name:ident) => {{
         // Get the mashup macro and its helpers into scope
         use $crate::mashup::*;
@@ -224,7 +225,7 @@ macro_rules! wrap_function {
 /// Use this together with `#[pymodule]` and [types::PyModule::add_wrapped].
 #[cfg(Py_3)]
 #[macro_export]
-macro_rules! wrap_module {
+macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
         use $crate::mashup::*;
 

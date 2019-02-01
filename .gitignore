@@ -14,7 +14,7 @@ dist/
 .eggs/
 venv*
 guide/book/
-examples/*/py
+examples/*/py*
 
 *.so
 *.out

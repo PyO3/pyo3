@@ -22,7 +22,6 @@ pub use crate::pythonrun::GILGuard;
 pub use crate::types::PyModule;
 // This is required for the constructor
 pub use crate::PyRawObject;
-
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 
 #[cfg(Py_3)]

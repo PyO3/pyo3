@@ -8,13 +8,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added a `wrap_module!` macro similar to the existing `wrap_function!` macro. Only available on python 3
+ * Added a `wrap_pymodule!` macro similar to the existing `wrap_pyfunction!` macro. Only available on python 3
+ * Added support for cross compiling (e.g. to arm v7) by mtp401 in [#327](https://github.com/PyO3/pyo3/pull/327). See the "Cross Compiling" section in the "Building and Distribution" chapter of the guide for more details.
 
 ### Changed
 
  * Renamed `add_function` to `add_wrapped` as it now also supports modules.
  * Renamed `#[pymodinit]` to `#[pymodule]`.
  * Renamed `py_exception` to `create_exception` and refactored the error macros.
+ * Renamed `wrap_function!` to `wrap_pyfunction!`
+ * Migrated to the 2018 edition
 
 ### Removed
 

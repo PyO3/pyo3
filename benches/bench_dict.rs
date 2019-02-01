@@ -1,9 +1,9 @@
 #![feature(test)]
-extern crate pyo3;
-extern crate test;
-use test::Bencher;
 
-use pyo3::{prelude::*, types::IntoPyDict};
+extern crate test;
+use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
+use test::Bencher;
 
 #[bench]
 fn iter_dict(b: &mut Bencher) {

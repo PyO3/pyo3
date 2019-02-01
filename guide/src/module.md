@@ -3,10 +3,7 @@
 As shown in the Getting Started chapter, you can create a module as follows:
 
 ```rust
-#![feature(proc_macro)]
-
-extern crate pyo3;
-use pyo3::{PyResult, Python, PyModule};
+use pyo3::prelude::*;
 
 // add bindings to the generated python module
 // N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
@@ -62,20 +59,20 @@ fn subfunction() -> String {
 
 #[pymodule]
 fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(subfunction))?;
+    module.add_wrapped(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
 #[pymodule]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_module!(submodule))?;
+    module.add_wrapped(wrap_pymodule!(submodule))?;
     Ok(())
 }
 
 fn nested_call() {
     let gil = GILGuard::acquire();
     let py = gil.python();
-    let supermodule = wrap_module!(supermodule)(py);
+    let supermodule = wrap_pymodule!(supermodule)(py);
     ctx.set_item("supermodule", supermodule);
 
     py.run("assert supermodule.submodule.subfuntion() == 'Subfunction'", None, Some(&ctx)).unwrap();

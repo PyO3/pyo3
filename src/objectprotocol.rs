@@ -9,7 +9,6 @@ use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::typeob::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
-use std;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 

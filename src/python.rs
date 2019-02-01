@@ -11,7 +11,6 @@ use crate::pythonrun::{self, GILGuard};
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
-use std;
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -293,6 +292,7 @@ impl<'p> Python<'p> {
         }
     }
 
+    #[allow(clippy::cast_ref_to_mut)] // FIXME
     unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyObjectRef) -> &'p mut T {
         if T::OFFSET == 0 {
             &mut *(ob as *const _ as *mut T)
@@ -307,10 +307,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        let p;
-        unsafe {
-            p = pythonrun::register_owned(self, obj.into_nonnull());
-        }
+        let p = unsafe { pythonrun::register_owned(self, obj.into_nonnull()) };
         <T as PyTryFrom>::try_from(p)
     }
 

@@ -1,5 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use func::MethodProto;
+use crate::func::MethodProto;
 
 pub struct Proto {
     pub name: &'static str,

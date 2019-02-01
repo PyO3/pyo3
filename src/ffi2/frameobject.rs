@@ -1,7 +1,7 @@
-use ffi2::code::{PyCodeObject, CO_MAXBLOCKS};
-use ffi2::object::*;
-use ffi2::pyport::Py_ssize_t;
-use ffi2::pystate::PyThreadState;
+use crate::ffi2::code::{PyCodeObject, CO_MAXBLOCKS};
+use crate::ffi2::object::*;
+use crate::ffi2::pyport::Py_ssize_t;
+use crate::ffi2::pystate::PyThreadState;
 use std::os::raw::c_int;
 
 #[repr(C)]

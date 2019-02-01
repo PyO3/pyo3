@@ -1,6 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
 use std::ptr::NonNull;
 
 use crate::conversion::{
@@ -18,7 +17,7 @@ use crate::types::{PyDict, PyObjectRef, PyTuple};
 /// The python object's lifetime is managed by python's garbage
 /// collector.
 ///
-/// Technically, it is a safe wrapper around the unsafe `*mut ffi::PyObject` pointer.
+/// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>`.
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct PyObject(NonNull<ffi::PyObject>);
@@ -258,11 +257,11 @@ impl PyObject {
 impl AsPyRef<PyObjectRef> for PyObject {
     #[inline]
     fn as_ref(&self, _py: Python) -> &PyObjectRef {
-        unsafe { &*(self as *const _ as *mut PyObjectRef) }
+        unsafe { &*(self as *const _ as *const PyObjectRef) }
     }
     #[inline]
     fn as_mut(&mut self, _py: Python) -> &mut PyObjectRef {
-        unsafe { &mut *(self as *const _ as *mut PyObjectRef) }
+        unsafe { &mut *(self as *mut _ as *mut PyObjectRef) }
     }
 }
 

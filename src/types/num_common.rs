@@ -105,8 +105,6 @@ pub(super) const IS_LITTLE_ENDIAN: c_int = 0;
 
 #[cfg(test)]
 mod test {
-    use std;
-
     use crate::conversion::ToPyObject;
     use crate::python::Python;
 

@@ -1,5 +1,5 @@
-use ffi2::frameobject::PyFrameObject;
-use ffi2::object::PyObject;
+use crate::ffi2::frameobject::PyFrameObject;
+use crate::ffi2::object::PyObject;
 use std::os::raw::{c_int, c_long};
 
 pub enum PyInterpreterState {}

@@ -1,10 +1,8 @@
 #![feature(specialization)]
 
-#[macro_use]
-extern crate pyo3;
-
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::wrap_pyfunction;
 use std::isize;
 
 #[macro_use]
@@ -63,6 +61,6 @@ fn return_custom_class() {
     assert_eq!(get_zero().unwrap().value, 0);
 
     // Using from python
-    let get_zero = wrap_function!(get_zero)(py);
+    let get_zero = wrap_pyfunction!(get_zero)(py);
     py_assert!(py, get_zero, "get_zero().value == 0");
 }

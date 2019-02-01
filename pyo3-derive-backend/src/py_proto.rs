@@ -1,10 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use defs;
-use func::impl_method_proto;
-use method::FnSpec;
+use crate::defs;
+use crate::func::impl_method_proto;
+use crate::method::FnSpec;
+use crate::py_method;
 use proc_macro2::TokenStream;
-use py_method;
+use quote::quote;
 use quote::ToTokens;
 use syn;
 
@@ -32,9 +33,9 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> TokenStream {
 
         // attach lifetime
         let mut seg = path.segments.pop().unwrap().into_value();
-        seg.arguments = syn::PathArguments::AngleBracketed(parse_quote! {<'p>});
+        seg.arguments = syn::PathArguments::AngleBracketed(syn::parse_quote! {<'p>});
         path.segments.push(seg);
-        ast.generics.params = parse_quote! {'p};
+        ast.generics.params = syn::parse_quote! {'p};
 
         tokens
     } else {
