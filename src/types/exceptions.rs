@@ -348,7 +348,7 @@ impl UnicodeDecodeError {
         reason: &CStr,
     ) -> PyResult<&'p PyObjectRef> {
         unsafe {
-            let input: &[c_char] = &*(input as *const [u8] as *const [i8]);
+            let input: &[c_char] = &*(input as *const [u8] as *const [c_char]);
             py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
                 input.as_ptr(),
