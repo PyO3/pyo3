@@ -207,7 +207,7 @@ pub mod proc_macro {
 macro_rules! wrap_pyfunction {
     ($function_name:ident) => {{
         // Get the mashup macro and its helpers into scope
-        use $crate::mashup::*;
+        use mashup::*;
 
         mashup! {
             // Make sure this ident matches the one in function_wrapper_ident
@@ -227,7 +227,7 @@ macro_rules! wrap_pyfunction {
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
-        use $crate::mashup::*;
+        use mashup::*;
 
         mashup! {
             m["method"] = PyInit_ $module_name;
