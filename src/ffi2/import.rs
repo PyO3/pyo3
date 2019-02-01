@@ -1,4 +1,4 @@
-use ffi2::object::*;
+use crate::ffi2::object::*;
 use std::os::raw::{c_char, c_int, c_long, c_uchar};
 
 #[repr(C)]

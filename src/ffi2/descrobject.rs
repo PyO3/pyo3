@@ -1,6 +1,6 @@
-use ffi2::methodobject::PyMethodDef;
-use ffi2::object::{PyObject, PyTypeObject, Py_TYPE};
-use ffi2::structmember::PyMemberDef;
+use crate::ffi2::methodobject::PyMethodDef;
+use crate::ffi2::object::{PyObject, PyTypeObject, Py_TYPE};
+use crate::ffi2::structmember::PyMemberDef;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 

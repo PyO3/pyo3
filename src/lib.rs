@@ -122,6 +122,15 @@
 //! }
 //! ```
 
+//pub extern crate libc;
+//pub extern crate mashup;
+//extern crate pyo3cls;
+//extern crate num_traits;
+//extern crate spin;
+//extern crate indoc;
+//#[macro_use]
+//extern crate assert_approx_eq;
+
 pub use crate::class::*;
 pub use crate::conversion::{
     FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,

@@ -2,17 +2,17 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use err::{PyErr, PyResult};
-use ffi;
-use instance::{Py, PyObjectWithGIL};
-use object::PyObject;
-use objectprotocol::ObjectProtocol;
-use python::IntoPyPointer;
-use python::{Python, ToPyPointer};
+use crate::err::{PyErr, PyResult};
+use crate::ffi;
+use crate::instance::{Py, PyObjectWithGIL};
+use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::python::IntoPyPointer;
+use crate::python::{Python, ToPyPointer};
+use crate::types::exceptions;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
-use types::exceptions;
 
 use super::PyObjectRef;
 
@@ -206,10 +206,10 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 mod test {
     use std::borrow::Cow;
 
-    use conversion::{FromPyObject, PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use object::PyObject;
-    use python::Python;
+    use crate::conversion::{FromPyObject, PyTryFrom, ToPyObject};
+    use crate::instance::AsPyRef;
+    use crate::object::PyObject;
+    use crate::python::Python;
 
     use super::PyString;
 

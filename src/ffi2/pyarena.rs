@@ -1,4 +1,4 @@
-use ffi2::object::PyObject;
+use crate::ffi2::object::PyObject;
 use libc::size_t;
 use std::os::raw::{c_int, c_void};
 
