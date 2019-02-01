@@ -663,7 +663,6 @@ mod test {
     use super::PyBuffer;
     use crate::ffi;
     use crate::python::Python;
-    use std;
 
     #[allow(unused_imports)]
     use crate::objectprotocol::ObjectProtocol;

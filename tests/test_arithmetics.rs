@@ -1,7 +1,5 @@
 #![feature(specialization)]
 
-extern crate pyo3;
-
 use pyo3::class::*;
 use pyo3::prelude::*;
 use pyo3::types::PyObjectRef;

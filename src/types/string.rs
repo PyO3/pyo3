@@ -1,10 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::borrow::Cow;
-use std::os::raw::c_char;
-use std::{mem, str};
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{Py, PyObjectWithGIL};
@@ -12,6 +7,9 @@ use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 use crate::types::exceptions;
 use crate::types::PyObjectRef;
+use std::borrow::Cow;
+use std::os::raw::c_char;
+use std::{mem, str};
 
 /// Represents a Python `string`.
 #[repr(transparent)]

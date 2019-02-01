@@ -2,9 +2,6 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-extern crate num_traits;
-
-use self::num_traits::cast::cast;
 use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use crate::err::{PyErr, PyResult};
@@ -13,6 +10,7 @@ use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 use crate::types::{exceptions, PyObjectRef};
+use num_traits::cast::cast;
 use std::i64;
 use std::os::raw::{c_long, c_uchar};
 

@@ -2,18 +2,15 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::os::raw::{c_long, c_uchar};
-
-extern crate num_traits;
-use self::num_traits::cast::cast;
-
 use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
 use conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithGIL};
+use num_traits::cast::cast;
 use object::PyObject;
 use python::{IntoPyPointer, Python, ToPyPointer};
+use std::os::raw::{c_long, c_uchar};
 use types::{exceptions, PyObjectRef};
 
 /// Represents a Python `int` object.

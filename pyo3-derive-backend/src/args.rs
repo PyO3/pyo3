@@ -1,4 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+
+use quote::quote;
 use syn;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -179,12 +181,12 @@ pub fn parse_arguments(items: &[syn::NestedMeta]) -> Vec<Argument> {
 #[cfg(test)]
 mod test {
 
-    use args::{parse_arguments, Argument};
+    use crate::args::{parse_arguments, Argument};
     use proc_macro2::TokenStream;
     use syn;
 
     fn items(s: TokenStream) -> Vec<syn::NestedMeta> {
-        let dummy: syn::ItemFn = parse_quote! {#s fn dummy() {}};
+        let dummy: syn::ItemFn = syn::parse_quote! {#s fn dummy() {}};
         match dummy.attrs[0].interpret_meta() {
             Some(syn::Meta::List(syn::MetaList { nested, .. })) => {
                 nested.iter().map(Clone::clone).collect()
@@ -208,9 +210,9 @@ mod test {
         let args = parse_arguments(&items(quote! {#[args(test1, test2, test3="None")]}));
         assert!(
             args == vec![
-                Argument::Arg(parse_quote! {test1}, None),
-                Argument::Arg(parse_quote! {test2}, None),
-                Argument::Arg(parse_quote! {test3}, Some("None".to_owned())),
+                Argument::Arg(syn::parse_quote! {test1}, None),
+                Argument::Arg(syn::parse_quote! {test2}, None),
+                Argument::Arg(syn::parse_quote! {test3}, Some("None".to_owned())),
             ]
         );
     }
@@ -222,10 +224,10 @@ mod test {
         ));
         assert!(
             args == vec![
-                Argument::Arg(parse_quote! {test1}, None),
-                Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
+                Argument::Arg(syn::parse_quote! {test1}, None),
+                Argument::Arg(syn::parse_quote! {test2}, Some("None".to_owned())),
                 Argument::VarArgsSeparator,
-                Argument::Kwarg(parse_quote! {test3}, "None".to_owned()),
+                Argument::Kwarg(syn::parse_quote! {test3}, "None".to_owned()),
             ]
         );
     }
@@ -237,11 +239,11 @@ mod test {
         ));
         assert!(
             args == vec![
-                Argument::Arg(parse_quote! {test1}, None),
-                Argument::Arg(parse_quote! {test2}, Some("None".to_owned())),
-                Argument::VarArgs(parse_quote! {args}),
-                Argument::Kwarg(parse_quote! {test3}, "None".to_owned()),
-                Argument::KeywordArgs(parse_quote! {kwargs}),
+                Argument::Arg(syn::parse_quote! {test1}, None),
+                Argument::Arg(syn::parse_quote! {test2}, Some("None".to_owned())),
+                Argument::VarArgs(syn::parse_quote! {args}),
+                Argument::Kwarg(syn::parse_quote! {test3}, "None".to_owned()),
+                Argument::KeywordArgs(syn::parse_quote! {kwargs}),
             ]
         );
     }

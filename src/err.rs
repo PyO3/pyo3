@@ -8,7 +8,6 @@ use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::typeob::PyTypeObject;
 use crate::types::{exceptions, PyObjectRef, PyType};
 use libc::c_int;
-use std;
 use std::error::Error;
 use std::ffi::CString;
 use std::io;

@@ -83,6 +83,8 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
+    use indoc::indoc;
+
     use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;

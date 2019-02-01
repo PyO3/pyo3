@@ -1,9 +1,7 @@
 #![feature(specialization)]
 
-#[macro_use]
-extern crate pyo3;
-
 use pyo3::prelude::*;
+use pyo3::{wrap_pyfunction, wrap_pymodule};
 
 #[cfg(Py_3)]
 use pyo3::types::PyDict;
@@ -47,8 +45,8 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("foo", "bar").unwrap();
 
-    m.add_wrapped(wrap_function!(double)).unwrap();
-    m.add("also_double", wrap_function!(double)(py)).unwrap();
+    m.add_wrapped(wrap_pyfunction!(double)).unwrap();
+    m.add("also_double", wrap_pyfunction!(double)(py)).unwrap();
 
     Ok(())
 }
@@ -62,7 +60,7 @@ fn test_module_with_functions() {
     let d = PyDict::new(py);
     d.set_item(
         "module_with_functions",
-        wrap_module!(module_with_functions)(py),
+        wrap_pymodule!(module_with_functions)(py),
     )
     .unwrap();
 
@@ -141,7 +139,7 @@ fn r#move() -> usize {
 #[pymodule]
 #[cfg(Py_3)]
 fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(r#move))
+    module.add_wrapped(wrap_pyfunction!(r#move))
 }
 
 #[test]
@@ -150,7 +148,7 @@ fn test_raw_idents() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let module = wrap_module!(raw_ident_module)(py);
+    let module = wrap_pymodule!(raw_ident_module)(py);
 
     py_assert!(py, module, "module.move() == 42");
 }
@@ -164,7 +162,7 @@ fn subfunction() -> String {
 #[cfg(Py_3)]
 #[pymodule]
 fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(subfunction))?;
+    module.add_wrapped(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
@@ -177,8 +175,8 @@ fn superfunction() -> String {
 #[cfg(Py_3)]
 #[pymodule]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_function!(superfunction))?;
-    module.add_wrapped(wrap_module!(submodule))?;
+    module.add_wrapped(wrap_pyfunction!(superfunction))?;
+    module.add_wrapped(wrap_pymodule!(submodule))?;
     Ok(())
 }
 
@@ -187,7 +185,7 @@ fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
 fn test_module_nesting() {
     let gil = GILGuard::acquire();
     let py = gil.python();
-    let supermodule = wrap_module!(supermodule)(py);
+    let supermodule = wrap_pymodule!(supermodule)(py);
 
     py_assert!(
         py,

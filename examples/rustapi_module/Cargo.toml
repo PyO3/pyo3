@@ -3,6 +3,7 @@ authors = ["PyO3 Authors"]
 name = "rustapi-module"
 version = "0.1.0"
 description = "A Python wrapper for the Rust API for purposes of testing"
+edition = "2018"
 
 [dependencies]
 

@@ -1,9 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::mem;
-use std::ptr::NonNull;
-
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
@@ -15,6 +11,8 @@ use crate::pythonrun;
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
+use std::mem;
+use std::ptr::NonNull;
 
 /// Any instance that is managed Python can have access to `gil`.
 ///
@@ -234,7 +232,7 @@ impl<T: PyTypeInfo + PyNativeType> AsPyRefDispatch<T> for Py<T> {
         unsafe { &*(self as *const instance::Py<T> as *const T) }
     }
     fn as_mut_dispatch(&mut self, _py: Python) -> &mut T {
-        unsafe { &mut *(self as *const _ as *mut T) }
+        unsafe { &mut *(self as *mut _ as *mut T) }
     }
 }
 

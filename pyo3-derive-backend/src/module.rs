@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Code generation for the function that initializes a python module and adds classes and function.
 
-use args;
-use method;
-use py_method;
-use syn;
-use utils;
-
+use crate::args;
+use crate::method;
+use crate::py_method;
+use crate::utils;
 use proc_macro2::{Span, TokenStream};
+use quote::quote;
+use syn;
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
@@ -48,7 +48,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
             {
                 let function_to_python = add_fn_to_module(func, &python_name, pyfn_attrs);
                 let function_wrapper_ident = function_wrapper_ident(&func.ident);
-                let item: syn::ItemFn = parse_quote! {
+                let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
                         #module_name.add_wrapped(&#function_wrapper_ident)?;
@@ -145,7 +145,7 @@ fn extract_pyfn_attrs(
 
 /// Coordinates the naming of a the add-function-to-python-module function
 fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
-    // Make sure this ident matches the one of wrap_function
+    // Make sure this ident matches the one of wrap_pyfunction
     // The trim_start_matches("r#") is for https://github.com/dtolnay/syn/issues/478
     syn::Ident::new(
         &format!(
@@ -214,7 +214,7 @@ pub fn add_fn_to_module(
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
+fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec<'_>) -> TokenStream {
     let names: Vec<syn::Ident> = spec
         .args
         .iter()

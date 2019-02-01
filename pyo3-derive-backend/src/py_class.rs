@@ -1,11 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use method::{FnArg, FnSpec, FnType};
+use crate::method::{FnArg, FnSpec, FnType};
+use crate::py_method::{
+    impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter,
+};
+use crate::utils;
 use proc_macro2::{Span, TokenStream};
-use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
+use quote::quote;
 use std::collections::HashMap;
 use syn;
-use utils;
 
 pub fn build_py_class(class: &mut syn::ItemStruct, attr: &Vec<syn::Expr>) -> TokenStream {
     let (params, flags, base) = parse_attribute(attr);
@@ -115,9 +118,9 @@ fn impl_class(
     let mut has_dict = false;
     for f in flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
-            if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
+            if epath.path == syn::parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
-            } else if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT} {
+            } else if epath.path == syn::parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT} {
                 has_dict = true;
             }
         }
@@ -265,7 +268,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                                     py: true,
                                     reference: false,
                                 }],
-                                output: parse_quote!(PyResult<()>),
+                                output: syn::parse_quote!(PyResult<()>),
                             };
                             impl_py_setter_def(
                                 &name,
@@ -305,8 +308,8 @@ fn parse_attribute(
     let mut params = HashMap::new();
     // We need the 0 as value for the constant we're later building using quote for when there
     // are no other flags
-    let mut flags = vec![parse_quote! {0}];
-    let mut base: syn::TypePath = parse_quote! {::pyo3::types::PyObjectRef};
+    let mut flags = vec![syn::parse_quote! {0}];
+    let mut base: syn::TypePath = syn::parse_quote! {::pyo3::types::PyObjectRef};
 
     for expr in args.iter() {
         match expr {
@@ -315,16 +318,16 @@ fn parse_attribute(
                 let flag = exp.path.segments.first().unwrap().value().ident.to_string();
                 let path = match flag.as_str() {
                     "gc" => {
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_GC}
+                        syn::parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_GC}
                     }
                     "weakref" => {
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF}
+                        syn::parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF}
                     }
                     "subclass" => {
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_BASETYPE}
+                        syn::parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_BASETYPE}
                     }
                     "dict" => {
-                        parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT}
+                        syn::parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT}
                     }
                     param => panic!("Unsupported parameter: {}", param),
                 };

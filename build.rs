@@ -1,6 +1,3 @@
-extern crate regex;
-extern crate version_check;
-
 use regex::Regex;
 use std::collections::HashMap;
 use std::convert::AsRef;

@@ -2,11 +2,6 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std;
-use std::borrow::Cow;
-use std::os::raw::c_char;
-use std::str;
-
 use err::{PyErr, PyResult};
 use ffi;
 use instance::{Py, PyObjectWithGIL};
@@ -14,6 +9,9 @@ use object::PyObject;
 use objectprotocol::ObjectProtocol;
 use python::IntoPyPointer;
 use python::{Python, ToPyPointer};
+use std::borrow::Cow;
+use std::os::raw::c_char;
+use std::str;
 use types::exceptions;
 
 use super::PyObjectRef;

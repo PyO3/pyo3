@@ -1,10 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use syn;
-
-use args::{parse_arguments, Argument};
+use crate::args::{parse_arguments, Argument};
 use proc_macro2::TokenStream;
+use quote::quote;
 use quote::ToTokens;
+use syn;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FnArg<'a> {
@@ -39,7 +39,7 @@ pub struct FnSpec<'a> {
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
     match output {
-        syn::ReturnType::Default => syn::Type::Infer(parse_quote! {_}),
+        syn::ReturnType::Default => syn::Type::Infer(syn::parse_quote! {_}),
         syn::ReturnType::Type(_, ref ty) => *ty.clone(),
     }
 }

@@ -1,7 +1,5 @@
 #![feature(concat_idents)]
 
-extern crate pyo3;
-
 use pyo3::ffi::*;
 use pyo3::prelude::*;
 use pyo3::types::{PyDate, PyDateTime, PyDict, PyObjectRef, PyTime};

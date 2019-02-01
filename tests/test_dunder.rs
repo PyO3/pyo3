@@ -1,7 +1,5 @@
 #![feature(specialization)]
 
-extern crate pyo3;
-
 use std::{isize, iter};
 
 use pyo3::class::{

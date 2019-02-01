@@ -47,10 +47,8 @@ features = ["extension-module"]
 ```rust
 #![feature(specialization)]
 
-#[macro_use]
-extern crate pyo3;
-
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 /// Formats the sum of two numbers as string
@@ -61,7 +59,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_function!(sum_as_string))?;
+    m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
 
     Ok(())
 }
@@ -94,8 +92,6 @@ Example program displaying the value of `sys.version`:
 
 ```rust
 #![feature(specialization)]
-
-extern crate pyo3;
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;

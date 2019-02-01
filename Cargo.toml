@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.6.0-alpha.1"
+version = "0.6.0-alpha.2"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -12,6 +12,7 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 exclude = ["/.gitignore", ".travis.yml", ".cargo/config", "appveyor.yml"]
 build = "build.rs"
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "PyO3/pyo3", branch = "master" }
@@ -22,7 +23,7 @@ codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 libc = "0.2.43"
 spin = "0.5.0"
 num-traits = "0.2.6"
-pyo3cls = { path = "pyo3cls", version = "=0.6.0-alpha.1" }
+pyo3cls = { path = "pyo3cls", version = "=0.6.0-alpha.2" }
 mashup = "0.1.9"
 num-complex = { version = "0.2.1", optional = true }
 

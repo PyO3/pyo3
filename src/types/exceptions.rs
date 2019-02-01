@@ -44,6 +44,7 @@ macro_rules! impl_exception_boilerplate {
 /// Defines rust type for exception defined in Python code.
 ///
 /// # Syntax
+///
 /// `import_exception!(module, MyError)`
 ///
 /// * `module` is the name of the containing module.
@@ -51,26 +52,25 @@ macro_rules! impl_exception_boilerplate {
 ///
 /// # Example
 /// ```
-///extern crate pyo3;
+/// use pyo3::import_exception;
+/// use pyo3::types::PyDict;
+/// use pyo3::Python;
 ///
-///use pyo3::import_exception;
-///use pyo3::types::PyDict;
-///use pyo3::Python;
-///import_exception!(socket, gaierror);
+/// import_exception!(socket, gaierror);
 ///
-///fn main() {
-///    let gil = Python::acquire_gil();
-///    let py = gil.python();
-///    let ctx = PyDict::new(py);
+/// fn main() {
+///     let gil = Python::acquire_gil();
+///     let py = gil.python();
+///     let ctx = PyDict::new(py);
 ///
-///    ctx.set_item("gaierror", py.get_type::<gaierror>()).unwrap();
-///    py.run(
-///        "import socket; assert gaierror is socket.gaierror",
-///        None,
-///        Some(ctx),
-///    )
-///    .unwrap();
-///}
+///     ctx.set_item("gaierror", py.get_type::<gaierror>()).unwrap();
+///     py.run(
+///         "import socket; assert gaierror is socket.gaierror",
+///         None,
+///         Some(ctx),
+///     )
+///     .unwrap();
+/// }
 ///
 /// ```
 #[macro_export]
@@ -142,10 +142,8 @@ macro_rules! import_exception_type_object {
 ///
 /// # Example
 /// ```
-/// #[macro_use]
-/// extern crate pyo3;
-///
 /// use pyo3::prelude::*;
+/// use pyo3::create_exception;
 /// use pyo3::types::PyDict;
 /// use pyo3::exceptions::Exception;
 ///
@@ -360,6 +358,7 @@ impl UnicodeDecodeError {
         }
     }
 
+    #[allow(clippy::range_plus_one)] // False positive, ..= returns the wrong type
     pub fn new_utf8<'p>(
         py: Python<'p>,
         input: &[u8],

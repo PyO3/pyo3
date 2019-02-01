@@ -27,8 +27,6 @@ py_class!(class MyClass |py| {
 ```rust
 #![feature(specialization)]
 
-extern crate pyo3;
-
 use pyo3::prelude::*;
 use pyo3::PyRawObject;
 
