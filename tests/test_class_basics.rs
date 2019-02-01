@@ -66,14 +66,17 @@ fn empty_class_in_module() {
         ty.getattr("__name__").unwrap().extract::<String>().unwrap(),
         "EmptyClassInModule"
     );
+
+    let builtin = if cfg!(feature = "python2") {
+        "__builtin__"
+    } else {
+        "builtins"
+    };
+
+    let module: String = ty.getattr("__module__").unwrap().extract().unwrap();
+
     // Rationale: The class can be added to many modules, but will only be initialized once.
     // We currently have no way of determining a canonical module, so builtins is better
     // than using whatever calls init first.
-    assert_eq!(
-        ty.getattr("__module__")
-            .unwrap()
-            .extract::<String>()
-            .unwrap(),
-        "builtins"
-    );
+    assert_eq!(module, builtin);
 }
