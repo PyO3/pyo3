@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use pyo3::prelude::*;
 
 #[cfg(Py_3)]

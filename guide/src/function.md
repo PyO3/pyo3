@@ -30,8 +30,6 @@ as first parameter, the function name as second and an instance of `Python`
 as third.
 
 ```rust
-#![feature(specialization)]
-
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 

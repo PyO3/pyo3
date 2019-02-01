@@ -126,8 +126,6 @@ trait can be implemented. In that case actual exception arguments creation get d
 until `Python` object is available.
 
 ```rust,ignore
-#![feature(specialization)]
-
 use std::net::TcpListener;
 use pyo3::{PyErr, PyResult, exc};
 

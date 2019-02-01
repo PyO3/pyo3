@@ -17,7 +17,6 @@ edition = "2018"
 [badges]
 travis-ci = { repository = "PyO3/pyo3", branch = "master" }
 appveyor = { repository = "fafhrd91/pyo3" }
-codecov = { repository = "PyO3/pyo3", branch = "master", service = "github" }
 
 [dependencies]
 libc = "0.2.48"

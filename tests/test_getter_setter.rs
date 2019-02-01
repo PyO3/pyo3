@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use pyo3::prelude::*;
 use std::isize;
 

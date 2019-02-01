@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;

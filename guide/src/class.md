@@ -474,10 +474,7 @@ These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 as every cycle must contain at least one mutable reference.
 Example:
 ```rust
-#![feature(specialization)]
-
 use pyo3::prelude::*;
-
 
 #[pyclass]
 struct ClassWithGCSupport {
@@ -521,8 +518,6 @@ It includes two methods `__iter__` and `__next__`:
 Example:
 
 ```rust
-#![feature(specialization)]
-
 use pyo3::prelude::*;
 
 #[pyclass]

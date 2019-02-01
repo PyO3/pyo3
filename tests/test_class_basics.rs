@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use pyo3::prelude::*;
 
 #[macro_use]
