@@ -3,6 +3,7 @@
 use method::{FnArg, FnSpec, FnType};
 use proc_macro2::{Span, TokenStream};
 use py_method::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
+use quote::ToTokens;
 use syn;
 use utils;
 
@@ -178,19 +179,18 @@ fn impl_class(
     let impl_with_a = gen_with_a.split_for_impl().0;
 
     // Generate one PyTypeInfo per generic variant.
-    use quote::ToTokens;
-    let variant_iter: Box<dyn Iterator<Item = (String, TokenStream)>> = match attrs.variants {
-        Some(ref x) => Box::new(
-            x.clone()
-                .into_iter()
-                .map(|(a, b)| (a, b.into_token_stream())),
-        ),
-        None => Box::new(std::iter::once((cls_name, TokenStream::new()))),
+    let variants= match attrs.variants {
+        Some(ref x) => x
+            .clone()
+            .into_iter()
+            .map(|(a, b)| (a, b.into_token_stream()))
+            .collect(),
+        None => vec![(cls_name, TokenStream::new())],
     };
 
     let base = &attrs.base;
     let flags = &attrs.flags;
-    let type_info_impls: Vec<_> = variant_iter.map(|(name, for_ty)| quote! {
+    let type_info_impls: Vec<_> = variants.iter().map(|(name, for_ty)| quote! {
         impl ::pyo3::typeob::PyTypeInfo for #cls #for_ty {
             type Type = #cls #for_ty;
             type BaseType = #base;
