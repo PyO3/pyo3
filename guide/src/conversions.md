@@ -43,18 +43,19 @@ rust tuple with up to 10 elements. Or `NoArgs` object which represents empty tup
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple};
 
 struct SomeObject;
 impl SomeObject {
     fn new(py: Python) -> PyObject {
-          pyo3::PyDict::new(py).to_object(py)
+        PyDict::new(py).to_object(py)
     }
 }
 
 fn main() {
-    # let arg1 = "arg1";
-    # let arg2 = "arg2";
-    # let arg3 = "arg3";
+    let arg1 = "arg1";
+    let arg2 = "arg2";
+    let arg3 = "arg3";
 
     let gil = Python::acquire_gil();
     let py = gil.python();
