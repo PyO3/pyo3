@@ -332,6 +332,7 @@ with `#[call]` attribute. Arguments of the method are specified same as for inst
 
 ```rust
 # use pyo3::prelude::*;
+use pyo3::types::PyTuple;
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -374,6 +375,7 @@ Each parameter could one of following type:
 Example:
 ```rust
 # use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple};
 #
 # #[pyclass]
 # struct MyClass {
@@ -519,15 +521,15 @@ Example:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::PyIterProtocol;
 
 #[pyclass]
 struct MyIterator {
-    iter: Box<Iterator<Item=PyObject> + Send>,
+    iter: Box<Iterator<Item = PyObject> + Send>,
 }
 
 #[pyproto]
 impl PyIterProtocol for MyIterator {
-
     fn __iter__(&mut self) -> PyResult<PyObject> {
         Ok(self.into())
     }
