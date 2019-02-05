@@ -133,7 +133,7 @@ pub use crate::conversion::{
     ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
-pub use crate::instance::{AsPyRef, Py, PyNativeType, PyObjectWithGIL};
+pub use crate::instance::{AsPyRef, Py, PyNativeType, PyObjectWithGIL, PyRef, PyRefMut};
 pub use crate::noargs::NoArgs;
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;

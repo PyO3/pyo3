@@ -29,17 +29,17 @@ macro_rules! py_unary_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_unary_func_self {
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {{
+macro_rules! py_unary_pyref_func {
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
+            use $crate::instance::PyRefMut;
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
-            let res = slf.$f().into();
+            let res = $class::$f(PyRefMut::new(slf)).into();
             $crate::callback::cb_convert($conv, py, res)
         }
         Some(wrap::<$class>)

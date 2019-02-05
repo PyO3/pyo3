@@ -374,20 +374,20 @@ impl<T> std::convert::From<Py<T>> for PyObject {
     }
 }
 
-impl<'a, T> std::convert::From<&'a T> for Py<T>
+impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
 where
-    T: ToPyPointer,
+    T: PyTypeInfo,
 {
-    fn from(ob: &'a T) -> Self {
+    fn from(ob: PyRef<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(ob.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<&'a mut T> for Py<T>
+impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
 where
-    T: ToPyPointer,
+    T: PyTypeInfo,
 {
-    fn from(ob: &'a mut T) -> Self {
+    fn from(ob: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(ob.as_ptr()) }
     }
 }

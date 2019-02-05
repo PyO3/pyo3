@@ -492,10 +492,12 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize, decl1: &syn::FnDecl, decl
 }
 
 fn modify_self_ty(sig: &mut syn::MethodSig) {
-    if let syn::FnArg::SelfRef(ref mut r) = sig.decl.inputs[0] {
-        r.lifetime = Some(syn::parse_quote! {'p});
-    } else {
-        panic!("not supported")
+    match sig.decl.inputs[0] {
+        syn::FnArg::SelfRef(ref mut slf) => {
+            slf.lifetime = Some(syn::parse_quote! {'p});
+        }
+        syn::FnArg::Captured(_) => {}
+        _ => panic!("not supported"),
     }
 }
 

@@ -133,7 +133,7 @@ impl<'a> IntoIterator for &'a PyTuple {
 
 impl<'a> IntoPyTuple for &'a PyTuple {
     fn into_tuple(self, _py: Python) -> Py<PyTuple> {
-        self.into()
+        unsafe { Py::from_borrowed_ptr(self.as_ptr()) }
     }
 }
 

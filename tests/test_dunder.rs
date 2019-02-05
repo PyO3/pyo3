@@ -51,13 +51,13 @@ struct Iterator {
 }
 
 #[pyproto]
-impl PyIterProtocol for Iterator {
-    fn __iter__(&mut self) -> PyResult<Py<Iterator>> {
-        Ok(self.into())
+impl<'p> PyIterProtocol for Iterator {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iterator>> {
+        Ok(slf.into())
     }
 
-    fn __next__(&mut self) -> PyResult<Option<i32>> {
-        Ok(self.iter.next())
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<i32>> {
+        Ok(slf.iter.next())
     }
 }
 
@@ -364,7 +364,7 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py
+    let mut c = py
         .init_mut(|| ContextManager { exit_called: false })
         .unwrap();
     py_run!(py, c, "with c as x: assert x == 42");
