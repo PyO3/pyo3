@@ -16,6 +16,9 @@ matrix:
       env: FEATURES=python3
     - python: "3.7"
       env: FEATURES=python3
+  allow_failures:
+    - python: "3.8-dev"
+      env: FEATURES=python3
 
 env:
   global:
