@@ -191,7 +191,7 @@ pub struct TzClass {}
 impl TzClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|| TzClass {})
+        obj.init(TzClass {})
     }
 
     fn utcoffset(&self, py: Python<'_>, _dt: &PyDateTime) -> PyResult<Py<PyDelta>> {

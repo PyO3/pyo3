@@ -52,7 +52,7 @@ pub trait PyNativeType: PyObjectWithGIL {}
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let obj = PyRef::new(gil.python(), || Point { x: 3, y: 4 }).unwrap();
+/// let obj = PyRef::new(gil.python(), Point { x: 3, y: 4 }).unwrap();
 /// let d = vec![("p", obj)].into_py_dict(py);
 /// py.run("assert p.length() == 12", None, Some(d)).unwrap();
 /// ```
@@ -69,12 +69,9 @@ impl<'a, T> PyRef<'a, T>
 where
     T: PyTypeInfo + PyTypeObject + PyTypeCreate,
 {
-    pub fn new<F>(py: Python, f: F) -> PyResult<PyRef<T>>
-    where
-        F: FnOnce() -> T,
-    {
+    pub fn new(py: Python, value: T) -> PyResult<PyRef<T>> {
         let obj = T::create(py)?;
-        obj.init(f)?;
+        obj.init(value)?;
         let ref_ = unsafe { py.from_owned_ptr(obj.into_ptr()) };
         Ok(PyRef::from_ref(ref_))
     }
@@ -117,7 +114,7 @@ impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let mut obj = PyRefMut::new(gil.python(), || Point { x: 3, y: 4 }).unwrap();
+/// let mut obj = PyRefMut::new(gil.python(), Point { x: 3, y: 4 }).unwrap();
 /// let d = vec![("p", obj.to_object(py))].into_py_dict(py);
 /// obj.x = 5; obj.y = 20;
 /// py.run("assert p.length() == 100", None, Some(d)).unwrap();
@@ -135,12 +132,9 @@ impl<'a, T> PyRefMut<'a, T>
 where
     T: PyTypeInfo + PyTypeObject + PyTypeCreate,
 {
-    pub fn new<F>(py: Python, f: F) -> PyResult<PyRefMut<T>>
-    where
-        F: FnOnce() -> T,
-    {
+    pub fn new(py: Python, value: T) -> PyResult<PyRefMut<T>> {
         let obj = T::create(py)?;
-        obj.init(f)?;
+        obj.init(value)?;
         let ref_ = unsafe { py.mut_from_owned_ptr(obj.into_ptr()) };
         Ok(PyRefMut::from_mut(ref_))
     }
@@ -350,16 +344,39 @@ where
 {
     /// Create new instance of T and move it under python management
     /// Returns `Py<T>`.
-    pub fn new<F>(py: Python, f: F) -> PyResult<Py<T>>
+    pub fn new(py: Python, value: T) -> PyResult<Py<T>>
     where
-        F: FnOnce() -> T,
         T: PyTypeObject + PyTypeInfo,
     {
         let ob = <T as PyTypeCreate>::create(py)?;
-        ob.init(f)?;
+        ob.init(value)?;
 
         let ob = unsafe { Py::from_owned_ptr(ob.into_ptr()) };
         Ok(ob)
+    }
+
+    /// Create new instance of `T` and move it under python management.
+    /// Returns references to `T`
+    pub fn new_ref(py: Python, value: T) -> PyResult<&T>
+    where
+        T: PyTypeObject + PyTypeInfo,
+    {
+        let ob = <T as PyTypeCreate>::create(py)?;
+        ob.init(value)?;
+
+        unsafe { Ok(py.from_owned_ptr(ob.into_ptr())) }
+    }
+
+    /// Create new instance of `T` and move it under python management.
+    /// Returns mutable references to `T`
+    pub fn new_mut(py: Python, value: T) -> PyResult<&mut T>
+    where
+        T: PyTypeObject + PyTypeInfo,
+    {
+        let ob = <T as PyTypeCreate>::create(py)?;
+        ob.init(value)?;
+
+        unsafe { Ok(py.mut_from_owned_ptr(ob.into_ptr())) }
     }
 }
 

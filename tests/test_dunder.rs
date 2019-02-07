@@ -31,16 +31,19 @@ fn len() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Py::new(py, || Len { l: 10 }).unwrap();
+    let inst = Py::new(py, Len { l: 10 }).unwrap();
     py_assert!(py, inst, "len(inst) == 10");
     unsafe {
         assert_eq!(ffi::PyObject_Size(inst.as_ptr()), 10);
         assert_eq!(ffi::PyMapping_Size(inst.as_ptr()), 10);
     }
 
-    let inst = Py::new(py, || Len {
-        l: (isize::MAX as usize) + 1,
-    })
+    let inst = Py::new(
+        py,
+        Len {
+            l: (isize::MAX as usize) + 1,
+        },
+    )
     .unwrap();
     py_expect_exception!(py, inst, "len(inst)", OverflowError);
 }
@@ -66,9 +69,12 @@ fn iterator() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let inst = Py::new(py, || Iterator {
-        iter: Box::new(5..8),
-    })
+    let inst = Py::new(
+        py,
+        Iterator {
+            iter: Box::new(5..8),
+        },
+    )
     .unwrap();
     py_assert!(py, inst, "iter(inst) is inst");
     py_assert!(py, inst, "list(inst) == [5, 6, 7]");
@@ -108,7 +114,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Py::new(py, || StringMethods {}).unwrap();
+    let obj = Py::new(py, StringMethods {}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
@@ -121,7 +127,7 @@ fn string_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = Py::new(py, || StringMethods {}).unwrap();
+    let obj = Py::new(py, StringMethods {}).unwrap();
     py_assert!(py, obj, "str(obj) == 'str'");
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "unicode(obj) == 'unicode'");
@@ -148,10 +154,10 @@ fn comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let zero = Py::new(py, || Comparisons { val: 0 }).unwrap();
-    let one = Py::new(py, || Comparisons { val: 1 }).unwrap();
-    let ten = Py::new(py, || Comparisons { val: 10 }).unwrap();
-    let minus_one = Py::new(py, || Comparisons { val: -1 }).unwrap();
+    let zero = Py::new(py, Comparisons { val: 0 }).unwrap();
+    let one = Py::new(py, Comparisons { val: 1 }).unwrap();
+    let ten = Py::new(py, Comparisons { val: 10 }).unwrap();
+    let minus_one = Py::new(py, Comparisons { val: -1 }).unwrap();
     py_assert!(py, one, "hash(one) == 1");
     py_assert!(py, ten, "hash(ten) == 10");
     py_assert!(py, minus_one, "hash(minus_one) == -2");
@@ -182,7 +188,7 @@ fn sequence() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|| Sequence {}).unwrap();
+    let c = py.init(Sequence {}).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
@@ -203,11 +209,11 @@ fn callable() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|| Callable {}).unwrap();
+    let c = py.init(Callable {}).unwrap();
     py_assert!(py, c, "callable(c)");
     py_assert!(py, c, "c(7) == 42");
 
-    let nc = py.init(|| Comparisons { val: 0 }).unwrap();
+    let nc = py.init(Comparisons { val: 0 }).unwrap();
     py_assert!(py, nc, "not callable(nc)");
 }
 
@@ -231,7 +237,7 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(|| SetItem { key: 0, val: 0 }).unwrap();
+    let c = py.init_ref(SetItem { key: 0, val: 0 }).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.key, 1);
     assert_eq!(c.val, 2);
@@ -256,7 +262,7 @@ fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(|| DelItem { key: 0 }).unwrap();
+    let c = py.init_ref(DelItem { key: 0 }).unwrap();
     py_run!(py, c, "del c[1]");
     assert_eq!(c.key, 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
@@ -285,7 +291,7 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(|| SetDelItem { val: None }).unwrap();
+    let c = py.init_ref(SetDelItem { val: None }).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.val, Some(2));
     py_run!(py, c, "del c[1]");
@@ -307,7 +313,7 @@ fn reversed() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|| Reversed {}).unwrap();
+    let c = py.init(Reversed {}).unwrap();
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
@@ -326,7 +332,7 @@ fn contains() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|| Contains {}).unwrap();
+    let c = py.init(Contains {}).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
     py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
@@ -364,9 +370,7 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let mut c = py
-        .init_mut(|| ContextManager { exit_called: false })
-        .unwrap();
+    let mut c = py.init_mut(ContextManager { exit_called: false }).unwrap();
     py_run!(py, c, "with c as x: assert x == 42");
     assert!(c.exit_called);
 
@@ -423,7 +427,7 @@ fn test_cls_impl() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = py.init(|| Test {}).unwrap();
+    let ob = py.init(Test {}).unwrap();
     let d = PyDict::new(py);
     d.set_item("ob", ob).unwrap();
 
@@ -439,7 +443,7 @@ struct DunderDictSupport {}
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyRef::new(py, || DunderDictSupport {}).unwrap();
+    let inst = PyRef::new(py, DunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -457,7 +461,7 @@ struct WeakRefDunderDictSupport {}
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyRef::new(py, || WeakRefDunderDictSupport {}).unwrap();
+    let inst = PyRef::new(py, WeakRefDunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,

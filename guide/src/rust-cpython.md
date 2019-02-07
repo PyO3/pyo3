@@ -37,7 +37,7 @@ struct MyClass {
 impl MyClass {
     #[new]
     fn __new__(obj: &PyRawObject, num: u32) -> PyResult<()> {
-        obj.init(|| {
+        obj.init({
             MyClass {
                 num,
             }

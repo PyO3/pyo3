@@ -17,7 +17,7 @@ struct WordCounter {
 impl WordCounter {
     #[new]
     fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
-        obj.init(|| WordCounter {
+        obj.init(WordCounter {
             path: PathBuf::from(path),
         })
     }

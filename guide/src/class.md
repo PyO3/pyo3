@@ -42,7 +42,7 @@ struct MyClass {
 }
 let gil = Python::acquire_gil();
 let py = gil.python();
-let obj = PyRef::new(py, || MyClass { num: 3, debug: true }).unwrap();
+let obj = PyRef::new(py, MyClass { num: 3, debug: true }).unwrap();
 assert_eq!(obj.num, 3);
 let dict = PyDict::new();
 // You can treat a `PyRef` as a Python object
@@ -60,7 +60,7 @@ struct MyClass {
 }
 let gil = Python::acquire_gil();
 let py = gil.python();
-let mut obj = PyRefMut::new(py, || MyClass { num: 3, debug: true }).unwrap();
+let mut obj = PyRefMut::new(py, MyClass { num: 3, debug: true }).unwrap();
 obj.num = 5;
 ```
 
@@ -119,7 +119,7 @@ impl MyClass {
 
      #[new]
      fn __new__(obj: &PyRawObject, num: i32) -> PyResult<()> {
-         obj.init(||   {
+         obj.init({
              MyClass {
                  num,
              }
@@ -159,7 +159,7 @@ struct BaseClass {
 impl BaseClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       obj.init(||   BaseClass{ val1: 10 })
+       Ok(obj.init(BaseClass{ val1: 10 }))
    }
 
    pub fn method(&self) -> PyResult<()> {
@@ -176,7 +176,7 @@ struct SubClass {
 impl SubClass {
    #[new]
    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       obj.init(||   SubClass{ val2: 10 });
+       obj.init(SubClass{ val2: 10 });
        BaseClass::__new__(obj)
    }
 
