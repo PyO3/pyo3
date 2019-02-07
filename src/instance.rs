@@ -25,6 +25,33 @@ pub trait PyObjectWithGIL: Sized {
 #[doc(hidden)]
 pub trait PyNativeType: PyObjectWithGIL {}
 
+/// A reference of type `T` which is in Python heap.
+///
+/// We can't implement `ToPyPointer` or `ToPyObject` for `pyclass`es, because they're not python
+/// objects untill copied to Python heap. So, instead of treating `&pyclass` as a Python object, we
+/// need to use special reference types `PyRef` and `PyRefMut`.
+/// ```
+/// # extern crate pyo3; fn main() {
+/// use pyo3::prelude::*;
+/// use pyo3::types::IntoPyDict;
+/// #[pyclass]
+/// struct Point {
+///     x: i32,
+///     y: i32,
+/// }
+/// #[pymethods]
+/// impl Point {
+///     fn length(&self) -> i32 {
+///         self.x * self.y
+///     }
+/// }
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let obj = py.init_ref(|| Point { x: 3, y: 4 }).unwrap();
+/// let d = vec![("p", obj)].into_py_dict(py);
+/// py.run("assert p.length() == 12", None, Some(d)).unwrap();
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct PyRef<'a, T> {
     inner: &'a T,
@@ -64,6 +91,7 @@ where
     }
 }
 
+/// Mutable version of [`PyRef`](struct.PyRef.html).
 #[derive(Debug)]
 pub struct PyRefMut<'a, T> {
     inner: &'a mut T,
