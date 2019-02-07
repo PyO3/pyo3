@@ -7,7 +7,7 @@ use crate::conversion::{
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, PyObjectWithGIL};
+use crate::instance::{AsPyRef, PyObjectWithGIL, PyRef, PyRefMut};
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
@@ -154,7 +154,7 @@ impl PyObject {
     /// Casts the PyObject to a concrete Python object type.
     pub fn cast_as<D>(&self, py: Python) -> Result<&D, PyDowncastError>
     where
-        D: PyTryFrom,
+        D: for<'v> PyTryFrom<'v>,
     {
         D::try_from(self.as_ref(py))
     }
@@ -165,7 +165,7 @@ impl PyObject {
     where
         D: FromPyObject<'p>,
     {
-        FromPyObject::extract(self.as_ref(py))
+        FromPyObject::extract(self.as_ref(py).into())
     }
 
     /// Retrieves an attribute value.
@@ -256,12 +256,12 @@ impl PyObject {
 
 impl AsPyRef<PyObjectRef> for PyObject {
     #[inline]
-    fn as_ref(&self, _py: Python) -> &PyObjectRef {
-        unsafe { &*(self as *const _ as *const PyObjectRef) }
+    fn as_ref(&self, _py: Python) -> PyRef<PyObjectRef> {
+        unsafe { PyRef::new(&*(self as *const _ as *const PyObjectRef)) }
     }
     #[inline]
-    fn as_mut(&mut self, _py: Python) -> &mut PyObjectRef {
-        unsafe { &mut *(self as *mut _ as *mut PyObjectRef) }
+    fn as_mut(&mut self, _py: Python) -> PyRefMut<PyObjectRef> {
+        unsafe { PyRefMut::new(&mut *(self as *mut _ as *mut PyObjectRef)) }
     }
 }
 

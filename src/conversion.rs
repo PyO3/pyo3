@@ -165,7 +165,7 @@ where
 /// Extract reference to instance from `PyObject`
 impl<'a, T> FromPyObject<'a> for &'a T
 where
-    T: PyTryFrom,
+    T: PyTryFrom<'a>,
 {
     #[inline]
     default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T> {
@@ -176,7 +176,7 @@ where
 /// Extract mutable reference to instance from `PyObject`
 impl<'a, T> FromPyObject<'a> for &'a mut T
 where
-    T: PyTryFrom,
+    T: PyTryFrom<'a>,
 {
     #[inline]
     default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a mut T> {
@@ -221,33 +221,35 @@ pub trait PyTryInto<T>: Sized {
 
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom: Sized {
+pub trait PyTryFrom<'v>: Sized {
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from(value: &PyObjectRef) -> Result<&Self, PyDowncastError>;
+    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_exact(value: &PyObjectRef) -> Result<&Self, PyDowncastError>;
+    fn try_from_exact<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from_mut(value: &PyObjectRef) -> Result<&mut Self, PyDowncastError>;
+    fn try_from_mut<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v mut Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut Self, PyDowncastError>;
+    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v mut Self, PyDowncastError>;
 
     /// Cast a PyObjectRef to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
-    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &Self;
+    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v Self;
 
     /// Cast a PyObjectRef to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
     #[allow(clippy::mut_from_ref)]
-    unsafe fn try_from_mut_unchecked(value: &PyObjectRef) -> &mut Self;
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut Self;
 }
 
 // TryFrom implies TryInto
 impl<U> PyTryInto<U> for PyObjectRef
 where
-    U: PyTryFrom,
+    U: for<'v> PyTryFrom<'v>,
 {
     type Error = PyDowncastError;
 
@@ -265,11 +267,12 @@ where
     }
 }
 
-impl<T> PyTryFrom for T
+impl<'v, T> PyTryFrom<'v> for T
 where
     T: PyTypeInfo,
 {
-    fn try_from(value: &PyObjectRef) -> Result<&T, PyDowncastError> {
+    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v T, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if T::is_instance(value) {
                 Ok(PyTryFrom::try_from_unchecked(value))
@@ -279,7 +282,8 @@ where
         }
     }
 
-    fn try_from_exact(value: &PyObjectRef) -> Result<&T, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v T, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
                 Ok(PyTryFrom::try_from_unchecked(value))
@@ -289,7 +293,8 @@ where
         }
     }
 
-    fn try_from_mut(value: &PyObjectRef) -> Result<&mut T, PyDowncastError> {
+    fn try_from_mut<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v mut T, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if T::is_instance(value) {
                 Ok(PyTryFrom::try_from_mut_unchecked(value))
@@ -299,7 +304,10 @@ where
         }
     }
 
-    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut T, PyDowncastError> {
+    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v mut T, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
                 Ok(PyTryFrom::try_from_mut_unchecked(value))
@@ -310,7 +318,8 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &T {
+    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v T {
+        let value = value.into();
         let ptr = if T::OFFSET == 0 {
             value as *const _ as *const u8 as *const T
         } else {
@@ -320,7 +329,8 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_mut_unchecked(value: &PyObjectRef) -> &mut T {
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut T {
+        let value = value.into();
         let ptr = if T::OFFSET == 0 {
             value as *const _ as *mut u8 as *mut T
         } else {
@@ -356,8 +366,6 @@ impl<T: IntoPyObject> ReturnTypeIntoPyResult for PyResult<T> {
         self
     }
 }
-
-
 
 #[cfg(test)]
 mod test {

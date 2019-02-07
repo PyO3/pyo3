@@ -55,6 +55,15 @@ impl<'a, T> Deref for PyRef<'a, T> {
     }
 }
 
+impl<'a, T> Into<&'a PyObjectRef> for PyRef<'a, T>
+where
+    T: PyTypeInfo,
+{
+    fn into(self) -> &'a PyObjectRef {
+        unsafe { &*(self.as_ptr() as *const PyObjectRef) }
+    }
+}
+
 #[derive(Debug)]
 pub struct PyRefMut<'a, T> {
     inner: &'a mut T,
@@ -91,18 +100,27 @@ impl<'a, T> DerefMut for PyRefMut<'a, T> {
     }
 }
 
+impl<'a, T> Into<&'a PyObjectRef> for PyRefMut<'a, T>
+where
+    T: PyTypeInfo,
+{
+    fn into(self) -> &'a PyObjectRef {
+        unsafe { &*(self.as_ptr() as *const PyObjectRef) }
+    }
+}
+
 /// Trait implements object reference extraction from python managed pointer.
 pub trait AsPyRef<T>: Sized {
     /// Return reference to object.
-    fn as_ref(&self, py: Python) -> &T;
+    fn as_ref(&self, py: Python) -> PyRef<T>;
 
     /// Return mutable reference to object.
-    fn as_mut(&mut self, py: Python) -> &mut T;
+    fn as_mut(&mut self, py: Python) -> PyRefMut<T>;
 
     /// Acquire python gil and call closure with object reference.
     fn with<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(Python, &T) -> R,
+        F: FnOnce(Python, PyRef<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -113,7 +131,7 @@ pub trait AsPyRef<T>: Sized {
     /// Acquire python gil and call closure with mutable object reference.
     fn with_mut<F, R>(&mut self, f: F) -> R
     where
-        F: FnOnce(Python, &mut T) -> R,
+        F: FnOnce(Python, PyRefMut<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -124,7 +142,7 @@ pub trait AsPyRef<T>: Sized {
     fn into_py<F, R>(self, f: F) -> R
     where
         Self: IntoPyPointer,
-        F: FnOnce(Python, &T) -> R,
+        F: FnOnce(Python, PyRef<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -137,7 +155,7 @@ pub trait AsPyRef<T>: Sized {
     fn into_mut_py<F, R>(mut self, f: F) -> R
     where
         Self: IntoPyPointer,
-        F: FnOnce(Python, &mut T) -> R,
+        F: FnOnce(Python, PyRefMut<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -307,12 +325,12 @@ where
     T: PyTypeInfo,
 {
     #[inline]
-    fn as_ref(&self, py: Python) -> &T {
-        self.as_ref_dispatch(py)
+    fn as_ref(&self, py: Python) -> PyRef<T> {
+        PyRef::new(self.as_ref_dispatch(py))
     }
     #[inline]
-    fn as_mut(&mut self, py: Python) -> &mut T {
-        self.as_mut_dispatch(py)
+    fn as_mut(&mut self, py: Python) -> PyRefMut<T> {
+        PyRefMut::new(self.as_mut_dispatch(py))
     }
 }
 

@@ -85,12 +85,12 @@ impl<'p> Drop for PyIterator<'p> {
 mod tests {
     use indoc::indoc;
 
-    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::conversion::ToPyObject;
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
     use crate::python::Python;
     use crate::pythonrun::GILPool;
-    use crate::types::{PyDict, PyList, PyObjectRef};
+    use crate::types::{PyDict, PyList};
     use crate::GILGuard;
 
     #[test]
@@ -98,7 +98,7 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj = vec![10, 20].to_object(py);
-        let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let inst = obj.as_ref(py);
         let mut it = inst.iter().unwrap();
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
@@ -119,7 +119,7 @@ mod tests {
         {
             let gil_guard = Python::acquire_gil();
             let py = gil_guard.python();
-            let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
@@ -147,7 +147,7 @@ mod tests {
 
         {
             let _pool = GILPool::new();
-            let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());

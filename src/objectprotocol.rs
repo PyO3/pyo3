@@ -187,7 +187,7 @@ pub trait ObjectProtocol {
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom,
+        D: PyTryFrom<'a>,
         &'a PyObjectRef: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
@@ -471,10 +471,10 @@ where
 
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom,
+        D: PyTryFrom<'a>,
         &'a PyObjectRef: std::convert::From<&'a Self>,
     {
-        D::try_from(self.into())
+        D::try_from(self)
     }
 
     fn extract<'a, D>(&'a self) -> PyResult<D>
