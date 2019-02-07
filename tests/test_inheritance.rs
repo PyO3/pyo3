@@ -35,7 +35,7 @@ fn subclass() {
 impl BaseClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|| BaseClass { val1: 10 })
+        obj.init(BaseClass { val1: 10 })
     }
 }
 
@@ -49,7 +49,7 @@ struct SubClass {
 impl SubClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|| SubClass { val2: 5 })?;
+        obj.init(SubClass { val2: 5 })?;
         BaseClass::__new__(obj)
     }
 }

@@ -24,8 +24,8 @@ fn class_with_freelist() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let inst = Py::new(py, || ClassWithFreelist {}).unwrap();
-        let _inst2 = Py::new(py, || ClassWithFreelist {}).unwrap();
+        let inst = Py::new(py, ClassWithFreelist {}).unwrap();
+        let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
         ptr = inst.as_ptr();
         drop(inst);
     }
@@ -34,10 +34,10 @@ fn class_with_freelist() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let inst3 = Py::new(py, || ClassWithFreelist {}).unwrap();
+        let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_eq!(ptr, inst3.as_ptr());
 
-        let inst4 = Py::new(py, || ClassWithFreelist {}).unwrap();
+        let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
         assert_ne!(ptr, inst4.as_ptr())
     }
 }
@@ -68,7 +68,7 @@ fn data_is_dropped() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let inst = py
-            .init(|| DataIsDropped {
+            .init(DataIsDropped {
                 member1: TestDropCall {
                     drop_called: Arc::clone(&drop_called1),
                 },
@@ -114,7 +114,7 @@ fn create_pointers_in_drop() {
         let empty = PyTuple::empty(py);
         ptr = empty.as_ptr();
         cnt = empty.get_refcnt() - 1;
-        let inst = py.init(|| ClassWithDrop {}).unwrap();
+        let inst = py.init(ClassWithDrop {}).unwrap();
         drop(inst);
     }
 
@@ -157,7 +157,7 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = PyRef::new(py, || GCIntegration {
+        let inst = PyRef::new(py, GCIntegration {
             self_ref: RefCell::new(py.None()),
             dropped: TestDropCall {
                 drop_called: Arc::clone(&drop_called),
@@ -183,7 +183,7 @@ fn gc_integration2() {
     let py = gil.python();
     // Temporarily disable pythons garbage collector to avoid a race condition
     py.run("import gc; gc.disable()", None, None).unwrap();
-    let inst = PyRef::new(py, || GCIntegration2 {}).unwrap();
+    let inst = PyRef::new(py, GCIntegration2 {}).unwrap();
     py_run!(py, inst, "assert inst in gc.get_objects()");
     py.run("gc.enable()", None, None).unwrap();
 }
@@ -195,7 +195,7 @@ struct WeakRefSupport {}
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyRef::new(py, || WeakRefSupport {}).unwrap();
+    let inst = PyRef::new(py, WeakRefSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -212,7 +212,7 @@ struct BaseClassWithDrop {
 impl BaseClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|| BaseClassWithDrop { data: None })
+        obj.init(BaseClassWithDrop { data: None })
     }
 }
 
@@ -233,7 +233,7 @@ struct SubClassWithDrop {
 impl SubClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|| SubClassWithDrop { data: None })?;
+        obj.init(SubClassWithDrop { data: None })?;
         BaseClassWithDrop::__new__(obj)
     }
 }

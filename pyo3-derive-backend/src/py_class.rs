@@ -201,12 +201,9 @@ fn impl_class(
             }
         }
 
-        // TBH I'm not sure what exactely this does and I'm sure there's a better way,
-        // but for now it works and it only safe code and it is required to return custom
-        // objects, so for now I'm keeping it
         impl ::pyo3::IntoPyObject for #cls {
             fn into_object(self, py: ::pyo3::Python) -> ::pyo3::PyObject {
-                ::pyo3::Py::new(py, || self).unwrap().into_object(py)
+                ::pyo3::Py::new(py, self).unwrap().into_object(py)
             }
         }
 

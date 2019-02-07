@@ -83,7 +83,7 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(|| MyClass { })
+///        Ok(obj.init(MyClass { }))
 ///    }
 /// }
 /// ```
@@ -139,13 +139,10 @@ impl PyRawObject {
         }
     }
 
-    pub fn init<T, F>(&self, f: F) -> PyResult<()>
+    pub fn init<T>(&self, value: T) -> PyResult<()>
     where
-        F: FnOnce() -> T,
         T: PyTypeInfo,
     {
-        let value = f();
-
         unsafe {
             // The `as *mut u8` part is required because the offset is in bytes
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
