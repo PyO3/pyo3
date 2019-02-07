@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::conversion::{IntoPyTuple, ToPyObject};
+use crate::conversion::{IntoPy, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyObjectWithGIL;
@@ -10,7 +10,9 @@ use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};
 use crate::typeob::PyTypeCreate;
+use crate::types::PyTuple;
 use crate::types::{exceptions, PyDict, PyObjectRef};
+use crate::Py;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -104,10 +106,12 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
+    pub fn call(
+        &self,
+        name: &str,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef> {
         self.getattr(name)?.call(args, kwargs)
     }
 
@@ -121,7 +125,7 @@ impl PyModule {
     /// This is equivalent to the Python expression: `getattr(module, name)(*args)`
     pub fn call1<A>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>
     where
-        A: IntoPyTuple,
+        A: IntoPy<Py<PyTuple>>,
     {
         self.getattr(name)?.call1(args)
     }

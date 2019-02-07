@@ -129,7 +129,7 @@
 
 pub use crate::class::*;
 pub use crate::conversion::{
-    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,
+    FromPyObject, IntoPy, IntoPyObject, PyTryFrom, PyTryInto, ReturnTypeIntoPyResult,
     ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};

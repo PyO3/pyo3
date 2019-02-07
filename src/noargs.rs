@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{IntoPyObject, IntoPyTuple, ToPyObject};
+use crate::conversion::{IntoPy, IntoPyObject, ToPyObject};
 use crate::instance::Py;
 use crate::object::PyObject;
 use crate::python::Python;
@@ -22,15 +22,15 @@ use crate::types::PyTuple;
 pub struct NoArgs;
 
 /// Converts `NoArgs` to an empty Python tuple.
-impl IntoPyTuple for NoArgs {
-    fn into_tuple(self, py: Python) -> Py<PyTuple> {
+impl IntoPy<Py<PyTuple>> for NoArgs {
+    fn into_py(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
     }
 }
 
 /// Converts `()` to an empty Python tuple.
-impl IntoPyTuple for () {
-    fn into_tuple(self, py: Python) -> Py<PyTuple> {
+impl IntoPy<Py<PyTuple>> for () {
+    fn into_py(self, py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
     }
 }

@@ -4,11 +4,10 @@
 
 use crate::err::{PyDowncastError, PyResult};
 use crate::ffi;
-use crate::instance::Py;
 use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::typeob::PyTypeInfo;
-use crate::types::{PyObjectRef, PyTuple};
+use crate::types::PyObjectRef;
 
 /// Conversion trait that allows various objects to be converted into `PyObject`
 pub trait ToPyObject {
@@ -53,17 +52,17 @@ where
     }
 }
 
+/// Similar to [std::convert::Into], just that it requires a gil token and there's
+/// currently no corresponding [std::convert::From] part.
+pub trait IntoPy<T>: Sized {
+    fn into_py(self, py: Python) -> T;
+}
+
 /// Conversion trait that allows various objects to be converted into `PyObject`
 /// by consuming original object.
 pub trait IntoPyObject {
     /// Converts self into a Python object. (Consumes self)
     fn into_object(self, py: Python) -> PyObject;
-}
-
-/// Conversion trait that allows various objects to be converted into `PyTuple` object.
-pub trait IntoPyTuple {
-    /// Converts self into a PyTuple object.
-    fn into_tuple(self, py: Python) -> Py<PyTuple>;
 }
 
 /// `FromPyObject` is implemented by various types that can be extracted from
