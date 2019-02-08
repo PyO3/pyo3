@@ -439,7 +439,7 @@ struct DunderDictSupport {}
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, || DunderDictSupport {}).unwrap();
+    let inst = PyRef::new(py, || DunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -457,7 +457,7 @@ struct WeakRefDunderDictSupport {}
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = Py::new_ref(py, || WeakRefDunderDictSupport {}).unwrap();
+    let inst = PyRef::new(py, || WeakRefDunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,

@@ -257,11 +257,11 @@ impl PyObject {
 impl AsPyRef<PyObjectRef> for PyObject {
     #[inline]
     fn as_ref(&self, _py: Python) -> PyRef<PyObjectRef> {
-        unsafe { PyRef::new(&*(self as *const _ as *const PyObjectRef)) }
+        unsafe { PyRef::from_ref(&*(self as *const _ as *const PyObjectRef)) }
     }
     #[inline]
     fn as_mut(&mut self, _py: Python) -> PyRefMut<PyObjectRef> {
-        unsafe { PyRefMut::new(&mut *(self as *mut _ as *mut PyObjectRef)) }
+        unsafe { PyRefMut::from_mut(&mut *(self as *mut _ as *mut PyObjectRef)) }
     }
 }
 

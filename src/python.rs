@@ -266,7 +266,7 @@ impl<'p> Python<'p> {
         F: FnOnce() -> T,
         T: PyTypeCreate,
     {
-        Py::new_ref(self, f)
+        PyRef::new(self, f)
     }
 
     /// Create new instance of `T` and move it under python management.
@@ -277,7 +277,7 @@ impl<'p> Python<'p> {
         F: FnOnce() -> T,
         T: PyTypeCreate,
     {
-        Py::new_mut(self, f)
+        PyRefMut::new(self, f)
     }
 }
 

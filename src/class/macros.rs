@@ -39,7 +39,7 @@ macro_rules! py_unary_pyref_func {
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
-            let res = $class::$f(PyRefMut::new(slf)).into();
+            let res = $class::$f(PyRefMut::from_mut(slf)).into();
             $crate::callback::cb_convert($conv, py, res)
         }
         Some(wrap::<$class>)
