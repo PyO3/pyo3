@@ -62,7 +62,22 @@ obj.num = 5;
 
 ### `Py`
 `Py` is a object wrapper which stores an object longer than the GIL lifetime.
-TODO: Write a good example
+
+You can use it to avoid lifetime problems.
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+   num: i32,
+}
+fn return_myclass() -> Py<MyClass> {
+    let gil = Python::acquire_gil();
+    Py::new(|| MyClass { num: 1 })
+}
+let gil = Python::acquire_gil();
+let obj = return_myclass();
+assert_eq!(obj.as_ref(gil.python()).num, 1);
+```
 
 ## Customizing the class
 
