@@ -10,8 +10,7 @@ test_py3:
 	tox -e py3
 	for example in examples/*; do tox -e py3 -c $$example/tox.ini; done
 
-publish:
-	cargo test
+publish: test
 	cargo publish --manifest-path pyo3-derive-backend/Cargo.toml
 	cargo publish --manifest-path pyo3cls/Cargo.toml
 	cargo publish
