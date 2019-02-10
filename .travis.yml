@@ -16,13 +16,15 @@ matrix:
       env: FEATURES=python3
     - python: "3.7"
       env: FEATURES=python3
+    - python: "3.8-dev"
+      env: FEATURES=python3
   allow_failures:
     - python: "3.8-dev"
       env: FEATURES=python3
 
 env:
   global:
-    - TRAVIS_RUST_VERSION=nightly-2019-01-12
+    - TRAVIS_RUST_VERSION=nightly-2019-02-07
     - RUST_BACKTRACE=1
 
 addons:
