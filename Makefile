@@ -1,4 +1,4 @@
-.PHONY: test publish
+.PHONY: test test_py3 publish
 
 test:
 	cargo test
