@@ -115,7 +115,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
         if self.index < self.slice.len() {
             let item = self.slice[self.index].as_ref(self.py);
             self.index += 1;
-            Some(item)
+            Some(item.into())
         } else {
             None
         }
@@ -133,7 +133,7 @@ impl<'a> IntoIterator for &'a PyTuple {
 
 impl<'a> IntoPyTuple for &'a PyTuple {
     fn into_tuple(self, _py: Python) -> Py<PyTuple> {
-        self.into()
+        unsafe { Py::from_borrowed_ptr(self.as_ptr()) }
     }
 }
 

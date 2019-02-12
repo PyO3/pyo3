@@ -16,6 +16,72 @@ struct MyClass {
 
 The above example generates implementations for `PyTypeInfo` and `PyTypeObject` for `MyClass`.
 
+## Get Python objects from `pyclass`
+You can use `pyclass`es like normal rust structs.
+
+However, if instantiate noramlly, you can't treat `pyclass`es as Python objects.
+
+To get a Python object which includes `pyclass`, we have to use some special methods.
+
+### `PyRef`
+`PyRef` is a special reference, which ensures that the reffrered struct is a part of
+a Python object, and you are also holding the GIL.
+
+You can get an instance of `PyRef` by `PyRef::new`, which does 3 things:
+1. Allocate a Python object in the Python heap
+2. Copies the rust struct into the Python object
+3. Returns a reference of it
+
+You can use `PyRef` just like `&T`, because it implements `Deref<Target=T>`.
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+   num: i32,
+   debug: bool,
+}
+let gil = Python::acquire_gil();
+let py = gil.python();
+let obj = PyRef::new(py, || MyClass { num: 3, debug: true }).unwrap();
+assert_eq!(obj.num, 3);
+let dict = PyDict::new();
+// You can treat a `PyRef` as a Python object
+dict.set_item("obj", obj)).unwrap();
+```
+
+### `PyRefMut`
+`PyRefMut` is a mutable version of `PyRef`.
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+   num: i32,
+   debug: bool,
+}
+let gil = Python::acquire_gil();
+let py = gil.python();
+let mut obj = PyRefMut::new(py, || MyClass { num: 3, debug: true }).unwrap();
+obj.num = 5;
+```
+
+### `Py`
+`Py` is a object wrapper which stores an object longer than the GIL lifetime.
+
+You can use it to avoid lifetime problems.
+```rust
+# use pyo3::prelude::*;
+#[pyclass]
+struct MyClass {
+   num: i32,
+}
+fn return_myclass() -> Py<MyClass> {
+    let gil = Python::acquire_gil();
+    Py::new(|| MyClass { num: 1 })
+}
+let gil = Python::acquire_gil();
+let obj = return_myclass();
+assert_eq!(obj.as_ref(gil.python()).num, 1);
+```
 
 ## Customizing the class
 

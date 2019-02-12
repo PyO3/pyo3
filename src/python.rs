@@ -5,7 +5,7 @@
 use crate::conversion::PyTryFrom;
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, Py};
+use crate::instance::{AsPyRef, Py, PyRef, PyRefMut};
 use crate::object::PyObject;
 use crate::pythonrun::{self, GILGuard};
 use crate::typeob::PyTypeCreate;
@@ -89,7 +89,6 @@ where
     }
 }
 
-/// Gets the underlying FFI pointer, returns a borrowed pointer.
 impl<'a, T> IntoPyPointer for &'a T
 where
     T: ToPyPointer,
@@ -262,23 +261,23 @@ impl<'p> Python<'p> {
     /// Create new instance of `T` and move it under python management.
     /// Created object get registered in release pool. Returns references to `T`
     #[inline]
-    pub fn init_ref<T, F>(self, f: F) -> PyResult<&'p T>
+    pub fn init_ref<T, F>(self, f: F) -> PyResult<PyRef<'p, T>>
     where
         F: FnOnce() -> T,
         T: PyTypeCreate,
     {
-        Py::new_ref(self, f)
+        PyRef::new(self, f)
     }
 
     /// Create new instance of `T` and move it under python management.
     /// Created object get registered in release pool. Returns mutable references to `T`
     #[inline]
-    pub fn init_mut<T, F>(self, f: F) -> PyResult<&'p mut T>
+    pub fn init_mut<T, F>(self, f: F) -> PyResult<PyRefMut<'p, T>>
     where
         F: FnOnce() -> T,
         T: PyTypeCreate,
     {
-        Py::new_mut(self, f)
+        PyRefMut::new(self, f)
     }
 }
 

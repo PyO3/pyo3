@@ -141,7 +141,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
 
-        let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+        let s2: &str = FromPyObject::extract(py_string.as_ref(py).into()).unwrap();
         assert_eq!(s, s2);
     }
 

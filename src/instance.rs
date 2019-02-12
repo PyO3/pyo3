@@ -1,5 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
@@ -11,8 +10,11 @@ use crate::pythonrun;
 use crate::typeob::PyTypeCreate;
 use crate::typeob::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
+use std::marker::PhantomData;
 use std::mem;
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
+use std::rc::Rc;
 
 /// Any instance that is managed Python can have access to `gil`.
 ///
@@ -25,18 +27,196 @@ pub trait PyObjectWithGIL: Sized {
 #[doc(hidden)]
 pub trait PyNativeType: PyObjectWithGIL {}
 
+/// A special reference of type `T`. `PyRef<T>` refers a instance of T, which exists in the Python
+/// heap as a part of a Python object.
+///
+/// We can't implement `ToPyPointer` or `ToPyObject` for `pyclass`es, because they're not Python
+/// objects until copied to the Python heap. So, instead of treating `&pyclass`es as Python objects,
+/// we need to use special reference types `PyRef` and `PyRefMut`.
+///
+/// # Example
+///
+/// ```
+/// use pyo3::prelude::*;
+/// use pyo3::types::IntoPyDict;
+/// #[pyclass]
+/// struct Point {
+///     x: i32,
+///     y: i32,
+/// }
+/// #[pymethods]
+/// impl Point {
+///     fn length(&self) -> i32 {
+///         self.x * self.y
+///     }
+/// }
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let obj = PyRef::new(gil.python(), || Point { x: 3, y: 4 }).unwrap();
+/// let d = vec![("p", obj)].into_py_dict(py);
+/// py.run("assert p.length() == 12", None, Some(d)).unwrap();
+/// ```
+#[derive(Debug)]
+pub struct PyRef<'a, T: PyTypeInfo>(&'a T, PhantomData<Rc<()>>);
+
+impl<'a, T: PyTypeInfo> PyRef<'a, T> {
+    pub(crate) fn from_ref(r: &'a T) -> Self {
+        PyRef(r, PhantomData)
+    }
+}
+
+impl<'a, T> PyRef<'a, T>
+where
+    T: PyTypeInfo + PyTypeObject + PyTypeCreate,
+{
+    pub fn new<F>(py: Python, f: F) -> PyResult<PyRef<T>>
+    where
+        F: FnOnce() -> T,
+    {
+        let obj = T::create(py)?;
+        obj.init(f)?;
+        let ref_ = unsafe { py.from_owned_ptr(obj.into_ptr()) };
+        Ok(PyRef::from_ref(ref_))
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyPointer for PyRef<'a, T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.0.as_ptr_dispatch()
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyObject for PyRef<'a, T> {
+    fn to_object(&self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.0
+    }
+}
+
+/// Mutable version of [`PyRef`](struct.PyRef.html).
+/// # Example
+/// ```
+/// use pyo3::prelude::*;
+/// use pyo3::types::IntoPyDict;
+/// #[pyclass]
+/// struct Point {
+///     x: i32,
+///     y: i32,
+/// }
+/// #[pymethods]
+/// impl Point {
+///     fn length(&self) -> i32 {
+///         self.x * self.y
+///     }
+/// }
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let mut obj = PyRefMut::new(gil.python(), || Point { x: 3, y: 4 }).unwrap();
+/// let d = vec![("p", obj.to_object(py))].into_py_dict(py);
+/// obj.x = 5; obj.y = 20;
+/// py.run("assert p.length() == 100", None, Some(d)).unwrap();
+/// ```
+#[derive(Debug)]
+pub struct PyRefMut<'a, T: PyTypeInfo>(&'a mut T, PhantomData<Rc<()>>);
+
+impl<'a, T: PyTypeInfo> PyRefMut<'a, T> {
+    pub(crate) fn from_mut(t: &'a mut T) -> Self {
+        PyRefMut(t, PhantomData)
+    }
+}
+
+impl<'a, T> PyRefMut<'a, T>
+where
+    T: PyTypeInfo + PyTypeObject + PyTypeCreate,
+{
+    pub fn new<F>(py: Python, f: F) -> PyResult<PyRefMut<T>>
+    where
+        F: FnOnce() -> T,
+    {
+        let obj = T::create(py)?;
+        obj.init(f)?;
+        let ref_ = unsafe { py.mut_from_owned_ptr(obj.into_ptr()) };
+        Ok(PyRefMut::from_mut(ref_))
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyPointer for PyRefMut<'a, T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        (self.0 as &T).as_ptr_dispatch()
+    }
+}
+
+impl<'a, T: PyTypeInfo> ToPyObject for PyRefMut<'a, T> {
+    fn to_object(&self, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<'a, T: PyTypeInfo> Deref for PyRefMut<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.0
+    }
+}
+
+impl<'a, T: PyTypeInfo> DerefMut for PyRefMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.0
+    }
+}
+
+impl<'a, T> From<PyRef<'a, T>> for &'a PyObjectRef
+where
+    T: PyTypeInfo,
+{
+    fn from(pref: PyRef<'a, T>) -> &'a PyObjectRef {
+        unsafe { &*(pref.as_ptr() as *const PyObjectRef) }
+    }
+}
+
+impl<'a, T> From<PyRefMut<'a, T>> for &'a PyObjectRef
+where
+    T: PyTypeInfo,
+{
+    fn from(pref: PyRefMut<'a, T>) -> &'a PyObjectRef {
+        unsafe { &*(pref.as_ptr() as *const PyObjectRef) }
+    }
+}
+
+/// Specialization workaround
+trait PyRefDispatch<T: PyTypeInfo> {
+    #[allow(clippy::cast_ptr_alignment)]
+    fn as_ptr_dispatch(&self) -> *mut ffi::PyObject {
+        unsafe { (self as *const _ as *mut u8).offset(-T::OFFSET) as *mut _ }
+    }
+}
+
+impl<T: PyTypeInfo> PyRefDispatch<T> for T {}
+
+impl<T: PyTypeInfo + PyNativeType> PyRefDispatch<T> for T {
+    fn as_ptr_dispatch(&self) -> *mut ffi::PyObject {
+        self as *const _ as *mut _
+    }
+}
+
 /// Trait implements object reference extraction from python managed pointer.
-pub trait AsPyRef<T>: Sized {
+pub trait AsPyRef<T: PyTypeInfo>: Sized {
     /// Return reference to object.
-    fn as_ref(&self, py: Python) -> &T;
+    fn as_ref(&self, py: Python) -> PyRef<T>;
 
     /// Return mutable reference to object.
-    fn as_mut(&mut self, py: Python) -> &mut T;
+    fn as_mut(&mut self, py: Python) -> PyRefMut<T>;
 
     /// Acquire python gil and call closure with object reference.
     fn with<F, R>(&self, f: F) -> R
     where
-        F: FnOnce(Python, &T) -> R,
+        F: FnOnce(Python, PyRef<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -47,7 +227,7 @@ pub trait AsPyRef<T>: Sized {
     /// Acquire python gil and call closure with mutable object reference.
     fn with_mut<F, R>(&mut self, f: F) -> R
     where
-        F: FnOnce(Python, &mut T) -> R,
+        F: FnOnce(Python, PyRefMut<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -58,7 +238,7 @@ pub trait AsPyRef<T>: Sized {
     fn into_py<F, R>(self, f: F) -> R
     where
         Self: IntoPyPointer,
-        F: FnOnce(Python, &T) -> R,
+        F: FnOnce(Python, PyRef<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -71,7 +251,7 @@ pub trait AsPyRef<T>: Sized {
     fn into_mut_py<F, R>(mut self, f: F) -> R
     where
         Self: IntoPyPointer,
-        F: FnOnce(Python, &mut T) -> R,
+        F: FnOnce(Python, PyRefMut<T>) -> R,
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -181,32 +361,6 @@ where
         let ob = unsafe { Py::from_owned_ptr(ob.into_ptr()) };
         Ok(ob)
     }
-
-    /// Create new instance of `T` and move it under python management.
-    /// Returns references to `T`
-    pub fn new_ref<F>(py: Python, f: F) -> PyResult<&T>
-    where
-        F: FnOnce() -> T,
-        T: PyTypeObject + PyTypeInfo,
-    {
-        let ob = <T as PyTypeCreate>::create(py)?;
-        ob.init(f)?;
-
-        unsafe { Ok(py.from_owned_ptr(ob.into_ptr())) }
-    }
-
-    /// Create new instance of `T` and move it under python management.
-    /// Returns mutable references to `T`
-    pub fn new_mut<F>(py: Python, f: F) -> PyResult<&mut T>
-    where
-        F: FnOnce() -> T,
-        T: PyTypeObject + PyTypeInfo,
-    {
-        let ob = <T as PyTypeCreate>::create(py)?;
-        ob.init(f)?;
-
-        unsafe { Ok(py.mut_from_owned_ptr(ob.into_ptr())) }
-    }
 }
 
 /// Specialization workaround
@@ -241,12 +395,12 @@ where
     T: PyTypeInfo,
 {
     #[inline]
-    fn as_ref(&self, py: Python) -> &T {
-        self.as_ref_dispatch(py)
+    fn as_ref(&self, py: Python) -> PyRef<T> {
+        PyRef::from_ref(self.as_ref_dispatch(py))
     }
     #[inline]
-    fn as_mut(&mut self, py: Python) -> &mut T {
-        self.as_mut_dispatch(py)
+    fn as_mut(&mut self, py: Python) -> PyRefMut<T> {
+        PyRefMut::from_mut(self.as_mut_dispatch(py))
     }
 }
 
@@ -308,20 +462,20 @@ impl<T> std::convert::From<Py<T>> for PyObject {
     }
 }
 
-impl<'a, T> std::convert::From<&'a T> for Py<T>
+impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
 where
-    T: ToPyPointer,
+    T: PyTypeInfo,
 {
-    fn from(ob: &'a T) -> Self {
+    fn from(ob: PyRef<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(ob.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<&'a mut T> for Py<T>
+impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
 where
-    T: ToPyPointer,
+    T: PyTypeInfo,
 {
-    fn from(ob: &'a mut T) -> Self {
+    fn from(ob: PyRefMut<'a, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(ob.as_ptr()) }
     }
 }

@@ -210,29 +210,6 @@ fn impl_class(
             }
         }
 
-        impl ::pyo3::ToPyObject for #cls {
-            fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
-                use ::pyo3::python::ToPyPointer;
-                unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
-        impl ::pyo3::ToPyPointer for #cls {
-            fn as_ptr(&self) -> *mut ::pyo3::ffi::PyObject {
-                unsafe {
-                    {self as *const _ as *mut u8}
-                    .offset(-<#cls as ::pyo3::typeob::PyTypeInfo>::OFFSET) as *mut ::pyo3::ffi::PyObject
-                }
-            }
-        }
-
-        impl<'a> ::pyo3::ToPyObject for &'a mut #cls {
-            fn to_object(&self, py: ::pyo3::Python) -> ::pyo3::PyObject {
-                use ::pyo3::python::ToPyPointer;
-                unsafe { ::pyo3::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-            }
-        }
-
         #inventory_impl
 
         #extra

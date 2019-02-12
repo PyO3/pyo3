@@ -275,8 +275,9 @@ where
     Ok(v)
 }
 
-impl PyTryFrom for PySequence {
-    fn try_from(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
+impl<'v> PyTryFrom<'v> for PySequence {
+    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
@@ -286,11 +287,16 @@ impl PyTryFrom for PySequence {
         }
     }
 
-    fn try_from_exact(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
-    fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
+    fn try_from_mut<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v mut PySequence, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 Ok(<PySequence as PyTryFrom>::try_from_mut_unchecked(value))
@@ -300,19 +306,21 @@ impl PyTryFrom for PySequence {
         }
     }
 
-    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
+    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v mut PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from_mut(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &PySequence {
-        let ptr = value as *const _ as *const PySequence;
+    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v PySequence {
+        let ptr = value.into() as *const _ as *const PySequence;
         &*ptr
     }
 
     #[inline]
-    unsafe fn try_from_mut_unchecked(value: &PyObjectRef) -> &mut PySequence {
-        let ptr = value as *const _ as *mut PySequence;
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut PySequence {
+        let ptr = value.into() as *const _ as *mut PySequence;
         &mut *ptr
     }
 }
