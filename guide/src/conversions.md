@@ -10,22 +10,6 @@ The easiest way to convert a python object to a rust value is using `.extract()?
 
 [`ToPyObject`] trait is a conversion trait that allows various objects to be converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the same purpose except it consumes `self`.
 
-## `IntoPyTuple` trait
-
-[`IntoPyTuple`][IntoPyTuple] trait is a conversion trait that allows various objects to be converted into [`PyTuple`][PyTuple] object.
-
-For example, [`IntoPyTuple`][IntoPyTuple] trait is implemented for `()` so that you can convert it into a empty [`PyTuple`][PyTuple]
-
-```rust
-use pyo3::{Python, IntoPyTuple};
-
-fn main() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let py_tuple = ().into_tuple(py);
-}
-```
-
 ## `FromPyObject` and `RefFromPyObject` trait
 
 ## `*args` and `**kwargs` for python object call
@@ -37,9 +21,7 @@ provides two methods:
 * `call` - call callable python object.
 * `call_method` - call specific method on the object.
 
-Both methods accept `args` and `kwargs` arguments. `args` argument is generate over
-[`IntoPyTuple`][IntoPyTuple] trait. So args could be `PyTuple` instance or
-rust tuple with up to 10 elements. Or `NoArgs` object which represents empty tuple object.
+Both methods accept `args` and `kwargs` arguments. The `NoArgs` object represents an empty tuple object.
 
 ```rust
 use pyo3::prelude::*;
@@ -118,12 +100,15 @@ fn main() {
 }
 ```
 
-TODO
+## `IntoPy<T>`
+
+Many conversions in pyo3 can't use `std::convert::Into` because they need a gil token. That's why the `IntoPy<T>` trait offers an `into_py` methods that works just like `into` except for taking a `Python<'_>` as argument.
+
+Eventually, traits such as `IntoPyObject` will be replaces by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`. 
 
 [`ToPyObject`]: https://docs.rs/pyo3/0.6.0-alpha.2/trait.ToPyObject.html
 [IntoPyObject]: https://docs.rs/pyo3/0.6.0-alpha.2/trait.IntoPyObject.html
 [PyObject]: https://docs.rs/pyo3/0.6.0-alpha.2/struct.PyObject.html
-[IntoPyTuple]: https://docs.rs/pyo3/0.6.0-alpha.2/trait.IntoPyTuple.html
 [PyTuple]: https://docs.rs/pyo3/0.6.0-alpha.2/struct.PyTuple.html
 [ObjectProtocol]: https://docs.rs/pyo3/0.6.0-alpha.2/trait.ObjectProtocol.html
 [IntoPyDict]: https://docs.rs/pyo3/0.6.0-alpha.2/trait.IntoPyDict.html

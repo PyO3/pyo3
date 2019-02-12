@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
+use crate::conversion::{FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::ffi;
@@ -9,6 +9,7 @@ use crate::object::PyObject;
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::typeob::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
+use crate::Py;
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
@@ -84,9 +85,11 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple;
+    fn call(
+        &self,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef>;
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self()`
@@ -94,9 +97,7 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args)`
-    fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple;
+    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef>;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`
@@ -116,7 +117,7 @@ pub trait ObjectProtocol {
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyObjectRef>;
 
@@ -126,7 +127,7 @@ pub trait ObjectProtocol {
 
     /// Calls a method on the object with positional arguments only .
     /// This is equivalent to the Python expression: `self.name(*args)`
-    fn call_method1(&self, name: &str, args: impl IntoPyTuple) -> PyResult<&PyObjectRef>;
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef>;
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: `hash(self)`
@@ -321,11 +322,12 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
-        let args = args.into_tuple(self.py()).into_ptr();
+    fn call(
+        &self,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef> {
+        let args = args.into_py(self.py()).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
             let return_value = ffi::PyObject_Call(self.as_ptr(), args, kwargs);
@@ -342,17 +344,14 @@ where
         self.call(PyTuple::empty(self.py()), None)
     }
 
-    fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
+    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
         self.call(args, None)
     }
 
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyObjectRef> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
@@ -361,7 +360,7 @@ where
             if ptr.is_null() {
                 return Err(PyErr::fetch(py));
             }
-            let args = args.into_tuple(py).into_ptr();
+            let args = args.into_py(py).into_ptr();
             let kwargs = kwargs.into_ptr();
             let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
             let result = py.from_owned_ptr_or_err(result_ptr);
@@ -376,7 +375,7 @@ where
         self.call_method(name, PyTuple::empty(self.py()), None)
     }
 
-    fn call_method1(&self, name: &str, args: impl IntoPyTuple) -> PyResult<&PyObjectRef> {
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
         self.call_method(name, args, None)
     }
 

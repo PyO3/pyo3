@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use super::exceptions;
-use crate::conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
+use crate::conversion::{FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::{AsPyRef, Py, PyObjectWithGIL};
@@ -131,20 +131,20 @@ impl<'a> IntoIterator for &'a PyTuple {
     }
 }
 
-impl<'a> IntoPyTuple for &'a PyTuple {
-    fn into_tuple(self, _py: Python) -> Py<PyTuple> {
+impl<'a> IntoPy<Py<PyTuple>> for &'a PyTuple {
+    fn into_py(self, _py: Python) -> Py<PyTuple> {
         unsafe { Py::from_borrowed_ptr(self.as_ptr()) }
     }
 }
 
-impl IntoPyTuple for Py<PyTuple> {
-    fn into_tuple(self, _py: Python) -> Py<PyTuple> {
+impl IntoPy<Py<PyTuple>> for Py<PyTuple> {
+    fn into_py(self, _py: Python) -> Py<PyTuple> {
         self
     }
 }
 
-impl<'a> IntoPyTuple for &'a str {
-    fn into_tuple(self, py: Python) -> Py<PyTuple> {
+impl<'a> IntoPy<Py<PyTuple>> for &'a str {
+    fn into_py(self, py: Python) -> Py<PyTuple> {
         unsafe {
             let ptr = ffi::PyTuple_New(1);
             ffi::PyTuple_SetItem(ptr, 0, self.into_object(py).into_ptr());
@@ -182,8 +182,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl <$($T: IntoPyObject),+> IntoPyTuple for ($($T,)+) {
-        fn into_tuple(self, py: Python) -> Py<PyTuple> {
+    impl <$($T: IntoPyObject),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
+        fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;

@@ -3,7 +3,7 @@
 use std::ptr::NonNull;
 
 use crate::conversion::{
-    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject,
+    FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject,
 };
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
@@ -11,6 +11,7 @@ use crate::instance::{AsPyRef, PyObjectWithGIL, PyRef, PyRefMut};
 use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
+use crate::Py;
 
 /// A python object
 ///
@@ -181,11 +182,13 @@ impl PyObject {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-    where
-        A: IntoPyTuple,
-    {
-        let args = args.into_tuple(py).into_ptr();
+    pub fn call(
+        &self,
+        py: Python,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
+        let args = args.into_py(py).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
             PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs))
@@ -205,10 +208,7 @@ impl PyObject {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args)'
-    pub fn call1<A>(&self, py: Python, args: A) -> PyResult<PyObject>
-    where
-        A: IntoPyTuple,
-    {
+    pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
@@ -218,11 +218,11 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         name.with_borrowed_ptr(py, |name| unsafe {
-            let args = args.into_tuple(py).into_ptr();
+            let args = args.into_py(py).into_ptr();
             let kwargs = kwargs.into_ptr();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
@@ -248,7 +248,7 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
     ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
     }

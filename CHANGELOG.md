@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Renamed `py_exception` to `create_exception` and refactored the error macros.
  * Renamed `wrap_function!` to `wrap_pyfunction!`
  * Migrated to the 2018 edition
+ * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`. Eventually `IntoPy<T>` should replace `ToPyObject` and be itself implemented through `FromPy<T>`
 
 ### Removed
 
