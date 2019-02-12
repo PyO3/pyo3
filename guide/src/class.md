@@ -17,11 +17,15 @@ struct MyClass {
 The above example generates implementations for `PyTypeInfo` and `PyTypeObject` for `MyClass`.
 
 ## Get Python objects from `pyclass`
-In rust side, we can get a Python object which includes `pyclass` by 3 methods.
+You can use `pyclass`es like normal rust structs.
+
+However, if instantiate noramlly, you can't treat `pyclass`es as Python objects.
+
+To get a Python object which includes `pyclass`, we have to use some special methods.
 
 ### `PyRef`
-`PyRef` is a special reference, which ensures the reffrered struct is a part of
-a Python object.
+`PyRef` is a special reference, which ensures that the reffrered struct is a part of
+a Python object, and you are also holding the GIL.
 
 You can get an instance of `PyRef` by `PyRef::new`, which does 3 things:
 1. Allocate a Python object in the Python heap
