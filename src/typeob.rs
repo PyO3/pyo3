@@ -83,7 +83,7 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        Ok(obj.init(MyClass { }))
+///        obj.init(MyClass { })
 ///    }
 /// }
 /// ```

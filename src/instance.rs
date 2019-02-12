@@ -53,7 +53,7 @@ pub trait PyNativeType: PyObjectWithGIL {}
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let obj = PyRef::new(gil.python(), || Point { x: 3, y: 4 }).unwrap();
-/// let d = vec![("p", obj)].into_py_dict(py);
+/// let d = vec![("p", obj)].into_py(py);
 /// py.run("assert p.length() == 12", None, Some(d)).unwrap();
 /// ```
 #[derive(Debug)]
@@ -69,8 +69,7 @@ impl<'a, T> PyRef<'a, T>
 where
     T: PyTypeInfo + PyTypeObject + PyTypeCreate,
 {
-    pub fn new(py: Python, value: T) -> PyResult<PyRef<T>>
-    {
+    pub fn new(py: Python, value: T) -> PyResult<PyRef<T>> {
         let obj = T::create(py)?;
         obj.init(value)?;
         let ref_ = unsafe { py.from_owned_ptr(obj.into_ptr()) };
@@ -115,8 +114,8 @@ impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let mut obj = PyRefMut::new(gil.python(), || Point { x: 3, y: 4 }).unwrap();
-/// let d = vec![("p", obj.to_object(py))].into_py_dict(py);
+/// let mut obj = PyRefMut::new(gil.python(), Point { x: 3, y: 4 }).unwrap();
+/// let d = vec![("p", obj.to_object(py))].into_py(py);
 /// obj.x = 5; obj.y = 20;
 /// py.run("assert p.length() == 100", None, Some(d)).unwrap();
 /// ```
@@ -133,8 +132,7 @@ impl<'a, T> PyRefMut<'a, T>
 where
     T: PyTypeInfo + PyTypeObject + PyTypeCreate,
 {
-    pub fn new(py: Python, value: T) -> PyResult<PyRefMut<T>>
-    {
+    pub fn new(py: Python, value: T) -> PyResult<PyRefMut<T>> {
         let obj = T::create(py)?;
         obj.init(value)?;
         let ref_ = unsafe { py.mut_from_owned_ptr(obj.into_ptr()) };

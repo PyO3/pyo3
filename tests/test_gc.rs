@@ -157,12 +157,15 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = PyRef::new(py, GCIntegration {
-            self_ref: RefCell::new(py.None()),
-            dropped: TestDropCall {
-                drop_called: Arc::clone(&drop_called),
+        let inst = PyRef::new(
+            py,
+            GCIntegration {
+                self_ref: RefCell::new(py.None()),
+                dropped: TestDropCall {
+                    drop_called: Arc::clone(&drop_called),
+                },
             },
-        })
+        )
         .unwrap();
 
         *inst.self_ref.borrow_mut() = inst.to_object(py);

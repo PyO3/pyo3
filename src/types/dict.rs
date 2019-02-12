@@ -256,7 +256,7 @@ where
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python) -> &PyDict;
+    fn into_py(self, py: Python) -> &PyDict;
 }
 
 impl<K, V, I> IntoPyDict for I
@@ -265,7 +265,7 @@ where
     V: ToPyObject,
     I: IntoIterator<Item = (K, V)>,
 {
-    fn into_py_dict(self, py: Python) -> &PyDict {
+    fn into_py(self, py: Python) -> &PyDict {
         let dict = PyDict::new(py);
         for (key, value) in self {
             dict.set_item(key, value)
@@ -591,7 +591,7 @@ mod test {
         let mut map = HashMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let py_map = map.into_py_dict(py);
+        let py_map = map.into_py(py);
 
         assert_eq!(py_map.len(), 1);
         assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
@@ -620,7 +620,7 @@ mod test {
         let mut map = BTreeMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let py_map = map.into_py_dict(py);
+        let py_map = map.into_py(py);
 
         assert_eq!(py_map.len(), 1);
         assert_eq!(py_map.get_item(1).unwrap().extract::<i32>().unwrap(), 1);
@@ -632,7 +632,7 @@ mod test {
         let py = gil.python();
 
         let vec = vec![("a", 1), ("b", 2), ("c", 3)];
-        let py_map = vec.into_py_dict(py);
+        let py_map = vec.into_py(py);
 
         assert_eq!(py_map.len(), 3);
         assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);

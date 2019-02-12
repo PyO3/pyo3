@@ -91,12 +91,12 @@ fn main() {
 
     // pass arguments as Vec
     let kwargs = vec![(key1, val1), (key2, val2)];
-    obj.call(py, NoArgs, Some(kwargs.into_py_dict(py)));
+    obj.call(py, NoArgs, Some(kwargs.into_py(py)));
 
     // pass arguments as HashMap
     let mut kwargs = HashMap::<&str, i32>::new();
     kwargs.insert(key1, 1);
-    obj.call(py, NoArgs, Some(kwargs.into_py_dict(py)));
+    obj.call(py, NoArgs, Some(kwargs.into_py(py)));
 }
 ```
 
