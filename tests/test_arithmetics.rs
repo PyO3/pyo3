@@ -32,7 +32,7 @@ fn unary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(UnaryArithmetic {}).unwrap();
+    let c = Py::new(py, UnaryArithmetic {}).unwrap();
     py_run!(py, c, "assert -c == 'neg'");
     py_run!(py, c, "assert +c == 'pos'");
     py_run!(py, c, "assert abs(c) == 'abs'");
@@ -110,7 +110,7 @@ fn inplace_operations() {
     let py = gil.python();
 
     let init = |value, code| {
-        let c = py.init(InPlaceOperations { value }).unwrap();
+        let c = Py::new(py, InPlaceOperations { value }).unwrap();
         py_run!(py, c, code);
     };
 
@@ -164,7 +164,7 @@ fn binary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(BinaryArithmetic {}).unwrap();
+    let c = Py::new(py, BinaryArithmetic {}).unwrap();
     py_run!(py, c, "assert c + c == 'BA + BA'");
     py_run!(py, c, "assert c + 1 == 'BA + 1'");
     py_run!(py, c, "assert 1 + c == '1 + BA'");
@@ -230,7 +230,7 @@ fn rich_comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(RichComparisons {}).unwrap();
+    let c = Py::new(py, RichComparisons {}).unwrap();
     py_run!(py, c, "assert (c < c) == 'RC < RC'");
     py_run!(py, c, "assert (c < 1) == 'RC < 1'");
     py_run!(py, c, "assert (1 < c) == 'RC > 1'");
@@ -257,7 +257,7 @@ fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c2 = py.init(RichComparisons2 {}).unwrap();
+    let c2 = Py::new(py, RichComparisons2 {}).unwrap();
     py_expect_exception!(py, c2, "c2 < c2", TypeError);
     py_expect_exception!(py, c2, "c2 < 1", TypeError);
     py_expect_exception!(py, c2, "1 < c2", TypeError);

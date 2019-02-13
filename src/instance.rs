@@ -71,7 +71,7 @@ where
 {
     pub fn new(py: Python, value: T) -> PyResult<PyRef<T>> {
         let obj = T::create(py)?;
-        obj.init(value)?;
+        obj.init(value);
         let ref_ = unsafe { py.from_owned_ptr(obj.into_ptr()) };
         Ok(PyRef::from_ref(ref_))
     }
@@ -134,7 +134,7 @@ where
 {
     pub fn new(py: Python, value: T) -> PyResult<PyRefMut<T>> {
         let obj = T::create(py)?;
-        obj.init(value)?;
+        obj.init(value);
         let ref_ = unsafe { py.mut_from_owned_ptr(obj.into_ptr()) };
         Ok(PyRefMut::from_mut(ref_))
     }
@@ -257,14 +257,29 @@ pub trait AsPyRef<T: PyTypeInfo>: Sized {
 }
 
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer with specified type information.
+///
+/// `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, std::marker::PhantomData<T>);
 
-// `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
 unsafe impl<T> Send for Py<T> {}
 
 unsafe impl<T> Sync for Py<T> {}
+
+impl<T> Py<T>
+where
+    T: PyTypeCreate + PyTypeObject,
+{
+    /// Create new instance of T and move it under python management
+    pub fn new(py: Python, value: T) -> PyResult<Py<T>> {
+        let ob = T::create(py)?;
+        ob.init(value);
+
+        let ob = unsafe { Py::from_owned_ptr(ob.into_ptr()) };
+        Ok(ob)
+    }
+}
 
 impl<T> Py<T> {
     /// Creates a `Py<T>` instance for the given FFI pointer.
@@ -335,48 +350,6 @@ impl<T> Py<T> {
         let pointer = self.0;
         mem::forget(self);
         pointer
-    }
-}
-
-impl<T> Py<T>
-where
-    T: PyTypeCreate,
-{
-    /// Create new instance of T and move it under python management
-    /// Returns `Py<T>`.
-    pub fn new(py: Python, value: T) -> PyResult<Py<T>>
-    where
-        T: PyTypeObject + PyTypeInfo,
-    {
-        let ob = <T as PyTypeCreate>::create(py)?;
-        ob.init(value)?;
-
-        let ob = unsafe { Py::from_owned_ptr(ob.into_ptr()) };
-        Ok(ob)
-    }
-
-    /// Create new instance of `T` and move it under python management.
-    /// Returns references to `T`
-    pub fn new_ref(py: Python, value: T) -> PyResult<&T>
-    where
-        T: PyTypeObject + PyTypeInfo,
-    {
-        let ob = <T as PyTypeCreate>::create(py)?;
-        ob.init(value)?;
-
-        unsafe { Ok(py.from_owned_ptr(ob.into_ptr())) }
-    }
-
-    /// Create new instance of `T` and move it under python management.
-    /// Returns mutable references to `T`
-    pub fn new_mut(py: Python, value: T) -> PyResult<&mut T>
-    where
-        T: PyTypeObject + PyTypeInfo,
-    {
-        let ob = <T as PyTypeCreate>::create(py)?;
-        ob.init(value)?;
-
-        unsafe { Ok(py.mut_from_owned_ptr(ob.into_ptr())) }
     }
 }
 

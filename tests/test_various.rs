@@ -26,8 +26,8 @@ impl MutRefArg {
 fn mut_ref_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst1 = py.init(MutRefArg { n: 0 }).unwrap();
-    let inst2 = py.init(MutRefArg { n: 0 }).unwrap();
+    let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
+    let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
     let d = PyDict::new(py);
     d.set_item("inst1", &inst1).unwrap();

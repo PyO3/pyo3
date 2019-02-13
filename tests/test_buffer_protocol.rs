@@ -65,11 +65,13 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py
-        .init(TestClass {
+    let t = Py::new(
+        py,
+        TestClass {
             vec: vec![b' ', b'2', b'3'],
-        })
-        .unwrap();
+        },
+    )
+    .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();
@@ -82,11 +84,13 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py
-        .init(TestClass {
+    let t = Py::new(
+        py,
+        TestClass {
             vec: vec![b' ', b'2', b'3'],
-        })
-        .unwrap();
+        },
+    )
+    .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();

@@ -83,7 +83,7 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// impl MyClass {
 ///    #[new]
 ///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(MyClass { })
+///        Ok(obj.init(MyClass { }))
 ///    }
 /// }
 /// ```
@@ -139,16 +139,12 @@ impl PyRawObject {
         }
     }
 
-    pub fn init<T>(&self, value: T) -> PyResult<()>
-    where
-        T: PyTypeInfo,
-    {
+    pub fn init<T: PyTypeInfo>(&self, value: T) {
         unsafe {
             // The `as *mut u8` part is required because the offset is in bytes
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
             std::ptr::write(ptr, value);
         }
-        Ok(())
     }
 
     /// Type object
@@ -195,12 +191,10 @@ pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObj
 /// All native types and all `#[pyclass]` types use the default functions, while
 /// [PyObjectWithFreeList](crate::freelist::PyObjectWithFreeList) gets a special version.
 pub trait PyObjectAlloc: PyTypeInfo + Sized {
-    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
+    unsafe fn alloc(_py: Python) -> *mut ffi::PyObject {
         let tp_ptr = Self::type_object();
         let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
-        let obj = alloc(tp_ptr, 0);
-
-        Ok(obj)
+        alloc(tp_ptr, 0)
     }
 
     /// Calls the rust destructor for the object and frees the memory
@@ -286,7 +280,7 @@ pub trait PyTypeCreate: PyObjectAlloc + PyTypeObject + Sized {
         Self::init_type();
 
         unsafe {
-            let ptr = Self::alloc(py)?;
+            let ptr = Self::alloc(py);
             PyRawObject::new_with_ptr(
                 py,
                 ptr,
