@@ -199,7 +199,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $( slice[$n].extract::<$T>(obj.py())?, )+
+                    $(slice[$n].extract::<$T>(obj.py())?,)+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))

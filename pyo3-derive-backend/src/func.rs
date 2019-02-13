@@ -130,7 +130,7 @@ pub fn impl_method_proto(
                 });
 
                 let tmp2 = extract_decl(syn::parse_quote! {
-                    fn test( &self, arg: Option<<#cls as #p<'p>>::#arg_name>) -> <#cls as #p<'p>>::Result {}
+                    fn test(&self, arg: Option<<#cls as #p<'p>>::#arg_name>) -> <#cls as #p<'p>>::Result {}
                 });
 
                 modify_arg_ty(sig, 1, &tmp, &tmp2);
