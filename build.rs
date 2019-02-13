@@ -1,6 +1,3 @@
-extern crate regex;
-extern crate version_check;
-
 use regex::Regex;
 use std::collections::HashMap;
 use std::convert::AsRef;
@@ -13,10 +10,11 @@ use std::process::Command;
 use std::process::Stdio;
 use version_check::{is_min_date, is_min_version, supports_features};
 
-// Specifies the minimum nightly version needed to compile pyo3.
-// This requirement is due to https://github.com/rust-lang/rust/issues/55380
-const MIN_DATE: &'static str = "2018-11-02";
-const MIN_VERSION: &'static str = "1.32.0-nightly";
+/// Specifies the minimum nightly version needed to compile pyo3.
+/// Keep this synced up with the travis ci config,
+/// But note that this is the rustc version which can be lower than the nightly version
+const MIN_DATE: &'static str = "2019-02-06";
+const MIN_VERSION: &'static str = "1.34.0-nightly";
 
 #[derive(Debug)]
 struct PythonVersion {

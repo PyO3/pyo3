@@ -1,41 +1,13 @@
 #!/bin/sh
 
-set -e
-
-# Find the installed version of a binary, if any
-_installed() {
-    VERSION=$($@ --version 2>/dev/null || echo "$@ none")
-    echo $VERSION | rev | cut -d' ' -f1 | rev
-}
-
-# Find the latest available version of a binary on `crates.io`
-_latest() {
-    VERSION=$(cargo search -q "$@" | grep "$@" | cut -f2 -d"\"")
-    echo $VERSION
-}
+set -ex
 
 ### Setup Rust toolchain #######################################################
 
 curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
 export PATH=$PATH:$HOME/.cargo/bin
-
-rustup component add clippy || cargo install --git https://github.com/rust-lang/rust-clippy/ --force clippy
+rustup component add clippy || cargo install --git https://github.com/rust-lang/rust-clippy --force clippy
 rustup component add rustfmt
-
-### Setup kcov #################################################################
-
-if [ ! -f "$HOME/.cargo/bin/kcov" ]; then
-    if [ ! -d "$HOME/kcov/.git" ]; then
-        git clone --depth=1 https://github.com/SimonKagstrom/kcov "$HOME/kcov"
-    fi
-
-    cd $HOME/kcov
-    git pull
-    cmake .
-    make
-    install src/kcov $HOME/.cargo/bin/kcov
-    cd $TRAVIS_BUILD_DIR
-fi
 
 ### Setup python linker flags ##################################################
 
