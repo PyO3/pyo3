@@ -8,23 +8,32 @@ cache:
 
 matrix:
   include:
-    - python: "2.7"
+    - name: Python 2.7
+      python: "2.7"
       env: FEATURES=python2
-    - python: "3.5"
+    - name: Python 3.5
+      python: "3.5"
       env: FEATURES=python3
-    - python: "3.6"
+    - name: Python 3.6
+      python: "3.6"
       env: FEATURES=python3
-    - python: "3.7"
+    - name: Python 3.7
+      python: "3.7"
       env: FEATURES=python3
-    - python: "3.8-dev"
+    - name: Python 3.8-dev
+      python: "3.8-dev"
       env: FEATURES=python3
+    - name: Minimum nightly
+      python: "3.7"
+      # Keep this synced up with build.rs
+      env: FEATURES=python3 TRAVIS_RUST_VERSION=nightly-2019-02-07
   allow_failures:
     - python: "3.8-dev"
       env: FEATURES=python3
 
 env:
   global:
-    - TRAVIS_RUST_VERSION=nightly-2019-02-07
+    - TRAVIS_RUST_VERSION=nightly
     - RUST_BACKTRACE=1
 
 addons:
@@ -48,13 +57,6 @@ script:
   - ./ci/travis/test.sh
 
 deploy:
-# FIXME: kcov seems to be broken
-#  - provider: script
-#    skip_cleanup: true
-#    script: ./ci/travis/cover.sh
-#    on:
-#      branch: master
-#      condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     skip_cleanup: true
     script: ./ci/travis/guide.sh
