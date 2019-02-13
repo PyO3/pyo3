@@ -2,12 +2,6 @@
 
 //! Python type object information
 
-use std::collections::HashMap;
-use std::ffi::CString;
-use std::os::raw::c_void;
-
-use class::methods::PyMethodsProtocol;
-
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyObjectWithGIL};
@@ -16,6 +10,11 @@ use crate::python::{IntoPyPointer, Python};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
 use crate::{class, ffi, pythonrun};
+use class::methods::PyMethodsProtocol;
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::os::raw::c_void;
+use std::ptr::NonNull;
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -40,7 +39,8 @@ pub trait PyTypeInfo {
     /// Base class
     type BaseType: PyTypeInfo;
 
-    /// PyTypeObject instance for this type
+    /// PyTypeObject instance for this type, which might still need to
+    /// be initialized
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
@@ -247,48 +247,22 @@ pub trait PyObjectAlloc: PyTypeInfo + Sized {
 
 /// Python object types that have a corresponding type object.
 pub trait PyTypeObject {
-    /// Initialize type object
-    fn init_type();
+    /// This function must make sure that the corresponding type object gets
+    /// initialized exactly once and return it.
+    fn init_type() -> NonNull<ffi::PyTypeObject>;
 
-    /// Retrieves the type object for this Python object type.
-    fn type_object() -> Py<PyType>;
-}
-
-/// Python object types that have a corresponding type object and be
-/// instanciated with [Self::create()]
-pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
-    fn init_type();
-
-    #[inline]
+    /// Returns the safe abstraction over the type object from [PyTypeObject::init_type]
     fn type_object() -> Py<PyType> {
-        <Self as PyTypeObject>::init_type();
-        PyType::new::<Self>()
-    }
-
-    /// Create PyRawObject which can be initialized with rust value
-    #[must_use]
-    fn create(py: Python) -> PyResult<PyRawObject> {
-        <Self as PyTypeObject>::init_type();
-
-        unsafe {
-            let ptr = <Self as PyObjectAlloc>::alloc(py)?;
-            PyRawObject::new_with_ptr(
-                py,
-                ptr,
-                <Self as PyTypeInfo>::type_object(),
-                <Self as PyTypeInfo>::type_object(),
-            )
-        }
+        unsafe { Py::from_borrowed_ptr(Self::init_type().as_ptr() as *mut ffi::PyObject) }
     }
 }
 
-impl<T> PyTypeCreate for T
+impl<T> PyTypeObject for T
 where
-    T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
+    T: PyTypeInfo + PyMethodsProtocol + PyObjectAlloc,
 {
-    #[inline]
-    fn init_type() {
-        let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
+    fn init_type() -> NonNull<ffi::PyTypeObject> {
+        let type_object = unsafe { <Self as PyTypeInfo>::type_object() };
 
         if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
@@ -299,21 +273,34 @@ where
                 panic!("An error occurred while initializing class {}", Self::NAME)
             });
         }
+
+        unsafe { NonNull::new_unchecked(type_object) }
     }
 }
 
-impl<T> PyTypeObject for T
-where
-    T: PyTypeCreate,
-{
-    fn init_type() {
-        <T as PyTypeCreate>::init_type()
-    }
+/// Python object types that can be instanciated with [Self::create()]
+///
+/// We can't just make this a part of [PyTypeObject] because exceptions have
+/// no PyTypeInfo
+pub trait PyTypeCreate: PyObjectAlloc + PyTypeObject + Sized {
+    /// Create PyRawObject which can be initialized with rust value
+    #[must_use]
+    fn create(py: Python) -> PyResult<PyRawObject> {
+        Self::init_type();
 
-    fn type_object() -> Py<PyType> {
-        <T as PyTypeCreate>::type_object()
+        unsafe {
+            let ptr = Self::alloc(py)?;
+            PyRawObject::new_with_ptr(
+                py,
+                ptr,
+                <Self as PyTypeInfo>::type_object(),
+                <Self as PyTypeInfo>::type_object(),
+            )
+        }
     }
 }
+
+impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeObject + Sized {}
 
 /// Register new type in python object system.
 ///

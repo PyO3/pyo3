@@ -5,10 +5,9 @@
 use crate::conversion::ToPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::Py;
 use crate::python::{Python, ToPyPointer};
 use crate::typeob::PyTypeObject;
-use crate::types::{PyObjectRef, PyTuple, PyType};
+use crate::types::{PyObjectRef, PyTuple};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, ops};
@@ -91,13 +90,7 @@ macro_rules! import_exception {
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
         impl $crate::typeob::PyTypeObject for $name {
-            #[inline]
-            fn init_type() {
-                let _ = Self::type_object();
-            }
-
-            #[inline]
-            fn type_object() -> $crate::Py<$crate::types::PyType> {
+            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
                 static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
@@ -121,11 +114,7 @@ macro_rules! import_exception_type_object {
                     }
                 });
 
-                unsafe {
-                    $crate::Py::from_borrowed_ptr(
-                        TYPE_OBJECT as *const _ as *mut $crate::ffi::PyObject,
-                    )
-                }
+                unsafe { std::ptr::NonNull::new_unchecked(TYPE_OBJECT) }
             }
         }
     };
@@ -187,13 +176,7 @@ macro_rules! create_exception {
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         impl $crate::typeob::PyTypeObject for $name {
-            #[inline]
-            fn init_type() {
-                let _ = Self::type_object();
-            }
-
-            #[inline]
-            fn type_object() -> $crate::Py<$crate::types::PyType> {
+            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
                 static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
@@ -212,11 +195,7 @@ macro_rules! create_exception_type_object {
                     }
                 });
 
-                unsafe {
-                    $crate::Py::from_borrowed_ptr(
-                        TYPE_OBJECT as *const _ as *mut $crate::ffi::PyObject,
-                    )
-                }
+                unsafe { std::ptr::NonNull::new_unchecked(TYPE_OBJECT) }
             }
         }
     };
@@ -245,14 +224,8 @@ macro_rules! impl_native_exception (
             }
         }
         impl PyTypeObject for $name {
-            #[inline]
-            fn init_type() {}
-
-            #[inline]
-            fn type_object() -> Py<PyType> {
-                unsafe {
-                    Py::from_borrowed_ptr(ffi::$exc_name)
-                }
+            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
+                unsafe { std::ptr::NonNull::new_unchecked(ffi::$exc_name as *mut _) }
             }
         }
     );

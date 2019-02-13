@@ -10,6 +10,7 @@ use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::{Python, ToPyPointer};
 use crate::typeob::PyTypeCreate;
+use crate::typeob::PyTypeObject;
 use crate::types::PyTuple;
 use crate::types::{exceptions, PyDict, PyObjectRef};
 use crate::Py;
@@ -155,7 +156,7 @@ impl PyModule {
     where
         T: PyTypeCreate,
     {
-        self.setattr(T::NAME, <T as PyTypeCreate>::type_object())
+        self.setattr(T::NAME, <T as PyTypeObject>::type_object())
     }
 
     /// Adds a function or a (sub)module to a module, using the functions __name__ as name.

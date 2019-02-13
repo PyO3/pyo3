@@ -122,7 +122,7 @@ fn impl_class(
                                 FREELIST = Box::into_raw(Box::new(
                                     ::pyo3::freelist::FreeList::with_capacity(#freelist)));
 
-                                <#cls as ::pyo3::typeob::PyTypeCreate>::init_type();
+                                <#cls as ::pyo3::typeob::PyTypeObject>::init_type();
                             }
                             &mut *FREELIST
                         }
