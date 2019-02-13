@@ -188,7 +188,7 @@ fn sequence() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(Sequence {}).unwrap();
+    let c = Py::new(py, Sequence {}).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
@@ -209,11 +209,11 @@ fn callable() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(Callable {}).unwrap();
+    let c = Py::new(py, Callable {}).unwrap();
     py_assert!(py, c, "callable(c)");
     py_assert!(py, c, "c(7) == 42");
 
-    let nc = py.init(Comparisons { val: 0 }).unwrap();
+    let nc = Py::new(py, Comparisons { val: 0 }).unwrap();
     py_assert!(py, nc, "not callable(nc)");
 }
 
@@ -237,7 +237,7 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(SetItem { key: 0, val: 0 }).unwrap();
+    let c = PyRef::new(py, SetItem { key: 0, val: 0 }).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.key, 1);
     assert_eq!(c.val, 2);
@@ -262,7 +262,7 @@ fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(DelItem { key: 0 }).unwrap();
+    let c = PyRef::new(py, DelItem { key: 0 }).unwrap();
     py_run!(py, c, "del c[1]");
     assert_eq!(c.key, 1);
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
@@ -291,7 +291,7 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init_ref(SetDelItem { val: None }).unwrap();
+    let c = PyRef::new(py, SetDelItem { val: None }).unwrap();
     py_run!(py, c, "c[1] = 2");
     assert_eq!(c.val, Some(2));
     py_run!(py, c, "del c[1]");
@@ -313,7 +313,7 @@ fn reversed() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(Reversed {}).unwrap();
+    let c = Py::new(py, Reversed {}).unwrap();
     py_run!(py, c, "assert reversed(c) == 'I am reversed'");
 }
 
@@ -332,7 +332,7 @@ fn contains() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(Contains {}).unwrap();
+    let c = Py::new(py, Contains {}).unwrap();
     py_run!(py, c, "assert 1 in c");
     py_run!(py, c, "assert -1 not in c");
     py_expect_exception!(py, c, "assert 'wrong type' not in c", TypeError);
@@ -370,7 +370,7 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let mut c = py.init_mut(ContextManager { exit_called: false }).unwrap();
+    let mut c = PyRefMut::new(py, ContextManager { exit_called: false }).unwrap();
     py_run!(py, c, "with c as x: assert x == 42");
     assert!(c.exit_called);
 
@@ -427,7 +427,7 @@ fn test_cls_impl() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let ob = py.init(Test {}).unwrap();
+    let ob = Py::new(py, Test {}).unwrap();
     let d = PyDict::new(py);
     d.set_item("ob", ob).unwrap();
 

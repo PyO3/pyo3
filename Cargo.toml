@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.6.0-alpha.2"
+version = "0.6.0-alpha.3"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"

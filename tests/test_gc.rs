@@ -67,16 +67,15 @@ fn data_is_dropped() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = py
-            .init(DataIsDropped {
-                member1: TestDropCall {
-                    drop_called: Arc::clone(&drop_called1),
-                },
-                member2: TestDropCall {
-                    drop_called: Arc::clone(&drop_called2),
-                },
-            })
-            .unwrap();
+        let data_is_dropped = DataIsDropped {
+            member1: TestDropCall {
+                drop_called: Arc::clone(&drop_called1),
+            },
+            member2: TestDropCall {
+                drop_called: Arc::clone(&drop_called2),
+            },
+        };
+        let inst = Py::new(py, data_is_dropped).unwrap();
         assert!(!drop_called1.load(Ordering::Relaxed));
         assert!(!drop_called2.load(Ordering::Relaxed));
         drop(inst);
@@ -114,7 +113,7 @@ fn create_pointers_in_drop() {
         let empty = PyTuple::empty(py);
         ptr = empty.as_ptr();
         cnt = empty.get_refcnt() - 1;
-        let inst = py.init(ClassWithDrop {}).unwrap();
+        let inst = Py::new(py, ClassWithDrop {}).unwrap();
         drop(inst);
     }
 
@@ -215,7 +214,7 @@ struct BaseClassWithDrop {
 impl BaseClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(BaseClassWithDrop { data: None })
+        Ok(obj.init(BaseClassWithDrop { data: None }))
     }
 }
 
@@ -236,7 +235,7 @@ struct SubClassWithDrop {
 impl SubClassWithDrop {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(SubClassWithDrop { data: None })?;
+        obj.init(SubClassWithDrop { data: None });
         BaseClassWithDrop::__new__(obj)
     }
 }

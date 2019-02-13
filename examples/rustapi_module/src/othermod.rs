@@ -14,9 +14,9 @@ pub struct ModClass {
 impl ModClass {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(ModClass {
+        Ok(obj.init(ModClass {
             _somefield: String::from("contents"),
-        })
+        }))
     }
 
     fn noop(&self, x: usize) -> usize {

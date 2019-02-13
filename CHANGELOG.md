@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
@@ -10,21 +11,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Added a `wrap_pymodule!` macro similar to the existing `wrap_pyfunction!` macro. Only available on python 3
  * Added support for cross compiling (e.g. to arm v7) by mtp401 in [#327](https://github.com/PyO3/pyo3/pull/327). See the "Cross Compiling" section in the "Building and Distribution" chapter of the guide for more details.
+ * The `PyRef` and `PyRefMut` types, which allow to differentiate between an instance of a rust struct on the rust heap and an instance that is embedded inside a python object. By kngwyu in [#335](https://github.com/PyO3/pyo3/pull/335)
 
 ### Changed
 
  * Renamed `add_function` to `add_wrapped` as it now also supports modules.
- * Renamed `#[pymodinit]` to `#[pymodule]`.
- * `init`, `init_ref` and `init_mut` now take a value instead of a function that returns the value. (Migrating normally just removing `||`)
- * Renamed `py_exception` to `create_exception` and refactored the error macros.
+ * Renamed `#[pymodinit]` to `#[pymodule]`
+ * `py.init(|| value)` becomes `Py::new(value)`
+ * `py.init_ref(|| value)` becomes `PyRef::new(value)`
+ * `py.init_mut(|| value)` becomes `PyRefMut::new(value)`.
+ * `PyRawObject::init` is now infallible, e.g. it returns `()` instead of `PyResult<()>`.
+ * Renamed `py_exception!` to `create_exception!` and refactored the error macros.
  * Renamed `wrap_function!` to `wrap_pyfunction!`
  * Migrated to the 2018 edition
  * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`. Eventually `IntoPy<T>` should replace `ToPyObject` and be itself implemented through `FromPy<T>`
+ * PyTypeObject is now a direct subtrait PyTypeCreate, removing the old cyclical implementation in [#350](https://github.com/PyO3/pyo3/pull/350)
 
 ### Removed
 
  * `PyToken` was removed due to unsoundness (See [#94](https://github.com/PyO3/pyo3/issues/94)).
  * Removed the unnecessary type parameter from `PyObjectAlloc`
+
+### Fixed
+
+ * A soudness hole where every instances of a `#[pyclass]` struct was considered to be part of a python object, even though you can create instances that are not part of the python heap. This was fixed through `PyRef` and `PyRefMut`. 
 
 ## [0.5.3] - 2019-01-04
 
