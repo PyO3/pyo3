@@ -1,6 +1,7 @@
 #!/bin/bash
 set -ex
 
+cargo clean
 cargo test --features "$FEATURES num-complex"
 if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
     cargo fmt --all -- --check

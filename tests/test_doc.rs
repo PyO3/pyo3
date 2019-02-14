@@ -14,8 +14,8 @@ fn assert_file<P: AsRef<Path>>(path: P) {
     doc.test_file(path.as_ref())
 }
 
-#[ignore]
 #[test]
+#[cfg(feature = "test-doc")]
 fn test_guide() {
     let guide_path = PathBuf::from("guide").join("src");
     for entry in guide_path.read_dir().unwrap() {
@@ -23,8 +23,8 @@ fn test_guide() {
     }
 }
 
-#[ignore]
 #[test]
+#[cfg(feature = "test-doc")]
 fn test_readme() {
     assert_file("README.md")
 }

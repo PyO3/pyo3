@@ -55,6 +55,9 @@ extension-module = []
 # are welcome.
 # abi3 = []
 
+# Use this feature to test the examples in the user guide
+test-doc = []
+
 [workspace]
 members = [
     "pyo3cls",

@@ -51,6 +51,9 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
+// Not required when using Rust 2018
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -95,6 +98,9 @@ pyo3 = "0.6.0-alpha.4"
 Example program displaying the value of `sys.version`:
 
 ```rust
+// Not required when using Rust 2018
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
