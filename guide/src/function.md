@@ -60,6 +60,8 @@ built-ins are new in Python 3 — in Python 2, it is simply considered to be par
 of the doc-string.
 
 ```rust
+use pyo3::prelude::*;
+
 /// add(a, b, /)
 /// --
 ///

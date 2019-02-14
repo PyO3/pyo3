@@ -35,6 +35,7 @@ You can get an instance of `PyRef` by `PyRef::new`, which does 3 things:
 You can use `PyRef` just like `&T`, because it implements `Deref<Target=T>`.
 ```rust
 # use pyo3::prelude::*;
+# use pyo3::types::PyDict;
 #[pyclass]
 struct MyClass {
    num: i32,
@@ -76,7 +77,8 @@ struct MyClass {
 }
 fn return_myclass() -> Py<MyClass> {
     let gil = Python::acquire_gil();
-    Py::new(|| MyClass { num: 1 })
+    let py = gil.python();
+    Py::new(py, MyClass { num: 1 }).unwrap()
 }
 let gil = Python::acquire_gil();
 let obj = return_myclass();
@@ -144,8 +146,8 @@ Rules for the `new` method:
 
 By default `PyObject` is used as default base class. To override default base class
 `base` parameter for `class` needs to be used. Value is full path to base class.
-`__new__` method accepts `PyRawObject` object. `obj` instance must be initialized
-with value of custom class struct. Subclass must call parent's `__new__` method.
+`new` method accepts `PyRawObject` object. `obj` instance must be initialized
+with value of custom class struct. Subclass must call parent's `new` method.
 
 ```rust
 # use pyo3::prelude::*;
@@ -345,6 +347,7 @@ with`#[classmethod]` attribute.
 
 ```rust
 # use pyo3::prelude::*;
+# use pyo3::types::PyType;
 # #[pyclass]
 # struct MyClass {
 #    num: i32,
@@ -543,6 +546,8 @@ as every cycle must contain at least one mutable reference.
 Example:
 ```rust
 use pyo3::prelude::*;
+use pyo3::PyTraverseError;
+use pyo3::gc::{PyGCProtocol, PyVisit};
 
 #[pyclass]
 struct ClassWithGCSupport {
@@ -561,7 +566,9 @@ impl PyGCProtocol for ClassWithGCSupport {
     fn __clear__(&mut self) {
         if let Some(obj) = self.obj.take() {
           // Release reference, this decrements ref counter.
-          self.py().release(obj);
+          let gil = GILGuard::acquire();
+          let py = gil.python();
+          py.release(obj);
         }
     }
 }
@@ -596,11 +603,11 @@ struct MyIterator {
 
 #[pyproto]
 impl PyIterProtocol for MyIterator {
-    fn __iter__(&mut self) -> PyResult<PyObject> {
-        Ok(self.into())
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<MyIterator>> {
+        Ok(slf.into())
     }
-    fn __next__(&mut self) -> PyResult<Option<PyObject>> {
-        Ok(self.iter.next())
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+        Ok(slf.iter.next())
     }
 }
 ```
