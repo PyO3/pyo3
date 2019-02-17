@@ -111,6 +111,11 @@ impl PyList {
             index: 0,
         }
     }
+
+    /// Sorts the list in-place. Equivalent to python `l.sort()`
+    pub fn sort(&self) -> PyResult<()> {
+        unsafe { err::error_on_minusone(self.py(), ffi::PyList_Sort(self.as_ptr())) }
+    }
 }
 
 /// Used by `PyList::iter()`.
@@ -371,5 +376,22 @@ mod test {
         let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
+    }
+
+    #[test]
+    fn test_sort() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![7, 3, 2, 5];
+        let list = PyList::new(py, &v);
+        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(3).extract::<i32>().unwrap());
+        list.sort().unwrap();
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
     }
 }
