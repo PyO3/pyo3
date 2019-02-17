@@ -18,10 +18,19 @@ pyobject_native_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> &'p PyList {
+    pub fn new<'p, T, U>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> &'p PyList
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        let elements_iter = elements.into_iter();
+        let len = elements_iter.len();
         unsafe {
-            let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
-            for (i, e) in elements.iter().enumerate() {
+            let ptr = ffi::PyList_New(len as Py_ssize_t);
+            for (i, e) in elements_iter.enumerate() {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
