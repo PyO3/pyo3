@@ -8,9 +8,6 @@
 //! Parts of the documentation are copied from the respective methods from the
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
-use std::os::raw::c_int;
-use std::ptr;
-
 use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::conversion::{FromPyObject, IntoPyObject};
@@ -21,6 +18,8 @@ use crate::python::{IntoPyPointer, Python};
 use crate::typeob::PyTypeInfo;
 use crate::types::{exceptions, PyObjectRef};
 use crate::CompareOp;
+use std::os::raw::c_int;
+use std::ptr;
 
 /// Basic python class customization
 #[allow(unused_variables)]

@@ -1,7 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::ptr::NonNull;
-
 use crate::conversion::{
     FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject,
 };
@@ -12,6 +10,7 @@ use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::pythonrun;
 use crate::types::{PyDict, PyObjectRef, PyTuple};
 use crate::Py;
+use std::ptr::NonNull;
 
 /// A python object
 ///

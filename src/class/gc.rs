@@ -3,11 +3,10 @@
 //! Python GC support
 //!
 
-use std::os::raw::{c_int, c_void};
-
 use crate::ffi;
 use crate::python::{Python, ToPyPointer};
 use crate::typeob::PyTypeInfo;
+use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]
 pub struct PyTraverseError(c_int);

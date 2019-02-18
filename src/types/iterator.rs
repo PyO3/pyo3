@@ -83,8 +83,6 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-
     use crate::conversion::ToPyObject;
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
@@ -92,6 +90,7 @@ mod tests {
     use crate::pythonrun::GILPool;
     use crate::types::{PyDict, PyList};
     use crate::GILGuard;
+    use indoc::indoc;
 
     #[test]
     fn vec_iter() {

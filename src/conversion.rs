@@ -339,29 +339,24 @@ where
     }
 }
 
+#[doc(hidden)]
 /// This trait wraps a T: IntoPyObject into PyResult<T> while PyResult<T> remains PyResult<T>.
 ///
-/// This is necessaty because proc macros run before typechecking and can't decide
+/// This is necessary because proc macros run before typechecking and can't decide
 /// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
 /// the codegen is currently built on the assumption that all functions return a PyResult.
-pub trait ReturnTypeIntoPyResult {
-    type Inner;
-
-    fn return_type_into_py_result(self) -> PyResult<Self::Inner>;
+pub trait IntoPyResult<T> {
+    fn into_py_result(self) -> PyResult<T>;
 }
 
-impl<T: IntoPyObject> ReturnTypeIntoPyResult for T {
-    type Inner = T;
-
-    fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
+impl<T: IntoPyObject> IntoPyResult<T> for T {
+    fn into_py_result(self) -> PyResult<T> {
         Ok(self)
     }
 }
 
-impl<T: IntoPyObject> ReturnTypeIntoPyResult for PyResult<T> {
-    type Inner = T;
-
-    fn return_type_into_py_result(self) -> PyResult<Self::Inner> {
+impl<T: IntoPyObject> IntoPyResult<T> for PyResult<T> {
+    fn into_py_result(self) -> PyResult<T> {
         self
     }
 }

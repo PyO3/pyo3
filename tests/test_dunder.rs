@@ -1,7 +1,5 @@
 #![feature(specialization)]
 
-use std::{isize, iter};
-
 use pyo3::class::{
     PyContextProtocol, PyIterProtocol, PyMappingProtocol, PyObjectProtocol, PySequenceProtocol,
 };
@@ -10,6 +8,7 @@ use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::python::ToPyPointer;
 use pyo3::types::{PyBytes, PyDict, PyObjectRef, PySlice, PyString, PyType};
+use std::{isize, iter};
 
 #[macro_use]
 mod common;

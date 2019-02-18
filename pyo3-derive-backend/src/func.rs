@@ -2,7 +2,6 @@
 use crate::utils::print_err;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn;
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -55,8 +54,8 @@ pub enum MethodProto {
     },
 }
 
-impl MethodProto {
-    pub fn eq(&self, name: &str) -> bool {
+impl PartialEq<str> for MethodProto {
+    fn eq(&self, name: &str) -> bool {
         match *self {
             MethodProto::Free { name: n, .. } => n == name,
             MethodProto::Unary { name: n, .. } => n == name,
@@ -81,274 +80,221 @@ pub fn impl_method_proto(
         };
     }
 
-    if let syn::ReturnType::Type(_, ref ty) = sig.decl.output.clone() {
-        match *meth {
-            MethodProto::Free { .. } => unreachable!(),
-            MethodProto::Unary { pyres, proto, .. } => {
-                let p: syn::Path = syn::parse_str(proto).unwrap();
-                let (ty, succ) = get_res_success(ty);
+    let ty = &*if let syn::ReturnType::Type(_, ref ty) = sig.decl.output {
+        ty.clone()
+    } else {
+        panic!("fn return type is not supported")
+    };
 
-                let tmp: syn::ItemFn = syn::parse_quote! {
-                    fn test(&self) -> <#cls as #p<'p>>::Result {}
-                };
-                sig.decl.output = tmp.decl.output;
-                modify_self_ty(sig);
+    match *meth {
+        MethodProto::Free { .. } => unreachable!(),
+        MethodProto::Unary { pyres, proto, .. } => {
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let (ty, succ) = get_res_success(ty);
 
-                if pyres {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type Success = #succ;
-                            type Result = #ty;
-                        }
-                    }
-                } else {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type Result = #ty;
-                        }
+            let tmp: syn::ItemFn = syn::parse_quote! {
+                fn test(&self) -> <#cls as #p<'p>>::Result {}
+            };
+            sig.decl.output = tmp.decl.output;
+            modify_self_ty(sig);
+
+            if pyres {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type Success = #succ;
+                        type Result = #ty;
                     }
                 }
-            }
-            MethodProto::Binary {
-                name,
-                arg,
-                pyres,
-                proto,
-            } => {
-                if sig.decl.inputs.len() <= 1 {
-                    println!("Not enough arguments for {}", name);
-                    return TokenStream::new();
-                }
-
-                let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg_name = syn::Ident::new(arg, Span::call_site());
-                let arg_ty = get_arg_ty(sig, 1);
-                let (ty, succ) = get_res_success(ty);
-
-                let tmp = extract_decl(syn::parse_quote! {
-                    fn test(&self,arg: <#cls as #p<'p>>::#arg_name)-> <#cls as #p<'p>>::Result {}
-                });
-
-                let tmp2 = extract_decl(syn::parse_quote! {
-                    fn test(&self, arg: Option<<#cls as #p<'p>>::#arg_name>) -> <#cls as #p<'p>>::Result {}
-                });
-
-                modify_arg_ty(sig, 1, &tmp, &tmp2);
-                modify_self_ty(sig);
-
-                if pyres {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg_name = #arg_ty;
-                            type Success = #succ;
-                            type Result = #ty;
-                        }
-                    }
-                } else {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg_name = #arg_ty;
-                            type Result = #ty;
-                        }
+            } else {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type Result = #ty;
                     }
                 }
             }
-            MethodProto::BinaryS {
-                name,
-                arg1,
-                arg2,
-                pyres,
-                proto,
-            } => {
-                if sig.decl.inputs.len() <= 1 {
-                    print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return TokenStream::new();
-                }
-                let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::new(arg1, Span::call_site());
-                let arg1_ty = get_arg_ty(sig, 0);
-                let arg2_name = syn::Ident::new(arg2, Span::call_site());
-                let arg2_ty = get_arg_ty(sig, 1);
-                let (ty, succ) = get_res_success(ty);
+        }
+        MethodProto::Binary {
+            name,
+            arg,
+            pyres,
+            proto,
+        } => {
+            if sig.decl.inputs.len() <= 1 {
+                println!("Not enough arguments for {}", name);
+                return TokenStream::new();
+            }
 
-                // rewrite ty
-                let tmp = extract_decl(syn::parse_quote! {fn test(
-                arg1: <#cls as #p<'p>>::#arg1_name,
-                arg2: <#cls as #p<'p>>::#arg2_name)
-                    -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(syn::parse_quote! {fn test(
-                arg1: Option<<#cls as #p<'p>>::#arg1_name>,
-                arg2: Option<<#cls as #p<'p>>::#arg2_name>)
-                    -> <#cls as #p<'p>>::Result {}});
-                modify_arg_ty(sig, 0, &tmp, &tmp2);
-                modify_arg_ty(sig, 1, &tmp, &tmp2);
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let arg_name = syn::Ident::new(arg, Span::call_site());
+            let arg_ty = get_arg_ty(sig, 1);
+            let (ty, succ) = get_res_success(ty);
 
-                if pyres {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type Success = #succ;
-                            type Result = #ty;
-                        }
+            let tmp = extract_decl(syn::parse_quote! {
+                fn test(&self,arg: <#cls as #p<'p>>::#arg_name)-> <#cls as #p<'p>>::Result {}
+            });
+
+            let tmp2 = extract_decl(syn::parse_quote! {
+                fn test(&self, arg: Option<<#cls as #p<'p>>::#arg_name>) -> <#cls as #p<'p>>::Result {}
+            });
+
+            modify_arg_ty(sig, 1, &tmp, &tmp2);
+            modify_self_ty(sig);
+
+            if pyres {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg_name = #arg_ty;
+                        type Success = #succ;
+                        type Result = #ty;
                     }
-                } else {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type Result = #ty;
-                        }
+                }
+            } else {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg_name = #arg_ty;
+                        type Result = #ty;
                     }
                 }
             }
-            MethodProto::Ternary {
-                name,
-                arg1,
-                arg2,
-                pyres,
-                proto,
-            } => {
-                if sig.decl.inputs.len() <= 2 {
-                    print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return TokenStream::new();
-                }
-                let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::new(arg1, Span::call_site());
-                let arg1_ty = get_arg_ty(sig, 1);
-                let arg2_name = syn::Ident::new(arg2, Span::call_site());
-                let arg2_ty = get_arg_ty(sig, 2);
-                let (ty, succ) = get_res_success(ty);
+        }
+        MethodProto::BinaryS {
+            name,
+            arg1,
+            arg2,
+            pyres,
+            proto,
+        } => {
+            if sig.decl.inputs.len() <= 1 {
+                print_err(format!("Not enough arguments {}", name), quote!(sig));
+                return TokenStream::new();
+            }
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let arg1_name = syn::Ident::new(arg1, Span::call_site());
+            let arg1_ty = get_arg_ty(sig, 0);
+            let arg2_name = syn::Ident::new(arg2, Span::call_site());
+            let arg2_ty = get_arg_ty(sig, 1);
+            let (ty, succ) = get_res_success(ty);
 
-                // rewrite ty
-                let tmp = extract_decl(syn::parse_quote! {fn test(
-                &self,
-                arg1: <#cls as #p<'p>>::#arg1_name,
-                arg2: <#cls as #p<'p>>::#arg2_name)
-                    -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(syn::parse_quote! {fn test(
-                &self,
-                arg1: Option<<#cls as #p<'p>>::#arg1_name>,
-                arg2: Option<<#cls as #p<'p>>::#arg2_name>)
-                    -> <#cls as #p<'p>>::Result {}});
-                modify_arg_ty(sig, 1, &tmp, &tmp2);
-                modify_arg_ty(sig, 2, &tmp, &tmp2);
-                modify_self_ty(sig);
+            // rewrite ty
+            let tmp = extract_decl(syn::parse_quote! {fn test(
+            arg1: <#cls as #p<'p>>::#arg1_name,
+            arg2: <#cls as #p<'p>>::#arg2_name)
+                -> <#cls as #p<'p>>::Result {}});
+            let tmp2 = extract_decl(syn::parse_quote! {fn test(
+            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+            arg2: Option<<#cls as #p<'p>>::#arg2_name>)
+                -> <#cls as #p<'p>>::Result {}});
+            modify_arg_ty(sig, 0, &tmp, &tmp2);
+            modify_arg_ty(sig, 1, &tmp, &tmp2);
 
-                if pyres {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type Success = #succ;
-                            type Result = #ty;
-                        }
+            if pyres {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg1_name = #arg1_ty;
+                        type #arg2_name = #arg2_ty;
+                        type Success = #succ;
+                        type Result = #ty;
                     }
-                } else {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type Result = #ty;
-                        }
+                }
+            } else {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg1_name = #arg1_ty;
+                        type #arg2_name = #arg2_ty;
+                        type Result = #ty;
                     }
                 }
             }
-            MethodProto::TernaryS {
-                name,
-                arg1,
-                arg2,
-                arg3,
-                pyres,
-                proto,
-            } => {
-                if sig.decl.inputs.len() <= 2 {
-                    print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return TokenStream::new();
-                }
-                let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::new(arg1, Span::call_site());
-                let arg1_ty = get_arg_ty(sig, 0);
-                let arg2_name = syn::Ident::new(arg2, Span::call_site());
-                let arg2_ty = get_arg_ty(sig, 1);
-                let arg3_name = syn::Ident::new(arg3, Span::call_site());
-                let arg3_ty = get_arg_ty(sig, 2);
-                let (ty, succ) = get_res_success(ty);
+        }
+        MethodProto::Ternary {
+            name,
+            arg1,
+            arg2,
+            pyres,
+            proto,
+        } => {
+            if sig.decl.inputs.len() <= 2 {
+                print_err(format!("Not enough arguments {}", name), quote!(sig));
+                return TokenStream::new();
+            }
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let arg1_name = syn::Ident::new(arg1, Span::call_site());
+            let arg1_ty = get_arg_ty(sig, 1);
+            let arg2_name = syn::Ident::new(arg2, Span::call_site());
+            let arg2_ty = get_arg_ty(sig, 2);
+            let (ty, succ) = get_res_success(ty);
 
-                // rewrite ty
-                let tmp = extract_decl(syn::parse_quote! {fn test(
-                arg1: <#cls as #p<'p>>::#arg1_name,
-                arg2: <#cls as #p<'p>>::#arg2_name,
-                arg3: <#cls as #p<'p>>::#arg3_name)
-                    -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(syn::parse_quote! {fn test(
-                arg1: Option<<#cls as #p<'p>>::#arg1_name>,
-                arg2: Option<<#cls as #p<'p>>::#arg2_name>,
-                arg3: Option<<#cls as #p<'p>>::#arg3_name>)
-                    -> <#cls as #p<'p>>::Result {}});
-                modify_arg_ty(sig, 0, &tmp, &tmp2);
-                modify_arg_ty(sig, 1, &tmp, &tmp2);
-                modify_arg_ty(sig, 2, &tmp, &tmp2);
+            // rewrite ty
+            let tmp = extract_decl(syn::parse_quote! {fn test(
+            &self,
+            arg1: <#cls as #p<'p>>::#arg1_name,
+            arg2: <#cls as #p<'p>>::#arg2_name)
+                -> <#cls as #p<'p>>::Result {}});
+            let tmp2 = extract_decl(syn::parse_quote! {fn test(
+            &self,
+            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+            arg2: Option<<#cls as #p<'p>>::#arg2_name>)
+                -> <#cls as #p<'p>>::Result {}});
+            modify_arg_ty(sig, 1, &tmp, &tmp2);
+            modify_arg_ty(sig, 2, &tmp, &tmp2);
+            modify_self_ty(sig);
 
-                if pyres {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type #arg3_name = #arg3_ty;
-                            type Success = #succ;
-                            type Result = #ty;
-                        }
+            if pyres {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg1_name = #arg1_ty;
+                        type #arg2_name = #arg2_ty;
+                        type Success = #succ;
+                        type Result = #ty;
                     }
-                } else {
-                    quote! {
-                        impl<'p> #p<'p> for #cls {
-                            type #arg1_name = #arg1_ty;
-                            type #arg2_name = #arg2_ty;
-                            type #arg3_name = #arg3_ty;
-                            type Result = #ty;
-                        }
+                }
+            } else {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg1_name = #arg1_ty;
+                        type #arg2_name = #arg2_ty;
+                        type Result = #ty;
                     }
                 }
             }
-            MethodProto::Quaternary {
-                name,
-                arg1,
-                arg2,
-                arg3,
-                proto,
-            } => {
-                if sig.decl.inputs.len() <= 3 {
-                    print_err(format!("Not enough arguments {}", name), quote!(sig));
-                    return TokenStream::new();
-                }
-                let p: syn::Path = syn::parse_str(proto).unwrap();
-                let arg1_name = syn::Ident::new(arg1, Span::call_site());
-                let arg1_ty = get_arg_ty(sig, 1);
-                let arg2_name = syn::Ident::new(arg2, Span::call_site());
-                let arg2_ty = get_arg_ty(sig, 2);
-                let arg3_name = syn::Ident::new(arg3, Span::call_site());
-                let arg3_ty = get_arg_ty(sig, 3);
-                let (ty, succ) = get_res_success(ty);
+        }
+        MethodProto::TernaryS {
+            name,
+            arg1,
+            arg2,
+            arg3,
+            pyres,
+            proto,
+        } => {
+            if sig.decl.inputs.len() <= 2 {
+                print_err(format!("Not enough arguments {}", name), quote!(sig));
+                return TokenStream::new();
+            }
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let arg1_name = syn::Ident::new(arg1, Span::call_site());
+            let arg1_ty = get_arg_ty(sig, 0);
+            let arg2_name = syn::Ident::new(arg2, Span::call_site());
+            let arg2_ty = get_arg_ty(sig, 1);
+            let arg3_name = syn::Ident::new(arg3, Span::call_site());
+            let arg3_ty = get_arg_ty(sig, 2);
+            let (ty, succ) = get_res_success(ty);
 
-                // rewrite ty
-                let tmp = extract_decl(syn::parse_quote! {fn test(
-                &self,
-                arg1: <#cls as #p<'p>>::#arg1_name,
-                arg2: <#cls as #p<'p>>::#arg2_name,
-                arg3: <#cls as #p<'p>>::#arg3_name)
-                    -> <#cls as #p<'p>>::Result {}});
-                let tmp2 = extract_decl(syn::parse_quote! {fn test(
-                &self,
-                arg1: Option<<#cls as #p<'p>>::#arg1_name>,
-                arg2: Option<<#cls as #p<'p>>::#arg2_name>,
-                arg3: Option<<#cls as #p<'p>>::#arg3_name>)
-                    -> <#cls as #p<'p>>::Result {}});
-                modify_arg_ty(sig, 1, &tmp, &tmp2);
-                modify_arg_ty(sig, 2, &tmp, &tmp2);
-                modify_arg_ty(sig, 3, &tmp, &tmp2);
-                modify_self_ty(sig);
+            // rewrite ty
+            let tmp = extract_decl(syn::parse_quote! {fn test(
+            arg1: <#cls as #p<'p>>::#arg1_name,
+            arg2: <#cls as #p<'p>>::#arg2_name,
+            arg3: <#cls as #p<'p>>::#arg3_name)
+                -> <#cls as #p<'p>>::Result {}});
+            let tmp2 = extract_decl(syn::parse_quote! {fn test(
+            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+            arg2: Option<<#cls as #p<'p>>::#arg2_name>,
+            arg3: Option<<#cls as #p<'p>>::#arg3_name>)
+                -> <#cls as #p<'p>>::Result {}});
+            modify_arg_ty(sig, 0, &tmp, &tmp2);
+            modify_arg_ty(sig, 1, &tmp, &tmp2);
+            modify_arg_ty(sig, 2, &tmp, &tmp2);
 
+            if pyres {
                 quote! {
                     impl<'p> #p<'p> for #cls {
                         type #arg1_name = #arg1_ty;
@@ -358,10 +304,65 @@ pub fn impl_method_proto(
                         type Result = #ty;
                     }
                 }
+            } else {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #arg1_name = #arg1_ty;
+                        type #arg2_name = #arg2_ty;
+                        type #arg3_name = #arg3_ty;
+                        type Result = #ty;
+                    }
+                }
             }
         }
-    } else {
-        panic!("fn return type is not supported")
+        MethodProto::Quaternary {
+            name,
+            arg1,
+            arg2,
+            arg3,
+            proto,
+        } => {
+            if sig.decl.inputs.len() <= 3 {
+                print_err(format!("Not enough arguments {}", name), quote!(sig));
+                return TokenStream::new();
+            }
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let arg1_name = syn::Ident::new(arg1, Span::call_site());
+            let arg1_ty = get_arg_ty(sig, 1);
+            let arg2_name = syn::Ident::new(arg2, Span::call_site());
+            let arg2_ty = get_arg_ty(sig, 2);
+            let arg3_name = syn::Ident::new(arg3, Span::call_site());
+            let arg3_ty = get_arg_ty(sig, 3);
+            let (ty, succ) = get_res_success(ty);
+
+            // rewrite ty
+            let tmp = extract_decl(syn::parse_quote! {fn test(
+            &self,
+            arg1: <#cls as #p<'p>>::#arg1_name,
+            arg2: <#cls as #p<'p>>::#arg2_name,
+            arg3: <#cls as #p<'p>>::#arg3_name)
+                -> <#cls as #p<'p>>::Result {}});
+            let tmp2 = extract_decl(syn::parse_quote! {fn test(
+            &self,
+            arg1: Option<<#cls as #p<'p>>::#arg1_name>,
+            arg2: Option<<#cls as #p<'p>>::#arg2_name>,
+            arg3: Option<<#cls as #p<'p>>::#arg3_name>)
+                -> <#cls as #p<'p>>::Result {}});
+            modify_arg_ty(sig, 1, &tmp, &tmp2);
+            modify_arg_ty(sig, 2, &tmp, &tmp2);
+            modify_arg_ty(sig, 3, &tmp, &tmp2);
+            modify_self_ty(sig);
+
+            quote! {
+                impl<'p> #p<'p> for #cls {
+                    type #arg1_name = #arg1_ty;
+                    type #arg2_name = #arg2_ty;
+                    type #arg3_name = #arg3_ty;
+                    type Success = #succ;
+                    type Result = #ty;
+                }
+            }
+        }
     }
 }
 
@@ -372,18 +373,15 @@ fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Type {
             match cap.ty {
                 syn::Type::Path(ref ty) => {
                     // use only last path segment for Option<>
-                    let seg = ty.path.segments.last().unwrap().value().clone();
+                    let seg = *ty.path.segments.last().unwrap().value();
                     if seg.ident == "Option" {
-                        match seg.arguments {
-                            syn::PathArguments::AngleBracketed(ref data) => {
-                                if let Some(pair) = data.args.last() {
-                                    match pair.value() {
-                                        syn::GenericArgument::Type(ref ty) => return ty.clone(),
-                                        _ => panic!("Option only accepted for concrete types"),
-                                    }
-                                };
-                            }
-                            _ => (),
+                        if let syn::PathArguments::AngleBracketed(ref data) = seg.arguments {
+                            if let Some(pair) = data.args.last() {
+                                match pair.value() {
+                                    syn::GenericArgument::Type(ref ty) => return ty.clone(),
+                                    _ => panic!("Option only accepted for concrete types"),
+                                }
+                            };
                         }
                     }
                     cap.ty.clone()
@@ -408,7 +406,7 @@ fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
     let mut succ;
 
     match ty {
-        &syn::Type::Path(ref typath) => {
+        syn::Type::Path(ref typath) => {
             if let Some(segment) = typath.path.segments.last() {
                 match segment.value().ident.to_string().as_str() {
                     // check for PyResult<T>
@@ -418,23 +416,20 @@ fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
                             succ = data.args[0].clone();
 
                             // check for PyResult<Option<T>>
-                            match data.args[0] {
-                                syn::GenericArgument::Type(syn::Type::Path(ref typath)) => {
-                                    if let Some(segment) = typath.path.segments.last() {
-                                        match segment.value().ident.to_string().as_str() {
-                                            // get T from Option<T>
-                                            "Option" => match segment.value().arguments {
-                                                syn::PathArguments::AngleBracketed(ref data) => {
-                                                    result = false;
-                                                    succ = data.args[0].clone();
-                                                }
-                                                _ => (),
-                                            },
-                                            _ => (),
+                            if let syn::GenericArgument::Type(syn::Type::Path(ref typath)) =
+                                data.args[0]
+                            {
+                                if let Some(segment) = typath.path.segments.last() {
+                                    if "Option" == segment.value().ident.to_string().as_str() {
+                                        // get T from Option<T>
+                                        if let syn::PathArguments::AngleBracketed(ref data) =
+                                            segment.value().arguments
+                                        {
+                                            result = false;
+                                            succ = data.args[0].clone();
                                         }
                                     }
                                 }
-                                _ => (),
                             }
                         }
                         _ => panic!("fn result type is not supported"),
@@ -474,7 +469,7 @@ fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize, decl1: &syn::FnDecl, decl
     match arg {
         syn::FnArg::Captured(ref cap) => match cap.ty {
             syn::Type::Path(ref typath) => {
-                let seg = typath.path.segments.last().unwrap().value().clone();
+                let seg = *typath.path.segments.last().unwrap().value();
                 if seg.ident == "Option" {
                     sig.decl.inputs[idx] = fix_name(&cap.pat, &decl2.inputs[idx]);
                 } else {

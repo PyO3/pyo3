@@ -279,7 +279,7 @@ For simple cases you can also define getters and setters in your Rust struct fie
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
-  #[prop(get, set)]
+  #[pyo3(get, set)]
   num: i32
 }
 ```

@@ -2,15 +2,14 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::borrow::Cow;
-use std::ffi::CStr;
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{Py, PyObjectWithGIL};
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
 use crate::typeob::{PyTypeInfo, PyTypeObject};
+use std::borrow::Cow;
+use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
