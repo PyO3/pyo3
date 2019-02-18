@@ -125,6 +125,11 @@ impl PyList {
     pub fn sort(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Sort(self.as_ptr())) }
     }
+
+    /// Reverses the list in-place. Equivalent to python `l.reverse()`
+    pub fn reverse(&self) -> PyResult<()> {
+        unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
+    }
 }
 
 /// Used by `PyList::iter()`.
@@ -402,5 +407,22 @@ mod test {
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
         assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_reverse() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let list = PyList::new(py, &v);
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        list.reverse().unwrap();
+        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(3).extract::<i32>().unwrap());
     }
 }
