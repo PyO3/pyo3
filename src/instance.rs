@@ -53,7 +53,7 @@ pub trait PyNativeType: PyObjectWithGIL {}
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let obj = PyRef::new(gil.python(), Point { x: 3, y: 4 }).unwrap();
-/// let d = vec![("p", obj)].into_py_dict(py);
+/// let d = [("p", obj)].into_py_dict(py);
 /// py.run("assert p.length() == 12", None, Some(d)).unwrap();
 /// ```
 #[derive(Debug)]
