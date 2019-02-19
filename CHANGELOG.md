@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `PyRawObject::init` is now infallible, e.g. it returns `()` instead of `PyResult<()>`.
  * Renamed `py_exception!` to `create_exception!` and refactored the error macros.
  * Renamed `wrap_function!` to `wrap_pyfunction!`
+ * Renamed `#[prop(get, set)]` to `#[pyo3(get, set)]`
+ * `#[pyfunction]` now supports the same arguments as `#[pyfn()]`
+ * Some macros now emit proper spanned errors instead of panics.
  * Migrated to the 2018 edition
  * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`. Eventually `IntoPy<T>` should replace `ToPyObject` and be itself implemented through `FromPy<T>`
  * PyTypeObject is now a direct subtrait PyTypeCreate, removing the old cyclical implementation in [#350](https://github.com/PyO3/pyo3/pull/350)

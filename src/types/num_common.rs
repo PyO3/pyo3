@@ -1,9 +1,8 @@
 //! common macros for num2.rs and num3.rs
 
-use std::os::raw::c_int;
-
 use crate::err::{PyErr, PyResult};
 use crate::python::Python;
+use std::os::raw::c_int;
 
 pub(super) fn err_if_invalid_value<T: PartialEq + Copy>(
     py: Python,

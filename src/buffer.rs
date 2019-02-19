@@ -17,16 +17,15 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
-use libc;
-use std::ffi::CStr;
-use std::os::raw;
-use std::{cell, mem, slice};
-
 use crate::err::{self, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::python::{Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use libc;
+use std::ffi::CStr;
+use std::os::raw;
+use std::{cell, mem, slice};
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 #[repr(transparent)]

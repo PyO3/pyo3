@@ -1,5 +1,4 @@
 use docmatic;
-
 use std::default::Default;
 use std::path::{Path, PathBuf};
 

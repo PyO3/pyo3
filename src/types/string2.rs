@@ -203,14 +203,12 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
-
+    use super::PyString;
     use crate::conversion::{FromPyObject, PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::object::PyObject;
     use crate::python::Python;
-
-    use super::PyString;
+    use std::borrow::Cow;
 
     #[test]
     fn test_non_bmp() {

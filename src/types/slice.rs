@@ -1,13 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std::os::raw::c_long;
-
 use crate::conversion::ToPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyObjectWithGIL;
 use crate::object::PyObject;
 use crate::python::{Python, ToPyPointer};
+use std::os::raw::c_long;
 
 /// Represents a Python `slice`.
 ///

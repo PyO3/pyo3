@@ -40,7 +40,7 @@ fn mut_ref_arg() {
 
 #[pyclass]
 struct PyUsize {
-    #[prop(get)]
+    #[pyo3(get)]
     pub value: usize,
 }
 

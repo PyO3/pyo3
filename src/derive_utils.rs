@@ -15,11 +15,11 @@ use crate::GILPool;
 use crate::Python;
 use std::ptr;
 
-#[derive(Debug)]
 /// Description of a python parameter; used for `parse_args()`.
-pub struct ParamDescription<'a> {
+#[derive(Debug)]
+pub struct ParamDescription {
     /// The name of the parameter.
-    pub name: &'a str,
+    pub name: &'static str,
     /// Whether the parameter is optional.
     pub is_optional: bool,
     /// Whether the parameter is optional.

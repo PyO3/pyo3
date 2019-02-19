@@ -1,5 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use syn;
 
 use proc_macro2::TokenStream;
 
@@ -8,7 +7,7 @@ pub fn print_err(msg: String, t: TokenStream) {
 }
 
 // FIXME(althonos): not sure the docstring formatting is on par here.
-pub fn get_doc(attrs: &Vec<syn::Attribute>, null_terminated: bool) -> syn::Lit {
+pub fn get_doc(attrs: &[syn::Attribute], null_terminated: bool) -> syn::Lit {
     let mut doc = Vec::new();
 
     // TODO(althonos): set span on produced doc str literal
@@ -20,13 +19,13 @@ pub fn get_doc(attrs: &Vec<syn::Attribute>, null_terminated: bool) -> syn::Lit {
                 // span = Some(metanv.span());
                 if let syn::Lit::Str(ref litstr) = metanv.lit {
                     let d = litstr.value();
-                    doc.push(if d.starts_with(" ") {
+                    doc.push(if d.starts_with(' ') {
                         d[1..d.len()].to_string()
                     } else {
                         d
                     });
                 } else {
-                    panic!("could not parse doc");
+                    panic!("Invalid doc comment");
                 }
             }
         }

@@ -4,12 +4,11 @@
 //!
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
-use std::os::raw::c_int;
-
 use crate::callback::UnitCallbackConverter;
 use crate::err::PyResult;
 use crate::ffi;
 use crate::typeob::PyTypeInfo;
+use std::os::raw::c_int;
 
 /// Buffer protocol interface
 ///

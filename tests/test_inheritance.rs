@@ -7,7 +7,7 @@ mod common;
 
 #[pyclass]
 struct BaseClass {
-    #[prop(get)]
+    #[pyo3(get)]
     val1: usize,
 }
 
@@ -41,7 +41,7 @@ impl BaseClass {
 
 #[pyclass(extends=BaseClass)]
 struct SubClass {
-    #[prop(get)]
+    #[pyo3(get)]
     val2: usize,
 }
 

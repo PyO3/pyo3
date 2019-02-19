@@ -2,14 +2,13 @@
 
 //! Utilities for a Python callable object that invokes a Rust function.
 
-use std::os::raw::c_int;
-use std::{isize, ptr};
-
 use crate::conversion::IntoPyObject;
 use crate::err::PyResult;
 use crate::ffi::{self, Py_hash_t};
 use crate::python::{IntoPyPointer, Python};
 use crate::types::exceptions::OverflowError;
+use std::os::raw::c_int;
+use std::{isize, ptr};
 
 pub trait CallbackConverter<S> {
     type R;

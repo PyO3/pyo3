@@ -29,7 +29,6 @@ pub use self::sequence::PySequenceProtocol;
 
 pub use self::gc::{PyGCProtocol, PyTraverseError, PyVisit};
 pub use self::methods::{PyGetterDef, PyMethodDef, PyMethodDefType, PyMethodType, PySetterDef};
-
 use crate::ffi;
 
 /// Operators for the __richcmp__ method

@@ -42,9 +42,9 @@ fn class_with_properties() {
 
 #[pyclass]
 struct GetterSetter {
-    #[prop(get, set)]
+    #[pyo3(get, set)]
     num: i32,
-    #[prop(get, set)]
+    #[pyo3(get, set)]
     text: String,
 }
 
