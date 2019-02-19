@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Migrated to the 2018 edition
  * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`. Eventually `IntoPy<T>` should replace `ToPyObject` and be itself implemented through `FromPy<T>`
  * PyTypeObject is now a direct subtrait PyTypeCreate, removing the old cyclical implementation in [#350](https://github.com/PyO3/pyo3/pull/350)
+ * Add `PyList::{sort, reverse}` by chr1sj0nes in [#357](https://github.com/PyO3/pyo3/pull/357) and [#358](https://github.com/PyO3/pyo3/pull/358)
 
 ### Removed
 
