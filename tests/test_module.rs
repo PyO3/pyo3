@@ -32,12 +32,12 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
         let out = sum_as_string(a, b);
-        return Ok(out);
+        Ok(out)
     }
 
     #[pyfn(m, "no_parameters")]
     fn no_parameters() -> PyResult<usize> {
-        return Ok(42);
+        Ok(42)
     }
 
     m.add_class::<EmptyClass>().unwrap();

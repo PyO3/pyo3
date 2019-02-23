@@ -43,7 +43,7 @@ pub fn parse_fn_args<'p>(
     output: &mut [Option<&'p PyObjectRef>],
 ) -> PyResult<()> {
     let nargs = args.len();
-    let nkeywords = kwargs.map_or(0, |d| d.len());
+    let nkeywords = kwargs.map_or(0, PyDict::len);
     if !accept_args && !accept_kwargs && (nargs + nkeywords > params.len()) {
         return Err(TypeError::py_err(format!(
             "{}{} takes at most {} argument{} ({} given)",

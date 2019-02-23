@@ -213,8 +213,8 @@ struct BaseClassWithDrop {
 #[pymethods]
 impl BaseClassWithDrop {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        Ok(obj.init(BaseClassWithDrop { data: None }))
+    fn new(obj: &PyRawObject) {
+        obj.init(BaseClassWithDrop { data: None })
     }
 }
 
@@ -234,9 +234,9 @@ struct SubClassWithDrop {
 #[pymethods]
 impl SubClassWithDrop {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+    fn new(obj: &PyRawObject) {
         obj.init(SubClassWithDrop { data: None });
-        BaseClassWithDrop::__new__(obj)
+        BaseClassWithDrop::new(obj);
     }
 }
 

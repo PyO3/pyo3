@@ -36,12 +36,12 @@ struct MyClass {
 #[pymethods]
 impl MyClass {
     #[new]
-    fn __new__(obj: &PyRawObject, num: u32) -> PyResult<()> {
+    fn new(obj: &PyRawObject, num: u32) {
         obj.init({
             MyClass {
                 num,
             }
-        })
+        });
     }
 
     fn half(&self) -> PyResult<u32> {

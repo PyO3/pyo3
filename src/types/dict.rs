@@ -436,7 +436,7 @@ mod test {
         let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
-        assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
+        assert_eq!(32i32, v[&7i32]); // not updated!
         assert_eq!(None, v.get(&8i32));
     }
 

@@ -148,11 +148,7 @@ fn test_pydate_out_of_bounds() {
     for val in INVALID_DATES.into_iter() {
         let (year, month, day) = val;
         let dt = PyDate::new(py, *year, *month, *day);
-        let msg = format!("Should have raised an error: {:#?}", val);
-        match dt {
-            Ok(_) => assert!(false, msg),
-            Err(_) => assert!(true),
-        }
+        dt.unwrap_err();
     }
 }
 
@@ -162,14 +158,10 @@ fn test_pytime_out_of_bounds() {
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    for val in INVALID_TIMES.into_iter() {
+    for val in INVALID_TIMES {
         let (hour, minute, second, microsecond) = val;
         let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
-        let msg = format!("Should have raised an error: {:#?}", val);
-        match dt {
-            Ok(_) => assert!(false, msg),
-            Err(_) => assert!(true),
-        }
+        dt.unwrap_err();
     }
 }
 
@@ -182,8 +174,8 @@ fn test_pydatetime_out_of_bounds() {
     let valid_time = (0, 0, 0, 0);
     let valid_date = (2018, 1, 1);
 
-    let invalid_dates = INVALID_DATES.into_iter().zip(iter::repeat(&valid_time));
-    let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.into_iter());
+    let invalid_dates = INVALID_DATES.iter().zip(iter::repeat(&valid_time));
+    let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.iter());
 
     let vals = invalid_dates.chain(invalid_times);
 
@@ -202,10 +194,6 @@ fn test_pydatetime_out_of_bounds() {
             *microsecond,
             None,
         );
-        let msg = format!("Should have raised an error: {:#?}", val);
-        match dt {
-            Ok(_) => assert!(false, msg),
-            Err(_) => assert!(true),
-        }
+        dt.unwrap_err();
     }
 }

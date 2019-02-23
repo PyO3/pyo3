@@ -6,9 +6,9 @@ struct EmptyClassWithNew {}
 
 #[pymethods]
 impl EmptyClassWithNew {
-    #[__new__]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        Ok(obj.init(EmptyClassWithNew {}))
+    #[new]
+    fn new(obj: &PyRawObject) {
+        obj.init(EmptyClassWithNew {});
     }
 }
 
@@ -32,8 +32,8 @@ struct NewWithOneArg {
 #[pymethods]
 impl NewWithOneArg {
     #[new]
-    fn __new__(obj: &PyRawObject, arg: i32) -> PyResult<()> {
-        Ok(obj.init(NewWithOneArg { _data: arg }))
+    fn new(obj: &PyRawObject, arg: i32) {
+        obj.init(NewWithOneArg { _data: arg })
     }
 }
 
@@ -56,11 +56,11 @@ struct NewWithTwoArgs {
 #[pymethods]
 impl NewWithTwoArgs {
     #[new]
-    fn __new__(obj: &PyRawObject, arg1: i32, arg2: i32) -> PyResult<()> {
-        Ok(obj.init(NewWithTwoArgs {
+    fn new(obj: &PyRawObject, arg1: i32, arg2: i32) {
+        obj.init(NewWithTwoArgs {
             _data1: arg1,
             _data2: arg2,
-        }))
+        })
     }
 }
 

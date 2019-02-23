@@ -98,7 +98,7 @@ fn pytuple_primitive_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let tup = PyTuple::new(py, [1u32, 2, 3].into_iter());
+    let tup = PyTuple::new(py, [1u32, 2, 3].iter());
     py_assert!(py, tup, "tup == (1, 2, 3)");
 }
 

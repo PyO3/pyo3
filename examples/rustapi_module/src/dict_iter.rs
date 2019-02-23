@@ -16,8 +16,8 @@ pub struct DictSize {
 #[pymethods]
 impl DictSize {
     #[new]
-    fn __new__(obj: &PyRawObject, expected: u32) -> PyResult<()> {
-        Ok(obj.init(DictSize { expected }))
+    fn new(obj: &PyRawObject, expected: u32) {
+        obj.init(DictSize { expected })
     }
 
     fn iter_dict(&mut self, _py: Python<'_>, dict: &PyDict) -> PyResult<u32> {

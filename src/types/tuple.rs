@@ -308,10 +308,8 @@ mod test {
         let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
 
-        let mut i = 0;
-        for item in tuple {
-            i += 1;
-            assert_eq!(i, item.extract().unwrap());
+        for (i, item) in tuple.iter().enumerate() {
+            assert_eq!(i + 1, item.extract().unwrap());
         }
     }
 }

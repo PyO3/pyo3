@@ -376,10 +376,8 @@ mod test {
         let v = vec![1, 2, 3, 4];
         let ob = v.to_object(py);
         let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        let mut i = 0;
-        for el in list {
-            i += 1;
-            assert_eq!(i, el.extract::<i32>().unwrap());
+        for (i, item) in list.iter().enumerate() {
+            assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
         }
     }
 

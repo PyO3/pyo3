@@ -114,7 +114,7 @@ mod test {
         let v = std::u32::MAX;
         let obj = v.to_object(py);
         assert_eq!(v, obj.extract::<u32>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
+        assert_eq!(u64::from(v), obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<i32>(py).is_err());
     }
 

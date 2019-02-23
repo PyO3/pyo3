@@ -134,9 +134,9 @@ impl<'p> Python<'p> {
             }
 
             let globals = globals
-                .map(|g| g.as_ptr())
+                .map(ToPyPointer::as_ptr)
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(|l| l.as_ptr()).unwrap_or(globals);
+            let locals = locals.map(ToPyPointer::as_ptr).unwrap_or(globals);
 
             let res_ptr = ffi::PyRun_StringFlags(
                 code.as_ptr(),
