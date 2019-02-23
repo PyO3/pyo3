@@ -2,8 +2,7 @@
 
 use pyo3::ffi::*;
 use pyo3::prelude::*;
-use pyo3::types::{PyDate, PyDateTime, PyDict, PyObjectRef, PyTime};
-use std::iter;
+use pyo3::types::{PyDict, PyObjectRef};
 
 fn _get_subclasses<'p>(
     py: &'p Python,
@@ -104,6 +103,8 @@ fn test_delta_check() {
 #[test]
 #[cfg(Py_3)]
 fn test_datetime_utc() {
+    use pyo3::types::PyDateTime;
+
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -124,6 +125,7 @@ fn test_datetime_utc() {
     assert_eq!(offset, 0f32);
 }
 
+#[cfg(Py_3)]
 static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (-1, 1, 1),
     (0, 1, 1),
@@ -136,12 +138,15 @@ static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (2018, 1, 32),
 ];
 
+#[cfg(Py_3)]
 static INVALID_TIMES: &'static [(u8, u8, u8, u32)] =
     &[(25, 0, 0, 0), (255, 0, 0, 0), (0, 60, 0, 0), (0, 0, 61, 0)];
 
 #[cfg(Py_3_6)]
 #[test]
 fn test_pydate_out_of_bounds() {
+    use pyo3::types::PyDate;
+
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -155,6 +160,8 @@ fn test_pydate_out_of_bounds() {
 #[cfg(Py_3_6)]
 #[test]
 fn test_pytime_out_of_bounds() {
+    use pyo3::types::PyTime;
+
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -168,6 +175,9 @@ fn test_pytime_out_of_bounds() {
 #[cfg(Py_3_6)]
 #[test]
 fn test_pydatetime_out_of_bounds() {
+    use pyo3::types::PyDateTime;
+    use std::iter;
+
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();

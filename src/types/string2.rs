@@ -9,7 +9,7 @@ use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::IntoPyPointer;
+use crate::IntoPyPointer;
 use crate::Python;
 use crate::ToPyPointer;
 use std::borrow::Cow;
