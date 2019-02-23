@@ -3,10 +3,10 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::python::ToPyPointer;
 use pyo3::types::PyObjectRef;
 use pyo3::types::PyTuple;
 use pyo3::PyRawObject;
+use pyo3::ToPyPointer;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -100,7 +100,7 @@ impl Drop for ClassWithDrop {
     }
 }
 
-// Test behavior of pythonrun::register_pointers + typeob::dealloc
+// Test behavior of pythonrun::register_pointers + type_object::dealloc
 #[test]
 fn create_pointers_in_drop() {
     let _gil = Python::acquire_gil();
@@ -213,8 +213,8 @@ struct BaseClassWithDrop {
 #[pymethods]
 impl BaseClassWithDrop {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        Ok(obj.init(BaseClassWithDrop { data: None }))
+    fn new(obj: &PyRawObject) {
+        obj.init(BaseClassWithDrop { data: None })
     }
 }
 
@@ -234,9 +234,9 @@ struct SubClassWithDrop {
 #[pymethods]
 impl SubClassWithDrop {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+    fn new(obj: &PyRawObject) {
         obj.init(SubClassWithDrop { data: None });
-        BaseClassWithDrop::__new__(obj)
+        BaseClassWithDrop::new(obj);
     }
 }
 
@@ -258,7 +258,7 @@ fn inheritance_with_new_methods_with_drop() {
         let py = gil.python();
         let _typebase = py.get_type::<BaseClassWithDrop>();
         let typeobj = py.get_type::<SubClassWithDrop>();
-        let inst = typeobj.call(NoArgs, None).unwrap();
+        let inst = typeobj.call((), None).unwrap();
 
         let obj = SubClassWithDrop::try_from_mut(inst).unwrap();
         obj.data = Some(Arc::clone(&drop_called1));

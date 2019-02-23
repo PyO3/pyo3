@@ -3,13 +3,16 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use super::num_common::{err_if_invalid_value, IS_LITTLE_ENDIAN};
-use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithGIL};
+use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::types::{exceptions, PyObjectRef};
+use crate::types::PyObjectRef;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{FromPyObject, IntoPyObject, ToPyObject};
 use num_traits::cast::cast;
 use std::os::raw::{c_long, c_uchar};
 
@@ -177,8 +180,8 @@ int_convert_bignum!(u128, 16, IS_LITTLE_ENDIAN, 0);
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::ToPyObject;
-    use crate::python::Python;
+    use crate::Python;
+    use crate::ToPyObject;
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (

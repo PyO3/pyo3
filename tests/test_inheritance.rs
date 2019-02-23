@@ -34,8 +34,8 @@ fn subclass() {
 #[pymethods]
 impl BaseClass {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        Ok(obj.init(BaseClass { val1: 10 }))
+    fn new(obj: &PyRawObject) {
+        obj.init(BaseClass { val1: 10 })
     }
 }
 
@@ -48,9 +48,9 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
+    fn new(obj: &PyRawObject) {
         obj.init(SubClass { val2: 5 });
-        BaseClass::__new__(obj)
+        BaseClass::new(obj);
     }
 }
 
@@ -60,6 +60,6 @@ fn inheritance_with_new_methods() {
     let py = gil.python();
     let _typebase = py.get_type::<BaseClass>();
     let typeobj = py.get_type::<SubClass>();
-    let inst = typeobj.call(NoArgs, None).unwrap();
+    let inst = typeobj.call((), None).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
 }

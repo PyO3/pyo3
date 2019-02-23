@@ -4,8 +4,9 @@
 //!
 
 use crate::ffi;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
+use crate::Python;
+use crate::ToPyPointer;
 use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]

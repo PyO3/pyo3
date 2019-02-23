@@ -1,7 +1,8 @@
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
+use crate::Python;
+use crate::ToPyPointer;
 #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
 use std::ops::*;
 use std::os::raw::c_double;
@@ -117,10 +118,10 @@ impl<'py> Neg for &'py PyComplex {
 #[cfg(feature = "num-complex")]
 mod complex_conversion {
     use super::*;
-    use crate::conversion::{FromPyObject, IntoPyObject, ToPyObject};
     use crate::err::PyErr;
     use crate::types::PyObjectRef;
     use crate::PyResult;
+    use crate::{FromPyObject, IntoPyObject, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {
@@ -215,7 +216,7 @@ mod complex_conversion {
 #[cfg(test)]
 mod test {
     use super::PyComplex;
-    use crate::python::Python;
+    use crate::Python;
     use assert_approx_eq::assert_approx_eq;
 
     #[test]

@@ -84,7 +84,7 @@ Currently, there are no conversions between `Fn`s in rust and callables in pytho
 
 ### Calling a python function in rust
 
-You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `NoArgs`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the args.
+You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the args.
 
 ### Calling rust `Fn`s in python
 

@@ -30,7 +30,6 @@ pub use self::string2::{PyBytes, PyString, PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 use crate::ffi;
-use crate::python::ToPyPointer;
 use crate::PyObject;
 
 /// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
@@ -58,8 +57,6 @@ macro_rules! pyobject_downcast (
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name: ty $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> $crate::PyNativeType for $name {}
-
         impl<$($type_param,)*> ::std::convert::AsRef<$crate::types::PyObjectRef> for $name {
             #[inline]
             fn as_ref(&self) -> &$crate::types::PyObjectRef {
@@ -67,14 +64,13 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> $crate::PyObjectWithGIL for $name {
-            #[inline]
+        impl<$($type_param,)*> $crate::PyNativeType for $name {
             fn py(&self) -> $crate::Python {
                 unsafe { $crate::Python::assume_gil_acquired() }
             }
         }
 
-        impl<$($type_param,)*> $crate::python::ToPyPointer for $name {
+        impl<$($type_param,)*> $crate::ToPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
@@ -85,6 +81,8 @@ macro_rules! pyobject_native_type_named (
         impl<$($type_param,)*> PartialEq for $name {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
+                use $crate::ToPyPointer;
+
                 self.as_ptr() == o.as_ptr()
             }
         }
@@ -108,7 +106,7 @@ macro_rules! pyobject_native_type (
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
     ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> $crate::typeob::PyTypeInfo for $name {
+        impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::types::PyObjectRef;
 
@@ -121,18 +119,20 @@ macro_rules! pyobject_native_type_convert(
                 &mut $typeobject
             }
 
+            #[allow(unused_unsafe)]
             fn is_instance(ptr: &$crate::types::PyObjectRef) -> bool {
-                #[allow(unused_unsafe)]
+                use $crate::ToPyPointer;
+
                 unsafe { $checkfunction(ptr.as_ptr()) > 0 }
             }
         }
 
-        impl<$($type_param,)*> $crate::typeob::PyObjectAlloc for $name {}
+        impl<$($type_param,)*> $crate::type_object::PyObjectAlloc for $name {}
 
-        impl<$($type_param,)*> $crate::typeob::PyTypeObject for $name {
+        impl<$($type_param,)*> $crate::type_object::PyTypeObject for $name {
             fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 unsafe {
-                    std::ptr::NonNull::new_unchecked(<Self as $crate::typeob::PyTypeInfo>::type_object() as *mut _)
+                    std::ptr::NonNull::new_unchecked(<Self as $crate::type_object::PyTypeInfo>::type_object() as *mut _)
                 }
             }
         }
@@ -141,6 +141,8 @@ macro_rules! pyobject_native_type_convert(
         {
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
+                use $crate::ToPyPointer;
+
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }
         }
@@ -178,7 +180,6 @@ mod bytearray;
 mod complex;
 mod datetime;
 mod dict;
-pub mod exceptions;
 mod floatob;
 mod iterator;
 mod list;

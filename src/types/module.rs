@@ -2,18 +2,21 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::conversion::{IntoPy, ToPyObject};
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::PyTypeCreate;
-use crate::typeob::PyTypeObject;
+use crate::type_object::PyTypeCreate;
+use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
-use crate::types::{exceptions, PyDict, PyObjectRef};
+use crate::types::{PyDict, PyObjectRef};
+use crate::IntoPy;
 use crate::Py;
+use crate::Python;
+use crate::ToPyObject;
+use crate::ToPyPointer;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -64,7 +67,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as crate::conversion::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 
@@ -124,10 +127,7 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args)`
-    pub fn call1<A>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPy<Py<PyTuple>>,
-    {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
         self.getattr(name)?.call1(args)
     }
 

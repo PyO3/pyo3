@@ -4,12 +4,13 @@
 
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Py, PyObjectWithGIL};
-use crate::python::ToPyPointer;
-use crate::python::{IntoPyPointer, Python};
+use crate::instance::{Py, PyNativeType};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
-use crate::{class, ffi, pythonrun};
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{class, ffi, gil};
 use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
 use std::ffi::CString;
@@ -82,8 +83,8 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// #[pymethods]
 /// impl MyClass {
 ///    #[new]
-///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        Ok(obj.init(MyClass { }))
+///    fn new(obj: &PyRawObject) {
+///        obj.init(MyClass { })
 ///    }
 /// }
 /// ```
@@ -171,7 +172,7 @@ impl IntoPyPointer for PyRawObject {
     }
 }
 
-impl PyObjectWithGIL for PyRawObject {
+impl PyNativeType for PyRawObject {
     #[inline]
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
@@ -430,7 +431,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 where
     T: PyObjectAlloc,
 {
-    let _pool = pythonrun::GILPool::new_no_pointers();
+    let _pool = gil::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
     <T as PyObjectAlloc>::dealloc(py, obj)
 }

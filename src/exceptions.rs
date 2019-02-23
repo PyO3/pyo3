@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! This module contains the standard python exception types.
+//! Exception types defined by python.
 
-use crate::conversion::ToPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::PyTypeObject;
+use crate::type_object::PyTypeObject;
 use crate::types::{PyObjectRef, PyTuple};
+use crate::Python;
+use crate::{ToPyObject, ToPyPointer};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, ops};
@@ -84,12 +84,12 @@ macro_rules! import_exception {
     };
 }
 
-/// `impl $crate::typeob::PyTypeObject for $name` where `$name` is an exception defined in python
+/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an exception defined in python
 /// code.
 #[macro_export]
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
-        impl $crate::typeob::PyTypeObject for $name {
+        impl $crate::type_object::PyTypeObject for $name {
             fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
@@ -170,12 +170,12 @@ macro_rules! create_exception {
     };
 }
 
-/// `impl $crate::typeob::PyTypeObject for $name` where `$name` is an exception newly defined in
+/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an exception newly defined in
 /// rust code.
 #[macro_export]
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
-        impl $crate::typeob::PyTypeObject for $name {
+        impl $crate::type_object::PyTypeObject for $name {
             fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
@@ -379,8 +379,8 @@ pub mod socket {
 
 #[cfg(test)]
 mod test {
+    use crate::exceptions::Exception;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::exceptions::Exception;
     use crate::types::PyDict;
     use crate::{PyErr, Python};
 

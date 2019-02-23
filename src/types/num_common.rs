@@ -1,7 +1,7 @@
 //! common macros for num2.rs and num3.rs
 
 use crate::err::{PyErr, PyResult};
-use crate::python::Python;
+use crate::Python;
 use std::os::raw::c_int;
 
 pub(super) fn err_if_invalid_value<T: PartialEq + Copy>(
@@ -104,8 +104,8 @@ pub(super) const IS_LITTLE_ENDIAN: c_int = 0;
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::ToPyObject;
-    use crate::python::Python;
+    use crate::Python;
+    use crate::ToPyObject;
 
     #[test]
     fn test_u32_max() {
@@ -114,7 +114,7 @@ mod test {
         let v = std::u32::MAX;
         let obj = v.to_object(py);
         assert_eq!(v, obj.extract::<u32>(py).unwrap());
-        assert_eq!(v as u64, obj.extract::<u64>(py).unwrap());
+        assert_eq!(u64::from(v), obj.extract::<u64>(py).unwrap());
         assert!(obj.extract::<i32>(py).is_err());
     }
 
@@ -188,9 +188,9 @@ mod test {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_u128_overflow() {
+        use crate::exceptions;
         use crate::ffi;
         use crate::object::PyObject;
-        use crate::types::exceptions;
         use std::os::raw::c_uchar;
         let gil = Python::acquire_gil();
         let py = gil.python();

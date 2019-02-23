@@ -118,12 +118,12 @@ struct MyClass {
 impl MyClass {
 
      #[new]
-     fn __new__(obj: &PyRawObject, num: i32) -> PyResult<()> {
+     fn new(obj: &PyRawObject, num: i32) {
          obj.init({
              MyClass {
                  num,
              }
-         })
+         });
      }
 }
 ```
@@ -158,8 +158,8 @@ struct BaseClass {
 #[pymethods]
 impl BaseClass {
    #[new]
-   fn __new__(obj: &PyRawObject) -> PyResult<()> {
-       Ok(obj.init(BaseClass{ val1: 10 }))
+   fn new(obj: &PyRawObject) {
+       obj.init(BaseClass{ val1: 10 });
    }
 
    pub fn method(&self) -> PyResult<()> {
@@ -175,9 +175,9 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
    #[new]
-   fn __new__(obj: &PyRawObject) -> PyResult<()> {
+   fn new(obj: &PyRawObject) {
        obj.init(SubClass{ val2: 10 });
-       BaseClass::__new__(obj)
+       BaseClass::new(obj);
    }
 
    fn method2(&self) -> PyResult<()> {

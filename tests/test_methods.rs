@@ -65,8 +65,8 @@ struct ClassMethod {}
 #[pymethods]
 impl ClassMethod {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        Ok(obj.init(ClassMethod {}))
+    fn new(obj: &PyRawObject) {
+        obj.init(ClassMethod {})
     }
 
     #[classmethod]
@@ -129,8 +129,8 @@ struct StaticMethod {}
 #[pymethods]
 impl StaticMethod {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        Ok(obj.init(StaticMethod {}))
+    fn new(obj: &PyRawObject) {
+        obj.init(StaticMethod {})
     }
 
     #[staticmethod]

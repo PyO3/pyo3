@@ -5,7 +5,6 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use crate::conversion::ToPyObject;
 use crate::err::PyResult;
 use crate::ffi;
 use crate::ffi::PyDateTimeAPI;
@@ -26,8 +25,10 @@ use crate::ffi::{
 };
 use crate::instance::Py;
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
 use crate::types::PyTuple;
+use crate::Python;
+use crate::ToPyObject;
+use crate::ToPyPointer;
 use std::os::raw::c_int;
 use std::ptr;
 

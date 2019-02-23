@@ -3,8 +3,8 @@
 //! Free allocation list
 
 use crate::ffi;
-use crate::python::Python;
-use crate::typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use crate::type_object::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use crate::Python;
 use std::mem;
 use std::os::raw::c_void;
 

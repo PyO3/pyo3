@@ -2,19 +2,21 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::conversion::PyTryFrom;
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, Py, PyRef, PyRefMut};
+use crate::gil::{self, GILGuard};
+use crate::instance::AsPyRef;
 use crate::object::PyObject;
-use crate::pythonrun::{self, GILGuard};
-use crate::typeob::PyTypeCreate;
-use crate::typeob::{PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
+use crate::ToPyPointer;
+use crate::{IntoPyPointer, PyTryFrom};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
 use std::ptr::NonNull;
+
+pub use gil::prepare_freethreaded_python;
 
 /// Marker type that indicates that the GIL is currently held.
 ///
@@ -47,62 +49,6 @@ use std::ptr::NonNull;
 /// [Python::allow_threads].
 #[derive(Copy, Clone)]
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
-
-/// This trait allows retrieving the underlying FFI pointer from Python objects.
-pub trait ToPyPointer {
-    /// Retrieves the underlying FFI pointer (as a borrowed pointer).
-    fn as_ptr(&self) -> *mut ffi::PyObject;
-}
-
-/// This trait allows retrieving the underlying FFI pointer from Python objects.
-pub trait IntoPyPointer {
-    /// Retrieves the underlying FFI pointer. Whether pointer owned or borrowed
-    /// depends on implementation.
-    fn into_ptr(self) -> *mut ffi::PyObject;
-}
-
-/// Convert `None` into a null pointer.
-impl<T> ToPyPointer for Option<T>
-where
-    T: ToPyPointer,
-{
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        match *self {
-            Some(ref t) => t.as_ptr(),
-            None => std::ptr::null_mut(),
-        }
-    }
-}
-
-/// Convert `None` into a null pointer.
-impl<T> IntoPyPointer for Option<T>
-where
-    T: IntoPyPointer,
-{
-    #[inline]
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        match self {
-            Some(t) => t.into_ptr(),
-            None => std::ptr::null_mut(),
-        }
-    }
-}
-
-impl<'a, T> IntoPyPointer for &'a T
-where
-    T: ToPyPointer,
-{
-    fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.as_ptr();
-        if !ptr.is_null() {
-            unsafe {
-                ffi::Py_INCREF(ptr);
-            }
-        }
-        ptr
-    }
-}
 
 impl<'p> Python<'p> {
     /// Retrieve Python instance under the assumption that the GIL is already acquired at this point,
@@ -188,9 +134,9 @@ impl<'p> Python<'p> {
             }
 
             let globals = globals
-                .map(|g| g.as_ptr())
+                .map(ToPyPointer::as_ptr)
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(|l| l.as_ptr()).unwrap_or(globals);
+            let locals = locals.map(ToPyPointer::as_ptr).unwrap_or(globals);
 
             let res_ptr = ffi::PyRun_StringFlags(
                 code.as_ptr(),
@@ -247,38 +193,6 @@ impl<'p> Python<'p> {
 }
 
 impl<'p> Python<'p> {
-    /// Create new instance of `T` and move it under python management.
-    /// Returns `Py<T>`.
-    #[inline]
-    pub fn init<T>(self, value: T) -> PyResult<Py<T>>
-    where
-        T: PyTypeCreate,
-    {
-        Py::new(self, value)
-    }
-
-    /// Create new instance of `T` and move it under python management.
-    /// Created object get registered in release pool. Returns references to `T`
-    #[inline]
-    pub fn init_ref<T>(self, value: T) -> PyResult<PyRef<'p, T>>
-    where
-        T: PyTypeCreate,
-    {
-        PyRef::new(self, value)
-    }
-
-    /// Create new instance of `T` and move it under python management.
-    /// Created object get registered in release pool. Returns mutable references to `T`
-    #[inline]
-    pub fn init_mut<T>(self, value: T) -> PyResult<PyRefMut<'p, T>>
-    where
-        T: PyTypeCreate,
-    {
-        PyRefMut::new(self, value)
-    }
-}
-
-impl<'p> Python<'p> {
     unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyObjectRef) -> &'p T {
         if T::OFFSET == 0 {
             &*(ob as *const _ as *const T)
@@ -303,7 +217,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        let p = unsafe { pythonrun::register_owned(self, obj.into_nonnull()) };
+        let p = unsafe { gil::register_owned(self, obj.into_nonnull()) };
         <T as PyTryFrom>::try_from(p)
     }
 
@@ -312,14 +226,14 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        let p = pythonrun::register_owned(self, obj.into_nonnull());
+        let p = gil::register_owned(self, obj.into_nonnull());
         self.unchecked_downcast(p)
     }
 
     /// Register `ffi::PyObject` pointer in release pool
     pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyObjectRef {
         match NonNull::new(ptr) {
-            Some(p) => pythonrun::register_borrowed(self, p),
+            Some(p) => gil::register_borrowed(self, p),
             None => crate::err::panic_after_error(),
         }
     }
@@ -333,7 +247,7 @@ impl<'p> Python<'p> {
     {
         match NonNull::new(ptr) {
             Some(p) => {
-                let p = pythonrun::register_owned(self, p);
+                let p = gil::register_owned(self, p);
                 self.unchecked_downcast(p)
             }
             None => crate::err::panic_after_error(),
@@ -348,7 +262,7 @@ impl<'p> Python<'p> {
     {
         match NonNull::new(ptr) {
             Some(p) => {
-                let p = pythonrun::register_owned(self, p);
+                let p = gil::register_owned(self, p);
                 self.unchecked_mut_downcast(p)
             }
             None => crate::err::panic_after_error(),
@@ -364,7 +278,7 @@ impl<'p> Python<'p> {
     {
         match NonNull::new(ptr) {
             Some(p) => {
-                let p = pythonrun::register_owned(self, p);
+                let p = gil::register_owned(self, p);
                 Ok(self.unchecked_downcast(p))
             }
             None => Err(PyErr::fetch(self)),
@@ -379,7 +293,7 @@ impl<'p> Python<'p> {
         T: PyTypeInfo,
     {
         NonNull::new(ptr).map(|p| {
-            let p = pythonrun::register_owned(self, p);
+            let p = gil::register_owned(self, p);
             self.unchecked_downcast(p)
         })
     }
@@ -393,7 +307,7 @@ impl<'p> Python<'p> {
     {
         match NonNull::new(ptr) {
             Some(p) => {
-                let p = pythonrun::register_borrowed(self, p);
+                let p = gil::register_borrowed(self, p);
                 self.unchecked_downcast(p)
             }
             None => crate::err::panic_after_error(),
@@ -409,7 +323,7 @@ impl<'p> Python<'p> {
     {
         match NonNull::new(ptr) {
             Some(p) => {
-                let p = pythonrun::register_borrowed(self, p);
+                let p = gil::register_borrowed(self, p);
                 self.unchecked_mut_downcast(p)
             }
             None => crate::err::panic_after_error(),
@@ -425,7 +339,7 @@ impl<'p> Python<'p> {
     {
         match NonNull::new(ptr) {
             Some(p) => {
-                let p = pythonrun::register_borrowed(self, p);
+                let p = gil::register_borrowed(self, p);
                 Ok(self.unchecked_downcast(p))
             }
             None => Err(PyErr::fetch(self)),
@@ -440,7 +354,7 @@ impl<'p> Python<'p> {
         T: PyTypeInfo,
     {
         NonNull::new(ptr).map(|p| {
-            let p = pythonrun::register_borrowed(self, p);
+            let p = gil::register_borrowed(self, p);
             self.unchecked_downcast(p)
         })
     }
@@ -449,7 +363,7 @@ impl<'p> Python<'p> {
     /// Pass value ownership to `Python` object and get reference back.
     /// Value get cleaned up on the GIL release.
     pub fn register_any<T: 'static>(self, ob: T) -> &'p T {
-        unsafe { pythonrun::register_any(ob) }
+        unsafe { gil::register_any(ob) }
     }
 
     /// Release PyObject reference.

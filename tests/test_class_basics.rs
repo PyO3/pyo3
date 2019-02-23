@@ -12,7 +12,7 @@ fn empty_class() {
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClass>();
     // By default, don't allow creating instances from python.
-    assert!(typeobj.call(NoArgs, None).is_err());
+    assert!(typeobj.call((), None).is_err());
 
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }

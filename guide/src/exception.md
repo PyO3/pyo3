@@ -101,7 +101,7 @@ To check the type of an exception, you can simply do:
 # fn main() {
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let err = exceptions::TypeError::py_err(NoArgs);
+# let err = exceptions::TypeError::py_err(());
 err.is_instance::<exceptions::TypeError>(py);
 # }
 ```
@@ -112,7 +112,7 @@ The vast majority of operations in this library will return [`PyResult<T>`](http
 This is an alias for the type `Result<T, PyErr>`.
 
 A [`PyErr`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html) represents a Python exception.
-Errors within the `PyO3` library are also exposed as Python exceptions.
+Errors within the `Pyo3` library are also exposed as Python exceptions.
 
 PyO3 library handles python exception in two stages. During first stage `PyErr` instance get
 created. At this stage python GIL is not required. During second stage, actual python

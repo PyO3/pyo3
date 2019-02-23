@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added a `wrap_pymodule!` macro similar to the existing `wrap_pyfunction!` macro. Only available on python 3
  * Added support for cross compiling (e.g. to arm v7) by mtp401 in [#327](https://github.com/PyO3/pyo3/pull/327). See the "Cross Compiling" section in the "Building and Distribution" chapter of the guide for more details.
  * The `PyRef` and `PyRefMut` types, which allow to differentiate between an instance of a rust struct on the rust heap and an instance that is embedded inside a python object. By kngwyu in [#335](https://github.com/PyO3/pyo3/pull/335)
+ * Added `FromPy<T>` and `IntoPy<T>` which are equivalent to `From<T>` and `Into<T>` except that they require a gil token.
+ * Added `ManagedPyRef`, which should eventually replace `ToBorrowedObject`.
 
 ### Changed
 
@@ -27,14 +29,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `#[pyfunction]` now supports the same arguments as `#[pyfn()]`
  * Some macros now emit proper spanned errors instead of panics.
  * Migrated to the 2018 edition
- * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`. Eventually `IntoPy<T>` should replace `ToPyObject` and be itself implemented through `FromPy<T>`
+ * `crate::types::exceptions` moved to `crate::exceptions`
+ * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`.
+ * `IntoPyPointer` and `ToPyPointer` moved into the crate root.
+ * `class::CompareOp` moved into `class::basic::CompareOp`
  * PyTypeObject is now a direct subtrait PyTypeCreate, removing the old cyclical implementation in [#350](https://github.com/PyO3/pyo3/pull/350)
  * Add `PyList::{sort, reverse}` by chr1sj0nes in [#357](https://github.com/PyO3/pyo3/pull/357) and [#358](https://github.com/PyO3/pyo3/pull/358)
+ * Renamed the `typeob` module to `type_object`
 
 ### Removed
 
  * `PyToken` was removed due to unsoundness (See [#94](https://github.com/PyO3/pyo3/issues/94)).
  * Removed the unnecessary type parameter from `PyObjectAlloc`
+ * `NoArgs`. Just use an empty tuple
+ * `PyObjectWithGIL`. `PyNativeType` is sufficient now that PyToken is removed.
 
 ### Fixed
 

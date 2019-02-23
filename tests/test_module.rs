@@ -32,12 +32,12 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
         let out = sum_as_string(a, b);
-        return Ok(out);
+        Ok(out)
     }
 
     #[pyfn(m, "no_parameters")]
     fn no_parameters() -> PyResult<usize> {
-        return Ok(42);
+        Ok(42)
     }
 
     m.add_class::<EmptyClass>().unwrap();
@@ -86,14 +86,14 @@ fn some_name(_: Python, _: &PyModule) -> PyResult<()> {
 #[test]
 #[cfg(Py_3)]
 fn test_module_renaming() {
+    use pyo3::wrap_pymodule;
+
     let gil = Python::acquire_gil();
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item("different_name", unsafe {
-        PyObject::from_owned_ptr(py, PyInit_other_name())
-    })
-    .unwrap();
+    d.set_item("different_name", wrap_pymodule!(other_name)(py))
+        .unwrap();
 
     py.run(
         "assert different_name.__name__ == 'other_name'",
