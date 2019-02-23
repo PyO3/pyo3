@@ -7,11 +7,11 @@
 
 use crate::callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use crate::class::methods::PyMethodDef;
-use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::PyResult;
 use crate::ffi;
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyObjectRef, PyType};
+use crate::{FromPyObject, IntoPyObject};
 use std::os::raw::c_int;
 
 /// Descriptor interface

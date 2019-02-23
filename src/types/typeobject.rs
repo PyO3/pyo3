@@ -4,10 +4,11 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithGIL};
+use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::{PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyTypeInfo, PyTypeObject};
+use crate::Python;
+use crate::ToPyPointer;
 use std::borrow::Cow;
 use std::ffi::CStr;
 

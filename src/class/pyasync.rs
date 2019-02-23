@@ -12,7 +12,7 @@ use crate::callback::PyObjectCallbackConverter;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::ffi;
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 
 /// Python Async/Await support interface.
 ///
@@ -190,9 +190,10 @@ impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p> {}
 mod anext {
     use super::{PyAsyncAnextProtocol, PyAsyncAnextProtocolImpl};
     use crate::callback::CallbackConverter;
-    use crate::conversion::IntoPyObject;
     use crate::ffi;
-    use crate::python::{IntoPyPointer, Python};
+    use crate::IntoPyObject;
+    use crate::IntoPyPointer;
+    use crate::Python;
     use std::ptr;
 
     pub struct IterANextResultConverter;

@@ -1,13 +1,73 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! This module contains some conversion traits
+//! Conversions between various states of rust and python types and their wrappers.
 
 use crate::err::{PyDowncastError, PyResult};
 use crate::ffi;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 use crate::types::PyObjectRef;
+use crate::types::PyTuple;
+use crate::Py;
+use crate::Python;
+
+/// This trait allows retrieving the underlying FFI pointer from Python objects.
+///
+/// This trait is implemented for types that internally wrap a pointer to a python object.
+pub trait ToPyPointer {
+    /// Retrieves the underlying FFI pointer (as a borrowed pointer).
+    fn as_ptr(&self) -> *mut ffi::PyObject;
+}
+
+/// This trait allows retrieving the underlying FFI pointer from Python objects.
+pub trait IntoPyPointer {
+    /// Retrieves the underlying FFI pointer. Whether pointer owned or borrowed
+    /// depends on implementation.
+    fn into_ptr(self) -> *mut ffi::PyObject;
+}
+
+/// Convert `None` into a null pointer.
+impl<T> ToPyPointer for Option<T>
+where
+    T: ToPyPointer,
+{
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        match *self {
+            Some(ref t) => t.as_ptr(),
+            None => std::ptr::null_mut(),
+        }
+    }
+}
+
+/// Convert `None` into a null pointer.
+impl<T> IntoPyPointer for Option<T>
+where
+    T: IntoPyPointer,
+{
+    #[inline]
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        match self {
+            Some(t) => t.into_ptr(),
+            None => std::ptr::null_mut(),
+        }
+    }
+}
+
+impl<'a, T> IntoPyPointer for &'a T
+where
+    T: ToPyPointer,
+{
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        let ptr = self.as_ptr();
+        if !ptr.is_null() {
+            unsafe {
+                ffi::Py_INCREF(ptr);
+            }
+        }
+        ptr
+    }
+}
 
 /// Conversion trait that allows various objects to be converted into `PyObject`
 pub trait ToPyObject {
@@ -18,7 +78,9 @@ pub trait ToPyObject {
 /// This trait has two implementations: The slow one is implemented for
 /// all [ToPyObject] and creates a new object using [ToPyObject::to_object],
 /// while the fast one is only implemented for ToPyPointer (we know
-/// that every ToPyObject is also ToPyObject) and uses [ToPyPointer::as_ptr()]
+/// that every ToPyPointer is also ToPyObject) and uses [ToPyPointer::as_ptr()]
+///
+/// This trait should eventually be replaced with [ManagedPyRef](crate::ManagedPyRef).
 pub trait ToBorrowedObject: ToPyObject {
     /// Converts self into a Python object and calls the specified closure
     /// on the native FFI pointer underlying the Python object.
@@ -52,10 +114,33 @@ where
     }
 }
 
-/// Similar to [std::convert::Into], just that it requires a gil token and there's
-/// currently no corresponding [std::convert::From] part.
+/// Similar to [std::convert::From], just that it requires a gil token.
+pub trait FromPy<T>: Sized {
+    /// Performs the conversion.
+    fn from_py(_: T, py: Python) -> Self;
+}
+
+/// Similar to [std::convert::Into], just that it requires a gil token.
 pub trait IntoPy<T>: Sized {
+    /// Performs the conversion.
     fn into_py(self, py: Python) -> T;
+}
+
+// From implies Into
+impl<T, U> IntoPy<U> for T
+where
+    U: FromPy<T>,
+{
+    fn into_py(self, py: Python) -> U {
+        U::from_py(self, py)
+    }
+}
+
+// From (and thus Into) is reflexive
+impl<T> FromPy<T> for T {
+    fn from_py(t: T, _: Python) -> T {
+        t
+    }
 }
 
 /// Conversion trait that allows various objects to be converted into `PyObject`
@@ -202,20 +287,17 @@ where
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryInto`
 pub trait PyTryInto<T>: Sized {
-    /// The type returned in the event of a conversion error.
-    type Error;
-
     /// Cast from PyObject to a concrete Python object type.
-    fn try_into(&self) -> Result<&T, Self::Error>;
+    fn try_into(&self) -> Result<&T, PyDowncastError>;
 
     /// Cast from PyObject to a concrete Python object type. With exact type check.
-    fn try_into_exact(&self) -> Result<&T, Self::Error>;
+    fn try_into_exact(&self) -> Result<&T, PyDowncastError>;
 
     /// Cast from PyObject to a concrete Python object type.
-    fn try_into_mut(&self) -> Result<&mut T, Self::Error>;
+    fn try_into_mut(&self) -> Result<&mut T, PyDowncastError>;
 
     /// Cast from PyObject to a concrete Python object type. With exact type check.
-    fn try_into_mut_exact(&self) -> Result<&mut T, Self::Error>;
+    fn try_into_mut_exact(&self) -> Result<&mut T, PyDowncastError>;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
@@ -250,8 +332,6 @@ impl<U> PyTryInto<U> for PyObjectRef
 where
     U: for<'v> PyTryFrom<'v>,
 {
-    type Error = PyDowncastError;
-
     fn try_into(&self) -> Result<&U, PyDowncastError> {
         U::try_from(self)
     }
@@ -339,33 +419,19 @@ where
     }
 }
 
-#[doc(hidden)]
-/// This trait wraps a T: IntoPyObject into PyResult<T> while PyResult<T> remains PyResult<T>.
-///
-/// This is necessary because proc macros run before typechecking and can't decide
-/// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
-/// the codegen is currently built on the assumption that all functions return a PyResult.
-pub trait IntoPyResult<T> {
-    fn into_py_result(self) -> PyResult<T>;
-}
-
-impl<T: IntoPyObject> IntoPyResult<T> for T {
-    fn into_py_result(self) -> PyResult<T> {
-        Ok(self)
-    }
-}
-
-impl<T: IntoPyObject> IntoPyResult<T> for PyResult<T> {
-    fn into_py_result(self) -> PyResult<T> {
-        self
+/// Converts `()` to an empty Python tuple.
+impl FromPy<()> for Py<PyTuple> {
+    fn from_py(_: (), py: Python) -> Py<PyTuple> {
+        PyTuple::empty(py)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::PyTryFrom;
     use crate::types::PyList;
     use crate::Python;
+
+    use super::PyTryFrom;
 
     #[test]
     fn test_try_from_unchecked() {

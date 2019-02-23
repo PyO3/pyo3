@@ -4,9 +4,10 @@
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
-use crate::python::{Python, ToPyPointer};
+use crate::instance::PyNativeType;
 use crate::types::PyObjectRef;
+use crate::Python;
+use crate::ToPyPointer;
 
 /// A python iterator object.
 ///
@@ -83,13 +84,13 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
-    use crate::conversion::ToPyObject;
+    use crate::gil::GILPool;
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
-    use crate::pythonrun::GILPool;
     use crate::types::{PyDict, PyList};
     use crate::GILGuard;
+    use crate::Python;
+    use crate::ToPyObject;
     use indoc::indoc;
 
     #[test]

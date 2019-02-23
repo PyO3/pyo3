@@ -21,7 +21,7 @@ provides two methods:
 * `call` - call callable python object.
 * `call_method` - call specific method on the object.
 
-Both methods accept `args` and `kwargs` arguments. The `NoArgs` object represents an empty tuple object.
+Both methods accept `args` and `kwargs` arguments.
 
 ```rust
 use pyo3::prelude::*;
@@ -87,16 +87,16 @@ fn main() {
     // call object with PyDict
     let kwargs = PyDict::new(py);
     kwargs.set_item(key1, val1);
-    obj.call(py, NoArgs, Some(kwargs));
+    obj.call(py, (), Some(kwargs));
 
     // pass arguments as Vec
     let kwargs = vec![(key1, val1), (key2, val2)];
-    obj.call(py, NoArgs, Some(kwargs.into_py_dict(py)));
+    obj.call(py, (), Some(kwargs.into_py_dict(py)));
 
     // pass arguments as HashMap
     let mut kwargs = HashMap::<&str, i32>::new();
     kwargs.insert(key1, 1);
-    obj.call(py, NoArgs, Some(kwargs.into_py_dict(py)));
+    obj.call(py, (), Some(kwargs.into_py_dict(py)));
 }
 ```
 

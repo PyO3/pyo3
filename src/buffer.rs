@@ -20,8 +20,9 @@
 use crate::err::{self, PyResult};
 use crate::exceptions;
 use crate::ffi;
-use crate::python::{Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use crate::Python;
+use crate::ToPyPointer;
 use libc;
 use std::ffi::CStr;
 use std::os::raw;
@@ -661,7 +662,7 @@ impl_element!(f64, Float);
 mod test {
     use super::PyBuffer;
     use crate::ffi;
-    use crate::python::Python;
+    use crate::Python;
 
     #[allow(unused_imports)]
     use crate::objectprotocol::ObjectProtocol;

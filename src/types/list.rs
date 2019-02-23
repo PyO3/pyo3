@@ -2,13 +2,15 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -166,7 +168,7 @@ impl<T> ToPyObject for [T]
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
@@ -182,7 +184,7 @@ impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_slice().to_object(py)
     }
 }
@@ -205,11 +207,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
     use crate::types::PyList;
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
 
     #[test]
     fn test_new() {

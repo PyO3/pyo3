@@ -4,13 +4,14 @@
 
 use super::PyObjectRef;
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithGIL};
+use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::python::IntoPyPointer;
-use crate::python::{Python, ToPyPointer};
-use crate::types::exceptions;
+use crate::Python;
+use crate::ToPyPointer;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
@@ -204,10 +205,10 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 #[cfg(test)]
 mod test {
     use super::PyString;
-    use crate::conversion::{FromPyObject, PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::object::PyObject;
-    use crate::python::Python;
+    use crate::Python;
+    use crate::{FromPyObject, PyTryFrom, ToPyObject};
     use std::borrow::Cow;
 
     #[test]

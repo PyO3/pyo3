@@ -4,13 +4,14 @@
 //! Trait and support implementation for implementing sequence
 
 use crate::callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
-use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::Python;
-use crate::typeob::PyTypeInfo;
-use crate::types::{exceptions, PyObjectRef};
+use crate::type_object::PyTypeInfo;
+use crate::types::PyObjectRef;
+use crate::Python;
+use crate::{FromPyObject, IntoPyObject};
 use std::os::raw::c_int;
 
 /// Sequece interface

@@ -1,15 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{
-    FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToBorrowedObject, ToPyObject,
-};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, PyObjectWithGIL, PyRef, PyRefMut};
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::pythonrun;
+use crate::gil;
+use crate::instance::{AsPyRef, PyNativeType, PyRef, PyRefMut};
 use crate::types::{PyDict, PyObjectRef, PyTuple};
 use crate::Py;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{
+    FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
+};
 use std::ptr::NonNull;
 
 /// A python object
@@ -202,7 +203,7 @@ impl PyObject {
     /// Calls the object without arguments.
     /// This is equivalent to the Python expression: 'self()'
     pub fn call0(&self, py: Python) -> PyResult<PyObject> {
-        self.call(py, PyTuple::empty(py), None)
+        self.call(py, (), None)
     }
 
     /// Calls the object.
@@ -238,7 +239,7 @@ impl PyObject {
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name()'
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
-        self.call_method(py, name, PyTuple::empty(py), None)
+        self.call_method(py, name, (), None)
     }
 
     /// Calls a method on the object.
@@ -272,14 +273,6 @@ impl ToPyObject for PyObject {
 }
 
 impl ToPyPointer for PyObject {
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0.as_ptr()
-    }
-}
-
-impl<'a> ToPyPointer for &'a PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -325,16 +318,16 @@ impl<'a> FromPyObject<'a> for PyObject {
 impl Drop for PyObject {
     fn drop(&mut self) {
         unsafe {
-            pythonrun::register_pointer(self.0);
+            gil::register_pointer(self.0);
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::PyObject;
-    use crate::python::Python;
     use crate::types::PyDict;
+    use crate::PyObject;
+    use crate::Python;
 
     #[test]
     fn test_call_for_non_existing_method() {

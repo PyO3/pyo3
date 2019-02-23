@@ -1,15 +1,18 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject};
+use crate::class::basic::CompareOp;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
+use crate::IntoPyPointer;
 use crate::Py;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject};
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
@@ -68,7 +71,7 @@ pub trait ObjectProtocol {
     ///   * CompareOp::Le: `self <= other`
     ///   * CompareOp::Gt: `self > other`
     ///   * CompareOp::Ge: `self >= other`
-    fn rich_compare<O>(&self, other: O, compare_op: crate::CompareOp) -> PyResult<PyObject>
+    fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<PyObject>
     where
         O: ToPyObject;
 
@@ -208,7 +211,7 @@ pub trait ObjectProtocol {
 
 impl<T> ObjectProtocol for T
 where
-    T: PyObjectWithGIL + ToPyPointer,
+    T: PyNativeType + ToPyPointer,
 {
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
@@ -290,7 +293,7 @@ where
         })
     }
 
-    fn rich_compare<O>(&self, other: O, compare_op: crate::CompareOp) -> PyResult<PyObject>
+    fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<PyObject>
     where
         O: ToPyObject,
     {
@@ -341,7 +344,7 @@ where
     }
 
     fn call0(&self) -> PyResult<&PyObjectRef> {
-        self.call(PyTuple::empty(self.py()), None)
+        self.call((), None)
     }
 
     fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
@@ -372,7 +375,7 @@ where
     }
 
     fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef> {
-        self.call_method(name, PyTuple::empty(self.py()), None)
+        self.call_method(name, (), None)
     }
 
     fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
@@ -497,10 +500,10 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
-    use crate::python::Python;
     use crate::types::{IntoPyDict, PyString};
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
 
     #[test]
     fn test_debug_string() {

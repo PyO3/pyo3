@@ -7,7 +7,7 @@
 use crate::callback::UnitCallbackConverter;
 use crate::err::PyResult;
 use crate::ffi;
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 use std::os::raw::c_int;
 
 /// Buffer protocol interface

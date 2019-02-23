@@ -118,29 +118,18 @@
 //! }
 //! ```
 
-//pub extern crate libc;
-//pub extern crate mashup;
-//extern crate pyo3cls;
-//extern crate num_traits;
-//extern crate spin;
-//extern crate indoc;
-//#[macro_use]
-//extern crate assert_approx_eq;
-
 pub use crate::class::*;
 pub use crate::conversion::{
-    FromPyObject, IntoPy, IntoPyObject, IntoPyResult, PyTryFrom, PyTryInto, ToBorrowedObject,
-    ToPyObject,
+    FromPy, FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, PyTryInto,
+    ToBorrowedObject, ToPyObject, ToPyPointer,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
-pub use crate::instance::{AsPyRef, Py, PyNativeType, PyObjectWithGIL, PyRef, PyRefMut};
-pub use crate::noargs::NoArgs;
+pub use crate::gil::{init_once, GILGuard, GILPool};
+pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType, PyRef, PyRefMut};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
-pub use crate::python::{IntoPyPointer, Python, ToPyPointer};
-pub use crate::pythonrun::{init_once, prepare_freethreaded_python, GILGuard, GILPool};
-pub use crate::typeob::{PyObjectAlloc, PyRawObject, PyTypeInfo};
-pub use crate::types::exceptions;
+pub use crate::python::{prepare_freethreaded_python, Python};
+pub use crate::type_object::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 
 // We need that reexport for wrap_function
 #[doc(hidden)]
@@ -149,7 +138,7 @@ pub use mashup;
 #[doc(hidden)]
 pub use inventory;
 
-/// Rust FFI declarations for Python
+/// Raw ffi declarations for the c interface of python
 pub mod ffi;
 
 #[cfg(not(Py_3))]
@@ -175,15 +164,15 @@ mod conversion;
 #[doc(hidden)]
 pub mod derive_utils;
 mod err;
+pub mod exceptions;
 pub mod freelist;
+mod gil;
 mod instance;
-mod noargs;
 mod object;
 mod objectprotocol;
 pub mod prelude;
-pub mod python;
-mod pythonrun;
-pub mod typeob;
+mod python;
+pub mod type_object;
 pub mod types;
 
 /// The proc macros, which are also part of the prelude

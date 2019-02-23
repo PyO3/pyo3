@@ -1,12 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithGIL};
+use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
-use crate::types::exceptions;
 use crate::types::PyObjectRef;
+use crate::Python;
+use crate::ToPyPointer;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::{mem, str};
@@ -119,10 +120,10 @@ impl PyBytes {
 #[cfg(test)]
 mod test {
     use super::PyString;
-    use crate::conversion::{FromPyObject, PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::object::PyObject;
-    use crate::python::Python;
+    use crate::Python;
+    use crate::{FromPyObject, PyTryFrom, ToPyObject};
     use std::borrow::Cow;
 
     #[test]

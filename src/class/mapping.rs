@@ -5,12 +5,12 @@
 
 use crate::callback::{LenResultConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
-use crate::conversion::{FromPyObject, IntoPyObject};
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
-use crate::python::Python;
-use crate::typeob::PyTypeInfo;
-use crate::types::exceptions;
+use crate::type_object::PyTypeInfo;
+use crate::Python;
+use crate::{FromPyObject, IntoPyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]

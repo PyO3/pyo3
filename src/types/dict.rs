@@ -1,12 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::{PyList, PyObjectRef};
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use std::{cmp, collections, hash, mem};
 
 /// Represents a Python `dict`.
@@ -300,12 +302,12 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
-    use crate::python::Python;
     use crate::types::dict::IntoPyDict;
     use crate::types::{PyDict, PyList, PyTuple};
     use crate::ObjectProtocol;
+    use crate::Python;
+    use crate::{IntoPyObject, PyTryFrom, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]

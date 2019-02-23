@@ -2,9 +2,10 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
+use crate::Python;
+use crate::ToPyPointer;
 use std::os::raw::c_char;
 use std::slice;
 
@@ -72,8 +73,8 @@ impl PyByteArray {
 mod test {
     use crate::exceptions;
     use crate::object::PyObject;
-    use crate::python::Python;
     use crate::types::PyByteArray;
+    use crate::Python;
 
     #[test]
     fn test_bytearray() {

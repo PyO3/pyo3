@@ -110,16 +110,16 @@ impl PyClassArgs {
         let flag = exp.path.segments.first().unwrap().value().ident.to_string();
         let path = match flag.as_str() {
             "gc" => {
-                parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_GC}
+                parse_quote! {::pyo3::type_object::PY_TYPE_FLAG_GC}
             }
             "weakref" => {
-                parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF}
+                parse_quote! {::pyo3::type_object::PY_TYPE_FLAG_WEAKREF}
             }
             "subclass" => {
-                parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_BASETYPE}
+                parse_quote! {::pyo3::type_object::PY_TYPE_FLAG_BASETYPE}
             }
             "dict" => {
-                parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT}
+                parse_quote! {::pyo3::type_object::PY_TYPE_FLAG_DICT}
             }
             _ => {
                 return Err(syn::Error::new_spanned(
@@ -250,7 +250,7 @@ fn impl_class(
                                 FREELIST = Box::into_raw(Box::new(
                                     ::pyo3::freelist::FreeList::with_capacity(#freelist)));
 
-                                <#cls as ::pyo3::typeob::PyTypeObject>::init_type();
+                                <#cls as ::pyo3::type_object::PyTypeObject>::init_type();
                             }
                             &mut *FREELIST
                         }
@@ -259,7 +259,7 @@ fn impl_class(
             }
         } else {
             quote! {
-                impl ::pyo3::typeob::PyObjectAlloc for #cls {}
+                impl ::pyo3::type_object::PyObjectAlloc for #cls {}
             }
         }
     };
@@ -280,9 +280,9 @@ fn impl_class(
     let mut has_dict = false;
     for f in attr.flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
-            if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_WEAKREF} {
+            if epath.path == parse_quote! {::pyo3::type_object::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
-            } else if epath.path == parse_quote! {::pyo3::typeob::PY_TYPE_FLAG_DICT} {
+            } else if epath.path == parse_quote! {::pyo3::type_object::PY_TYPE_FLAG_DICT} {
                 has_dict = true;
             }
         }
@@ -304,7 +304,7 @@ fn impl_class(
     let flags = &attr.flags;
 
     quote! {
-        impl ::pyo3::typeob::PyTypeInfo for #cls {
+        impl ::pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
 
@@ -319,7 +319,7 @@ fn impl_class(
             const OFFSET: isize = {
                 // round base_size up to next multiple of align
                 (
-                    (<#base as ::pyo3::typeob::PyTypeInfo>::SIZE +
+                    (<#base as ::pyo3::type_object::PyTypeInfo>::SIZE +
                      ::std::mem::align_of::<#cls>() - 1)  /
                         ::std::mem::align_of::<#cls>() * ::std::mem::align_of::<#cls>()
                 ) as isize

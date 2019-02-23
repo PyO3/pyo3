@@ -1,13 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use super::exceptions;
-use crate::conversion::{FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToPyObject};
+use crate::conversion::FromPy;
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::{AsPyRef, Py, PyObjectWithGIL};
+use crate::instance::{AsPyRef, Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::ToPyPointer;
+use crate::{FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToPyObject};
 use std::slice;
 
 /// Represents a Python `tuple` object.
@@ -131,25 +134,9 @@ impl<'a> IntoIterator for &'a PyTuple {
     }
 }
 
-impl<'a> IntoPy<Py<PyTuple>> for &'a PyTuple {
-    fn into_py(self, _py: Python) -> Py<PyTuple> {
-        unsafe { Py::from_borrowed_ptr(self.as_ptr()) }
-    }
-}
-
-impl IntoPy<Py<PyTuple>> for Py<PyTuple> {
-    fn into_py(self, _py: Python) -> Py<PyTuple> {
-        self
-    }
-}
-
-impl<'a> IntoPy<Py<PyTuple>> for &'a str {
-    fn into_py(self, py: Python) -> Py<PyTuple> {
-        unsafe {
-            let ptr = ffi::PyTuple_New(1);
-            ffi::PyTuple_SetItem(ptr, 0, self.into_object(py).into_ptr());
-            Py::from_owned_ptr_or_panic(ptr)
-        }
+impl<'a> FromPy<&'a PyTuple> for Py<PyTuple> {
+    fn from_py(tuple: &'a PyTuple, _py: Python) -> Py<PyTuple> {
+        unsafe { Py::from_borrowed_ptr(tuple.as_ptr()) }
     }
 }
 
@@ -265,12 +252,12 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
     use crate::types::PyObjectRef;
     use crate::types::PyTuple;
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
