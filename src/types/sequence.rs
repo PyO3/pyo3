@@ -7,7 +7,7 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::{PyList, PyObjectRef, PyTuple};
-use crate::ToPyPointer;
+use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a python object supporting the sequence protocol.
@@ -331,8 +331,8 @@ mod test {
     use crate::object::PyObject;
     use crate::objectprotocol::ObjectProtocol;
     use crate::types::PySequence;
+    use crate::AsPyPointer;
     use crate::Python;
-    use crate::ToPyPointer;
     use crate::{PyTryFrom, ToPyObject};
 
     fn get_object() -> PyObject {

@@ -1,8 +1,8 @@
 use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
+use crate::AsPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
 use std::ops::*;
 use std::os::raw::c_double;

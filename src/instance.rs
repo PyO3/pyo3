@@ -8,9 +8,9 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{FromPyObject, IntoPyObject, ToPyObject};
 use std::marker::PhantomData;
 use std::mem;
@@ -29,7 +29,7 @@ pub trait PyNativeType: Sized {
 /// A special reference of type `T`. `PyRef<T>` refers a instance of T, which exists in the Python
 /// heap as a part of a Python object.
 ///
-/// We can't implement `ToPyPointer` or `ToPyObject` for `pyclass`es, because they're not Python
+/// We can't implement `AsPyPointer` or `ToPyObject` for `pyclass`es, because they're not Python
 /// objects until copied to the Python heap. So, instead of treating `&pyclass`es as Python objects,
 /// we need to use special reference types `PyRef` and `PyRefMut`.
 ///
@@ -76,7 +76,7 @@ where
     }
 }
 
-impl<'a, T: PyTypeInfo> ToPyPointer for PyRef<'a, T> {
+impl<'a, T: PyTypeInfo> AsPyPointer for PyRef<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.0.as_ptr_dispatch()
     }
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<'a, T: PyTypeInfo> ToPyPointer for PyRefMut<'a, T> {
+impl<'a, T: PyTypeInfo> AsPyPointer for PyRefMut<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         (self.0 as &T).as_ptr_dispatch()
     }
@@ -351,7 +351,7 @@ impl<T> Py<T> {
 }
 
 /// Specialization workaround
-trait AsPyRefDispatch<T: PyTypeInfo>: ToPyPointer {
+trait AsPyRefDispatch<T: PyTypeInfo>: AsPyPointer {
     fn as_ref_dispatch(&self, _py: Python) -> &T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
@@ -407,7 +407,7 @@ impl<T> IntoPyObject for Py<T> {
     }
 }
 
-impl<T> ToPyPointer for Py<T> {
+impl<T> AsPyPointer for Py<T> {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -469,7 +469,7 @@ where
 
 impl<'a, T> std::convert::From<&'a T> for PyObject
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
 {
     fn from(ob: &'a T) -> Self {
         unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
@@ -478,7 +478,7 @@ where
 
 impl<'a, T> std::convert::From<&'a mut T> for PyObject
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
 {
     fn from(ob: &'a mut T) -> Self {
         unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
@@ -487,7 +487,7 @@ where
 
 impl<'a, T> FromPyObject<'a> for Py<T>
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
     &'a T: 'a + FromPyObject<'a>,
 {
     /// Extracts `Self` from the source `PyObject`.
@@ -503,8 +503,8 @@ where
 ///
 /// Many methods want to take anything that can be converted into a python object. This type
 /// takes care of both types types that are already python object (i.e. implement
-/// [ToPyPointer]) and those that don't (i.e. [ToPyObject] types).
-/// For the [ToPyPointer] types, we just use the borrowed pointer, which is a lot faster
+/// [AsPyPointer]) and those that don't (i.e. [ToPyObject] types).
+/// For the [AsPyPointer] types, we just use the borrowed pointer, which is a lot faster
 /// and simpler than creating a new extra object. The remaning [ToPyObject] types are
 /// converted to python objects, the owned pointer is stored and decref'd on drop.
 ///
@@ -512,7 +512,7 @@ where
 ///
 /// ```
 /// use pyo3::ffi;
-/// use pyo3::{ToPyObject, ToPyPointer, PyNativeType, ManagedPyRef};
+/// use pyo3::{ToPyObject, AsPyPointer, PyNativeType, ManagedPyRef};
 /// use pyo3::types::{PyDict, PyObjectRef};
 ///
 /// pub fn get_dict_item<'p>(dict: &'p PyDict, key: &impl ToPyObject) -> Option<&'p PyObjectRef> {
@@ -537,7 +537,7 @@ impl<'p, T: ToPyObject> ManagedPyRef<'p, T> {
     }
 }
 
-impl<'p, T: ToPyObject> ToPyPointer for ManagedPyRef<'p, T> {
+impl<'p, T: ToPyObject> AsPyPointer for ManagedPyRef<'p, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.data
     }
@@ -574,8 +574,8 @@ impl<T: ToPyObject + ?Sized> ManagedPyRefDispatch for T {}
 
 /// Case 2: It's an object on the python heap, we're just storing a borrowed pointer.
 /// The object we're getting is an owned pointer, it might have it's own drop impl.
-impl<T: ToPyObject + ToPyPointer + ?Sized> ManagedPyRefDispatch for T {
-    /// Use ToPyPointer to copy the pointer and store it as borrowed pointer
+impl<T: ToPyObject + AsPyPointer + ?Sized> ManagedPyRefDispatch for T {
+    /// Use AsPyPointer to copy the pointer and store it as borrowed pointer
     fn to_managed_py_ref<'p>(&self, py: Python<'p>) -> ManagedPyRef<'p, Self> {
         ManagedPyRef {
             data: self.as_ptr(),
@@ -600,7 +600,7 @@ impl<'p, T: ToPyObject + ?Sized> Drop for ManagedPyRef<'p, T> {
 mod test {
     use crate::ffi;
     use crate::types::PyDict;
-    use crate::{ManagedPyRef, Python, ToPyPointer};
+    use crate::{AsPyPointer, ManagedPyRef, Python};
 
     #[test]
     fn borrowed_py_ref_with_to_pointer() {

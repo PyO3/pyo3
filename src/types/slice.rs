@@ -5,7 +5,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::Python;
-use crate::{ToPyObject, ToPyPointer};
+use crate::{AsPyPointer, ToPyObject};
 use std::os::raw::c_long;
 
 /// Represents a Python `slice`.

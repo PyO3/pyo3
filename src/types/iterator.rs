@@ -6,8 +6,8 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 
 /// A python iterator object.
 ///
@@ -36,7 +36,7 @@ impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
     pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
     where
-        T: ToPyPointer,
+        T: AsPyPointer,
     {
         unsafe {
             let ptr = ffi::PyObject_GetIter(obj.as_ptr());

@@ -5,9 +5,9 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::{PyList, PyObjectRef};
+use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use std::{cmp, collections, hash, mem};
 

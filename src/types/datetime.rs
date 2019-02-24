@@ -26,9 +26,9 @@ use crate::ffi::{
 use crate::instance::Py;
 use crate::object::PyObject;
 use crate::types::PyTuple;
+use crate::AsPyPointer;
 use crate::Python;
 use crate::ToPyObject;
-use crate::ToPyPointer;
 use std::os::raw::c_int;
 use std::ptr;
 

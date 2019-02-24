@@ -8,10 +8,10 @@ use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{IntoPyObject, ToPyObject};
 use std::os::raw::c_double;
 

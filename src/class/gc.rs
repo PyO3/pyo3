@@ -5,8 +5,8 @@
 
 use crate::ffi;
 use crate::type_object::PyTypeInfo;
+use crate::AsPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]
@@ -57,7 +57,7 @@ pub struct PyVisit<'p> {
 impl<'p> PyVisit<'p> {
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
     where
-        T: ToPyPointer,
+        T: AsPyPointer,
     {
         let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
         if r == 0 {

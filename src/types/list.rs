@@ -7,9 +7,9 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 
 /// Represents a Python `list`.

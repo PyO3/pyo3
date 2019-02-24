@@ -8,10 +8,10 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
+use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Py;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject};
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -211,7 +211,7 @@ pub trait ObjectProtocol {
 
 impl<T> ObjectProtocol for T
 where
-    T: PyNativeType + ToPyPointer,
+    T: PyNativeType + AsPyPointer,
 {
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where

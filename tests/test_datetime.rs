@@ -37,7 +37,7 @@ fn _get_subclasses<'p>(
 macro_rules! assert_check_exact {
     ($check_func:ident, $obj: expr) => {
         unsafe {
-            use pyo3::ToPyPointer;
+            use pyo3::AsPyPointer;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) != 0);
         }
@@ -47,7 +47,7 @@ macro_rules! assert_check_exact {
 macro_rules! assert_check_only {
     ($check_func:ident, $obj: expr) => {
         unsafe {
-            use pyo3::ToPyPointer;
+            use pyo3::AsPyPointer;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) == 0);
         }
