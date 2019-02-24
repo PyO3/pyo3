@@ -5,8 +5,8 @@ use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{AsPyRef, Py, PyNativeType};
 use crate::object::PyObject;
+use crate::AsPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{ToBorrowedObject, ToPyObject};
 use std::{collections, hash};
 

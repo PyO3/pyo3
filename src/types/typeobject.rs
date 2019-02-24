@@ -7,8 +7,8 @@ use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
+use crate::AsPyPointer;
 use crate::Python;
-use crate::ToPyPointer;
 use std::borrow::Cow;
 use std::ffi::CStr;
 
@@ -59,7 +59,7 @@ impl PyType {
     }
 
     // Check whether `obj` is an instance of `self`
-    pub fn is_instance<T: ToPyPointer>(&self, obj: &T) -> PyResult<bool> {
+    pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr()) };
         if result == -1 {
             Err(PyErr::fetch(self.py()))

@@ -2,10 +2,10 @@
 use crate::ffi;
 use crate::object::PyObject;
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{IntoPyObject, PyTryFrom, ToPyObject};
 
 /// Represents a Python `bool`.

@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::type_object::PyTypeObject;
 use crate::types::{PyObjectRef, PyTuple};
 use crate::Python;
-use crate::{ToPyObject, ToPyPointer};
+use crate::{AsPyPointer, ToPyObject};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, ops};

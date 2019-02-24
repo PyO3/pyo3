@@ -329,9 +329,9 @@ mod array_list {
 mod test {
     use super::{GILPool, NonNull, ReleasePool, POOL};
     use crate::object::PyObject;
+    use crate::AsPyPointer;
     use crate::Python;
     use crate::ToPyObject;
-    use crate::ToPyPointer;
     use crate::{ffi, gil};
 
     fn get_object() -> PyObject {

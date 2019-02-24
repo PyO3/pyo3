@@ -70,7 +70,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> $crate::ToPyPointer for $name {
+        impl<$($type_param,)*> $crate::AsPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
@@ -81,7 +81,7 @@ macro_rules! pyobject_native_type_named (
         impl<$($type_param,)*> PartialEq for $name {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
-                use $crate::ToPyPointer;
+                use $crate::AsPyPointer;
 
                 self.as_ptr() == o.as_ptr()
             }
@@ -121,7 +121,7 @@ macro_rules! pyobject_native_type_convert(
 
             #[allow(unused_unsafe)]
             fn is_instance(ptr: &$crate::types::PyObjectRef) -> bool {
-                use $crate::ToPyPointer;
+                use $crate::AsPyPointer;
 
                 unsafe { $checkfunction(ptr.as_ptr()) > 0 }
             }
@@ -141,7 +141,7 @@ macro_rules! pyobject_native_type_convert(
         {
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
-                use $crate::ToPyPointer;
+                use $crate::AsPyPointer;
 
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }

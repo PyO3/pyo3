@@ -5,9 +5,9 @@ use crate::ffi;
 use crate::gil;
 use crate::instance::{AsPyRef, PyNativeType, PyRef, PyRefMut};
 use crate::types::{PyDict, PyObjectRef, PyTuple};
+use crate::AsPyPointer;
 use crate::Py;
 use crate::Python;
-use crate::ToPyPointer;
 use crate::{
     FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
 };
@@ -272,7 +272,7 @@ impl ToPyObject for PyObject {
     }
 }
 
-impl ToPyPointer for PyObject {
+impl AsPyPointer for PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {

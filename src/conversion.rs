@@ -11,10 +11,20 @@ use crate::types::PyTuple;
 use crate::Py;
 use crate::Python;
 
-/// This trait allows retrieving the underlying FFI pointer from Python objects.
+/// This trait represents that, **we can do zero-cost conversion from the object to FFI pointer**.
 ///
 /// This trait is implemented for types that internally wrap a pointer to a python object.
-pub trait ToPyPointer {
+///
+/// # Example
+///
+/// ```
+/// use pyo3::{AsPyPointer, prelude::*};
+/// let gil = Python::acquire_gil();
+/// let dict = pyo3::types::PyDict::new(gil.python());
+/// // All native object wrappers implement AsPyPointer!!!
+/// assert_ne!(dict.as_ptr(), std::ptr::null_mut());
+/// ```
+pub trait AsPyPointer {
     /// Retrieves the underlying FFI pointer (as a borrowed pointer).
     fn as_ptr(&self) -> *mut ffi::PyObject;
 }
@@ -27,9 +37,9 @@ pub trait IntoPyPointer {
 }
 
 /// Convert `None` into a null pointer.
-impl<T> ToPyPointer for Option<T>
+impl<T> AsPyPointer for Option<T>
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
 {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -56,7 +66,7 @@ where
 
 impl<'a, T> IntoPyPointer for &'a T
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
 {
     fn into_ptr(self) -> *mut ffi::PyObject {
         let ptr = self.as_ptr();
@@ -77,8 +87,8 @@ pub trait ToPyObject {
 
 /// This trait has two implementations: The slow one is implemented for
 /// all [ToPyObject] and creates a new object using [ToPyObject::to_object],
-/// while the fast one is only implemented for ToPyPointer (we know
-/// that every ToPyPointer is also ToPyObject) and uses [ToPyPointer::as_ptr()]
+/// while the fast one is only implemented for AsPyPointer (we know
+/// that every AsPyPointer is also ToPyObject) and uses [AsPyPointer::as_ptr()]
 ///
 /// This trait should eventually be replaced with [ManagedPyRef](crate::ManagedPyRef).
 pub trait ToBorrowedObject: ToPyObject {
@@ -104,7 +114,7 @@ impl<T> ToBorrowedObject for T where T: ToPyObject {}
 
 impl<T> ToBorrowedObject for T
 where
-    T: ToPyObject + ToPyPointer,
+    T: ToPyObject + AsPyPointer,
 {
     fn with_borrowed_ptr<F, R>(&self, _py: Python, f: F) -> R
     where
@@ -228,7 +238,7 @@ impl IntoPyObject for () {
 
 impl<'a, T> IntoPyObject for &'a T
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
 {
     #[inline]
     fn into_object(self, py: Python) -> PyObject {
@@ -238,7 +248,7 @@ where
 
 impl<'a, T> IntoPyObject for &'a mut T
 where
-    T: ToPyPointer,
+    T: AsPyPointer,
 {
     #[inline]
     fn into_object(self, py: Python) -> PyObject {

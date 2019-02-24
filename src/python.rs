@@ -9,7 +9,7 @@ use crate::instance::AsPyRef;
 use crate::object::PyObject;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
-use crate::ToPyPointer;
+use crate::AsPyPointer;
 use crate::{IntoPyPointer, PyTryFrom};
 use std::ffi::CString;
 use std::marker::PhantomData;
@@ -134,9 +134,9 @@ impl<'p> Python<'p> {
             }
 
             let globals = globals
-                .map(ToPyPointer::as_ptr)
+                .map(AsPyPointer::as_ptr)
                 .unwrap_or_else(|| ffi::PyModule_GetDict(mptr));
-            let locals = locals.map(ToPyPointer::as_ptr).unwrap_or(globals);
+            let locals = locals.map(AsPyPointer::as_ptr).unwrap_or(globals);
 
             let res_ptr = ffi::PyRun_StringFlags(
                 code.as_ptr(),
@@ -164,7 +164,7 @@ impl<'p> Python<'p> {
     }
 
     /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
-    pub fn is_instance<T: PyTypeObject, V: ToPyPointer>(self, obj: &V) -> PyResult<bool> {
+    pub fn is_instance<T: PyTypeObject, V: AsPyPointer>(self, obj: &V) -> PyResult<bool> {
         T::type_object().as_ref(self).is_instance(obj)
     }
 
