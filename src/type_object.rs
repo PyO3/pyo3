@@ -172,12 +172,7 @@ impl IntoPyPointer for PyRawObject {
     }
 }
 
-impl PyNativeType for PyRawObject {
-    #[inline]
-    fn py(&self) -> Python {
-        unsafe { Python::assume_gil_acquired() }
-    }
-}
+unsafe impl PyNativeType for PyRawObject {}
 
 pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObject) {
     if T::OFFSET != 0 {

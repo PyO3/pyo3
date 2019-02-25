@@ -22,8 +22,10 @@ use std::rc::Rc;
 ///
 /// pyo3 is designed in a way that that all references to those types are bound to the GIL,
 /// which is why you can get a token from all references of those types.
-pub trait PyNativeType: Sized {
-    fn py(&self) -> Python;
+pub unsafe trait PyNativeType: Sized {
+    fn py(&self) -> Python {
+        unsafe { Python::assume_gil_acquired() }
+    }
 }
 
 /// A special reference of type `T`. `PyRef<T>` refers a instance of T, which exists in the Python
@@ -58,6 +60,13 @@ pub trait PyNativeType: Sized {
 #[derive(Debug)]
 pub struct PyRef<'a, T: PyTypeInfo>(&'a T, PhantomData<Rc<()>>);
 
+fn ref_to_ptr<T>(t: &T) -> *mut ffi::PyObject
+where
+    T: PyTypeInfo,
+{
+    unsafe { (t as *const _ as *mut u8).offset(-T::OFFSET) as *mut _ }
+}
+
 impl<'a, T: PyTypeInfo> PyRef<'a, T> {
     pub(crate) fn from_ref(r: &'a T) -> Self {
         PyRef(r, PhantomData)
@@ -78,7 +87,7 @@ where
 
 impl<'a, T: PyTypeInfo> ToPyPointer for PyRef<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0.as_ptr_dispatch()
+        ref_to_ptr(self.0)
     }
 }
 
@@ -141,7 +150,7 @@ where
 
 impl<'a, T: PyTypeInfo> ToPyPointer for PyRefMut<'a, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        (self.0 as &T).as_ptr_dispatch()
+        ref_to_ptr(self.0)
     }
 }
 
@@ -179,22 +188,6 @@ where
 {
     fn from(pref: PyRefMut<'a, T>) -> &'a PyObjectRef {
         unsafe { &*(pref.as_ptr() as *const PyObjectRef) }
-    }
-}
-
-/// Specialization workaround
-trait PyRefDispatch<T: PyTypeInfo> {
-    #[allow(clippy::cast_ptr_alignment)]
-    fn as_ptr_dispatch(&self) -> *mut ffi::PyObject {
-        unsafe { (self as *const _ as *mut u8).offset(-T::OFFSET) as *mut _ }
-    }
-}
-
-impl<T: PyTypeInfo> PyRefDispatch<T> for T {}
-
-impl<T: PyTypeInfo + PyNativeType> PyRefDispatch<T> for T {
-    fn as_ptr_dispatch(&self) -> *mut ffi::PyObject {
-        self as *const _ as *mut _
     }
 }
 
@@ -355,13 +348,13 @@ trait AsPyRefDispatch<T: PyTypeInfo>: ToPyPointer {
     fn as_ref_dispatch(&self, _py: Python) -> &T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
-            ptr.as_ref().unwrap()
+            ptr.as_ref().expect("Py has a null pointer")
         }
     }
     fn as_mut_dispatch(&mut self, _py: Python) -> &mut T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
-            ptr.as_mut().unwrap()
+            ptr.as_mut().expect("Py has a null pointer")
         }
     }
 }
