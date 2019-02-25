@@ -27,8 +27,18 @@ matrix:
       python: "3.7"
       # Keep this synced up with build.rs
       env: FEATURES=python3 TRAVIS_RUST_VERSION=nightly-2019-02-07
+    - name: PyPy2.7 6.0
+      python: "pypy2.7-6.0"
+      env: FEATURES=python2
+    - name: PyPy3.5 6.0
+      python: "pypy3.5-6.0"
+      env: FEATURES=python3
   allow_failures:
     - python: "3.8-dev"
+      env: FEATURES=python3
+    - python: pypy2.7-6.0
+      env: FEATURES=python2
+    - python: pypy3.5-6.0
       env: FEATURES=python3
 
 env:
