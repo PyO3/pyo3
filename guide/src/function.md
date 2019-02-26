@@ -48,6 +48,21 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
+To return a Python type from `pyo3::types`, simply specifying `PyResult<PyType>` is not enough.
+The `PyResult` type parameter should be `PyResult<Py<PyType>>` like in the following example:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::Py;
+
+#[pyfunction]
+fn create_empty_tuple(py: Python) -> PyResult<Py<PyTuple>> {
+    Ok(PyTuple::empty(py))
+}
+
+// ...
+```
+
 ### Making the function signature available to Python
 
 In order to make the function signature available to Python to be retrieved via
