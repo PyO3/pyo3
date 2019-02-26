@@ -64,11 +64,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> $crate::PyNativeType for $name {
-            fn py(&self) -> $crate::Python {
-                unsafe { $crate::Python::assume_gil_acquired() }
-            }
-        }
+        unsafe impl<$($type_param,)*> $crate::PyNativeType for $name {}
 
         impl<$($type_param,)*> $crate::AsPyPointer for $name {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
