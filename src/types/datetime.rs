@@ -144,12 +144,12 @@ impl PyDateTime {
     pub fn from_timestamp(
         py: Python,
         timestamp: f64,
-        time_zone_info: Option<&PyTzInfo>,
+        time_zone_info: Option<&PyObject>,
     ) -> PyResult<Py<PyDateTime>> {
         let timestamp: PyObject = timestamp.to_object(py);
 
         let time_zone_info: PyObject = match time_zone_info {
-            Some(time_zone_info) => time_zone_info.to_object(py),
+            Some(time_zone_info) => time_zone_info,
             None => py.None(),
         };
 
