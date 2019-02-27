@@ -149,8 +149,8 @@ impl PyDateTime {
         let timestamp: PyObject = timestamp.to_object(py);
 
         let time_zone_info = match time_zone_info {
-            Some(time_zone_info) => time_zone_info,
-            None => &py.None(),
+            Some(time_zone_info) => *time_zone_info,
+            None => py.None(),
         };
 
         let args = PyTuple::new(py, &[timestamp, time_zone_info]);
