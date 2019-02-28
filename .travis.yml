@@ -36,8 +36,6 @@ matrix:
   allow_failures:
     - python: "3.8-dev"
       env: FEATURES=python3
-    - python: pypy2.7-6.0
-      env: FEATURES=python2
     - python: pypy3.5-6.0
       env: FEATURES=python3
 
