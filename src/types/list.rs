@@ -23,19 +23,38 @@ impl PyList {
     pub fn new<'p, T, U>(
         py: Python<'p>,
         elements: impl IntoIterator<Item = T, IntoIter = U>,
+        capacity: Option<usize>,
     ) -> &'p PyList
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
     {
         let elements_iter = elements.into_iter();
-        let len = elements_iter.len();
+        let elements_len = elements_iter.len();
+        let len = match capacity {
+            Some(c) => {
+                if c < elements_len {
+                    elements_len
+                } else {
+                    c
+                }
+            }
+            None => elements_len,
+        };
         unsafe {
             let ptr = ffi::PyList_New(len as Py_ssize_t);
             for (i, e) in elements_iter.enumerate() {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
+            py.from_owned_ptr::<PyList>(ptr)
+        }
+    }
+
+    /// Construct a new empty list with the given capacity.
+    pub fn with_capacity<'p>(py: Python<'p>, capacity: usize) -> &'p PyList {
+        unsafe {
+            let ptr = ffi::PyList_New(capacity as Py_ssize_t);
             py.from_owned_ptr::<PyList>(ptr)
         }
     }
@@ -218,7 +237,36 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::new(py, &v, None);
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_with_capacity() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = PyList::with_capacity(py, 5);
+        list.set_item(0, 2).unwrap();
+        list.set_item(1, 3).unwrap();
+        list.set_item(2, 5).unwrap();
+        list.set_item(3, 7).unwrap();
+        assert_eq!(5, list.len());
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_new_with_capacity() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let list = PyList::new(py, &v, Some(5));
+        assert_eq!(5, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -397,7 +445,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![7, 3, 2, 5];
-        let list = PyList::new(py, &v);
+        let list = PyList::new(py, &v, None);
         assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(2, list.get_item(2).extract::<i32>().unwrap());
@@ -414,7 +462,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
+        let list = PyList::new(py, &v, None);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());

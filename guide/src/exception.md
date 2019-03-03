@@ -89,7 +89,7 @@ fn main() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     assert!(py.is_instance::<PyBool, _>(PyBool::new(py, true)).unwrap());
-    let list = PyList::new(py, &[1, 2, 3, 4]);
+    let list = PyList::new(py, &[1, 2, 3, 4], None);
     assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
     assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
 }

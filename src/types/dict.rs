@@ -324,7 +324,7 @@ mod test {
     fn test_from_sequence() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
+        let items = PyList::new(py, &vec![("a", 1), ("b", 2)], None);
         let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
         assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
         assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
@@ -334,7 +334,7 @@ mod test {
     fn test_from_sequence_err() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let items = PyList::new(py, &vec!["a", "b"]);
+        let items = PyList::new(py, &vec!["a", "b"], None);
         assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
     }
 

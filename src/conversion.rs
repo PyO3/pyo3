@@ -447,7 +447,7 @@ mod test {
     fn test_try_from_unchecked() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let list = PyList::new(py, &[1, 2, 3]);
+        let list = PyList::new(py, &[1, 2, 3], None);
         let val = unsafe { <PyList as PyTryFrom>::try_from_unchecked(list.as_ref()) };
         assert_eq!(list, val);
     }

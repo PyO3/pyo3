@@ -442,7 +442,7 @@ mod test {
         assert!(py
             .is_instance::<PyBool, PyObjectRef>(PyBool::new(py, true).into())
             .unwrap());
-        let list = PyList::new(py, &[1, 2, 3, 4]);
+        let list = PyList::new(py, &[1, 2, 3, 4], None);
         assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());
         assert!(py.is_instance::<PyList, _>(list.as_ref()).unwrap());
     }
