@@ -45,9 +45,9 @@ let gil = Python::acquire_gil();
 let py = gil.python();
 let obj = PyRef::new(py, MyClass { num: 3, debug: true }).unwrap();
 assert_eq!(obj.num, 3);
-let dict = PyDict::new();
+let dict = PyDict::new(py);
 // You can treat a `PyRef` as a Python object
-dict.set_item("obj", obj)).unwrap();
+dict.set_item("obj", obj).unwrap();
 ```
 
 ### `PyRefMut`
