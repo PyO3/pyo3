@@ -249,19 +249,7 @@ mod test {
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
         assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
-    }
-
-    #[test]
-    fn test_new_with_capacity() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let v = vec![2, 3, 5, 7];
-        let list = PyList::new(py, &v);
-        assert_eq!(5, list.len());
-        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
-        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
-        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
-        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        assert_eq!(py.None(), list.get_item(3).into());
     }
 
     #[test]
