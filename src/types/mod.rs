@@ -2,6 +2,7 @@
 
 //! Various types defined by the python interpreter such as `int`, `str` and `tuple`
 
+pub use self::any::PyAny;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
 pub use self::complex::PyComplex;
@@ -29,8 +30,6 @@ pub use self::string::{PyBytes, PyString, PyString as PyUnicode};
 pub use self::string2::{PyBytes, PyString, PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
-use crate::ffi;
-use crate::PyObject;
 
 /// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
 /// parameter
@@ -138,7 +137,6 @@ macro_rules! pyobject_native_type_convert(
             #[inline]
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 use $crate::AsPyPointer;
-
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }
         }
@@ -165,12 +163,7 @@ macro_rules! pyobject_native_type_convert(
     };
 );
 
-/// Represents general python instance.
-#[repr(transparent)]
-pub struct PyAny(PyObject);
-pyobject_native_type_named!(PyAny);
-pyobject_native_type_convert!(PyAny, ffi::PyBaseObject_Type, ffi::PyObject_Check);
-
+mod any;
 mod boolobject;
 mod bytearray;
 mod complex;
