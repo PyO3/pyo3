@@ -7,7 +7,7 @@ use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
@@ -173,21 +173,21 @@ impl<'a, T: PyTypeInfo> DerefMut for PyRefMut<'a, T> {
     }
 }
 
-impl<'a, T> From<PyRef<'a, T>> for &'a PyObjectRef
+impl<'a, T> From<PyRef<'a, T>> for &'a PyAny
 where
     T: PyTypeInfo,
 {
-    fn from(pref: PyRef<'a, T>) -> &'a PyObjectRef {
-        unsafe { &*(pref.as_ptr() as *const PyObjectRef) }
+    fn from(pref: PyRef<'a, T>) -> &'a PyAny {
+        unsafe { &*(pref.as_ptr() as *const PyAny) }
     }
 }
 
-impl<'a, T> From<PyRefMut<'a, T>> for &'a PyObjectRef
+impl<'a, T> From<PyRefMut<'a, T>> for &'a PyAny
 where
     T: PyTypeInfo,
 {
-    fn from(pref: PyRefMut<'a, T>) -> &'a PyObjectRef {
-        unsafe { &*(pref.as_ptr() as *const PyObjectRef) }
+    fn from(pref: PyRefMut<'a, T>) -> &'a PyAny {
+        unsafe { &*(pref.as_ptr() as *const PyAny) }
     }
 }
 
@@ -484,7 +484,7 @@ where
     &'a T: 'a + FromPyObject<'a>,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyObjectRef) -> PyResult<Self> {
+    fn extract(ob: &'a PyAny) -> PyResult<Self> {
         unsafe {
             ob.extract::<&T>()
                 .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
@@ -506,9 +506,9 @@ where
 /// ```
 /// use pyo3::ffi;
 /// use pyo3::{ToPyObject, AsPyPointer, PyNativeType, ManagedPyRef};
-/// use pyo3::types::{PyDict, PyObjectRef};
+/// use pyo3::types::{PyDict, PyAny};
 ///
-/// pub fn get_dict_item<'p>(dict: &'p PyDict, key: &impl ToPyObject) -> Option<&'p PyObjectRef> {
+/// pub fn get_dict_item<'p>(dict: &'p PyDict, key: &impl ToPyObject) -> Option<&'p PyAny> {
 ///     let key = ManagedPyRef::from_to_pyobject(dict.py(), key);
 ///     unsafe {
 ///         dict.py().from_borrowed_ptr_or_opt(ffi::PyDict_GetItem(dict.as_ptr(), key.as_ptr()))

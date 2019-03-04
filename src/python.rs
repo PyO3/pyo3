@@ -8,7 +8,7 @@ use crate::gil::{self, GILGuard};
 use crate::instance::AsPyRef;
 use crate::object::PyObject;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
-use crate::types::{PyDict, PyModule, PyObjectRef, PyType};
+use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::AsPyPointer;
 use crate::{IntoPyPointer, PyTryFrom};
 use std::ffi::CString;
@@ -95,7 +95,7 @@ impl<'p> Python<'p> {
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyObjectRef> {
+    ) -> PyResult<&'p PyAny> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -108,7 +108,7 @@ impl<'p> Python<'p> {
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyObjectRef> {
+    ) -> PyResult<&'p PyAny> {
         self.run_code(code, ffi::Py_file_input, globals, locals)
     }
 
@@ -124,7 +124,7 @@ impl<'p> Python<'p> {
         start: c_int,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyObjectRef> {
+    ) -> PyResult<&'p PyAny> {
         let code = CString::new(code)?;
 
         unsafe {
@@ -193,7 +193,7 @@ impl<'p> Python<'p> {
 }
 
 impl<'p> Python<'p> {
-    unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyObjectRef) -> &'p T {
+    unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p T {
         if T::OFFSET == 0 {
             &*(ob as *const _ as *const T)
         } else {
@@ -203,7 +203,7 @@ impl<'p> Python<'p> {
     }
 
     #[allow(clippy::cast_ref_to_mut)] // FIXME
-    unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyObjectRef) -> &'p mut T {
+    unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p mut T {
         if T::OFFSET == 0 {
             &mut *(ob as *const _ as *mut T)
         } else {
@@ -231,7 +231,7 @@ impl<'p> Python<'p> {
     }
 
     /// Register `ffi::PyObject` pointer in release pool
-    pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyObjectRef {
+    pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyAny {
         match NonNull::new(ptr) {
             Some(p) => gil::register_borrowed(self, p),
             None => crate::err::panic_after_error(),
@@ -390,7 +390,7 @@ impl<'p> Python<'p> {
 #[cfg(test)]
 mod test {
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::{PyBool, PyDict, PyInt, PyList, PyObjectRef};
+    use crate::types::{PyAny, PyBool, PyDict, PyInt, PyList};
     use crate::Python;
 
     #[test]
@@ -440,7 +440,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(py
-            .is_instance::<PyBool, PyObjectRef>(PyBool::new(py, true).into())
+            .is_instance::<PyBool, PyAny>(PyBool::new(py, true).into())
             .unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());

@@ -3,7 +3,7 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::PyObjectRef;
+use pyo3::types::PyAny;
 use pyo3::types::PyTuple;
 use pyo3::AsPyPointer;
 use pyo3::PyRawObject;
@@ -95,7 +95,7 @@ impl Drop for ClassWithDrop {
 
             let _empty1 = PyTuple::empty(py);
             let _empty2: PyObject = PyTuple::empty(py).into();
-            let _empty3: &PyObjectRef = py.from_owned_ptr(ffi::PyTuple_New(0));
+            let _empty3: &PyAny = py.from_owned_ptr(ffi::PyTuple_New(0));
         }
     }
 }

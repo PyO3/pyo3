@@ -15,7 +15,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeInfo;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::IntoPyPointer;
 use crate::Python;
 use crate::{FromPyObject, IntoPyObject};
@@ -440,7 +440,7 @@ where
             let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
             let slf = py.from_borrowed_ptr::<T>(slf);
-            let arg = py.from_borrowed_ptr::<PyObjectRef>(arg);
+            let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
             let res = match extract_op(op) {
                 Ok(op) => match arg.extract() {

@@ -4,7 +4,7 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::gil;
 use crate::instance::{AsPyRef, PyNativeType, PyRef, PyRefMut};
-use crate::types::{PyDict, PyObjectRef, PyTuple};
+use crate::types::{PyAny, PyDict, PyTuple};
 use crate::AsPyPointer;
 use crate::Py;
 use crate::Python;
@@ -254,14 +254,14 @@ impl PyObject {
     }
 }
 
-impl AsPyRef<PyObjectRef> for PyObject {
+impl AsPyRef<PyAny> for PyObject {
     #[inline]
-    fn as_ref(&self, _py: Python) -> PyRef<PyObjectRef> {
-        unsafe { PyRef::from_ref(&*(self as *const _ as *const PyObjectRef)) }
+    fn as_ref(&self, _py: Python) -> PyRef<PyAny> {
+        unsafe { PyRef::from_ref(&*(self as *const _ as *const PyAny)) }
     }
     #[inline]
-    fn as_mut(&mut self, _py: Python) -> PyRefMut<PyObjectRef> {
-        unsafe { PyRefMut::from_mut(&mut *(self as *mut _ as *mut PyObjectRef)) }
+    fn as_mut(&mut self, _py: Python) -> PyRefMut<PyAny> {
+        unsafe { PyRefMut::from_mut(&mut *(self as *mut _ as *mut PyAny)) }
     }
 }
 
@@ -309,7 +309,7 @@ impl IntoPyObject for PyObject {
 impl<'a> FromPyObject<'a> for PyObject {
     #[inline]
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyObjectRef) -> PyResult<Self> {
+    fn extract(ob: &'a PyAny) -> PyResult<Self> {
         unsafe { Ok(PyObject::from_borrowed_ptr(ob.py(), ob.as_ptr())) }
     }
 }

@@ -37,7 +37,7 @@ impl Default for PyClassArgs {
             // We need the 0 as value for the constant we're later building using quote for when there
             // are no other flags
             flags: vec![parse_quote! {0}],
-            base: parse_quote! {::pyo3::types::PyObjectRef},
+            base: parse_quote! {::pyo3::types::PyAny},
         }
     }
 }

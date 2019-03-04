@@ -6,7 +6,7 @@ use pyo3::class::{
 use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyObjectRef, PySlice, PyString, PyType};
+use pyo3::types::{PyAny, PyBytes, PyDict, PySlice, PyString, PyType};
 use pyo3::AsPyPointer;
 use std::{isize, iter};
 
@@ -351,8 +351,8 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
     fn __exit__(
         &mut self,
         ty: Option<&'p PyType>,
-        _value: Option<&'p PyObjectRef>,
-        _traceback: Option<&'p PyObjectRef>,
+        _value: Option<&'p PyAny>,
+        _traceback: Option<&'p PyAny>,
     ) -> PyResult<bool> {
         let gil = GILGuard::acquire();
         self.exit_called = true;
@@ -405,7 +405,7 @@ struct Test {}
 
 #[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: &PyObjectRef) -> PyResult<PyObject> {
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
         let gil = GILGuard::acquire();
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;

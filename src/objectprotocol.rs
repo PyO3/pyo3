@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::type_object::PyTypeInfo;
-use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
+use crate::types::{PyAny, PyDict, PyIterator, PyString, PyTuple, PyType};
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Py;
@@ -26,7 +26,7 @@ pub trait ObjectProtocol {
 
     /// Retrieves an attribute value.
     /// This is equivalent to the Python expression `self.attr_name`.
-    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef>
+    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
     where
         N: ToPyObject;
 
@@ -88,19 +88,15 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
-    fn call(
-        &self,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyObjectRef>;
+    fn call(&self, args: impl IntoPy<Py<PyTuple>>, kwargs: Option<&PyDict>) -> PyResult<&PyAny>;
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self()`
-    fn call0(&self) -> PyResult<&PyObjectRef>;
+    fn call0(&self) -> PyResult<&PyAny>;
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args)`
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef>;
+    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`
@@ -122,15 +118,15 @@ pub trait ObjectProtocol {
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyObjectRef>;
+    ) -> PyResult<&PyAny>;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: `self.name()`
-    fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef>;
+    fn call_method0(&self, name: &str) -> PyResult<&PyAny>;
 
     /// Calls a method on the object with positional arguments only .
     /// This is equivalent to the Python expression: `self.name(*args)`
-    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef>;
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: `hash(self)`
@@ -149,7 +145,7 @@ pub trait ObjectProtocol {
     fn len(&self) -> PyResult<usize>;
 
     /// This is equivalent to the Python expression: `self[key]`
-    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef>
+    fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
     where
         K: ToBorrowedObject;
 
@@ -192,14 +188,14 @@ pub trait ObjectProtocol {
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
         D: PyTryFrom<'a>,
-        &'a PyObjectRef: std::convert::From<&'a Self>;
+        &'a PyAny: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
-        &'a PyObjectRef: std::convert::From<&'a Self>;
+        &'a PyAny: std::convert::From<&'a Self>;
 
     /// Returns reference count for python object.
     fn get_refcnt(&self) -> isize;
@@ -222,7 +218,7 @@ where
         })
     }
 
-    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObjectRef>
+    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
     where
         N: ToPyObject,
     {
@@ -325,11 +321,7 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call(
-        &self,
-        args: impl IntoPy<Py<PyTuple>>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyObjectRef> {
+    fn call(&self, args: impl IntoPy<Py<PyTuple>>, kwargs: Option<&PyDict>) -> PyResult<&PyAny> {
         let args = args.into_py(self.py()).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
@@ -343,11 +335,11 @@ where
         result
     }
 
-    fn call0(&self) -> PyResult<&PyObjectRef> {
+    fn call0(&self) -> PyResult<&PyAny> {
         self.call((), None)
     }
 
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
+    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call(args, None)
     }
 
@@ -356,7 +348,7 @@ where
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyObjectRef> {
+    ) -> PyResult<&PyAny> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
@@ -374,11 +366,11 @@ where
         })
     }
 
-    fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef> {
+    fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
         self.call_method(name, (), None)
     }
 
-    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.call_method(name, args, None)
     }
 
@@ -413,7 +405,7 @@ where
         }
     }
 
-    fn get_item<K>(&self, key: K) -> PyResult<&PyObjectRef>
+    fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
     where
         K: ToBorrowedObject,
     {
@@ -474,7 +466,7 @@ where
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
         D: PyTryFrom<'a>,
-        &'a PyObjectRef: std::convert::From<&'a Self>,
+        &'a PyAny: std::convert::From<&'a Self>,
     {
         D::try_from(self)
     }
@@ -482,7 +474,7 @@ where
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
-        &'a PyObjectRef: std::convert::From<&'a T>,
+        &'a PyAny: std::convert::From<&'a T>,
     {
         FromPyObject::extract(self.into())
     }

@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::ffi;
 use crate::object::PyObject;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
@@ -56,7 +56,7 @@ impl IntoPyObject for bool {
 ///
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl<'source> FromPyObject<'source> for bool {
-    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
         Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
     }
 }
@@ -64,7 +64,7 @@ impl<'source> FromPyObject<'source> for bool {
 #[cfg(test)]
 mod test {
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::{PyBool, PyObjectRef};
+    use crate::types::{PyAny, PyBool};
     use crate::Python;
     use crate::ToPyObject;
 
@@ -73,7 +73,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(PyBool::new(py, true).is_true());
-        let t: &PyObjectRef = PyBool::new(py, true).into();
+        let t: &PyAny = PyBool::new(py, true).into();
         assert_eq!(true, t.extract().unwrap());
         assert_eq!(true.to_object(py), PyBool::new(py, true).into());
     }
@@ -83,7 +83,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(!PyBool::new(py, false).is_true());
-        let t: &PyObjectRef = PyBool::new(py, false).into();
+        let t: &PyAny = PyBool::new(py, false).into();
         assert_eq!(false, t.extract().unwrap());
         assert_eq!(false.to_object(py), PyBool::new(py, false).into());
     }

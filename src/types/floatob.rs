@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
@@ -53,7 +53,7 @@ impl IntoPyObject for f64 {
 impl<'source> FromPyObject<'source> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![cfg_attr(feature = "cargo-clippy", allow(clippy::float_cmp))]
-    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
         if v == -1.0 && PyErr::occurred(obj.py()) {
@@ -77,7 +77,7 @@ impl IntoPyObject for f32 {
 }
 
 impl<'source> FromPyObject<'source> for f32 {
-    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 }

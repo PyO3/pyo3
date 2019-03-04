@@ -5,7 +5,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::type_object::PyTypeObject;
-use crate::types::{PyObjectRef, PyTuple};
+use crate::types::{PyAny, PyTuple};
 use crate::Python;
 use crate::{AsPyPointer, ToPyObject};
 use std::ffi::CStr;
@@ -317,7 +317,7 @@ impl UnicodeDecodeError {
         input: &[u8],
         range: ops::Range<usize>,
         reason: &CStr,
-    ) -> PyResult<&'p PyObjectRef> {
+    ) -> PyResult<&'p PyAny> {
         unsafe {
             let input: &[c_char] = &*(input as *const [u8] as *const [c_char]);
             py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
@@ -336,7 +336,7 @@ impl UnicodeDecodeError {
         py: Python<'p>,
         input: &[u8],
         err: std::str::Utf8Error,
-    ) -> PyResult<&'p PyObjectRef> {
+    ) -> PyResult<&'p PyAny> {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new_err(
             py,

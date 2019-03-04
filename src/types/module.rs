@@ -11,7 +11,7 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
-use crate::types::{PyDict, PyObjectRef};
+use crate::types::{PyAny, PyDict};
 use crate::AsPyPointer;
 use crate::IntoPy;
 use crate::Py;
@@ -115,25 +115,25 @@ impl PyModule {
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyObjectRef> {
+    ) -> PyResult<&PyAny> {
         self.getattr(name)?.call(args, kwargs)
     }
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)()`
-    pub fn call0(&self, name: &str) -> PyResult<&PyObjectRef> {
+    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
         self.getattr(name)?.call0()
     }
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args)`
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.getattr(name)?.call1(args)
     }
 
     /// Gets a member from the module.
     /// This is equivalent to the Python expression: `getattr(module, name)`
-    pub fn get(&self, name: &str) -> PyResult<&PyObjectRef> {
+    pub fn get(&self, name: &str) -> PyResult<&PyAny> {
         self.getattr(name)
     }
 

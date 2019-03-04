@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use super::PyObjectRef;
+use super::PyAny;
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
@@ -50,7 +50,7 @@ impl PyString {
         }
     }
 
-    pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
+    pub fn from_object(src: &PyAny, encoding: &str, errors: &str) -> PyResult<Py<PyString>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
                 src.py(),
@@ -137,7 +137,7 @@ impl PyUnicode {
         unsafe { Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    pub fn from_object(src: &PyObjectRef, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>> {
+    pub fn from_object(src: &PyAny, encoding: &str, errors: &str) -> PyResult<Py<PyUnicode>> {
         unsafe {
             Ok(Py::from_owned_ptr_or_err(
                 src.py(),
