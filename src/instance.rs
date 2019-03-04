@@ -173,24 +173,6 @@ impl<'a, T: PyTypeInfo> DerefMut for PyRefMut<'a, T> {
     }
 }
 
-impl<'a, T> From<PyRef<'a, T>> for &'a PyAny
-where
-    T: PyTypeInfo,
-{
-    fn from(pref: PyRef<'a, T>) -> &'a PyAny {
-        unsafe { &*(pref.as_ptr() as *const PyAny) }
-    }
-}
-
-impl<'a, T> From<PyRefMut<'a, T>> for &'a PyAny
-where
-    T: PyTypeInfo,
-{
-    fn from(pref: PyRefMut<'a, T>) -> &'a PyAny {
-        unsafe { &*(pref.as_ptr() as *const PyAny) }
-    }
-}
-
 /// Trait implements object reference extraction from python managed pointer.
 pub trait AsPyRef<T: PyTypeInfo>: Sized {
     /// Return reference to object.
@@ -536,7 +518,7 @@ impl<'p, T: ToPyObject> AsPyPointer for ManagedPyRef<'p, T> {
     }
 }
 
-/// Helper trait to choose the right implementation for [BorrowedPyRef]
+/// Helper trait to choose the right implementation for [ManagedPyRef]
 pub trait ManagedPyRefDispatch: ToPyObject {
     /// Optionally converts into a python object and stores the pointer to the python heap.
     ///

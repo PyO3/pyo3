@@ -1,5 +1,6 @@
-use crate::conversion::PyTryFrom;
-use crate::{err::PyDowncastError, ffi, PyObject};
+use crate::conversion::AsPyPointer;
+use crate::err::PyDowncastError;
+use crate::{ffi, PyObject, PyRef, PyRefMut, PyTryFrom, PyTypeInfo};
 
 /// Represents a python's [Any](https://docs.python.org/3/library/typing.html#typing.Any) type.
 /// We can convert all python objects as `PyAny`.
@@ -11,9 +12,10 @@ use crate::{err::PyDowncastError, ffi, PyObject};
 ///
 /// ```
 /// use pyo3::prelude::*;
-/// use pyo3::types::{PyDict, PyList};
+/// use pyo3::types::{PyAny, PyDict, PyList};
 /// let gil = Python::acquire_gil();
 /// let dict = PyDict::new(gil.python());
+/// assert!(gil.python().is_instance::<PyAny, _>(dict).unwrap());
 /// let any = dict.as_ref();
 /// assert!(any.downcast_ref::<PyDict>().is_ok());
 /// assert!(any.downcast_ref::<PyList>().is_err());
@@ -36,5 +38,23 @@ impl PyAny {
         T: for<'gil> PyTryFrom<'gil>,
     {
         T::try_from_mut(self)
+    }
+}
+
+impl<'a, T> From<PyRef<'a, T>> for &'a PyAny
+where
+    T: PyTypeInfo,
+{
+    fn from(pref: PyRef<'a, T>) -> &'a PyAny {
+        unsafe { &*(pref.as_ptr() as *const PyAny) }
+    }
+}
+
+impl<'a, T> From<PyRefMut<'a, T>> for &'a PyAny
+where
+    T: PyTypeInfo,
+{
+    fn from(pref: PyRefMut<'a, T>) -> &'a PyAny {
+        unsafe { &*(pref.as_ptr() as *const PyAny) }
     }
 }
