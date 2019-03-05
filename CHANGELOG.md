@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Renamed `PyObjectRef` to `PyAny` in #388
  * Renamed `add_function` to `add_wrapped` as it now also supports modules.
  * Renamed `#[pymodinit]` to `#[pymodule]`
  * `py.init(|| value)` becomes `Py::new(value)`
