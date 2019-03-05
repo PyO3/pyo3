@@ -334,14 +334,21 @@ mod test {
     use crate::ToPyObject;
     use crate::{ffi, gil};
 
-    fn get_object() -> PyObject {
+    fn get_object() -> (PyObject, *mut ffi::PyObject) {
         // Convenience function for getting a single unique object
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let obj = py.eval("object()", None, None).unwrap();
+        let obj = py.eval("object()", None, None).unwrap().to_object(py);
+        let obj_ptr = obj.as_ptr();
 
-        obj.to_object(py)
+        // The refcount would become 0 after dropping, which means the
+        // GC can free the pointer and getting the refcount would be UB.
+        // This increfs ensures that it remains 1.
+        unsafe {
+            ffi::Py_INCREF(obj_ptr);
+        }
+        (obj, obj_ptr)
     }
 
     #[test]
@@ -352,21 +359,20 @@ mod test {
             let p: &'static mut ReleasePool = &mut *POOL;
 
             let cnt;
-            let empty;
+            let (_obj, obj_ptr) = get_object();
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
 
-                empty = ffi::PyTuple_New(0);
-                cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = gil::register_owned(py, NonNull::new(empty).unwrap());
+                cnt = ffi::Py_REFCNT(obj_ptr) - 1;
+                let _ = gil::register_owned(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.owned.len(), 0);
-                assert_eq!(cnt, ffi::Py_REFCNT(empty));
+                assert_eq!(cnt, ffi::Py_REFCNT(obj_ptr));
             }
         }
     }
@@ -381,30 +387,28 @@ mod test {
             let p: &'static mut ReleasePool = &mut *POOL;
 
             let cnt;
-            let empty;
+            let (_obj, obj_ptr) = get_object();
             {
                 let _pool = GILPool::new();
                 assert_eq!(p.owned.len(), 0);
 
-                // empty tuple is singleton
-                empty = ffi::PyTuple_New(0);
-                cnt = ffi::Py_REFCNT(empty) - 1;
+                cnt = ffi::Py_REFCNT(obj_ptr) - 1;
 
-                let _ = gil::register_owned(py, NonNull::new(empty).unwrap());
+                let _ = gil::register_owned(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
 
                 {
                     let _pool = GILPool::new();
-                    let empty = ffi::PyTuple_New(0);
-                    let _ = gil::register_owned(py, NonNull::new(empty).unwrap());
+                    let (_obj, obj_ptr) = get_object();
+                    let _ = gil::register_owned(py, NonNull::new(obj_ptr).unwrap());
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
             }
             {
                 assert_eq!(p.owned.len(), 0);
-                assert_eq!(cnt, ffi::Py_REFCNT(empty));
+                assert_eq!(cnt, ffi::Py_REFCNT(obj_ptr));
             }
         }
     }
@@ -416,8 +420,7 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let obj = get_object();
-            let obj_ptr = obj.as_ptr();
+            let (_obj, obj_ptr) = get_object();
             let cnt;
             {
                 let gil = Python::acquire_gil();
@@ -445,8 +448,7 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let obj = get_object();
-            let obj_ptr = obj.as_ptr();
+            let (_obj, obj_ptr) = get_object();
             let cnt;
             {
                 let gil = Python::acquire_gil();
@@ -484,26 +486,19 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let ob;
             let cnt;
-            let empty;
+            let (obj, obj_ptr) = get_object();
             {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
                 assert_eq!(p.owned.len(), 0);
-
-                // empty tuple is singleton
-                empty = ffi::PyTuple_New(0);
-                cnt = ffi::Py_REFCNT(empty);
-                ob = PyObject::from_owned_ptr(py, empty);
+                cnt = ffi::Py_REFCNT(obj_ptr);
             }
-            drop(ob);
-            assert_eq!(cnt, ffi::Py_REFCNT(empty));
+            drop(obj);
+            assert_eq!(cnt, ffi::Py_REFCNT(obj_ptr));
 
             {
                 let _gil = Python::acquire_gil();
             }
-            assert_eq!(cnt - 1, ffi::Py_REFCNT(empty));
+            assert_eq!(cnt - 1, ffi::Py_REFCNT(obj_ptr));
         }
     }
 }
