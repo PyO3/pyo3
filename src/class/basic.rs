@@ -8,19 +8,30 @@
 //! Parts of the documentation are copied from the respective methods from the
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
+use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
+use crate::class::methods::PyMethodDef;
+use crate::err::{PyErr, PyResult};
+use crate::exceptions;
+use crate::ffi;
+use crate::objectprotocol::ObjectProtocol;
+use crate::type_object::PyTypeInfo;
+use crate::types::PyObjectRef;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::{FromPyObject, IntoPyObject};
 use std::os::raw::c_int;
 use std::ptr;
 
-use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
-use crate::class::methods::PyMethodDef;
-use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{PyErr, PyResult};
-use crate::ffi;
-use crate::objectprotocol::ObjectProtocol;
-use crate::python::{IntoPyPointer, Python};
-use crate::typeob::PyTypeInfo;
-use crate::types::{exceptions, PyObjectRef};
-use crate::CompareOp;
+/// Operators for the __richcmp__ method
+#[derive(Debug)]
+pub enum CompareOp {
+    Lt = ffi::Py_LT as isize,
+    Le = ffi::Py_LE as isize,
+    Eq = ffi::Py_EQ as isize,
+    Ne = ffi::Py_NE as isize,
+    Gt = ffi::Py_GT as isize,
+    Ge = ffi::Py_GE as isize,
+}
 
 /// Basic python class customization
 #[allow(unused_variables)]

@@ -10,23 +10,6 @@ The easiest way to convert a python object to a rust value is using `.extract()?
 
 [`ToPyObject`] trait is a conversion trait that allows various objects to be converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the same purpose except it consumes `self`.
 
-## `IntoPyTuple` trait
-
-[`IntoPyTuple`][IntoPyTuple] trait is a conversion trait that allows various objects to be converted into [`PyTuple`][PyTuple] object.
-
-For example, [`IntoPyTuple`][IntoPyTuple] trait is implemented for `()` so that you can convert it into a empty [`PyTuple`][PyTuple]
-
-```rust
-extern crate pyo3;
-use pyo3::{Python, IntoPyTuple};
-
-fn main() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let py_tuple = ().into_tuple(py);
-}
-```
-
 ## `FromPyObject` and `RefFromPyObject` trait
 
 ## `*args` and `**kwargs` for python object call
@@ -38,25 +21,23 @@ provides two methods:
 * `call` - call callable python object.
 * `call_method` - call specific method on the object.
 
-Both methods accept `args` and `kwargs` arguments. `args` argument is generate over
-[`IntoPyTuple`][IntoPyTuple] trait. So args could be `PyTuple` instance or
-rust tuple with up to 10 elements. Or `NoArgs` object which represents empty tuple object.
+Both methods accept `args` and `kwargs` arguments.
 
 ```rust
-extern crate pyo3;
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple};
 
-# struct SomeObject;
-# impl SomeObject {
-#     fn new(py: Python) -> PyObject {
-#           pyo3::PyDict::new(py).to_object(py)
-#     }
-# }
-#
+struct SomeObject;
+impl SomeObject {
+    fn new(py: Python) -> PyObject {
+        PyDict::new(py).to_object(py)
+    }
+}
+
 fn main() {
-    # let arg1 = "arg1";
-    # let arg2 = "arg2";
-    # let arg3 = "arg3";
+    let arg1 = "arg1";
+    let arg2 = "arg2";
+    let arg3 = "arg3";
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -80,22 +61,23 @@ fn main() {
 [`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers, e.g. `HashMap`, `BTreeMap` as well as tuples with up to 10 elements and `Vec`s where each element is a two element tuple.
 
 ```rust
-extern crate pyo3;
-
-use std::collections::HashMap;
 use pyo3::prelude::*;
+use pyo3::types::{IntoPyDict, PyDict};
+use std::collections::HashMap;
 
-# struct SomeObject;
-# impl SomeObject {
-#     fn new(py: Python) -> PyObject {
-#           pyo3::PyDict::new(py).to_object(py)
-#     }
-# }
+struct SomeObject;
+
+impl SomeObject {
+    fn new(py: Python) -> PyObject {
+        PyDict::new(py).to_object(py)
+    }
+}
+
 fn main() {
-    # let key1 = "key1";
-    # let val1 = 1;
-    # let key2 = "key2";
-    # let val2 = 2;
+    let key1 = "key1";
+    let val1 = 1;
+    let key2 = "key2";
+    let val2 = 2;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -105,26 +87,28 @@ fn main() {
     // call object with PyDict
     let kwargs = PyDict::new(py);
     kwargs.set_item(key1, val1);
-    obj.call(py, NoArgs, kwargs);
+    obj.call(py, (), Some(kwargs));
 
-    // pass arguments as rust tuple
-    let kwargs = ((key1, val1), (key2, val2));
-    obj.call(py, NoArgs, kwargs);
+    // pass arguments as Vec
+    let kwargs = vec![(key1, val1), (key2, val2)];
+    obj.call(py, (), Some(kwargs.into_py_dict(py)));
 
     // pass arguments as HashMap
     let mut kwargs = HashMap::<&str, i32>::new();
     kwargs.insert(key1, 1);
-    obj.call(py, NoArgs, kwargs);
+    obj.call(py, (), Some(kwargs.into_py_dict(py)));
 }
 ```
 
+## `IntoPy<T>`
 
-TODO
+Many conversions in pyo3 can't use `std::convert::Into` because they need a gil token. That's why the `IntoPy<T>` trait offers an `into_py` methods that works just like `into` except for taking a `Python<'_>` as argument.
 
-[`ToPyObject`]: https://docs.rs/pyo3/0.5.2/trait.ToPyObject.html
-[IntoPyObject]: https://docs.rs/pyo3/0.5.2/trait.IntoPyObject.html
-[PyObject]: https://docs.rs/pyo3/0.5.2/struct.PyObject.html
-[IntoPyTuple]: https://docs.rs/pyo3/0.5.2/trait.IntoPyTuple.html
-[PyTuple]: https://docs.rs/pyo3/0.5.2/struct.PyTuple.html
-[ObjectProtocol]: https://docs.rs/pyo3/0.5.2/trait.ObjectProtocol.html
-[IntoPyDict]: https://docs.rs/pyo3/0.5.2/trait.IntoPyDict.html
+Eventually, traits such as `IntoPyObject` will be replaces by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`. 
+
+[`ToPyObject`]: https://docs.rs/pyo3/0.6.0-alpha.4/trait.ToPyObject.html
+[IntoPyObject]: https://docs.rs/pyo3/0.6.0-alpha.4/trait.IntoPyObject.html
+[PyObject]: https://docs.rs/pyo3/0.6.0-alpha.4/struct.PyObject.html
+[PyTuple]: https://docs.rs/pyo3/0.6.0-alpha.4/struct.PyTuple.html
+[ObjectProtocol]: https://docs.rs/pyo3/0.6.0-alpha.4/trait.ObjectProtocol.html
+[IntoPyDict]: https://docs.rs/pyo3/0.6.0-alpha.4/trait.IntoPyDict.html

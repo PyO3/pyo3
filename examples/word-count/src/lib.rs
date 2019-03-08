@@ -1,12 +1,8 @@
 // Source adopted from
 // https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-#![feature(specialization)]
-
-#[macro_use]
-extern crate pyo3;
-extern crate rayon;
 
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 use rayon::prelude::*;
 use std::fs;
 use std::path::PathBuf;
@@ -20,14 +16,14 @@ struct WordCounter {
 #[pymethods]
 impl WordCounter {
     #[new]
-    fn __new__(obj: &PyRawObject, path: String) -> PyResult<()> {
-        obj.init(|| WordCounter {
+    fn new(obj: &PyRawObject, path: String) {
+        obj.init(WordCounter {
             path: PathBuf::from(path),
-        })
+        });
     }
 
     /// Searches for the word, parallelized by rayon
-    fn search(&self, py: Python, search: String) -> PyResult<usize> {
+    fn search(&self, py: Python<'_>, search: String) -> PyResult<usize> {
         let contents = fs::read_to_string(&self.path)?;
 
         let count = py.allow_threads(move || {
@@ -79,8 +75,8 @@ fn count_line(line: &str, needle: &str) -> usize {
 }
 
 #[pymodule]
-fn word_count(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_function!(count_line))?;
+fn word_count(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(count_line))?;
     m.add_class::<WordCounter>()?;
 
     Ok(())

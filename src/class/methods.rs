@@ -2,7 +2,6 @@
 
 use crate::ffi;
 use libc::c_int;
-use std;
 use std::ffi::CString;
 
 /// `PyMethodDefType` represents different types of python callable objects.
@@ -59,10 +58,13 @@ pub struct PySetterDef {
 }
 
 unsafe impl Sync for PyMethodDef {}
+
 unsafe impl Sync for ffi::PyMethodDef {}
 
 unsafe impl Sync for PyGetterDef {}
+
 unsafe impl Sync for PySetterDef {}
+
 unsafe impl Sync for ffi::PyGetSetDef {}
 
 impl PyMethodDef {
@@ -111,21 +113,40 @@ impl PySetterDef {
     }
 }
 
-#[doc(hidden)]
-/// The pymethods macro implements this trait so the methods are added to the object
-pub trait PyMethodsProtocolImpl {
-    fn py_methods() -> &'static [PyMethodDefType] {
-        &[]
-    }
+#[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
+/// This trait is implemented for all pyclass so to implement the [PyMethodsProtocol]
+/// through inventory
+pub trait PyMethodsInventoryDispatch {
+    /// This allows us to get the inventory type when only the pyclass is in scope
+    type InventoryType: PyMethodsInventory;
 }
 
-impl<T> PyMethodsProtocolImpl for T {}
+#[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
+/// Allows arbitrary pymethod blocks to submit their methods, which are eventually collected by pyclass
+pub trait PyMethodsInventory: inventory::Collect {
+    /// Create a new instance
+    fn new(methods: &'static [PyMethodDefType]) -> Self;
 
-#[doc(hidden)]
-pub trait PyPropMethodsProtocolImpl {
-    fn py_methods() -> &'static [PyMethodDefType] {
-        &[]
-    }
+    /// Returns the methods for a single impl block
+    fn get_methods(&self) -> &'static [PyMethodDefType];
 }
 
-impl<T> PyPropMethodsProtocolImpl for T {}
+/// The implementation of tis trait defines which methods a python type has.
+///
+/// For pyclass derived structs this is implemented by collecting all impl blocks through inventory
+pub trait PyMethodsProtocol {
+    /// Returns all methods that are defined for a class
+    fn py_methods() -> Vec<&'static PyMethodDefType>;
+}
+
+impl<T> PyMethodsProtocol for T
+where
+    T: PyMethodsInventoryDispatch,
+{
+    fn py_methods() -> Vec<&'static PyMethodDefType> {
+        inventory::iter::<T::InventoryType>
+            .into_iter()
+            .flat_map(PyMethodsInventory::get_methods)
+            .collect()
+    }
+}

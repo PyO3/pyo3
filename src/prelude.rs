@@ -10,19 +10,19 @@
 //! use pyo3::prelude::*;
 //! ```
 
-pub use crate::conversion::{FromPyObject, IntoPyObject, PyTryFrom, PyTryInto, ToPyObject};
 pub use crate::err::{PyErr, PyResult};
-pub use crate::instance::{AsPyRef, Py};
-pub use crate::noargs::NoArgs;
+pub use crate::gil::GILGuard;
+pub use crate::instance::{AsPyRef, Py, PyRef, PyRefMut};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::python::Python;
-pub use crate::pythonrun::GILGuard;
+pub use crate::{
+    FromPy, FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject,
+};
 // This is only part of the prelude because we need it for the pymodule function
 pub use crate::types::PyModule;
 // This is required for the constructor
 pub use crate::PyRawObject;
-
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 
 #[cfg(Py_3)]

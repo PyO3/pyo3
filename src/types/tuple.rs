@@ -1,13 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use super::exceptions;
-use crate::conversion::{FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToPyObject};
+use crate::conversion::FromPy;
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::{AsPyRef, Py, PyObjectWithGIL};
+use crate::instance::{AsPyRef, Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::{FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToPyObject};
 use std::slice;
 
 /// Represents a Python `tuple` object.
@@ -115,7 +118,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
         if self.index < self.slice.len() {
             let item = self.slice[self.index].as_ref(self.py);
             self.index += 1;
-            Some(item)
+            Some(item.into())
         } else {
             None
         }
@@ -131,25 +134,9 @@ impl<'a> IntoIterator for &'a PyTuple {
     }
 }
 
-impl<'a> IntoPyTuple for &'a PyTuple {
-    fn into_tuple(self, _py: Python) -> Py<PyTuple> {
-        self.into()
-    }
-}
-
-impl IntoPyTuple for Py<PyTuple> {
-    fn into_tuple(self, _py: Python) -> Py<PyTuple> {
-        self
-    }
-}
-
-impl<'a> IntoPyTuple for &'a str {
-    fn into_tuple(self, py: Python) -> Py<PyTuple> {
-        unsafe {
-            let ptr = ffi::PyTuple_New(1);
-            ffi::PyTuple_SetItem(ptr, 0, self.into_object(py).into_ptr());
-            Py::from_owned_ptr_or_panic(ptr)
-        }
+impl<'a> FromPy<&'a PyTuple> for Py<PyTuple> {
+    fn from_py(tuple: &'a PyTuple, _py: Python) -> Py<PyTuple> {
+        unsafe { Py::from_borrowed_ptr(tuple.as_ptr()) }
     }
 }
 
@@ -182,8 +169,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl <$($T: IntoPyObject),+> IntoPyTuple for ($($T,)+) {
-        fn into_tuple(self, py: Python) -> Py<PyTuple> {
+    impl <$($T: IntoPyObject),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
+        fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;
@@ -199,7 +186,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $( slice[$n].extract::<$T>(obj.py())?, )+
+                    $(slice[$n].extract::<$T>(obj.py())?,)+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))
@@ -265,12 +252,12 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
     use crate::types::PyObjectRef;
     use crate::types::PyTuple;
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -321,10 +308,8 @@ mod test {
         let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
 
-        let mut i = 0;
-        for item in tuple {
-            i += 1;
-            assert_eq!(i, item.extract().unwrap());
+        for (i, item) in tuple.iter().enumerate() {
+            assert_eq!(i + 1, item.extract().unwrap());
         }
     }
 }

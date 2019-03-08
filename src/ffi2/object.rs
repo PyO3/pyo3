@@ -1,6 +1,6 @@
-use ffi2;
-use ffi2::methodobject::PyMethodDef;
-use ffi2::pyport::{Py_hash_t, Py_ssize_t};
+use crate::ffi2;
+use crate::ffi2::methodobject::PyMethodDef;
+use crate::ffi2::pyport::{Py_hash_t, Py_ssize_t};
 use libc::FILE;
 use std::os::raw::{c_char, c_double, c_int, c_long, c_uint, c_void};
 use std::ptr;

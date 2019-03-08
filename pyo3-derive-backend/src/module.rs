@@ -1,18 +1,20 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Code generation for the function that initializes a python module and adds classes and function.
 
-use args;
-use method;
-use py_method;
-use syn;
-use utils;
-
+use crate::method;
+use crate::pyfunction;
+use crate::pyfunction::PyFunctionAttr;
+use crate::pymethod;
+use crate::pymethod::get_arg_names;
+use crate::utils;
 use proc_macro2::{Span, TokenStream};
+use quote::quote;
+use syn::Ident;
 
 /// Generates the function that is called by the python interpreter to initialize the native
 /// module
-pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
-    let cb_name = syn::Ident::new(&format!("PyInit_{}", name), Span::call_site());
+pub fn py3_init(fnname: &Ident, name: &Ident, doc: syn::Lit) -> TokenStream {
+    let cb_name = Ident::new(&format!("PyInit_{}", name), Span::call_site());
 
     quote! {
         #[no_mangle]
@@ -25,8 +27,8 @@ pub fn py3_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenS
     }
 }
 
-pub fn py2_init(fnname: &syn::Ident, name: &syn::Ident, doc: syn::Lit) -> TokenStream {
-    let cb_name = syn::Ident::new(&format!("init{}", name), Span::call_site());
+pub fn py2_init(fnname: &Ident, name: &Ident, doc: syn::Lit) -> TokenStream {
+    let cb_name = Ident::new(&format!("init{}", name), Span::call_site());
 
     quote! {
         #[no_mangle]
@@ -48,7 +50,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
             {
                 let function_to_python = add_fn_to_module(func, &python_name, pyfn_attrs);
                 let function_wrapper_ident = function_wrapper_ident(&func.ident);
-                let item: syn::ItemFn = parse_quote!{
+                let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
                         #module_name.add_wrapped(&#function_wrapper_ident)?;
@@ -64,10 +66,10 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a syn::Ident) -> Option<method::FnArg<'a>> {
+fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a Ident) -> Option<method::FnArg<'a>> {
     match input {
-        &syn::FnArg::SelfRef(_) | &syn::FnArg::SelfValue(_) => None,
-        &syn::FnArg::Captured(ref cap) => {
+        syn::FnArg::SelfRef(_) | &syn::FnArg::SelfValue(_) => None,
+        syn::FnArg::Captured(ref cap) => {
             let (mutability, by_ref, ident) = match cap.pat {
                 syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
                 _ => panic!("unsupported argument: {:?}", cap.pat),
@@ -94,23 +96,23 @@ fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a syn::Ident) -> Option<m
                 reference: method::is_ref(&name, &cap.ty),
             })
         }
-        &syn::FnArg::Ignored(_) => panic!("ignored argument: {:?}", name),
-        &syn::FnArg::Inferred(_) => panic!("inferred argument: {:?}", name),
+        syn::FnArg::Ignored(_) => panic!("ignored argument: {:?}", name),
+        syn::FnArg::Inferred(_) => panic!("inferred argument: {:?}", name),
     }
 }
 
 /// Extracts the data from the #[pyfn(...)] attribute of a function
 fn extract_pyfn_attrs(
     attrs: &mut Vec<syn::Attribute>,
-) -> Option<(syn::Ident, syn::Ident, Vec<args::Argument>)> {
+) -> Option<(Ident, Ident, Vec<pyfunction::Argument>)> {
     let mut new_attrs = Vec::new();
     let mut fnname = None;
     let mut modname = None;
     let mut fn_attrs = Vec::new();
 
     for attr in attrs.iter() {
-        match attr.interpret_meta() {
-            Some(syn::Meta::List(ref list)) if list.ident == "pyfn" => {
+        match attr.parse_meta() {
+            Ok(syn::Meta::List(ref list)) if list.ident == "pyfn" => {
                 let meta: Vec<_> = list.nested.iter().cloned().collect();
                 if meta.len() >= 2 {
                     // read module name
@@ -129,7 +131,9 @@ fn extract_pyfn_attrs(
                     }
                     // Read additional arguments
                     if list.nested.len() >= 3 {
-                        fn_attrs = args::parse_arguments(&meta[2..meta.len()]);
+                        fn_attrs = PyFunctionAttr::from_meta(&meta[2..meta.len()])
+                            .unwrap()
+                            .arguments;
                     }
                 } else {
                     panic!("can not parse 'pyfn' params {:?}", attr);
@@ -144,10 +148,10 @@ fn extract_pyfn_attrs(
 }
 
 /// Coordinates the naming of a the add-function-to-python-module function
-fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
-    // Make sure this ident matches the one of wrap_function
+fn function_wrapper_ident(name: &Ident) -> Ident {
+    // Make sure this ident matches the one of wrap_pyfunction
     // The trim_start_matches("r#") is for https://github.com/dtolnay/syn/issues/478
-    syn::Ident::new(
+    Ident::new(
         &format!(
             "__pyo3_get_function_{}",
             name.to_string().trim_start_matches("r#")
@@ -160,8 +164,8 @@ fn function_wrapper_ident(name: &syn::Ident) -> syn::Ident {
 /// function
 pub fn add_fn_to_module(
     func: &syn::ItemFn,
-    python_name: &syn::Ident,
-    pyfn_attrs: Vec<args::Argument>,
+    python_name: &Ident,
+    pyfn_attrs: Vec<pyfunction::Argument>,
 ) -> TokenStream {
     let mut arguments = Vec::new();
 
@@ -214,25 +218,13 @@ pub fn add_fn_to_module(
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
-fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
-    let names: Vec<syn::Ident> = spec
-        .args
-        .iter()
-        .enumerate()
-        .map(|item| {
-            if item.1.py {
-                syn::Ident::new("_py", Span::call_site())
-            } else {
-                syn::Ident::new(&format!("arg{}", item.0), Span::call_site())
-            }
-        })
-        .collect();
+fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
+    let names: Vec<Ident> = get_arg_names(&spec);
     let cb = quote! {
-        ::pyo3::ReturnTypeIntoPyResult::return_type_into_py_result(#name(#(#names),*))
+        #name(#(#names),*)
     };
 
-    let body = py_method::impl_arg_params(spec, cb);
-    let body_to_result = py_method::body_to_result(&body, spec);
+    let body = pymethod::impl_arg_params(spec, cb);
 
     quote! {
         unsafe extern "C" fn __wrap(
@@ -247,7 +239,8 @@ fn function_c_wrapper(name: &syn::Ident, spec: &method::FnSpec) -> TokenStream {
             let _args = _py.from_borrowed_ptr::<::pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&::pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-            #body_to_result
+            #body
+
             ::pyo3::callback::cb_convert(
                 ::pyo3::callback::PyObjectCallbackConverter, _py, _result)
         }

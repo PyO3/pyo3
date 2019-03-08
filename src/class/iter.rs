@@ -2,29 +2,30 @@
 //! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
 
-use std::ptr;
-
 use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
-use crate::conversion::IntoPyObject;
 use crate::err::PyResult;
 use crate::ffi;
-use crate::python::{IntoPyPointer, Python};
-use crate::typeob::PyTypeInfo;
+use crate::instance::PyRefMut;
+use crate::type_object::PyTypeInfo;
+use crate::IntoPyObject;
+use crate::IntoPyPointer;
+use crate::Python;
+use std::ptr;
 
 /// Python Iterator Interface.
 ///
 /// more information
 /// `https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter`
 #[allow(unused_variables)]
-pub trait PyIterProtocol<'p>: PyTypeInfo {
-    fn __iter__(&'p mut self) -> Self::Result
+pub trait PyIterProtocol<'p>: PyTypeInfo + Sized {
+    fn __iter__(slf: PyRefMut<'p, Self>) -> Self::Result
     where
         Self: PyIterIterProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __next__(&'p mut self) -> Self::Result
+    fn __next__(slf: PyRefMut<'p, Self>) -> Self::Result
     where
         Self: PyIterNextProtocol<'p>,
     {
@@ -74,7 +75,7 @@ where
 {
     #[inline]
     fn tp_iter() -> Option<ffi::getiterfunc> {
-        py_unary_func!(
+        py_unary_pyref_func!(
             PyIterIterProtocol,
             T::__iter__,
             T::Success,
@@ -97,7 +98,7 @@ where
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unary_func!(
+        py_unary_pyref_func!(
             PyIterNextProtocol,
             T::__next__,
             Option<T::Success>,

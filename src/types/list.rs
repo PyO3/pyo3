@@ -2,15 +2,15 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std;
-
-use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -20,10 +20,19 @@ pyobject_native_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> &'p PyList {
+    pub fn new<'p, T, U>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> &'p PyList
+    where
+        T: ToPyObject,
+        U: ExactSizeIterator<Item = T>,
+    {
+        let elements_iter = elements.into_iter();
+        let len = elements_iter.len();
         unsafe {
-            let ptr = ffi::PyList_New(elements.len() as Py_ssize_t);
-            for (i, e) in elements.iter().enumerate() {
+            let ptr = ffi::PyList_New(len as Py_ssize_t);
+            for (i, e) in elements_iter.enumerate() {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
@@ -113,6 +122,16 @@ impl PyList {
             index: 0,
         }
     }
+
+    /// Sorts the list in-place. Equivalent to python `l.sort()`
+    pub fn sort(&self) -> PyResult<()> {
+        unsafe { err::error_on_minusone(self.py(), ffi::PyList_Sort(self.as_ptr())) }
+    }
+
+    /// Reverses the list in-place. Equivalent to python `l.reverse()`
+    pub fn reverse(&self) -> PyResult<()> {
+        unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
+    }
 }
 
 /// Used by `PyList::iter()`.
@@ -149,7 +168,7 @@ impl<T> ToPyObject for [T]
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
@@ -165,7 +184,7 @@ impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> PyObject {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
         self.as_slice().to_object(py)
     }
 }
@@ -188,11 +207,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
     use crate::types::PyList;
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
 
     #[test]
     fn test_new() {
@@ -357,10 +376,8 @@ mod test {
         let v = vec![1, 2, 3, 4];
         let ob = v.to_object(py);
         let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        let mut i = 0;
-        for el in list {
-            i += 1;
-            assert_eq!(i, el.extract::<i32>().unwrap());
+        for (i, item) in list.iter().enumerate() {
+            assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
         }
     }
 
@@ -373,5 +390,39 @@ mod test {
         let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
+    }
+
+    #[test]
+    fn test_sort() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![7, 3, 2, 5];
+        let list = PyList::new(py, &v);
+        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(3).extract::<i32>().unwrap());
+        list.sort().unwrap();
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_reverse() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = vec![2, 3, 5, 7];
+        let list = PyList::new(py, &v);
+        assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(7, list.get_item(3).extract::<i32>().unwrap());
+        list.reverse().unwrap();
+        assert_eq!(7, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(5, list.get_item(1).extract::<i32>().unwrap());
+        assert_eq!(3, list.get_item(2).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(3).extract::<i32>().unwrap());
     }
 }

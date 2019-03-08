@@ -1,12 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 
-use crate::conversion::{ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, Py, PyObjectWithGIL};
+use crate::instance::{AsPyRef, Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
+use crate::AsPyPointer;
+use crate::Python;
+use crate::{ToBorrowedObject, ToPyObject};
 use std::{collections, hash};
 
 /// Represents a Python `set`
@@ -160,10 +161,10 @@ impl PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
     use std::collections::HashSet;
 
     #[test]

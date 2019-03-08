@@ -1,4 +1,4 @@
-use ffi2::object::*;
+use crate::ffi2::object::*;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

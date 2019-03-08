@@ -1,11 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use crate::ffi;
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
+use crate::Python;
+use crate::{IntoPyObject, PyTryFrom, ToPyObject};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
@@ -62,10 +63,10 @@ impl<'source> FromPyObject<'source> for bool {
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::ToPyObject;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
     use crate::types::{PyBool, PyObjectRef};
+    use crate::Python;
+    use crate::ToPyObject;
 
     #[test]
     fn test_true() {

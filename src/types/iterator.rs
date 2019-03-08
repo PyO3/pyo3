@@ -4,9 +4,10 @@
 
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
-use crate::python::{Python, ToPyPointer};
+use crate::instance::PyNativeType;
 use crate::types::PyObjectRef;
+use crate::AsPyPointer;
+use crate::Python;
 
 /// A python iterator object.
 ///
@@ -35,7 +36,7 @@ impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
     pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
     where
-        T: ToPyPointer,
+        T: AsPyPointer,
     {
         unsafe {
             let ptr = ffi::PyObject_GetIter(obj.as_ptr());
@@ -83,20 +84,21 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
-    use crate::conversion::{PyTryFrom, ToPyObject};
+    use crate::gil::GILPool;
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::Python;
-    use crate::pythonrun::GILPool;
-    use crate::types::{PyDict, PyList, PyObjectRef};
+    use crate::types::{PyDict, PyList};
     use crate::GILGuard;
+    use crate::Python;
+    use crate::ToPyObject;
+    use indoc::indoc;
 
     #[test]
     fn vec_iter() {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj = vec![10, 20].to_object(py);
-        let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let inst = obj.as_ref(py);
         let mut it = inst.iter().unwrap();
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
@@ -117,7 +119,7 @@ mod tests {
         {
             let gil_guard = Python::acquire_gil();
             let py = gil_guard.python();
-            let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
@@ -145,7 +147,7 @@ mod tests {
 
         {
             let _pool = GILPool::new();
-            let inst = <PyObjectRef as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+            let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());

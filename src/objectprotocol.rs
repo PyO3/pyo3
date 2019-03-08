@@ -1,15 +1,18 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{FromPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject};
+use crate::class::basic::CompareOp;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 use crate::types::{PyDict, PyIterator, PyObjectRef, PyString, PyTuple, PyType};
-use std;
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Py;
+use crate::Python;
+use crate::{FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject};
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
@@ -68,7 +71,7 @@ pub trait ObjectProtocol {
     ///   * CompareOp::Le: `self <= other`
     ///   * CompareOp::Gt: `self > other`
     ///   * CompareOp::Ge: `self >= other`
-    fn rich_compare<O>(&self, other: O, compare_op: crate::CompareOp) -> PyResult<PyObject>
+    fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<PyObject>
     where
         O: ToPyObject;
 
@@ -85,9 +88,11 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args, **kwargs)`
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple;
+    fn call(
+        &self,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef>;
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self()`
@@ -95,9 +100,7 @@ pub trait ObjectProtocol {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: `self(*args)`
-    fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple;
+    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef>;
 
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`
@@ -117,7 +120,7 @@ pub trait ObjectProtocol {
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyObjectRef>;
 
@@ -127,7 +130,7 @@ pub trait ObjectProtocol {
 
     /// Calls a method on the object with positional arguments only .
     /// This is equivalent to the Python expression: `self.name(*args)`
-    fn call_method1(&self, name: &str, args: impl IntoPyTuple) -> PyResult<&PyObjectRef>;
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef>;
 
     /// Retrieves the hash code of the object.
     /// This is equivalent to the Python expression: `hash(self)`
@@ -188,7 +191,7 @@ pub trait ObjectProtocol {
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom,
+        D: PyTryFrom<'a>,
         &'a PyObjectRef: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
@@ -208,7 +211,7 @@ pub trait ObjectProtocol {
 
 impl<T> ObjectProtocol for T
 where
-    T: PyObjectWithGIL + ToPyPointer,
+    T: PyNativeType + AsPyPointer,
 {
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
@@ -290,7 +293,7 @@ where
         })
     }
 
-    fn rich_compare<O>(&self, other: O, compare_op: crate::CompareOp) -> PyResult<PyObject>
+    fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<PyObject>
     where
         O: ToPyObject,
     {
@@ -322,11 +325,12 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call<A>(&self, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
-        let args = args.into_tuple(self.py()).into_ptr();
+    fn call(
+        &self,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef> {
+        let args = args.into_py(self.py()).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
             let return_value = ffi::PyObject_Call(self.as_ptr(), args, kwargs);
@@ -340,20 +344,17 @@ where
     }
 
     fn call0(&self) -> PyResult<&PyObjectRef> {
-        self.call(PyTuple::empty(self.py()), None)
+        self.call((), None)
     }
 
-    fn call1<A>(&self, args: A) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
+    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
         self.call(args, None)
     }
 
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyObjectRef> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
@@ -362,7 +363,7 @@ where
             if ptr.is_null() {
                 return Err(PyErr::fetch(py));
             }
-            let args = args.into_tuple(py).into_ptr();
+            let args = args.into_py(py).into_ptr();
             let kwargs = kwargs.into_ptr();
             let result_ptr = ffi::PyObject_Call(ptr, args, kwargs);
             let result = py.from_owned_ptr_or_err(result_ptr);
@@ -374,10 +375,10 @@ where
     }
 
     fn call_method0(&self, name: &str) -> PyResult<&PyObjectRef> {
-        self.call_method(name, PyTuple::empty(self.py()), None)
+        self.call_method(name, (), None)
     }
 
-    fn call_method1(&self, name: &str, args: impl IntoPyTuple) -> PyResult<&PyObjectRef> {
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
         self.call_method(name, args, None)
     }
 
@@ -472,10 +473,10 @@ where
 
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom,
+        D: PyTryFrom<'a>,
         &'a PyObjectRef: std::convert::From<&'a Self>,
     {
-        D::try_from(self.into())
+        D::try_from(self)
     }
 
     fn extract<'a, D>(&'a self) -> PyResult<D>
@@ -499,10 +500,10 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
-    use crate::python::Python;
     use crate::types::{IntoPyDict, PyString};
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
 
     #[test]
     fn test_debug_string() {

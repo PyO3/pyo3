@@ -17,16 +17,16 @@
 // DEALINGS IN THE SOFTWARE.
 
 //! `PyBuffer` implementation
+use crate::err::{self, PyResult};
+use crate::exceptions;
+use crate::ffi;
+use crate::types::PyObjectRef;
+use crate::AsPyPointer;
+use crate::Python;
 use libc;
 use std::ffi::CStr;
 use std::os::raw;
 use std::{cell, mem, slice};
-
-use crate::err::{self, PyResult};
-use crate::exceptions;
-use crate::ffi;
-use crate::python::{Python, ToPyPointer};
-use crate::types::PyObjectRef;
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 #[repr(transparent)]
@@ -662,8 +662,7 @@ impl_element!(f64, Float);
 mod test {
     use super::PyBuffer;
     use crate::ffi;
-    use crate::python::Python;
-    use std;
+    use crate::Python;
 
     #[allow(unused_imports)]
     use crate::objectprotocol::ObjectProtocol;

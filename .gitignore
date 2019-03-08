@@ -13,10 +13,11 @@ dist/
 .hypothesis/
 .eggs/
 venv*
-
+guide/book/
+examples/*/py*
 *.so
 *.out
 *.egg-info
 extensions/stamps/
-
-cmake-build-debug/
+pip-wheel-metadata
+valgrind-python.supp

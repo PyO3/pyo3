@@ -6,7 +6,7 @@ This chapter is based on the discussion in [PyO3/pyo3#55](https://github.com/PyO
 
 ## Macros
 
-While rust-cpython has a macro based dsl for declaring modules and classes, pyo3 use proc macros and spezialization. Pyo3 also doesn't change your struct and functions so you can still use them as normal rust functions. The disadvantage is that proc macros and spezialization currently only work on nightly.
+While rust-cpython has a macro based dsl for declaring modules and classes, pyo3 use proc macros and specialization. Pyo3 also doesn't change your struct and functions so you can still use them as normal rust functions. The disadvantage is that proc macros and specialization currently only work on nightly.
 
 **rust-cpython**
 
@@ -25,10 +25,6 @@ py_class!(class MyClass |py| {
 **pyo3**
 
 ```rust
-#![feature(specialization)]
-
-extern crate pyo3;
-
 use pyo3::prelude::*;
 use pyo3::PyRawObject;
 
@@ -40,12 +36,12 @@ struct MyClass {
 #[pymethods]
 impl MyClass {
     #[new]
-    fn __new__(obj: &PyRawObject, num: u32) -> PyResult<()> {
-        obj.init(|| {
+    fn new(obj: &PyRawObject, num: u32) {
+        obj.init({
             MyClass {
                 num,
             }
-        })
+        });
     }
 
     fn half(&self) -> PyResult<u32> {

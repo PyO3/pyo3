@@ -1,15 +1,10 @@
-#![feature(specialization)]
-
-extern crate pyo3;
-
-use std::os::raw::{c_int, c_void};
-use std::ptr;
-
 use pyo3::class::PyBufferProtocol;
 use pyo3::exceptions::BufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use std::os::raw::{c_int, c_void};
+use std::ptr;
 
 #[pyclass]
 struct TestClass {
@@ -70,11 +65,13 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py
-        .init(|| TestClass {
+    let t = Py::new(
+        py,
+        TestClass {
             vec: vec![b' ', b'2', b'3'],
-        })
-        .unwrap();
+        },
+    )
+    .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();
@@ -87,11 +84,13 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py
-        .init(|| TestClass {
+    let t = Py::new(
+        py,
+        TestClass {
             vec: vec![b' ', b'2', b'3'],
-        })
-        .unwrap();
+        },
+    )
+    .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();

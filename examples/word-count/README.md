@@ -20,6 +20,13 @@ WordCounter("path/to/file").search_sequential("word")
 
 ## Benchmark
 
+Install the depedencies:
+
+```shell
+pip install -r requirements-dev.txt
+```
+
+
 There is a benchmark in `tests/test_word_count.py`:
 
 ```shell

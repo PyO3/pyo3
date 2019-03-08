@@ -8,7 +8,7 @@ use crate::class::basic::PyObjectProtocolImpl;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::ffi;
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 use crate::{FromPyObject, IntoPyObject};
 
 /// Number interface

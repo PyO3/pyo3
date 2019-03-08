@@ -1,7 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+
+//! Interaction with python's global interpreter lock
+
 use crate::ffi;
-use crate::python::Python;
 use crate::types::PyObjectRef;
+use crate::Python;
 use spin;
 use std::ptr::NonNull;
 use std::{any, marker, rc, sync};
@@ -298,7 +301,7 @@ mod array_list {
         pub fn pop_back(&mut self) -> Option<T> {
             self.length -= 1;
             let current_idx = self.next_idx();
-            if self.length >= BLOCK_SIZE && current_idx == 0 {
+            if current_idx == 0 {
                 let last_list = self.inner.pop_back()?;
                 return Some(last_list[0].clone());
             }
@@ -325,10 +328,11 @@ mod array_list {
 #[cfg(test)]
 mod test {
     use super::{GILPool, NonNull, ReleasePool, POOL};
-    use crate::conversion::ToPyObject;
     use crate::object::PyObject;
-    use crate::python::{Python, ToPyPointer};
-    use crate::{ffi, pythonrun};
+    use crate::AsPyPointer;
+    use crate::Python;
+    use crate::ToPyObject;
+    use crate::{ffi, gil};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
@@ -342,7 +346,7 @@ mod test {
 
     #[test]
     fn test_owned() {
-        pythonrun::init_once();
+        gil::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -355,7 +359,7 @@ mod test {
 
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
-                let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
+                let _ = gil::register_owned(py, NonNull::new(empty).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
             }
@@ -369,7 +373,7 @@ mod test {
 
     #[test]
     fn test_owned_nested() {
-        pythonrun::init_once();
+        gil::init_once();
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -386,14 +390,14 @@ mod test {
                 empty = ffi::PyTuple_New(0);
                 cnt = ffi::Py_REFCNT(empty) - 1;
 
-                let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
+                let _ = gil::register_owned(py, NonNull::new(empty).unwrap());
 
                 assert_eq!(p.owned.len(), 1);
 
                 {
                     let _pool = GILPool::new();
                     let empty = ffi::PyTuple_New(0);
-                    let _ = pythonrun::register_owned(py, NonNull::new(empty).unwrap());
+                    let _ = gil::register_owned(py, NonNull::new(empty).unwrap());
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
@@ -407,7 +411,7 @@ mod test {
 
     #[test]
     fn test_borrowed() {
-        pythonrun::init_once();
+        gil::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -421,7 +425,7 @@ mod test {
                 assert_eq!(p.borrowed.len(), 0);
 
                 cnt = ffi::Py_REFCNT(obj_ptr);
-                pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
+                gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
@@ -436,7 +440,7 @@ mod test {
 
     #[test]
     fn test_borrowed_nested() {
-        pythonrun::init_once();
+        gil::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
@@ -450,7 +454,7 @@ mod test {
                 assert_eq!(p.borrowed.len(), 0);
 
                 cnt = ffi::Py_REFCNT(obj_ptr);
-                pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
+                gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
@@ -458,7 +462,7 @@ mod test {
                 {
                     let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
-                    pythonrun::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
+                    gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
                     assert_eq!(p.borrowed.len(), 2);
                 }
 
@@ -475,7 +479,7 @@ mod test {
 
     #[test]
     fn test_pyobject_drop() {
-        pythonrun::init_once();
+        gil::init_once();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;

@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
@@ -8,18 +9,50 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added a `wrap_module!` macro similar to the existing `wrap_function!` macro. Only available on python 3
+ * Added a `wrap_pymodule!` macro similar to the existing `wrap_pyfunction!` macro. Only available on python 3
+ * Added support for cross compiling (e.g. to arm v7) by mtp401 in [#327](https://github.com/PyO3/pyo3/pull/327). See the "Cross Compiling" section in the "Building and Distribution" chapter of the guide for more details.
+ * The `PyRef` and `PyRefMut` types, which allow to differentiate between an instance of a rust struct on the rust heap and an instance that is embedded inside a python object. By kngwyu in [#335](https://github.com/PyO3/pyo3/pull/335)
+ * Added `FromPy<T>` and `IntoPy<T>` which are equivalent to `From<T>` and `Into<T>` except that they require a gil token.
+ * Added `ManagedPyRef`, which should eventually replace `ToBorrowedObject`.
 
 ### Changed
 
  * Renamed `add_function` to `add_wrapped` as it now also supports modules.
- * Renamed `#[pymodinit]` to `#[pymodule]`.
- * Renamed `py_exception` to `create_exception` and refactored the error macros.
+ * Renamed `#[pymodinit]` to `#[pymodule]`
+ * `py.init(|| value)` becomes `Py::new(value)`
+ * `py.init_ref(|| value)` becomes `PyRef::new(value)`
+ * `py.init_mut(|| value)` becomes `PyRefMut::new(value)`.
+ * `PyRawObject::init` is now infallible, e.g. it returns `()` instead of `PyResult<()>`.
+ * Renamed `py_exception!` to `create_exception!` and refactored the error macros.
+ * Renamed `wrap_function!` to `wrap_pyfunction!`
+ * Renamed `#[prop(get, set)]` to `#[pyo3(get, set)]`
+ * `#[pyfunction]` now supports the same arguments as `#[pyfn()]`
+ * Some macros now emit proper spanned errors instead of panics.
+ * Migrated to the 2018 edition
+ * `crate::types::exceptions` moved to `crate::exceptions`
+ * Replace `IntoPyTuple` with `IntoPy<Py<PyTuple>>`.
+ * `IntoPyPointer` and `ToPyPointer` moved into the crate root.
+ * `class::CompareOp` moved into `class::basic::CompareOp`
+ * PyTypeObject is now a direct subtrait PyTypeCreate, removing the old cyclical implementation in [#350](https://github.com/PyO3/pyo3/pull/350)
+ * Add `PyList::{sort, reverse}` by chr1sj0nes in [#357](https://github.com/PyO3/pyo3/pull/357) and [#358](https://github.com/PyO3/pyo3/pull/358)
+ * Renamed the `typeob` module to `type_object`
 
 ### Removed
 
  * `PyToken` was removed due to unsoundness (See [#94](https://github.com/PyO3/pyo3/issues/94)).
  * Removed the unnecessary type parameter from `PyObjectAlloc`
+ * `NoArgs`. Just use an empty tuple
+ * `PyObjectWithGIL`. `PyNativeType` is sufficient now that PyToken is removed.
+
+### Fixed
+
+ * A soudness hole where every instances of a `#[pyclass]` struct was considered to be part of a python object, even though you can create instances that are not part of the python heap. This was fixed through `PyRef` and `PyRefMut`. 
+
+## [0.5.3] - 2019-01-04
+
+### Fixed
+
+ * Fix memory leak in ArrayList by kngwyu [#316](https://github.com/PyO3/pyo3/pull/316)
 
 ## [0.5.2] - 2018-11-26
 
@@ -213,7 +246,8 @@ Yanked
 
 * Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/pyo3/pyo3/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/pyo3/pyo3/compare/v0.5.0...v0.5.2
 [0.5.0]: https://github.com/pyo3/pyo3/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/pyo3/pyo3/compare/v0.4.0...v0.4.1

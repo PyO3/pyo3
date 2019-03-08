@@ -1,6 +1,6 @@
-use ffi2::code::*;
-use ffi2::pyarena::PyArena;
-use ffi2::pythonrun::*;
+use crate::ffi2::code::*;
+use crate::ffi2::pyarena::PyArena;
+use crate::ffi2::pythonrun::*;
 use std::os::raw::{c_char, c_int};
 
 #[repr(C)]

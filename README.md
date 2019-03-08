@@ -15,7 +15,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.30.0-nightly 2018-08-18.
+Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
 
 You can either write a native python module in rust or use python from a rust binary.
 
@@ -31,31 +31,28 @@ sudo apt install python3-dev python-dev
 
 Pyo3 can be used to generate a native python module.
 
-**`Cargo.toml`:**
+**`Cargo.toml`**
 
 ```toml
 [package]
 name = "string-sum"
 version = "0.1.0"
+edition = "2018"
 
 [lib]
 name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.5"
+version = "0.6.0-alpha.4"
 features = ["extension-module"]
 ```
 
 **`src/lib.rs`**
 
 ```rust
-#![feature(specialization)]
-
-#[macro_use]
-extern crate pyo3;
-
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 /// Formats the sum of two numbers as string
@@ -66,7 +63,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 /// This module is a python module implemented in Rust.
 #[pymodule]
 fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_function!(sum_as_string))?;
+    m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
 
     Ok(())
 }
@@ -92,16 +89,12 @@ Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.5"
+pyo3 = "0.6.0-alpha.4"
 ```
 
 Example program displaying the value of `sys.version`:
 
 ```rust
-#![feature(specialization)]
-
-extern crate pyo3;
-
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -110,11 +103,10 @@ fn main() -> PyResult<()> {
     let py = gil.python();
     let sys = py.import("sys")?;
     let version: String = sys.get("version")?.extract()?;
-
     let locals = PyDict::new(py);
     locals.set_item("os", py.import("os")?)?;
-    let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
-
+    let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
+    let user: String = py.eval(code, None, Some(&locals))?.extract()?;
     println!("Hello {}, I'm Python {}", user, version);
     Ok(())
 }

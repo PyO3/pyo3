@@ -1,6 +1,6 @@
-use ffi2::methodobject::PyMethodDef;
-use ffi2::object::*;
-use ffi2::pyport::Py_ssize_t;
+use crate::ffi2::methodobject::PyMethodDef;
+use crate::ffi2::object::*;
+use crate::ffi2::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

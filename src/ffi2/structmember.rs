@@ -1,5 +1,5 @@
-use ffi2::object::PyObject;
-use ffi2::pyport::Py_ssize_t;
+use crate::ffi2::object::PyObject;
+use crate::ffi2::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
 #[repr(C)]

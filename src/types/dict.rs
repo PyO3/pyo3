@@ -1,13 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
 use crate::types::{PyList, PyObjectRef};
-use std;
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use std::{cmp, collections, hash, mem};
 
 /// Represents a Python `dict`.
@@ -197,12 +198,7 @@ where
     H: hash::BuildHasher,
 {
     fn to_object(&self, py: Python) -> PyObject {
-        let dict = PyDict::new(py);
-        for (key, value) in self {
-            dict.set_item(key, value)
-                .expect("Failed to set_item on dict");
-        }
-        dict.into()
+        IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
@@ -212,43 +208,34 @@ where
     V: ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
-        let dict = PyDict::new(py);
-        for (key, value) in self {
-            dict.set_item(key, value)
-                .expect("Failed to set_item on dict");
-        }
-        dict.into()
+        IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
 impl<K, V, H> IntoPyObject for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + ToPyObject,
-    V: ToPyObject,
+    K: hash::Hash + cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
     H: hash::BuildHasher,
 {
     fn into_object(self, py: Python) -> PyObject {
-        let dict = PyDict::new(py);
-        for (key, value) in self {
-            dict.set_item(key, value)
-                .expect("Failed to set_item on dict");
-        }
-        dict.into()
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_object(py), v.into_object(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
     }
 }
 
 impl<K, V> IntoPyObject for collections::BTreeMap<K, V>
 where
-    K: cmp::Eq + ToPyObject,
-    V: ToPyObject,
+    K: cmp::Eq + IntoPyObject,
+    V: IntoPyObject,
 {
     fn into_object(self, py: Python) -> PyObject {
-        let dict = PyDict::new(py);
-        for (key, value) in self {
-            dict.set_item(key, value)
-                .expect("Failed to set_item on dict");
-        }
-        dict.into()
+        let iter = self
+            .into_iter()
+            .map(|(k, v)| (k.into_object(py), v.into_object(py)));
+        IntoPyDict::into_py_dict(iter, py).into()
     }
 }
 
@@ -260,30 +247,67 @@ pub trait IntoPyDict {
     fn into_py_dict(self, py: Python) -> &PyDict;
 }
 
-impl<K, V, I> IntoPyDict for I
+impl<T, I> IntoPyDict for I
 where
-    K: ToPyObject,
-    V: ToPyObject,
-    I: IntoIterator<Item = (K, V)>,
+    T: PyDictItem,
+    I: IntoIterator<Item = T>,
 {
     fn into_py_dict(self, py: Python) -> &PyDict {
         let dict = PyDict::new(py);
-        for (key, value) in self {
-            dict.set_item(key, value)
+        for item in self {
+            dict.set_item(item.key(), item.value())
                 .expect("Failed to set_item on dict");
         }
         dict
     }
 }
 
+/// Represents a tuple which can be used as a PyDict item.
+pub trait PyDictItem {
+    type K: ToPyObject;
+    type V: ToPyObject;
+    fn key(&self) -> &Self::K;
+    fn value(&self) -> &Self::V;
+}
+
+impl<K, V> PyDictItem for (K, V)
+where
+    K: ToPyObject,
+    V: ToPyObject,
+{
+    type K = K;
+    type V = V;
+    fn key(&self) -> &Self::K {
+        &self.0
+    }
+    fn value(&self) -> &Self::V {
+        &self.1
+    }
+}
+
+impl<K, V> PyDictItem for &(K, V)
+where
+    K: ToPyObject,
+    V: ToPyObject,
+{
+    type K = K;
+    type V = V;
+    fn key(&self) -> &Self::K {
+        &self.0
+    }
+    fn value(&self) -> &Self::V {
+        &self.1
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
-    use crate::python::Python;
     use crate::types::dict::IntoPyDict;
     use crate::types::{PyDict, PyList, PyTuple};
     use crate::ObjectProtocol;
+    use crate::Python;
+    use crate::{IntoPyObject, PyTryFrom, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -412,7 +436,7 @@ mod test {
         let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
-        assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
+        assert_eq!(32i32, v[&7i32]); // not updated!
         assert_eq!(None, v.get(&8i32));
     }
 
@@ -634,6 +658,18 @@ mod test {
 
         let vec = vec![("a", 1), ("b", 2), ("c", 3)];
         let py_map = vec.into_py_dict(py);
+
+        assert_eq!(py_map.len(), 3);
+        assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_slice_into_dict() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let arr = [("a", 1), ("b", 2), ("c", 3)];
+        let py_map = arr.into_py_dict(py);
 
         assert_eq!(py_map.len(), 3);
         assert_eq!(py_map.get_item("b").unwrap().extract::<i32>().unwrap(), 2);

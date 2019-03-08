@@ -2,10 +2,9 @@
 
 //! Free allocation list
 
-use crate::err::PyResult;
 use crate::ffi;
-use crate::python::Python;
-use crate::typeob::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use crate::type_object::{pytype_drop, PyObjectAlloc, PyTypeInfo};
+use crate::Python;
 use std::mem;
 use std::os::raw::c_void;
 
@@ -72,15 +71,13 @@ impl<T> PyObjectAlloc for T
 where
     T: PyObjectWithFreeList,
 {
-    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
-        let obj = if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().pop() {
+    unsafe fn alloc(_py: Python) -> *mut ffi::PyObject {
+        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().pop() {
             ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object());
             obj
         } else {
             ffi::PyType_GenericAlloc(<Self as PyTypeInfo>::type_object(), 0)
-        };
-
-        Ok(obj)
+        }
     }
 
     #[cfg(Py_3)]

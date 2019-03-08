@@ -1,14 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::buffer;
-use crate::conversion::{FromPyObject, PyTryFrom, ToBorrowedObject};
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::ToPyPointer;
 use crate::types::{PyList, PyObjectRef, PyTuple};
+use crate::AsPyPointer;
+use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a python object supporting the sequence protocol.
 #[repr(transparent)]
@@ -275,8 +275,9 @@ where
     Ok(v)
 }
 
-impl PyTryFrom for PySequence {
-    fn try_from(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
+impl<'v> PyTryFrom<'v> for PySequence {
+    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
@@ -286,11 +287,16 @@ impl PyTryFrom for PySequence {
         }
     }
 
-    fn try_from_exact(value: &PyObjectRef) -> Result<&PySequence, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
-    fn try_from_mut(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
+    fn try_from_mut<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v mut PySequence, PyDowncastError> {
+        let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 Ok(<PySequence as PyTryFrom>::try_from_mut_unchecked(value))
@@ -300,31 +306,34 @@ impl PyTryFrom for PySequence {
         }
     }
 
-    fn try_from_mut_exact(value: &PyObjectRef) -> Result<&mut PySequence, PyDowncastError> {
+    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
+        value: V,
+    ) -> Result<&'v mut PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from_mut(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked(value: &PyObjectRef) -> &PySequence {
-        let ptr = value as *const _ as *const PySequence;
+    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v PySequence {
+        let ptr = value.into() as *const _ as *const PySequence;
         &*ptr
     }
 
     #[inline]
-    unsafe fn try_from_mut_unchecked(value: &PyObjectRef) -> &mut PySequence {
-        let ptr = value as *const _ as *mut PySequence;
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut PySequence {
+        let ptr = value.into() as *const _ as *mut PySequence;
         &mut *ptr
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::{PyTryFrom, ToPyObject};
     use crate::instance::AsPyRef;
     use crate::object::PyObject;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::python::{Python, ToPyPointer};
     use crate::types::PySequence;
+    use crate::AsPyPointer;
+    use crate::Python;
+    use crate::{PyTryFrom, ToPyObject};
 
     fn get_object() -> PyObject {
         // Convenience function for getting a single unique object

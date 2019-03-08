@@ -2,21 +2,19 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std;
+use super::PyObjectRef;
+use crate::err::{PyErr, PyResult};
+use crate::exceptions;
+use crate::ffi;
+use crate::instance::{Py, PyNativeType};
+use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Python;
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::str;
-
-use err::{PyErr, PyResult};
-use ffi;
-use instance::{Py, PyObjectWithGIL};
-use object::PyObject;
-use objectprotocol::ObjectProtocol;
-use python::IntoPyPointer;
-use python::{Python, ToPyPointer};
-use types::exceptions;
-
-use super::PyObjectRef;
 
 /// Represents a Python `string`.
 #[repr(transparent)]
@@ -206,14 +204,12 @@ impl std::convert::From<Py<PyUnicode>> for Py<PyString> {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
-
-    use conversion::{FromPyObject, PyTryFrom, ToPyObject};
-    use instance::AsPyRef;
-    use object::PyObject;
-    use python::Python;
-
     use super::PyString;
+    use crate::instance::AsPyRef;
+    use crate::object::PyObject;
+    use crate::Python;
+    use crate::{FromPyObject, PyTryFrom, ToPyObject};
+    use std::borrow::Cow;
 
     #[test]
     fn test_non_bmp() {
@@ -231,7 +227,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
 
-        let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+        let s2: &str = FromPyObject::extract(py_string.as_ref(py).into()).unwrap();
         assert_eq!(s, s2);
     }
 

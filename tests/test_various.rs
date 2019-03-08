@@ -1,10 +1,7 @@
-#![feature(specialization)]
-
-#[macro_use]
-extern crate pyo3;
-
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::types::PyTuple;
+use pyo3::wrap_pyfunction;
 use std::isize;
 
 #[macro_use]
@@ -30,8 +27,8 @@ impl MutRefArg {
 fn mut_ref_arg() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst1 = py.init(|| MutRefArg { n: 0 }).unwrap();
-    let inst2 = py.init(|| MutRefArg { n: 0 }).unwrap();
+    let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
+    let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
     let d = PyDict::new(py);
     d.set_item("inst1", &inst1).unwrap();
@@ -43,7 +40,7 @@ fn mut_ref_arg() {
 
 #[pyclass]
 struct PyUsize {
-    #[prop(get)]
+    #[pyo3(get)]
     pub value: usize,
 }
 
@@ -63,6 +60,62 @@ fn return_custom_class() {
     assert_eq!(get_zero().unwrap().value, 0);
 
     // Using from python
-    let get_zero = wrap_function!(get_zero)(py);
+    let get_zero = wrap_pyfunction!(get_zero)(py);
     py_assert!(py, get_zero, "get_zero().value == 0");
+}
+
+#[test]
+fn intopytuple_primitive() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = (1, 2, "foo");
+    py_assert!(py, tup, "tup == (1, 2, 'foo')");
+    py_assert!(py, tup, "tup[0] == 1");
+    py_assert!(py, tup, "tup[1] == 2");
+    py_assert!(py, tup, "tup[2] == 'foo'");
+}
+
+#[pyclass]
+struct SimplePyClass {}
+
+#[test]
+fn intopytuple_pyclass() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = (
+        PyRef::new(py, SimplePyClass {}).unwrap(),
+        PyRef::new(py, SimplePyClass {}).unwrap(),
+    );
+    py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
+    py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
+    py_assert!(py, tup, "tup[0] != tup[1]");
+}
+
+#[test]
+fn pytuple_primitive_iter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = PyTuple::new(py, [1u32, 2, 3].iter());
+    py_assert!(py, tup, "tup == (1, 2, 3)");
+}
+
+#[test]
+fn pytuple_pyclass_iter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let tup = PyTuple::new(
+        py,
+        [
+            PyRef::new(py, SimplePyClass {}).unwrap(),
+            PyRef::new(py, SimplePyClass {}).unwrap(),
+        ]
+        .into_iter(),
+    );
+    py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
+    py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
+    py_assert!(py, tup, "tup[0] != tup[1]");
 }

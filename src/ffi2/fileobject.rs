@@ -1,4 +1,4 @@
-use ffi2::object::*;
+use crate::ffi2::object::*;
 use libc::{size_t, FILE};
 use std::os::raw::{c_char, c_int};
 

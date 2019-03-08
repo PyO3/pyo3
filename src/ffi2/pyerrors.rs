@@ -1,9 +1,9 @@
-use ffi2::classobject::*;
-use ffi2::object::*;
-use ffi2::pyport::Py_ssize_t;
-use ffi2::stringobject::PyString_AS_STRING;
+use crate::ffi2::classobject::*;
+use crate::ffi2::object::*;
+use crate::ffi2::pyport::Py_ssize_t;
+use crate::ffi2::stringobject::PyString_AS_STRING;
 #[cfg(py_sys_config = "Py_USING_UNICODE")]
-use ffi2::unicodeobject::Py_UNICODE;
+use crate::ffi2::unicodeobject::Py_UNICODE;
 use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

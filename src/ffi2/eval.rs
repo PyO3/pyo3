@@ -1,5 +1,5 @@
-use ffi2::code::PyCodeObject;
-use ffi2::object::PyObject;
+use crate::ffi2::code::PyCodeObject;
+use crate::ffi2::object::PyObject;
 use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

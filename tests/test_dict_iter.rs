@@ -1,6 +1,5 @@
-extern crate pyo3;
-
-use pyo3::{prelude::*, types::IntoPyDict};
+use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 
 #[test]
 fn iter_dict_nosegv() {

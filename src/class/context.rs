@@ -6,7 +6,7 @@
 
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
 
 /// Context manager interface
 #[allow(unused_variables)]

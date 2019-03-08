@@ -163,9 +163,11 @@ mod bufferinfo {
             unsafe { mem::zeroed() }
         }
 
-    }
-    pub type getbufferproc =
-        unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer, arg3: c_int) -> c_int;
+    pub type getbufferproc = unsafe extern "C" fn(
+        arg1: *mut crate::ffi3::PyObject,
+        arg2: *mut Py_buffer,
+        arg3: c_int,
+    ) -> c_int;
     pub type releasebufferproc =
         unsafe extern "C" fn(arg1: *mut crate::ffi3::PyObject, arg2: *mut Py_buffer) -> ();
 
@@ -227,16 +229,20 @@ pub type richcmpfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int) -> *mut PyObject;
 pub type getiterfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
 pub type iternextfunc = unsafe extern "C" fn(arg1: *mut PyObject) -> *mut PyObject;
-pub type descrgetfunc =
-    unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> *mut PyObject;
+pub type descrgetfunc = unsafe extern "C" fn(
+    arg1: *mut PyObject,
+    arg2: *mut PyObject,
+    arg3: *mut PyObject,
+) -> *mut PyObject;
 pub type descrsetfunc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
 pub type initproc =
     unsafe extern "C" fn(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> c_int;
-pub type newfunc =
-    unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> *mut PyObject;
+pub type newfunc = unsafe extern "C" fn(
+    arg1: *mut PyTypeObject,
+    arg2: *mut PyObject,
+    arg3: *mut PyObject,
+) -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
 

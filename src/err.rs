@@ -1,14 +1,16 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use crate::exceptions;
 use crate::ffi;
 use crate::instance::Py;
 use crate::object::PyObject;
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::typeob::PyTypeObject;
-use crate::types::{exceptions, PyObjectRef, PyType};
+use crate::type_object::PyTypeObject;
+use crate::types::{PyObjectRef, PyType};
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use libc::c_int;
-use std;
 use std::error::Error;
 use std::ffi::CString;
 use std::io;
@@ -55,7 +57,6 @@ impl PyErr {
     /// Creates a new PyErr of type `T`.
     ///
     /// `value` can be:
-    /// * `NoArgs`: the exception instance will be created using python `T()`
     /// * a tuple: the exception instance will be created using python `T(*tuple)`
     /// * any other value: the exception instance will be created using python `T(value)`
     ///
@@ -522,7 +523,7 @@ pub fn error_on_minusone(py: Python, result: c_int) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::exceptions;
+    use crate::exceptions;
     use crate::{PyErr, Python};
 
     #[test]

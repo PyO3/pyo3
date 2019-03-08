@@ -1,5 +1,5 @@
-use ffi2::intobject::PyIntObject;
-use ffi2::object::*;
+use crate::ffi2::intobject::PyIntObject;
+use crate::ffi2::object::*;
 use std::os::raw::{c_int, c_long};
 
 pub type PyBoolObject = PyIntObject;

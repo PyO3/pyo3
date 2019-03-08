@@ -2,20 +2,20 @@
 
 //! Python type object information
 
-use std;
-use std::collections::HashMap;
-use std::ffi::CString;
-use std::mem;
-use std::os::raw::c_void;
-
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
-use crate::instance::{Py, PyObjectWithGIL};
-use crate::python::ToPyPointer;
-use crate::python::{IntoPyPointer, Python};
+use crate::instance::{Py, PyNativeType};
 use crate::types::PyObjectRef;
 use crate::types::PyType;
-use crate::{class, ffi, pythonrun};
+use crate::AsPyPointer;
+use crate::IntoPyPointer;
+use crate::Python;
+use crate::{class, ffi, gil};
+use class::methods::PyMethodsProtocol;
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::os::raw::c_void;
+use std::ptr::NonNull;
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -40,7 +40,8 @@ pub trait PyTypeInfo {
     /// Base class
     type BaseType: PyTypeInfo;
 
-    /// PyTypeObject instance for this type
+    /// PyTypeObject instance for this type, which might still need to
+    /// be initialized
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
@@ -74,8 +75,6 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 ///
 /// Example of custom class implementation with `__new__` method:
 /// ```
-/// #![feature(specialization)]
-///
 /// use pyo3::prelude::*;
 ///
 /// #[pyclass]
@@ -84,8 +83,8 @@ pub const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 /// #[pymethods]
 /// impl MyClass {
 ///    #[new]
-///    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-///        obj.init(|| MyClass { })
+///    fn new(obj: &PyRawObject) {
+///        obj.init(MyClass { })
 ///    }
 /// }
 /// ```
@@ -141,19 +140,12 @@ impl PyRawObject {
         }
     }
 
-    pub fn init<T, F>(&self, f: F) -> PyResult<()>
-    where
-        F: FnOnce() -> T,
-        T: PyTypeInfo,
-    {
-        let value = f();
-
+    pub fn init<T: PyTypeInfo>(&self, value: T) {
         unsafe {
             // The `as *mut u8` part is required because the offset is in bytes
             let ptr = (self.ptr as *mut u8).offset(T::OFFSET) as *mut T;
             std::ptr::write(ptr, value);
         }
-        Ok(())
     }
 
     /// Type object
@@ -180,12 +172,7 @@ impl IntoPyPointer for PyRawObject {
     }
 }
 
-impl PyObjectWithGIL for PyRawObject {
-    #[inline]
-    fn py(&self) -> Python {
-        unsafe { Python::assume_gil_acquired() }
-    }
-}
+unsafe impl PyNativeType for PyRawObject {}
 
 pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObject) {
     if T::OFFSET != 0 {
@@ -200,15 +187,10 @@ pub(crate) unsafe fn pytype_drop<T: PyTypeInfo>(py: Python, obj: *mut ffi::PyObj
 /// All native types and all `#[pyclass]` types use the default functions, while
 /// [PyObjectWithFreeList](crate::freelist::PyObjectWithFreeList) gets a special version.
 pub trait PyObjectAlloc: PyTypeInfo + Sized {
-    unsafe fn alloc(_py: Python) -> PyResult<*mut ffi::PyObject> {
-        // TODO: remove this
-        <Self as PyTypeCreate>::init_type();
-
+    unsafe fn alloc(_py: Python) -> *mut ffi::PyObject {
         let tp_ptr = Self::type_object();
         let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
-        let obj = alloc(tp_ptr, 0);
-
-        Ok(obj)
+        alloc(tp_ptr, 0)
     }
 
     /// Calls the rust destructor for the object and frees the memory
@@ -252,44 +234,49 @@ pub trait PyObjectAlloc: PyTypeInfo + Sized {
 
 /// Python object types that have a corresponding type object.
 pub trait PyTypeObject {
-    /// Initialize type object
-    fn init_type();
+    /// This function must make sure that the corresponding type object gets
+    /// initialized exactly once and return it.
+    fn init_type() -> NonNull<ffi::PyTypeObject>;
 
-    /// Retrieves the type object for this Python object type.
-    fn type_object() -> Py<PyType>;
+    /// Returns the safe abstraction over the type object from [PyTypeObject::init_type]
+    fn type_object() -> Py<PyType> {
+        unsafe { Py::from_borrowed_ptr(Self::init_type().as_ptr() as *mut ffi::PyObject) }
+    }
 }
 
-/// Python object types that have a corresponding type object and be
-/// instanciated with [Self::create()]
-pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
-    #[inline]
-    fn init_type() {
-        let type_object = unsafe { *<Self as PyTypeInfo>::type_object() };
+impl<T> PyTypeObject for T
+where
+    T: PyTypeInfo + PyMethodsProtocol + PyObjectAlloc,
+{
+    fn init_type() -> NonNull<ffi::PyTypeObject> {
+        let type_object = unsafe { <Self as PyTypeInfo>::type_object() };
 
         if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
             let gil = Python::acquire_gil();
             let py = gil.python();
 
-            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
+            initialize_type::<Self>(py).unwrap_or_else(|_| {
                 panic!("An error occurred while initializing class {}", Self::NAME)
             });
         }
-    }
 
-    #[inline]
-    fn type_object() -> Py<PyType> {
-        <Self as PyTypeObject>::init_type();
-        PyType::new::<Self>()
+        unsafe { NonNull::new_unchecked(type_object) }
     }
+}
 
+/// Python object types that can be instanciated with [Self::create()]
+///
+/// We can't just make this a part of [PyTypeObject] because exceptions have
+/// no PyTypeInfo
+pub trait PyTypeCreate: PyObjectAlloc + PyTypeObject + Sized {
     /// Create PyRawObject which can be initialized with rust value
     #[must_use]
     fn create(py: Python) -> PyResult<PyRawObject> {
-        <Self as PyTypeObject>::init_type();
+        Self::init_type();
 
         unsafe {
-            let ptr = <Self as PyObjectAlloc>::alloc(py)?;
+            let ptr = Self::alloc(py);
             PyRawObject::new_with_ptr(
                 py,
                 ptr,
@@ -300,41 +287,23 @@ pub trait PyTypeCreate: PyObjectAlloc + PyTypeInfo + Sized {
     }
 }
 
-impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeInfo + Sized {}
-
-impl<T> PyTypeObject for T
-where
-    T: PyTypeCreate,
-{
-    fn init_type() {
-        <T as PyTypeCreate>::init_type()
-    }
-
-    fn type_object() -> Py<PyType> {
-        <T as PyTypeCreate>::type_object()
-    }
-}
+impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeObject + Sized {}
 
 /// Register new type in python object system.
+///
+/// Currently, module_name is always None, so it defaults to pyo3_extension
 #[cfg(not(Py_LIMITED_API))]
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<()>
+pub fn initialize_type<T>(py: Python) -> PyResult<*mut ffi::PyTypeObject>
 where
-    T: PyObjectAlloc + PyTypeInfo,
+    T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
 {
-    // type name
-    let name = match module_name {
-        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME)),
-        None => CString::new(T::NAME),
-    };
-    let name = name
-        .expect("Module name/type name must not contain NUL byte")
-        .into_raw();
+    let type_name = CString::new(T::NAME).expect("class name must not contain NUL byte");
 
-    let type_object: &mut ffi::PyTypeObject = unsafe { &mut *T::type_object() };
+    let type_object: &mut ffi::PyTypeObject = unsafe { T::type_object() };
     let base_type_object: &mut ffi::PyTypeObject =
-        unsafe { &mut *<T::BaseType as PyTypeInfo>::type_object() };
+        unsafe { <T::BaseType as PyTypeInfo>::type_object() };
 
-    type_object.tp_name = name;
+    type_object.tp_name = type_name.into_raw();
     type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
     type_object.tp_base = base_type_object;
 
@@ -404,8 +373,7 @@ where
     let (new, init, call, mut methods) = py_class_method_defs::<T>()?;
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
-        type_object.tp_methods = methods.as_mut_ptr();
-        mem::forget(methods);
+        type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as *mut _;
     }
 
     if let (None, Some(_)) = (new, init) {
@@ -426,8 +394,7 @@ where
     let mut props = py_class_properties::<T>();
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
-        type_object.tp_getset = props.as_mut_ptr();
-        mem::forget(props);
+        type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as *mut _;
     }
 
     // set type flags
@@ -436,7 +403,7 @@ where
     // register type object
     unsafe {
         if ffi::PyType_Ready(type_object) == 0 {
-            Ok(())
+            Ok(type_object as *mut ffi::PyTypeObject)
         } else {
             PyErr::fetch(py).into()
         }
@@ -459,7 +426,7 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 where
     T: PyObjectAlloc,
 {
-    let _pool = pythonrun::GILPool::new_no_pointers();
+    let _pool = gil::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
     <T as PyObjectAlloc>::dealloc(py, obj)
 }
@@ -498,7 +465,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
-fn py_class_method_defs<T>() -> PyResult<(
+fn py_class_method_defs<T: PyMethodsProtocol>() -> PyResult<(
     Option<ffi::newfunc>,
     Option<ffi::initproc>,
     Option<ffi::PyCFunctionWithKeywords>,
@@ -509,7 +476,7 @@ fn py_class_method_defs<T>() -> PyResult<(
     let mut new = None;
     let mut init = None;
 
-    for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods() {
+    for def in T::py_methods() {
         match *def {
             PyMethodDefType::New(ref def) => {
                 if let class::methods::PyMethodType::PyNewFunc(meth) = def.ml_meth {
@@ -570,13 +537,10 @@ fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
 #[cfg(not(Py_3))]
 fn py_class_async_methods<T>(_defs: &mut Vec<ffi::PyMethodDef>) {}
 
-fn py_class_properties<T>() -> Vec<ffi::PyGetSetDef> {
+fn py_class_properties<T: PyMethodsProtocol>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();
 
-    for def in <T as class::methods::PyMethodsProtocolImpl>::py_methods()
-        .iter()
-        .chain(<T as class::methods::PyPropMethodsProtocolImpl>::py_methods().iter())
-    {
+    for def in T::py_methods() {
         match *def {
             PyMethodDefType::Getter(ref getter) => {
                 let name = getter.name.to_string();

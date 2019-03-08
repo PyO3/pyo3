@@ -1,14 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! This module contains the standard python exception types.
+//! Exception types defined by python.
 
-use crate::conversion::ToPyObject;
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::Py;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::PyTypeObject;
-use crate::types::{PyObjectRef, PyTuple, PyType};
+use crate::type_object::PyTypeObject;
+use crate::types::{PyObjectRef, PyTuple};
+use crate::Python;
+use crate::{AsPyPointer, ToPyObject};
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::{self, ops};
@@ -44,6 +43,7 @@ macro_rules! impl_exception_boilerplate {
 /// Defines rust type for exception defined in Python code.
 ///
 /// # Syntax
+///
 /// `import_exception!(module, MyError)`
 ///
 /// * `module` is the name of the containing module.
@@ -51,10 +51,9 @@ macro_rules! impl_exception_boilerplate {
 ///
 /// # Example
 /// ```
-/// #[macro_use] extern crate pyo3;
-///
-/// use pyo3::Python;
+/// use pyo3::import_exception;
 /// use pyo3::types::PyDict;
+/// use pyo3::Python;
 ///
 /// import_exception!(socket, gaierror);
 ///
@@ -64,8 +63,14 @@ macro_rules! impl_exception_boilerplate {
 ///     let ctx = PyDict::new(py);
 ///
 ///     ctx.set_item("gaierror", py.get_type::<gaierror>()).unwrap();
-///     py.run("import socket; assert gaierror is socket.gaierror", None, Some(ctx)).unwrap();
+///     py.run(
+///         "import socket; assert gaierror is socket.gaierror",
+///         None,
+///         Some(ctx),
+///     )
+///     .unwrap();
 /// }
+///
 /// ```
 #[macro_export]
 macro_rules! import_exception {
@@ -73,25 +78,19 @@ macro_rules! import_exception {
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name;
 
-        impl_exception_boilerplate!($name);
+        $crate::impl_exception_boilerplate!($name);
 
-        import_exception_type_object!($module, $name);
+        $crate::import_exception_type_object!($module, $name);
     };
 }
 
-/// `impl $crate::typeob::PyTypeObject for $name` where `$name` is an exception defined in python
+/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an exception defined in python
 /// code.
 #[macro_export]
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
-        impl $crate::typeob::PyTypeObject for $name {
-            #[inline]
-            fn init_type() {
-                let _ = Self::type_object();
-            }
-
-            #[inline]
-            fn type_object() -> $crate::Py<$crate::types::PyType> {
+        impl $crate::type_object::PyTypeObject for $name {
+            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
                 static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
@@ -115,11 +114,7 @@ macro_rules! import_exception_type_object {
                     }
                 });
 
-                unsafe {
-                    $crate::Py::from_borrowed_ptr(
-                        TYPE_OBJECT as *const _ as *mut $crate::ffi::PyObject,
-                    )
-                }
+                unsafe { std::ptr::NonNull::new_unchecked(TYPE_OBJECT) }
             }
         }
     };
@@ -136,10 +131,8 @@ macro_rules! import_exception_type_object {
 ///
 /// # Example
 /// ```
-/// #[macro_use]
-/// extern crate pyo3;
-///
 /// use pyo3::prelude::*;
+/// use pyo3::create_exception;
 /// use pyo3::types::PyDict;
 /// use pyo3::exceptions::Exception;
 ///
@@ -171,25 +164,19 @@ macro_rules! create_exception {
         #[allow(non_camel_case_types)] // E.g. `socket.herror`
         pub struct $name;
 
-        impl_exception_boilerplate!($name);
+        $crate::impl_exception_boilerplate!($name);
 
-        create_exception_type_object!($module, $name, $base);
+        $crate::create_exception_type_object!($module, $name, $base);
     };
 }
 
-/// `impl $crate::typeob::PyTypeObject for $name` where `$name` is an exception newly defined in
+/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an exception newly defined in
 /// rust code.
 #[macro_export]
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
-        impl $crate::typeob::PyTypeObject for $name {
-            #[inline]
-            fn init_type() {
-                let _ = Self::type_object();
-            }
-
-            #[inline]
-            fn type_object() -> $crate::Py<$crate::types::PyType> {
+        impl $crate::type_object::PyTypeObject for $name {
+            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
                 static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
@@ -208,11 +195,7 @@ macro_rules! create_exception_type_object {
                     }
                 });
 
-                unsafe {
-                    $crate::Py::from_borrowed_ptr(
-                        TYPE_OBJECT as *const _ as *mut $crate::ffi::PyObject,
-                    )
-                }
+                unsafe { std::ptr::NonNull::new_unchecked(TYPE_OBJECT) }
             }
         }
     };
@@ -241,14 +224,8 @@ macro_rules! impl_native_exception (
             }
         }
         impl PyTypeObject for $name {
-            #[inline]
-            fn init_type() {}
-
-            #[inline]
-            fn type_object() -> Py<PyType> {
-                unsafe {
-                    Py::from_borrowed_ptr(ffi::$exc_name)
-                }
+            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
+                unsafe { std::ptr::NonNull::new_unchecked(ffi::$exc_name as *mut _) }
             }
         }
     );
@@ -342,7 +319,7 @@ impl UnicodeDecodeError {
         reason: &CStr,
     ) -> PyResult<&'p PyObjectRef> {
         unsafe {
-            let input: &[c_char] = &*(input as *const [u8] as *const [i8]);
+            let input: &[c_char] = &*(input as *const [u8] as *const [c_char]);
             py.from_owned_ptr_or_err(ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
                 input.as_ptr(),
@@ -354,6 +331,7 @@ impl UnicodeDecodeError {
         }
     }
 
+    #[allow(clippy::range_plus_one)] // False positive, ..= returns the wrong type
     pub fn new_utf8<'p>(
         py: Python<'p>,
         input: &[u8],
@@ -401,8 +379,8 @@ pub mod socket {
 
 #[cfg(test)]
 mod test {
+    use crate::exceptions::Exception;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::exceptions::Exception;
     use crate::types::PyDict;
     use crate::{PyErr, Python};
 

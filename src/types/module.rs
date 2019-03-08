@@ -2,16 +2,21 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::conversion::{IntoPyTuple, ToPyObject};
 use crate::err::{PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::{initialize_type, PyTypeInfo};
-use crate::types::{exceptions, PyDict, PyObjectRef, PyType};
-use crate::PyObjectAlloc;
+use crate::type_object::PyTypeCreate;
+use crate::type_object::PyTypeObject;
+use crate::types::PyTuple;
+use crate::types::{PyDict, PyObjectRef};
+use crate::AsPyPointer;
+use crate::IntoPy;
+use crate::Py;
+use crate::Python;
+use crate::ToPyObject;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -62,7 +67,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as crate::conversion::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
         }
     }
 
@@ -105,10 +110,12 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
-    pub fn call<A>(&self, name: &str, args: A, kwargs: Option<&PyDict>) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
+    pub fn call(
+        &self,
+        name: &str,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObjectRef> {
         self.getattr(name)?.call(args, kwargs)
     }
 
@@ -120,10 +127,7 @@ impl PyModule {
 
     /// Calls a function in the module.
     /// This is equivalent to the Python expression: `getattr(module, name)(*args)`
-    pub fn call1<A>(&self, name: &str, args: A) -> PyResult<&PyObjectRef>
-    where
-        A: IntoPyTuple,
-    {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObjectRef> {
         self.getattr(name)?.call1(args)
     }
 
@@ -150,39 +154,25 @@ impl PyModule {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()>
     where
-        T: PyTypeInfo + PyObjectAlloc,
+        T: PyTypeCreate,
     {
-        let ty = unsafe {
-            let ty = <T as PyTypeInfo>::type_object();
-
-            if ((*ty).tp_flags & ffi::Py_TPFLAGS_READY) != 0 {
-                PyType::new::<T>()
-            } else {
-                // automatically initialize the class
-                initialize_type::<T>(self.py(), Some(self.name()?)).unwrap_or_else(|_| {
-                    panic!("An error occurred while initializing class {}", T::NAME)
-                });
-                PyType::new::<T>()
-            }
-        };
-
-        self.setattr(T::NAME, ty)
+        self.setattr(T::NAME, <T as PyTypeObject>::type_object())
     }
 
     /// Adds a function or a (sub)module to a module, using the functions __name__ as name.
     ///
-    /// Use this together with the`#[pyfunction]` and [wrap_function!] or `#[pymodule]` and
-    /// [wrap_module!].
+    /// Use this together with the`#[pyfunction]` and [wrap_pyfunction!] or `#[pymodule]` and
+    /// [wrap_pymodule!].
     ///
     /// ```rust,ignore
-    /// m.add_wrapped(wrap_function!(double));
-    /// m.add_wrapped(wrap_module!(utils));
+    /// m.add_wrapped(wrap_pyfunction!(double));
+    /// m.add_wrapped(wrap_pymodule!(utils));
     /// ```
     ///
     /// You can also add a function with a custom name using [add](PyModule::add):
     ///
     /// ```rust,ignore
-    /// m.add("also_double", wrap_function!(double)(py));
+    /// m.add("also_double", wrap_pyfunction!(double)(py));
     /// ```
     pub fn add_wrapped(&self, wrapper: &Fn(Python) -> PyObject) -> PyResult<()> {
         let function = wrapper(self.py());

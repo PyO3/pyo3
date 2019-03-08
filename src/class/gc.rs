@@ -3,11 +3,11 @@
 //! Python GC support
 //!
 
-use std::os::raw::{c_int, c_void};
-
 use crate::ffi;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::PyTypeInfo;
+use crate::type_object::PyTypeInfo;
+use crate::AsPyPointer;
+use crate::Python;
+use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]
 pub struct PyTraverseError(c_int);
@@ -57,7 +57,7 @@ pub struct PyVisit<'p> {
 impl<'p> PyVisit<'p> {
     pub fn call<T>(&self, obj: &T) -> Result<(), PyTraverseError>
     where
-        T: ToPyPointer,
+        T: AsPyPointer,
     {
         let r = unsafe { (self.visit)(obj.as_ptr(), self.arg) };
         if r == 0 {

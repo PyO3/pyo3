@@ -29,17 +29,17 @@ macro_rules! py_unary_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_unary_func_self {
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:ty) => {{
+macro_rules! py_unary_pyref_func {
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::ObjectProtocol;
+            use $crate::instance::PyRefMut;
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
-            let res = slf.$f().into();
+            let res = $class::$f(PyRefMut::from_mut(slf)).into();
             $crate::callback::cb_convert($conv, py, res)
         }
         Some(wrap::<$class>)
@@ -160,7 +160,7 @@ macro_rules! py_binary_self_func {
                 }
                 Err(e) => {
                     e.restore(py);
-                    $crate::std::ptr::null_mut()
+                    std::ptr::null_mut()
                 }
             }
         }
@@ -302,7 +302,7 @@ macro_rules! py_ternary_self_func {
                 Ok(_) => slf,
                 Err(e) => {
                     e.restore(py);
-                    $crate::std::ptr::null_mut()
+                    std::ptr::null_mut()
                 }
             }
         }
@@ -317,7 +317,7 @@ macro_rules! py_func_set {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> $crate::libc::c_int
+        ) -> libc::c_int
         where
             T: for<'p> $trait_name<'p>,
         {
@@ -365,7 +365,7 @@ macro_rules! py_func_del {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> $crate::libc::c_int
+        ) -> libc::c_int
         where
             U: for<'p> $trait_name<'p>,
         {
@@ -407,7 +407,7 @@ macro_rules! py_func_set_del {
             slf: *mut $crate::ffi::PyObject,
             name: *mut $crate::ffi::PyObject,
             value: *mut $crate::ffi::PyObject,
-        ) -> $crate::libc::c_int
+        ) -> libc::c_int
         where
             T: for<'p> $trait1<'p> + for<'p> $trait2<'p>,
         {

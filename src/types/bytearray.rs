@@ -2,9 +2,10 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
+use crate::AsPyPointer;
+use crate::Python;
 use std::os::raw::c_char;
 use std::slice;
 
@@ -29,7 +30,7 @@ impl PyByteArray {
     /// from other PyObject, that implements the buffer protocol.
     pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
     where
-        I: ToPyPointer,
+        I: AsPyPointer,
     {
         unsafe { py.from_owned_ptr_or_err(ffi::PyByteArray_FromObject(src.as_ptr())) }
     }
@@ -72,8 +73,8 @@ impl PyByteArray {
 mod test {
     use crate::exceptions;
     use crate::object::PyObject;
-    use crate::python::Python;
     use crate::types::PyByteArray;
+    use crate::Python;
 
     #[test]
     fn test_bytearray() {

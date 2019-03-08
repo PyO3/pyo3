@@ -1,11 +1,8 @@
 #![feature(concat_idents)]
 
-extern crate pyo3;
-
 use pyo3::ffi::*;
 use pyo3::prelude::*;
-use pyo3::types::{PyDate, PyDateTime, PyDict, PyObjectRef, PyTime};
-use std::iter;
+use pyo3::types::{PyDict, PyObjectRef};
 
 fn _get_subclasses<'p>(
     py: &'p Python,
@@ -40,7 +37,7 @@ fn _get_subclasses<'p>(
 macro_rules! assert_check_exact {
     ($check_func:ident, $obj: expr) => {
         unsafe {
-            use pyo3::ToPyPointer;
+            use pyo3::AsPyPointer;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) != 0);
         }
@@ -50,7 +47,7 @@ macro_rules! assert_check_exact {
 macro_rules! assert_check_only {
     ($check_func:ident, $obj: expr) => {
         unsafe {
-            use pyo3::ToPyPointer;
+            use pyo3::AsPyPointer;
             assert!($check_func(($obj).as_ptr()) != 0);
             assert!(concat_idents!($check_func, Exact)(($obj).as_ptr()) == 0);
         }
@@ -106,6 +103,8 @@ fn test_delta_check() {
 #[test]
 #[cfg(Py_3)]
 fn test_datetime_utc() {
+    use pyo3::types::PyDateTime;
+
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -126,6 +125,7 @@ fn test_datetime_utc() {
     assert_eq!(offset, 0f32);
 }
 
+#[cfg(Py_3)]
 static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (-1, 1, 1),
     (0, 1, 1),
@@ -138,54 +138,54 @@ static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (2018, 1, 32),
 ];
 
+#[cfg(Py_3)]
 static INVALID_TIMES: &'static [(u8, u8, u8, u32)] =
     &[(25, 0, 0, 0), (255, 0, 0, 0), (0, 60, 0, 0), (0, 0, 61, 0)];
 
 #[cfg(Py_3_6)]
 #[test]
 fn test_pydate_out_of_bounds() {
+    use pyo3::types::PyDate;
+
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
     for val in INVALID_DATES.into_iter() {
         let (year, month, day) = val;
         let dt = PyDate::new(py, *year, *month, *day);
-        let msg = format!("Should have raised an error: {:#?}", val);
-        match dt {
-            Ok(_) => assert!(false, msg),
-            Err(_) => assert!(true),
-        }
+        dt.unwrap_err();
     }
 }
 
 #[cfg(Py_3_6)]
 #[test]
 fn test_pytime_out_of_bounds() {
+    use pyo3::types::PyTime;
+
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    for val in INVALID_TIMES.into_iter() {
+    for val in INVALID_TIMES {
         let (hour, minute, second, microsecond) = val;
         let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
-        let msg = format!("Should have raised an error: {:#?}", val);
-        match dt {
-            Ok(_) => assert!(false, msg),
-            Err(_) => assert!(true),
-        }
+        dt.unwrap_err();
     }
 }
 
 #[cfg(Py_3_6)]
 #[test]
 fn test_pydatetime_out_of_bounds() {
+    use pyo3::types::PyDateTime;
+    use std::iter;
+
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
     let valid_time = (0, 0, 0, 0);
     let valid_date = (2018, 1, 1);
 
-    let invalid_dates = INVALID_DATES.into_iter().zip(iter::repeat(&valid_time));
-    let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.into_iter());
+    let invalid_dates = INVALID_DATES.iter().zip(iter::repeat(&valid_time));
+    let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.iter());
 
     let vals = invalid_dates.chain(invalid_times);
 
@@ -204,10 +204,6 @@ fn test_pydatetime_out_of_bounds() {
             *microsecond,
             None,
         );
-        let msg = format!("Should have raised an error: {:#?}", val);
-        match dt {
-            Ok(_) => assert!(false, msg),
-            Err(_) => assert!(true),
-        }
+        dt.unwrap_err();
     }
 }

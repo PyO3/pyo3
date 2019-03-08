@@ -1,5 +1,5 @@
-use ffi2::object::*;
-use ffi2::pyport::Py_ssize_t;
+use crate::ffi2::object::*;
+use crate::ffi2::pyport::Py_ssize_t;
 use libc::size_t;
 use std::os::raw::{c_char, c_int, c_long, c_ulong, c_ulonglong};
 
@@ -37,7 +37,7 @@ extern "C" {
         -> *mut PyObject;
     #[cfg(py_sys_config = "Py_USING_UNICODE")]
     pub fn PyInt_FromUnicode(
-        u: *mut ::ffi2::unicodeobject::Py_UNICODE,
+        u: *mut crate::ffi2::unicodeobject::Py_UNICODE,
         length: Py_ssize_t,
         base: c_int,
     ) -> *mut PyObject;

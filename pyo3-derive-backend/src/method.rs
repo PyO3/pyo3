@@ -1,9 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use syn;
-
-use args::{parse_arguments, Argument};
+use crate::pyfunction::Argument;
+use crate::pyfunction::PyFunctionAttr;
 use proc_macro2::TokenStream;
+use quote::quote;
 use quote::ToTokens;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -39,7 +39,7 @@ pub struct FnSpec<'a> {
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
     match output {
-        syn::ReturnType::Default => syn::Type::Infer(parse_quote!{_}),
+        syn::ReturnType::Default => syn::Type::Infer(syn::parse_quote! {_}),
         syn::ReturnType::Type(_, ref ty) => *ty.clone(),
     }
 }
@@ -50,21 +50,21 @@ impl<'a> FnSpec<'a> {
         name: &'a syn::Ident,
         sig: &'a syn::MethodSig,
         meth_attrs: &'a mut Vec<syn::Attribute>,
-    ) -> FnSpec<'a> {
-        let (fn_type, fn_attrs) = parse_attributes(meth_attrs);
+    ) -> syn::Result<FnSpec<'a>> {
+        let (fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
 
         let mut has_self = false;
         let mut arguments = Vec::new();
 
         for input in sig.decl.inputs.iter() {
             match input {
-                &syn::FnArg::SelfRef(_) => {
+                syn::FnArg::SelfRef(_) => {
                     has_self = true;
                 }
-                &syn::FnArg::SelfValue(_) => {
+                syn::FnArg::SelfValue(_) => {
                     has_self = true;
                 }
-                &syn::FnArg::Captured(syn::ArgCaptured {
+                syn::FnArg::Captured(syn::ArgCaptured {
                     ref pat, ref ty, ..
                 }) => {
                     // skip first argument (cls)
@@ -74,17 +74,19 @@ impl<'a> FnSpec<'a> {
                     }
 
                     let (ident, by_ref, mutability) = match pat {
-                        &syn::Pat::Ident(syn::PatIdent {
+                        syn::Pat::Ident(syn::PatIdent {
                             ref ident,
                             ref by_ref,
                             ref mutability,
                             ..
                         }) => (ident, by_ref, mutability),
-                        _ => panic!("unsupported argument: {:?}", pat),
+                        _ => {
+                            return Err(syn::Error::new_spanned(pat, "unsupported argument"));
+                        }
                     };
 
                     let py = match ty {
-                        &syn::Type::Path(syn::TypePath { ref path, .. }) => {
+                        syn::Type::Path(syn::TypePath { ref path, .. }) => {
                             if let Some(segment) = path.segments.last() {
                                 segment.value().ident == "Python"
                             } else {
@@ -100,32 +102,35 @@ impl<'a> FnSpec<'a> {
                         by_ref,
                         mutability,
                         // mode: mode,
-                        ty: ty,
+                        ty,
                         optional: opt,
-                        py: py,
+                        py,
                         reference: is_ref(name, ty),
                     });
                 }
-                &syn::FnArg::Ignored(_) => panic!("ignored argument: {:?}", name),
-                &syn::FnArg::Inferred(_) => panic!("ingerred argument: {:?}", name),
+                syn::FnArg::Ignored(_) => {
+                    return Err(syn::Error::new_spanned(name, "ignored argument"));
+                }
+                syn::FnArg::Inferred(_) => {
+                    return Err(syn::Error::new_spanned(name, "inferred argument"));
+                }
             }
         }
 
         let ty = get_return_info(&sig.decl.output);
 
-        FnSpec {
+        Ok(FnSpec {
             tp: fn_type,
             attrs: fn_attrs,
             args: arguments,
             output: ty,
-        }
+        })
     }
 
     pub fn is_args(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
-            match *s {
-                Argument::VarArgs(ref ident) => return name == ident,
-                _ => (),
+            if let Argument::VarArgs(ref ident) = s {
+                return name == ident;
             }
         }
         false
@@ -144,9 +149,8 @@ impl<'a> FnSpec<'a> {
 
     pub fn is_kwargs(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
-            match *s {
-                Argument::KeywordArgs(ref ident) => return name == ident,
-                _ => (),
+            if let Argument::KeywordArgs(ref ident) = s {
+                return name == ident;
             }
         }
         false
@@ -154,9 +158,8 @@ impl<'a> FnSpec<'a> {
 
     pub fn accept_kwargs(&self) -> bool {
         for s in self.attrs.iter() {
-            match *s {
-                Argument::KeywordArgs(_) => return true,
-                _ => (),
+            if let Argument::KeywordArgs(_) = s {
+                return true;
             }
         }
         false
@@ -167,7 +170,7 @@ impl<'a> FnSpec<'a> {
             match *s {
                 Argument::Arg(ref ident, ref opt) => {
                     if ident == name {
-                        if let &Some(ref val) = opt {
+                        if let Some(ref val) = opt {
                             let i: syn::Expr = syn::parse_str(&val).unwrap();
                             return Some(i.into_token_stream());
                         }
@@ -187,36 +190,33 @@ impl<'a> FnSpec<'a> {
 
     pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
-            match *s {
-                Argument::Kwarg(ref ident, _) => {
-                    if ident == name {
-                        return true;
-                    }
+            if let Argument::Kwarg(ref ident, _) = s {
+                if ident == name {
+                    return true;
                 }
-                _ => (),
             }
         }
         false
     }
 }
 
-pub fn is_ref<'a>(name: &'a syn::Ident, ty: &'a syn::Type) -> bool {
+pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {
     match ty {
-        &syn::Type::Reference(_) => return true,
-        &syn::Type::Path(syn::TypePath { ref path, .. }) => {
+        syn::Type::Reference(_) => return true,
+        syn::Type::Path(syn::TypePath { ref path, .. }) => {
             if let Some(segment) = path.segments.last() {
-                match segment.value().ident.to_string().as_str() {
-                    "Option" => match segment.value().arguments {
+                if "Option" == segment.value().ident.to_string().as_str() {
+                    match segment.value().arguments {
                         syn::PathArguments::AngleBracketed(ref params) => {
                             if params.args.len() != 1 {
                                 panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                           name,
-                                           ty,
-                                           path);
+                                       name,
+                                       ty,
+                                       path);
                             }
-                            match &params.args[params.args.len() - 1] {
-                                &syn::GenericArgument::Type(syn::Type::Reference(_)) => return true,
-                                _ => (),
+                            let last = &params.args[params.args.len() - 1];
+                            if let syn::GenericArgument::Type(syn::Type::Reference(_)) = last {
+                                return true;
                             }
                         }
                         _ => {
@@ -225,8 +225,7 @@ pub fn is_ref<'a>(name: &'a syn::Ident, ty: &'a syn::Type) -> bool {
                                 name, ty, path
                             );
                         }
-                    },
-                    _ => (),
+                    }
                 }
             }
         }
@@ -240,8 +239,8 @@ pub fn check_arg_ty_and_optional<'a>(
     ty: &'a syn::Type,
 ) -> Option<&'a syn::Type> {
     match ty {
-        &syn::Type::Path(syn::TypePath { ref path, .. }) => {
-            //if let &Some(ref qs) = qs {
+        syn::Type::Path(syn::TypePath { ref path, .. }) => {
+            //if let Some(ref qs) = qs {
             //    panic!("explicit Self type in a 'qualified path' is not supported: {:?} - {:?}",
             //           name, qs);
             //}
@@ -252,18 +251,18 @@ pub fn check_arg_ty_and_optional<'a>(
                         syn::PathArguments::AngleBracketed(ref params) => {
                             if params.args.len() != 1 {
                                 panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                           name,
-                                           ty,
-                                           path);
+                                       name,
+                                       ty,
+                                       path);
                             }
 
                             match &params.args[0] {
-                                    &syn::GenericArgument::Type(ref ty) => Some(ty),
-                                    _ => panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
-                                                    name,
-                                                    ty,
-                                                    path),
-                                }
+                                syn::GenericArgument::Type(ref ty) => Some(ty),
+                                _ => panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
+                                            name,
+                                            ty,
+                                            path),
+                            }
                         }
                         _ => {
                             panic!(
@@ -287,7 +286,7 @@ pub fn check_arg_ty_and_optional<'a>(
     }
 }
 
-fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) {
+fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec<Argument>)> {
     let mut new_attrs = Vec::new();
     let mut spec = Vec::new();
     let mut res: Option<FnType> = None;
@@ -365,8 +364,8 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
                     }
                 }
                 "args" => {
-                    let args = nested.iter().cloned().collect::<Vec<_>>();
-                    spec.extend(parse_arguments(args.as_slice()))
+                    let attrs = PyFunctionAttr::from_meta(nested)?;
+                    spec.extend(attrs.arguments)
                 }
                 _ => new_attrs.push(attr.clone()),
             },
@@ -377,7 +376,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> (FnType, Vec<Argument>) 
     attrs.extend(new_attrs);
 
     match res {
-        Some(tp) => (tp, spec),
-        None => (FnType::Fn, spec),
+        Some(tp) => Ok((tp, spec)),
+        None => Ok((FnType::Fn, spec)),
     }
 }

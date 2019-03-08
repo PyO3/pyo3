@@ -1,8 +1,8 @@
-use ffi2::frameobject::PyFrameObject;
-use ffi2::object::PyObject;
-use ffi2::pyport::Py_ssize_t;
-use ffi2::pystate::{PyThreadState, Py_tracefunc};
-use ffi2::pythonrun::PyCompilerFlags;
+use crate::ffi2::frameobject::PyFrameObject;
+use crate::ffi2::object::PyObject;
+use crate::ffi2::pyport::Py_ssize_t;
+use crate::ffi2::pystate::{PyThreadState, Py_tracefunc};
+use crate::ffi2::pythonrun::PyCompilerFlags;
 use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

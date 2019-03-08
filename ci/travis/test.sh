@@ -1,18 +1,12 @@
-#!/bin/sh
-
+#!/bin/bash
 set -ex
 
-cargo build --features $FEATURES
-cargo clippy --features $FEATURES
-cargo test --features $FEATURES
+cargo test --features "$FEATURES num-complex"
+if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
+    cargo fmt --all -- --check
+    cargo clippy --features "$FEATURES num-complex"
+fi
 
-for example in examples/*; do
-  cd $example
-  if [ -f tox.ini ]; then
-      tox -e py
-  else
-    pip install -e .
-    pytest -v tests
-  fi
-  cd $TRAVIS_BUILD_DIR
+for example_dir in examples/*; do
+    tox -c "$example_dir/tox.ini" -e py
 done

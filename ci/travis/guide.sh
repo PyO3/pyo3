@@ -5,10 +5,10 @@ set -ex
 ### Setup latest mdbook version ################################################
 
 INSTALLED=$(echo $(mdbook --version 2>/dev/null || echo "mdbook none") | cut -d' ' -f1)
-PINNED=0.1.5
+PINNED=0.2.1
 
 if [ "$PINNED" != "$INSTALLED" ]; then
-    URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${PINNED}/mdbook-v${PINNED}-x86_64-unknown-linux-gnu.tar.gz
+    URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${PINNED}/mdbook-v${PINNED}-x86_64-unknown-linux-musl.tar.gz
     curl -SsL $URL | tar xvz -C $HOME/.cargo/bin
 fi
 

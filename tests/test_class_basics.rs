@@ -1,7 +1,3 @@
-#![feature(specialization)]
-
-extern crate pyo3;
-
 use pyo3::prelude::*;
 
 #[macro_use]
@@ -16,7 +12,7 @@ fn empty_class() {
     let py = gil.python();
     let typeobj = py.get_type::<EmptyClass>();
     // By default, don't allow creating instances from python.
-    assert!(typeobj.call(NoArgs, None).is_err());
+    assert!(typeobj.call((), None).is_err());
 
     py_assert!(py, typeobj, "typeobj.__name__ == 'EmptyClass'");
 }
@@ -68,11 +64,17 @@ fn empty_class_in_module() {
         ty.getattr("__name__").unwrap().extract::<String>().unwrap(),
         "EmptyClassInModule"
     );
-    assert_eq!(
-        ty.getattr("__module__")
-            .unwrap()
-            .extract::<String>()
-            .unwrap(),
-        "test_module.nested"
-    );
+
+    let builtin = if cfg!(feature = "python2") {
+        "__builtin__"
+    } else {
+        "builtins"
+    };
+
+    let module: String = ty.getattr("__module__").unwrap().extract().unwrap();
+
+    // Rationale: The class can be added to many modules, but will only be initialized once.
+    // We currently have no way of determining a canonical module, so builtins is better
+    // than using whatever calls init first.
+    assert_eq!(module, builtin);
 }

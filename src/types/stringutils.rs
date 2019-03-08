@@ -1,10 +1,10 @@
-use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use crate::err::PyResult;
-use crate::instance::PyObjectWithGIL;
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::python::Python;
 use crate::types::{PyObjectRef, PyString};
 use crate::FromPyObject;
+use crate::Python;
+use crate::{IntoPyObject, PyTryFrom, ToPyObject};
 use std::borrow::Cow;
 
 /// Converts Rust `str` to Python object.

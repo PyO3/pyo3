@@ -1,24 +1,24 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use std;
-use std::ptr::NonNull;
-
-use crate::conversion::{
-    FromPyObject, IntoPyObject, IntoPyTuple, PyTryFrom, ToBorrowedObject, ToPyObject,
-};
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, PyObjectWithGIL};
-use crate::python::{IntoPyPointer, Python, ToPyPointer};
-use crate::pythonrun;
+use crate::gil;
+use crate::instance::{AsPyRef, PyNativeType, PyRef, PyRefMut};
 use crate::types::{PyDict, PyObjectRef, PyTuple};
+use crate::AsPyPointer;
+use crate::Py;
+use crate::Python;
+use crate::{
+    FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
+};
+use std::ptr::NonNull;
 
 /// A python object
 ///
 /// The python object's lifetime is managed by python's garbage
 /// collector.
 ///
-/// Technically, it is a safe wrapper around the unsafe `*mut ffi::PyObject` pointer.
+/// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>`.
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct PyObject(NonNull<ffi::PyObject>);
@@ -155,7 +155,7 @@ impl PyObject {
     /// Casts the PyObject to a concrete Python object type.
     pub fn cast_as<D>(&self, py: Python) -> Result<&D, PyDowncastError>
     where
-        D: PyTryFrom,
+        D: for<'v> PyTryFrom<'v>,
     {
         D::try_from(self.as_ref(py))
     }
@@ -166,7 +166,7 @@ impl PyObject {
     where
         D: FromPyObject<'p>,
     {
-        FromPyObject::extract(self.as_ref(py))
+        FromPyObject::extract(self.as_ref(py).into())
     }
 
     /// Retrieves an attribute value.
@@ -182,11 +182,13 @@ impl PyObject {
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
-    pub fn call<A>(&self, py: Python, args: A, kwargs: Option<&PyDict>) -> PyResult<PyObject>
-    where
-        A: IntoPyTuple,
-    {
-        let args = args.into_tuple(py).into_ptr();
+    pub fn call(
+        &self,
+        py: Python,
+        args: impl IntoPy<Py<PyTuple>>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
+        let args = args.into_py(py).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
             PyObject::from_owned_ptr_or_err(py, ffi::PyObject_Call(self.as_ptr(), args, kwargs))
@@ -201,15 +203,12 @@ impl PyObject {
     /// Calls the object without arguments.
     /// This is equivalent to the Python expression: 'self()'
     pub fn call0(&self, py: Python) -> PyResult<PyObject> {
-        self.call(py, PyTuple::empty(py), None)
+        self.call(py, (), None)
     }
 
     /// Calls the object.
     /// This is equivalent to the Python expression: 'self(*args)'
-    pub fn call1<A>(&self, py: Python, args: A) -> PyResult<PyObject>
-    where
-        A: IntoPyTuple,
-    {
+    pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
@@ -219,11 +218,11 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         name.with_borrowed_ptr(py, |name| unsafe {
-            let args = args.into_tuple(py).into_ptr();
+            let args = args.into_py(py).into_ptr();
             let kwargs = kwargs.into_ptr();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
             if ptr.is_null() {
@@ -240,7 +239,7 @@ impl PyObject {
     /// Calls a method on the object.
     /// This is equivalent to the Python expression: 'self.name()'
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
-        self.call_method(py, name, PyTuple::empty(py), None)
+        self.call_method(py, name, (), None)
     }
 
     /// Calls a method on the object.
@@ -249,7 +248,7 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPyTuple,
+        args: impl IntoPy<Py<PyTuple>>,
     ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
     }
@@ -257,12 +256,12 @@ impl PyObject {
 
 impl AsPyRef<PyObjectRef> for PyObject {
     #[inline]
-    fn as_ref(&self, _py: Python) -> &PyObjectRef {
-        unsafe { &*(self as *const _ as *mut PyObjectRef) }
+    fn as_ref(&self, _py: Python) -> PyRef<PyObjectRef> {
+        unsafe { PyRef::from_ref(&*(self as *const _ as *const PyObjectRef)) }
     }
     #[inline]
-    fn as_mut(&mut self, _py: Python) -> &mut PyObjectRef {
-        unsafe { &mut *(self as *const _ as *mut PyObjectRef) }
+    fn as_mut(&mut self, _py: Python) -> PyRefMut<PyObjectRef> {
+        unsafe { PyRefMut::from_mut(&mut *(self as *mut _ as *mut PyObjectRef)) }
     }
 }
 
@@ -273,15 +272,7 @@ impl ToPyObject for PyObject {
     }
 }
 
-impl ToPyPointer for PyObject {
-    /// Gets the underlying FFI pointer, returns a borrowed pointer.
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.0.as_ptr()
-    }
-}
-
-impl<'a> ToPyPointer for &'a PyObject {
+impl AsPyPointer for PyObject {
     /// Gets the underlying FFI pointer, returns a borrowed pointer.
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -327,16 +318,16 @@ impl<'a> FromPyObject<'a> for PyObject {
 impl Drop for PyObject {
     fn drop(&mut self) {
         unsafe {
-            pythonrun::register_pointer(self.0);
+            gil::register_pointer(self.0);
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::PyObject;
-    use crate::python::Python;
     use crate::types::PyDict;
+    use crate::PyObject;
+    use crate::Python;
 
     #[test]
     fn test_call_for_non_existing_method() {

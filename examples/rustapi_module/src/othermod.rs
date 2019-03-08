@@ -3,6 +3,7 @@
 //! The code below just tries to use the most important code generation paths
 
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 
 #[pyclass]
 pub struct ModClass {
@@ -12,8 +13,8 @@ pub struct ModClass {
 #[pymethods]
 impl ModClass {
     #[new]
-    fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|| ModClass {
+    fn new(obj: &PyRawObject) {
+        obj.init(ModClass {
             _somefield: String::from("contents"),
         })
     }
@@ -29,8 +30,8 @@ fn double(x: i32) -> i32 {
 }
 
 #[pymodule]
-fn othermod(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_function!(double))?;
+fn othermod(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(double))?;
     m.add_class::<ModClass>()?;
 
     m.add("USIZE_MIN", usize::min_value())?;

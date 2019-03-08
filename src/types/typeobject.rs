@@ -2,15 +2,15 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use std::borrow::Cow;
-use std::ffi::CStr;
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{Py, PyObjectWithGIL};
+use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
-use crate::python::{Python, ToPyPointer};
-use crate::typeob::{PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyTypeInfo, PyTypeObject};
+use crate::AsPyPointer;
+use crate::Python;
+use std::borrow::Cow;
+use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
@@ -59,7 +59,7 @@ impl PyType {
     }
 
     // Check whether `obj` is an instance of `self`
-    pub fn is_instance<T: ToPyPointer>(&self, obj: &T) -> PyResult<bool> {
+    pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr()) };
         if result == -1 {
             Err(PyErr::fetch(self.py()))
