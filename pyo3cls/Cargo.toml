@@ -1,11 +1,11 @@
 [package]
 name = "pyo3cls"
-version = "0.2.1"
+version = "0.5.0"
 description = "Proc macros for PyO3 package"
-authors = ["PyO3 Project and Contributors <https://github.com/PyO3"]
+authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
+keywords = ["pyo3", "python", "cpython", "ffi"]
 homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3.git"
-documentation = "http://pyo3.github.io/PyO3/pyo3/"
+repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 
@@ -13,9 +13,7 @@ license = "Apache-2.0"
 proc-macro = true
 
 [dependencies]
-quote="0.3"
-log="0.4"
-
-[dependencies.syn]
-version="0.11"
-features=["full"]
+quote= "0.6.9"
+proc-macro2 = "0.4.20"
+syn = { version = "0.15.15", features = ["full", "extra-traits"] }
+pyo3-derive-backend = { path = "../pyo3-derive-backend", version = "=0.5.0" }

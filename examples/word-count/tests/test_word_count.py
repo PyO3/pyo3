@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-
 import os
 
 import pytest
-
 import word_count
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
-path = os.path.join(current_dir, 'zen-of-python.txt')
+path = os.path.join(current_dir, "zen-of-python.txt")
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def textfile():
-    text = '''The Zen of Python, by Tim Peters
+    text = """
+The Zen of Python, by Tim Peters
 
 Beautiful is better than ugly.
 Explicit is better than implicit.
@@ -33,23 +31,25 @@ Now is better than never.
 Although never is often better than *right* now.
 If the implementation is hard to explain, it's a bad idea.
 If the implementation is easy to explain, it may be a good idea.
-Namespaces are one honking great idea -- let's do more of those!\n''' * 1000
-    with open(path, 'w') as f:
-        f.write(text)
+Namespaces are one honking great idea -- let's do more of those!
+"""
+
+    with open(path, "w") as f:
+        f.write(text * 1000)
     yield
     os.remove(path)
 
 
 def test_word_count_rust_parallel(benchmark):
-    count = benchmark(word_count.search, path, 'is')
+    count = benchmark(word_count.WordCounter(path).search, "is")
     assert count == 10000
 
 
 def test_word_count_rust_sequential(benchmark):
-    count = benchmark(word_count.search_sequential, path, 'is')
+    count = benchmark(word_count.WordCounter(path).search_sequential, "is")
     assert count == 10000
 
 
 def test_word_count_python_sequential(benchmark):
-    count = benchmark(word_count.search_py, path, 'is')
+    count = benchmark(word_count.search_py, path, "is")
     assert count == 10000

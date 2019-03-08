@@ -1,29 +1,26 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
-use std::ptr;
 use std::os::raw::{c_int, c_void};
+use std::ptr;
 
-use pyo3::prelude::*;
+use pyo3::class::PyBufferProtocol;
+use pyo3::exceptions::BufferError;
 use pyo3::ffi;
-
-use pyo3::py::class as pyclass;
-use pyo3::py::proto as pyproto;
-
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 #[pyclass]
 struct TestClass {
     vec: Vec<u8>,
-    token: PyToken,
 }
 
 #[pyproto]
 impl PyBufferProtocol for TestClass {
-
     fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
-            return Err(PyErr::new::<exc::BufferError, _>("View is null"))
+            return Err(BufferError::py_err("View is null"));
         }
 
         unsafe {
@@ -31,7 +28,7 @@ impl PyBufferProtocol for TestClass {
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
-            return Err(PyErr::new::<exc::BufferError, _>("Object is not writable"))
+            return Err(BufferError::py_err("Object is not writable"));
         }
 
         let bytes = &self.vec;
@@ -67,14 +64,17 @@ impl PyBufferProtocol for TestClass {
     }
 }
 
-
 #[cfg(Py_3)]
 #[test]
 fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
+    let t = py
+        .init(|| TestClass {
+            vec: vec![b' ', b'2', b'3'],
+        })
+        .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();
@@ -87,9 +87,14 @@ fn test_buffer() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let t = py.init(|t| TestClass{vec: vec![b' ', b'2', b'3'], token: t}).unwrap();
+    let t = py
+        .init(|| TestClass {
+            vec: vec![b' ', b'2', b'3'],
+        })
+        .unwrap();
 
     let d = PyDict::new(py);
     d.set_item("ob", t).unwrap();
-    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d)).unwrap();
+    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d))
+        .unwrap();
 }

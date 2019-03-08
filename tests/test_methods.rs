@@ -1,11 +1,10 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
 use pyo3::prelude::*;
-
-use pyo3::py::class as pyclass;
-use pyo3::py::methods as pymethods;
+use pyo3::types::{PyDict, PyString, PyTuple, PyType};
+use pyo3::PyRawObject;
 
 #[macro_use]
 mod common;
@@ -13,7 +12,6 @@ mod common;
 #[pyclass]
 struct InstanceMethod {
     member: i32,
-    token: PyToken
 }
 
 #[pymethods]
@@ -29,18 +27,18 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.init_ref(|t| InstanceMethod{member: 42, token: t}).unwrap();
-    assert!(obj.method().unwrap() == 42);
+    let obj = py.init_ref(|| InstanceMethod { member: 42 }).unwrap();
+    assert_eq!(obj.method().unwrap(), 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
     py.run("assert obj.method() == 42", None, Some(d)).unwrap();
-    py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d)).unwrap();
+    py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d))
+        .unwrap();
 }
 
 #[pyclass]
 struct InstanceMethodWithArgs {
     member: i32,
-    token: PyToken
 }
 
 #[pymethods]
@@ -51,27 +49,30 @@ impl InstanceMethodWithArgs {
 }
 
 //#[test]
+#[allow(dead_code)]
 fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = py.init_ref(|t| InstanceMethodWithArgs{member: 7, token: t}).unwrap();
-    assert!(obj.method(6).unwrap() == 42);
+    let obj = py
+        .init_ref(|| InstanceMethodWithArgs { member: 7 })
+        .unwrap();
+    assert_eq!(obj.method(6).unwrap(), 42);
     let d = PyDict::new(py);
     d.set_item("obj", obj).unwrap();
     py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
-    py.run("assert obj.method(multiplier=6) == 42", None, Some(d)).unwrap();
+    py.run("assert obj.method(multiplier=6) == 42", None, Some(d))
+        .unwrap();
 }
 
-
 #[pyclass]
-struct ClassMethod {token: PyToken}
+struct ClassMethod {}
 
 #[pymethods]
 impl ClassMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|t| ClassMethod{token: t})
+        obj.init(|| ClassMethod {})
     }
 
     #[classmethod]
@@ -87,13 +88,22 @@ fn class_method() {
 
     let d = PyDict::new(py);
     d.set_item("C", py.get_type::<ClassMethod>()).unwrap();
-    py.run("assert C.method() == 'ClassMethod.method()!'", None, Some(d)).unwrap();
-    py.run("assert C().method() == 'ClassMethod.method()!'", None, Some(d)).unwrap();
+    py.run(
+        "assert C.method() == 'ClassMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C().method() == 'ClassMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }
 
-
 #[pyclass]
-struct ClassMethodWithArgs{token: PyToken}
+struct ClassMethodWithArgs {}
 
 #[pymethods]
 impl ClassMethodWithArgs {
@@ -109,20 +119,24 @@ fn class_method_with_args() {
     let py = gil.python();
 
     let d = PyDict::new(py);
-    d.set_item("C", py.get_type::<ClassMethodWithArgs>()).unwrap();
-    py.run("assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'", None, Some(d)).unwrap();
+    d.set_item("C", py.get_type::<ClassMethodWithArgs>())
+        .unwrap();
+    py.run(
+        "assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }
 
 #[pyclass]
-struct StaticMethod {
-    token: PyToken
-}
+struct StaticMethod {}
 
 #[pymethods]
 impl StaticMethod {
     #[new]
     fn __new__(obj: &PyRawObject) -> PyResult<()> {
-        obj.init(|t| StaticMethod{token: t})
+        obj.init(|| StaticMethod {})
     }
 
     #[staticmethod]
@@ -139,16 +153,25 @@ fn static_method() {
     assert_eq!(StaticMethod::method(py).unwrap(), "StaticMethod.method()!");
     let d = PyDict::new(py);
     d.set_item("C", py.get_type::<StaticMethod>()).unwrap();
-    py.run("assert C.method() == 'StaticMethod.method()!'", None, Some(d)).unwrap();
-    py.run("assert C().method() == 'StaticMethod.method()!'", None, Some(d)).unwrap();
+    py.run(
+        "assert C.method() == 'StaticMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C().method() == 'StaticMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }
 
 #[pyclass]
-struct StaticMethodWithArgs{token: PyToken}
+struct StaticMethodWithArgs {}
 
 #[pymethods]
 impl StaticMethodWithArgs {
-
     #[staticmethod]
     fn method(_py: Python, input: i32) -> PyResult<String> {
         Ok(format!("0x{:x}", input))
@@ -163,29 +186,38 @@ fn static_method_with_args() {
     assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
 
     let d = PyDict::new(py);
-    d.set_item("C", py.get_type::<StaticMethodWithArgs>()).unwrap();
-    py.run("assert C.method(1337) == '0x539'", None, Some(d)).unwrap();
+    d.set_item("C", py.get_type::<StaticMethodWithArgs>())
+        .unwrap();
+    py.run("assert C.method(1337) == '0x539'", None, Some(d))
+        .unwrap();
 }
 
 #[pyclass]
-struct MethArgs {
-    token: PyToken
-}
+struct MethArgs {}
 
 #[pymethods]
 impl MethArgs {
+    #[args(test)]
+    fn get_optional(&self, test: Option<i32>) -> PyResult<i32> {
+        Ok(test.unwrap_or(10))
+    }
 
-    #[args(test="10")]
+    #[args(test = "10")]
     fn get_default(&self, test: i32) -> PyResult<i32> {
         Ok(test)
     }
-    #[args("*", test=10)]
+    #[args("*", test = 10)]
     fn get_kwarg(&self, test: i32) -> PyResult<i32> {
         Ok(test)
     }
-    #[args(args="*", kwargs="**")]
-    fn get_kwargs(&self, args: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        Ok([args.into(), kwargs.to_object(self.py())].to_object(self.py()))
+    #[args(args = "*", kwargs = "**")]
+    fn get_kwargs(
+        &self,
+        py: Python,
+        args: &PyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
+        Ok([args.into(), kwargs.to_object(py)].to_object(py))
     }
 }
 
@@ -193,8 +225,10 @@ impl MethArgs {
 fn meth_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = py.init(|t| MethArgs{token: t}).unwrap();
+    let inst = py.init(|| MethArgs {}).unwrap();
 
+    py_run!(py, inst, "assert inst.get_optional() == 10");
+    py_run!(py, inst, "assert inst.get_optional(100) == 100");
     py_run!(py, inst, "assert inst.get_default() == 10");
     py_run!(py, inst, "assert inst.get_default(100) == 100");
     py_run!(py, inst, "assert inst.get_kwarg() == 10");
@@ -202,7 +236,14 @@ fn meth_args() {
     py_run!(py, inst, "assert inst.get_kwarg(test=100) == 100");
     py_run!(py, inst, "assert inst.get_kwargs() == [(), None]");
     py_run!(py, inst, "assert inst.get_kwargs(1,2,3) == [(1,2,3), None]");
-    py_run!(py, inst, "assert inst.get_kwargs(t=1,n=2) == [(), {'t': 1, 'n': 2}]");
-    py_run!(py, inst, "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]");
-    // py_expect_exception!(py, inst, "inst.get_kwarg(100)", TypeError);
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs(t=1,n=2) == [(), {'t': 1, 'n': 2}]"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]"
+    );
 }

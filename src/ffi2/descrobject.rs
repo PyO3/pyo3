@@ -1,16 +1,13 @@
-use std::ptr;
-use std::os::raw::{c_void, c_char, c_int};
+use ffi2::methodobject::PyMethodDef;
 use ffi2::object::{PyObject, PyTypeObject, Py_TYPE};
 use ffi2::structmember::PyMemberDef;
-use ffi2::methodobject::PyMethodDef;
+use std::os::raw::{c_char, c_int, c_void};
+use std::ptr;
 
-pub type getter =
-    unsafe extern "C" fn
-    (slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
+pub type getter = unsafe extern "C" fn(slf: *mut PyObject, closure: *mut c_void) -> *mut PyObject;
 
 pub type setter =
-    unsafe extern "C" fn (slf: *mut PyObject, value: *mut PyObject,
-                          closure: *mut c_void) -> c_int;
+    unsafe extern "C" fn(slf: *mut PyObject, value: *mut PyObject, closure: *mut c_void) -> c_int;
 
 #[repr(C)]
 #[derive(Copy)]
@@ -22,7 +19,7 @@ pub struct PyGetSetDef {
     pub closure: *mut c_void,
 }
 
-pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
+pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     name: ptr::null_mut(),
     get: None,
     set: None,
@@ -31,16 +28,22 @@ pub const PyGetSetDef_INIT : PyGetSetDef = PyGetSetDef {
 };
 
 impl Clone for PyGetSetDef {
-    #[inline] fn clone(&self) -> PyGetSetDef { *self }
+    #[inline]
+    fn clone(&self) -> PyGetSetDef {
+        *self
+    }
 }
 
 pub type wrapperfunc =
-    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject,
-                         wrapped: *mut c_void) -> *mut PyObject;
+    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject, wrapped: *mut c_void)
+        -> *mut PyObject;
 
-pub type wrapperfunc_kwds =
-    unsafe extern "C" fn(slf: *mut PyObject, args: *mut PyObject,
-                         wrapped: *mut c_void, kwds: *mut PyObject) -> *mut PyObject;
+pub type wrapperfunc_kwds = unsafe extern "C" fn(
+    slf: *mut PyObject,
+    args: *mut PyObject,
+    wrapped: *mut c_void,
+    kwds: *mut PyObject,
+) -> *mut PyObject;
 
 #[repr(C)]
 #[derive(Copy)]
@@ -51,50 +54,53 @@ pub struct wrapperbase {
     pub wrapper: Option<wrapperfunc>,
     pub doc: *mut c_char,
     pub flags: c_int,
-    pub name_strobj: *mut PyObject
+    pub name_strobj: *mut PyObject,
 }
 
 impl Clone for wrapperbase {
-    #[inline] fn clone(&self) -> wrapperbase { *self }
+    #[inline]
+    fn clone(&self) -> wrapperbase {
+        *self
+    }
 }
 
-pub const PyWrapperFlag_KEYWORDS : c_int = 1;
+pub const PyWrapperFlag_KEYWORDS: c_int = 1;
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="PyPyWrapperDescr_Type")]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyWrapperDescr_Type")]
     pub static mut PyWrapperDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name="PyPyDictProxy_Type")]
+    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_Type")]
     pub static mut PyDictProxy_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name="PyPyGetSetDescr_Type")]
+    #[cfg_attr(PyPy, link_name = "PyPyGetSetDescr_Type")]
     pub static mut PyGetSetDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name="PyPyMemberDescr_Type")]
+    #[cfg_attr(PyPy, link_name = "PyPyMemberDescr_Type")]
     pub static mut PyMemberDescr_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name="PyPyProperty_Type")]
+    #[cfg_attr(PyPy, link_name = "PyPyProperty_Type")]
     pub static mut PyProperty_Type: PyTypeObject;
 
-    pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
-     -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name="PyPyDescr_NewClassMethod")]
-    pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject,
-                                  arg2: *mut PyMethodDef) -> *mut PyObject;
-    pub fn PyDescr_NewMember(arg1: *mut PyTypeObject,
-                             arg2: *mut PyMemberDef) -> *mut PyObject;
-    pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject,
-                             arg2: *mut PyGetSetDef) -> *mut PyObject;
-    pub fn PyDescr_NewWrapper(arg1: *mut PyTypeObject,
-                              arg2: *mut wrapperbase,
-                              arg3: *mut c_void) -> *mut PyObject;
+    pub fn PyDescr_NewMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyDescr_NewClassMethod")]
+    pub fn PyDescr_NewClassMethod(arg1: *mut PyTypeObject, arg2: *mut PyMethodDef)
+        -> *mut PyObject;
+    pub fn PyDescr_NewMember(arg1: *mut PyTypeObject, arg2: *mut PyMemberDef) -> *mut PyObject;
+    pub fn PyDescr_NewGetSet(arg1: *mut PyTypeObject, arg2: *mut PyGetSetDef) -> *mut PyObject;
+    pub fn PyDescr_NewWrapper(
+        arg1: *mut PyTypeObject,
+        arg2: *mut wrapperbase,
+        arg3: *mut c_void,
+    ) -> *mut PyObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyDescr_IsData(d: *mut PyObject) -> c_int {
     (*Py_TYPE(d)).tp_descr_set.is_some() as c_int
 }
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    #[cfg_attr(PyPy, link_name="PyPyDictProxy_New")]
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyDictProxy_New")]
     //pub fn PyDictProxy_New(arg1: *mut PyObject) -> *mut PyObject;
     // PyDictProxy_New is also defined in dictobject.h
-    pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject)
-     -> *mut PyObject;
+    pub fn PyWrapper_New(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
 }

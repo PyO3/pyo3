@@ -1,22 +1,19 @@
-#![feature(proc_macro, specialization)]
+#![feature(specialization)]
 
 extern crate pyo3;
 
+use pyo3::class::*;
 use pyo3::prelude::*;
-
-use pyo3::py::class as pyclass;
-use pyo3::py::proto as pyproto;
-
+use pyo3::types::PyObjectRef;
 
 #[macro_use]
 mod common;
 
 #[pyclass]
-struct UnaryArithmetic {token: PyToken}
+struct UnaryArithmetic {}
 
 #[pyproto]
 impl PyNumberProtocol for UnaryArithmetic {
-
     fn __neg__(&self) -> PyResult<&'static str> {
         Ok("neg")
     }
@@ -39,18 +36,15 @@ fn unary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| UnaryArithmetic{token: t}).unwrap();
+    let c = py.init(|| UnaryArithmetic {}).unwrap();
     py_run!(py, c, "assert -c == 'neg'");
     py_run!(py, c, "assert +c == 'pos'");
     py_run!(py, c, "assert abs(c) == 'abs'");
     py_run!(py, c, "assert ~c == 'invert'");
 }
 
-
 #[pyclass]
-struct BinaryArithmetic {
-    token: PyToken
-}
+struct BinaryArithmetic {}
 
 #[pyproto]
 impl PyObjectProtocol for BinaryArithmetic {
@@ -59,11 +53,9 @@ impl PyObjectProtocol for BinaryArithmetic {
     }
 }
 
-
 #[pyclass]
 struct InPlaceOperations {
     value: u32,
-    token: PyToken,
 }
 
 #[pyproto]
@@ -121,29 +113,19 @@ fn inplace_operations() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| InPlaceOperations{value: 0, token: t}).unwrap();
-    py_run!(py, c, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
+    let init = |value, code| {
+        let c = py.init(|| InPlaceOperations { value }).unwrap();
+        py_run!(py, c, code);
+    };
 
-    let c = py.init(|t| InPlaceOperations{value:10, token: t}).unwrap();
-    py_run!(py, c, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
-
-    let c = py.init(|t| InPlaceOperations{value: 3, token: t}).unwrap();
-    py_run!(py, c, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
-
-    let c = py.init(|t| InPlaceOperations{value: 3, token: t}).unwrap();
-    py_run!(py, c, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
-
-    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
-    py_run!(py, c, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
-
-    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
-    py_run!(py, c, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
-
-    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
-    py_run!(py, c, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
-
-    let c = py.init(|t| InPlaceOperations{value: 12, token: t}).unwrap();
-    py_run!(py, c, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
+    init(0, "d = c; c += 1; assert repr(c) == repr(d) == 'IPO(1)'");
+    init(10, "d = c; c -= 1; assert repr(c) == repr(d) == 'IPO(9)'");
+    init(3, "d = c; c *= 3; assert repr(c) == repr(d) == 'IPO(9)'");
+    init(3, "d = c; c <<= 2; assert repr(c) == repr(d) == 'IPO(12)'");
+    init(12, "d = c; c >>= 2; assert repr(c) == repr(d) == 'IPO(3)'");
+    init(12, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
+    init(12, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
+    init(12, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
 }
 
 #[pyproto]
@@ -186,7 +168,7 @@ fn binary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| BinaryArithmetic{token: t}).unwrap();
+    let c = py.init(|| BinaryArithmetic {}).unwrap();
     py_run!(py, c, "assert c + c == 'BA + BA'");
     py_run!(py, c, "assert c + 1 == 'BA + 1'");
     py_run!(py, c, "assert 1 + c == '1 + BA'");
@@ -207,11 +189,8 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 | c == '1 | BA'");
 }
 
-
 #[pyclass]
-struct RichComparisons {
-    token: PyToken
-}
+struct RichComparisons {}
 
 #[pyproto]
 impl PyObjectProtocol for RichComparisons {
@@ -226,15 +205,13 @@ impl PyObjectProtocol for RichComparisons {
             CompareOp::Eq => Ok(format!("{} == {:?}", self.__repr__().unwrap(), other)),
             CompareOp::Ne => Ok(format!("{} != {:?}", self.__repr__().unwrap(), other)),
             CompareOp::Gt => Ok(format!("{} > {:?}", self.__repr__().unwrap(), other)),
-            CompareOp::Ge => Ok(format!("{} >= {:?}", self.__repr__().unwrap(), other))
+            CompareOp::Ge => Ok(format!("{} >= {:?}", self.__repr__().unwrap(), other)),
         }
     }
 }
 
 #[pyclass]
-struct RichComparisons2 {
-    py: PyToken
-}
+struct RichComparisons2 {}
 
 #[pyproto]
 impl PyObjectProtocol for RichComparisons2 {
@@ -242,11 +219,12 @@ impl PyObjectProtocol for RichComparisons2 {
         Ok("RC2")
     }
 
-    fn __richcmp__(&self, _other: &'p PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
+    fn __richcmp__(&self, _other: &PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
+        let gil = GILGuard::acquire();
         match op {
-            CompareOp::Eq => Ok(true.to_object(self.py())),
-            CompareOp::Ne => Ok(false.to_object(self.py())),
-            _ => Ok(self.py().NotImplemented())
+            CompareOp::Eq => Ok(true.to_object(gil.python())),
+            CompareOp::Ne => Ok(false.to_object(gil.python())),
+            _ => Ok(gil.python().NotImplemented()),
         }
     }
 }
@@ -256,7 +234,7 @@ fn rich_comparisons() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = py.init(|t| RichComparisons{token: t}).unwrap();
+    let c = py.init(|| RichComparisons {}).unwrap();
     py_run!(py, c, "assert (c < c) == 'RC < RC'");
     py_run!(py, c, "assert (c < 1) == 'RC < 1'");
     py_run!(py, c, "assert (1 < c) == 'RC > 1'");
@@ -283,7 +261,7 @@ fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c2 = py.init(|t| RichComparisons2{py: t}).unwrap();
+    let c2 = py.init(|| RichComparisons2 {}).unwrap();
     py_expect_exception!(py, c2, "c2 < c2", TypeError);
     py_expect_exception!(py, c2, "c2 < 1", TypeError);
     py_expect_exception!(py, c2, "1 < c2", TypeError);
