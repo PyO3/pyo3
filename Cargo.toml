@@ -44,13 +44,13 @@ indoc = "0.3.1"
 default = []
 
 # Use this feature when building python2 binding.
- python2 = []
+#python2 = []
 
 # Use this feature when building python3 binding.
-#python3 = []
+python3 = []
 
 # Use this feature when building pypy binding.
- pypy = []
+pypy = []
 # Use this feature when building an extension module.
 # It tells the linker to keep the python symbols unresolved,
 # so that the module can also be used with statically linked python interpreters.

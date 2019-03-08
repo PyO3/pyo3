@@ -1,10 +1,8 @@
 extern crate pyo3_build_utils;
 
 use pyo3_build_utils::{
-    py_interpreter::{
-        cfg_line_for_var, emit_cargo_vars_from_configuration, find_interpreter, get_config_vars,
-        is_value, version_from_env, InterpreterConfig, PythonVersion,
-    },
+    py_interpreter::{cfg_line_for_var, find_interpreter, is_value, InterpreterConfig},
+    python_version::PythonVersion,
     rustc_version::check_rustc_version,
 };
 
@@ -20,22 +18,17 @@ fn main() {
     // If you have troubles with your shell accepting '.' in a var name,
     // try using 'env' (sorry but this isn't our fault - it just has to
     // match the pkg-config package name, which is going to have a . in it).
-    let version = match version_from_env() {
-        Ok(v) => v,
-        Err(_) => PythonVersion {
-            major: 3,
-            minor: None,
-            kind: None,
-        },
-    };
+    let version = PythonVersion::from_env().unwrap_or_default();
 
-    let interpreter_configuration: InterpreterConfig = find_interpreter(&version).unwrap();
+    let interpreter_configuration: InterpreterConfig =
+        find_interpreter(&version).expect("Failed to locate interpreter");
 
-    let flags = emit_cargo_vars_from_configuration(&interpreter_configuration).unwrap();
+    let flags = interpreter_configuration
+        .emit_cargo_vars();
 
-    let mut config_map = get_config_vars(&interpreter_configuration).unwrap();
-
-    config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
+    let mut config_map = interpreter_configuration
+        .get_config_vars()
+        .expect("Failed to load config variables");
 
     // WITH_THREAD is always on for 3.7
     if interpreter_configuration.version.major == 3
