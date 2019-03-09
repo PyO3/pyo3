@@ -334,45 +334,41 @@ mod test {
     use crate::ToPyObject;
     use crate::{ffi, gil};
 
-    fn get_object() -> (PyObject, *mut ffi::PyObject) {
+    fn get_object() -> PyObject {
         // Convenience function for getting a single unique object
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let obj = py.eval("object()", None, None).unwrap().to_object(py);
-        let obj_ptr = obj.as_ptr();
+        let obj = py.eval("object()", None, None).unwrap();
 
-        // The refcount would become 0 after dropping, which means the
-        // GC can free the pointer and getting the refcount would be UB.
-        // This increfs ensures that it remains 1.
-        unsafe {
-            ffi::Py_INCREF(obj_ptr);
-        }
-        (obj, obj_ptr)
+        obj.to_object(py)
     }
 
     #[test]
     fn test_owned() {
         gil::init_once();
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = get_object();
+        let obj_ptr = obj.as_ptr();
+        // Ensure that obj does not get freed
+        let _ref = obj.clone_ref(py);
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let cnt;
-            let (_obj, obj_ptr) = get_object();
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
+                let _ = gil::register_owned(py, obj.into_nonnull());
 
-                cnt = ffi::Py_REFCNT(obj_ptr) - 1;
-                let _ = gil::register_owned(py, NonNull::new(obj_ptr).unwrap());
-
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 assert_eq!(p.owned.len(), 1);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.owned.len(), 0);
-                assert_eq!(cnt, ffi::Py_REFCNT(obj_ptr));
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
         }
     }
@@ -382,33 +378,33 @@ mod test {
         gil::init_once();
         let gil = Python::acquire_gil();
         let py = gil.python();
+        let obj = get_object();
+        // Ensure that obj does not get freed
+        let _ref = obj.clone_ref(py);
+        let obj_ptr = obj.as_ptr();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let cnt;
-            let (_obj, obj_ptr) = get_object();
             {
                 let _pool = GILPool::new();
                 assert_eq!(p.owned.len(), 0);
 
-                cnt = ffi::Py_REFCNT(obj_ptr) - 1;
-
-                let _ = gil::register_owned(py, NonNull::new(obj_ptr).unwrap());
+                let _ = gil::register_owned(py, obj.into_nonnull());
 
                 assert_eq!(p.owned.len(), 1);
-
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 {
                     let _pool = GILPool::new();
-                    let (_obj, obj_ptr) = get_object();
-                    let _ = gil::register_owned(py, NonNull::new(obj_ptr).unwrap());
+                    let obj = get_object();
+                    let _ = gil::register_owned(py, obj.into_nonnull());
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
             }
             {
                 assert_eq!(p.owned.len(), 0);
-                assert_eq!(cnt, ffi::Py_REFCNT(obj_ptr));
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
         }
     }
@@ -420,23 +416,22 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let (_obj, obj_ptr) = get_object();
-            let cnt;
+            let obj = get_object();
+            let obj_ptr = obj.as_ptr();
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 assert_eq!(p.borrowed.len(), 0);
 
-                cnt = ffi::Py_REFCNT(obj_ptr);
                 gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
         }
     }
@@ -448,18 +443,17 @@ mod test {
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let (_obj, obj_ptr) = get_object();
-            let cnt;
+            let obj = get_object();
+            let obj_ptr = obj.as_ptr();
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 assert_eq!(p.borrowed.len(), 0);
 
-                cnt = ffi::Py_REFCNT(obj_ptr);
                 gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
 
                 {
                     let _pool = GILPool::new();
@@ -469,36 +463,41 @@ mod test {
                 }
 
                 assert_eq!(p.borrowed.len(), 1);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
             {
                 let _gil = Python::acquire_gil();
                 assert_eq!(p.borrowed.len(), 0);
-                assert_eq!(ffi::Py_REFCNT(obj_ptr), cnt);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
         }
     }
 
+    #[ignore]
     #[test]
     fn test_pyobject_drop() {
         gil::init_once();
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = get_object();
+        // Ensure that obj does not get freed
+        let _ref = obj.clone_ref(py);
+        let obj_ptr = obj.as_ptr();
 
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
-            let cnt;
-            let (obj, obj_ptr) = get_object();
             {
                 assert_eq!(p.owned.len(), 0);
-                cnt = ffi::Py_REFCNT(obj_ptr);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
             }
             drop(obj);
-            assert_eq!(cnt, ffi::Py_REFCNT(obj_ptr));
+            assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
 
             {
                 let _gil = Python::acquire_gil();
             }
-            assert_eq!(cnt - 1, ffi::Py_REFCNT(obj_ptr));
+            assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
         }
     }
 }
