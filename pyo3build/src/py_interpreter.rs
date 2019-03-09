@@ -304,7 +304,7 @@ print(sys.exec_prefix)
         if self.enable_shared {
             Ok(format!(
                 "cargo:rustc-link-lib=python{}",
-                interpreter_config.ld_version
+                self.ld_version
             ))
         } else {
             Ok(format!(
