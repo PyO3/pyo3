@@ -9,7 +9,7 @@ use std::process::Command;
 use python_version::{PythonInterpreterKind, PythonVersion};
 use std::collections::HashMap;
 use std::string::String;
-use utils::{canonicalize_executable, run_python_script};
+use utils::{canonicalize_executable, parse_header_defines, run_python_script};
 
 const PY3_MIN_MINOR: u8 = 5;
 
@@ -129,6 +129,46 @@ print(sys.exec_prefix)
                 })
             }
         }
+    }
+
+    pub fn from_cross_compile_info() -> Result<InterpreterConfig, String> {
+        let python_include_dir = env::var("PYO3_CROSS_INCLUDE_DIR")
+            .map_err(|e| "Need to define `PYO3_CROSS_INCLUDE_DIR`")?;
+
+        let python_include_dir = Path::new(&python_include_dir);
+        let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
+
+        let version = PythonVersion::from_cross_env(&patchlevel_defines)?;
+
+        let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
+
+        let enable_shared: bool = config_map
+            .get("Py_ENABLE_SHARED")
+            .ok_or("Py_ENABLE_SHARED undefined".to_string())?
+            .parse()
+            .map_err(|e| "Failed to `Py_ENABLE_SHARED`".to_string())?;
+
+        let libpath = env::var("PYO3_CROSS_LIB_DIR")
+            .map_err(|e| "PYO3_CROSS_LIB_DIR undefined".to_string())?;
+
+        Ok(Self {
+            version: version.clone(),
+            // compatibility, not used when cross compiling.
+            path: PathBuf::new(),
+            libpath,
+            enable_shared,
+            ld_version: format!(
+                "{}.{}",
+                &version.major,
+                &version
+                    .minor
+                    .expect("Interpreter config was loaded from path, above, so this will be set")
+            ),
+            // compatibility, not used when cross compiling
+            exec_prefix: "".to_string(),
+            // compatibility, not used when cross compiling
+            abi_version: "".to_string(),
+        })
     }
 
     /// Checks if interpreter is supported by PyO3
@@ -353,6 +393,16 @@ print(sys.exec_prefix)
 
         return flags;
     }
+
+    fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, String> {
+        if let Some("1") = config_map.get("Py_DEBUG").as_ref().map(|s| s.as_str()) {
+            config_map.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
+            config_map.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
+            config_map.insert("COUNT_ALLOCS".to_owned(), "1".to_owned());
+        }
+
+        config_map
+    }
 }
 
 pub fn is_value(key: &str) -> bool {
@@ -373,11 +423,16 @@ pub fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
 }
 
 /// Locate a suitable python interpreter and extract config from it.
-/// If the environment variable `PYTHON_SYS_EXECUTABLE`, use the provided
-/// path a Python executable, and raises an error if the version doesn't match.
-/// Else tries to execute the interpreter as "python", "python{major version}",
-/// "python{major version}.{minor version}" in order until one
-/// is of the version we are expecting.
+///
+/// The following locations are checked in the order listed:
+///
+/// 1. If `PYTHON_SYS_EXECUTABLE` is set, this intepreter is used and an error is raised if the
+/// version doesn't match.
+/// 2. `python`
+/// 3. `python{major version}`
+/// 4. `python{major version}.{minor version}`
+///
+/// If none of the above works, an error is returned
 pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterConfig, String> {
     if let Some(interpreter_from_env) = env::var_os("PYTHON_SYS_EXECUTABLE") {
         let interpreter_path_or_executable = interpreter_from_env

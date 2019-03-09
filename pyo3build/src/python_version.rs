@@ -1,8 +1,9 @@
 use regex::Regex;
+use std::collections::HashMap;
 use std::env;
 use std::fmt::{self, Display};
 use std::path::Path;
-use utils::run_python_script;
+use utils::{parse_header_defines, run_python_script};
 
 #[derive(Debug, Clone)]
 pub enum PythonInterpreterKind {
@@ -89,6 +90,24 @@ impl PythonVersion {
              feature must be enabled."
                 .to_owned(),
         )
+    }
+
+    pub fn from_cross_env(header_defines: &HashMap<String, String>) -> Result<Self, String> {
+        let major = header_defines
+            .get("PY_MAJOR_VERSION")
+            .and_then(|major| major.parse::<u8>().ok())
+            .ok_or("PY_MAJOR_VERSION undefined".to_string())?;
+
+        let minor = header_defines
+            .get("PY_MINOR_VERSION")
+            .and_then(|minor| minor.parse::<u8>().ok())
+            .ok_or("PY_MINOR_VERSION undefined".to_string())?;
+
+        Ok(PythonVersion {
+            major,
+            minor: Some(minor),
+            kind: PythonInterpreterKind::CPython,
+        })
     }
 
     /// Returns a name of possible python binary names.
