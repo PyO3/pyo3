@@ -1,7 +1,7 @@
+use crate::ffi2::code::*;
+use crate::ffi2::pyarena::PyArena;
+use crate::ffi2::pythonrun::*;
 use std::os::raw::{c_char, c_int};
-use ffi2::pythonrun::*;
-use ffi2::code::*;
-use ffi2::pyarena::PyArena;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -10,20 +10,22 @@ pub struct PyFutureFeatures {
     pub ff_lineno: c_int,
 }
 
-pub const FUTURE_NESTED_SCOPES    : &'static str = "nested_scopes";
-pub const FUTURE_GENERATORS       : &'static str = "generators";
-pub const FUTURE_DIVISION         : &'static str = "division";
-pub const FUTURE_ABSOLUTE_IMPORT  : &'static str = "absolute_import";
-pub const FUTURE_WITH_STATEMENT   : &'static str = "with_statement";
-pub const FUTURE_PRINT_FUNCTION   : &'static str = "print_function";
-pub const FUTURE_UNICODE_LITERALS : &'static str = "unicode_literals";
+pub const FUTURE_NESTED_SCOPES: &'static str = "nested_scopes";
+pub const FUTURE_GENERATORS: &'static str = "generators";
+pub const FUTURE_DIVISION: &'static str = "division";
+pub const FUTURE_ABSOLUTE_IMPORT: &'static str = "absolute_import";
+pub const FUTURE_WITH_STATEMENT: &'static str = "with_statement";
+pub const FUTURE_PRINT_FUNCTION: &'static str = "print_function";
+pub const FUTURE_UNICODE_LITERALS: &'static str = "unicode_literals";
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
-    pub fn PyNode_Compile(arg1: *mut Struct__node,
-                          arg2: *const c_char) -> *mut PyCodeObject;
-    pub fn PyAST_Compile(arg1: *mut Struct__mod, arg2: *const c_char,
-                         arg3: *mut PyCompilerFlags, arg4: *mut PyArena)
-                         -> *mut PyCodeObject;
-    pub fn PyFuture_FromAST(arg1: *mut Struct__mod,
-                            arg2: *const c_char) -> *mut PyFutureFeatures;
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    pub fn PyNode_Compile(arg1: *mut Struct__node, arg2: *const c_char) -> *mut PyCodeObject;
+    pub fn PyAST_Compile(
+        arg1: *mut Struct__mod,
+        arg2: *const c_char,
+        arg3: *mut PyCompilerFlags,
+        arg4: *mut PyArena,
+    ) -> *mut PyCodeObject;
+    pub fn PyFuture_FromAST(arg1: *mut Struct__mod, arg2: *const c_char) -> *mut PyFutureFeatures;
 }

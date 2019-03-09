@@ -1,6 +1,8 @@
 use libc::{c_void, size_t};
 
-#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
+#[cfg_attr(windows, link(name = "pythonXY"))]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyMem_Malloc")]
     pub fn PyMem_Malloc(n: size_t) -> *mut c_void;
     pub fn PyMem_Realloc(p: *mut c_void, n: size_t) -> *mut c_void;
     pub fn PyMem_Free(p: *mut c_void);
