@@ -38,6 +38,7 @@ fn main() {
     let config_map = interpreter_config
         .get_config_vars()
         .expect("Failed to load configuration variables");
+
     let flags = interpreter_config.emit_cargo_vars();
 
     // 2. Export python interpreter compilation flags as cargo variables that

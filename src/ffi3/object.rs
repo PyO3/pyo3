@@ -632,7 +632,6 @@ mod typeobject {
 
 // The exported types depend on whether Py_LIMITED_API is set
 pub use self::typeobject::*;
-use crate::ffi3::pyerrors::{PyErr_Format, PyExc_TypeError};
 
 #[repr(C)]
 #[derive(Copy, Clone)]

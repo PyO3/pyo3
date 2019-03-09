@@ -23,18 +23,18 @@ static SYSCONFIG_VALUES: [&'static str; 1] = [
     "Py_UNICODE_SIZE", // note - not present on python 3.3+, which is always wide
 ];
 
-// A list of python interpreter compile-time preprocessor defines that
-// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
-// this allows using them conditional cfg attributes in the .rs files, so
-//
-// #[cfg(py_sys_config="{varname}"]
-//
-// is the equivalent of #ifdef {varname} name in C.
-//
-// see Misc/SpecialBuilds.txt in the python source for what these mean.
-//
-// (hrm, this is sort of re-implementing what distutils does, except
-// by passing command line args instead of referring to a python.h)
+/// A list of python interpreter compile-time preprocessor defines that
+/// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
+/// this allows using them conditional cfg attributes in the .rs files, so
+///
+/// #[cfg(py_sys_config="{varname}"]
+///
+/// is the equivalent of #ifdef {varname} name in C.
+///
+/// see Misc/SpecialBuilds.txt in the python source for what these mean.
+///
+/// (hrm, this is sort of re-implementing what distutils does, except
+/// by passing command line args instead of referring to a python.h)
 #[cfg(not(target_os = "windows"))]
 static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "Py_USING_UNICODE",
@@ -370,6 +370,7 @@ print(sys.exec_prefix)
 
         if self.is_pypy() {
             println!("cargo:rustc-cfg=PyPy");
+            println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
             flags += format!("CFG_PyPy").as_ref();
         };
 
@@ -460,8 +461,11 @@ pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterC
 
     let possible_python_paths = expected_version.possible_binary_names();
 
+    dbg!(&possible_python_paths);
+
     for possible_path in possible_python_paths {
         let interpreter_path = canonicalize_executable(&possible_path);
+        dbg!(&interpreter_path);
         if let Some(path) = interpreter_path {
             let interpreter_config = InterpreterConfig::from_path(path)?;
 

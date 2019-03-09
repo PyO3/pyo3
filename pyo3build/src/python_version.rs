@@ -115,13 +115,16 @@ impl PythonVersion {
     pub fn possible_binary_names(&self) -> Vec<String> {
         let mut possible_names = vec![];
 
-        let binary_name = format!("{:?}", self.kind).to_ascii_lowercase();
+        let binary_name = match self.kind {
+            PythonInterpreterKind::CPython => "python",
+            PythonInterpreterKind::PyPy => "pypy"
+        };
 
-        possible_names.push(binary_name.clone());
-        possible_names.push(format!("{}{}", &binary_name, self.major));
+        possible_names.push(binary_name.to_owned());
+        possible_names.push(format!("{}{}", binary_name, self.major));
 
         if let Some(minor) = self.minor {
-            possible_names.push(format!("{}{}.{}", &binary_name, self.major, minor));
+            possible_names.push(format!("{}{}.{}", binary_name, self.major, minor));
         }
 
         possible_names
