@@ -53,6 +53,9 @@ pub fn prepare_freethreaded_python() {
             // Signal handling depends on the notion of a 'main thread', which doesn't exist in this case.
             // Note that the 'main thread' notion in Python isn't documented properly;
             // and running Python without one is not officially supported.
+
+            // PyPy does not support the embedding API
+            #[cfg(not(PyPy))]
             ffi::Py_InitializeEx(0);
             ffi::PyEval_InitThreads();
             // PyEval_InitThreads() will acquire the GIL,
