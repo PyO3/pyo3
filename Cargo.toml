@@ -40,7 +40,7 @@ indoc = "0.3.1"
 default = []
 
 # Use this feature when building python2 binding.
-#python2 = []
+python2 = []
 
 # Use this feature when building python3 binding.
 python3 = []
