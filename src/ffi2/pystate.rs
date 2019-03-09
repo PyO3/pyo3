@@ -1,24 +1,22 @@
-use crate::ffi2::frameobject::PyFrameObject;
-use crate::ffi2::object::PyObject;
 use std::os::raw::{c_int, c_long};
+use ffi2::object::PyObject;
+use ffi2::frameobject::PyFrameObject;
 
-pub enum PyInterpreterState {}
+pub enum PyInterpreterState { }
 
-pub type Py_tracefunc = unsafe extern "C" fn(
-    arg1: *mut PyObject,
-    arg2: *mut PyFrameObject,
-    arg3: c_int,
-    arg4: *mut PyObject,
-) -> c_int;
+pub type Py_tracefunc =
+    unsafe extern "C" fn (arg1: *mut PyObject, arg2: *mut PyFrameObject,
+                          arg3: c_int, arg4: *mut PyObject)
+                          -> c_int;
 
 /* The following values are used for 'what' for tracefunc functions: */
-pub const PyTrace_CALL: c_int = 0;
-pub const PyTrace_EXCEPTION: c_int = 1;
-pub const PyTrace_LINE: c_int = 2;
-pub const PyTrace_RETURN: c_int = 3;
-pub const PyTrace_C_CALL: c_int = 4;
-pub const PyTrace_C_EXCEPTION: c_int = 5;
-pub const PyTrace_C_RETURN: c_int = 6;
+pub const PyTrace_CALL : c_int = 0;
+pub const PyTrace_EXCEPTION : c_int = 1;
+pub const PyTrace_LINE : c_int = 2;
+pub const PyTrace_RETURN : c_int = 3;
+pub const PyTrace_C_CALL : c_int = 4;
+pub const PyTrace_C_EXCEPTION : c_int = 5;
+pub const PyTrace_C_RETURN : c_int = 6;
 
 #[repr(C)]
 #[derive(Copy)]
@@ -49,66 +47,60 @@ pub struct PyThreadState {
 }
 
 impl Clone for PyThreadState {
-    #[inline]
-    fn clone(&self) -> PyThreadState {
-        *self
-    }
+    #[inline] fn clone(&self) -> PyThreadState { *self }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub enum PyGILState_STATE {
     PyGILState_LOCKED,
-    PyGILState_UNLOCKED,
+    PyGILState_UNLOCKED
 }
 
-#[cfg_attr(windows, link(name = "pythonXY"))]
-extern "C" {
+
+#[cfg_attr(windows, link(name="pythonXY"))] extern "C" {
     static mut _PyThreadState_Current: *mut PyThreadState;
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Get")]
     //static mut _PyThreadState_GetFrame: PyThreadFrameGetter;
+
     pub fn PyInterpreterState_New() -> *mut PyInterpreterState;
     pub fn PyInterpreterState_Clear(arg1: *mut PyInterpreterState);
     pub fn PyInterpreterState_Delete(arg1: *mut PyInterpreterState);
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_New")]
-    pub fn PyThreadState_New(arg1: *mut PyInterpreterState) -> *mut PyThreadState;
-    pub fn _PyThreadState_Prealloc(arg1: *mut PyInterpreterState) -> *mut PyThreadState;
+    pub fn PyThreadState_New(arg1: *mut PyInterpreterState)
+     -> *mut PyThreadState;
+    pub fn _PyThreadState_Prealloc(arg1: *mut PyInterpreterState)
+     -> *mut PyThreadState;
     pub fn _PyThreadState_Init(arg1: *mut PyThreadState);
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Clear")]
     pub fn PyThreadState_Clear(arg1: *mut PyThreadState);
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Delete")]
     pub fn PyThreadState_Delete(arg1: *mut PyThreadState);
-    #[cfg(py_sys_config = "WITH_THREAD")]
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_DeleteCurrent")]
+    #[cfg(py_sys_config="WITH_THREAD")]
     pub fn PyThreadState_DeleteCurrent();
     pub fn PyThreadState_Get() -> *mut PyThreadState;
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Swap")]
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
-    #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
     pub fn PyThreadState_GetDict() -> *mut PyObject;
-    pub fn PyThreadState_SetAsyncExc(arg1: c_long, arg2: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
+    pub fn PyThreadState_SetAsyncExc(arg1: c_long,
+                                     arg2: *mut PyObject) -> c_int;
     pub fn PyGILState_Ensure() -> PyGILState_STATE;
-    #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
     fn _PyThread_CurrentFrames() -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_Head")]
     pub fn PyInterpreterState_Head() -> *mut PyInterpreterState;
-    #[cfg_attr(PyPy, link_name = "PyPyInterpreterState_Next")]
-    pub fn PyInterpreterState_Next(arg1: *mut PyInterpreterState) -> *mut PyInterpreterState;
-    pub fn PyInterpreterState_ThreadHead(arg1: *mut PyInterpreterState) -> *mut PyThreadState;
+    pub fn PyInterpreterState_Next(arg1: *mut PyInterpreterState)
+     -> *mut PyInterpreterState;
+    pub fn PyInterpreterState_ThreadHead(arg1: *mut PyInterpreterState)
+     -> *mut PyThreadState;
     pub fn PyThreadState_Next(arg1: *mut PyThreadState) -> *mut PyThreadState;
 }
 
-#[cfg(py_sys_config = "Py_DEBUG")]
-#[inline]
+#[cfg(py_sys_config="Py_DEBUG")]
+#[inline(always)]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     PyThreadState_Get()
 }
 
-#[cfg(not(py_sys_config = "Py_DEBUG"))]
-#[inline]
+#[cfg(not(py_sys_config="Py_DEBUG"))]
+#[inline(always)]
 pub unsafe fn PyThreadState_GET() -> *mut PyThreadState {
     _PyThreadState_Current
 }
+
+
