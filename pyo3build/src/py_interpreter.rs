@@ -456,12 +456,9 @@ pub fn find_interpreter(expected_version: &PythonVersion) -> Result<InterpreterC
     }
 
     let possible_python_paths = expected_version.possible_binary_names();
-
-    dbg!(&possible_python_paths);
-
+    
     for possible_path in possible_python_paths {
         let interpreter_path = canonicalize_executable(&possible_path);
-        dbg!(&interpreter_path);
         if let Some(path) = interpreter_path {
             let interpreter_config = InterpreterConfig::from_path(path)?;
 
