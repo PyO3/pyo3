@@ -57,6 +57,7 @@ pub fn prepare_freethreaded_python() {
             // PyPy does not support the embedding API
             #[cfg(not(PyPy))]
             ffi::Py_InitializeEx(0);
+            #[cfg(not(Py_3_7))]
             ffi::PyEval_InitThreads();
             // PyEval_InitThreads() will acquire the GIL,
             // but we don't want to hold it at this point
