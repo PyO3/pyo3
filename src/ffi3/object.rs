@@ -65,7 +65,7 @@ pub struct PyVarObject {
     pub ob_size: Py_ssize_t,
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     if ob.is_null() {
         panic!();
@@ -162,6 +162,7 @@ mod bufferinfo {
         fn default() -> Self {
             unsafe { mem::zeroed() }
         }
+    }
 
     pub type getbufferproc = unsafe extern "C" fn(
         arg1: *mut crate::ffi3::PyObject,
@@ -631,6 +632,7 @@ mod typeobject {
 
 // The exported types depend on whether Py_LIMITED_API is set
 pub use self::typeobject::*;
+use crate::ffi3::pyerrors::{PyErr_Format, PyExc_TypeError};
 
 #[repr(C)]
 #[derive(Copy, Clone)]

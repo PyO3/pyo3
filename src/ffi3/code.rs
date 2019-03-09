@@ -124,5 +124,5 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
 #[inline]
 #[cfg_attr(PyPy, link_name = "PyPyCode_GetNumFree")]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
-    ::ffi3::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
+    crate::ffi3::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }

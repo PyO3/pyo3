@@ -1,4 +1,3 @@
-use ffi3::object::*;
 use crate::ffi3::object::*;
 use std::os::raw::{c_double, c_int};
 

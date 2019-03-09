@@ -36,7 +36,7 @@ extern "C" {
     pub fn PyEval_GetGlobals() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyEval_GetLocals")]
     pub fn PyEval_GetLocals() -> *mut PyObject;
-    pub fn PyEval_GetFrame() -> *mut ::ffi3::PyFrameObject;
+    pub fn PyEval_GetFrame() -> *mut crate::ffi3::PyFrameObject;
     #[cfg_attr(PyPy, link_name = "PyPy_AddPendingCall")]
     pub fn Py_AddPendingCall(
         func: Option<extern "C" fn(arg1: *mut c_void) -> c_int>,
@@ -68,7 +68,7 @@ extern "C" {
     pub fn _PyEval_EvalFrameDefault(arg1: *mut ::ffi3::PyFrameObject, exc: c_int) -> *mut PyObject;
     #[cfg(Py_3_6)]
     pub fn _PyEval_RequestCodeExtraIndex(func: FreeFunc) -> c_int;
-    pub fn PyEval_EvalFrameEx(f: *mut ::ffi3::PyFrameObject, exc: c_int) -> *mut PyObject;
+    pub fn PyEval_EvalFrameEx(f: *mut crate::ffi3::PyFrameObject, exc: c_int) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyEval_SaveThread")]
     pub fn PyEval_SaveThread() -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]

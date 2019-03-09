@@ -29,7 +29,6 @@ extern "C" {
         args: *mut PyObject,
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunction")]
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFunction")]
     pub fn PyObject_CallFunction(
         callable_object: *mut PyObject,
         format: *const c_char,
@@ -162,7 +161,7 @@ pub unsafe fn PyIter_Check(o: *mut PyObject) -> c_int {
     (match (*(*o).ob_type).tp_iternext {
         Some(tp_iternext) => {
             tp_iternext as *const c_void
-                != ::ffi3::object::_PyObject_NextNotImplemented as *const c_void
+                != crate::ffi3::object::_PyObject_NextNotImplemented as *const c_void
         }
         None => false,
     }) as c_int
