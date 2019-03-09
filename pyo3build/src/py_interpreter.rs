@@ -175,8 +175,11 @@ print(sys.exec_prefix)
 
     /// Checks if interpreter is supported by PyO3
     fn ensure_python_version_is_supported(version: &PythonVersion) -> Result<(), String> {
-        match (version.major, version.minor) {
-            (3, Some(minor)) if minor < PY3_MIN_MINOR => Err(format!(
+        match (version.kind, version.major, version.minor) {
+            (PythonInterpreterKind::PyPy, 2, _) => {
+                Err("PyPy cpyext bindings is only supported for Python3".to_string())
+            }
+            (_, 3, Some(minor)) if minor < PY3_MIN_MINOR => Err(format!(
                 "Python 3 required version is 3.{}, current version is 3.{}",
                 PY3_MIN_MINOR, minor
             )),
