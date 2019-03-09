@@ -61,6 +61,7 @@ impl InterpreterConfig {
     /// Tries to read interpreter configuration from path to interpreter.
     pub fn from_path(interpreter: impl AsRef<Path>) -> Result<InterpreterConfig, String> {
         let version = PythonVersion::from_interpreter(&interpreter)?;
+        InterpreterConfig::ensure_python_version_is_supported(&version)?;
 
         match version.kind {
             PythonInterpreterKind::PyPy => {
@@ -139,12 +140,13 @@ print(sys.exec_prefix)
         let patchlevel_defines = parse_header_defines(python_include_dir.join("patchlevel.h"))?;
 
         let version = PythonVersion::from_cross_env(&patchlevel_defines)?;
+        InterpreterConfig::ensure_python_version_is_supported(&version)?;
 
         let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
 
         let enable_shared: bool = config_map
             .get("Py_ENABLE_SHARED")
-            .ok_or("Py_ENABLE_SHARED undefined".to_string())?
+            .ok_or_else(|| "Py_ENABLE_SHARED undefined".to_string())?
             .parse()
             .map_err(|e| "Failed to `Py_ENABLE_SHARED`".to_string())?;
 
@@ -172,8 +174,8 @@ print(sys.exec_prefix)
     }
 
     /// Checks if interpreter is supported by PyO3
-    fn assert_python_version_is_supported(&self) -> Result<(), String> {
-        match (self.version.major, self.version.minor) {
+    fn ensure_python_version_is_supported(version: &PythonVersion) -> Result<(), String> {
+        match (version.major, version.minor) {
             (3, Some(minor)) if minor < PY3_MIN_MINOR => Err(format!(
                 "Python 3 required version is 3.{}, current version is 3.{}",
                 PY3_MIN_MINOR, minor
@@ -398,7 +400,7 @@ print(sys.exec_prefix)
 }
 
 pub fn is_value(key: &str) -> bool {
-    SYSCONFIG_VALUES.iter().find(|x| **x == key).is_some()
+    SYSCONFIG_VALUES.iter().any(|x| *x == key)
 }
 
 pub fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {

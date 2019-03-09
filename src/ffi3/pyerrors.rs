@@ -1,4 +1,5 @@
 use crate::ffi3::object::*;
+use crate::ffi3::objectabstract::PyObject_CallFunction;
 use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
@@ -72,6 +73,27 @@ pub unsafe fn PyExceptionInstance_Check(x: *mut PyObject) -> c_int {
 #[cfg_attr(PyPy, link_name = "PyPyExceptionInstance_Class")]
 pub unsafe fn PyExceptionInstance_Class(x: *mut PyObject) -> *mut PyObject {
     (*x).ob_type as *mut PyObject
+}
+
+// ported from cpython exception.c (line 2096)
+#[cfg(PyPy)]
+pub unsafe fn PyUnicodeDecodeError_Create(
+    encoding: *const c_char,
+    object: *const c_char,
+    length: Py_ssize_t,
+    start: Py_ssize_t,
+    end: Py_ssize_t,
+    reason: *const c_char,
+) -> *mut PyObject {
+    return PyObject_CallFunction(
+        PyExc_UnicodeDecodeError,
+        cstr!("sy#nns").as_ptr(),
+        encoding,
+        object,
+        length,
+        start,
+        end,
+    );
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -276,6 +298,7 @@ extern "C" {
     pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int) -> ();
     pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int) -> ();
     pub fn PyErr_ProgramText(filename: *const c_char, lineno: c_int) -> *mut PyObject;
+    #[cfg(not(PyPy))]
     pub fn PyUnicodeDecodeError_Create(
         encoding: *const c_char,
         object: *const c_char,

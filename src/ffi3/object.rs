@@ -73,14 +73,6 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     (*ob).ob_refcnt
 }
 
-macro_rules! cstr(
-    ($s: tt) => (
-        // TODO: verify that $s is a string literal without nuls
-        unsafe {
-            ::std::ffi::CStr::from_ptr(concat!($s, "\0").as_ptr() as *const _)
-        }
-    );
-);
 
 #[cfg(PyPy)]
 pub unsafe fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject {
@@ -754,6 +746,7 @@ extern "C" {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_HasAttrString")]
     pub fn PyObject_HasAttrString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_GetAttr")]
     pub fn PyObject_GetAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
