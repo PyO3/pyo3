@@ -30,14 +30,12 @@ pub enum Struct_symtable {}
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn Py_SetProgramName(arg1: *mut c_char);
-    #[cfg_attr(PyPy, link_name = "PyPy_GetProgramName")]
     pub fn Py_GetProgramName() -> *mut c_char;
     pub fn Py_SetPythonHome(arg1: *mut c_char);
     pub fn Py_GetPythonHome() -> *mut c_char;
     pub fn Py_Initialize();
     pub fn Py_InitializeEx(arg1: c_int);
     pub fn Py_Finalize();
-    #[cfg_attr(PyPy, link_name = "PyPy_IsInitialized")]
     pub fn Py_IsInitialized() -> c_int;
     pub fn Py_NewInterpreter() -> *mut PyThreadState;
     pub fn Py_EndInterpreter(arg1: *mut PyThreadState);
@@ -97,7 +95,6 @@ extern "C" {
         arg3: c_int,
         arg4: c_int,
     ) -> *mut Struct__node;
-    #[cfg_attr(PyPy, link_name = "PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(
         arg1: *const c_char,
         arg2: c_int,
@@ -114,7 +111,6 @@ extern "C" {
         arg6: c_int,
         arg7: *mut PyCompilerFlags,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPy_CompileStringFlags")]
     pub fn Py_CompileStringFlags(
         arg1: *const c_char,
         arg2: *const c_char,
@@ -126,13 +122,9 @@ extern "C" {
         arg2: *const c_char,
         arg3: c_int,
     ) -> *mut Struct_symtable;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Print")]
     pub fn PyErr_Print();
-    #[cfg_attr(PyPy, link_name = "PyPyErr_PrintEx")]
     pub fn PyErr_PrintEx(arg1: c_int);
-    #[cfg_attr(PyPy, link_name = "PyPyErr_Display")]
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPy_AtExit")]
     pub fn Py_AtExit(func: Option<unsafe extern "C" fn()>) -> c_int;
     pub fn Py_Exit(arg1: c_int);
     pub fn Py_FdIsInteractive(arg1: *mut FILE, arg2: *const c_char) -> c_int;
@@ -141,7 +133,6 @@ extern "C" {
     pub fn Py_GetPrefix() -> *mut c_char;
     pub fn Py_GetExecPrefix() -> *mut c_char;
     pub fn Py_GetPath() -> *mut c_char;
-    #[cfg_attr(PyPy, link_name = "PyPy_GetVersion")]
     pub fn Py_GetVersion() -> *const c_char;
     pub fn Py_GetPlatform() -> *const c_char;
     pub fn Py_GetCopyright() -> *const c_char;

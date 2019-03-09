@@ -6,11 +6,8 @@ use std::ptr;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
     pub fn PyArg_Parse(args: *mut PyObject, format: *const c_char, ...) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTuple")]
     pub fn PyArg_ParseTuple(args: *mut PyObject, format: *const c_char, ...) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTupleAndKeywords")]
     pub fn PyArg_ParseTupleAndKeywords(
         args: *mut PyObject,
         kw: *mut PyObject,
@@ -18,7 +15,6 @@ extern "C" {
         keywords: *mut *mut c_char,
         ...
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyArg_UnpackTuple")]
     pub fn PyArg_UnpackTuple(
         args: *mut PyObject,
         name: *const c_char,
@@ -26,27 +22,21 @@ extern "C" {
         max: Py_ssize_t,
         ...
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPy_BuildValue")]
     pub fn Py_BuildValue(format: *const c_char, ...) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "_PyPy_BuildValue_SizeT")]
     //fn _Py_BuildValue_SizeT(arg1: *const c_char, ...)
     // -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "_PyPyArg_NoKeywords")]
     //fn _PyArg_NoKeywords(funcname: *const c_char,
     //                     kw: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddObject")]
     pub fn PyModule_AddObject(
         module: *mut PyObject,
         name: *const c_char,
         value: *mut PyObject,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddIntConstant")]
     pub fn PyModule_AddIntConstant(
         module: *mut PyObject,
         name: *const c_char,
         value: c_long,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddStringConstant")]
     pub fn PyModule_AddStringConstant(
         module: *mut PyObject,
         name: *const c_char,
@@ -54,7 +44,6 @@ extern "C" {
     ) -> c_int;
 
     #[cfg(all(target_pointer_width = "64", not(py_sys_config = "Py_TRACE_REFS")))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_InitPyPyModule")]
     fn Py_InitModule4_64(
         name: *const c_char,
         methods: *mut PyMethodDef,

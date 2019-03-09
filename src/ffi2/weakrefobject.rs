@@ -26,19 +26,16 @@ extern "C" {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRef")]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut _PyWeakref_RefType)
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRefExact")]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut _PyWeakref_RefType) as c_int
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckProxy")]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
     ((Py_TYPE(op) == &mut _PyWeakref_ProxyType)
         || (Py_TYPE(op) == &mut _PyWeakref_CallableProxyType)) as c_int
@@ -51,11 +48,8 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewRef")]
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_GetObject")]
     pub fn PyWeakref_GetObject(_ref: *mut PyObject) -> *mut PyObject;
 
     pub fn _PyWeakref_GetWeakrefCount(head: *mut PyWeakReference) -> Py_ssize_t;
@@ -63,7 +57,6 @@ extern "C" {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyWeakref_GET_OBJECT")]
 pub unsafe fn PyWeakref_GET_OBJECT(_ref: *mut PyObject) -> *mut PyObject {
     let obj = (*(_ref as *mut PyWeakReference)).wr_object;
     if Py_REFCNT(obj) > 0 {

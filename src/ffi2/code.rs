@@ -55,7 +55,6 @@ pub const CO_MAXBLOCKS: usize = 20;
 extern "C" {
     pub static mut PyCode_Type: PyTypeObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyCode_New")]
     pub fn PyCode_New(
         arg1: c_int,
         arg2: c_int,
@@ -72,14 +71,12 @@ extern "C" {
         arg13: c_int,
         arg14: *mut PyObject,
     ) -> *mut PyCodeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyCode_NewEmpty")]
     pub fn PyCode_NewEmpty(
         filename: *const c_char,
         funcname: *const c_char,
         firstlineno: c_int,
     ) -> *mut PyCodeObject;
     pub fn PyCode_Addr2Line(arg1: *mut PyCodeObject, arg2: c_int) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyCode_Check")]
     //fn _PyCode_CheckLineNumber(co: *mut PyCodeObject,
     //                               lasti: c_int,
     //                               bounds: *mut PyAddrPair) -> c_int;
@@ -97,7 +94,6 @@ pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyCode_GetNumFree")]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
     crate::ffi2::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }

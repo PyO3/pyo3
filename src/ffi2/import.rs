@@ -35,9 +35,7 @@ pub unsafe fn PyImport_ImportModuleEx(
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModule")]
     pub fn PyImport_ImportModule(name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyImport_ImportModuleNoBlock")]
     pub fn PyImport_ImportModuleNoBlock(name: *const c_char) -> *mut PyObject;
     pub fn PyImport_ImportModuleLevel(
         name: *mut c_char,
@@ -48,13 +46,9 @@ extern "C" {
     ) -> *mut PyObject;
 
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyImport_AddModule")]
     pub fn PyImport_AddModule(name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyImport_ExecCodeModule")]
     pub fn PyImport_ExecCodeModule(name: *mut c_char, co: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyImport_ExecCodeModuleEx")]
     pub fn PyImport_ExecCodeModuleEx(
         name: *mut c_char,
         co: *mut PyObject,
@@ -62,7 +56,6 @@ extern "C" {
     ) -> *mut PyObject;
     pub fn PyImport_GetMagicNumber() -> c_long;
     pub fn PyImport_GetImporter(path: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyImport_GetModuleDict")]
     pub fn PyImport_GetModuleDict() -> *mut PyObject;
     pub fn PyImport_ImportFrozenModule(name: *mut c_char) -> c_int;
 
@@ -77,9 +70,7 @@ extern "C" {
 
 /*for internal use only:
 pub fn PyImport_Cleanup();
-#[cfg_attr(PyPy, link_name="\u{1}__PyPyImport_AcquireLock")]
 pub fn _PyImport_AcquireLock();
-#[cfg_attr(PyPy, link_name="\u{1}__PyPyImport_ReleaseLock")]
 pub fn _PyImport_ReleaseLock() -> c_int;
 pub fn _PyImport_FindModule(arg1: *const c_char,
                             arg2: *mut PyObject,

@@ -131,14 +131,12 @@ pub const Py_eval_input: c_int = 258;
 
 #[cfg(not(py_sys_config = "Py_USING_UNICODE"))]
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
 pub fn PyUnicode_Check(op: *mut PyObject) -> libc::c_int {
     0
 }
 
 #[cfg(not(py_sys_config = "Py_USING_UNICODE"))]
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyUnicode_CheckExact")]
 pub fn PyUnicode_CheckExact(op: *mut PyObject) -> libc::c_int {
     0
 }

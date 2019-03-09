@@ -4,7 +4,6 @@ use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyEval_EvalCode")]
     pub fn PyEval_EvalCode(
         arg1: *mut PyCodeObject,
         arg2: *mut PyObject,

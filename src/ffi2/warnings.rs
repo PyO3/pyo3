@@ -4,7 +4,6 @@ use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnEx")]
     pub fn PyErr_WarnEx(
         category: *mut PyObject,
         msg: *const c_char,
@@ -21,7 +20,6 @@ extern "C" {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyErr_Warn")]
 pub unsafe fn PyErr_Warn(category: *mut PyObject, msg: *const c_char) -> c_int {
     PyErr_WarnEx(category, msg, 1)
 }

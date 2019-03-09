@@ -5,12 +5,10 @@ use std::os::raw::{c_char, c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyModule_Type")]
     pub static mut PyModule_Type: PyTypeObject;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyModule_Check")]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyModule_Type)
 }
@@ -24,7 +22,6 @@ pub unsafe fn PyModule_CheckExact(op: *mut PyObject) -> c_int {
 extern "C" {
     pub fn PyModule_NewObject(name: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_New(name: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_GetDict")]
     pub fn PyModule_GetDict(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_GetNameObject(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyModule_GetName(arg1: *mut PyObject) -> *const c_char;

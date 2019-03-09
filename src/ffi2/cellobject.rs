@@ -16,7 +16,6 @@ struct PyCellObject {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyCell_Type")]
     pub static mut PyCell_Type: PyTypeObject;
 }
 

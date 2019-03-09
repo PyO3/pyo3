@@ -51,29 +51,24 @@ pub struct PyMethodObject {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyClass_Type")]
     pub static mut PyClass_Type: PyTypeObject;
-    // TODO: check why this symbol isn't exported by libpypy
-    #[cfg_attr(PyPy, link_name = "PyPyClass_Type")]
     pub static mut PyInstance_Type: PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethod_Type")]
     pub static mut PyMethod_Type: PyTypeObject;
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyClass_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyClass_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyInstance_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyInstance_Type;
     (Py_TYPE(op) == u) as c_int
 }
 
-#[inline(always)]
-#[cfg_attr(PyPy, link_name = "PyPyMethod_Check")]
+#[inline]
 pub unsafe fn PyMethod_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyMethod_Type;
     (Py_TYPE(op) == u) as c_int
@@ -92,15 +87,12 @@ extern "C" {
         arg3: *mut PyObject,
     ) -> *mut PyObject;
     pub fn PyInstance_NewRaw(arg1: *mut PyObject, arg2: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethod_New")]
     pub fn PyMethod_New(
         arg1: *mut PyObject,
         arg2: *mut PyObject,
         arg3: *mut PyObject,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethod_Function")]
     pub fn PyMethod_Function(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMethod_Self")]
     pub fn PyMethod_Self(arg1: *mut PyObject) -> *mut PyObject;
     pub fn PyMethod_Class(arg1: *mut PyObject) -> *mut PyObject;
     fn _PyInstance_Lookup(pinst: *mut PyObject, name: *mut PyObject) -> *mut PyObject;

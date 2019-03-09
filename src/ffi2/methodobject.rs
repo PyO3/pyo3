@@ -4,11 +4,10 @@ use std::ptr;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_Type")]
     pub static mut PyCFunction_Type: PyTypeObject;
 }
+
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyCFunction_Check")]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyCFunction_Type;
     (Py_TYPE(op) == u) as c_int
@@ -25,7 +24,6 @@ pub type PyNoArgsFunction = unsafe extern "C" fn(slf: *mut PyObject) -> *mut PyO
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]
     pub fn PyCFunction_GetFunction(f: *mut PyObject) -> Option<PyCFunction>;
     pub fn PyCFunction_GetSelf(f: *mut PyObject) -> *mut PyObject;
     pub fn PyCFunction_GetFlags(f: *mut PyObject) -> c_int;
@@ -105,13 +103,11 @@ struct PyCFunctionObject {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPy_FindMethod")]
     pub fn Py_FindMethod(
         methods: *mut PyMethodDef,
         slf: *mut PyObject,
         name: *const c_char,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyCFunction_NewEx")]
     pub fn PyCFunction_NewEx(
         ml: *mut PyMethodDef,
         slf: *mut PyObject,

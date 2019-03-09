@@ -34,17 +34,14 @@ pub struct PyComplexObject {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_Type")]
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
-#[cfg_attr(PyPy, link_name = "PyPyComplex_Check")]
 #[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyComplex_Type)
 }
 
-#[cfg_attr(PyPy, link_name = "PyPyComplex_CheckExact")]
 #[inline]
 pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyComplex_Type;
@@ -53,15 +50,10 @@ pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_FromCComplex")]
     pub fn PyComplex_FromCComplex(v: Py_complex) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_FromDoubles")]
     pub fn PyComplex_FromDoubles(real: c_double, imag: c_double) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_RealAsDouble")]
     pub fn PyComplex_RealAsDouble(op: *mut PyObject) -> c_double;
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_ImagAsDouble")]
     pub fn PyComplex_ImagAsDouble(op: *mut PyObject) -> c_double;
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_AsCComplex")]
     pub fn PyComplex_AsCComplex(op: *mut PyObject) -> Py_complex;
 
 //fn _PyComplex_FormatAdvanced(obj: *mut PyObject,

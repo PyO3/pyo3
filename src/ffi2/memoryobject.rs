@@ -4,12 +4,10 @@ use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_Type")]
     pub static mut PyMemoryView_Type: PyTypeObject;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyMemoryView_Check")]
 pub unsafe fn PyMemoryView_Check(op: *mut PyObject) -> c_int {
     let u: *mut PyTypeObject = &mut PyMemoryView_Type;
     (Py_TYPE(op) == u) as c_int
@@ -32,9 +30,7 @@ extern "C" {
         buffertype: c_int,
         fort: c_char,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromObject")]
     pub fn PyMemoryView_FromObject(base: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyMemoryView_FromBuffer")]
     pub fn PyMemoryView_FromBuffer(info: *mut Py_buffer) -> *mut PyObject;
 }
 
