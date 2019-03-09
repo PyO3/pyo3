@@ -84,8 +84,8 @@ macro_rules! cstr(
 
 #[cfg(PyPy)]
 pub unsafe fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject {
-    return PyErr_Format(
-        PyExc_TypeError,
+    return crate::ffi3::pyerrors::PyErr_Format(
+        crate::ffi3::pyerrors::PyExc_TypeError,
         cstr!("'%.200s' object is not iterable").as_ptr(),
         Py_TYPE((*(arg1 as *mut PyTypeObject)).tp_name as *mut PyObject),
     );

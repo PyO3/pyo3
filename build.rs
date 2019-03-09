@@ -41,6 +41,13 @@ fn main() {
 
     let flags = interpreter_config.emit_cargo_vars();
 
+    for (key, val) in &config_map {
+        match cfg_line_for_var(key, val) {
+            Some(line) => println!("{}", line),
+            None => (),
+        }
+    }
+
     // 2. Export python interpreter compilation flags as cargo variables that
     // will be visible to dependents. All flags will be available to dependent
     // build scripts in the environment variable DEP_PYTHON27_PYTHON_FLAGS as

@@ -232,6 +232,7 @@ print(sys.exec_prefix)
         );
 
         if self.is_pypy() {
+            all_vars.insert("WITH_THREAD".to_owned(), "1".to_owned());
             all_vars.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
             all_vars.insert("Py_UNICODE_SIZE".to_owned(), "4".to_owned());
             all_vars.insert("Py_UNICODE_WIDE".to_owned(), "1".to_owned());
@@ -242,6 +243,7 @@ print(sys.exec_prefix)
         } else {
             false
         };
+
         if debug {
             all_vars.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
             all_vars.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
@@ -370,7 +372,6 @@ print(sys.exec_prefix)
 
         if self.is_pypy() {
             println!("cargo:rustc-cfg=PyPy");
-            println!("cargo:rustc-cfg=py_sys_config=\"WITH_THREAD\"");
             flags += format!("CFG_PyPy").as_ref();
         };
 
@@ -393,16 +394,6 @@ print(sys.exec_prefix)
         }
 
         return flags;
-    }
-
-    fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, String> {
-        if let Some("1") = config_map.get("Py_DEBUG").as_ref().map(|s| s.as_str()) {
-            config_map.insert("Py_REF_DEBUG".to_owned(), "1".to_owned());
-            config_map.insert("Py_TRACE_REFS".to_owned(), "1".to_owned());
-            config_map.insert("COUNT_ALLOCS".to_owned(), "1".to_owned());
-        }
-
-        config_map
     }
 }
 
