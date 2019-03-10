@@ -5,6 +5,7 @@
 You can use the `create_exception!` macro to define a new exception type:
 
 ```rust
+# extern crate pyo3;
 use pyo3::create_exception;
 
 create_exception!(module, MyError, pyo3::exceptions::Exception);
@@ -16,6 +17,7 @@ create_exception!(module, MyError, pyo3::exceptions::Exception);
 For example:
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::create_exception;
 use pyo3::types::PyDict;
@@ -40,6 +42,7 @@ fn main() {
 To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html), then call [`PyErr::restore()`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
 
 ```rust
+# extern crate pyo3;
 use pyo3::{Python, PyErr};
 use pyo3::exceptions;
 
@@ -64,6 +67,7 @@ has corresponding rust type, exceptions defined by `create_exception!` and `impo
 have rust type as well.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::exceptions;
 # use pyo3::prelude::*;
 # fn check_for_error() -> bool {false}
@@ -82,6 +86,7 @@ Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#is
 in `PyO3` there is a [`Python::is_instance()`](https://docs.rs/pyo3/0.2.7/struct.Python.html#method.is_instance) method which does the same thing.
 
 ```rust
+# extern crate pyo3;
 use pyo3::Python;
 use pyo3::types::{PyBool, PyList};
 
@@ -100,6 +105,7 @@ fn main() {
 To check the type of an exception, you can simply do:
 
 ```rust
+# extern crate pyo3;
 # use pyo3::exceptions;
 # use pyo3::prelude::*;
 # fn main() {
@@ -151,6 +157,7 @@ The code snippet above will raise `OSError` in Python if `TcpListener::bind()` r
 types so `try!` macro or `?` operator can be used.
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 
 fn parse_int(s: String) -> PyResult<usize> {
@@ -168,6 +175,7 @@ It is possible to use exception defined in python code as native rust types.
 for that exception.
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::import_exception;
 
