@@ -8,5 +8,6 @@
 - [Python Class](class.md)
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
+- [Advanced Topics](advanced.md)
 - [Building and Distribution](building-and-distribution.md)
 - [Appendix: Pyo3 and rust-cpython](rust-cpython.md)

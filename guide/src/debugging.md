@@ -29,3 +29,12 @@ Activate an environment with the debug interpreter and recompile. If you're on l
 [Download the suppressions file for cpython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
 
 Run valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --with-options`
+
+## Getting a stacktrace
+
+The best start to investigate a crash such as an segmentation fault is a backtrace.
+
+ * Link against a debug build of python as described in the previous chapter
+ * Run `gdb <my-binary>`
+ * Enter `r` to run
+ * After the crash occured, enter `bt` or `bt full` to print the stacktrace
