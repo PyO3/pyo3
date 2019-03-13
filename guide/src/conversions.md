@@ -1,6 +1,6 @@
 # Type Conversions
 
-`PyO3` provides some handy traits to convert between Python types and Rust types.
+PyO3 provides some handy traits to convert between Python types and Rust types.
 
 ## `.extract()`
 
@@ -104,7 +104,7 @@ fn main() {
 
 ## `IntoPy<T>`
 
-Many conversions in pyo3 can't use `std::convert::Into` because they need a gil token. That's why the `IntoPy<T>` trait offers an `into_py` methods that works just like `into` except for taking a `Python<'_>` as argument.
+Many conversions in PyO3 can't use `std::convert::Into` because they need a gil token. That's why the `IntoPy<T>` trait offers an `into_py` methods that works just like `into` except for taking a `Python<'_>` as argument.
 
 Eventually, traits such as `IntoPyObject` will be replaces by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`. 
 
