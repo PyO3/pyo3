@@ -2,13 +2,13 @@
 
 ## Python version
 
-pyo3 uses a build script to determine the python version and set the correct linker arguments. By default it uses the `python3` executable. With the `python2` feature it uses the `python2` executable. You can override the python interpreter by setting `PYTHON_SYS_EXECUTABLE`.
+PyO3 uses a build script to determine the python version and set the correct linker arguments. By default it uses the `python3` executable. With the `python2` feature it uses the `python2` executable. You can override the python interpreter by setting `PYTHON_SYS_EXECUTABLE`.
 
 ## Linking
 
 Different linker arguments must be set for libraries/extension modules and binaries, which includes both standalone binaries and tests. (More specifically, binaries must be told where to find libpython and libraries must not link to libpython for [manylinux](https://www.python.org/dev/peps/pep-0513/) compliance).
 
-Since pyo3's build script can't know whether you're building a binary or a library, you have to activate the `extension-module` feature to get the build options for a library, or it'll default to binary.
+Since PyO3's build script can't know whether you're building a binary or a library, you have to activate the `extension-module` feature to get the build options for a library, or it'll default to binary.
 
 If you have e.g. a library crate and a profiling crate alongside, you need to use optional features. E.g. you put the following in the library crate:
 
@@ -40,7 +40,7 @@ There are two ways to distribute your module as python package: The old [setupto
 
 ## Cross Compiling
 
-Cross compiling Pyo3 modules is relatively straightforward and requires a few pieces of software:
+Cross compiling PyO3 modules is relatively straightforward and requires a few pieces of software:
 
 * A toolchain for your target.
 * The appropriate options in your Cargo `.config` for the platform you're targeting and the toolchain you are using.

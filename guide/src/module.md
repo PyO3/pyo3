@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 #[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
-    // pyo3 aware function. All of our python interface could be declared in a separate module.
+    // PyO3 aware function. All of our python interface could be declared in a separate module.
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
