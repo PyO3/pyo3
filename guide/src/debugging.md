@@ -20,9 +20,9 @@ See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate
 
 ## Running with Valgrind
 
-Valgrind is a tool to detect memory managment bugs such as memory leaks.
+Valgrind is a tool to detect memory management bugs such as memory leaks.
 
-You first need to installa debug build of python, otherwise valgrind won't produce usable results. In ubuntu there's e.g. a `python3-dbg` package.
+You first need to install a debug build of python, otherwise valgrind won't produce usable results. In ubuntu there's e.g. a `python3-dbg` package.
 
 Activate an environment with the debug interpreter and recompile. If you're on linux, use `ldd` with the name of you're binary and check that you're linking e.g. `libpython3.6dm.so.1.0` instead of `libpython3.6m.so.1.0`.
 
@@ -37,4 +37,4 @@ The best start to investigate a crash such as an segmentation fault is a backtra
  * Link against a debug build of python as described in the previous chapter
  * Run `gdb <my-binary>`
  * Enter `r` to run
- * After the crash occured, enter `bt` or `bt full` to print the stacktrace
+ * After the crash occurred, enter `bt` or `bt full` to print the stacktrace
