@@ -191,7 +191,7 @@ where
 
 impl<T> IntoPyObject for Vec<T>
 where
-    T: IntoPyObject + ToPyObject,
+    T: IntoPyObject,
 {
     fn into_object(self, py: Python) -> PyObject {
         unsafe {
