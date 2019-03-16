@@ -1,7 +1,11 @@
-use docmatic;
-use std::default::Default;
-use std::path::{Path, PathBuf};
+#[cfg(feature = "test-doc")]
+use {
+    docmatic,
+    std::default::Default,
+    std::path::{Path, PathBuf},
+};
 
+#[cfg(feature = "test-doc")]
 fn assert_file<P: AsRef<Path>>(path: P) {
     let mut doc = docmatic::Assert::default();
     if cfg!(windows) {
