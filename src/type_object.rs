@@ -14,9 +14,7 @@ use crate::{class, ffi, gil};
 use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::os::raw::c_char;
 use std::os::raw::c_void;
-use std::ptr;
 use std::ptr::NonNull;
 
 /// Python type information.
@@ -397,14 +395,7 @@ where
     let mut props = py_class_properties::<T>();
 
     if cfg!(Py_3) && has_dict {
-        let dict_slot = ffi::PyGetSetDef {
-            name: "__dict__\0".as_ptr() as *mut c_char,
-            get: Some(ffi::PyObject_GenericGetDict),
-            set: Some(ffi::PyObject_GenericSetDict),
-            doc: ptr::null_mut(),
-            closure: ptr::null_mut(),
-        };
-        props.push(dict_slot);
+        props.push(ffi::PyGetSetDef_DICT);
     }
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
