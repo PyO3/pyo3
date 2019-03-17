@@ -104,8 +104,7 @@ python object that can be collected, the `PyGCProtocol` trait has to be implemen
 * `weakref` - adds support for python weak references
 * `extends=BaseType` - use a custom base class. The base BaseType must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class
-* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables. (Incomplete, see [#123](https://github.com/PyO3/pyo3/issues/123))
-
+* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables.
 
 ## Constructor
 
