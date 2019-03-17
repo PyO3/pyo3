@@ -14,7 +14,9 @@ use crate::{class, ffi, gil};
 use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::os::raw::c_char;
 use std::os::raw::c_void;
+use std::ptr;
 use std::ptr::NonNull;
 
 /// Python type information.
@@ -321,7 +323,8 @@ where
     }
 
     // __dict__ support
-    if T::FLAGS & PY_TYPE_FLAG_DICT != 0 {
+    let has_dict = T::FLAGS & PY_TYPE_FLAG_DICT != 0;
+    if has_dict {
         offset -= std::mem::size_of::<*const ffi::PyObject>();
         type_object.tp_dictoffset = offset as isize;
     }
@@ -392,6 +395,17 @@ where
 
     // properties
     let mut props = py_class_properties::<T>();
+
+    if cfg!(Py_3) && has_dict {
+        let dict_slot = ffi::PyGetSetDef {
+            name: "__dict__\0".as_ptr() as *mut c_char,
+            get: Some(ffi::PyObject_GenericGetDict),
+            set: Some(ffi::PyObject_GenericSetDict),
+            doc: ptr::null_mut(),
+            closure: ptr::null_mut(),
+        };
+        props.push(dict_slot);
+    }
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
         type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as *mut _;
