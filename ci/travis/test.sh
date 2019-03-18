@@ -4,7 +4,7 @@ set -ex
 cargo clean
 
 # run `cargo test` only if testing against cpython.
-if ![[ $FEATURES == *"pypy"* ]]; then
+if ! [[ $FEATURES == *"pypy"* ]]; then
   cargo test --features "$FEATURES num-complex"
 fi
 
