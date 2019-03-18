@@ -859,6 +859,7 @@ pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
     pub fn _Py_Dealloc(arg1: *mut PyObject) -> ();
 }
 
