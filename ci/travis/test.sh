@@ -15,7 +15,7 @@ if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
 fi
 
 if [[ $FEATURES == *"pypy"* ]]; then
-    source activate pypy3
+    /opt/anaconda/bin/conda activate pypy3
 fi
 
 for example_dir in examples/*; do

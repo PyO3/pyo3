@@ -40,9 +40,9 @@ fi
 wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
 /bin/bash Miniconda3-latest-Linux-x86_64.sh -f -b -p /opt/anaconda && \
 /opt/anaconda/bin/conda install --quiet --yes conda && \
-conda config --system --add channels conda-forge && \
-conda create -n pypy3 && \
-source activate pypy3 && \
-conda install pypy3.5 && \
-pypy3 -m ensurepip && \
-pypy3 -m pip install setuptools-rust pytest pytest-benchmark tox
+/opt/anaconda/bin/conda config --system --add channels conda-forge && \
+/opt/anaconda/bin/conda create -n pypy3 && \
+/opt/anaconda/bin/conda activate pypy3 && \
+/opt/anaconda/bin/conda install pypy3.5 && \
+/opt/anaconda/envs/pypy3/bin/pypy3 -m ensurepip && \
+/opt/anaconda/envs/pypy3/bin/pypy3 -m pip install setuptools-rust pytest pytest-benchmark tox
