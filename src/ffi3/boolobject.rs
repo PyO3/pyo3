@@ -6,7 +6,6 @@ use std::os::raw::{c_int, c_long};
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyBool_Type")]
     pub static mut PyBool_Type: PyTypeObject;
-    // define Py_False ((PyObject *) &_Py_ZeroStruct)
     #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;
     #[cfg_attr(PyPy, link_name = "_PyPy_TrueStruct")]

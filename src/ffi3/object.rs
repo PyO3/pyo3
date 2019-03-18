@@ -634,7 +634,7 @@ pub struct PyType_Slot {
 
 impl Default for PyType_Slot {
     fn default() -> PyType_Slot {
-        unsafe { ::std::mem::zeroed() }
+        unsafe { mem::zeroed() }
     }
 }
 
@@ -850,7 +850,7 @@ pub unsafe fn PyType_HasFeature(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     (((*t).tp_flags & f) != 0) as c_int
 }
 
-#[inline(always)]
+#[inline]
 pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
     PyType_HasFeature(t, f)
 }
@@ -865,7 +865,6 @@ extern "C" {
 #[inline]
 pub unsafe fn Py_INCREF(op: *mut PyObject) {
     if cfg!(py_sys_config = "Py_REF_DEBUG") {
-        #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
         Py_IncRef(op)
     } else {
         (*op).ob_refcnt += 1
@@ -875,7 +874,6 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
 #[inline]
 pub unsafe fn Py_DECREF(op: *mut PyObject) {
     if cfg!(py_sys_config = "Py_REF_DEBUG") {
-        #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
         Py_DecRef(op)
     } else {
         (*op).ob_refcnt -= 1;
@@ -910,7 +908,9 @@ pub unsafe fn Py_XDECREF(op: *mut PyObject) {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
     pub fn Py_IncRef(o: *mut PyObject);
+    #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
 
     #[cfg_attr(PyPy, link_name = "_PyPy_NoneStruct")]

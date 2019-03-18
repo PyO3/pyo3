@@ -52,7 +52,7 @@ extern "C" {
     static mut _Py_CheckRecursionLimit: c_int;
 }
 
-#[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
+//#[cfg_attr(PyPy, link_name = "PyPy_EnterRecursiveCall")]
 // TODO: Py_EnterRecursiveCall etc.
 #[cfg(Py_3_6)]
 pub type _PyFrameEvalFunction =

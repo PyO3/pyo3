@@ -10,7 +10,6 @@ extern "C" {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyModule_Check")]
 pub unsafe fn PyModule_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyModule_Type)
 }

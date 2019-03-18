@@ -8,7 +8,6 @@ extern "C" {
     pub static mut PyCFunction_Type: PyTypeObject;
 }
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyCFunction_Check")]
 pub unsafe fn PyCFunction_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCFunction_Type) as c_int
 }

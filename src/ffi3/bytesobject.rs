@@ -26,10 +26,10 @@ extern "C" {
     pub fn PyBytes_FromString(arg1: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyBytes_FromObject")]
     pub fn PyBytes_FromObject(arg1: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyBytes_FromFormat")]
     #[cfg_attr(PyPy, link_name = "PyPyBytes_FromFormatV")]
     //pub fn PyBytes_FromFormatV(arg1: *const c_char, arg2: va_list)
     // -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyBytes_FromFormat")]
     pub fn PyBytes_FromFormat(arg1: *const c_char, ...) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyBytes_Size")]
     pub fn PyBytes_Size(arg1: *mut PyObject) -> Py_ssize_t;
