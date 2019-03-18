@@ -29,6 +29,11 @@ pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
+#[cfg(PyPy)]
+pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
+
+// PyPy doesn't export neither PyObject_GenericGetDict/PyObject_GenericSetDict
+#[cfg(not(PyPy))]
 pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef {
     name: "__dict__\0".as_ptr() as *mut c_char,
     get: Some(PyObject_GenericGetDict),
