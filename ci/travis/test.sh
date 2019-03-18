@@ -3,6 +3,7 @@ set -ex
 
 cargo clean
 cargo test --features "$FEATURES num-complex"
+( cd pyo3-derive-backend; cargo test )
 if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
     cargo fmt --all -- --check
     cargo clippy --features "$FEATURES num-complex"

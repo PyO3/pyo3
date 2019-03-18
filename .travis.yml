@@ -5,6 +5,8 @@ dist: xenial
 cache:
   pip: true
   cargo: true
+  directories:
+    - "$HOME/kcov"
 
 matrix:
   include:
@@ -56,7 +58,16 @@ install:
 script:
   - ./ci/travis/test.sh
 
+after_success:
+  - ./ci/travis/cover.sh
+
 deploy:
+  - provider: script
+    skip_cleanup: true
+    script: ./ci/travis/cover.sh
+    on:
+      branch: master
+      condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     skip_cleanup: true
     script: ./ci/travis/guide.sh
