@@ -279,7 +279,7 @@ impl PyBuffer {
     #[inline]
     pub fn format(&self) -> &CStr {
         if self.0.format.is_null() {
-            CStr::from_bytes_with_nul("B\0".as_bytes()).unwrap()
+            CStr::from_bytes_with_nul(b"B\0").unwrap()
         } else {
             unsafe { CStr::from_ptr(self.0.format) }
         }

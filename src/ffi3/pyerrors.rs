@@ -88,7 +88,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 ) -> *mut PyObject {
     return PyObject_CallFunction(
         PyExc_UnicodeDecodeError,
-        CStr::from_bytes_with_nul("sy#nns\0".as_bytes()).unwrap().as_ptr(),
+        CStr::from_bytes_with_nul(b"sy#nns\0").unwrap().as_ptr(),
         encoding,
         object,
         length,
