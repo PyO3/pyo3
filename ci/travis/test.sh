@@ -6,6 +6,7 @@ cargo clean
 # run `cargo test` only if testing against cpython.
 if ! [[ $FEATURES == *"pypy"* ]]; then
   cargo test --features "$FEATURES num-complex"
+  ( cd pyo3-derive-backend; cargo test )
 fi
 
 if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
