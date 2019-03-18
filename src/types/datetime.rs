@@ -7,8 +7,10 @@
 
 use crate::err::PyResult;
 use crate::ffi;
-use crate::ffi::datetime::PyDate_FromTimestamp;
-use crate::ffi::datetime::{PyDateTime_CAPI, PyDateTime_FromTimestamp};
+use crate::ffi::datetime::PyDateTime_CAPI;
+#[cfg(PyPy)]
+use crate::ffi::datetime::{PyDateTime_FromTimestamp, PyDate_FromTimestamp};
+
 use crate::ffi::PyDateTimeAPI;
 use crate::ffi::PyFloat_FromDouble;
 use crate::ffi::Py_BuildValue;
@@ -91,11 +93,12 @@ impl PyDate {
         let time_tuple = PyTuple::new(py, &[timestamp]);
 
         unsafe {
-            let ptr = if cfg!(PyPy) {
-                PyDate_FromTimestamp(time_tuple.as_ptr())
-            } else {
-                (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, time_tuple.as_ptr())
-            };
+            #[cfg(PyPy)]
+            let ptr = PyDate_FromTimestamp(time_tuple.as_ptr());
+
+            #[cfg(not(PyPy))]
+            let ptr =
+                (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, time_tuple.as_ptr());
 
             unsafe { Py::from_owned_ptr_or_err(py, ptr) }
         }
@@ -166,9 +169,11 @@ impl PyDateTime {
         let args = PyTuple::new(py, &[timestamp, time_zone_info]);
 
         unsafe {
-            let ptr = if cfg!(PyPy) {
-                PyDateTime_FromTimestamp(args.as_ptr())
-            } else {
+            #[cfg(PyPy)]
+            let ptr = PyDateTime_FromTimestamp(args.as_ptr());
+
+            #[cfg(not(PyPy))]
+            let ptr = {
                 (PyDateTimeAPI.DateTime_FromTimestamp)(
                     PyDateTimeAPI.DateTimeType,
                     args.as_ptr(),

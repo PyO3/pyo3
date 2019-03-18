@@ -16,7 +16,6 @@ use std::os::raw::{c_char, c_int, c_uchar};
 use std::ptr;
 use std::sync::Once;
 
-
 // A note regarding cpyext support:
 // Some macros, like `PyDate_FromTimestamp` and `PyDateTime_FromTimestamp` are exported as separate symbols.
 // For now, some symbols are exported as "private" symbols, like `_PyPyDate_FromDate`,
@@ -146,7 +145,6 @@ extern "C" {
     pub fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
 }
 
-
 // Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;
@@ -255,18 +253,18 @@ impl Deref for PyDateTimeAPI {
 /// such as if you do not want the first call to a datetime function to be
 /// slightly slower than subsequent calls.
 pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
-
     // PyPy excepts the C-API to be initialized via PyDateTime_Import, so trying to use
     // `PyCapsule_Import` will behave unexpectedly in pypy.
-    let py_datetime_c_api = if cfg!(PyPy) {
-        PyDateTime_Import()
-    } else {
+    #[cfg(PyPy)]
+    let py_datetime_c_api = PyDateTime_Import();
+
+    #[cfg(not(PyPy))]
+    let py_datetime_c_api = {
         // PyDateTime_CAPSULE_NAME is a macro in C
         let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
 
         PyCapsule_Import(PyDateTime_CAPSULE_NAME.as_ptr(), 1) as *const PyDateTime_CAPI
     };
-
 
     PY_DATETIME_API_ONCE.call_once(move || {
         PY_DATETIME_API_UNSAFE_CACHE = py_datetime_c_api;
@@ -347,7 +345,6 @@ macro_rules! _access_field {
         (*($obj as *mut $type)).$field
     };
 }
-
 
 // Accessor functions for PyDateTime_Date and PyDateTime_DateTime
 #[inline]
