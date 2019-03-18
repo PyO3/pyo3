@@ -32,7 +32,7 @@ matrix:
       # Tested via anaconda PyPy (since travis's PyPy version is too old)
     - name: PyPy3.5 7.0
       python: "3.7"
-      env: FEATURES="python3 pypy"
+      env: FEATURES="python3 pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
     - python: "3.8-dev"
       env: FEATURES=python3

@@ -14,10 +14,6 @@ if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
     cargo clippy --features "$FEATURES num-complex"
 fi
 
-if [[ $FEATURES == *"pypy"* ]]; then
-    /opt/anaconda/bin/conda activate pypy3
-fi
-
 for example_dir in examples/*; do
     tox -c "$example_dir/tox.ini" -e py
 done
