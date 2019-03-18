@@ -42,6 +42,7 @@ pub fn prepare_freethreaded_python() {
         if ffi::Py_IsInitialized() != 0 {
             // If Python is already initialized, we expect Python threading to also be initialized,
             // as we can't make the existing Python main thread acquire the GIL.
+            #[cfg(not(Py_3_7))]
             assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
         } else {
             // If Python isn't initialized yet, we expect that Python threading
@@ -57,6 +58,9 @@ pub fn prepare_freethreaded_python() {
             // PyPy does not support the embedding API
             #[cfg(not(PyPy))]
             ffi::Py_InitializeEx(0);
+
+            // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
+            // > to call it yourself anymore.
             #[cfg(not(Py_3_7))]
             ffi::PyEval_InitThreads();
             // PyEval_InitThreads() will acquire the GIL,
