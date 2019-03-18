@@ -2,9 +2,11 @@
 
 ## Define new class
 
-To define python custom class, rust struct needs to be annotated with `#[pyclass]` attribute.
+To define a custom python class, a rust struct needs to be annotated with the
+`#[pyclass]` attribute.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -19,12 +21,12 @@ The above example generates implementations for `PyTypeInfo` and `PyTypeObject` 
 ## Get Python objects from `pyclass`
 You can use `pyclass`es like normal rust structs.
 
-However, if instantiate noramlly, you can't treat `pyclass`es as Python objects.
+However, if instantiated normally, you can't treat `pyclass`es as Python objects.
 
 To get a Python object which includes `pyclass`, we have to use some special methods.
 
 ### `PyRef`
-`PyRef` is a special reference, which ensures that the reffrered struct is a part of
+`PyRef` is a special reference, which ensures that the referred struct is a part of
 a Python object, and you are also holding the GIL.
 
 You can get an instance of `PyRef` by `PyRef::new`, which does 3 things:
@@ -34,6 +36,7 @@ You can get an instance of `PyRef` by `PyRef::new`, which does 3 things:
 
 You can use `PyRef` just like `&T`, because it implements `Deref<Target=T>`.
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::types::PyDict;
 #[pyclass]
@@ -53,6 +56,7 @@ dict.set_item("obj", obj).unwrap();
 ### `PyRefMut`
 `PyRefMut` is a mutable version of `PyRef`.
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -70,6 +74,7 @@ obj.num = 5;
 
 You can use it to avoid lifetime problems.
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -99,8 +104,7 @@ python object that can be collected, the `PyGCProtocol` trait has to be implemen
 * `weakref` - adds support for python weak references
 * `extends=BaseType` - use a custom base class. The base BaseType must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class
-* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables. (Incomplete, see [#123](https://github.com/PyO3/pyo3/issues/123))
-
+* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables.
 
 ## Constructor
 
@@ -109,6 +113,7 @@ To declare a constructor, you need to define a class method and annotate it with
 attribute. Only the python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::PyRawObject;
 #[pyclass]
@@ -149,7 +154,8 @@ By default `PyObject` is used as default base class. To override default base cl
 `new` method accepts `PyRawObject` object. `obj` instance must be initialized
 with value of custom class struct. Subclass must call parent's `new` method.
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::PyRawObject;
 #[pyclass]
@@ -183,7 +189,7 @@ impl SubClass {
    }
 
    fn method2(&self) -> PyResult<()> {
-       self.get_base().method()
+      self.get_base().method()
    }
 }
 ```
@@ -199,6 +205,7 @@ Descriptor methods can be defined in
 attributes. i.e.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -219,10 +226,11 @@ Getter or setter function's name is used as property name by default. There are 
 ways how to override name.
 
 If function name starts with `get_` or `set_` for getter or setter respectively.
-Descriptor name becomes function name with prefix removed. This is useful in case os
+Descriptor name becomes function name with prefix removed. This is useful in case of
 rust's special keywords like `type`.
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -248,9 +256,10 @@ impl MyClass {
 In this case property `num` is defined. And it is available from python code as `self.num`.
 
 Also both `#[getter]` and `#[setter]` attributes accepts one parameter.
-If parameter is specified, it is used and property name. i.e.
+If this parameter is specified, it is used as a property name. i.e.
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -273,11 +282,12 @@ impl MyClass {
 }
 ```
 
-In this case property `number` is defined. And it is available from python code as `self.number`.
+In this case the property `number` is defined and is available from python code as `self.number`.
 
 For simple cases you can also define getters and setters in your Rust struct field definition, for example:
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -290,12 +300,12 @@ Then it is available from Python code as `self.num`.
 
 ## Instance methods
 
-To define python compatible method, `impl` block for struct has to be annotated
-with `#[pymethods]` attribute. `pyo3` library generates python compatible
-wrappers for all functions in this block with some variations, like descriptors,
-class method static methods, etc.
+To define a python compatible method, `impl` block for struct has to be annotated with the
+`#[pymethods]` attribute. PyO3 generates python compatible wrappers for all functions in this
+block with some variations, like descriptors, class method static methods, etc.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -323,6 +333,7 @@ The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject
 get injected by method wrapper. i.e
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -342,10 +353,11 @@ From python perspective `method2`, in above example, does not accept any argumen
 
 ## Class methods
 
-To specify class method for custom class, method needs to be annotated
-with`#[classmethod]` attribute.
+To specify a class method for a custom class, the method needs to be annotated
+with the `#[classmethod]` attribute.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
 # #[pyclass]
@@ -373,11 +385,12 @@ Declares a class method callable from Python.
 
 ## Static methods
 
-To specify class method for custom class, method needs to be annotated
-with `#[staticmethod]` attribute. The return type must be `PyResult<T>`
-for some `T` that implements `IntoPyObject`.
+To specify a static method for a custom class, method needs to be annotated with
+`#[staticmethod]` attribute. The return type must be `PyResult<T>` for some `T` that implements
+`IntoPyObject`.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -396,10 +409,11 @@ impl MyClass {
 
 ## Callable object
 
-To specify custom `__call__` method for custom class, call method needs to be annotated
-with `#[call]` attribute. Arguments of the method are specified same as for instance method.
+To specify a custom `__call__` method for a custom class, call methods need to be annotated with
+the `#[call]` attribute. Arguments of the method are specified same as for instance method.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 # #[pyclass]
@@ -421,14 +435,13 @@ impl MyClass {
 
 ## Method arguments
 
-By default pyo3 library uses function signature to determine which arguments are required.
-Then it scans incoming `args` parameter and then incoming `kwargs` parameter. If it can not
-find all required parameters, it raises `TypeError` exception.
-It is possible to override default behavior with `#[args(...)]` attribute. `args` attribute
-accept comma separated list of parameters in form `attr_name="default value"`. Each parameter
-has to match method parameter by name.
+By default PyO3 uses function signatures to determine which arguments are required. Then it scans
+incoming `args` parameter and then incoming `kwargs` parameter. If it can not find all required
+parameters, it raises a `TypeError` exception. It is possible to override the default behavior
+with `#[args(...)]` attribute. `args` attribute accepts a comma separated list of parameters in
+form of `attr_name="default value"`. Each parameter has to match the method parameter by name.
 
-Each parameter could one of following type:
+Each parameter could be one of following type:
 
  * "\*": var arguments separator, each parameter defined after "*" is keyword only parameters.
    corresponds to python's `def meth(*, arg1.., arg2=..)`
@@ -438,11 +451,12 @@ Each parameter could one of following type:
    Type of `kwargs` parameter has to be `Option<&PyDict>`.
  * arg="Value": arguments with default value. corresponds to python's `def meth(arg=Value)`.
    if `arg` argument is defined after var arguments it is treated as keyword argument.
-   Note that `Value` has to be valid rust code, pyo3 just inserts it into generated
+   Note that `Value` has to be valid rust code, PyO3 just inserts it into generated
    code unmodified.
 
 Example:
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -464,11 +478,10 @@ impl MyClass {
 
 ## Class customizations
 
-Python object model defines several protocols for different object behavior,
-like sequence, mapping or number protocols. pyo3 library defines separate trait for each
-of them. To provide specific python object behavior you need to implement specific trait
-for your struct. Important note, each protocol implementation block has to be annotated
-with `#[pyproto]` attribute.
+Python's object model defines several protocols for different object behavior, like sequence,
+mapping or number protocols. PyO3 defines separate traits for each of them. To provide specific
+python object behavior you need to implement the specific trait for your struct. Important note,
+each protocol implementation block has to be annotated with `#[pyproto]` attribute.
 
 ### Basic object customization
 
@@ -527,7 +540,7 @@ Each methods corresponds to python's `self.attr`, `self.attr = value` and `del s
 
   * `fn __bool__(&self) -> PyResult<bool>`
 
-    Determines the "truthyness" of the object.
+    Determines the "truthiness" of the object.
     This method works for both python 3 and python 2,
     even on Python 2.7 where the Python spelling was `__nonzero__`.
 
@@ -545,6 +558,8 @@ These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 as every cycle must contain at least one mutable reference.
 Example:
 ```rust
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::PyTraverseError;
 use pyo3::gc::{PyGCProtocol, PyVisit};
@@ -574,9 +589,9 @@ impl PyGCProtocol for ClassWithGCSupport {
 }
 ```
 
-Special protocol trait implementation has to be annotated with `#[pyproto]` attribute.
+Special protocol trait implementations have to be annotated with the `#[pyproto]` attribute.
 
-It is also possible to enable gc for custom class using `gc` parameter for `class` annotation.
+It is also possible to enable GC for custom class using `gc` parameter for `class` annotation.
 i.e. `#[pyclass(gc)]`. In that case instances of custom class participate in python garbage
 collector, and it is possible to track them with `gc` module methods.
 
@@ -585,14 +600,16 @@ collector, and it is possible to track them with `gc` module methods.
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/0.6.0-alpha.4/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(&mut self) -> PyResult<impl IntoPyObject>`
-  * `fn __next__(&mut self) -> PyResult<Option<impl IntoPyObject>>`
+  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPyObject>`
+  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPyObject>>`
 
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 
 Example:
 
 ```rust
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::PyIterProtocol;
 
@@ -618,6 +635,10 @@ TODO: Which traits to implement (basically `PyTypeCreate: PyObjectAlloc + PyType
 
 ## How methods are implemented
 
-Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while pyo3 needs a trait with a function that returns all methods. Since it's impossible make the code generation in pyclass dependent on whether there is an impl block, we'd need to make to implement the trait on `#[pyclass]` and override the implementation in `#[pymethods]`, which is to my best knowledge only possible with the specialization feature, which is can't be used on stable.
+Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while PyO3 needs a
+trait with a function that returns all methods. Since it's impossible to make the code generation in
+pyclass dependent on whether there is an impl block, we'd need to implement the trait on
+`#[pyclass]` and override the implementation in `#[pymethods]`, which is to the best of my knowledge
+only possible with the specialization feature, which can't be used on stable.
 
 To escape this we use [inventory](https://github.com/dtolnay/inventory), which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class::impl_inventory` for more details.

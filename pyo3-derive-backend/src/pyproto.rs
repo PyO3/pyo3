@@ -84,13 +84,13 @@ fn impl_proto_impl(
                         impl #proto for #ty
                         {
                             #[inline]
-                            fn #name() -> Option<::pyo3::class::methods::PyMethodDef> {
+                            fn #name() -> Option<pyo3::class::methods::PyMethodDef> {
                                 #meth
 
-                                Some(::pyo3::class::PyMethodDef {
+                                Some(pyo3::class::PyMethodDef {
                                     ml_name: stringify!(#name),
-                                    ml_meth: ::pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                                    ml_flags: ::pyo3::ffi::METH_VARARGS | ::pyo3::ffi::METH_KEYWORDS,
+                                    ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
+                                    ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                                     ml_doc: ""
                                 })
                             }

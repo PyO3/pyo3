@@ -1,7 +1,11 @@
-use docmatic;
-use std::default::Default;
-use std::path::{Path, PathBuf};
+#[cfg(feature = "test-doc")]
+use {
+    docmatic,
+    std::default::Default,
+    std::path::{Path, PathBuf},
+};
 
+#[cfg(feature = "test-doc")]
 fn assert_file<P: AsRef<Path>>(path: P) {
     let mut doc = docmatic::Assert::default();
     if cfg!(windows) {
@@ -14,8 +18,8 @@ fn assert_file<P: AsRef<Path>>(path: P) {
     doc.test_file(path.as_ref())
 }
 
-#[ignore]
 #[test]
+#[cfg(feature = "test-doc")]
 fn test_guide() {
     let guide_path = PathBuf::from("guide").join("src");
     for entry in guide_path.read_dir().unwrap() {
@@ -23,8 +27,8 @@ fn test_guide() {
     }
 }
 
-#[ignore]
 #[test]
+#[cfg(feature = "test-doc")]
 fn test_readme() {
     assert_file("README.md")
 }

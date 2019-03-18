@@ -15,7 +15,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-Pyo3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
+PyO3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
 
 You can either write a native python module in rust or use python from a rust binary.
 
@@ -29,7 +29,7 @@ sudo apt install python3-dev python-dev
 
 ## Using rust from python
 
-Pyo3 can be used to generate a native python module.
+PyO3 can be used to generate a native python module.
 
 **`Cargo.toml`**
 
@@ -51,6 +51,9 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
+// Not required when using Rust 2018
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -95,6 +98,9 @@ pyo3 = "0.6.0-alpha.4"
 Example program displaying the value of `sys.version`:
 
 ```rust
+// Not required when using Rust 2018
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 

@@ -453,6 +453,22 @@ fn dunder_dict_support() {
     );
 }
 
+#[cfg(Py_3)]
+#[test]
+fn access_dunder_dict() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyRef::new(py, DunderDictSupport {}).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
+        inst.a = 1
+        assert inst.__dict__ == {'a': 1}
+    "#
+    );
+}
+
 #[pyclass(weakref, dict)]
 struct WeakRefDunderDictSupport {}
 

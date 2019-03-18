@@ -3,6 +3,7 @@
 As shown in the Getting Started chapter, you can create a module as follows:
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 
 // add bindings to the generated python module
@@ -11,7 +12,7 @@ use pyo3::prelude::*;
 #[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
-    // pyo3 aware function. All of our python interface could be declared in a separate module.
+    // PyO3 aware function. All of our python interface could be declared in a separate module.
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
@@ -52,6 +53,7 @@ Which means that the above Python code will print `This module is implemented in
 In python, modules are first class objects. This means can store them as values or add them to dicts or other modules:
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use pyo3::types::PyDict;
