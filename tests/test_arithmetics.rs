@@ -1,7 +1,7 @@
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;
-use pyo3::types::PyObjectRef;
+use pyo3::types::PyAny;
 
 #[macro_use]
 mod common;
@@ -127,35 +127,35 @@ fn inplace_operations() {
 
 #[pyproto]
 impl PyNumberProtocol for BinaryArithmetic {
-    fn __add__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __add__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
     }
 
-    fn __sub__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __sub__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} - {:?}", lhs, rhs))
     }
 
-    fn __mul__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __mul__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} * {:?}", lhs, rhs))
     }
 
-    fn __lshift__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __lshift__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} << {:?}", lhs, rhs))
     }
 
-    fn __rshift__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __rshift__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} >> {:?}", lhs, rhs))
     }
 
-    fn __and__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __and__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} & {:?}", lhs, rhs))
     }
 
-    fn __xor__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __xor__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} ^ {:?}", lhs, rhs))
     }
 
-    fn __or__(lhs: &PyObjectRef, rhs: &PyObjectRef) -> PyResult<String> {
+    fn __or__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} | {:?}", lhs, rhs))
     }
 }
@@ -195,7 +195,7 @@ impl PyObjectProtocol for RichComparisons {
         Ok("RC")
     }
 
-    fn __richcmp__(&self, other: &PyObjectRef, op: CompareOp) -> PyResult<String> {
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<String> {
         match op {
             CompareOp::Lt => Ok(format!("{} < {:?}", self.__repr__().unwrap(), other)),
             CompareOp::Le => Ok(format!("{} <= {:?}", self.__repr__().unwrap(), other)),
@@ -216,7 +216,7 @@ impl PyObjectProtocol for RichComparisons2 {
         Ok("RC2")
     }
 
-    fn __richcmp__(&self, _other: &PyObjectRef, op: CompareOp) -> PyResult<PyObject> {
+    fn __richcmp__(&self, _other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
         let gil = GILGuard::acquire();
         match op {
             CompareOp::Eq => Ok(true.to_object(gil.python())),

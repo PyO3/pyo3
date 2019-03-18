@@ -5,7 +5,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
 use std::borrow::Cow;
@@ -34,11 +34,7 @@ impl PyString {
         unsafe { Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    pub fn from_object<'p>(
-        src: &'p PyObjectRef,
-        encoding: &str,
-        errors: &str,
-    ) -> PyResult<&'p PyString> {
+    pub fn from_object<'p>(src: &'p PyAny, encoding: &str, errors: &str) -> PyResult<&'p PyString> {
         unsafe {
             src.py()
                 .from_owned_ptr_or_err::<PyString>(ffi::PyUnicode_FromEncodedObject(

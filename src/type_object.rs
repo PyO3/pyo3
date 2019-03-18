@@ -5,7 +5,7 @@
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyNativeType};
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::types::PyType;
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
@@ -45,12 +45,12 @@ pub trait PyTypeInfo {
     unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
-    fn is_instance(object: &PyObjectRef) -> bool {
+    fn is_instance(object: &PyAny) -> bool {
         unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object()) != 0 }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
-    fn is_exact_instance(object: &PyObjectRef) -> bool {
+    fn is_exact_instance(object: &PyAny) -> bool {
         unsafe { (*object.as_ptr()).ob_type == Self::type_object() }
     }
 }

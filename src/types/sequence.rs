@@ -6,7 +6,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::types::{PyList, PyObjectRef, PyTuple};
+use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
@@ -33,11 +33,11 @@ impl PySequence {
         unsafe {
             let ptr = self
                 .py()
-                .from_owned_ptr_or_err::<PyObjectRef>(ffi::PySequence_Concat(
+                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Concat(
                     self.as_ptr(),
                     other.as_ptr(),
                 ))?;
-            Ok(&*(ptr as *const PyObjectRef as *const PySequence))
+            Ok(&*(ptr as *const PyAny as *const PySequence))
         }
     }
 
@@ -49,11 +49,11 @@ impl PySequence {
         unsafe {
             let ptr = self
                 .py()
-                .from_owned_ptr_or_err::<PyObjectRef>(ffi::PySequence_Repeat(
+                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Repeat(
                     self.as_ptr(),
                     count as Py_ssize_t,
                 ))?;
-            Ok(&*(ptr as *const PyObjectRef as *const PySequence))
+            Ok(&*(ptr as *const PyAny as *const PySequence))
         }
     }
 
@@ -87,7 +87,7 @@ impl PySequence {
 
     /// Return the ith element of the Sequence. Equivalent to python `o[index]`
     #[inline]
-    pub fn get_item(&self, index: isize) -> PyResult<&PyObjectRef> {
+    pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -97,7 +97,7 @@ impl PySequence {
     /// Return the slice of sequence object o between begin and end.
     /// This is the equivalent of the Python expression `o[begin:end]`
     #[inline]
-    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyObjectRef> {
+    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyAny> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PySequence_GetSlice(
                 self.as_ptr(),
@@ -139,7 +139,7 @@ impl PySequence {
     /// Assign the sequence object v to the slice in sequence object o from i1 to i2.
     /// This is the equivalent of the Python statement `o[i1:i2] = v`
     #[inline]
-    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyObjectRef) -> PyResult<()> {
+    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyAny) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.py(),
@@ -238,7 +238,7 @@ impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
 {
-    default fn extract(obj: &'a PyObjectRef) -> PyResult<Self> {
+    default fn extract(obj: &'a PyAny) -> PyResult<Self> {
         extract_sequence(obj)
     }
 }
@@ -247,7 +247,7 @@ impl<'source, T> FromPyObject<'source> for Vec<T>
 where
     for<'a> T: FromPyObject<'a> + buffer::Element + Copy,
 {
-    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
         // first try buffer protocol
         if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
             if buf.dimensions() == 1 {
@@ -263,7 +263,7 @@ where
     }
 }
 
-fn extract_sequence<'s, T>(obj: &'s PyObjectRef) -> PyResult<Vec<T>>
+fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
 where
     T: FromPyObject<'s>,
 {
@@ -276,7 +276,7 @@ where
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
-    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
         let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
@@ -287,15 +287,11 @@ impl<'v> PyTryFrom<'v> for PySequence {
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyObjectRef>>(
-        value: V,
-    ) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
-    fn try_from_mut<V: Into<&'v PyObjectRef>>(
-        value: V,
-    ) -> Result<&'v mut PySequence, PyDowncastError> {
+    fn try_from_mut<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut PySequence, PyDowncastError> {
         let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
@@ -306,20 +302,20 @@ impl<'v> PyTryFrom<'v> for PySequence {
         }
     }
 
-    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
+    fn try_from_mut_exact<V: Into<&'v PyAny>>(
         value: V,
     ) -> Result<&'v mut PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from_mut(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v PySequence {
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
         let ptr = value.into() as *const _ as *const PySequence;
         &*ptr
     }
 
     #[inline]
-    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut PySequence {
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut PySequence {
         let ptr = value.into() as *const _ as *mut PySequence;
         &mut *ptr
     }

@@ -3,7 +3,7 @@
 //! Interaction with python's global interpreter lock
 
 use crate::ffi;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::Python;
 use spin;
 use std::ptr::NonNull;
@@ -230,14 +230,14 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
     (**pool.p.lock()).push(obj);
 }
 
-pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
+pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
     let pool = &mut *POOL;
-    &*(pool.owned.push_back(obj) as *const _ as *const PyObjectRef)
+    &*(pool.owned.push_back(obj) as *const _ as *const PyAny)
 }
 
-pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyObjectRef {
+pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
     let pool = &mut *POOL;
-    &*(pool.borrowed.push_back(obj) as *const _ as *const PyObjectRef)
+    &*(pool.borrowed.push_back(obj) as *const _ as *const PyAny)
 }
 
 impl GILGuard {

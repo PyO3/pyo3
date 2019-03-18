@@ -32,7 +32,7 @@ macro_rules! int_fits_larger_int (
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+            fn extract(obj: &'source PyAny) -> PyResult<Self> {
                 let val = $crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj)?;
                 match cast::<$larger_type, $rust_type>(val) {
                     Some(v) => Ok(v),
@@ -71,7 +71,7 @@ macro_rules! int_convert_bignum (
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyObjectRef) -> PyResult<$rust_type> {
+            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
                 unsafe {
                     let num = ffi::PyNumber_Index(ob.as_ptr());
                     if num.is_null() {

@@ -20,7 +20,7 @@
 use crate::err::{self, PyResult};
 use crate::exceptions;
 use crate::ffi;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
 use libc;
@@ -163,7 +163,7 @@ fn validate(b: &ffi::Py_buffer) {
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
-    pub fn get(py: Python, obj: &PyObjectRef) -> PyResult<PyBuffer> {
+    pub fn get(py: Python, obj: &PyAny) -> PyResult<PyBuffer> {
         unsafe {
             let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(

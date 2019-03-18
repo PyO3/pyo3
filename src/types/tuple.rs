@@ -6,7 +6,7 @@ use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::{AsPyRef, Py, PyNativeType};
 use crate::object::PyObject;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
@@ -72,7 +72,7 @@ impl PyTuple {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyObjectRef {
+    pub fn get_item(&self, index: usize) -> &PyAny {
         // TODO: reconsider whether we should panic
         // It's quite inconsistent that this method takes `Python` when `len()` does not.
         assert!(index < self.len());
@@ -111,10 +111,10 @@ pub struct PyTupleIterator<'a> {
 }
 
 impl<'a> Iterator for PyTupleIterator<'a> {
-    type Item = &'a PyObjectRef;
+    type Item = &'a PyAny;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyObjectRef> {
+    fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.slice.len() {
             let item = self.slice[self.index].as_ref(self.py);
             self.index += 1;
@@ -126,7 +126,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a PyTuple {
-    type Item = &'a PyObjectRef;
+    type Item = &'a PyAny;
     type IntoIter = PyTupleIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -180,7 +180,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyObjectRef) -> PyResult<Self>
+        fn extract(obj: &'s PyAny) -> PyResult<Self>
         {
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             let slice = t.as_slice();
@@ -254,7 +254,7 @@ tuple_conversion!(
 mod test {
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::PyObjectRef;
+    use crate::types::PyAny;
     use crate::types::PyTuple;
     use crate::Python;
     use crate::{PyTryFrom, ToPyObject};
@@ -267,7 +267,7 @@ mod test {
         let pyob = PyTuple::new(py, &[1, 2, 3]);
         let ob = pyob.as_ref(py);
         assert_eq!(3, ob.len());
-        let ob: &PyObjectRef = ob.into();
+        let ob: &PyAny = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
 
         let mut map = HashSet::new();
@@ -283,7 +283,7 @@ mod test {
         let ob = (1, 2, 3).to_object(py);
         let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
         assert_eq!(3, tuple.len());
-        let ob: &PyObjectRef = tuple.into();
+        let ob: &PyAny = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
     }
 
