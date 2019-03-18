@@ -33,3 +33,16 @@ if [ ! -f "$HOME/.cargo/bin/kcov" ]; then
     install src/kcov $HOME/.cargo/bin/kcov
     cd $TRAVIS_BUILD_DIR
 fi
+
+
+### Setup PyPy ################################################################
+
+wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+/bin/bash Miniconda3-latest-Linux-x86_64.sh -f -b -p $CONDA_DIR && \
+/opt/anaconda/bin/conda install --quiet --yes conda && \
+conda config --system --add channels conda-forge && \
+conda create -n pypy3 && \
+source activate pypy3 && \
+conda install pypy3.5 && \
+pypy3 -m ensurepip && \
+pypy3 -m pip install setuptools-rust pytest pytest-benchmark tox
