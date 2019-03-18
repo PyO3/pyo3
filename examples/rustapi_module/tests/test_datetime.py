@@ -1,5 +1,6 @@
 import datetime as pdt
 import sys
+import platform
 
 import pytest
 import rustapi_module.datetime as rdt
@@ -44,6 +45,8 @@ except Exception:
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
+
+PYPY = platform.python_implementation() == "PyPy"
 HAS_FOLD = getattr(pdt.datetime, "fold", False)
 
 # Helper functions
@@ -80,7 +83,8 @@ def test_invalid_date_fails():
         rdt.make_date(2017, 2, 30)
 
 
-@given(d=dates())
+# Feeding this tests dates from too early will cause `get_timestamp` to raise.
+@given(d=st.dates(min_value=pdt.date(1900, 1, 1)))
 def test_date_from_timestamp(d):
     ts = get_timestamp(pdt.datetime.combine(d, pdt.time(0)))
     assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
@@ -216,7 +220,8 @@ def test_datetime_typeerror():
         rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
 
 
-@given(dt=datetimes())
+# Feeding this tests dates from too early will cause `get_timestamp` to raise.
+@given(dt=st.datetimes(min_value=pdt.datetime(1900, 1, 1)))
 def test_datetime_from_timestamp(dt):
     ts = get_timestamp(dt)
     assert rdt.datetime_from_timestamp(ts) == pdt.datetime.fromtimestamp(ts)
@@ -282,6 +287,7 @@ def test_issue_219():
     rdt.issue_219()
 
 
+@pytest.mark.xfail(PYPY, reason="add_class not properly working yet")
 def test_tz_class():
     tzi = rdt.TzClass()
 
@@ -292,6 +298,7 @@ def test_tz_class():
     assert dt.dst() is None
 
 
+@pytest.mark.xfail(PYPY, reason="add_class not properly working yet")
 def test_tz_class_introspection():
     tzi = rdt.TzClass()
 

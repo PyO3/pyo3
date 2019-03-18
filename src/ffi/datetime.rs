@@ -16,6 +16,12 @@ use std::os::raw::{c_char, c_int, c_uchar};
 use std::ptr;
 use std::sync::Once;
 
+
+// A note regarding cpyext support:
+// Some macros, like `PyDate_FromTimestamp` and `PyDateTime_FromTimestamp` are exported as separate symbols.
+// For now, some symbols are exported as "private" symbols, like `_PyPyDate_FromDate`,
+// which means they still adhere to the old API (expect a `cls` object in their signature)
+// In the future they may be removed and become fully public symbols in cpyext.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_CAPI {
@@ -26,7 +32,6 @@ pub struct PyDateTime_CAPI {
     pub TZInfoType: *mut PyTypeObject,
     #[cfg(Py_3_7)]
     pub TimeZone_UTC: *mut PyObject,
-
     #[cfg_attr(PyPy, link_name = "_PyPyDate_FromDate")]
     pub Date_FromDate: unsafe extern "C" fn(
         year: c_int,
@@ -66,13 +71,14 @@ pub struct PyDateTime_CAPI {
     #[cfg(Py_3_7)]
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_FromTimestamp")]
+
+    // Defined for PyPy as a separate symbol
     pub DateTime_FromTimestamp: unsafe extern "C" fn(
         cls: *mut PyTypeObject,
         args: *mut PyObject,
         kwargs: *mut PyObject,
     ) -> *mut PyObject,
-    #[cfg_attr(PyPy, link_name = "PyPyDate_FromTimestamp")]
+    // Defined for PyPy as a separate symbol
     pub Date_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
     #[cfg(Py_3_6)]
@@ -100,8 +106,48 @@ pub struct PyDateTime_CAPI {
     ) -> *mut PyObject,
 }
 
-// Type struct wrappers
+#[cfg(PyPy)]
+extern "C" {
+    #[cfg_attr(PyPy, link_name = "_PyPyDateTime_Import")]
+    pub fn PyDateTime_Import() -> &'static PyDateTime_CAPI;
 
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_HOUR")]
+    pub fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_MICROSECOND")]
+    pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_MINUTE")]
+    pub fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_SECOND")]
+    pub fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_DAYS")]
+    pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_MICROSECONDS")]
+    pub fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_SECONDS")]
+    pub fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_DAY")]
+    pub fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_MONTH")]
+    pub fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_YEAR")]
+    pub fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_HOUR")]
+    pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_MICROSECOND")]
+    pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_MINUTE")]
+    pub fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_SECOND")]
+    pub fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int;
+
+    #[cfg_attr(PyPy, link_name = "PyPyDate_FromTimestamp")]
+    pub fn PyDate_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyDateTime_FromTimestamp")]
+    pub fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
+}
+
+
+// Type struct wrappers
 const _PyDateTime_DATE_DATASIZE: usize = 4;
 const _PyDateTime_TIME_DATASIZE: usize = 6;
 const _PyDateTime_DATETIME_DATASIZE: usize = 10;
@@ -151,11 +197,6 @@ pub struct PyDateTime_Delta {
     pub days: c_int,
     pub seconds: c_int,
     pub microseconds: c_int,
-}
-
-#[cfg(PyPy)]
-extern "C" {
-    pub fn _PyPyDateTime_Import() -> &'static PyDateTime_CAPI;
 }
 
 // C API Capsule
@@ -216,9 +257,9 @@ impl Deref for PyDateTimeAPI {
 pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
 
     // PyPy excepts the C-API to be initialized via PyDateTime_Import, so trying to use
-    // `PyCapsule_Import` will have not actually initialize the module.
-    let capsule = if cfg!(PyPy) {
-        _PyPyDateTime_Import()
+    // `PyCapsule_Import` will behave unexpectedly in pypy.
+    let py_datetime_c_api = if cfg!(PyPy) {
+        PyDateTime_Import()
     } else {
         // PyDateTime_CAPSULE_NAME is a macro in C
         let PyDateTime_CAPSULE_NAME = CString::new("datetime.datetime_CAPI").unwrap();
@@ -228,7 +269,7 @@ pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
 
 
     PY_DATETIME_API_ONCE.call_once(move || {
-        PY_DATETIME_API_UNSAFE_CACHE = capsule;
+        PY_DATETIME_API_UNSAFE_CACHE = py_datetime_c_api;
     });
 
     &(*PY_DATETIME_API_UNSAFE_CACHE)
@@ -276,7 +317,7 @@ pub unsafe fn PyTime_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-/// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.
+/// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.Date_FromTimestamp
 pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DeltaType) as c_int
 }
@@ -305,38 +346,6 @@ macro_rules! _access_field {
     ($obj:expr, $type: ident, $field:tt) => {
         (*($obj as *mut $type)).$field
     };
-}
-
-#[cfg(PyPy)]
-extern "C" {
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_HOUR")]
-    pub fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_MICROSECOND")]
-    pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_MINUTE")]
-    pub fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_SECOND")]
-    pub fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_DAYS")]
-    pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_MICROSECONDS")]
-    pub fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_SECONDS")]
-    pub fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_DAY")]
-    pub fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_MONTH")]
-    pub fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_YEAR")]
-    pub fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_HOUR")]
-    pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_MICROSECOND")]
-    pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_MINUTE")]
-    pub fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_SECOND")]
-    pub fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int;
 }
 
 
