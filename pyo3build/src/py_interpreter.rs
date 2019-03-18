@@ -323,8 +323,8 @@ print(sys.exec_prefix)
         // Py_ENABLE_SHARED doesn't seem to be present on windows.
         Ok(format!(
             "cargo:rustc-link-lib=pythonXY:python{}{}",
-            version.major,
-            match version.minor {
+            self.version.major,
+            match self.version.minor {
                 Some(minor) => minor.to_string(),
                 None => "".to_owned(),
             }
