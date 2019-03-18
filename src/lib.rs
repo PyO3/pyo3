@@ -118,7 +118,6 @@
 //! }
 //! ```
 
-#[macro_use] mod macros;
 pub use crate::class::*;
 pub use crate::conversion::{
     AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, PyTryInto,

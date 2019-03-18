@@ -2,6 +2,7 @@ use crate::ffi3::object::*;
 use crate::ffi3::objectabstract::PyObject_CallFunction;
 use crate::ffi3::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
+use std::ffi::CStr;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
@@ -87,7 +88,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
 ) -> *mut PyObject {
     return PyObject_CallFunction(
         PyExc_UnicodeDecodeError,
-        CString::new("sy#nns").unwrap().into_raw(),
+        CStr::from_bytes_with_nul("sy#nns\0".as_bytes()).unwrap().as_ptr(),
         encoding,
         object,
         length,
