@@ -27,6 +27,8 @@ pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     closure: ptr::null_mut(),
 };
 
+pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef_INIT;
+
 impl Clone for PyGetSetDef {
     #[inline]
     fn clone(&self) -> PyGetSetDef {

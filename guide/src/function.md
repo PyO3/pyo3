@@ -6,6 +6,7 @@ the function to a [module](./module.md)
 One way is defining the function in the module definition.
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -30,6 +31,7 @@ as first parameter, the function name as second and an instance of `Python`
 as third.
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -60,6 +62,7 @@ built-ins are new in Python 3 — in Python 2, it is simply considered to be par
 of the doc-string.
 
 ```rust
+# extern crate pyo3;
 use pyo3::prelude::*;
 
 /// add(a, b, /)
@@ -73,7 +76,7 @@ fn add(a: u64, b: u64) -> u64 {
 ```
 
 When annotated like this, signatures are also correctly displayed in IPython.
-```
+```ignore
 >>> pyo3_test.add?
 Signature: pyo3_test.add(a, b, /)
 Docstring: This function adds two unsigned 64-bit integers.

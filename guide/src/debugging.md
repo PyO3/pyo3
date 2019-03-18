@@ -2,7 +2,7 @@
 
 ## Macros
 
-Pyo3's attributes, `#[pyclass]`, `#[pymodule]`, etc. are [procedural macros](https://doc.rust-lang.org/unstable-book/language-features/proc-macro.html), which means that rewrite the source of the annotated item. You can view the generated source with the following command, which also expands a few other things:
+PyO3's attributes, `#[pyclass]`, `#[pymodule]`, etc. are [procedural macros](https://doc.rust-lang.org/unstable-book/language-features/proc-macro.html), which means that rewrite the source of the annotated item. You can view the generated source with the following command, which also expands a few other things:
 
 ```bash
 cargo rustc --profile=check -- -Z unstable-options --pretty=expanded > expanded.rs; rustfmt expanded.rs
@@ -20,12 +20,21 @@ See [cargo expand](https://github.com/dtolnay/cargo-expand) for a more elaborate
 
 ## Running with Valgrind
 
-Valgrind is a tool to detect memory managment bugs such as memory leaks.
+Valgrind is a tool to detect memory management bugs such as memory leaks.
 
-You first need to installa debug build of python, otherwise valgrind won't produce usable results. In ubuntu there's e.g. a `python3-dbg` package.
+You first need to install a debug build of python, otherwise valgrind won't produce usable results. In ubuntu there's e.g. a `python3-dbg` package.
 
 Activate an environment with the debug interpreter and recompile. If you're on linux, use `ldd` with the name of you're binary and check that you're linking e.g. `libpython3.6dm.so.1.0` instead of `libpython3.6m.so.1.0`.
 
 [Download the suppressions file for cpython](https://raw.githubusercontent.com/python/cpython/master/Misc/valgrind-python.supp).
 
 Run valgrind with `valgrind --suppressions=valgrind-python.supp ./my-command --with-options`
+
+## Getting a stacktrace
+
+The best start to investigate a crash such as an segmentation fault is a backtrace.
+
+ * Link against a debug build of python as described in the previous chapter
+ * Run `gdb <my-binary>`
+ * Enter `r` to run
+ * After the crash occurred, enter `bt` or `bt full` to print the stacktrace

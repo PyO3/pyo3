@@ -1,5 +1,7 @@
 use crate::ffi3::methodobject::PyMethodDef;
-use crate::ffi3::object::{PyObject, PyTypeObject};
+use crate::ffi3::object::{
+    PyObject, PyObject_GenericGetDict, PyObject_GenericSetDict, PyTypeObject,
+};
 use crate::ffi3::structmember::PyMemberDef;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
@@ -23,6 +25,14 @@ pub const PyGetSetDef_INIT: PyGetSetDef = PyGetSetDef {
     name: ptr::null_mut(),
     get: None,
     set: None,
+    doc: ptr::null_mut(),
+    closure: ptr::null_mut(),
+};
+
+pub const PyGetSetDef_DICT: PyGetSetDef = PyGetSetDef {
+    name: "__dict__\0".as_ptr() as *mut c_char,
+    get: Some(PyObject_GenericGetDict),
+    set: Some(PyObject_GenericSetDict),
     doc: ptr::null_mut(),
     closure: ptr::null_mut(),
 };

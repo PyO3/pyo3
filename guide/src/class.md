@@ -6,6 +6,7 @@ To define a custom python class, a rust struct needs to be annotated with the
 `#[pyclass]` attribute.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 
 #[pyclass]
@@ -35,6 +36,7 @@ You can get an instance of `PyRef` by `PyRef::new`, which does 3 things:
 
 You can use `PyRef` just like `&T`, because it implements `Deref<Target=T>`.
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::types::PyDict;
 #[pyclass]
@@ -54,6 +56,7 @@ dict.set_item("obj", obj).unwrap();
 ### `PyRefMut`
 `PyRefMut` is a mutable version of `PyRef`.
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -71,6 +74,7 @@ obj.num = 5;
 
 You can use it to avoid lifetime problems.
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -100,8 +104,7 @@ python object that can be collected, the `PyGCProtocol` trait has to be implemen
 * `weakref` - adds support for python weak references
 * `extends=BaseType` - use a custom base class. The base BaseType must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class
-* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables. (Incomplete, see [#123](https://github.com/PyO3/pyo3/issues/123))
-
+* `dict` - adds `__dict__` support, the instances of this type have a dictionary containing instance variables.
 
 ## Constructor
 
@@ -110,6 +113,7 @@ To declare a constructor, you need to define a class method and annotate it with
 attribute. Only the python `__new__` method can be specified, `__init__` is not available.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::PyRawObject;
 #[pyclass]
@@ -150,7 +154,8 @@ By default `PyObject` is used as default base class. To override default base cl
 `new` method accepts `PyRawObject` object. `obj` instance must be initialized
 with value of custom class struct. Subclass must call parent's `new` method.
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::PyRawObject;
 #[pyclass]
@@ -184,7 +189,7 @@ impl SubClass {
    }
 
    fn method2(&self) -> PyResult<()> {
-       self.get_base().method()
+      self.get_base().method()
    }
 }
 ```
@@ -200,6 +205,7 @@ Descriptor methods can be defined in
 attributes. i.e.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -223,7 +229,8 @@ If function name starts with `get_` or `set_` for getter or setter respectively.
 Descriptor name becomes function name with prefix removed. This is useful in case of
 rust's special keywords like `type`.
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -251,7 +258,8 @@ In this case property `num` is defined. And it is available from python code as 
 Also both `#[getter]` and `#[setter]` attributes accepts one parameter.
 If this parameter is specified, it is used as a property name. i.e.
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -278,7 +286,8 @@ In this case the property `number` is defined and is available from python code 
 
 For simple cases you can also define getters and setters in your Rust struct field definition, for example:
 
-```rust
+```rust,ignore
+# extern crate pyo3;
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {
@@ -296,6 +305,7 @@ To define a python compatible method, `impl` block for struct has to be annotate
 block with some variations, like descriptors, class method static methods, etc.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -323,6 +333,7 @@ The return type must be `PyResult<T>` for some `T` that implements `IntoPyObject
 get injected by method wrapper. i.e
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -346,6 +357,7 @@ To specify a class method for a custom class, the method needs to be annotated
 with the `#[classmethod]` attribute.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # use pyo3::types::PyType;
 # #[pyclass]
@@ -378,6 +390,7 @@ To specify a static method for a custom class, method needs to be annotated with
 `IntoPyObject`.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {
@@ -400,6 +413,7 @@ To specify a custom `__call__` method for a custom class, call methods need to b
 the `#[call]` attribute. Arguments of the method are specified same as for instance method.
 
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 # #[pyclass]
@@ -442,6 +456,7 @@ Each parameter could be one of following type:
 
 Example:
 ```rust
+# extern crate pyo3;
 # use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 #
@@ -543,6 +558,8 @@ These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 as every cycle must contain at least one mutable reference.
 Example:
 ```rust
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::PyTraverseError;
 use pyo3::gc::{PyGCProtocol, PyVisit};
@@ -583,14 +600,16 @@ collector, and it is possible to track them with `gc` module methods.
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/0.6.0-alpha.4/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(&mut self) -> PyResult<impl IntoPyObject>`
-  * `fn __next__(&mut self) -> PyResult<Option<impl IntoPyObject>>`
+  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPyObject>`
+  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPyObject>>`
 
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 
 Example:
 
 ```rust
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::PyIterProtocol;
 

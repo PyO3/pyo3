@@ -13,7 +13,7 @@ matrix:
       env: FEATURES=python2
     - name: Python 3.5
       python: "3.5"
-      env: FEATURES=python3
+      env: FEATURES="python3 test-doc"
     - name: Python 3.6
       python: "3.6"
       env: FEATURES=python3

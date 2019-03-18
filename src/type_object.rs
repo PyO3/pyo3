@@ -321,7 +321,8 @@ where
     }
 
     // __dict__ support
-    if T::FLAGS & PY_TYPE_FLAG_DICT != 0 {
+    let has_dict = T::FLAGS & PY_TYPE_FLAG_DICT != 0;
+    if has_dict {
         offset -= std::mem::size_of::<*const ffi::PyObject>();
         type_object.tp_dictoffset = offset as isize;
     }
@@ -392,6 +393,10 @@ where
 
     // properties
     let mut props = py_class_properties::<T>();
+
+    if cfg!(Py_3) && has_dict {
+        props.push(ffi::PyGetSetDef_DICT);
+    }
     if !props.is_empty() {
         props.push(ffi::PyGetSetDef_INIT);
         type_object.tp_getset = Box::into_raw(props.into_boxed_slice()) as *mut _;
