@@ -1,7 +1,7 @@
 use crate::err::PyResult;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::types::{PyObjectRef, PyString};
+use crate::types::{PyAny, PyString};
 use crate::FromPyObject;
 use crate::Python;
 use crate::{IntoPyObject, PyTryFrom, ToPyObject};
@@ -58,7 +58,7 @@ impl<'a> IntoPyObject for &'a String {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
-    fn extract(ob: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(ob)?.to_string()
     }
 }
@@ -66,7 +66,7 @@ impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'a> crate::FromPyObject<'a> for &'a str {
-    fn extract(ob: &'a PyObjectRef) -> PyResult<Self> {
+    fn extract(ob: &'a PyAny) -> PyResult<Self> {
         let s: Cow<'a, str> = crate::FromPyObject::extract(ob)?;
         match s {
             Cow::Borrowed(r) => Ok(r),
@@ -81,7 +81,7 @@ impl<'a> crate::FromPyObject<'a> for &'a str {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for String {
-    fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'source PyAny) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_string()
             .map(Cow::into_owned)

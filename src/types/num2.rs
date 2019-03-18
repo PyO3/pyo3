@@ -8,7 +8,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::object::PyObject;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
@@ -79,7 +79,7 @@ macro_rules! int_fits_c_long(
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyObjectRef) -> PyResult<Self> {
+            fn extract(obj: &'source PyAny) -> PyResult<Self> {
                 let val = unsafe { ffi::PyLong_AsLong(obj.as_ptr()) };
                 if val == -1 && PyErr::occurred(obj.py()) {
                     return Err(PyErr::fetch(obj.py()));
@@ -119,7 +119,7 @@ macro_rules! int_convert_u64_or_i64 (
         }
 
         impl <'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyObjectRef) -> PyResult<$rust_type>
+            fn extract(obj: &'source PyAny) -> PyResult<$rust_type>
             {
                 let ptr = obj.as_ptr();
                 unsafe {

@@ -4,7 +4,7 @@ use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
-use crate::types::{PyList, PyObjectRef};
+use crate::types::{PyAny, PyList};
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
@@ -83,7 +83,7 @@ impl PyDict {
 
     /// Gets an item from the dictionary.
     /// Returns None if the item is not present, or if an error occurs.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyObjectRef>
+    pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
     where
         K: ToBorrowedObject,
     {
@@ -165,7 +165,7 @@ pub struct PyDictIterator<'py> {
 }
 
 impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyObjectRef, &'py PyObjectRef);
+    type Item = (&'py PyAny, &'py PyAny);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -183,7 +183,7 @@ impl<'py> Iterator for PyDictIterator<'py> {
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyDict {
-    type Item = (&'a PyObjectRef, &'a PyObjectRef);
+    type Item = (&'a PyAny, &'a PyAny);
     type IntoIter = PyDictIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

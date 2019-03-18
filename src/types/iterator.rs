@@ -5,7 +5,7 @@
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
 
@@ -30,7 +30,7 @@ use crate::Python;
 /// # Ok(())
 /// # }
 /// ```
-pub struct PyIterator<'p>(&'p PyObjectRef);
+pub struct PyIterator<'p>(&'p PyAny);
 
 impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
@@ -52,7 +52,7 @@ impl<'p> PyIterator<'p> {
 }
 
 impl<'p> Iterator for PyIterator<'p> {
-    type Item = PyResult<&'p PyObjectRef>;
+    type Item = PyResult<&'p PyAny>;
 
     /// Retrieves the next item from an iterator.
     /// Returns `None` when the iterator is exhausted.

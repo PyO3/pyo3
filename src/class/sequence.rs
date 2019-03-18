@@ -9,7 +9,7 @@ use crate::exceptions;
 use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeInfo;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::Python;
 use crate::{FromPyObject, IntoPyObject};
 use std::os::raw::c_int;
@@ -241,7 +241,7 @@ where
                     stringify!(T)
                 )))
             } else {
-                let value = py.from_borrowed_ptr::<PyObjectRef>(value);
+                let value = py.from_borrowed_ptr::<PyAny>(value);
                 match value.extract() {
                     Ok(value) => slf.__setitem__(key as isize, value).into(),
                     Err(e) => Err(e),
@@ -358,7 +358,7 @@ mod sq_ass_item_impl {
                 let result = if value.is_null() {
                     slf.__delitem__(key as isize).into()
                 } else {
-                    let value = py.from_borrowed_ptr::<PyObjectRef>(value);
+                    let value = py.from_borrowed_ptr::<PyAny>(value);
                     match value.extract() {
                         Ok(value) => slf.__setitem__(key as isize, value).into(),
                         Err(e) => Err(e),

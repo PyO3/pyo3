@@ -8,7 +8,7 @@ use crate::err::PyResult;
 use crate::exceptions::TypeError;
 use crate::ffi;
 use crate::init_once;
-use crate::types::{PyDict, PyModule, PyObjectRef, PyString, PyTuple};
+use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
 use crate::GILPool;
 use crate::Python;
 use crate::{IntoPyObject, PyTryFrom};
@@ -40,7 +40,7 @@ pub fn parse_fn_args<'p>(
     kwargs: Option<&'p PyDict>,
     accept_args: bool,
     accept_kwargs: bool,
-    output: &mut [Option<&'p PyObjectRef>],
+    output: &mut [Option<&'p PyAny>],
 ) -> PyResult<()> {
     let nargs = args.len();
     let nkeywords = kwargs.map_or(0, PyDict::len);

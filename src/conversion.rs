@@ -6,7 +6,7 @@ use crate::err::{PyDowncastError, PyResult};
 use crate::ffi;
 use crate::object::PyObject;
 use crate::type_object::PyTypeInfo;
-use crate::types::PyObjectRef;
+use crate::types::PyAny;
 use crate::types::PyTuple;
 use crate::Py;
 use crate::Python;
@@ -182,7 +182,7 @@ pub trait IntoPyObject {
 /// the inherent method `PyObject::extract()` can be used.
 pub trait FromPyObject<'source>: Sized {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'source PyObjectRef) -> PyResult<Self>;
+    fn extract(ob: &'source PyAny) -> PyResult<Self>;
 }
 
 /// Identity conversion: allows using existing `PyObject` instances where
@@ -262,7 +262,7 @@ where
     T: PyTryFrom<'a>,
 {
     #[inline]
-    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a T> {
+    default fn extract(ob: &'a PyAny) -> PyResult<&'a T> {
         Ok(T::try_from(ob)?)
     }
 }
@@ -273,7 +273,7 @@ where
     T: PyTryFrom<'a>,
 {
     #[inline]
-    default fn extract(ob: &'a PyObjectRef) -> PyResult<&'a mut T> {
+    default fn extract(ob: &'a PyAny) -> PyResult<&'a mut T> {
         Ok(T::try_from_mut(ob)?)
     }
 }
@@ -282,7 +282,7 @@ impl<'a, T> FromPyObject<'a> for Option<T>
 where
     T: FromPyObject<'a>,
 {
-    fn extract(obj: &'a PyObjectRef) -> PyResult<Self> {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {
@@ -314,31 +314,29 @@ pub trait PyTryInto<T>: Sized {
 /// This trait is similar to `std::convert::TryFrom`
 pub trait PyTryFrom<'v>: Sized {
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_exact<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from_mut<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v mut Self, PyDowncastError>;
+    fn try_from_mut<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
-        value: V,
-    ) -> Result<&'v mut Self, PyDowncastError>;
+    fn try_from_mut_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut Self, PyDowncastError>;
 
-    /// Cast a PyObjectRef to a specific type of PyObject. The caller must
+    /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
-    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v Self;
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
 
-    /// Cast a PyObjectRef to a specific type of PyObject. The caller must
+    /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
     #[allow(clippy::mut_from_ref)]
-    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut Self;
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut Self;
 }
 
 // TryFrom implies TryInto
-impl<U> PyTryInto<U> for PyObjectRef
+impl<U> PyTryInto<U> for PyAny
 where
     U: for<'v> PyTryFrom<'v>,
 {
@@ -360,7 +358,7 @@ impl<'v, T> PyTryFrom<'v> for T
 where
     T: PyTypeInfo,
 {
-    fn try_from<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v T, PyDowncastError> {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v T, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -371,7 +369,7 @@ where
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v T, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v T, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
@@ -382,7 +380,7 @@ where
         }
     }
 
-    fn try_from_mut<V: Into<&'v PyObjectRef>>(value: V) -> Result<&'v mut T, PyDowncastError> {
+    fn try_from_mut<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut T, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -393,9 +391,7 @@ where
         }
     }
 
-    fn try_from_mut_exact<V: Into<&'v PyObjectRef>>(
-        value: V,
-    ) -> Result<&'v mut T, PyDowncastError> {
+    fn try_from_mut_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut T, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
@@ -407,7 +403,7 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v T {
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v T {
         let value = value.into();
         let ptr = if T::OFFSET == 0 {
             value as *const _ as *const u8 as *const T
@@ -418,7 +414,7 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_mut_unchecked<V: Into<&'v PyObjectRef>>(value: V) -> &'v mut T {
+    unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut T {
         let value = value.into();
         let ptr = if T::OFFSET == 0 {
             value as *const _ as *mut u8 as *mut T

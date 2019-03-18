@@ -5,7 +5,7 @@ use crate::ffi;
 use crate::instance::Py;
 use crate::object::PyObject;
 use crate::type_object::PyTypeObject;
-use crate::types::{PyObjectRef, PyType};
+use crate::types::{PyAny, PyType};
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
@@ -115,7 +115,7 @@ impl PyErr {
     /// If `obj` is a Python exception type object, the PyErr will (lazily) create a new
     /// instance of that type.
     /// Otherwise, a `TypeError` is created instead.
-    pub fn from_instance(obj: &PyObjectRef) -> PyErr {
+    pub fn from_instance(obj: &PyAny) -> PyErr {
         let ptr = obj.as_ptr();
 
         if unsafe { ffi::PyExceptionInstance_Check(ptr) } != 0 {
@@ -317,12 +317,7 @@ impl PyErr {
 
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
-    pub fn warn(
-        py: Python,
-        category: &PyObjectRef,
-        message: &str,
-        stacklevel: i32,
-    ) -> PyResult<()> {
+    pub fn warn(py: Python, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message)?;
         unsafe {
             error_on_minusone(

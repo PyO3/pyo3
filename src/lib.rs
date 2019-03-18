@@ -148,11 +148,10 @@ mod ffi2;
 #[cfg(Py_3)]
 mod ffi3;
 
-pub mod class;
-
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
+pub mod class;
 mod conversion;
 #[doc(hidden)]
 pub mod derive_utils;
