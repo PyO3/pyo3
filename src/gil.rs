@@ -63,6 +63,7 @@ pub fn prepare_freethreaded_python() {
             // but we don't want to hold it at this point
             // (it's not acquired in the other code paths)
             // So immediately release the GIL:
+            #[cfg(not(PyPy))]
             let _thread_state = ffi::PyEval_SaveThread();
             // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the Python runtime,
             // and will be restored by PyGILState_Ensure.

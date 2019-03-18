@@ -163,6 +163,7 @@ extern "C" {
         flags: *mut PyCompilerFlags,
     ) -> *mut PyObject;
     #[cfg(Py_LIMITED_API)]
+    #[cfg(not(PyPy))]
     pub fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject;
     #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPy_CompileStringFlags")]
@@ -175,19 +176,15 @@ extern "C" {
 }
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
+#[cfg(not(PyPy))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
     Py_CompileStringExFlags(string, p, s, ptr::null_mut(), -1)
 }
-#[cfg(not(Py_LIMITED_API))]
+
 #[inline]
-#[cfg(not(PyPy))]
-pub unsafe fn Py_CompileStringFlags(
-    string: *const c_char,
-    p: *const c_char,
-    s: c_int,
-    f: *mut PyCompilerFlags,
-) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, f, -1)
+#[cfg(PyPy)]
+pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
+    Py_CompileStringFlags(string, p, s, ptr::null_mut())
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

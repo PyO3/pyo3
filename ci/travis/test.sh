@@ -2,7 +2,12 @@
 set -ex
 
 cargo clean
-cargo test --features "$FEATURES num-complex"
+
+# run `cargo test` only if testing against cpython.
+if ![[ $FEATURES == *"pypy"* ]]; then
+  cargo test --features "$FEATURES num-complex"
+fi
+
 if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
     cargo fmt --all -- --check
     cargo clippy --features "$FEATURES num-complex"
