@@ -13,9 +13,9 @@ use crate::Python;
 use crate::{class, ffi, gil};
 use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_void;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -26,7 +26,7 @@ pub trait PyTypeInfo {
     const NAME: &'static str;
 
     /// Class doc string
-    const DESCRIPTION: &'static str = "\0";
+    const DESCRIPTION: &'static str = "A PyO3 Class";
 
     /// Size of the rust PyObject structure (PyObject + rust structure)
     const SIZE: usize;
@@ -304,7 +304,13 @@ where
         unsafe { <T::BaseType as PyTypeInfo>::type_object() };
 
     type_object.tp_name = type_name.into_raw();
-    type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
+    // PyPy will segfault if passed only a nul terminator as `tp_doc`.
+    // ptr::null() is OK though.
+    if T::DESCRIPTION.len() > 0 {
+        let type_docstring = CString::new(T::DESCRIPTION).expect("description must not contain NUL byte");
+        type_object.tp_doc = type_docstring.into_raw();
+    };
+
     type_object.tp_base = base_type_object;
 
     // dealloc
