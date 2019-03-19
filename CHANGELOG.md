@@ -47,8 +47,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * A soudness hole where every instances of a `#[pyclass]` struct was considered to be part of a python object, even though you can create instances that are not part of the python heap. This was fixed through `PyRef` and `PyRefMut`. 
- * Fix kwargs support in [#328].
- * Add full support for `__dict__` in [#403].
+ * Fix kwargs support in [#328](https://github.com/PyO3/pyo3/pull/328).
+ * Add full support for `__dict__` in [#403](https://github.com/PyO3/pyo3/pull/403).
 
 ## [0.5.3] - 2019-01-04
 
