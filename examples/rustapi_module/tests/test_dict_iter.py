@@ -1,14 +1,6 @@
-import platform
-
-PYPY = platform.python_implementation() == "PyPy"
-
-if not PYPY:
-    from rustapi_module.test_dict import DictSize
-
 import pytest
+from rustapi_module.test_dict import DictSize
 
-
-@pytest.mark.xfail(PYPY, reason="classes not properly working yet")
 @pytest.mark.parametrize(
     "size",
     [64, 128, 256],
