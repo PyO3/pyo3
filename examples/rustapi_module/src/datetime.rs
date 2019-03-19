@@ -229,8 +229,7 @@ fn datetime(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     }
 
     m.add_wrapped(wrap_pyfunction!(issue_219))?;
-
-    #[cfg(not(PyPy))]
     m.add_class::<TzClass>()?;
+
     Ok(())
 }

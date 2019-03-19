@@ -32,8 +32,7 @@ fn double(x: i32) -> i32 {
 #[pymodule]
 fn othermod(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(double))?;
-
-    #[cfg(not(PyPy))]
+    
     m.add_class::<ModClass>()?;
 
     m.add("USIZE_MIN", usize::min_value())?;

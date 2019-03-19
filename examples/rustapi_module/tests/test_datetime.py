@@ -287,7 +287,6 @@ def test_issue_219():
     rdt.issue_219()
 
 
-@pytest.mark.xfail(PYPY, reason="add_class not properly working yet")
 def test_tz_class():
     tzi = rdt.TzClass()
 
@@ -298,7 +297,6 @@ def test_tz_class():
     assert dt.dst() is None
 
 
-@pytest.mark.xfail(PYPY, reason="add_class not properly working yet")
 def test_tz_class_introspection():
     tzi = rdt.TzClass()
 
