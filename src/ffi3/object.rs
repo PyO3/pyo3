@@ -446,6 +446,15 @@ mod typeobject {
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
     pub struct PyTypeObject {
+        #[cfg(PyPy)]
+        pub ob_refcnt: Py_ssize_t,
+        #[cfg(PyPy)]
+        pub ob_pypy_link: Py_ssize_t,
+        #[cfg(PyPy)]
+        pub ob_type: *mut PyTypeObject,
+        #[cfg(PyPy)]
+        pub ob_size: Py_ssize_t,
+        #[cfg(not(PyPy))]
         pub ob_base: object::PyVarObject,
         pub tp_name: *const c_char,
         pub tp_basicsize: Py_ssize_t,
@@ -494,6 +503,8 @@ mod typeobject {
         pub tp_del: Option<ffi3::object::destructor>,
         pub tp_version_tag: c_uint,
         pub tp_finalize: Option<ffi3::object::destructor>,
+        #[cfg(PyPy)]
+        pub tp_pypy_flags: ::std::os::raw::c_long,
         #[cfg(py_sys_config = "COUNT_ALLOCS")]
         pub tp_allocs: Py_ssize_t,
         #[cfg(py_sys_config = "COUNT_ALLOCS")]
@@ -506,6 +517,70 @@ mod typeobject {
         pub tp_next: *mut PyTypeObject,
     }
 
+    #[cfg(PyPy)]
+    macro_rules! py_type_object_init {
+        ($tp_as_async:ident, $($tail:tt)*) => {
+            as_expr! {
+                PyTypeObject {
+                    ob_refcnt: 1,
+                    ob_pypy_link: 0,
+                    ob_type: ptr::null_mut(),
+//                    ob_size: mem::size_of::<crate::ffi3::PyObject>() as isize,
+                    ob_size: 0,
+                    tp_name: ptr::null(),
+                    tp_basicsize: 0,
+                    tp_itemsize: 0,
+                    tp_dealloc: None,
+                    tp_print: None,
+                    tp_getattr: None,
+                    tp_setattr: None,
+                    $tp_as_async: ptr::null_mut(),
+                    tp_repr: None,
+                    tp_as_number: ptr::null_mut(),
+                    tp_as_sequence: ptr::null_mut(),
+                    tp_as_mapping: ptr::null_mut(),
+                    tp_hash: None,
+                    tp_call: None,
+                    tp_str: None,
+                    tp_getattro: None,
+                    tp_setattro: None,
+                    tp_as_buffer: ptr::null_mut(),
+                    tp_flags: ffi3::object::Py_TPFLAGS_DEFAULT,
+                    tp_doc: ptr::null(),
+                    tp_traverse: None,
+                    tp_clear: None,
+                    tp_richcompare: None,
+                    tp_weaklistoffset: 0,
+                    tp_iter: None,
+                    tp_iternext: None,
+                    tp_methods: ptr::null_mut(),
+                    tp_members: ptr::null_mut(),
+                    tp_getset: ptr::null_mut(),
+                    tp_base: ptr::null_mut(),
+                    tp_dict: ptr::null_mut(),
+                    tp_descr_get: None,
+                    tp_descr_set: None,
+                    tp_dictoffset: 0,
+                    tp_init: None,
+                    tp_alloc: None,
+                    tp_new: None,
+                    tp_free: None,
+                    tp_is_gc: None,
+                    tp_bases: ptr::null_mut(),
+                    tp_mro: ptr::null_mut(),
+                    tp_cache: ptr::null_mut(),
+                    tp_subclasses: ptr::null_mut(),
+                    tp_weaklist: ptr::null_mut(),
+                    tp_del: None,
+                    tp_version_tag: 0,
+                    tp_pypy_flags: 0,
+                    $($tail)*
+                }
+            }
+        }
+    }
+
+    #[cfg(not(PyPy))]
     macro_rules! py_type_object_init {
         ($tp_as_async:ident, $($tail:tt)*) => {
             as_expr! {
