@@ -53,16 +53,16 @@ impl PyModule {
         module_name: &str,
     ) -> PyResult<&'p PyModule> {
         let data = CString::new(code)?;
-        let filename = CString::new(file_name)?.as_ptr();
+        let filename = CString::new(file_name)?;
         let module = CString::new(module_name)?;
 
         unsafe {
-            let cptr = ffi::Py_CompileString(data.as_ptr(), filename, ffi::Py_file_input);
+            let cptr = ffi::Py_CompileString(data.as_ptr(), filename.as_ptr(), ffi::Py_file_input);
             if cptr.is_null() {
                 return Err(PyErr::fetch(py));
             }
 
-            let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename);
+            let mptr = ffi::PyImport_ExecCodeModuleEx(module.as_ptr(), cptr, filename.as_ptr());
             if mptr.is_null() {
                 return Err(PyErr::fetch(py));
             }

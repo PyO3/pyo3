@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
+use std::ffi::CStr;
 
 #[pyclass]
 struct TestClass {
@@ -36,7 +37,7 @@ impl PyBufferProtocol for TestClass {
 
             (*view).format = ptr::null_mut();
             if (flags & ffi::PyBUF_FORMAT) == ffi::PyBUF_FORMAT {
-                let msg = ::std::ffi::CStr::from_ptr("B\0".as_ptr() as *const _);
+                let msg = CStr::from_bytes_with_nul(b"B\0").unwrap();
                 (*view).format = msg.as_ptr() as *mut _;
             }
 

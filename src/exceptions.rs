@@ -338,10 +338,10 @@ impl UnicodeDecodeError {
         let pos = err.valid_up_to();
         UnicodeDecodeError::new_err(
             py,
-            CStr::from_bytes_with_nul("utf-8".as_bytes()).unwrap(),
+            CStr::from_bytes_with_nul(b"utf-8\0").unwrap(),
             input,
             pos..pos + 1,
-            CStr::from_bytes_with_nul("invalid utf-8".as_bytes()).unwrap(),
+            CStr::from_bytes_with_nul(b"invalid utf-8\0").unwrap(),
         )
     }
 }
