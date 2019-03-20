@@ -390,7 +390,7 @@ impl<'p> Python<'p> {
 #[cfg(test)]
 mod test {
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::{PyAny, PyBool, PyDict, PyInt, PyList};
+    use crate::types::{PyAny, PyBool, IntoPyDict, PyInt, PyList};
     use crate::Python;
 
     #[test]
@@ -407,8 +407,7 @@ mod test {
             .unwrap();
         assert_eq!(v, 1);
 
-        let d = PyDict::new(py);
-        d.set_item("foo", 13).unwrap();
+        let d = [("foo", 13)].into_py_dict(py);
 
         // Inject our own global namespace
         let v: i32 = py

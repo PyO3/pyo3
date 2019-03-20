@@ -2,7 +2,7 @@
 
 use pyo3::ffi::*;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::{PyAny, IntoPyDict};
 
 fn _get_subclasses<'p>(
     py: &'p Python,
@@ -12,8 +12,7 @@ fn _get_subclasses<'p>(
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = PyDict::new(*py);
-    locals.set_item(py_type, datetime.get(py_type)?).unwrap();
+    let locals = [(py_type, datetime.get(py_type)?)].into_py_dict(*py);
 
     let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
 
@@ -114,8 +113,7 @@ fn test_datetime_utc() {
 
     let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
 
-    let locals = PyDict::new(py);
-    locals.set_item("dt", dt).unwrap();
+    let locals = [("dt", dt)].into_py_dict(py);
 
     let offset: f32 = py
         .eval("dt.utcoffset().total_seconds()", None, Some(locals))

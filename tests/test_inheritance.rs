@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::IntoPyDict;
 use std::isize;
 
 #[macro_use]
@@ -18,10 +18,8 @@ struct SubclassAble {}
 fn subclass() {
     let gil = Python::acquire_gil();
     let py = gil.python();
+    let d = [("SubclassAble", py.get_type::<SubclassAble>())].into_py_dict(py);
 
-    let d = PyDict::new(py);
-    d.set_item("SubclassAble", py.get_type::<SubclassAble>())
-        .unwrap();
     py.run(
         "class A(SubclassAble): pass\nassert issubclass(A, SubclassAble)",
         None,

@@ -87,8 +87,7 @@ fn main() {
     let obj = SomeObject::new(py);
 
     // call object with PyDict
-    let kwargs = PyDict::new(py);
-    kwargs.set_item(key1, val1);
+    let kwargs = [(key1, val1)].into_py_dict(py);
     obj.call(py, (), Some(kwargs));
 
     // pass arguments as Vec
