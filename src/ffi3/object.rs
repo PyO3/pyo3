@@ -525,7 +525,6 @@ mod typeobject {
                     ob_refcnt: 1,
                     ob_pypy_link: 0,
                     ob_type: ptr::null_mut(),
-//                    ob_size: mem::size_of::<crate::ffi3::PyObject>() as isize,
                     ob_size: 0,
                     tp_name: ptr::null(),
                     tp_basicsize: 0,
