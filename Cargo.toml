@@ -30,7 +30,6 @@ inventory = "0.1.3"
 [build-dependencies]
 version_check = "0.1.5"
 regex = "1.1.0"
-pyo3-build-utils = {version = "*", path="pyo3build"}
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
@@ -62,6 +61,5 @@ test-doc = []
 members = [
     "pyo3cls",
     "pyo3-derive-backend",
-    "pyo3build",
     "examples/*"
 ]

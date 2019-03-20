@@ -307,7 +307,7 @@ where
 
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
-    if T::DESCRIPTION.len() == "\0" {
+    if T::DESCRIPTION == "\0" {
         type_object.tp_doc = ptr::null();
     } else {
         type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
