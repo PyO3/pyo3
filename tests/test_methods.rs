@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString, PyTuple, PyType};
+use pyo3::types::{IntoPyDict, PyDict, PyString, PyTuple, PyType};
 use pyo3::PyRawObject;
 
 #[macro_use]
@@ -25,8 +25,7 @@ fn instance_method() {
 
     let obj = PyRefMut::new(py, InstanceMethod { member: 42 }).unwrap();
     assert_eq!(obj.method().unwrap(), 42);
-    let d = PyDict::new(py);
-    d.set_item("obj", obj).unwrap();
+    let d = [("obj", obj)].into_py_dict(py);
     py.run("assert obj.method() == 42", None, Some(d)).unwrap();
     py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d))
         .unwrap();
@@ -52,8 +51,7 @@ fn instance_method_with_args() {
 
     let obj = PyRefMut::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
     assert_eq!(obj.method(6).unwrap(), 42);
-    let d = PyDict::new(py);
-    d.set_item("obj", obj).unwrap();
+    let d = [("obj", obj)].into_py_dict(py);
     py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
     py.run("assert obj.method(multiplier=6) == 42", None, Some(d))
         .unwrap();
@@ -80,8 +78,7 @@ fn class_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = PyDict::new(py);
-    d.set_item("C", py.get_type::<ClassMethod>()).unwrap();
+    let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
     py.run(
         "assert C.method() == 'ClassMethod.method()!'",
         None,
@@ -112,9 +109,7 @@ fn class_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = PyDict::new(py);
-    d.set_item("C", py.get_type::<ClassMethodWithArgs>())
-        .unwrap();
+    let d = [("C", py.get_type::<ClassMethodWithArgs>())].into_py_dict(py);
     py.run(
         "assert C.method('abc') == 'ClassMethodWithArgs.method(abc)'",
         None,
@@ -145,8 +140,8 @@ fn static_method() {
     let py = gil.python();
 
     assert_eq!(StaticMethod::method(py).unwrap(), "StaticMethod.method()!");
-    let d = PyDict::new(py);
-    d.set_item("C", py.get_type::<StaticMethod>()).unwrap();
+
+    let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
     py.run(
         "assert C.method() == 'StaticMethod.method()!'",
         None,
@@ -179,9 +174,7 @@ fn static_method_with_args() {
 
     assert_eq!(StaticMethodWithArgs::method(py, 1234).unwrap(), "0x4d2");
 
-    let d = PyDict::new(py);
-    d.set_item("C", py.get_type::<StaticMethodWithArgs>())
-        .unwrap();
+    let d = [("C", py.get_type::<StaticMethodWithArgs>())].into_py_dict(py);
     py.run("assert C.method(1337) == '0x539'", None, Some(d))
         .unwrap();
 }

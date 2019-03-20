@@ -83,8 +83,7 @@ fn nested_call() {
     let gil = GILGuard::acquire();
     let py = gil.python();
     let supermodule = wrap_pymodule!(supermodule)(py);
-    let ctx = PyDict::new(py);
-    ctx.set_item("supermodule", supermodule);
+    let ctx = [("supermodule", supermodule)].into_py_dict(py);
 
     py.run("assert supermodule.submodule.subfuntion() == 'Subfunction'", None, Some(&ctx)).unwrap();
 }

@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 #[cfg(Py_3)]
-use pyo3::types::PyDict;
+use pyo3::types::IntoPyDict;
 
 #[cfg(Py_3)]
 #[macro_use]
@@ -58,12 +58,10 @@ fn test_module_with_functions() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = PyDict::new(py);
-    d.set_item(
+    let d = [(
         "module_with_functions",
         wrap_pymodule!(module_with_functions)(py),
-    )
-    .unwrap();
+    )].into_py_dict(py);
 
     let run = |code| py.run(code, None, Some(d)).unwrap();
 
@@ -91,9 +89,7 @@ fn test_module_renaming() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let d = PyDict::new(py);
-    d.set_item("different_name", wrap_pymodule!(other_name)(py))
-        .unwrap();
+    let d = [("different_name", wrap_pymodule!(other_name)(py))].into_py_dict(py);
 
     py.run(
         "assert different_name.__name__ == 'other_name'",

@@ -2,7 +2,7 @@ use pyo3::class::PyBufferProtocol;
 use pyo3::exceptions::BufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::IntoPyDict;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
 
@@ -73,8 +73,7 @@ fn test_buffer() {
     )
     .unwrap();
 
-    let d = PyDict::new(py);
-    d.set_item("ob", t).unwrap();
+    let d = [("ob", t)].into_py_dict(py);
     py.run("assert bytes(ob) == b' 23'", None, Some(d)).unwrap();
 }
 
@@ -92,8 +91,7 @@ fn test_buffer() {
     )
     .unwrap();
 
-    let d = PyDict::new(py);
-    d.set_item("ob", t).unwrap();
+    let d = [("ob", t)].into_py_dict(py);
     py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d))
         .unwrap();
 }

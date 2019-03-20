@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::IntoPyDict;
 use pyo3::types::PyTuple;
 use pyo3::wrap_pyfunction;
 use std::isize;
@@ -30,9 +30,7 @@ fn mut_ref_arg() {
     let inst1 = Py::new(py, MutRefArg { n: 0 }).unwrap();
     let inst2 = Py::new(py, MutRefArg { n: 0 }).unwrap();
 
-    let d = PyDict::new(py);
-    d.set_item("inst1", &inst1).unwrap();
-    d.set_item("inst2", &inst2).unwrap();
+    let d = [("inst1", &inst1), ("inst2", &inst2)].into_py_dict(py);
 
     py.run("inst1.set_other(inst2)", None, Some(d)).unwrap();
     assert_eq!(inst2.as_ref(py).n, 100);

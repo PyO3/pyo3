@@ -52,7 +52,7 @@ macro_rules! impl_exception_boilerplate {
 /// # Example
 /// ```
 /// use pyo3::import_exception;
-/// use pyo3::types::PyDict;
+/// use pyo3::types::IntoPyDict;
 /// use pyo3::Python;
 ///
 /// import_exception!(socket, gaierror);
@@ -60,9 +60,8 @@ macro_rules! impl_exception_boilerplate {
 /// fn main() {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     let ctx = PyDict::new(py);
 ///
-///     ctx.set_item("gaierror", py.get_type::<gaierror>()).unwrap();
+///     let ctx = [("gaierror", py.get_type::<gaierror>())].into_py_dict(py);
 ///     py.run(
 ///         "import socket; assert gaierror is socket.gaierror",
 ///         None,
@@ -133,7 +132,7 @@ macro_rules! import_exception_type_object {
 /// ```
 /// use pyo3::prelude::*;
 /// use pyo3::create_exception;
-/// use pyo3::types::PyDict;
+/// use pyo3::types::IntoPyDict;
 /// use pyo3::exceptions::Exception;
 ///
 /// create_exception!(mymodule, CustomError, Exception);
@@ -141,9 +140,8 @@ macro_rules! import_exception_type_object {
 /// fn main() {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
-///     let ctx = PyDict::new(py);
 ///     let error_type = py.get_type::<CustomError>();
-///     ctx.set_item("CustomError", error_type).unwrap();
+///     let ctx = [("CustomError", error_type)].into_py_dict(py);
 ///     let type_description: String = py
 ///         .eval("str(CustomError)", None, Some(&ctx))
 ///         .unwrap()
@@ -381,7 +379,7 @@ pub mod socket {
 mod test {
     use crate::exceptions::Exception;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::PyDict;
+    use crate::types::{PyDict, IntoPyDict};
     use crate::{PyErr, Python};
 
     import_exception!(socket, gaierror);
@@ -445,9 +443,8 @@ mod test {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let ctx = PyDict::new(py);
         let error_type = py.get_type::<CustomError>();
-        ctx.set_item("CustomError", error_type).unwrap();
+        let ctx = [("CustomError", error_type)].into_py_dict(py);
         let type_description: String = py
             .eval("str(CustomError)", None, Some(&ctx))
             .unwrap()
@@ -457,7 +454,7 @@ mod test {
         py.run(
             "assert CustomError('oops').args == ('oops',)",
             None,
-            Some(ctx),
+            Some(&ctx),
         )
         .unwrap();
     }
