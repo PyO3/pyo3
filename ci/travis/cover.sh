@@ -2,6 +2,12 @@
 
 set -ex
 
+### PyPy does not run the test suite ###########################################
+
+if ! [[ $FEATURES == *"pypy"* ]]; then
+  exit 0
+fi
+
 ### Run kcov in parallel #######################################################
 
 rm -f target/debug/pyo3*.d
