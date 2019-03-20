@@ -7,13 +7,11 @@ extern "C" {
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
-#[cfg_attr(PyPy, link_name = "PyPyComplex_Check")]
 #[inline]
 pub unsafe fn PyComplex_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyComplex_Type)
 }
 
-#[cfg_attr(PyPy, link_name = "PyPyComplex_CheckExact")]
 #[inline]
 pub unsafe fn PyComplex_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyComplex_Type) as c_int
@@ -55,6 +53,8 @@ extern "C" {
     pub fn _Py_c_quot(dividend: Py_complex, divisor: Py_complex) -> Py_complex;
     pub fn _Py_c_pow(num: Py_complex, exp: Py_complex) -> Py_complex;
     pub fn _Py_c_abs(arg: Py_complex) -> c_double;
+    #[cfg_attr(PyPy, link_name = "PyPyComplex_FromCComplex")]
     pub fn PyComplex_FromCComplex(v: Py_complex) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyComplex_AsCComplex")]
     pub fn PyComplex_AsCComplex(op: *mut PyObject) -> Py_complex;
 }

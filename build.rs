@@ -621,6 +621,8 @@ fn main() {
 
     let flags = configure(&interpreter_version, lines).unwrap();
 
+    // These flags need to be enabled manually for PyPy, because it does not expose
+    // them in `sysconfig.get_config_vars()`
     if interpreter_version.implementation == PythonInterpreterKind::PyPy {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
         config_map.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
@@ -628,7 +630,7 @@ fn main() {
         config_map.insert("Py_UNICODE_WIDE".to_owned(), "1".to_owned());
     }
 
-    // WITH_THREAD is always on for 3.7 and PyPy
+    // WITH_THREAD is always on for 3.7
     if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
     }

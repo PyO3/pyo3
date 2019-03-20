@@ -24,13 +24,11 @@ extern "C" {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyGen_Check")]
 pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyGen_Type)
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyGen_CheckExact")]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyGen_Type) as c_int
 }
@@ -47,7 +45,6 @@ extern "C" {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyCoro_Check")]
 pub unsafe fn PyCoro_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &mut PyCoro_Type)
 }

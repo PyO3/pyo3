@@ -86,7 +86,6 @@ extern "C" {
 
 #[cfg(py_sys_config = "Py_TRACE_REFS")]
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
 pub unsafe fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject {
     PyModule_Create2TraceRefs(module, apiver)
 }

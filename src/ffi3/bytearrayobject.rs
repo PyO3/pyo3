@@ -6,16 +6,16 @@ use std::os::raw::{c_char, c_int};
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyByteArray_Type")]
     pub static mut PyByteArray_Type: PyTypeObject;
+
     pub static mut PyByteArrayIter_Type: PyTypeObject;
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyByteArray_Check")]
 pub unsafe fn PyByteArray_Check(op: *mut PyObject) -> c_int {
-    #[cfg_attr(PyPy, link_name = "PyPyObject_Type")]
     PyObject_TypeCheck(op, &mut PyByteArray_Type)
 }
-#[cfg_attr(PyPy, link_name = "PyPyByteArray_CheckExact")]
+
+#[inline]
 pub unsafe fn PyByteArray_CheckExact(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyByteArray_Type) as c_int
 }
