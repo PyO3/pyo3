@@ -35,5 +35,10 @@ pub fn get_doc(attrs: &[syn::Attribute], null_terminated: bool) -> syn::Lit {
     let doc = doc.join("\n");
 
     // FIXME: add span
-    syn::parse_str(&format!("\"{}\"", doc)).unwrap()
+    syn::parse_str(&if null_terminated {
+        format!("\"{}\0\"", doc)
+    } else {
+        format!("\"{}\"", doc)
+    })
+    .unwrap()
 }

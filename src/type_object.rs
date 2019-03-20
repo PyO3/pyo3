@@ -26,7 +26,7 @@ pub trait PyTypeInfo {
     const NAME: &'static str;
 
     /// Class doc string
-    const DESCRIPTION: &'static str = "A PyO3 Class";
+    const DESCRIPTION: &'static str = "\0";
 
     /// Size of the rust PyObject structure (PyObject + rust structure)
     const SIZE: usize;
@@ -304,11 +304,13 @@ where
         unsafe { <T::BaseType as PyTypeInfo>::type_object() };
 
     type_object.tp_name = type_name.into_raw();
+
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
-    if T::DESCRIPTION.len() > 0 {
-        let type_docstring = CString::new(T::DESCRIPTION).expect("description must not contain NUL byte");
-        type_object.tp_doc = type_docstring.into_raw();
+    if T::DESCRIPTION.len() == "\0" {
+        type_object.tp_doc = ptr::null();
+    } else {
+        type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
     };
 
     type_object.tp_base = base_type_object;
