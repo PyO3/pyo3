@@ -314,8 +314,7 @@ mod test {
     fn test_new() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let dict = PyDict::new(py);
-        dict.set_item(7, 32).unwrap();
+        let dict = [(7, 32)].into_py_dict(py);
         assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
         assert_eq!(None, dict.get_item(8i32));
     }
@@ -342,8 +341,7 @@ mod test {
     fn test_copy() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let dict = PyDict::new(py);
-        dict.set_item(7, 32).unwrap();
+        let dict = [(7, 32)].into_py_dict(py);
 
         let ndict = dict.copy().unwrap();
         assert_eq!(32, ndict.get_item(7i32).unwrap().extract::<i32>().unwrap());
@@ -416,10 +414,9 @@ mod test {
         let cnt;
         {
             let _pool = crate::GILPool::new();
-            let dict = PyDict::new(py);
             let none = py.None();
             cnt = none.get_refcnt();
-            dict.set_item(10, none).unwrap();
+            let _dict = [(10, none)].into_py_dict(py);
         }
         {
             assert_eq!(cnt, py.None().get_refcnt());

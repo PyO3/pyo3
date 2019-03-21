@@ -92,7 +92,7 @@ Example program displaying the value of `sys.version`:
 ```rust
 # extern crate pyo3;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::IntoPyDict;
 
 fn main() -> PyResult<()> {
     let gil = Python::acquire_gil();
@@ -100,8 +100,7 @@ fn main() -> PyResult<()> {
     let sys = py.import("sys")?;
     let version: String = sys.get("version")?.extract()?;
 
-    let locals = PyDict::new(py);
-    locals.set_item("os", py.import("os")?)?;
+    let locals = [("os", py.import("os")?)].into_py_dict(py);
     let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
 
     println!("Hello {}, I'm Python {}", user, version);
