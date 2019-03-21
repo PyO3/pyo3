@@ -314,7 +314,7 @@ pub unsafe fn PyTime_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 #[inline]
-/// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.Date_FromTimestamp
+/// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.
 pub unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, PyDateTimeAPI.DeltaType) as c_int
 }
