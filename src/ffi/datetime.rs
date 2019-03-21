@@ -107,41 +107,40 @@ pub struct PyDateTime_CAPI {
 
 #[cfg(PyPy)]
 extern "C" {
-    #[cfg_attr(PyPy, link_name = "_PyPyDateTime_Import")]
+    #[link_name = "_PyPyDateTime_Import"]
     pub fn PyDateTime_Import() -> &'static PyDateTime_CAPI;
-
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_HOUR")]
+    #[link_name = "PyPyDateTime_DATE_GET_HOUR"]
     pub fn PyDateTime_DATE_GET_HOUR(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_MICROSECOND")]
+    #[link_name = "PyPyDateTime_DATE_GET_MICROSECOND"]
     pub fn PyDateTime_DATE_GET_MICROSECOND(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_MINUTE")]
+    #[link_name = "PyPyDateTime_DATE_GET_MINUTE"]
     pub fn PyDateTime_DATE_GET_MINUTE(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DATE_GET_SECOND")]
+    #[link_name = "PyPyDateTime_DATE_GET_SECOND"]
     pub fn PyDateTime_DATE_GET_SECOND(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_DAYS")]
+    #[link_name = "PyPyDateTime_DELTA_GET_DAYS"]
     pub fn PyDateTime_DELTA_GET_DAYS(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_MICROSECONDS")]
+    #[link_name = "PyPyDateTime_DELTA_GET_MICROSECONDS"]
     pub fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_DELTA_GET_SECONDS")]
+    #[link_name = "PyPyDateTime_DELTA_GET_SECONDS"]
     pub fn PyDateTime_DELTA_GET_SECONDS(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_DAY")]
+    #[link_name = "PyPyDateTime_GET_DAY"]
     pub fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_MONTH")]
+    #[link_name = "PyPyDateTime_GET_MONTH"]
     pub fn PyDateTime_GET_MONTH(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_GET_YEAR")]
+    #[link_name = "PyPyDateTime_GET_YEAR"]
     pub fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_HOUR")]
+    #[link_name = "PyPyDateTime_TIME_GET_HOUR"]
     pub fn PyDateTime_TIME_GET_HOUR(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_MICROSECOND")]
+    #[link_name = "PyPyDateTime_TIME_GET_MICROSECOND"]
     pub fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_MINUTE")]
+    #[link_name = "PyPyDateTime_TIME_GET_MINUTE"]
     pub fn PyDateTime_TIME_GET_MINUTE(o: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_TIME_GET_SECOND")]
+    #[link_name = "PyPyDateTime_TIME_GET_SECOND"]
     pub fn PyDateTime_TIME_GET_SECOND(o: *mut PyObject) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPyDate_FromTimestamp")]
+    #[link_name = "PyPyDate_FromTimestamp"]
     pub fn PyDate_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyDateTime_FromTimestamp")]
+    #[link_name = "PyPyDateTime_FromTimestamp"]
     pub fn PyDateTime_FromTimestamp(args: *mut PyObject) -> *mut PyObject;
 }
 
