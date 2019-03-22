@@ -174,6 +174,5 @@ mod sequence;
 mod set;
 mod slice;
 mod string;
-mod stringutils;
 mod tuple;
 mod typeobject;
