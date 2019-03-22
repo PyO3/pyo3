@@ -15,8 +15,8 @@ pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::module::PyModule;
-pub use self::num3::PyLong;
-pub use self::num3::PyLong as PyInt;
+pub use self::num::PyLong;
+pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
@@ -156,9 +156,6 @@ macro_rules! pyobject_native_type_convert(
     };
 );
 
-#[macro_use]
-mod num_common;
-
 mod any;
 mod boolobject;
 mod bytearray;
@@ -169,7 +166,7 @@ mod floatob;
 mod iterator;
 mod list;
 mod module;
-mod num3;
+mod num;
 mod sequence;
 mod set;
 mod slice;
