@@ -141,7 +141,6 @@ where
     T: PySequenceProtocol<'p>,
 {
     fn tp_as_sequence() -> Option<ffi::PySequenceMethods> {
-        #[cfg(Py_3)]
         return Some(ffi::PySequenceMethods {
             sq_length: Self::sq_length(),
             sq_concat: Self::sq_concat(),
@@ -150,20 +149,6 @@ where
             was_sq_slice: ::std::ptr::null_mut(),
             sq_ass_item: sq_ass_item_impl::sq_ass_item::<Self>(),
             was_sq_ass_slice: ::std::ptr::null_mut(),
-            sq_contains: Self::sq_contains(),
-            sq_inplace_concat: Self::sq_inplace_concat(),
-            sq_inplace_repeat: Self::sq_inplace_repeat(),
-        });
-
-        #[cfg(not(Py_3))]
-        return Some(ffi::PySequenceMethods {
-            sq_length: Self::sq_length(),
-            sq_concat: Self::sq_concat(),
-            sq_repeat: Self::sq_repeat(),
-            sq_item: Self::sq_item(),
-            sq_slice: None,
-            sq_ass_item: sq_ass_item_impl::sq_ass_item::<Self>(),
-            sq_ass_slice: None,
             sq_contains: Self::sq_contains(),
             sq_inplace_concat: Self::sq_inplace_concat(),
             sq_inplace_repeat: Self::sq_inplace_repeat(),

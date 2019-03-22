@@ -289,11 +289,7 @@ impl PyBuffer {
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
         unsafe {
-            // Python 2.7 is not const-correct, so we need the cast to *mut
-            ffi::PyBuffer_IsContiguous(
-                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
-                b'C' as libc::c_char,
-            ) != 0
+            ffi::PyBuffer_IsContiguous(&*self.0 as *const ffi::Py_buffer, b'C' as libc::c_char) != 0
         }
     }
 
@@ -301,11 +297,7 @@ impl PyBuffer {
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
         unsafe {
-            // Python 2.7 is not const-correct, so we need the cast to *mut
-            ffi::PyBuffer_IsContiguous(
-                &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer,
-                b'F' as libc::c_char,
-            ) != 0
+            ffi::PyBuffer_IsContiguous(&*self.0 as *const ffi::Py_buffer, b'F' as libc::c_char) != 0
         }
     }
 
@@ -713,7 +705,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(Py_3)] // array.array doesn't implement the buffer protocol in python 2.7
     fn test_array_buffer() {
         let gil = Python::acquire_gil();
         let py = gil.python();

@@ -1,6 +1,6 @@
 # word-count
 
-Demonstrates searching for a file in plain python, with rust singlethreaded and with rust multithreaded. 
+Demonstrates searching for a file in plain python, with rust singlethreaded and with rust multithreaded.
 
 ## Build
 
@@ -35,7 +35,7 @@ pytest -v tests
 
 ## Testing
 
-To test python 2.7, 3.5, 3.6 and 3.7, install tox globally and run 
+To test python 3.5, 3.6 and 3.7, install tox globally and run
 
 ```shell
 tox

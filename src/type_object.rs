@@ -199,11 +199,8 @@ pub trait PyObjectAlloc: PyTypeInfo + Sized {
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         Self::drop(py, obj);
 
-        #[cfg(Py_3)]
-        {
-            if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
-                return;
-            }
+        if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
+            return;
         }
 
         match Self::type_object().tp_free {
@@ -394,7 +391,7 @@ where
     // properties
     let mut props = py_class_properties::<T>();
 
-    if cfg!(Py_3) && has_dict {
+    if has_dict {
         props.push(ffi::PyGetSetDef_DICT);
     }
     if !props.is_empty() {
@@ -415,7 +412,6 @@ where
     }
 }
 
-#[cfg(Py_3)]
 fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
     if let Some(meth) = <T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async() {
         type_info.tp_as_async = Box::into_raw(Box::new(meth));
@@ -423,9 +419,6 @@ fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
         type_info.tp_as_async = ::std::ptr::null_mut()
     }
 }
-
-#[cfg(not(Py_3))]
-fn async_methods<T>(_type_info: &mut ffi::PyTypeObject) {}
 
 unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 where
@@ -435,8 +428,6 @@ where
     let py = Python::assume_gil_acquired();
     <T as PyObjectAlloc>::dealloc(py, obj)
 }
-
-#[cfg(Py_3)]
 fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     if type_object.tp_traverse != None
         || type_object.tp_clear != None
@@ -445,25 +436,6 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
-    }
-    if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
-        type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
-    }
-}
-
-#[cfg(not(Py_3))]
-fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
-    if type_object.tp_traverse != None
-        || type_object.tp_clear != None
-        || T::FLAGS & PY_TYPE_FLAG_GC != 0
-    {
-        type_object.tp_flags =
-            ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES | ffi::Py_TPFLAGS_HAVE_GC;
-    } else {
-        type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_CHECKTYPES;
-    }
-    if !type_object.tp_as_buffer.is_null() {
-        type_object.tp_flags |= ffi::Py_TPFLAGS_HAVE_NEWBUFFER;
     }
     if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
         type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
@@ -532,15 +504,11 @@ fn py_class_method_defs<T: PyMethodsProtocol>() -> PyResult<(
     Ok((new, init, call, defs))
 }
 
-#[cfg(Py_3)]
 fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
     for def in <T as class::pyasync::PyAsyncProtocolImpl>::methods() {
         defs.push(def.as_method_def());
     }
 }
-
-#[cfg(not(Py_3))]
-fn py_class_async_methods<T>(_defs: &mut Vec<ffi::PyMethodDef>) {}
 
 fn py_class_properties<T: PyMethodsProtocol>() -> Vec<ffi::PyGetSetDef> {
     let mut defs = HashMap::new();

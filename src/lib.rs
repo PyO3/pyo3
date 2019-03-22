@@ -140,10 +140,6 @@ pub use inventory;
 /// Raw ffi declarations for the c interface of python
 pub mod ffi;
 
-#[cfg(not(Py_3))]
-mod ffi2;
-
-#[cfg(Py_3)]
 mod ffi3;
 
 pub mod buffer;
@@ -167,10 +163,7 @@ pub mod types;
 
 /// The proc macros, which are also part of the prelude
 pub mod proc_macro {
-    #[cfg(not(Py_3))]
-    pub use pyo3cls::pymodule2 as pymodule;
-    #[cfg(Py_3)]
-    pub use pyo3cls::pymodule3 as pymodule;
+    pub use pyo3cls::pymodule;
     /// The proc macro attributes
     pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 }
@@ -198,7 +191,6 @@ macro_rules! wrap_pyfunction {
 /// Returns a function that takes a [Python] instance and returns a python module.
 ///
 /// Use this together with `#[pymodule]` and [types::PyModule::add_wrapped].
-#[cfg(Py_3)]
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
@@ -209,7 +201,7 @@ macro_rules! wrap_pymodule {
         }
 
         m! {
-            &|py| unsafe { crate::PyObject::from_owned_ptr(py, "method"()) }
+            &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, "method"()) }
         }
     }};
 }
