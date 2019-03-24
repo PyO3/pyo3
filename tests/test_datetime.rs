@@ -2,7 +2,7 @@
 
 use pyo3::ffi::*;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, IntoPyDict};
+use pyo3::types::{IntoPyDict, PyAny};
 
 fn _get_subclasses<'p>(
     py: &'p Python,

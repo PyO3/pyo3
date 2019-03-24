@@ -390,7 +390,7 @@ impl<'p> Python<'p> {
 #[cfg(test)]
 mod test {
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::{PyAny, PyBool, IntoPyDict, PyInt, PyList};
+    use crate::types::{IntoPyDict, PyAny, PyBool, PyInt, PyList};
     use crate::Python;
 
     #[test]
