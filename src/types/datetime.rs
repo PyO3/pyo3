@@ -7,13 +7,10 @@
 
 use crate::err::PyResult;
 use crate::ffi;
-use crate::ffi::datetime::PyDateTime_CAPI;
 #[cfg(PyPy)]
 use crate::ffi::datetime::{PyDateTime_FromTimestamp, PyDate_FromTimestamp};
 
 use crate::ffi::PyDateTimeAPI;
-use crate::ffi::PyFloat_FromDouble;
-use crate::ffi::Py_BuildValue;
 use crate::ffi::{PyDateTime_Check, PyDate_Check, PyDelta_Check, PyTZInfo_Check, PyTime_Check};
 #[cfg(Py_3_6)]
 use crate::ffi::{PyDateTime_DATE_GET_FOLD, PyDateTime_TIME_GET_FOLD};
@@ -36,7 +33,6 @@ use crate::AsPyPointer;
 use crate::Python;
 use crate::ToPyObject;
 use std::os::raw::c_int;
-use std::os::raw::c_long;
 use std::ptr;
 
 /// Access traits

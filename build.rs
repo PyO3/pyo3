@@ -501,7 +501,7 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
     if let PythonVersion {
         major: 3,
         minor: some_minor,
-        implementation: implementation,
+        implementation: _,
     } = interpreter_version
     {
         if env::var_os("CARGO_FEATURE_ABI3").is_some() {

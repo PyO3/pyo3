@@ -73,12 +73,13 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     (*ob).ob_refcnt
 }
 
-
 #[cfg(PyPy)]
 pub unsafe fn _PyObject_NextNotImplemented(arg1: *mut PyObject) -> *mut PyObject {
     return crate::ffi3::pyerrors::PyErr_Format(
         crate::ffi3::pyerrors::PyExc_TypeError,
-        CStr::from_bytes_with_nul(b"'%.200s' object is not iterable\0").unwrap().as_ptr(),
+        CStr::from_bytes_with_nul(b"'%.200s' object is not iterable\0")
+            .unwrap()
+            .as_ptr(),
         Py_TYPE((*(arg1 as *mut PyTypeObject)).tp_name as *mut PyObject),
     );
 }

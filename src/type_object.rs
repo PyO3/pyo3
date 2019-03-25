@@ -13,7 +13,7 @@ use crate::Python;
 use crate::{class, ffi, gil};
 use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr::{self, NonNull};
 
