@@ -83,9 +83,11 @@ def test_invalid_date_fails():
         rdt.make_date(2017, 2, 30)
 
 
-# Feeding this tests dates from too early will cause `get_timestamp` to raise.
-@given(d=st.dates(min_value=pdt.date(1900, 1, 1)))
+@given(d=st.dates())
 def test_date_from_timestamp(d):
+    if PYPY and d < pdt.date(1900, 1, 1):
+        pytest.xfail("get_timestamp will raise on PyPy with dates before 1900")
+
     ts = get_timestamp(pdt.datetime.combine(d, pdt.time(0)))
     assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
 
@@ -220,9 +222,11 @@ def test_datetime_typeerror():
         rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
 
 
-# Feeding this tests dates from too early will cause `get_timestamp` to raise.
-@given(dt=st.datetimes(min_value=pdt.datetime(1900, 1, 1)))
+@given(dt=st.datetimes())
 def test_datetime_from_timestamp(dt):
+    if PYPY and dt < pdt.datetime(1900, 1, 1):
+        pytest.xfail("get_timestamp will raise on PyPy with dates before 1900")
+
     ts = get_timestamp(dt)
     assert rdt.datetime_from_timestamp(ts) == pdt.datetime.fromtimestamp(ts)
 
