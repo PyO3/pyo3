@@ -71,13 +71,13 @@ pub struct PyDateTime_CAPI {
     pub TimeZone_FromTimeZone:
         unsafe extern "C" fn(offset: *mut PyObject, name: *mut PyObject) -> *mut PyObject,
 
-    // Defined for PyPy as a separate symbol
+    // Defined for PyPy as `PyDateTime_FromTimestamp`
     pub DateTime_FromTimestamp: unsafe extern "C" fn(
         cls: *mut PyTypeObject,
         args: *mut PyObject,
         kwargs: *mut PyObject,
     ) -> *mut PyObject,
-    // Defined for PyPy as a separate symbol
+    // Defined for PyPy as `PyDate_FromTimestamp`
     pub Date_FromTimestamp:
         unsafe extern "C" fn(cls: *mut PyTypeObject, args: *mut PyObject) -> *mut PyObject,
     #[cfg(Py_3_6)]
