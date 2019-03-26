@@ -60,6 +60,7 @@ pub unsafe trait PyNativeType: Sized {
 #[derive(Debug)]
 pub struct PyRef<'a, T: PyTypeInfo>(&'a T, PhantomData<Rc<()>>);
 
+#[allow(clippy::cast_ptr_alignment)]
 fn ref_to_ptr<T>(t: &T) -> *mut ffi::PyObject
 where
     T: PyTypeInfo,

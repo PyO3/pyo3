@@ -24,7 +24,6 @@ pub fn indoc(commands: &str) -> String {
 #[macro_export]
 macro_rules! py_run {
     ($py:expr, $val:expr, $code:expr) => {{
-
         use pyo3::types::IntoPyDict;
         let d = [(stringify!($val), &$val)].into_py_dict($py);
 
@@ -51,7 +50,6 @@ macro_rules! py_assert {
 #[macro_export]
 macro_rules! py_expect_exception {
     ($py:expr, $val:ident, $code:expr, $err:ident) => {{
-
         use pyo3::types::IntoPyDict;
         let d = [(stringify!($val), &$val)].into_py_dict($py);
 
