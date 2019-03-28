@@ -1,8 +1,8 @@
 use crate::ffi3::object::*;
 use crate::ffi3::objectabstract::PyObject_CallFunction;
 use crate::ffi3::pyport::Py_ssize_t;
-use std::os::raw::{c_char, c_int};
 use std::ffi::CStr;
+use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
