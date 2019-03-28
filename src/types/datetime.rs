@@ -96,7 +96,7 @@ impl PyDate {
             let ptr =
                 (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, time_tuple.as_ptr());
 
-            unsafe { Py::from_owned_ptr_or_err(py, ptr) }
+            Py::from_owned_ptr_or_err(py, ptr)
         }
     }
 }
