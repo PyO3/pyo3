@@ -379,7 +379,7 @@ pub mod socket {
 mod test {
     use crate::exceptions::Exception;
     use crate::objectprotocol::ObjectProtocol;
-    use crate::types::{PyDict, IntoPyDict};
+    use crate::types::{IntoPyDict, PyDict};
     use crate::{PyErr, Python};
 
     import_exception!(socket, gaierror);

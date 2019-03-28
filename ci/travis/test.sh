@@ -9,7 +9,7 @@ if ! [[ $FEATURES == *"pypy"* ]]; then
   ( cd pyo3-derive-backend; cargo test )
 fi
 
-if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
+if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
     cargo fmt --all -- --check
     cargo clippy --features "$FEATURES num-complex"
 fi

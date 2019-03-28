@@ -4,6 +4,7 @@ use std::convert::AsRef;
 use std::env;
 use std::fmt;
 use std::fs::File;
+use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::process::Command;
@@ -259,13 +260,25 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
     let out = Command::new(interpreter)
         .args(&["-c", script])
         .stderr(Stdio::inherit())
-        .output()
-        .map_err(|e| {
-            format!(
-                "Failed to run the python interpreter at {}: {}",
-                interpreter, e
-            )
-        })?;
+        .output();
+
+    let out = match out {
+        Err(err) => {
+            if err.kind() == io::ErrorKind::NotFound {
+                return Err(format!(
+                    "Could not find any interpreter at {}, \
+                     are you sure you have python installed on your PATH?",
+                    interpreter
+                ));
+            } else {
+                return Err(format!(
+                    "Failed to run the python interpreter at {}: {}",
+                    interpreter, err
+                ));
+            }
+        }
+        Ok(ok) => ok,
+    };
 
     if !out.status.success() {
         return Err(format!("python script failed"));
@@ -592,7 +605,7 @@ fn check_rustc_version() {
     }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     check_rustc_version();
     // 1. Setup cfg variables so we can do conditional compilation in this library based on the
     // python interpeter's compilation flags. This is necessary for e.g. matching the right unicode
@@ -607,13 +620,12 @@ fn main() {
     let cross_compiling =
         env::var("PYO3_CROSS_INCLUDE_DIR").is_ok() && env::var("PYO3_CROSS_LIB_DIR").is_ok();
     let (interpreter_version, mut config_map, lines) = if cross_compiling {
-        load_cross_compile_info()
+        load_cross_compile_info()?
     } else {
-        find_interpreter_and_get_config()
-    }
-    .unwrap();
+        find_interpreter_and_get_config()?
+    };
 
-    let flags = configure(&interpreter_version, lines).unwrap();
+    let flags = configure(&interpreter_version, lines)?;
 
     // These flags need to be enabled manually for PyPy, because it does not expose
     // them in `sysconfig.get_config_vars()`
@@ -677,4 +689,6 @@ fn main() {
     for var in env_vars.iter() {
         println!("cargo:rerun-if-env-changed={}", var);
     }
+
+    Ok(())
 }
