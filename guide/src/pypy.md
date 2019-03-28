@@ -2,7 +2,7 @@
 
 Using PyPy is supported via cpyext.
 
-Support is only provided for building rust extension for code running under PyPy. This means PyPy **cannot** be called from rust via cpyext.
+Support is only provided for building rust extension for code running under PyPy. This means PyPy **cannot** be called from rust via cpyext. Note that there some differences in the ffi module between pypy and cpython. 
  
 This is a limitation of cpyext and supported for embedding cpyext is not planned.
 
