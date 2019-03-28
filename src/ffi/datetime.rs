@@ -6,15 +6,15 @@
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
 
-use crate::ffi::PyCapsule_Import;
 use crate::ffi::Py_hash_t;
 use crate::ffi::{PyObject, PyTypeObject};
 use crate::ffi::{PyObject_TypeCheck, Py_TYPE};
-use std::ffi::CString;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_uchar};
 use std::ptr;
 use std::sync::Once;
+#[cfg(not(PyPy))]
+use {crate::ffi::PyCapsule_Import, std::ffi::CString};
 
 // A note regarding cpyext support:
 // Some macros, like `PyDate_FromTimestamp` and `PyDateTime_FromTimestamp` are exported as separate symbols.
@@ -338,7 +338,7 @@ pub unsafe fn PyTZInfo_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 /// Accessor functions
-///
+#[cfg(not(PyPy))]
 macro_rules! _access_field {
     ($obj:expr, $type: ident, $field:tt) => {
         (*($obj as *mut $type)).$field
@@ -375,24 +375,28 @@ pub unsafe fn PyDateTime_GET_DAY(o: *mut PyObject) -> c_int {
 }
 
 // Accessor macros for times
+#[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_HOUR {
     ($o: expr, $offset:expr) => {
         c_int::from((*$o).data[$offset + 0])
     };
 }
 
+#[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_MINUTE {
     ($o: expr, $offset:expr) => {
         c_int::from((*$o).data[$offset + 1])
     };
 }
 
+#[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_SECOND {
     ($o: expr, $offset:expr) => {
         c_int::from((*$o).data[$offset + 2])
     };
 }
 
+#[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_MICROSECOND {
     ($o: expr, $offset:expr) => {
         (c_int::from((*$o).data[$offset + 3]) << 16)
@@ -402,12 +406,14 @@ macro_rules! _PyDateTime_GET_MICROSECOND {
 }
 
 #[cfg(Py_3_6)]
+#[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_FOLD {
     ($o: expr) => {
         (*$o).fold
     };
 }
 
+#[cfg(not(PyPy))]
 macro_rules! _PyDateTime_GET_TZINFO {
     ($o: expr) => {
         (*$o).tzinfo
@@ -500,7 +506,7 @@ pub unsafe fn PyDateTime_TIME_GET_MICROSECOND(o: *mut PyObject) -> c_int {
     _PyDateTime_GET_MICROSECOND!((o as *mut PyDateTime_Time), 0)
 }
 
-#[cfg(Py_3_6)]
+#[cfg(all(Py_3_6, not(PyPy)))]
 #[inline]
 /// Retrieve the fold component of a `PyDateTime_Time`.
 /// Returns a signed integer in the interval `[0, 1]`
@@ -520,6 +526,7 @@ pub unsafe fn PyDateTime_TIME_GET_TZINFO(o: *mut PyObject) -> *mut PyObject {
 }
 
 // Accessor functions for PyDateTime_Delta
+#[cfg(not(PyPy))]
 macro_rules! _access_delta_field {
     ($obj:expr, $field:tt) => {
         _access_field!($obj, PyDateTime_Delta, $field)

@@ -1,7 +1,7 @@
 use crate::ffi3::methodobject::PyMethodDef;
-use crate::ffi3::object::{
-    PyObject, PyObject_GenericGetDict, PyObject_GenericSetDict, PyTypeObject,
-};
+use crate::ffi3::object::{PyObject, PyTypeObject};
+#[cfg(not(PyPy))]
+use crate::ffi3::object::{PyObject_GenericGetDict, PyObject_GenericSetDict};
 use crate::ffi3::structmember::PyMemberDef;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;

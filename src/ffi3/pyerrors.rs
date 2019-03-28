@@ -1,6 +1,8 @@
 use crate::ffi3::object::*;
+#[cfg(PyPy)]
 use crate::ffi3::objectabstract::PyObject_CallFunction;
 use crate::ffi3::pyport::Py_ssize_t;
+#[cfg(PyPy)]
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 
@@ -84,7 +86,7 @@ pub unsafe fn PyUnicodeDecodeError_Create(
     length: Py_ssize_t,
     start: Py_ssize_t,
     end: Py_ssize_t,
-    reason: *const c_char,
+    _reason: *const c_char,
 ) -> *mut PyObject {
     return PyObject_CallFunction(
         PyExc_UnicodeDecodeError,

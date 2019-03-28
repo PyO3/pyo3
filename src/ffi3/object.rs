@@ -1,4 +1,5 @@
 use crate::ffi3::pyport::{Py_hash_t, Py_ssize_t};
+#[cfg(PyPy)]
 use std::ffi::CStr;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong, c_void};
