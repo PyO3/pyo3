@@ -532,12 +532,6 @@ fn version_from_env() -> Option<PythonVersion> {
     // sort env::vars so we get more explicit version specifiers first
     // so if the user passes e.g. the python-3 feature and the python-3-5
     // feature, python-3-5 takes priority.
-    let interpreter_kind = if cfg!(feature = "pypy") {
-        PythonInterpreterKind::PyPy
-    } else {
-        PythonInterpreterKind::CPython
-    };
-
     let mut vars = env::vars().collect::<Vec<_>>();
     vars.sort_by(|a, b| b.cmp(a));
     for (key, _) in vars {
