@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.6.0] - 2018-03-28
+
+### Regressions
+
+ * Currently, [#341](https://github.com/PyO3/pyo3/issues/341) causes `cargo test` to fail with weird linking errors when the `extension-module` feature is activated. For now you can work around this by making the `extension-module` feature optional and running the tests with `cargo test --no-default-features`:
+
+```toml
+[dependencies.pyo3]
+version = "0.6.0"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+```
+
 ### Added
 
  * Added a `wrap_pymodule!` macro similar to the existing `wrap_pyfunction!` macro. Only available on python 3
@@ -249,7 +264,8 @@ Yanked
 
 * Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/pyo3/pyo3/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/pyo3/pyo3/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/pyo3/pyo3/compare/v0.5.0...v0.5.2
 [0.5.0]: https://github.com/pyo3/pyo3/compare/v0.4.1...v0.5.0
