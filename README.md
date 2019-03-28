@@ -19,6 +19,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 PyO3 supports python 2.7 as well as python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
 
 PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
+Please refer to the guide for installation instruction against PyPy.
 
 You can either write a native python module in rust or use python from a rust binary.
 
