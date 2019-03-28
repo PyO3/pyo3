@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::method::{FnArg, FnSpec, FnType};
+use crate::method::{FnArg, FnSpec, FnType, PySelfType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -18,6 +18,12 @@ pub fn gen_py_method(
 
     match spec.tp {
         FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
+        FnType::PySelf(pyslf) => impl_py_method_def(
+            name,
+            doc,
+            &spec,
+            &impl_wrap_pyslf(cls, name, &spec, pyslf, true),
+        ),
         FnType::FnNew => impl_py_method_def_new(name, doc, &impl_wrap_new(cls, name, &spec)),
         FnType::FnInit => impl_py_method_def_init(name, doc, &impl_wrap_init(cls, name, &spec)),
         FnType::FnCall => impl_py_method_def_call(name, doc, &impl_wrap(cls, name, &spec, false)),
@@ -48,7 +54,45 @@ pub fn impl_wrap(
     noargs: bool,
 ) -> TokenStream {
     let body = impl_call(cls, name, &spec);
+    let slf = quote! {
+        let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+    };
+    impl_wrap_common(cls, name, spec, noargs, slf, body)
+}
 
+pub fn impl_wrap_pyslf(
+    cls: &syn::Type,
+    name: &syn::Ident,
+    spec: &FnSpec<'_>,
+    slftype: PySelfType,
+    noargs: bool,
+) -> TokenStream {
+    let names = get_arg_names(spec);
+    let body = quote! {
+        #cls::#name(_slf, #(#names),*)
+    };
+    let slf = match slftype {
+        PySelfType::Py => quote! {
+            let _slf = pyo3::Py::<#cls>::from_borrowed_ptr(_slf);
+        },
+        PySelfType::PyRef => quote! {
+            let _slf = pyo3::PyRef::<#cls>::from_borrowed_ptr(_py, _slf);
+        },
+        PySelfType::PyRefMut => quote! {
+            let _slf = pyo3::PyRefMut::<#cls>::from_borrowed_ptr(_py, _slf);
+        },
+    };
+    impl_wrap_common(cls, name, spec, noargs, slf, body)
+}
+
+fn impl_wrap_common(
+    cls: &syn::Type,
+    name: &syn::Ident,
+    spec: &FnSpec<'_>,
+    noargs: bool,
+    slf: TokenStream,
+    body: TokenStream,
+) -> TokenStream {
     if spec.args.is_empty() && noargs {
         quote! {
             unsafe extern "C" fn __wrap(
@@ -59,8 +103,7 @@ pub fn impl_wrap(
                     stringify!(#cls), ".", stringify!(#name), "()");
                 let _pool = pyo3::GILPool::new();
                 let _py = pyo3::Python::assume_gil_acquired();
-                let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
-
+                #slf
                 let _result = {
                     pyo3::derive_utils::IntoPyResult::into_py_result(#body)
                 };
@@ -82,7 +125,7 @@ pub fn impl_wrap(
                     stringify!(#cls), ".", stringify!(#name), "()");
                 let _pool = pyo3::GILPool::new();
                 let _py = pyo3::Python::assume_gil_acquired();
-                let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+                #slf
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 

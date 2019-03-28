@@ -11,7 +11,7 @@ use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::{FromPyObject, IntoPyObject, ToPyObject};
+use crate::{FromPyObject, IntoPyObject, PyTryFrom, ToPyObject};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -72,6 +72,12 @@ impl<'a, T: PyTypeInfo> PyRef<'a, T> {
     pub(crate) fn from_ref(r: &'a T) -> Self {
         PyRef(r, PhantomData)
     }
+    pub unsafe fn from_owned_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_ref(py.from_owned_ptr(ptr))
+    }
+    pub unsafe fn from_borrowed_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_ref(py.from_borrowed_ptr(ptr))
+    }
 }
 
 impl<'a, T> PyRef<'a, T>
@@ -105,6 +111,15 @@ impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
     }
 }
 
+impl<'a, T> FromPyObject<'a> for PyRef<'a, T>
+where
+    T: PyTypeInfo,
+{
+    fn extract(ob: &'a PyAny) -> PyResult<PyRef<'a, T>> {
+        T::try_from(ob).map(PyRef::from_ref).map_err(Into::into)
+    }
+}
+
 /// Mutable version of [`PyRef`](struct.PyRef.html).
 /// # Example
 /// ```
@@ -134,6 +149,12 @@ pub struct PyRefMut<'a, T: PyTypeInfo>(&'a mut T, PhantomData<Rc<()>>);
 impl<'a, T: PyTypeInfo> PyRefMut<'a, T> {
     pub(crate) fn from_mut(t: &'a mut T) -> Self {
         PyRefMut(t, PhantomData)
+    }
+    pub unsafe fn from_owned_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_mut(py.mut_from_owned_ptr(ptr))
+    }
+    pub unsafe fn from_borrowed_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_mut(py.mut_from_borrowed_ptr(ptr))
     }
 }
 
@@ -171,6 +192,17 @@ impl<'a, T: PyTypeInfo> Deref for PyRefMut<'a, T> {
 impl<'a, T: PyTypeInfo> DerefMut for PyRefMut<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.0
+    }
+}
+
+impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
+where
+    T: PyTypeInfo,
+{
+    fn extract(ob: &'a PyAny) -> PyResult<PyRefMut<'a, T>> {
+        T::try_from_mut(ob)
+            .map(PyRefMut::from_mut)
+            .map_err(Into::into)
     }
 }
 

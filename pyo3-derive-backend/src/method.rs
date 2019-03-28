@@ -27,6 +27,35 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
+    PySelf(PySelfType),
+}
+
+/// For fn(slf: &PyRef<Self>) support
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PySelfType {
+    Py,
+    PyRef,
+    PyRefMut,
+}
+
+impl PySelfType {
+    fn from_args<'a>(args: &[FnArg<'a>]) -> Option<Self> {
+        let arg = args.iter().next()?;
+        let path = match arg.ty {
+            syn::Type::Path(p) => p,
+            _ => return None,
+        };
+        let last_seg = match path.path.segments.last()? {
+            syn::punctuated::Pair::Punctuated(t, _) => t,
+            syn::punctuated::Pair::End(t) => t,
+        };
+        match &*last_seg.ident.to_string() {
+            "Py" => Some(PySelfType::Py),
+            "PyRef" => Some(PySelfType::PyRef),
+            "PyRefMut" => Some(PySelfType::PyRefMut),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -51,11 +80,10 @@ impl<'a> FnSpec<'a> {
         sig: &'a syn::MethodSig,
         meth_attrs: &'a mut Vec<syn::Attribute>,
     ) -> syn::Result<FnSpec<'a>> {
-        let (fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
+        let (mut fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
 
         let mut has_self = false;
         let mut arguments = Vec::new();
-
         for input in sig.decl.inputs.iter() {
             match input {
                 syn::FnArg::SelfRef(_) => {
@@ -118,6 +146,17 @@ impl<'a> FnSpec<'a> {
         }
 
         let ty = get_return_info(&sig.decl.output);
+
+        if fn_type == FnType::Fn && !has_self {
+            if let Some(pyslf) = PySelfType::from_args(&arguments) {
+                fn_type = FnType::PySelf(pyslf);
+                arguments.remove(0);
+            } else {
+                panic!(
+                    "Static method needs an attribute #[staticmethod] or PyRef/PyRefMut as the 1st arg"
+                );
+            }
+        }
 
         Ok(FnSpec {
             tp: fn_type,
