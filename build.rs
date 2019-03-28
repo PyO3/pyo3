@@ -556,7 +556,7 @@ fn version_from_env() -> Option<PythonVersion> {
                         Some(s) => Some(s.as_str().parse().unwrap()),
                         None => None,
                     },
-                    implementation: interpreter_kind,
+                    implementation: PythonInterpreterKind::CPython,
                 });
             }
             None => (),
