@@ -6,7 +6,7 @@ set -e
 
 curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=$TRAVIS_RUST_VERSION
 export PATH=$PATH:$HOME/.cargo/bin
-if [ $TRAVIS_JOB_NAME = 'Minimum nightly' ]; then
+if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
     rustup component add clippy
     rustup component add rustfmt
 fi

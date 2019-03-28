@@ -61,7 +61,8 @@ fn test_module_with_functions() {
     let d = [(
         "module_with_functions",
         wrap_pymodule!(module_with_functions)(py),
-    )].into_py_dict(py);
+    )]
+    .into_py_dict(py);
 
     let run = |code| py.run(code, None, Some(d)).unwrap();
 

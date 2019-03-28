@@ -6,7 +6,7 @@ use pyo3::class::{
 use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBytes, IntoPyDict, PySlice, PyString, PyType};
+use pyo3::types::{IntoPyDict, PyAny, PyBytes, PySlice, PyString, PyType};
 use pyo3::AsPyPointer;
 use std::{isize, iter};
 

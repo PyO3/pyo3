@@ -3,9 +3,9 @@ use pyo3::exceptions::BufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use std::ffi::CStr;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
-use std::ffi::CStr;
 
 #[pyclass]
 struct TestClass {
