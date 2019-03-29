@@ -27,35 +27,7 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
-    PySelf(PySelfType),
-}
-
-/// For fn(slf: &PyRef<Self>) support
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum PySelfType {
-    Py,
-    PyRef,
-    PyRefMut,
-}
-
-impl PySelfType {
-    fn from_args<'a>(args: &[FnArg<'a>]) -> Option<Self> {
-        let arg = args.iter().next()?;
-        let path = match arg.ty {
-            syn::Type::Path(p) => p,
-            _ => return None,
-        };
-        let last_seg = match path.path.segments.last()? {
-            syn::punctuated::Pair::Punctuated(t, _) => t,
-            syn::punctuated::Pair::End(t) => t,
-        };
-        match &*last_seg.ident.to_string() {
-            "Py" => Some(PySelfType::Py),
-            "PyRef" => Some(PySelfType::PyRef),
-            "PyRefMut" => Some(PySelfType::PyRefMut),
-            _ => None,
-        }
-    }
+    PySelf(syn::Type),
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -148,14 +120,10 @@ impl<'a> FnSpec<'a> {
         let ty = get_return_info(&sig.decl.output);
 
         if fn_type == FnType::Fn && !has_self {
-            if let Some(pyslf) = PySelfType::from_args(&arguments) {
-                fn_type = FnType::PySelf(pyslf);
-                arguments.remove(0);
-            } else {
-                panic!(
-                    "Static method needs an attribute #[staticmethod] or PyRef/PyRefMut as the 1st arg"
-                );
+            if arguments.len() == 0 {
+                panic!("Static method needs an attribute #[staticmethod]");
             }
+            fn_type = FnType::PySelf(arguments.remove(0).ty.to_owned());
         }
 
         Ok(FnSpec {

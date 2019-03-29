@@ -1,15 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 //! Conversions between various states of rust and python types and their wrappers.
-
-use crate::err::{PyDowncastError, PyResult};
-use crate::ffi;
+use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
 use crate::types::PyTuple;
-use crate::Py;
-use crate::Python;
+use crate::{ffi, gil, Py, Python};
+use std::ptr::NonNull;
 
 /// This trait represents that, **we can do zero-cost conversion from the object to FFI pointer**.
 ///
@@ -429,6 +427,65 @@ where
 impl FromPy<()> for Py<PyTuple> {
     fn from_py(_: (), py: Python) -> Py<PyTuple> {
         PyTuple::empty(py)
+    }
+}
+
+pub unsafe trait FromPyPointer<'p>: Sized {
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self>;
+    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+        match Self::from_owned_ptr_or_opt(py, ptr) {
+            Some(s) => s,
+            None => err::panic_after_error(),
+        }
+    }
+    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_owned_ptr_or_panic(py, ptr)
+    }
+    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+        match Self::from_owned_ptr_or_opt(py, ptr) {
+            Some(s) => Ok(s),
+            None => Err(err::PyErr::fetch(py)),
+        }
+    }
+    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self>;
+    unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+        match Self::from_borrowed_ptr_or_opt(py, ptr) {
+            Some(s) => s,
+            None => err::panic_after_error(),
+        }
+    }
+    unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+        Self::from_borrowed_ptr_or_panic(py, ptr)
+    }
+    unsafe fn from_borrowed_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+        match Self::from_borrowed_ptr_or_opt(py, ptr) {
+            Some(s) => Ok(s),
+            None => Err(err::PyErr::fetch(py)),
+        }
+    }
+}
+
+unsafe impl<'p, T> FromPyPointer<'p> for &'p T
+where
+    T: PyTypeInfo,
+{
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        NonNull::new(ptr).map(|p| py.unchecked_downcast(gil::register_owned(py, p)))
+    }
+    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        NonNull::new(ptr).map(|p| py.unchecked_downcast(gil::register_borrowed(py, p)))
+    }
+}
+
+unsafe impl<'p, T> FromPyPointer<'p> for &'p mut T
+where
+    T: PyTypeInfo,
+{
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        NonNull::new(ptr).map(|p| py.unchecked_mut_downcast(gil::register_owned(py, p)))
+    }
+    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        NonNull::new(ptr).map(|p| py.unchecked_mut_downcast(gil::register_borrowed(py, p)))
     }
 }
 

@@ -8,10 +8,10 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{FromPyObject, IntoPyObject, PyTryFrom, ToPyObject};
+use crate::{
+    AsPyPointer, FromPyObject, FromPyPointer, IntoPyObject, IntoPyPointer, PyTryFrom, Python,
+    ToPyObject,
+};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -72,23 +72,16 @@ impl<'a, T: PyTypeInfo> PyRef<'a, T> {
     pub(crate) fn from_ref(r: &'a T) -> Self {
         PyRef(r, PhantomData)
     }
-    pub unsafe fn from_owned_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
-        Self::from_ref(py.from_owned_ptr(ptr))
-    }
-    pub unsafe fn from_borrowed_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
-        Self::from_ref(py.from_borrowed_ptr(ptr))
-    }
 }
 
-impl<'a, T> PyRef<'a, T>
+impl<'p, T> PyRef<'p, T>
 where
     T: PyTypeInfo + PyTypeObject + PyTypeCreate,
 {
-    pub fn new(py: Python, value: T) -> PyResult<PyRef<T>> {
+    pub fn new(py: Python<'p>, value: T) -> PyResult<PyRef<T>> {
         let obj = T::create(py)?;
         obj.init(value);
-        let ref_ = unsafe { py.from_owned_ptr(obj.into_ptr()) };
-        Ok(PyRef::from_ref(ref_))
+        unsafe { Self::from_owned_ptr_or_err(py, obj.into_ptr()) }
     }
 }
 
@@ -117,6 +110,18 @@ where
 {
     fn extract(ob: &'a PyAny) -> PyResult<PyRef<'a, T>> {
         T::try_from(ob).map(PyRef::from_ref).map_err(Into::into)
+    }
+}
+
+unsafe impl<'p, T> FromPyPointer<'p> for PyRef<'p, T>
+where
+    T: PyTypeInfo,
+{
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        FromPyPointer::from_owned_ptr_or_opt(py, ptr).map(Self::from_ref)
+    }
+    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        FromPyPointer::from_borrowed_ptr_or_opt(py, ptr).map(Self::from_ref)
     }
 }
 
@@ -150,23 +155,16 @@ impl<'a, T: PyTypeInfo> PyRefMut<'a, T> {
     pub(crate) fn from_mut(t: &'a mut T) -> Self {
         PyRefMut(t, PhantomData)
     }
-    pub unsafe fn from_owned_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
-        Self::from_mut(py.mut_from_owned_ptr(ptr))
-    }
-    pub unsafe fn from_borrowed_ptr(py: Python<'a>, ptr: *mut ffi::PyObject) -> Self {
-        Self::from_mut(py.mut_from_borrowed_ptr(ptr))
-    }
 }
 
-impl<'a, T> PyRefMut<'a, T>
+impl<'p, T> PyRefMut<'p, T>
 where
     T: PyTypeInfo + PyTypeObject + PyTypeCreate,
 {
-    pub fn new(py: Python, value: T) -> PyResult<PyRefMut<T>> {
+    pub fn new(py: Python<'p>, value: T) -> PyResult<PyRefMut<T>> {
         let obj = T::create(py)?;
         obj.init(value);
-        let ref_ = unsafe { py.mut_from_owned_ptr(obj.into_ptr()) };
-        Ok(PyRefMut::from_mut(ref_))
+        unsafe { Self::from_owned_ptr_or_err(py, obj.into_ptr()) }
     }
 }
 
@@ -203,6 +201,18 @@ where
         T::try_from_mut(ob)
             .map(PyRefMut::from_mut)
             .map_err(Into::into)
+    }
+}
+
+unsafe impl<'p, T> FromPyPointer<'p> for PyRefMut<'p, T>
+where
+    T: PyTypeInfo,
+{
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        FromPyPointer::from_owned_ptr_or_opt(py, ptr).map(Self::from_mut)
+    }
+    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        FromPyPointer::from_borrowed_ptr_or_opt(py, ptr).map(Self::from_mut)
     }
 }
 

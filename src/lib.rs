@@ -119,8 +119,8 @@
 
 pub use crate::class::*;
 pub use crate::conversion::{
-    AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, PyTryInto,
-    ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPy, FromPyObject, FromPyPointer, IntoPy, IntoPyObject, IntoPyPointer,
+    PyTryFrom, PyTryInto, ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
 pub use crate::gil::{init_once, GILGuard, GILPool};

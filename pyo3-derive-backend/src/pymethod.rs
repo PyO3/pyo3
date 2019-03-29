@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::method::{FnArg, FnSpec, FnType, PySelfType};
+use crate::method::{FnArg, FnSpec, FnType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -18,11 +18,11 @@ pub fn gen_py_method(
 
     match spec.tp {
         FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
-        FnType::PySelf(pyslf) => impl_py_method_def(
+        FnType::PySelf(ref self_ty) => impl_py_method_def(
             name,
             doc,
             &spec,
-            &impl_wrap_pyslf(cls, name, &spec, pyslf, true),
+            &impl_wrap_pyslf(cls, name, &spec, self_ty, true),
         ),
         FnType::FnNew => impl_py_method_def_new(name, doc, &impl_wrap_new(cls, name, &spec)),
         FnType::FnInit => impl_py_method_def_init(name, doc, &impl_wrap_init(cls, name, &spec)),
@@ -55,7 +55,7 @@ pub fn impl_wrap(
 ) -> TokenStream {
     let body = impl_call(cls, name, &spec);
     let slf = quote! {
-        let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+        let _slf: &mut #cls = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
     };
     impl_wrap_common(cls, name, spec, noargs, slf, body)
 }
@@ -64,23 +64,15 @@ pub fn impl_wrap_pyslf(
     cls: &syn::Type,
     name: &syn::Ident,
     spec: &FnSpec<'_>,
-    slftype: PySelfType,
+    self_ty: &syn::Type,
     noargs: bool,
 ) -> TokenStream {
     let names = get_arg_names(spec);
     let body = quote! {
         #cls::#name(_slf, #(#names),*)
     };
-    let slf = match slftype {
-        PySelfType::Py => quote! {
-            let _slf = pyo3::Py::<#cls>::from_borrowed_ptr(_slf);
-        },
-        PySelfType::PyRef => quote! {
-            let _slf = pyo3::PyRef::<#cls>::from_borrowed_ptr(_py, _slf);
-        },
-        PySelfType::PyRefMut => quote! {
-            let _slf = pyo3::PyRefMut::<#cls>::from_borrowed_ptr(_py, _slf);
-        },
+    let slf = quote! {
+        let _slf: #self_ty = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
     };
     impl_wrap_common(cls, name, spec, noargs, slf, body)
 }
