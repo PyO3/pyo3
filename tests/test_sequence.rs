@@ -3,8 +3,8 @@ use pyo3::exceptions::IndexError;
 use pyo3::exceptions::ValueError;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::types::PyList;
 use pyo3::types::PyAny;
+use pyo3::types::PyList;
 
 #[macro_use]
 mod common;
@@ -26,7 +26,9 @@ impl ByteSequence {
             }
             Self { elements: elems }
         } else {
-            Self { elements: Vec::new() }
+            Self {
+                elements: Vec::new(),
+            }
         });
         Ok(())
     }
@@ -39,7 +41,8 @@ impl PySequenceProtocol for ByteSequence {
     }
 
     fn __getitem__(&self, idx: isize) -> PyResult<u8> {
-        self.elements.get(idx as usize)
+        self.elements
+            .get(idx as usize)
             .map(|&byte| byte)
             .ok_or(IndexError::py_err("list index out of range"))
     }
@@ -102,7 +105,6 @@ impl PySequenceProtocol for ByteSequence {
     //     }
     // }
 }
-
 
 #[test]
 fn test_getitem() {
