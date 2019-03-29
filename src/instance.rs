@@ -9,8 +9,7 @@ use crate::type_object::PyTypeCreate;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::PyAny;
 use crate::{
-    AsPyPointer, FromPyObject, FromPyPointer, IntoPyObject, IntoPyPointer, PyTryFrom, Python,
-    ToPyObject,
+    AsPyPointer, FromPyObject, FromPyPointer, IntoPyObject, IntoPyPointer, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -104,15 +103,6 @@ impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRef<'a, T>
-where
-    T: PyTypeInfo,
-{
-    fn extract(ob: &'a PyAny) -> PyResult<PyRef<'a, T>> {
-        T::try_from(ob).map(PyRef::from_ref).map_err(Into::into)
-    }
-}
-
 unsafe impl<'p, T> FromPyPointer<'p> for PyRef<'p, T>
 where
     T: PyTypeInfo,
@@ -190,17 +180,6 @@ impl<'a, T: PyTypeInfo> Deref for PyRefMut<'a, T> {
 impl<'a, T: PyTypeInfo> DerefMut for PyRefMut<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.0
-    }
-}
-
-impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
-where
-    T: PyTypeInfo,
-{
-    fn extract(ob: &'a PyAny) -> PyResult<PyRefMut<'a, T>> {
-        T::try_from_mut(ob)
-            .map(PyRefMut::from_mut)
-            .map_err(Into::into)
     }
 }
 
