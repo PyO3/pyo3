@@ -10,32 +10,25 @@ cache:
 
 matrix:
   include:
-    - name: Python 2.7
-      python: "2.7"
-      env: FEATURES=python2
     - name: Python 3.5
       python: "3.5"
-      env: FEATURES="python3 test-doc"
+      env: FEATURES="test-doc"
     - name: Python 3.6
       python: "3.6"
-      env: FEATURES=python3
     - name: Python 3.7
       python: "3.7"
-      env: FEATURES=python3
     - name: Python 3.8-dev
       python: "3.8-dev"
-      env: FEATURES=python3
     - name: Minimum nightly
       python: "3.7"
       # Keep this synced up with build.rs
-      env: FEATURES=python3 TRAVIS_RUST_VERSION=nightly-2019-02-07
+      env: TRAVIS_RUST_VERSION=nightly-2019-02-07
       # Tested via anaconda PyPy (since travis's PyPy version is too old)
     - name: PyPy3.5 7.0
       python: "3.7"
-      env: FEATURES="python3 pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
+      env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
     - python: "3.8-dev"
-      env: FEATURES=python3
 
 env:
   global:

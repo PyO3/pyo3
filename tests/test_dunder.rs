@@ -6,7 +6,7 @@ use pyo3::class::{
 use pyo3::exceptions::{IndexError, ValueError};
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyAny, PyBytes, PySlice, PyString, PyType};
+use pyo3::types::{IntoPyDict, PyAny, PyBytes, PySlice, PyType};
 use pyo3::AsPyPointer;
 use std::{isize, iter};
 
@@ -100,14 +100,8 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         let gil = GILGuard::acquire();
         Ok(PyBytes::new(gil.python(), b"bytes").into())
     }
-
-    fn __unicode__(&self) -> PyResult<PyObject> {
-        let gil = GILGuard::acquire();
-        Ok(PyString::new(gil.python(), "unicode").into())
-    }
 }
 
-#[cfg(Py_3)]
 #[test]
 fn string_methods() {
     let gil = Python::acquire_gil();
@@ -118,19 +112,6 @@ fn string_methods() {
     py_assert!(py, obj, "repr(obj) == 'repr'");
     py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
     py_assert!(py, obj, "bytes(obj) == b'bytes'");
-}
-
-#[cfg(not(Py_3))]
-#[test]
-fn string_methods() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let obj = Py::new(py, StringMethods {}).unwrap();
-    py_assert!(py, obj, "str(obj) == 'str'");
-    py_assert!(py, obj, "repr(obj) == 'repr'");
-    py_assert!(py, obj, "unicode(obj) == 'unicode'");
-    py_assert!(py, obj, "'{0:x}'.format(obj) == 'format(x)'");
 }
 
 #[pyclass]
@@ -452,7 +433,6 @@ fn dunder_dict_support() {
     );
 }
 
-#[cfg(Py_3)]
 #[test]
 fn access_dunder_dict() {
     let gil = Python::acquire_gil();

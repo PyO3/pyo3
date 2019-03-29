@@ -109,7 +109,6 @@ pub fn parse_fn_args<'p>(
     Ok(())
 }
 
-#[cfg(Py_3)]
 /// Builds a module (or null) from a user given initializer. Used for `#[pymodule]`.
 pub unsafe fn make_module(
     name: &str,
@@ -155,43 +154,6 @@ pub unsafe fn make_module(
             e.restore(py);
             ptr::null_mut()
         }
-    }
-}
-
-#[cfg(not(Py_3))]
-#[doc(hidden)]
-/// Builds a module (or null) from a user given initializer. Used for `#[pymodule]`.
-pub unsafe fn make_module(
-    name: &str,
-    doc: &str,
-    initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
-) {
-    init_once();
-
-    #[cfg(py_sys_config = "WITH_THREAD")]
-    ffi::PyEval_InitThreads();
-
-    let _name = name.as_ptr() as *const _;
-    let _pool = GILPool::new();
-    let py = Python::assume_gil_acquired();
-    let _module = ffi::Py_InitModule(_name, ptr::null_mut());
-    if _module.is_null() {
-        return;
-    }
-
-    let _module = match py.from_borrowed_ptr_or_err::<PyModule>(_module) {
-        Ok(m) => m,
-        Err(e) => {
-            e.restore(py);
-            return;
-        }
-    };
-
-    _module
-        .add("__doc__", doc)
-        .expect("Failed to add doc for module");
-    if let Err(e) = initializer(py, _module) {
-        e.restore(py)
     }
 }
 

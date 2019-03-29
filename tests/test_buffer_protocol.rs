@@ -60,7 +60,6 @@ impl PyBufferProtocol for TestClass {
     }
 }
 
-#[cfg(Py_3)]
 #[test]
 fn test_buffer() {
     let gil = Python::acquire_gil();
@@ -76,23 +75,4 @@ fn test_buffer() {
 
     let d = [("ob", t)].into_py_dict(py);
     py.run("assert bytes(ob) == b' 23'", None, Some(d)).unwrap();
-}
-
-#[cfg(not(Py_3))]
-#[test]
-fn test_buffer() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let t = Py::new(
-        py,
-        TestClass {
-            vec: vec![b' ', b'2', b'3'],
-        },
-    )
-    .unwrap();
-
-    let d = [("ob", t)].into_py_dict(py);
-    py.run("assert memoryview(ob).tobytes() == ' 23'", None, Some(d))
-        .unwrap();
 }

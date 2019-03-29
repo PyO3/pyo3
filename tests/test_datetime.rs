@@ -100,7 +100,6 @@ fn test_delta_check() {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_datetime_utc() {
     use pyo3::types::PyDateTime;
 
@@ -123,7 +122,6 @@ fn test_datetime_utc() {
     assert_eq!(offset, 0f32);
 }
 
-#[cfg(Py_3)]
 static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (-1, 1, 1),
     (0, 1, 1),
@@ -136,7 +134,6 @@ static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (2018, 1, 32),
 ];
 
-#[cfg(Py_3)]
 static INVALID_TIMES: &'static [(u8, u8, u8, u32)] =
     &[(25, 0, 0, 0), (255, 0, 0, 0), (0, 60, 0, 0), (0, 0, 61, 0)];
 

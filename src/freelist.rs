@@ -80,38 +80,12 @@ where
         }
     }
 
-    #[cfg(Py_3)]
     unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
         pytype_drop::<Self>(py, obj);
 
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
             return;
         }
-
-        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
-            match Self::type_object().tp_free {
-                Some(free) => free(obj as *mut c_void),
-                None => {
-                    let ty = ffi::Py_TYPE(obj);
-                    if ffi::PyType_IS_GC(ty) != 0 {
-                        ffi::PyObject_GC_Del(obj as *mut c_void);
-                    } else {
-                        ffi::PyObject_Free(obj as *mut c_void);
-                    }
-
-                    // For heap types, PyType_GenericAlloc calls INCREF on the type objects,
-                    // so we need to call DECREF here:
-                    if ffi::PyType_HasFeature(ty, ffi::Py_TPFLAGS_HEAPTYPE) != 0 {
-                        ffi::Py_DECREF(ty as *mut ffi::PyObject);
-                    }
-                }
-            }
-        }
-    }
-
-    #[cfg(not(Py_3))]
-    unsafe fn dealloc(py: Python, obj: *mut ffi::PyObject) {
-        pytype_drop::<Self>(py, obj);
 
         if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
             match Self::type_object().tp_free {

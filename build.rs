@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::process::exit;
 use std::process::Command;
 use std::process::Stdio;
 use version_check::{is_min_date, is_min_version, supports_features};
@@ -529,8 +530,8 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
         }
         println!("cargo:rustc-cfg=Py_3");
     } else {
-        println!("cargo:rustc-cfg=Py_2");
-        flags += format!("CFG_Py_2,").as_ref();
+        // fail PYTHON_SYS_EXECUTABLE=python2 cargo ...
+        return Err("Python 2 is not supported".to_string());
     }
     return Ok(flags);
 }
@@ -625,7 +626,14 @@ fn main() -> Result<(), String> {
         find_interpreter_and_get_config()?
     };
 
-    let flags = configure(&interpreter_version, lines)?;
+    let flags;
+    match configure(&interpreter_version, lines) {
+        Ok(val) => flags = val,
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
+        }
+    }
 
     // These flags need to be enabled manually for PyPy, because it does not expose
     // them in `sysconfig.get_config_vars()`

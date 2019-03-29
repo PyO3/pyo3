@@ -45,7 +45,6 @@ impl PyModule {
     /// 'file_name' is the file name to associate with the module
     ///     (this is used when Python reports errors, for example)
     /// 'module_name' is the name to give the module
-    #[cfg(Py_3)]
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,

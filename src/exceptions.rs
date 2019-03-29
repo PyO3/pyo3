@@ -231,7 +231,6 @@ macro_rules! impl_native_exception (
 
 impl_native_exception!(BaseException, PyExc_BaseException);
 impl_native_exception!(Exception, PyExc_Exception);
-#[cfg(Py_3)]
 impl_native_exception!(StopAsyncIteration, PyExc_StopAsyncIteration);
 impl_native_exception!(StopIteration, PyExc_StopIteration);
 impl_native_exception!(GeneratorExit, PyExc_GeneratorExit);
@@ -256,7 +255,6 @@ impl_native_exception!(MemoryError, PyExc_MemoryError);
 impl_native_exception!(NameError, PyExc_NameError);
 impl_native_exception!(OverflowError, PyExc_OverflowError);
 impl_native_exception!(RuntimeError, PyExc_RuntimeError);
-#[cfg(Py_3)]
 impl_native_exception!(RecursionError, PyExc_RecursionError);
 impl_native_exception!(NotImplementedError, PyExc_NotImplementedError);
 impl_native_exception!(SyntaxError, PyExc_SyntaxError);
@@ -272,35 +270,20 @@ impl_native_exception!(UnicodeTranslateError, PyExc_UnicodeTranslateError);
 impl_native_exception!(ValueError, PyExc_ValueError);
 impl_native_exception!(ZeroDivisionError, PyExc_ZeroDivisionError);
 
-#[cfg(Py_3)]
 impl_native_exception!(BlockingIOError, PyExc_BlockingIOError);
-#[cfg(Py_3)]
 impl_native_exception!(BrokenPipeError, PyExc_BrokenPipeError);
-#[cfg(Py_3)]
 impl_native_exception!(ChildProcessError, PyExc_ChildProcessError);
-#[cfg(Py_3)]
 impl_native_exception!(ConnectionError, PyExc_ConnectionError);
-#[cfg(Py_3)]
 impl_native_exception!(ConnectionAbortedError, PyExc_ConnectionAbortedError);
-#[cfg(Py_3)]
 impl_native_exception!(ConnectionRefusedError, PyExc_ConnectionRefusedError);
-#[cfg(Py_3)]
 impl_native_exception!(ConnectionResetError, PyExc_ConnectionResetError);
-#[cfg(Py_3)]
 impl_native_exception!(FileExistsError, PyExc_FileExistsError);
-#[cfg(Py_3)]
 impl_native_exception!(FileNotFoundError, PyExc_FileNotFoundError);
-#[cfg(Py_3)]
 impl_native_exception!(InterruptedError, PyExc_InterruptedError);
-#[cfg(Py_3)]
 impl_native_exception!(IsADirectoryError, PyExc_IsADirectoryError);
-#[cfg(Py_3)]
 impl_native_exception!(NotADirectoryError, PyExc_NotADirectoryError);
-#[cfg(Py_3)]
 impl_native_exception!(PermissionError, PyExc_PermissionError);
-#[cfg(Py_3)]
 impl_native_exception!(ProcessLookupError, PyExc_ProcessLookupError);
-#[cfg(Py_3)]
 impl_native_exception!(TimeoutError, PyExc_TimeoutError);
 
 impl_native_exception!(EnvironmentError, PyExc_EnvironmentError);

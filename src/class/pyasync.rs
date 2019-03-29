@@ -88,7 +88,6 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 
-#[cfg(Py_3)]
 #[doc(hidden)]
 pub trait PyAsyncProtocolImpl {
     fn tp_as_async() -> Option<ffi::PyAsyncMethods> {
@@ -100,10 +99,8 @@ pub trait PyAsyncProtocolImpl {
     }
 }
 
-#[cfg(Py_3)]
 impl<T> PyAsyncProtocolImpl for T {}
 
-#[cfg(Py_3)]
 impl<'p, T> PyAsyncProtocolImpl for T
 where
     T: PyAsyncProtocol<'p>,
@@ -186,7 +183,6 @@ trait PyAsyncAnextProtocolImpl {
 
 impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p> {}
 
-#[cfg(Py_3)]
 mod anext {
     use super::{PyAsyncAnextProtocol, PyAsyncAnextProtocolImpl};
     use crate::callback::CallbackConverter;

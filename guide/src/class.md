@@ -503,18 +503,10 @@ Each methods corresponds to python's `self.attr`, `self.attr = value` and `del s
   * `fn __str__(&self) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
 
     Possible return types for `__str__` and `__repr__` are `PyResult<String>` or `PyResult<PyString>`.
-    In Python 2.7, Unicode strings returned by `__str__` and `__repr__` will be converted to byte strings
-    by the Python runtime, which results in an exception if the string contains non-ASCII characters.
 
   * `fn __bytes__(&self) -> PyResult<PyBytes>`
 
-    On Python 3.x, provides the conversion to `bytes`.
-    On Python 2.7, `__bytes__` is allowed but has no effect.
-
-  * `fn __unicode__(&self) -> PyResult<PyUnicode>`
-
-    On Python 2.7, provides the conversion to `unicode`.
-    On Python 3.x, `__unicode__` is allowed but has no effect.
+    Provides the conversion to `bytes`.
 
   * `fn __format__(&self, format_spec: &str) -> PyResult<impl ToPyObject<ObjectType=PyString>>`
 
@@ -540,9 +532,7 @@ Each methods corresponds to python's `self.attr`, `self.attr = value` and `del s
 
   * `fn __bool__(&self) -> PyResult<bool>`
 
-    Determines the "truthiness" of the object.
-    This method works for both python 3 and python 2,
-    even on Python 2.7 where the Python spelling was `__nonzero__`.
+    Determines the "truthyness" of the object.
 
 ### Garbage Collector Integration
 
