@@ -424,7 +424,6 @@ macro_rules! impl_to_pyerr {
     };
 }
 
-#[cfg(Py_3)]
 /// Create `OSError` from `io::Error`
 impl std::convert::From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
@@ -457,14 +456,6 @@ impl std::convert::From<io::Error> for PyErr {
             }
             _ => PyErr::from_value::<exceptions::OSError>(PyErrValue::ToArgs(Box::new(err))),
         }
-    }
-}
-
-#[cfg(not(Py_3))]
-/// Create `OSError` from `io::Error`
-impl std::convert::From<io::Error> for PyErr {
-    fn from(err: io::Error) -> PyErr {
-        PyErr::from_value::<exceptions::OSError>(PyErrValue::ToArgs(Box::new(err)))
     }
 }
 

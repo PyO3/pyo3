@@ -23,10 +23,5 @@ pub use crate::{
 pub use crate::types::PyModule;
 // This is required for the constructor
 pub use crate::PyRawObject;
+pub use pyo3cls::pymodule;
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
-
-#[cfg(Py_3)]
-pub use pyo3cls::pymodule3 as pymodule;
-
-#[cfg(not(Py_3))]
-pub use pyo3cls::pymodule2 as pymodule;

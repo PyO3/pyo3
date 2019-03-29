@@ -15,19 +15,12 @@ pub use self::floatob::PyFloat;
 pub use self::iterator::PyIterator;
 pub use self::list::PyList;
 pub use self::module::PyModule;
-#[cfg(not(Py_3))]
-pub use self::num2::{PyInt, PyLong};
-#[cfg(Py_3)]
-pub use self::num3::PyLong;
-#[cfg(Py_3)]
-pub use self::num3::PyLong as PyInt;
+pub use self::num::PyLong;
+pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-#[cfg(Py_3)]
 pub use self::string::{PyBytes, PyString, PyString as PyUnicode};
-#[cfg(not(Py_3))]
-pub use self::string2::{PyBytes, PyString, PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
@@ -173,24 +166,10 @@ mod floatob;
 mod iterator;
 mod list;
 mod module;
+mod num;
 mod sequence;
 mod set;
 mod slice;
-mod stringutils;
+mod string;
 mod tuple;
 mod typeobject;
-
-#[macro_use]
-mod num_common;
-
-#[cfg(Py_3)]
-mod num3;
-
-#[cfg(not(Py_3))]
-mod num2;
-
-#[cfg(Py_3)]
-mod string;
-
-#[cfg(not(Py_3))]
-mod string2;

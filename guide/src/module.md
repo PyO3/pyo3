@@ -56,35 +56,31 @@ In python, modules are first class objects. This means can store them as values 
 # extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use pyo3::types::PyDict;
+use pyo3::types::IntoPyDict;
 
 #[pyfunction]
-#[cfg(Py_3)]
 fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
 #[pymodule]
-#[cfg(Py_3)]
 fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
     module.add_wrapped(wrap_pyfunction!(subfunction))?;
     Ok(())
 }
 
 #[pymodule]
-#[cfg(Py_3)]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
     module.add_wrapped(wrap_pymodule!(submodule))?;
     Ok(())
 }
 
-#[cfg(Py_3)]
 fn nested_call() {
     let gil = GILGuard::acquire();
     let py = gil.python();
     let supermodule = wrap_pymodule!(supermodule)(py);
     let ctx = [("supermodule", supermodule)].into_py_dict(py);
 
-    py.run("assert supermodule.submodule.subfuntion() == 'Subfunction'", None, Some(&ctx)).unwrap();
+    py.run("assert supermodule.submodule.subfunction() == 'Subfunction'", None, Some(&ctx)).unwrap();
 }
 ```

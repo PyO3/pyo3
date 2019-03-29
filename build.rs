@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::process::exit;
 use std::process::Command;
 use std::process::Stdio;
 use version_check::{is_min_date, is_min_version, supports_features};
@@ -482,11 +483,10 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
                 println!("cargo:rustc-cfg=Py_3_{}", i);
                 flags += format!("CFG_Py_3_{},", i).as_ref();
             }
-            println!("cargo:rustc-cfg=Py_3");
         }
     } else {
-        println!("cargo:rustc-cfg=Py_2");
-        flags += format!("CFG_Py_2,").as_ref();
+        // fail PYTHON_SYS_EXECUTABLE=python2 cargo ...
+        return Err("Python 2 is not supported".to_string());
     }
     return Ok(flags);
 }
@@ -580,7 +580,14 @@ fn main() -> Result<(), String> {
         find_interpreter_and_get_config()?
     };
 
-    let flags = configure(&interpreter_version, lines)?;
+    let flags;
+    match configure(&interpreter_version, lines) {
+        Ok(val) => flags = val,
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
+        }
+    }
 
     // WITH_THREAD is always on for 3.7
     if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {

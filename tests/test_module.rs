@@ -1,23 +1,18 @@
 use pyo3::prelude::*;
 
-#[cfg(Py_3)]
 use pyo3::types::IntoPyDict;
 
-#[cfg(Py_3)]
 #[macro_use]
 mod common;
 
 #[pyclass]
-#[cfg(Py_3)]
 struct EmptyClass {}
 
-#[cfg(Py_3)]
 fn sum_as_string(a: i64, b: i64) -> String {
     format!("{}", a + b).to_string()
 }
 
 #[pyfunction]
-#[cfg(Py_3)]
 /// Doubles the given value
 fn double(x: usize) -> usize {
     x * 2
@@ -25,7 +20,6 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
-#[cfg(Py_3)]
 fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
@@ -51,7 +45,6 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_module_with_functions() {
     use pyo3::wrap_pymodule;
 
@@ -83,7 +76,6 @@ fn some_name(_: Python, _: &PyModule) -> PyResult<()> {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_module_renaming() {
     use pyo3::wrap_pymodule;
 
@@ -101,7 +93,6 @@ fn test_module_renaming() {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_module_from_code() {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -129,13 +120,11 @@ fn test_module_from_code() {
 }
 
 #[pyfunction]
-#[cfg(Py_3)]
 fn r#move() -> usize {
     42
 }
 
 #[pymodule]
-#[cfg(Py_3)]
 fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
@@ -143,7 +132,6 @@ fn raw_ident_module(_py: Python, module: &PyModule) -> PyResult<()> {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_raw_idents() {
     use pyo3::wrap_pymodule;
 
@@ -156,12 +144,10 @@ fn test_raw_idents() {
 }
 
 #[pyfunction]
-#[cfg(Py_3)]
 fn subfunction() -> String {
     "Subfunction".to_string()
 }
 
-#[cfg(Py_3)]
 #[pymodule]
 fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
@@ -170,13 +156,11 @@ fn submodule(_py: Python, module: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(Py_3)]
 #[pyfunction]
 fn superfunction() -> String {
     "Superfunction".to_string()
 }
 
-#[cfg(Py_3)]
 #[pymodule]
 fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
     use pyo3::{wrap_pyfunction, wrap_pymodule};
@@ -187,7 +171,6 @@ fn supermodule(_py: Python, module: &PyModule) -> PyResult<()> {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn test_module_nesting() {
     use pyo3::wrap_pymodule;
 

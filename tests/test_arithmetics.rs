@@ -253,7 +253,6 @@ fn rich_comparisons() {
 }
 
 #[test]
-#[cfg(Py_3)]
 fn rich_comparisons_python_3_type_error() {
     let gil = Python::acquire_gil();
     let py = gil.python();

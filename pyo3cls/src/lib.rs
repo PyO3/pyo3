@@ -7,36 +7,15 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use pyo3_derive_backend::{
     add_fn_to_module, build_py_class, build_py_methods, build_py_proto, get_doc,
-    process_functions_in_module, py2_init, py3_init, PyClassArgs, PyFunctionAttr,
+    process_functions_in_module, py_init, PyClassArgs, PyFunctionAttr,
 };
 use quote::quote;
 use syn::parse_macro_input;
 
-#[proc_macro_attribute]
-pub fn pymodule2(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let mut ast = parse_macro_input!(input as syn::ItemFn);
-
-    let modname = if attr.is_empty() {
-        ast.ident.clone()
-    } else {
-        parse_macro_input!(attr as syn::Ident)
-    };
-
-    process_functions_in_module(&mut ast);
-
-    let expanded = py2_init(&ast.ident, &modname, get_doc(&ast.attrs, false));
-
-    quote!(
-        #ast
-        #expanded
-    )
-    .into()
-}
-
 /// Internally, this proc macro create a new c function called `PyInit_{my_module}`
 /// that then calls the init function you provided
 #[proc_macro_attribute]
-pub fn pymodule3(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
 
     let modname = if attr.is_empty() {
@@ -47,7 +26,7 @@ pub fn pymodule3(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     process_functions_in_module(&mut ast);
 
-    let expanded = py3_init(&ast.ident, &modname, get_doc(&ast.attrs, false));
+    let expanded = py_init(&ast.ident, &modname, get_doc(&ast.attrs, false));
 
     quote!(
         #ast

@@ -99,14 +99,6 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo {
         unimplemented!()
     }
 
-    /// This method is used by Python2 only.
-    fn __unicode__(&'p self) -> Self::Result
-    where
-        Self: PyObjectUnicodeProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
     fn __richcmp__(&'p self, other: Self::Other, op: CompareOp) -> Self::Result
     where
         Self: PyObjectRichcmpProtocol<'p>,
@@ -134,10 +126,6 @@ pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPyObject;
-    type Result: Into<PyResult<Self::Success>>;
-}
-pub trait PyObjectUnicodeProtocol<'p>: PyObjectProtocol<'p> {
     type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }

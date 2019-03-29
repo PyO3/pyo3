@@ -3,7 +3,6 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::AsPyPointer;
 use crate::Python;
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
 use std::ops::*;
 use std::os::raw::c_double;
 
@@ -30,7 +29,7 @@ impl PyComplex {
         unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
     }
     /// Returns `|self|`.
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     pub fn abs(&self) -> c_double {
         unsafe {
             let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
@@ -38,7 +37,7 @@ impl PyComplex {
         }
     }
     /// Returns `self ** other`
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     pub fn pow(&self, other: &PyComplex) -> &PyComplex {
         unsafe {
             self.py()
@@ -47,7 +46,7 @@ impl PyComplex {
     }
 }
 
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+#[cfg(not(Py_LIMITED_API))]
 #[inline(always)]
 unsafe fn complex_operation(
     l: &PyComplex,
@@ -59,7 +58,7 @@ unsafe fn complex_operation(
     ffi::PyComplex_FromCComplex(operation(l_val, r_val))
 }
 
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+#[cfg(not(Py_LIMITED_API))]
 impl<'py> Add for &'py PyComplex {
     type Output = &'py PyComplex;
     fn add(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -70,7 +69,7 @@ impl<'py> Add for &'py PyComplex {
     }
 }
 
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+#[cfg(not(Py_LIMITED_API))]
 impl<'py> Sub for &'py PyComplex {
     type Output = &'py PyComplex;
     fn sub(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -81,7 +80,7 @@ impl<'py> Sub for &'py PyComplex {
     }
 }
 
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+#[cfg(not(Py_LIMITED_API))]
 impl<'py> Mul for &'py PyComplex {
     type Output = &'py PyComplex;
     fn mul(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -92,7 +91,7 @@ impl<'py> Mul for &'py PyComplex {
     }
 }
 
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+#[cfg(not(Py_LIMITED_API))]
 impl<'py> Div for &'py PyComplex {
     type Output = &'py PyComplex;
     fn div(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -103,7 +102,7 @@ impl<'py> Div for &'py PyComplex {
     }
 }
 
-#[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+#[cfg(not(Py_LIMITED_API))]
 impl<'py> Neg for &'py PyComplex {
     type Output = &'py PyComplex;
     fn neg(self) -> &'py PyComplex {
@@ -153,7 +152,7 @@ mod complex_conversion {
                     }
                 }
             }
-            #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+            #[cfg(not(Py_LIMITED_API))]
             #[allow(clippy::float_cmp)] // The comparison is for an error value
             impl<'source> FromPyObject<'source> for Complex<$float> {
                 fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
@@ -167,7 +166,7 @@ mod complex_conversion {
                     }
                 }
             }
-            #[cfg(all(Py_LIMITED_API, Py_3))]
+            #[cfg(Py_LIMITED_API)]
             #[allow(clippy::float_cmp)] // The comparison is for an error value
             impl<'source> FromPyObject<'source> for Complex<$float> {
                 fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
@@ -228,7 +227,7 @@ mod test {
         assert_eq!(complex.imag(), 1.2);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_add() {
         let gil = Python::acquire_gil();
@@ -240,7 +239,7 @@ mod test {
         assert_approx_eq!(res.imag(), 3.8);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_sub() {
         let gil = Python::acquire_gil();
@@ -252,7 +251,7 @@ mod test {
         assert_approx_eq!(res.imag(), -1.4);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_mul() {
         let gil = Python::acquire_gil();
@@ -264,7 +263,7 @@ mod test {
         assert_approx_eq!(res.imag(), 9.0);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_div() {
         let gil = Python::acquire_gil();
@@ -276,7 +275,7 @@ mod test {
         assert_approx_eq!(res.imag(), -0.8505154639175257);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_neg() {
         let gil = Python::acquire_gil();
@@ -287,7 +286,7 @@ mod test {
         assert_approx_eq!(res.imag(), -1.2);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_abs() {
         let gil = Python::acquire_gil();
@@ -296,7 +295,7 @@ mod test {
         assert_approx_eq!(val.abs(), 3.2310988842807022);
     }
 
-    #[cfg(any(not(Py_LIMITED_API), not(Py_3)))]
+    #[cfg(not(Py_LIMITED_API))]
     #[test]
     fn test_pow() {
         let gil = Python::acquire_gil();
