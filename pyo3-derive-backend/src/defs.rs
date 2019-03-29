@@ -318,20 +318,22 @@ pub const SEQ: Proto = Proto {
             pyres: false,
             proto: "pyo3::class::sequence::PySequenceLenProtocol",
         },
-        MethodProto::Unary {
+        MethodProto::Binary {
             name: "__getitem__",
+            arg: "Index",
             pyres: true,
             proto: "pyo3::class::sequence::PySequenceGetItemProtocol",
         },
-        MethodProto::Binary {
+        MethodProto::Ternary {
             name: "__setitem__",
-            arg: "Value",
+            arg1: "Index",
+            arg2: "Value",
             pyres: false,
             proto: "pyo3::class::sequence::PySequenceSetItemProtocol",
         },
         MethodProto::Binary {
             name: "__delitem__",
-            arg: "Key",
+            arg: "Index",
             pyres: false,
             proto: "pyo3::class::sequence::PySequenceDelItemProtocol",
         },
@@ -347,8 +349,9 @@ pub const SEQ: Proto = Proto {
             pyres: true,
             proto: "pyo3::class::sequence::PySequenceConcatProtocol",
         },
-        MethodProto::Unary {
+        MethodProto::Binary {
             name: "__repeat__",
+            arg: "Index",
             pyres: true,
             proto: "pyo3::class::sequence::PySequenceRepeatProtocol",
         },
@@ -358,8 +361,9 @@ pub const SEQ: Proto = Proto {
             pyres: true,
             proto: "pyo3::class::sequence::PySequenceInplaceConcatProtocol",
         },
-        MethodProto::Unary {
+        MethodProto::Binary {
             name: "__inplace_repeat__",
+            arg: "Index",
             pyres: true,
             proto: "pyo3::class::sequence::PySequenceInplaceRepeatProtocol",
         },
