@@ -230,7 +230,10 @@ pub trait PyObjectAlloc: PyTypeInfo + Sized {
 }
 
 /// Python object types that have a corresponding type object.
-pub trait PyTypeObject {
+///
+/// This trait is marked unsafe because not fulfilling the contract for [PyTypeObject::init_type]
+/// leads to UB
+pub unsafe trait PyTypeObject {
     /// This function must make sure that the corresponding type object gets
     /// initialized exactly once and return it.
     fn init_type() -> NonNull<ffi::PyTypeObject>;
@@ -241,7 +244,7 @@ pub trait PyTypeObject {
     }
 }
 
-impl<T> PyTypeObject for T
+unsafe impl<T> PyTypeObject for T
 where
     T: PyTypeInfo + PyMethodsProtocol + PyObjectAlloc,
 {

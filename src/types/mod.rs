@@ -117,7 +117,7 @@ macro_rules! pyobject_native_type_convert(
 
         impl<$($type_param,)*> $crate::type_object::PyObjectAlloc for $name {}
 
-        impl<$($type_param,)*> $crate::type_object::PyTypeObject for $name {
+        unsafe impl<$($type_param,)*> $crate::type_object::PyTypeObject for $name {
             fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 unsafe {
                     std::ptr::NonNull::new_unchecked(<Self as $crate::type_object::PyTypeInfo>::type_object() as *mut _)
