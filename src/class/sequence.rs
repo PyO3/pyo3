@@ -14,7 +14,7 @@ use crate::Python;
 use crate::{FromPyObject, IntoPyObject};
 use std::os::raw::c_int;
 
-/// Sequece interface
+/// Sequence interface
 #[allow(unused_variables)]
 pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
     fn __len__(&'p self) -> Self::Result
@@ -24,21 +24,21 @@ pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
         unimplemented!()
     }
 
-    fn __getitem__(&'p self, key: isize) -> Self::Result
+    fn __getitem__(&'p self, idx: Self::Index) -> Self::Result
     where
         Self: PySequenceGetItemProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __setitem__(&'p mut self, key: isize, value: Self::Value) -> Self::Result
+    fn __setitem__(&'p mut self, idx: Self::Index, value: Self::Value) -> Self::Result
     where
         Self: PySequenceSetItemProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __delitem__(&'p mut self, key: isize) -> Self::Result
+    fn __delitem__(&'p mut self, idx: Self::Index) -> Self::Result
     where
         Self: PySequenceDelItemProtocol<'p>,
     {
@@ -59,7 +59,7 @@ pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
         unimplemented!()
     }
 
-    fn __repeat__(&'p self, count: isize) -> Self::Result
+    fn __repeat__(&'p self, count: Self::Index) -> Self::Result
     where
         Self: PySequenceRepeatProtocol<'p>,
     {
@@ -73,7 +73,7 @@ pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
         unimplemented!()
     }
 
-    fn __inplace_repeat__(&'p mut self, count: isize) -> Self::Result
+    fn __inplace_repeat__(&'p mut self, count: Self::Index) -> Self::Result
     where
         Self: PySequenceInplaceRepeatProtocol<'p>,
     {
@@ -89,16 +89,19 @@ pub trait PySequenceLenProtocol<'p>: PySequenceProtocol<'p> {
 }
 
 pub trait PySequenceGetItemProtocol<'p>: PySequenceProtocol<'p> {
+    type Index: FromPyObject<'p> + From<isize>;
     type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PySequenceSetItemProtocol<'p>: PySequenceProtocol<'p> {
+    type Index: FromPyObject<'p> + From<isize>;
     type Value: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
 
 pub trait PySequenceDelItemProtocol<'p>: PySequenceProtocol<'p> {
+    type Index: FromPyObject<'p> + From<isize>;
     type Result: Into<PyResult<()>>;
 }
 
@@ -114,6 +117,7 @@ pub trait PySequenceConcatProtocol<'p>: PySequenceProtocol<'p> {
 }
 
 pub trait PySequenceRepeatProtocol<'p>: PySequenceProtocol<'p> {
+    type Index: FromPyObject<'p> + From<isize>;
     type Success: IntoPyObject;
     type Result: Into<PyResult<Self::Success>>;
 }
@@ -124,6 +128,7 @@ pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPyOb
 }
 
 pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPyObject {
+    type Index: FromPyObject<'p> + From<isize>;
     type Result: Into<PyResult<Self>>;
 }
 
@@ -228,7 +233,7 @@ where
             } else {
                 let value = py.from_borrowed_ptr::<PyAny>(value);
                 match value.extract() {
-                    Ok(value) => slf.__setitem__(key as isize, value).into(),
+                    Ok(value) => slf.__setitem__(key.into(), value).into(),
                     Err(e) => Err(e),
                 }
             };
@@ -295,7 +300,7 @@ mod sq_ass_item_impl {
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
                 let result = if value.is_null() {
-                    slf.__delitem__(key as isize).into()
+                    slf.__delitem__(key.into()).into()
                 } else {
                     Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
@@ -341,11 +346,11 @@ mod sq_ass_item_impl {
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
                 let result = if value.is_null() {
-                    slf.__delitem__(key as isize).into()
+                    slf.__delitem__(key.into()).into()
                 } else {
                     let value = py.from_borrowed_ptr::<PyAny>(value);
                     match value.extract() {
-                        Ok(value) => slf.__setitem__(key as isize, value).into(),
+                        Ok(value) => slf.__setitem__(key.into(), value).into(),
                         Err(e) => Err(e),
                     }
                 };
