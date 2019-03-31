@@ -173,7 +173,7 @@ macro_rules! create_exception {
 #[macro_export]
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
-        impl $crate::type_object::PyTypeObject for $name {
+        unsafe impl $crate::type_object::PyTypeObject for $name {
             fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 // We can't use lazy_static here because raw pointers aren't Send
                 static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
