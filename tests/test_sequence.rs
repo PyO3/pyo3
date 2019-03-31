@@ -18,18 +18,18 @@ struct ByteSequence {
 impl ByteSequence {
     #[new]
     fn new(obj: &PyRawObject, elements: Option<&PyList>) -> PyResult<()> {
-        obj.init(if let Some(pylist) = elements {
+        if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
             for pyelem in pylist.into_iter() {
                 let elem = u8::extract(pyelem)?;
                 elems.push(elem);
             }
-            Self { elements: elems }
+            obj.init(Self { elements: elems });
         } else {
-            Self {
+            obj.init(Self {
                 elements: Vec::new(),
-            }
-        });
+            });
+        }
         Ok(())
     }
 }
@@ -85,25 +85,6 @@ impl PySequenceProtocol for ByteSequence {
             Err(ValueError::py_err("invalid repeat count"))
         }
     }
-
-    // fn __inplace_concat__(&'p mut self, other: &Self) -> PyResult<()> {
-    //     self.elements.extend(&other.elements);
-    //     let gil = Python::acquire_gil();
-    //     Ok(())
-    // }
-
-    // fn __inplace_repeat__(&'p mut self, count: isize) -> PyResult<()> {
-    //     if count >= 0 {
-    //         let newlen = self.elements.len() * count as usize;
-    //         let base = std::mem::replace(&mut self.elements, Vec::with_capacity(newlen));
-    //         for _ in 0..count {
-    //             self.elements.extend_from_slice(&base);
-    //         }
-    //         Ok(())
-    //     } else {
-    //         Err(ValueError::py_err("invalid repeat count"))
-    //     }
-    // }
 }
 
 #[test]
@@ -180,28 +161,41 @@ fn test_concat() {
     err("s1 = ByteSequence([1, 2]); s2 = 'hello'; s1 + s2");
 }
 
-// #[test]
-// fn test_repeat() {
-//     let gil = Python::acquire_gil();
-//     let py = gil.python();
-//
-//     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-//     let run = |code| py.run(code, None, Some(d)).unwrap();
-//     let err = |code| py.run(code, None, Some(d)).unwrap_err();
-//
-//     run("s1 = ByteSequence([1, 2, 3]); s2 = s1*2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
-//     err("s1 = ByteSequence([1, 2, 3]); s2 = s1*-1; assert list(s2) == [1, 2, 3, 1, 2, 3]");
-// }
-//
-// #[test]
-// fn test_inplace_repeat() {
-//     let gil = Python::acquire_gil();
-//     let py = gil.python();
-//
-//     let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
-//     let run = |code| py.run(code, None, Some(d)).unwrap();
-//     let err = |code| py.run(code, None, Some(d)).unwrap_err();
-//
-//     run("s = ByteSequence([1, 2]); s *= 3; print(list(s)); assert list(s) == [1, 2, 1, 2, 1, 2]");
-//     // err("s = ByteSequence([1, 2); s *= -1");
-// }
+#[test]
+fn test_inplace_concat() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+
+    run("s = ByteSequence([1, 2]); s += ByteSequence([3, 4]); assert list(s) == [1, 2, 3, 4]");
+    err("s = ByteSequence([1, 2]); s += 'hello'");
+}
+
+#[test]
+fn test_repeat() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+
+    run("s1 = ByteSequence([1, 2, 3]); s2 = s1*2; assert list(s2) == [1, 2, 3, 1, 2, 3]");
+    err("s1 = ByteSequence([1, 2, 3]); s2 = s1*-1; assert list(s2) == [1, 2, 3, 1, 2, 3]");
+}
+
+#[test]
+fn test_inplace_repeat() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let d = [("ByteSequence", py.get_type::<ByteSequence>())].into_py_dict(py);
+    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let err = |code| py.run(code, None, Some(d)).unwrap_err();
+
+    run("s = ByteSequence([1, 2]); s *= 3; assert list(s) == [1, 2, 1, 2, 1, 2]");
+    err("s = ByteSequence([1, 2); s *= -1");
+}
