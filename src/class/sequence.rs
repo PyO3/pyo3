@@ -14,7 +14,7 @@ use crate::Python;
 use crate::{FromPyObject, IntoPyObject};
 use std::os::raw::c_int;
 
-/// Sequece interface
+/// Sequence interface
 #[allow(unused_variables)]
 pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
     fn __len__(&'p self) -> Self::Result
