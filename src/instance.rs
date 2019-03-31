@@ -1,4 +1,3 @@
-// Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::gil;
@@ -69,8 +68,8 @@ where
 }
 
 impl<'a, T: PyTypeInfo> PyRef<'a, T> {
-    pub(crate) fn from_ref(r: &'a T) -> Self {
-        PyRef(r, PhantomData)
+    pub fn from_ref(reference: &'a T) -> Self {
+        PyRef(reference, PhantomData)
     }
 }
 
@@ -102,6 +101,12 @@ impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
         self.0
+    }
+}
+
+unsafe impl<'a, T: PyTypeInfo + PyTypeObject> PyTypeObject for PyRef<'a, T> {
+    fn init_type() -> NonNull<ffi::PyTypeObject> {
+        T::init_type()
     }
 }
 
@@ -574,9 +579,11 @@ impl<'p, T: ToPyObject + ?Sized> Drop for ManagedPyRef<'p, T> {
 
 #[cfg(test)]
 mod test {
-    use crate::ffi;
+    use crate::{ffi, PyRef};
     use crate::types::PyDict;
     use crate::{AsPyPointer, ManagedPyRef, Python};
+    use crate::type_object::{get_type_from_object};
+    use crate::instance::AsPyRef;
 
     #[test]
     fn borrowed_py_ref_with_to_pointer() {
@@ -609,5 +616,15 @@ mod test {
         unsafe {
             ffi::Py_DECREF(ptr);
         }
+    }
+
+    #[test]
+    fn py_ref_type_object() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let dict = PyDict::new(py);
+        let dict_ref = PyRef::from_ref(dict);
+        let type_object = get_type_from_object(&dict_ref);
+        assert_eq!("dict", type_object.as_ref(py).name());
     }
 }

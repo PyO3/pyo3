@@ -244,6 +244,13 @@ pub unsafe trait PyTypeObject {
     }
 }
 
+/// Returns the statically known type for an object.
+///
+/// Eventually, this should become part of a trait
+pub fn get_type_from_object<T: PyTypeObject>(_object: &T) -> Py<PyType> {
+    T::type_object()
+}
+
 unsafe impl<T> PyTypeObject for T
 where
     T: PyTypeInfo + PyMethodsProtocol + PyObjectAlloc,
