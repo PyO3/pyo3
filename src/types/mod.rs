@@ -86,6 +86,17 @@ macro_rules! pyobject_native_type (
                 unsafe{&*(ob as *const $name as *const $crate::types::PyAny)}
             }
         }
+
+        impl Clone for $name {
+            fn clone(&self) -> Self {
+                use $crate::AsPyPointer;
+                use $crate::PyNativeType;
+
+                unsafe {
+                    $name($crate::PyObject::from_borrowed_ptr(self.py(), self.0.as_ptr()))
+                }
+            }
+        }
     };
 );
 
