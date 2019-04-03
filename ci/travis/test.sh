@@ -7,6 +7,9 @@ cargo clean
 if ! [[ $FEATURES == *"pypy"* ]]; then
   cargo test --features "$FEATURES num-complex"
   ( cd pyo3-derive-backend; cargo test )
+else
+  # check that pypy at least builds
+  cargo build;
 fi
 
 if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
