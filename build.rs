@@ -288,17 +288,37 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
     Ok(String::from_utf8(out.stdout).unwrap())
 }
 
+fn get_library_link_name(version: &PythonVersion) -> String {
+    let minor_or_empty_string = match version.minor {
+        Some(minor) => format!("{}", minor),
+        None => String::new(),
+    };
+
+    match version.implementation {
+        PythonInterpreterKind::CPython => {
+            format!("python{}{}", version.major, minor_or_empty_string)
+        }
+        PythonInterpreterKind::PyPy => format!("pypy{}-c", version.major),
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "windows"))]
 fn get_rustc_link_lib(
-    _: &PythonVersion,
+    version: &PythonVersion,
     ld_version: &str,
     enable_shared: bool,
 ) -> Result<String, String> {
     if enable_shared {
-        Ok(format!("cargo:rustc-link-lib=python{}", ld_version))
+        Ok(format!(
+            "cargo:rustc-link-lib={}",
+            get_library_link_name(&version)
+        ))
     } else {
-        Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version))
+        Ok(format!(
+            "cargo:rustc-link-lib=static={}",
+            get_library_link_name(&version)
+        ))
     }
 }
 
@@ -319,13 +339,26 @@ else:
 }
 
 #[cfg(target_os = "macos")]
-fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(
+    version: &PythonVersion,
+    ld_version: &str,
+    _: bool,
+) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
     match get_macos_linkmodel().unwrap().as_ref() {
-        "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version)),
-        "shared" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
-        "framework" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
+        "static" => Ok(format!(
+            "cargo:rustc-link-lib=static={}",
+            get_library_link_name(&version)
+        )),
+        "shared" => Ok(format!(
+            "cargo:rustc-link-lib={}",
+            get_library_link_name(&version)
+        )),
+        "framework" => Ok(format!(
+            "cargo:rustc-link-lib={}",
+            get_library_link_name(&version)
+        )),
         other => Err(format!("unknown linkmodel {}", other)),
     }
 }
@@ -354,12 +387,8 @@ fn get_interpreter_version(line: &str, implementation: &str) -> Result<PythonVer
 fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
     // Py_ENABLE_SHARED doesn't seem to be present on windows.
     Ok(format!(
-        "cargo:rustc-link-lib=pythonXY:python{}{}",
-        version.major,
-        match version.minor {
-            Some(minor) => minor.to_string(),
-            None => "".to_owned(),
-        }
+        "cargo:rustc-link-lib=pythonXY:{}",
+        get_library_link_name(&version)
     ))
 }
 
