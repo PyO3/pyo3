@@ -183,7 +183,7 @@ macro_rules! py_ssizearg_func {
             let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
-            let result = slf.$f(arg as isize).into();
+            let result = slf.$f(arg.into()).into();
             $crate::callback::cb_convert($conv, py, result)
         }
         Some(wrap::<$class>)
