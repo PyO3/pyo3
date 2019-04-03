@@ -27,7 +27,7 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
-    PySelf(syn::Type),
+    PySelf(syn::TypePath),
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -121,9 +121,13 @@ impl<'a> FnSpec<'a> {
 
         if fn_type == FnType::Fn && !has_self {
             if arguments.len() == 0 {
-                panic!("Static method needs an attribute #[staticmethod]");
+                panic!("Static method needs #[staticmethod] attribute");
             }
-            fn_type = FnType::PySelf(arguments.remove(0).ty.to_owned());
+            let tp = match arguments.remove(0).ty {
+                syn::Type::Path(p) => replace_self(p),
+                _ => panic!("Invalid type as self"),
+            };
+            fn_type = FnType::PySelf(tp);
         }
 
         Ok(FnSpec {
@@ -386,4 +390,26 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
         Some(tp) => Ok((tp, spec)),
         None => Ok((FnType::Fn, spec)),
     }
+}
+
+// Replace A<Self> with A<_>
+fn replace_self(path: &syn::TypePath) -> syn::TypePath {
+    fn infer(span: proc_macro2::Span) -> syn::GenericArgument {
+        syn::GenericArgument::Type(syn::Type::Infer(syn::TypeInfer {
+            underscore_token: syn::token::Underscore { spans: [span] },
+        }))
+    }
+    let mut res = path.to_owned();
+    for seg in &mut res.path.segments {
+        if let syn::PathArguments::AngleBracketed(ref mut g) = seg.arguments {
+            for arg in &mut g.args {
+                if let syn::GenericArgument::Type(syn::Type::Path(p)) = arg {
+                    if p.path.segments.len() == 1 && p.path.segments[0].ident == "Self" {
+                        *arg = infer(p.path.segments[0].ident.span());
+                    }
+                }
+            }
+        }
+    }
+    res
 }

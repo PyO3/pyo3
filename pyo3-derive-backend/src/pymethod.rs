@@ -1,5 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::method::{FnArg, FnSpec, FnType};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
@@ -54,9 +53,7 @@ pub fn impl_wrap(
     noargs: bool,
 ) -> TokenStream {
     let body = impl_call(cls, name, &spec);
-    let slf = quote! {
-        let _slf: &mut #cls = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
-    };
+    let slf = impl_self(&quote! { &mut #cls });
     impl_wrap_common(cls, name, spec, noargs, slf, body)
 }
 
@@ -64,16 +61,14 @@ pub fn impl_wrap_pyslf(
     cls: &syn::Type,
     name: &syn::Ident,
     spec: &FnSpec<'_>,
-    self_ty: &syn::Type,
+    self_ty: &syn::TypePath,
     noargs: bool,
 ) -> TokenStream {
     let names = get_arg_names(spec);
     let body = quote! {
         #cls::#name(_slf, #(#names),*)
     };
-    let slf = quote! {
-        let _slf: #self_ty = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
-    };
+    let slf = impl_self(self_ty);
     impl_wrap_common(cls, name, spec, noargs, slf, body)
 }
 
@@ -379,6 +374,12 @@ pub fn get_arg_names(spec: &FnSpec) -> Vec<syn::Ident> {
 fn impl_call(_cls: &syn::Type, fname: &syn::Ident, spec: &FnSpec<'_>) -> TokenStream {
     let names = get_arg_names(spec);
     quote! { _slf.#fname(#(#names),*) }
+}
+
+fn impl_self<T: quote::ToTokens>(self_ty: &T) -> TokenStream {
+    quote! {
+        let _slf: #self_ty = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
+    }
 }
 
 /// Converts a bool to "true" or "false"

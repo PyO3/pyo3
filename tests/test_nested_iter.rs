@@ -20,7 +20,7 @@ impl Reader {
     fn get_optional(&self, test: Option<i32>) -> PyResult<i32> {
         Ok(test.unwrap_or(10))
     }
-    fn get_iter(slf: PyRef<Reader>, keys: Py<PyBytes>) -> PyResult<Iter> {
+    fn get_iter(slf: PyRef<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
         Ok(Iter {
             reader: slf.into(),
             keys: keys,

@@ -430,6 +430,7 @@ impl FromPy<()> for Py<PyTuple> {
     }
 }
 
+/// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
 pub unsafe trait FromPyPointer<'p>: Sized {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self>;
     unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
