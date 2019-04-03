@@ -30,6 +30,7 @@ impl PyDict {
     ///
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
+    #[cfg(not(PyPy))]
     pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());

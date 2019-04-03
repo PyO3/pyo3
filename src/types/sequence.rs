@@ -168,6 +168,7 @@ impl PySequence {
     /// Return the number of occurrences of value in o, that is, return the number of keys for
     /// which `o[key] == value`
     #[inline]
+    #[cfg(not(PyPy))]
     pub fn count<V>(&self, value: V) -> PyResult<usize>
     where
         V: ToBorrowedObject,
