@@ -37,7 +37,7 @@ fi
 
 ### Setup PyPy ################################################################
 
-if ! [[ $FEATURES == *"pypy"* ]]; then
+if [[ $FEATURES == *"pypy"* ]]; then
     wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     /bin/bash Miniconda3-latest-Linux-x86_64.sh -f -b -p /opt/anaconda && \
     /opt/anaconda/bin/conda install --quiet --yes conda && \
