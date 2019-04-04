@@ -9,7 +9,7 @@ if ! [[ $FEATURES == *"pypy"* ]]; then
   ( cd pyo3-derive-backend; cargo test )
 else
   # check that pypy at least builds
-  cargo build;
+  PYTHON_SYS_EXECUTABLE="/opt/anaconda/envs/pypy3/bin/pypy3" cargo build;
 fi
 
 if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
