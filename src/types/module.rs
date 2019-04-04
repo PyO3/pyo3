@@ -83,7 +83,7 @@ impl PyModule {
     pub fn index(&self) -> PyResult<&PyList> {
         match self.getattr("__all__") {
             Ok(idx) => idx.downcast_ref().map_err(PyErr::from),
-            Err(err) =>
+            Err(err) => {
                 if err.is_instance::<exceptions::AttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
                     self.setattr("__all__", l).map_err(PyErr::from)?;
@@ -91,6 +91,7 @@ impl PyModule {
                 } else {
                     Err(err)
                 }
+            }
         }
     }
 
@@ -158,7 +159,9 @@ impl PyModule {
     where
         V: ToPyObject,
     {
-        self.index()?.append(name).expect("could not append __name__ to __all__");
+        self.index()?
+            .append(name)
+            .expect("could not append __name__ to __all__");
         self.setattr(name, value)
     }
 
