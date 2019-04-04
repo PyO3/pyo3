@@ -1,8 +1,10 @@
 use crate::ffi;
+#[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::AsPyPointer;
 use crate::Python;
+#[cfg(not(PyPy))]
 use std::ops::*;
 use std::os::raw::c_double;
 
@@ -49,6 +51,7 @@ impl PyComplex {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 #[inline(always)]
 unsafe fn complex_operation(
     l: &PyComplex,

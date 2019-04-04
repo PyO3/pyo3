@@ -6,6 +6,7 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 use crate::AsPyPointer;
+#[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::Python;
 use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
