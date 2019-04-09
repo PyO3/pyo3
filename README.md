@@ -16,22 +16,20 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
+PyO3 supports Python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
 
 PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
 Please refer to the guide for installation instruction against PyPy.
 
-You can either write a native python module in rust or use python from a rust binary.
+You can either write a native Python module in rust or use Python from a Rust binary.
 
-On some OSs, you need some additional packages.
-
-E.g. if you are on Ubuntu18.04, please run
+However, on some OSs, you need some additional packages. E.g. if you are on *Ubuntu 18.04*, please run
 
 ```bash
 sudo apt install python3-dev python-dev
 ```
 
-## Using rust from python
+## Using Rust from Python
 
 PyO3 can be used to generate a native python module.
 
@@ -76,7 +74,7 @@ fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-On windows and linux, you can build normally with `cargo build --release`. On macOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
+On Windows and Linux, you can build normally with `cargo build --release`. On MacOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
 
 ```toml
 [target.x86_64-apple-darwin]
@@ -86,9 +84,9 @@ rustflags = [
 ]
 ```
 
-For developing, you can copy and rename the shared library from the target folder: On macOS, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `string_sum.so`. Then open a python shell in the same folder and you'll be able to `import string_sum`.
+For developing, you can copy and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
-To build, test and publish your crate as python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
+To build, test and publish your crate as Python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
 
 ## Using python from rust
 

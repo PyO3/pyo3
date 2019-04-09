@@ -11,7 +11,7 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
-use crate::types::{PyAny, PyDict};
+use crate::types::{PyAny, PyDict, PyList};
 use crate::AsPyPointer;
 use crate::IntoPy;
 use crate::Py;
@@ -79,6 +79,22 @@ impl PyModule {
         }
     }
 
+    /// Return the index (`__all__`) of the module, creating one if needed.
+    pub fn index(&self) -> PyResult<&PyList> {
+        match self.getattr("__all__") {
+            Ok(idx) => idx.downcast_ref().map_err(PyErr::from),
+            Err(err) => {
+                if err.is_instance::<exceptions::AttributeError>(self.py()) {
+                    let l = PyList::empty(self.py());
+                    self.setattr("__all__", l).map_err(PyErr::from)?;
+                    Ok(l)
+                } else {
+                    Err(err)
+                }
+            }
+        }
+    }
+
     unsafe fn str_from_ptr(&self, ptr: *const c_char) -> PyResult<&str> {
         if ptr.is_null() {
             Err(PyErr::fetch(self.py()))
@@ -143,6 +159,9 @@ impl PyModule {
     where
         V: ToPyObject,
     {
+        self.index()?
+            .append(name)
+            .expect("could not append __name__ to __all__");
         self.setattr(name, value)
     }
 
@@ -155,7 +174,7 @@ impl PyModule {
     where
         T: PyTypeCreate,
     {
-        self.setattr(T::NAME, <T as PyTypeObject>::type_object())
+        self.add(T::NAME, <T as PyTypeObject>::type_object())
     }
 
     /// Adds a function or a (sub)module to a module, using the functions __name__ as name.
