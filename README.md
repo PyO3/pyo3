@@ -43,7 +43,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.6.0-alpha.4"
+version = "0.6.0"
 features = ["extension-module"]
 ```
 
