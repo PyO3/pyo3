@@ -42,7 +42,12 @@ fn class_with_properties() {
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
 
     let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
-    py.run("assert C.DATA.__doc__ == 'a getter for data'", None, Some(d)).unwrap();
+    py.run(
+        "assert C.DATA.__doc__ == 'a getter for data'",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }
 
 #[pyclass]

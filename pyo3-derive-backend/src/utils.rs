@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use proc_macro2::TokenStream;
 use proc_macro2::Span;
+use proc_macro2::TokenStream;
 use syn;
 
 pub fn print_err(msg: String, t: TokenStream) {

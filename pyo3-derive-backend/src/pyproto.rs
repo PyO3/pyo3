@@ -4,8 +4,8 @@ use crate::defs;
 use crate::func::impl_method_proto;
 use crate::method::FnSpec;
 use crate::pymethod;
-use proc_macro2::TokenStream;
 use proc_macro2::Span;
+use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
