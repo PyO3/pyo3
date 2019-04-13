@@ -265,7 +265,8 @@ fn impl_class(
     };
 
     let extra = if !descriptors.is_empty() {
-        let ty = syn::parse_str(&cls.to_string()).expect("no name");
+        let path = syn::Path::from(syn::PathSegment::from(cls.clone()));
+        let ty = syn::Type::from(syn::TypePath { path, qself: None });
         let desc_impls = impl_descriptors(&ty, descriptors);
         quote! {
             #desc_impls
@@ -389,7 +390,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                     let name = field.ident.clone().unwrap();
 
                     // FIXME better doc?
-                    let doc: syn::Lit = syn::parse_str(&format!("\"{}\"", name)).unwrap();
+                    let doc = syn::Lit::from(syn::LitStr::new(&name.to_string(), name.span()));
 
                     let field_ty = &field.ty;
                     match *desc {

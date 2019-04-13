@@ -5,6 +5,7 @@ use crate::func::impl_method_proto;
 use crate::method::FnSpec;
 use crate::pymethod;
 use proc_macro2::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
 use quote::ToTokens;
 
@@ -71,7 +72,7 @@ fn impl_proto_impl(
             for m in proto.py_methods {
                 let ident = met.sig.ident.clone();
                 if m.name == ident.to_string().as_str() {
-                    let name: syn::Ident = syn::parse_str(m.name).unwrap();
+                    let name = syn::Ident::new(m.name, Span::call_site());
                     let proto: syn::Path = syn::parse_str(m.proto).unwrap();
 
                     let fn_spec = match FnSpec::parse(&ident, &met.sig, &mut met.attrs) {

@@ -1,6 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use proc_macro2::TokenStream;
+use proc_macro2::Span;
 use syn;
 
 pub fn print_err(msg: String, t: TokenStream) {
@@ -32,13 +33,10 @@ pub fn get_doc(attrs: &[syn::Attribute], null_terminated: bool) -> syn::Lit {
         }
     }
 
-    let doc = doc.join("\n");
+    let mut docstr = doc.join("\n");
+    if null_terminated {
+        docstr.push('\0');
+    }
 
-    // FIXME: add span
-    syn::parse_str(&if null_terminated {
-        format!("\"{}\0\"", doc)
-    } else {
-        format!("\"{}\"", doc)
-    })
-    .unwrap()
+    syn::Lit::Str(syn::LitStr::new(&docstr, Span::call_site()))
 }
