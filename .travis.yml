@@ -27,10 +27,6 @@ matrix:
     - name: PyPy3.5 7.0
       python: "3.7"
       env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
-      # This should cause help to detect pypy's libraries correctly
-      virtualenv:
-        system_site_packages: true
-
   allow_failures:
     - python: "3.8-dev"
 
