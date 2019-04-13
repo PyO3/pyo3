@@ -18,5 +18,9 @@ if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
 fi
 
 for example_dir in examples/*; do
-    tox -c "$example_dir/tox.ini" -e py
+    if [[ $FEATURES == *"pypy"* ]]; then
+        tox -c "$example_dir/tox.ini" -e pypy3
+    else
+        tox -c "$example_dir/tox.ini" -e py
+    fi
 done
