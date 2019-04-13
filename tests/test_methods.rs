@@ -43,7 +43,7 @@ impl InstanceMethodWithArgs {
     }
 }
 
-//#[test]
+#[test]
 #[allow(dead_code)]
 fn instance_method_with_args() {
     let gil = Python::acquire_gil();
@@ -68,6 +68,7 @@ impl ClassMethod {
     }
 
     #[classmethod]
+    /// Test class method.
     fn method(cls: &PyType) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.name()))
     }
@@ -87,6 +88,18 @@ fn class_method() {
     .unwrap();
     py.run(
         "assert C().method() == 'ClassMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.method.__doc__ == 'Test class method.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C().method.__doc__ == 'Test class method.'",
         None,
         Some(d),
     )
@@ -129,6 +142,7 @@ impl StaticMethod {
     }
 
     #[staticmethod]
+    /// Test static method.
     fn method(_py: Python) -> PyResult<&'static str> {
         Ok("StaticMethod.method()!")
     }
@@ -150,6 +164,18 @@ fn static_method() {
     .unwrap();
     py.run(
         "assert C().method() == 'StaticMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.method.__doc__ == 'Test static method.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C().method.__doc__ == 'Test static method.'",
         None,
         Some(d),
     )
