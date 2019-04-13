@@ -38,8 +38,6 @@ fi
 ### Setup PyPy ################################################################
 
 if [[ $FEATURES == *"pypy"* ]]; then
-    pip uninstall virtualenv
-
     wget --quiet https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     /bin/bash Miniconda3-latest-Linux-x86_64.sh -f -b -p /opt/anaconda && \
     /opt/anaconda/bin/conda install --quiet --yes conda && \
@@ -47,6 +45,5 @@ if [[ $FEATURES == *"pypy"* ]]; then
     /opt/anaconda/bin/conda init bash && \
     /opt/anaconda/bin/conda create -n pypy3 pypy3.5 -y && \
     /opt/anaconda/envs/pypy3/bin/pypy3 -m ensurepip && \
-    /opt/anaconda/envs/pypy3/bin/pypy3 -m pip install setuptools-rust pytest pytest-benchmark tox && \
-    /opt/anaconda/bin/conda install --quiet --yes virtualenv
+    /opt/anaconda/envs/pypy3/bin/pypy3 -m pip install setuptools-rust pytest pytest-benchmark tox
 fi
