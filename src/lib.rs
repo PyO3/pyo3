@@ -116,6 +116,24 @@
 //!     Ok(())
 //! }
 //! ```
+use doc_comment::doctest;
+
+// Test readme and user guide
+doctest!("../README.md", readme_md);
+doctest!("../guide/src/advanced.md", guide_advanced_md);
+doctest!(
+    "../guide/src/building_and_distribution.md",
+    guide_building_and_distribution_md
+);
+doctest!("../guide/src/class.md", guide_class_md);
+doctest!("../guide/src/conversions.md", guide_conversions_md);
+doctest!("../guide/src/debugging.md", guide_debugging_md);
+doctest!("../guide/src/exception.md", guide_exception_md);
+doctest!("../guide/src/function.md", guide_function_md);
+doctest!("../guide/src/get_started.md", guide_get_started_md);
+doctest!("../guide/src/module.md", guide_module_md);
+doctest!("../guide/src/parallelism.md", guide_parallelism_md);
+doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
 
 pub use crate::class::*;
 pub use crate::conversion::{

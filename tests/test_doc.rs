@@ -1,4 +1,6 @@
-#[cfg(feature = "test-doc")]
+#[macro_use]
+extern crate doc_comment;
+
 use {
     docmatic,
     std::default::Default,
@@ -28,7 +30,6 @@ fn test_guide() {
 }
 
 #[test]
-#[cfg(feature = "test-doc")]
 fn test_readme() {
-    assert_file("README.md")
+    doctest!("../README.md");
 }

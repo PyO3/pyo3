@@ -9,5 +9,5 @@
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
 - [Advanced Topics](advanced.md)
-- [Building and Distribution](building-and-distribution.md)
-- [Appendix: Pyo3 and rust-cpython](rust-cpython.md)
+- [Building and Distribution](building_and_distribution.md)
+- [Appendix: PyO3 and rust-cpython](rust_cpython.md)
