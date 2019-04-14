@@ -260,3 +260,49 @@ fn meth_args() {
         "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]"
     );
 }
+
+#[pyclass]
+/// A class with "documentation".
+struct MethDocs {
+    x: i32,
+}
+
+#[pymethods]
+impl MethDocs {
+    /// A method with "documentation" as well.
+    fn method(&self) -> PyResult<i32> {
+        Ok(0)
+    }
+
+    #[getter]
+    /// `int`: a very "important" member of 'this' instance.
+    fn get_x(&self) -> PyResult<i32> {
+        Ok(self.x)
+    }
+}
+
+#[test]
+fn meth_doc() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+
+    py.run(
+        "assert C.__doc__ == 'A class with \"documentation\".'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.method.__doc__ == 'A method with \"documentation\" as well.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.x.__doc__ == '`int`: a very \"important\" member of \\'this\\' instance.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+}
