@@ -10,7 +10,7 @@ use std::os::raw::c_long;
 
 /// Represents a Python `slice`.
 ///
-/// Only `c_long` indeces supprted at the moment by `PySlice` object.
+/// Only `c_long` indices supported at the moment by `PySlice` object.
 #[repr(transparent)]
 pub struct PySlice(PyObject);
 
