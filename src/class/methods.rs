@@ -97,6 +97,9 @@ impl PyGetterDef {
                 .expect("Method name must not contain NULL byte")
                 .into_raw();
         }
+        if dst.doc.is_null() {
+            dst.doc = self.doc.as_ptr() as *mut libc::c_char;
+        }
         dst.get = Some(self.meth);
     }
 }

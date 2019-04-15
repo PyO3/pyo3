@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 use std::isize;
 
 #[macro_use]
@@ -16,6 +17,7 @@ impl ClassWithProperties {
     }
 
     #[getter(DATA)]
+    /// a getter for data
     fn get_data(&self) -> PyResult<i32> {
         Ok(self.num)
     }
@@ -38,6 +40,14 @@ fn class_with_properties() {
     py_run!(py, inst, "inst.DATA = 20");
     py_run!(py, inst, "assert inst.get_num() == 20");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
+
+    let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
+    py.run(
+        "assert C.DATA.__doc__ == 'a getter for data'",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }
 
 #[pyclass]

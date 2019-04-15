@@ -43,7 +43,7 @@ impl InstanceMethodWithArgs {
     }
 }
 
-//#[test]
+#[test]
 #[allow(dead_code)]
 fn instance_method_with_args() {
     let gil = Python::acquire_gil();
@@ -68,6 +68,7 @@ impl ClassMethod {
     }
 
     #[classmethod]
+    /// Test class method.
     fn method(cls: &PyType) -> PyResult<String> {
         Ok(format!("{}.method()!", cls.name()))
     }
@@ -87,6 +88,18 @@ fn class_method() {
     .unwrap();
     py.run(
         "assert C().method() == 'ClassMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.method.__doc__ == 'Test class method.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C().method.__doc__ == 'Test class method.'",
         None,
         Some(d),
     )
@@ -129,6 +142,7 @@ impl StaticMethod {
     }
 
     #[staticmethod]
+    /// Test static method.
     fn method(_py: Python) -> PyResult<&'static str> {
         Ok("StaticMethod.method()!")
     }
@@ -150,6 +164,18 @@ fn static_method() {
     .unwrap();
     py.run(
         "assert C().method() == 'StaticMethod.method()!'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.method.__doc__ == 'Test static method.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C().method.__doc__ == 'Test static method.'",
         None,
         Some(d),
     )
@@ -233,4 +259,50 @@ fn meth_args() {
         inst,
         "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]"
     );
+}
+
+#[pyclass]
+/// A class with "documentation".
+struct MethDocs {
+    x: i32,
+}
+
+#[pymethods]
+impl MethDocs {
+    /// A method with "documentation" as well.
+    fn method(&self) -> PyResult<i32> {
+        Ok(0)
+    }
+
+    #[getter]
+    /// `int`: a very "important" member of 'this' instance.
+    fn get_x(&self) -> PyResult<i32> {
+        Ok(self.x)
+    }
+}
+
+#[test]
+fn meth_doc() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+
+    py.run(
+        "assert C.__doc__ == 'A class with \"documentation\".'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.method.__doc__ == 'A method with \"documentation\" as well.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
+    py.run(
+        "assert C.x.__doc__ == '`int`: a very \"important\" member of \\'this\\' instance.'",
+        None,
+        Some(d),
+    )
+    .unwrap();
 }
