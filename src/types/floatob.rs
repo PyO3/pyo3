@@ -84,8 +84,8 @@ impl<'source> FromPyObject<'source> for f32 {
 
 #[cfg(test)]
 mod test {
-    use crate::Python;
-    use crate::ToPyObject;
+    use crate::ffi::PyFloat_AS_DOUBLE;
+    use crate::{AsPyPointer, Python, ToPyObject};
 
     macro_rules! num_to_py_object_and_back (
         ($func_name:ident, $t1:ty, $t2:ty) => (
@@ -103,4 +103,13 @@ mod test {
     num_to_py_object_and_back!(to_from_f64, f64, f64);
     num_to_py_object_and_back!(to_from_f32, f32, f32);
     num_to_py_object_and_back!(int_to_float, i32, f64);
+
+    #[test]
+    fn test_as_double_macro() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v = 1.23f64;
+        let obj = v.to_object(py);
+        assert_eq!(v, unsafe { PyFloat_AS_DOUBLE(obj.as_ptr()) });
+    }
 }
