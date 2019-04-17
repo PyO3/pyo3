@@ -21,7 +21,7 @@ pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.
-    pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> Py<PyTuple>
+    pub fn new<'p, T, U>(py: Python<'p>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &'p PyTuple
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -33,13 +33,13 @@ impl PyTuple {
             for (i, e) in elements_iter.enumerate() {
                 ffi::PyTuple_SetItem(ptr, i as Py_ssize_t, e.to_object(py).into_ptr());
             }
-            Py::from_owned_ptr_or_panic(ptr)
+            py.from_owned_ptr(ptr)
         }
     }
 
     /// Retrieves the empty tuple.
-    pub fn empty(_py: Python) -> Py<PyTuple> {
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_New(0)) }
+    pub fn empty<'p>(py: Python<'p>) -> &'p PyTuple {
+        unsafe { py.from_owned_ptr(ffi::PyTuple_New(0)) }
     }
 
     /// Gets the length of the tuple.
@@ -264,8 +264,7 @@ mod test {
     fn test_new() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let pyob = PyTuple::new(py, &[1, 2, 3]);
-        let ob = pyob.as_ref(py);
+        let ob = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, ob.len());
         let ob: &PyAny = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
