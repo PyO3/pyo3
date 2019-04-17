@@ -1,10 +1,10 @@
 # Parallelism
 
-CPython has an infamous GIL(Global Interpreter Lock) prevents developers
-getting true parallelism. With PyO3 you can release GIL when executing
-Rust code to achieve true parallelism.
+CPython has the infamous GIL (Global Interpreter Lock), which prevents developers
+from getting true parallelism when running pure Python code. With PyO3, you can
+release the GIL when executing Rust code to achieve true parallelism.
 
-The [`Python::allow_threads`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.Python.html#method.allow_threads)
+The [`Python::allow_threads`](https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/struct.Python.html#method.allow_threads)
 method temporarily releases the GIL, thus allowing other Python threads to run.
 
 ```rust,ignore
@@ -14,7 +14,7 @@ impl Python {
 ```
 
 Let's take a look at our [word-count](https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs) example,
-we have a `wc_parallel` function utilize the [rayon](https://github.com/nikomatsakis/rayon) crate to count words in parallel.
+where we have a `wc_parallel` function that utilizes the [rayon](https://github.com/nikomatsakis/rayon) crate to count words in parallel.
 
 ```rust,ignore
 fn wc_parallel(lines: &str, search: &str) -> i32 {
@@ -24,8 +24,7 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
 }
 ```
 
-Then in the Python bridge, we have a function `search` exposed to Python runtime which calls `wc_parallel` inside
-`Python::allow_threads` method to enable true parallelism:
+Then in the Python bridge, we have a function `search` exposed to the Python runtime which calls `wc_parallel` inside a closure passed to `Python::allow_threads` to enable true parallelism:
 
 ```rust,ignore
 #[pymodule]
@@ -54,7 +53,7 @@ We are using `pytest-benchmark` to benchmark three word count functions:
 2. [Rust sequential version](https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs#L64)
 3. [Rust parallel version](https://github.com/PyO3/pyo3/blob/master/examples/word-count/src/lib.rs#L54)
 
-Benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/master/examples/word-count/tests/test_word_count.py),
+The benchmark script can be found [here](https://github.com/PyO3/pyo3/blob/master/examples/word-count/tests/test_word_count.py),
 then we can run `pytest tests` to benchmark them.
 
 On MacBook Pro (Retina, 15-inch, Mid 2015) the benchmark gives:
