@@ -260,7 +260,7 @@ impl Deref for PyDateTimeAPI {
 /// such as if you do not want the first call to a datetime function to be
 /// slightly slower than subsequent calls.
 pub unsafe fn PyDateTime_IMPORT() -> &'static PyDateTime_CAPI {
-    // PyPy excepts the C-API to be initialized via PyDateTime_Import, so trying to use
+    // PyPy expects the C-API to be initialized via PyDateTime_Import, so trying to use
     // `PyCapsule_Import` will behave unexpectedly in pypy.
     #[cfg(PyPy)]
     let py_datetime_c_api = PyDateTime_Import();
