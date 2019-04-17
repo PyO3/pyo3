@@ -13,7 +13,7 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
     } else if ast.generics != Default::default() {
         Err(syn::Error::new_spanned(
             ast.generics.clone(),
-            "#[pymethods] can not ve used with lifetime parameters or generics",
+            "#[pymethods] can not be used with lifetime parameters or generics",
         ))
     } else {
         Ok(impl_methods(&ast.self_ty, &mut ast.items))
