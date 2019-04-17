@@ -232,6 +232,28 @@ impl MethArgs {
     ) -> PyResult<PyObject> {
         Ok([args.into(), kwargs.to_object(py)].to_object(py))
     }
+
+    #[args(args = "*", kwargs = "**")]
+    fn get_pos_arg_kw(
+        &self,
+        py: Python,
+        a: i32,
+        args: &PyTuple,
+        kwargs: Option<&PyDict>,
+    ) -> PyObject {
+        [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
+    }
+
+    #[args(kwargs = "**")]
+    fn get_pos_kw(&self, py: Python, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+        [a.to_object(py), kwargs.to_object(py)].to_object(py)
+    }
+
+    // "args" can be anything that can be extracted from PyTuple
+    #[args(args = "*")]
+    fn args_as_vec(&self, args: Vec<i32>) -> i32 {
+        args.iter().sum()
+    }
 }
 
 #[test]
@@ -259,6 +281,27 @@ fn meth_args() {
         inst,
         "assert inst.get_kwargs(1,2,3,t=1,n=2) == [(1,2,3), {'t': 1, 'n': 2}]"
     );
+
+    py_run!(py, inst, "assert inst.get_pos_arg_kw(1) == [1, (), None]");
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_arg_kw(1, 2, 3) == [1, (2, 3), None]"
+    );
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_arg_kw(1, b=2) == [1, (), {'b': 2}]"
+    );
+    py_run!(py, inst, "assert inst.get_pos_arg_kw(a=1) == [1, (), None]");
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw()", TypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", TypeError);
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", TypeError);
+
+    py_run!(py, inst, "assert inst.get_pos_kw(1, b=2) == [1, {'b': 2}]");
+    py_expect_exception!(py, inst, "inst.get_pos_kw(1,2)", TypeError);
+
+    py_run!(py, inst, "assert inst.args_as_vec(1,2,3) == 6");
 }
 
 #[pyclass]
