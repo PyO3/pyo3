@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    the items are not hashable.
  * Fixed building using `venv` on Windows.
  * `PyTuple::new` now returns `&PyTuple` instead of `Py<PyTuple>`.
+ * Fixed several issues with argument parsing; notable, the `*args` and `**kwargs`
+   tuple/dict now doesn't contain arguments that are otherwise assigned to parameters.
 
 ## [0.6.0] - 2018-03-28
 
