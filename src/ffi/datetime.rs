@@ -19,7 +19,6 @@
 //! All functions that belong to `PyDateTime_CAPI`, are exported as private symbols in PyPy (ex. `_PyPyDate_FromDate`).
 //! This means that their behavior is subjected to change in upcoming PyPy versions.
 
-
 use crate::ffi::Py_hash_t;
 use crate::ffi::{PyObject, PyTypeObject};
 use crate::ffi::{PyObject_TypeCheck, Py_TYPE};
