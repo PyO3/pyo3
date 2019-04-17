@@ -17,7 +17,7 @@
 //! This means we cannot rely on emulating those macros in rust, since it doesn't ensure ABI comparability with the c structs.
 //!
 //! All functions that belong to `PyDateTime_CAPI`, are exported as private symbols in PyPy (ex. `_PyPyDate_FromDate`).
-//! This means that their behavior is subjected to change in upcoming PyPy versions.
+//! This means that their behavior is subject to change in upcoming PyPy versions.
 
 use crate::ffi::Py_hash_t;
 use crate::ffi::{PyObject, PyTypeObject};
