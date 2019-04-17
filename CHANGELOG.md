@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Have `PyModule` generate an index of its members (`__all__` list).
+ * Allow `slf: PyRef<T>` for pyclass(#419)
 
 ### Changed
 
