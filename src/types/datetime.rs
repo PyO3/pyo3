@@ -25,7 +25,6 @@ use crate::ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
-use crate::instance::Py;
 use crate::object::PyObject;
 use crate::types::PyTuple;
 use crate::AsPyPointer;
@@ -70,7 +69,7 @@ pub struct PyDate(PyObject);
 pyobject_native_type!(PyDate, *PyDateTimeAPI.DateType, PyDate_Check);
 
 impl PyDate {
-    pub fn new(py: Python, year: i32, month: u8, day: u8) -> PyResult<Py<PyDate>> {
+    pub fn new<'p>(py: Python<'p>, year: i32, month: u8, day: u8) -> PyResult<&'p PyDate> {
         unsafe {
             let ptr = (PyDateTimeAPI.Date_FromDate)(
                 year,
@@ -78,14 +77,14 @@ impl PyDate {
                 c_int::from(day),
                 PyDateTimeAPI.DateType,
             );
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 
     /// Construct a `datetime.date` from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.date.fromtimestamp`
-    pub fn from_timestamp(py: Python, timestamp: i64) -> PyResult<Py<PyDate>> {
+    pub fn from_timestamp<'p>(py: Python<'p>, timestamp: i64) -> PyResult<&'p PyDate> {
         let time_tuple = PyTuple::new(py, &[timestamp]);
 
         unsafe {
@@ -96,7 +95,7 @@ impl PyDate {
             let ptr =
                 (PyDateTimeAPI.Date_FromTimestamp)(PyDateTimeAPI.DateType, time_tuple.as_ptr());
 
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 }
@@ -120,8 +119,8 @@ pub struct PyDateTime(PyObject);
 pyobject_native_type!(PyDateTime, *PyDateTimeAPI.DateTimeType, PyDateTime_Check);
 
 impl PyDateTime {
-    pub fn new(
-        py: Python,
+    pub fn new<'p>(
+        py: Python<'p>,
         year: i32,
         month: u8,
         day: u8,
@@ -130,7 +129,7 @@ impl PyDateTime {
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyObject>,
-    ) -> PyResult<Py<PyDateTime>> {
+    ) -> PyResult<&'p PyDateTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
                 year,
@@ -143,18 +142,18 @@ impl PyDateTime {
                 opt_to_pyobj(py, tzinfo),
                 PyDateTimeAPI.DateTimeType,
             );
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 
     /// Construct a `datetime` object from a POSIX timestamp
     ///
     /// This is equivalent to `datetime.datetime.from_timestamp`
-    pub fn from_timestamp(
-        py: Python,
+    pub fn from_timestamp<'p>(
+        py: Python<'p>,
         timestamp: f64,
         time_zone_info: Option<&PyTzInfo>,
-    ) -> PyResult<Py<PyDateTime>> {
+    ) -> PyResult<&'p PyDateTime> {
         let timestamp: PyObject = timestamp.to_object(py);
 
         let time_zone_info: PyObject = match time_zone_info {
@@ -177,7 +176,7 @@ impl PyDateTime {
                 )
             };
 
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 }
@@ -224,14 +223,14 @@ pub struct PyTime(PyObject);
 pyobject_native_type!(PyTime, *PyDateTimeAPI.TimeType, PyTime_Check);
 
 impl PyTime {
-    pub fn new(
-        py: Python,
+    pub fn new<'p>(
+        py: Python<'p>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyObject>,
-    ) -> PyResult<Py<PyTime>> {
+    ) -> PyResult<&'p PyTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTime)(
                 c_int::from(hour),
@@ -241,7 +240,7 @@ impl PyTime {
                 opt_to_pyobj(py, tzinfo),
                 PyDateTimeAPI.TimeType,
             );
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 
@@ -249,15 +248,15 @@ impl PyTime {
     /// Alternate constructor that takes a `fold` argument
     ///
     /// First available in Python 3.6.
-    pub fn new_with_fold(
-        py: Python,
+    pub fn new_with_fold<'p>(
+        py: Python<'p>,
         hour: u8,
         minute: u8,
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyObject>,
         fold: bool,
-    ) -> PyResult<Py<PyTime>> {
+    ) -> PyResult<&'p PyTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTimeAndFold)(
                 c_int::from(hour),
@@ -268,7 +267,7 @@ impl PyTime {
                 fold as c_int,
                 PyDateTimeAPI.TimeType,
             );
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 }
@@ -307,13 +306,13 @@ pub struct PyDelta(PyObject);
 pyobject_native_type!(PyDelta, *PyDateTimeAPI.DeltaType, PyDelta_Check);
 
 impl PyDelta {
-    pub fn new(
-        py: Python,
+    pub fn new<'p>(
+        py: Python<'p>,
         days: i32,
         seconds: i32,
         microseconds: i32,
         normalize: bool,
-    ) -> PyResult<Py<PyDelta>> {
+    ) -> PyResult<&'p PyDelta> {
         unsafe {
             let ptr = (PyDateTimeAPI.Delta_FromDelta)(
                 days as c_int,
@@ -322,7 +321,7 @@ impl PyDelta {
                 normalize as c_int,
                 PyDateTimeAPI.DeltaType,
             );
-            Py::from_owned_ptr_or_err(py, ptr)
+            py.from_owned_ptr_or_err(ptr)
         }
     }
 }
