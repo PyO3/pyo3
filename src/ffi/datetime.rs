@@ -5,6 +5,20 @@
 //! This is the unsafe thin  wrapper around the [CPython C API](https://docs.python.org/3/c-api/datetime.html),
 //! and covers the various date and time related objects in the Python `datetime`
 //! standard library module.
+//!
+//! (PyPy 7.0.0) - A note regarding PyPy (cpyext) support:
+//!
+//! PyPy's internal representation of dates differs from that of cpython.
+//! It expects to initialize some internal rpython machinery when the symbol `PyDateTime_Import` is called.
+//! After initialization, the emulation layer expects that all calls to the api will be limited to those defined in
+//! `https://docs.python.org/3/c-api/datetime.html`.
+//!
+//! For example, macros such as `PyDate_FromTimestamp` and `PyDateTime_FromTimestamp` are exported as symbols in `libpypy`.
+//! This means we cannot rely on emulating those macros in rust, since it doesn't ensure ABI comparability with the c structs.
+//!
+//! All functions that belong to `PyDateTime_CAPI`, are exported as private symbols in PyPy (ex. `_PyPyDate_FromDate`).
+//! This means that their behavior is subjected to change in upcoming PyPy versions.
+
 
 use crate::ffi::Py_hash_t;
 use crate::ffi::{PyObject, PyTypeObject};
@@ -16,11 +30,6 @@ use std::sync::Once;
 #[cfg(not(PyPy))]
 use {crate::ffi::PyCapsule_Import, std::ffi::CString};
 
-// A note regarding cpyext support:
-// Some macros, like `PyDate_FromTimestamp` and `PyDateTime_FromTimestamp` are exported as separate symbols.
-// For now, some symbols are exported as "private" symbols, like `_PyPyDate_FromDate`,
-// which means they still adhere to the old API (expect a `cls` object in their signature)
-// In the future they may be removed and become fully public symbols in cpyext.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct PyDateTime_CAPI {
