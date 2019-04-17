@@ -273,7 +273,9 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStrea
             let _py = pyo3::Python::assume_gil_acquired();
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
 
-            match _slf.#name() {
+            let result = pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name());
+
+            match result {
                 Ok(val) => {
                     pyo3::IntoPyPointer::into_ptr(val.into_object(_py))
                 }
@@ -314,7 +316,9 @@ pub(crate) fn impl_wrap_setter(
             let _value = _py.from_borrowed_ptr(_value);
 
             let _result = match <#val_ty as pyo3::FromPyObject>::extract(_value) {
-                Ok(_val) => _slf.#name(_val),
+                Ok(_val) => {
+                    pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name(_val))
+                }
                 Err(e) => Err(e)
             };
             match _result {
