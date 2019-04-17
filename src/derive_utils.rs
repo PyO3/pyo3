@@ -46,11 +46,10 @@ pub fn parse_fn_args<'p>(
     let nkeywords = kwargs.map_or(0, PyDict::len);
     if !accept_args && !accept_kwargs && (nargs + nkeywords > params.len()) {
         return Err(TypeError::py_err(format!(
-            "{}{} takes at most {} argument{} ({} given)",
+            "{} takes at most {} argument{} ({} given)",
             fname.unwrap_or("function"),
-            if fname.is_some() { "()" } else { "" },
             params.len(),
-            if params.len() == 1 { "s" } else { "" },
+            if params.len() == 1 { "" } else { "s" },
             nargs + nkeywords
         )));
     }
