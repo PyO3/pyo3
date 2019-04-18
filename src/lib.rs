@@ -130,12 +130,15 @@ pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::python::{prepare_freethreaded_python, Python};
 pub use crate::type_object::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 
-// We need that reexport for wrap_function
+// Re-exported for wrap_function
 #[doc(hidden)]
 pub use mashup;
-// We need that reexport for pymethods
+// Re-exported for pymethods
 #[doc(hidden)]
 pub use inventory;
+// Re-exported for the `__wrap` functions
+#[doc(hidden)]
+pub use libc;
 
 /// Raw ffi declarations for the c interface of python
 pub mod ffi;
