@@ -9,7 +9,7 @@ rm -f target/debug/test_*.d
 rm -f target/debug/test_doc-*
 
 FILES=$(find . -path ./target/debug/pyo3\* -or -path ./target/debug/test_\*)
-echo $FILES | xargs -n1 -P $(nproc) sh -c '
+echo $FILES | xargs -n1 -P1 sh -c '
   dir="target/cov/$(basename $@)"
   mkdir -p $dir
   echo "Collecting coverage data of $(basename $@)"

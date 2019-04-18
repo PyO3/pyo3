@@ -23,11 +23,11 @@ echo ${LD_LIBRARY_PATH}
 
 if [ ! -f "$HOME/.cargo/bin/kcov" ]; then
     if [ ! -d "$HOME/kcov/.git" ]; then
-        git clone --depth=1 https://github.com/SimonKagstrom/kcov "$HOME/kcov"
+        git clone --depth=1 https://github.com/SimonKagstrom/kcov \
+                  --branch=v36 "$HOME/kcov"
     fi
 
     cd $HOME/kcov
-    git pull
     cmake .
     make
     install src/kcov $HOME/.cargo/bin/kcov
