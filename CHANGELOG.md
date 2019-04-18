@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Capitalization & better wording to README.md.
  * Docstrings of properties is now properly set using the doc of the `#[getter]` method.
  * Fixed issues with `pymethods` crashing on doc comments containing double quotes.
+ * `PySet::new` and `PyFrozenSet::new` now return `PyResult<&Py[Frozen]Set>`; exceptions are raised if
+   the items are not hashable.
 
 ## [0.6.0] - 2018-03-28
 

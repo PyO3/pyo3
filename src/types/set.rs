@@ -3,7 +3,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{AsPyRef, Py, PyNativeType};
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::AsPyPointer;
 use crate::Python;
@@ -23,9 +23,9 @@ pyobject_native_type!(PyFrozenSet, ffi::PyFrozenSet_Type, ffi::PyFrozenSet_Check
 
 impl PySet {
     /// Creates a new set.
-    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PySet> {
+    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PySet> {
         let list = elements.to_object(py);
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PySet_New(list.as_ptr())) }
+        unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(list.as_ptr())) }
     }
 
     /// Remove all elements from the set.
@@ -94,11 +94,10 @@ where
     T: hash::Hash + Eq + ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
-        let set = PySet::new::<T>(py, &[]);
+        let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
-            let s = set.as_ref(py);
             for val in self {
-                s.add(val).expect("Failed to add to set");
+                set.add(val).expect("Failed to add to set");
             }
         }
         set.into()
@@ -110,11 +109,10 @@ where
     T: hash::Hash + Eq + ToPyObject,
 {
     fn to_object(&self, py: Python) -> PyObject {
-        let set = PySet::new::<T>(py, &[]);
+        let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
-            let s = set.as_ref(py);
             for val in self {
-                s.add(val).expect("Failed to add to set");
+                set.add(val).expect("Failed to add to set");
             }
         }
         set.into()
@@ -125,9 +123,9 @@ impl PyFrozenSet {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
-    pub fn new<T: ToPyObject>(py: Python, elements: &[T]) -> Py<PyFrozenSet> {
+    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PyFrozenSet> {
         let list = elements.to_object(py);
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyFrozenSet_New(list.as_ptr())) }
+        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(list.as_ptr())) }
     }
 
     /// Return the number of items in the set.
@@ -172,8 +170,11 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let set = PySet::new(py, &[1]);
-        assert_eq!(1, set.as_ref(py).len());
+        let set = PySet::new(py, &[1]).unwrap();
+        assert_eq!(1, set.len());
+
+        let v = vec![1];
+        assert!(PySet::new(py, &[v]).is_err());
     }
 
     #[test]
@@ -195,8 +196,7 @@ mod test {
     fn test_set_clear() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let ob = PySet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PySet::new(py, &[1]).unwrap();
         assert_eq!(1, set.len());
         set.clear();
         assert_eq!(0, set.len());
@@ -206,16 +206,15 @@ mod test {
     fn test_set_contains() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let set = PySet::new(py, &[1]);
-        assert!(set.as_ref(py).contains(1).unwrap());
+        let set = PySet::new(py, &[1]).unwrap();
+        assert!(set.contains(1).unwrap());
     }
 
     #[test]
     fn test_set_discard() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let ob = PySet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PySet::new(py, &[1]).unwrap();
         set.discard(2);
         assert_eq!(1, set.len());
         set.discard(1);
@@ -226,8 +225,7 @@ mod test {
     fn test_set_add() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let ob = PySet::new(py, &[1, 2]);
-        let set = ob.as_ref(py);
+        let set = PySet::new(py, &[1, 2]).unwrap();
         set.add(1).unwrap(); // Add a dupliated element
         assert!(set.contains(1).unwrap());
     }
@@ -236,8 +234,7 @@ mod test {
     fn test_set_pop() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let ob = PySet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PySet::new(py, &[1]).unwrap();
         let val = set.pop();
         assert!(val.is_some());
         let val2 = set.pop();
@@ -249,8 +246,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let ob = PySet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PySet::new(py, &[1]).unwrap();
         for el in set.iter().unwrap() {
             assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
         }
@@ -261,17 +257,18 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let ob = PyFrozenSet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PyFrozenSet::new(py, &[1]).unwrap();
         assert_eq!(1, set.len());
+
+        let v = vec![1];
+        assert!(PyFrozenSet::new(py, &[v]).is_err());
     }
 
     #[test]
     fn test_frozenset_contains() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let ob = PyFrozenSet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PyFrozenSet::new(py, &[1]).unwrap();
         assert!(set.contains(1).unwrap());
     }
 
@@ -280,8 +277,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let ob = PyFrozenSet::new(py, &[1]);
-        let set = ob.as_ref(py);
+        let set = PyFrozenSet::new(py, &[1]).unwrap();
         for el in set.iter().unwrap() {
             assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
         }
