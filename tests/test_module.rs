@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyTuple};
 
 mod common;
 
@@ -193,4 +193,36 @@ fn test_module_nesting() {
         supermodule,
         "supermodule.submodule.subfunction() == 'Subfunction'"
     );
+}
+
+// Test that argument parsing specification works for pyfunctions
+
+#[pyfunction(a = 5, vararg = "*")]
+fn ext_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
+    [a.to_object(py), vararg.into()].to_object(py)
+}
+
+#[pymodule]
+fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
+    #[pyfn(m, "int_vararg_fn", a = 5, vararg = "*")]
+    fn int_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
+        ext_vararg_fn(py, a, vararg)
+    }
+
+    m.add_wrapped(pyo3::wrap_pyfunction!(ext_vararg_fn))
+        .unwrap();
+    Ok(())
+}
+
+#[test]
+fn test_vararg_module() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let m = pyo3::wrap_pymodule!(vararg_module)(py);
+
+    py_assert!(py, m, "m.ext_vararg_fn() == [5, ()]");
+    py_assert!(py, m, "m.ext_vararg_fn(1, 2) == [1, (2,)]");
+
+    py_assert!(py, m, "m.int_vararg_fn() == [5, ()]");
+    py_assert!(py, m, "m.int_vararg_fn(1, 2) == [1, (2,)]");
 }

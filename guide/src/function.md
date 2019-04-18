@@ -46,6 +46,34 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
+## Argument parsing
+
+Both the `#[pyfunction]` and `#[pyfn]` attributes support specifying details of
+argument parsing.  The details are given in the section "Method arguments" in
+the [Classes](class.md) chapter.  Here is an example for a function that accepts
+arbitrary keyword arguments (`**kwargs` in Python syntax) and returns the number
+that was passed:
+
+```rust
+# extern crate pyo3;
+use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+use pyo3::types::PyDict;
+
+#[pyfunction(kwds="**")]
+fn num_kwds(kwds: Option<&PyDict>) -> usize {
+    kwds.map_or(0, |dict| dict.len())
+}
+
+#[pymodule]
+fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(num_kwds)).unwrap();
+    Ok(())
+}
+
+# fn main() {}
+```
+
 ### Making the function signature available to Python
 
 In order to make the function signature available to Python to be retrieved via
