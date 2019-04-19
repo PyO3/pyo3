@@ -30,9 +30,7 @@ doc-comment = "0.3"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-docmatic = "0.1.2"
 indoc = "0.3.1"
-
 
 [build-dependencies]
 regex = "1.1.0"
@@ -53,9 +51,6 @@ extension-module = []
 # many compilation errors. Pull Requests working towards fixing that
 # are welcome.
 # abi3 = []
-
-# Use this feature to test the examples in the user guide
-test-doc = []
 
 [workspace]
 members = [

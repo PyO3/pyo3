@@ -3,7 +3,6 @@
 As shown in the Getting Started chapter, you can create a module as follows:
 
 ```rust
-# extern crate pyo3;
 use pyo3::prelude::*;
 
 // add bindings to the generated python module
@@ -53,7 +52,6 @@ Which means that the above Python code will print `This module is implemented in
 In python, modules are first class objects. This means can store them as values or add them to dicts or other modules:
 
 ```rust
-# extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use pyo3::types::IntoPyDict;

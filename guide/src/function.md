@@ -6,7 +6,6 @@ the function to a [module](./module.md)
 One way is defining the function in the module definition.
 
 ```rust
-# extern crate pyo3;
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -31,7 +30,6 @@ as first parameter, the function name as second and an instance of `Python`
 as third.
 
 ```rust
-# extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -62,7 +60,6 @@ built-ins are new in Python 3 — in Python 2, it is simply considered to be par
 of the doc-string.
 
 ```rust
-# extern crate pyo3;
 use pyo3::prelude::*;
 
 /// add(a, b, /)
