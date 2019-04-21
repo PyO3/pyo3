@@ -9,5 +9,8 @@ Here are some things you should check for submitting your pull request:
  - If applicable, add an entry in the changelog.
  - If applicable, add documentation to all new items and extend the guide.
  - If applicable, add tests for all new or fixed functions
+ - Run `cargo test` or if you changed examples in README or the guide,
+   `cargo test --features test-doc` (you might have to clean out your
+   `target` directory if it complains about multiple matching libs)
 
 You might want to run `tox` (`pip install tox`) locally to check compatibility with all supported python versions. If you're using linux or mac you might find the Makefile helpful for testing.

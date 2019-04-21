@@ -113,7 +113,7 @@ fn extract_pyfn_attrs(
                     // read Python fonction name
                     match meta[1] {
                         syn::NestedMeta::Literal(syn::Lit::Str(ref lits)) => {
-                            fnname = Some(syn::parse_str(&lits.value()).unwrap());
+                            fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
                         }
                         _ => panic!("The second parameter of pyfn must be a Literal"),
                     }
