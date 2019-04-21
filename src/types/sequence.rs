@@ -27,6 +27,11 @@ impl PySequence {
         }
     }
 
+    #[inline]
+    pub fn is_empty(&self) -> PyResult<bool> {
+        self.len().map(|l| l == 0)
+    }
+
     /// Return the concatenation of o1 and o2. Equivalent to python `o1 + o2`
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
@@ -655,5 +660,18 @@ mod test {
         let type_ptr = seq.as_ref();
         let seq_from = unsafe { <PySequence as PyTryFrom>::try_from_unchecked(type_ptr) };
         assert!(seq_from.list().is_ok());
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let list = vec![1].to_object(py);
+        let seq = list.cast_as::<PySequence>(py).unwrap();
+        assert_eq!(seq.is_empty().unwrap(), false);
+        let vec: Vec<u32> = Vec::new();
+        let empty_list = vec.to_object(py);
+        let empty_seq = empty_list.cast_as::<PySequence>(py).unwrap();
+        assert_eq!(empty_seq.is_empty().unwrap(), true);
     }
 }
