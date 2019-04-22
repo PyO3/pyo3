@@ -26,6 +26,16 @@ impl ClassWithProperties {
         self.num = value;
         Ok(())
     }
+
+    #[getter]
+    /// a getter with a type un-wrapped by PyResult
+    fn get_unwrapped(&self) -> i32 {
+        self.num
+    }
+    #[setter]
+    fn set_unwrapped(&mut self, value: i32) {
+        self.num = value;
+    }
 }
 
 #[test]
@@ -40,6 +50,10 @@ fn class_with_properties() {
     py_run!(py, inst, "inst.DATA = 20");
     py_run!(py, inst, "assert inst.get_num() == 20");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
+
+    py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
+    py_run!(py, inst, "inst.unwrapped = 42");
+    py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
 
     let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
     py.run(

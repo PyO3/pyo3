@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Have `PyModule` generate an index of its members (`__all__` list).
 
+### Changed
+
+ * Methods decorated with `#[getter]` and `#[setter]` can now omit wrapping the
+   result type in `PyResult` if they don't raise exceptions.
+
 ### Fixed
 
  * `type_object::PyTypeObject` has been marked unsafe because breaking the contract `type_object::PyTypeObject::init_type` can lead to UB.
