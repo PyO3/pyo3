@@ -1,8 +1,10 @@
 use crate::ffi;
+#[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::AsPyPointer;
 use crate::Python;
+#[cfg(not(PyPy))]
 use std::ops::*;
 use std::os::raw::c_double;
 
@@ -30,6 +32,7 @@ impl PyComplex {
     }
     /// Returns `|self|`.
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(PyPy))]
     pub fn abs(&self) -> c_double {
         unsafe {
             let val = (*(self.as_ptr() as *mut ffi::PyComplexObject)).cval;
@@ -38,6 +41,7 @@ impl PyComplex {
     }
     /// Returns `self ** other`
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(PyPy))]
     pub fn pow(&self, other: &PyComplex) -> &PyComplex {
         unsafe {
             self.py()
@@ -47,6 +51,7 @@ impl PyComplex {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 #[inline(always)]
 unsafe fn complex_operation(
     l: &PyComplex,
@@ -59,6 +64,7 @@ unsafe fn complex_operation(
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 impl<'py> Add for &'py PyComplex {
     type Output = &'py PyComplex;
     fn add(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -70,6 +76,7 @@ impl<'py> Add for &'py PyComplex {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 impl<'py> Sub for &'py PyComplex {
     type Output = &'py PyComplex;
     fn sub(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -81,6 +88,7 @@ impl<'py> Sub for &'py PyComplex {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 impl<'py> Mul for &'py PyComplex {
     type Output = &'py PyComplex;
     fn mul(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -92,6 +100,7 @@ impl<'py> Mul for &'py PyComplex {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 impl<'py> Div for &'py PyComplex {
     type Output = &'py PyComplex;
     fn div(self, other: &'py PyComplex) -> &'py PyComplex {
@@ -103,6 +112,7 @@ impl<'py> Div for &'py PyComplex {
 }
 
 #[cfg(not(Py_LIMITED_API))]
+#[cfg(not(PyPy))]
 impl<'py> Neg for &'py PyComplex {
     type Output = &'py PyComplex;
     fn neg(self) -> &'py PyComplex {

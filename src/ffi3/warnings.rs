@@ -9,6 +9,7 @@ extern "C" {
         message: *const c_char,
         stack_level: Py_ssize_t,
     ) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnFormat")]
     pub fn PyErr_WarnFormat(
         category: *mut PyObject,
         stack_level: Py_ssize_t,

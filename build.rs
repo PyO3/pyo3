@@ -18,11 +18,18 @@ use version_check::{is_min_date, is_min_version, supports_features};
 const MIN_DATE: &'static str = "2019-02-06";
 const MIN_VERSION: &'static str = "1.34.0-nightly";
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum PythonInterpreterKind {
+    CPython,
+    PyPy,
+}
+
 #[derive(Debug)]
 struct PythonVersion {
     major: u8,
     // minor == None means any minor version will do
     minor: Option<u8>,
+    implementation: PythonInterpreterKind,
 }
 
 impl PartialEq for PythonVersion {
@@ -142,6 +149,7 @@ fn load_cross_compile_info() -> Result<(PythonVersion, HashMap<String, String>, 
     let python_version = PythonVersion {
         major,
         minor: Some(minor),
+        implementation: PythonInterpreterKind::CPython,
     };
 
     let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
@@ -280,17 +288,43 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
     Ok(String::from_utf8(out.stdout).unwrap())
 }
 
+fn get_library_link_name(version: &PythonVersion, ld_version: &str) -> String {
+    if cfg!(target_os = "windows") {
+        let minor_or_empty_string = match version.minor {
+            Some(minor) => format!("{}", minor),
+            None => String::new(),
+        };
+        match version.implementation {
+            PythonInterpreterKind::CPython => {
+                format!("python{}{}", version.major, minor_or_empty_string)
+            }
+            PythonInterpreterKind::PyPy => format!("pypy{}-c", version.major),
+        }
+    } else {
+        match version.implementation {
+            PythonInterpreterKind::CPython => format!("python{}", ld_version),
+            PythonInterpreterKind::PyPy => format!("pypy{}-c", version.major),
+        }
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "windows"))]
 fn get_rustc_link_lib(
-    _: &PythonVersion,
+    version: &PythonVersion,
     ld_version: &str,
     enable_shared: bool,
 ) -> Result<String, String> {
     if enable_shared {
-        Ok(format!("cargo:rustc-link-lib=python{}", ld_version))
+        Ok(format!(
+            "cargo:rustc-link-lib={}",
+            get_library_link_name(&version, ld_version)
+        ))
     } else {
-        Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version))
+        Ok(format!(
+            "cargo:rustc-link-lib=static={}",
+            get_library_link_name(&version, ld_version)
+        ))
     }
 }
 
@@ -311,40 +345,61 @@ else:
 }
 
 #[cfg(target_os = "macos")]
-fn get_rustc_link_lib(_: &PythonVersion, ld_version: &str, _: bool) -> Result<String, String> {
+fn get_rustc_link_lib(
+    version: &PythonVersion,
+    ld_version: &str,
+    _: bool,
+) -> Result<String, String> {
     // os x can be linked to a framework or static or dynamic, and
     // Py_ENABLE_SHARED is wrong; framework means shared library
     match get_macos_linkmodel().unwrap().as_ref() {
-        "static" => Ok(format!("cargo:rustc-link-lib=static=python{}", ld_version)),
-        "shared" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
-        "framework" => Ok(format!("cargo:rustc-link-lib=python{}", ld_version)),
+        "static" => Ok(format!(
+            "cargo:rustc-link-lib=static={}",
+            get_library_link_name(&version, ld_version)
+        )),
+        "shared" => Ok(format!(
+            "cargo:rustc-link-lib={}",
+            get_library_link_name(&version, ld_version)
+        )),
+        "framework" => Ok(format!(
+            "cargo:rustc-link-lib={}",
+            get_library_link_name(&version, ld_version)
+        )),
         other => Err(format!("unknown linkmodel {}", other)),
     }
 }
 
+#[cfg(target_os = "windows")]
+fn get_rustc_link_lib(
+    version: &PythonVersion,
+    ld_version: &str,
+    _: bool,
+) -> Result<String, String> {
+    // Py_ENABLE_SHARED doesn't seem to be present on windows.
+    Ok(format!(
+        "cargo:rustc-link-lib=pythonXY:{}",
+        get_library_link_name(&version, ld_version)
+    ))
+}
+
 /// Parse string as interpreter version.
-fn get_interpreter_version(line: &str) -> Result<PythonVersion, String> {
+fn get_interpreter_version(line: &str, implementation: &str) -> Result<PythonVersion, String> {
     let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
     match version_re.captures(&line) {
         Some(cap) => Ok(PythonVersion {
             major: cap.get(1).unwrap().as_str().parse().unwrap(),
             minor: Some(cap.get(2).unwrap().as_str().parse().unwrap()),
+            implementation: match implementation {
+                "CPython" => PythonInterpreterKind::CPython,
+                "PyPy" => PythonInterpreterKind::PyPy,
+                _ => panic!(format!(
+                    "Unsupported python implementation `{}`",
+                    implementation
+                )),
+            },
         }),
         None => Err(format!("Unexpected response to version query {}", line)),
     }
-}
-
-#[cfg(target_os = "windows")]
-fn get_rustc_link_lib(version: &PythonVersion, _: &str, _: bool) -> Result<String, String> {
-    // Py_ENABLE_SHARED doesn't seem to be present on windows.
-    Ok(format!(
-        "cargo:rustc-link-lib=pythonXY:python{}{}",
-        version.major,
-        match version.minor {
-            Some(minor) => minor.to_string(),
-            None => "".to_owned(),
-        }
-    ))
 }
 
 /// Locate a suitable python interpreter and extract config from it.
@@ -387,10 +442,17 @@ fn find_interpreter_and_get_config(
     let expected_version = version.unwrap_or(PythonVersion {
         major: 3,
         minor: None,
+        implementation: PythonInterpreterKind::CPython,
     });
 
+    let binary_name = match expected_version.implementation {
+        PythonInterpreterKind::CPython => "python",
+        PythonInterpreterKind::PyPy => "pypy",
+    };
+
     // check default python
-    let interpreter_path = "python";
+    let interpreter_path = binary_name;
+
     let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
     if expected_version == interpreter_version {
         return Ok((
@@ -430,20 +492,45 @@ fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<
     let script = r#"
 import sys
 import sysconfig
+import platform
+
+PYPY = platform.python_implementation() == "PyPy"
 
 print(sys.version_info[0:2])
 print(sysconfig.get_config_var('LIBDIR'))
-print(sysconfig.get_config_var('Py_ENABLE_SHARED'))
+if PYPY:
+    print("1")
+else:
+    print(sysconfig.get_config_var('Py_ENABLE_SHARED'))
 print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
 print(sys.exec_prefix)
+print(platform.python_implementation())
 "#;
     let out = run_python_script(interpreter, script)?;
     let lines: Vec<String> = out.lines().map(|line| line.to_owned()).collect();
-    let interpreter_version = get_interpreter_version(&lines[0])?;
+    let interpreter_version = get_interpreter_version(&lines[0], &lines[5])?;
     Ok((interpreter_version, lines))
 }
 
+fn ensure_python_version_is_supported(version: &PythonVersion) -> Result<(), String> {
+    match (&version.implementation, version.major, version.minor) {
+        (PythonInterpreterKind::PyPy, 2, _) => {
+            Err("PyPy cpyext bindings is only supported for Python3".to_string())
+        }
+        (_, 3, Some(minor)) if minor < PY3_MIN_MINOR => Err(format!(
+            "Python 3 required version is 3.{}, current version is 3.{}",
+            PY3_MIN_MINOR, minor
+        )),
+        _ => Ok(()),
+    }
+}
+
 fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<(String), String> {
+    ensure_python_version_is_supported(&interpreter_version).expect(&format!(
+        "Unsupported interpreter {:?}",
+        interpreter_version
+    ));
+
     let libpath: &str = &lines[1];
     let enable_shared: &str = &lines[2];
     let ld_version: &str = &lines[3];
@@ -464,26 +551,28 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
 
     let mut flags = String::new();
 
+    if interpreter_version.implementation == PythonInterpreterKind::PyPy {
+        println!("cargo:rustc-cfg=PyPy");
+        flags += format!("CFG_PyPy").as_ref();
+    };
+
     if let PythonVersion {
         major: 3,
         minor: some_minor,
+        implementation: _,
     } = interpreter_version
     {
         if env::var_os("CARGO_FEATURE_ABI3").is_some() {
             println!("cargo:rustc-cfg=Py_LIMITED_API");
         }
+
         if let Some(minor) = some_minor {
-            if minor < &PY3_MIN_MINOR {
-                return Err(format!(
-                    "Python 3 required version is 3.{}, current version is 3.{}",
-                    PY3_MIN_MINOR, minor
-                ));
-            }
             for i in 5..(minor + 1) {
                 println!("cargo:rustc-cfg=Py_3_{}", i);
                 flags += format!("CFG_Py_3_{},", i).as_ref();
             }
         }
+        println!("cargo:rustc-cfg=Py_3");
     } else {
         // fail PYTHON_SYS_EXECUTABLE=python2 cargo ...
         return Err("Python 2 is not supported".to_string());
@@ -512,6 +601,7 @@ fn version_from_env() -> Option<PythonVersion> {
                         Some(s) => Some(s.as_str().parse().unwrap()),
                         None => None,
                     },
+                    implementation: PythonInterpreterKind::CPython,
                 });
             }
             None => (),
@@ -587,6 +677,15 @@ fn main() -> Result<(), String> {
             eprintln!("{}", err);
             exit(1);
         }
+    }
+
+    // These flags need to be enabled manually for PyPy, because it does not expose
+    // them in `sysconfig.get_config_vars()`
+    if interpreter_version.implementation == PythonInterpreterKind::PyPy {
+        config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
+        config_map.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
+        config_map.insert("Py_UNICODE_SIZE".to_owned(), "4".to_owned());
+        config_map.insert("Py_UNICODE_WIDE".to_owned(), "1".to_owned());
     }
 
     // WITH_THREAD is always on for 3.7

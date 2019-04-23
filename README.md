@@ -18,6 +18,9 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 PyO3 supports Python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
 
+PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
+Please refer to the guide for installation instruction against PyPy.
+
 You can either write a native Python module in rust or use Python from a Rust binary.
 
 However, on some OSs, you need some additional packages. E.g. if you are on *Ubuntu 18.04*, please run
@@ -43,7 +46,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.6.0"
+version = "0.7.0-alpha.1"
 features = ["extension-module"]
 ```
 
@@ -88,7 +91,7 @@ Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.6.0-alpha.4"
+pyo3 = "0.7.0-alpha.1"
 ```
 
 Example program displaying the value of `sys.version`:

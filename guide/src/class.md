@@ -469,7 +469,7 @@ each protocol implementation block has to be annotated with `#[pyproto]` attribu
 
 ### Basic object customization
 
-[`PyObjectProtocol`](https://docs.rs/pyo3/0.6.0-alpha.4/class/basic/trait.PyObjectProtocol.html) trait provide several basic customizations.
+[`PyObjectProtocol`](https://docs.rs/pyo3/0.7.0-alpha.1/class/basic/trait.PyObjectProtocol.html) trait provide several basic customizations.
 
 #### Attribute access
 
@@ -523,7 +523,7 @@ Each methods corresponds to python's `self.attr`, `self.attr = value` and `del s
 If your type owns references to other python objects, you will need to
 integrate with Python's garbage collector so that the GC is aware of
 those references.
-To do this, implement [`PyGCProtocol`](https://docs.rs/pyo3/0.6.0-alpha.4/class/gc/trait.PyGCProtocol.html) trait for your struct.
+To do this, implement [`PyGCProtocol`](https://docs.rs/pyo3/0.7.0-alpha.1/class/gc/trait.PyGCProtocol.html) trait for your struct.
 It includes two methods `__traverse__` and `__clear__`.
 These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 `__traverse__` must call `visit.call()` for each reference to another python object.
@@ -572,7 +572,7 @@ collector, and it is possible to track them with `gc` module methods.
 ### Iterator Types
 
 Iterators can be defined using the
-[`PyIterProtocol`](https://docs.rs/pyo3/0.6.0-alpha.4/class/iter/trait.PyIterProtocol.html) trait.
+[`PyIterProtocol`](https://docs.rs/pyo3/0.7.0-alpha.1/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
   * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPyObject>`
   * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPyObject>>`

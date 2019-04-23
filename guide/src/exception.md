@@ -35,7 +35,7 @@ fn main() {
 
 ## Raise an exception
 
-To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html), then call [`PyErr::restore()`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
+To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.PyErr.html), then call [`PyErr::restore()`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
 
 ```rust
 use pyo3::{Python, PyErr};
@@ -50,7 +50,7 @@ fn main() {
 }
 ```
 
-If you already have a Python exception instance, you can simply call [`PyErr::from_instance()`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html#method.from_instance).
+If you already have a Python exception instance, you can simply call [`PyErr::from_instance()`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.PyErr.html#method.from_instance).
 
 ```rust,ignore
 PyErr::from_instance(py, err).restore(py);
@@ -77,7 +77,7 @@ fn my_func(arg: PyObject) -> PyResult<()> {
 ## Check exception type
 
 Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check object type,
-in `PyO3` there is a [`Python::is_instance()`](https://docs.rs/pyo3/0.2.7/struct.Python.html#method.is_instance) method which does the same thing.
+in `PyO3` there is a [`Python::is_instance()`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.Python.html#method.is_instance) method which does the same thing.
 
 ```rust
 use pyo3::Python;
@@ -93,7 +93,7 @@ fn main() {
 }
 ```
 
-[`Python::is_instance()`](https://docs.rs/pyo3/0.2.7/struct.Python.html#method.is_instance) calls the underlying [`PyType::is_instance`](https://docs.rs/pyo3/0.2.7/struct.PyType.html#method.is_instance) method to do the actual work.
+[`Python::is_instance()`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.Python.html#method.is_instance) calls the underlying [`PyType::is_instance`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.PyType.html#method.is_instance) method to do the actual work.
 
 To check the type of an exception, you can simply do:
 
@@ -110,10 +110,10 @@ err.is_instance::<exceptions::TypeError>(py);
 
 ## Handle Rust Error
 
-The vast majority of operations in this library will return [`PyResult<T>`](https://docs.rs/pyo3/0.2.7/type.PyResult.html).
+The vast majority of operations in this library will return [`PyResult<T>`](https://docs.rs/pyo3/0.7.0-alpha.1/type.PyResult.html).
 This is an alias for the type `Result<T, PyErr>`.
 
-A [`PyErr`](https://docs.rs/pyo3/0.2.7/struct.PyErr.html) represents a Python exception.
+A [`PyErr`](https://docs.rs/pyo3/0.7.0-alpha.1/struct.PyErr.html) represents a Python exception.
 Errors within the PyO3 library are also exposed as Python exceptions.
 
 PyO3 library handles python exception in two stages. During first stage `PyErr` instance get
@@ -123,7 +123,7 @@ exception instance get crated and set to python interpreter.
 In simple case, for custom errors support implementation of `std::convert::From<T>` trait
 for this custom error is enough. `PyErr::new` accepts arguments in form
 of `ToPyObject + 'static`. In case if `'static` constraint can not be satisfied or
-more complex arguments are required [`PyErrArgument`](https://docs.rs/pyo3/0.2.7/trait.PyErrArguments.html)
+more complex arguments are required [`PyErrArgument`](https://docs.rs/pyo3/0.7.0-alpha.1/trait.PyErrArguments.html)
 trait can be implemented. In that case actual exception arguments creation get delayed
 until `Python` object is available.
 
@@ -185,5 +185,5 @@ fn tell(file: PyObject) -> PyResult<u64> {
 
 ```
 
-[`exc`](https://docs.rs/pyo3/0.2.7/exc/index.html) defines exceptions for
+[`exc`](https://docs.rs/pyo3/0.7.0-alpha.1/exc/index.html) defines exceptions for
 several standard library modules.

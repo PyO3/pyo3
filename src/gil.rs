@@ -42,6 +42,7 @@ pub fn prepare_freethreaded_python() {
         if ffi::Py_IsInitialized() != 0 {
             // If Python is already initialized, we expect Python threading to also be initialized,
             // as we can't make the existing Python main thread acquire the GIL.
+            #[cfg(not(Py_3_7))]
             assert_ne!(ffi::PyEval_ThreadsInitialized(), 0);
         } else {
             // If Python isn't initialized yet, we expect that Python threading
@@ -53,12 +54,20 @@ pub fn prepare_freethreaded_python() {
             // Signal handling depends on the notion of a 'main thread', which doesn't exist in this case.
             // Note that the 'main thread' notion in Python isn't documented properly;
             // and running Python without one is not officially supported.
+
+            // PyPy does not support the embedding API
+            #[cfg(not(PyPy))]
             ffi::Py_InitializeEx(0);
+
+            // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
+            // > to call it yourself anymore.
+            #[cfg(not(Py_3_7))]
             ffi::PyEval_InitThreads();
             // PyEval_InitThreads() will acquire the GIL,
             // but we don't want to hold it at this point
             // (it's not acquired in the other code paths)
             // So immediately release the GIL:
+            #[cfg(not(PyPy))]
             let _thread_state = ffi::PyEval_SaveThread();
             // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the Python runtime,
             // and will be restored by PyGILState_Ensure.
