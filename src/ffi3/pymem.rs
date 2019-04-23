@@ -4,17 +4,25 @@ use std::os::raw::c_void;
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyMem_RawMalloc")]
     pub fn PyMem_RawMalloc(size: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyMem_RawCalloc")]
     pub fn PyMem_RawCalloc(nelem: size_t, elsize: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyMem_RawRealloc")]
     pub fn PyMem_RawRealloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyMem_RawFree")]
     pub fn PyMem_RawFree(ptr: *mut c_void) -> ();
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyMem_Malloc")]
     pub fn PyMem_Malloc(size: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyMem_Calloc")]
     pub fn PyMem_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyMem_Realloc")]
     pub fn PyMem_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyMem_Free")]
     pub fn PyMem_Free(ptr: *mut c_void) -> ();
 }
 

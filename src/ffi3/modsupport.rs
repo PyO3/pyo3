@@ -6,8 +6,11 @@ use std::os::raw::{c_char, c_int, c_long};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTuple")]
     pub fn PyArg_ParseTuple(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTupleAndKeywords")]
     pub fn PyArg_ParseTupleAndKeywords(
         arg1: *mut PyObject,
         arg2: *mut PyObject,
@@ -16,6 +19,7 @@ extern "C" {
         ...
     ) -> c_int;
     pub fn PyArg_ValidateKeywordArguments(arg1: *mut PyObject) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyArg_UnpackTuple")]
     pub fn PyArg_UnpackTuple(
         arg1: *mut PyObject,
         arg2: *const c_char,
@@ -23,18 +27,24 @@ extern "C" {
         arg4: Py_ssize_t,
         ...
     ) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPy_BuildValue")]
     pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "_PyPy_BuildValue_SizeT")]
     //pub fn _Py_BuildValue_SizeT(arg1: *const c_char, ...)
     // -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPy_VaBuildValue")]
     //pub fn Py_VaBuildValue(arg1: *const c_char, arg2: va_list)
     // -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_AddObject")]
     pub fn PyModule_AddObject(
         arg1: *mut PyObject,
         arg2: *const c_char,
         arg3: *mut PyObject,
     ) -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_AddIntConstant")]
     pub fn PyModule_AddIntConstant(arg1: *mut PyObject, arg2: *const c_char, arg3: c_long)
         -> c_int;
+    #[cfg_attr(PyPy, link_name = "PyPyModule_AddStringConstant")]
     pub fn PyModule_AddStringConstant(
         arg1: *mut PyObject,
         arg2: *const c_char,
@@ -53,6 +63,7 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg(not(py_sys_config = "Py_TRACE_REFS"))]
+    #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 
     #[cfg(py_sys_config = "Py_TRACE_REFS")]

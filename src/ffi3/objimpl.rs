@@ -5,20 +5,27 @@ use std::os::raw::{c_int, c_void};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Malloc")]
     pub fn PyObject_Malloc(size: size_t) -> *mut c_void;
     pub fn PyObject_Calloc(nelem: size_t, elsize: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Realloc")]
     pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Free")]
     pub fn PyObject_Free(ptr: *mut c_void) -> ();
 
     #[cfg(not(Py_LIMITED_API))]
     pub fn _Py_GetAllocatedBlocks() -> Py_ssize_t;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_Init")]
     pub fn PyObject_Init(arg1: *mut PyObject, arg2: *mut PyTypeObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyObject_InitVar")]
     pub fn PyObject_InitVar(
         arg1: *mut PyVarObject,
         arg2: *mut PyTypeObject,
         arg3: Py_ssize_t,
     ) -> *mut PyVarObject;
+    #[cfg_attr(PyPy, link_name = "_PyPyObject_New")]
     pub fn _PyObject_New(arg1: *mut PyTypeObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "_PyPyObject_NewVar")]
     pub fn _PyObject_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
 
     pub fn PyGC_Collect() -> Py_ssize_t;
@@ -73,10 +80,13 @@ extern "C" {
     pub fn _PyObject_GC_Malloc(size: size_t) -> *mut PyObject;
     #[cfg(not(Py_LIMITED_API))]
     pub fn _PyObject_GC_Calloc(size: size_t) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_New")]
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]
     pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
     pub fn PyObject_GC_Track(arg1: *mut c_void) -> ();
     pub fn PyObject_GC_UnTrack(arg1: *mut c_void) -> ();
+    #[cfg_attr(PyPy, link_name = "PyPyObject_GC_Del")]
     pub fn PyObject_GC_Del(arg1: *mut c_void) -> ();
 }
 

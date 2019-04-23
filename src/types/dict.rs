@@ -6,6 +6,7 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 use crate::AsPyPointer;
+#[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::Python;
 use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
@@ -30,6 +31,7 @@ impl PyDict {
     ///
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
+    #[cfg(not(PyPy))]
     pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());

@@ -1,6 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 
 set -ex
+
+### PyPy does not run the test suite ###########################################
+
+if [[ $FEATURES == *"pypy"* ]]; then
+  exit 0
+fi
 
 ### Run kcov ###################################################################
 

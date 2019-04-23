@@ -30,16 +30,23 @@ extern "C" {
     //fn _PyState_AddModule(arg1: *mut PyObject,
     //                      arg2: *mut PyModuleDef) -> c_int;
     pub fn PyState_FindModule(arg1: *mut PyModuleDef) -> *mut PyObject;
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_New")]
     pub fn PyThreadState_New(arg1: *mut PyInterpreterState) -> *mut PyThreadState;
     //fn _PyThreadState_Prealloc(arg1: *mut PyInterpreterState)
     // -> *mut PyThreadState;
     //fn _PyThreadState_Init(arg1: *mut PyThreadState) -> ();
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Clear")]
     pub fn PyThreadState_Clear(arg1: *mut PyThreadState) -> ();
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Delete")]
     pub fn PyThreadState_Delete(arg1: *mut PyThreadState) -> ();
     #[cfg(py_sys_config = "WITH_THREAD")]
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_DeleteCurrent")]
     pub fn PyThreadState_DeleteCurrent() -> ();
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Get")]
     pub fn PyThreadState_Get() -> *mut PyThreadState;
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_Swap")]
     pub fn PyThreadState_Swap(arg1: *mut PyThreadState) -> *mut PyThreadState;
+    #[cfg_attr(PyPy, link_name = "PyPyThreadState_GetDict")]
     pub fn PyThreadState_GetDict() -> *mut PyObject;
     pub fn PyThreadState_SetAsyncExc(arg1: c_long, arg2: *mut PyObject) -> c_int;
 }
@@ -53,7 +60,9 @@ pub enum PyGILState_STATE {
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyGILState_Ensure")]
     pub fn PyGILState_Ensure() -> PyGILState_STATE;
+    #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE) -> ();
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
 }

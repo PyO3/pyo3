@@ -1,4 +1,5 @@
 import sys
+import platform
 
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
@@ -24,6 +25,9 @@ def get_py_version_cfgs():
     out_cfg = []
     for minor in range(py3_min, version[1] + 1):
         out_cfg.append("--cfg=Py_3_%d" % minor)
+
+    if platform.python_implementation() == "PyPy":
+        out_cfg.append("--cfg=PyPy")
 
     return out_cfg
 

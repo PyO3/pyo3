@@ -15,7 +15,7 @@ use class::methods::PyMethodsProtocol;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::os::raw::c_void;
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -304,7 +304,15 @@ where
         unsafe { <T::BaseType as PyTypeInfo>::type_object() };
 
     type_object.tp_name = type_name.into_raw();
-    type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
+
+    // PyPy will segfault if passed only a nul terminator as `tp_doc`.
+    // ptr::null() is OK though.
+    if T::DESCRIPTION == "\0" {
+        type_object.tp_doc = ptr::null();
+    } else {
+        type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
+    };
+
     type_object.tp_base = base_type_object;
 
     // dealloc

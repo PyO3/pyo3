@@ -82,6 +82,7 @@ extern "C" {
     #[cfg(Py_3_6)]
     pub fn _PyCode_SetExtra(code: *mut PyObject, index: Py_ssize_t, extra: *mut c_void) -> c_int;
 
+    #[cfg_attr(PyPy, link_name = "PyPyCode_New")]
     pub fn PyCode_New(
         arg1: c_int,
         arg2: c_int,
@@ -99,6 +100,7 @@ extern "C" {
         arg14: c_int,
         arg15: *mut PyObject,
     ) -> *mut PyCodeObject;
+    #[cfg_attr(PyPy, link_name = "PyPyCode_NewEmpty")]
     pub fn PyCode_NewEmpty(
         filename: *const c_char,
         funcname: *const c_char,
@@ -114,11 +116,13 @@ extern "C" {
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name = "PyPyCode_Check")]
 pub unsafe fn PyCode_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PyCode_Type) as c_int
 }
 
 #[inline]
+#[cfg_attr(PyPy, link_name = "PyPyCode_GetNumFree")]
 pub unsafe fn PyCode_GetNumFree(op: *mut PyCodeObject) -> Py_ssize_t {
     crate::ffi3::tupleobject::PyTuple_GET_SIZE((*op).co_freevars)
 }

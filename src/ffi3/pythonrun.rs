@@ -12,12 +12,14 @@ use std::ptr;
 extern "C" {
     // TODO: these moved to pylifecycle.h
     pub fn Py_SetProgramName(arg1: *mut wchar_t) -> ();
+    #[cfg_attr(PyPy, link_name = "PyPy_GetProgramName")]
     pub fn Py_GetProgramName() -> *mut wchar_t;
     pub fn Py_SetPythonHome(arg1: *mut wchar_t) -> ();
     pub fn Py_GetPythonHome() -> *mut wchar_t;
     pub fn Py_Initialize() -> ();
     pub fn Py_InitializeEx(arg1: c_int) -> ();
     pub fn Py_Finalize() -> ();
+    #[cfg_attr(PyPy, link_name = "PyPy_IsInitialized")]
     pub fn Py_IsInitialized() -> c_int;
     pub fn Py_NewInterpreter() -> *mut PyThreadState;
     pub fn Py_EndInterpreter(arg1: *mut PyThreadState) -> ();
@@ -142,6 +144,7 @@ extern "C" {
         arg4: c_int,
     ) -> *mut _node;
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(PyPy, link_name = "PyPyRun_StringFlags")]
     pub fn PyRun_StringFlags(
         arg1: *const c_char,
         arg2: c_int,
@@ -160,26 +163,35 @@ extern "C" {
         flags: *mut PyCompilerFlags,
     ) -> *mut PyObject;
     #[cfg(Py_LIMITED_API)]
+    #[cfg(not(PyPy))]
     pub fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject;
+    #[cfg(PyPy)]
+    #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(PyPy, link_name = "PyPy_CompileStringFlags")]
+    pub fn Py_CompileStringFlags(
+        string: *const c_char,
+        p: *const c_char,
+        s: c_int,
+        f: *mut PyCompilerFlags,
+    ) -> *mut PyObject;
 }
 #[cfg(not(Py_LIMITED_API))]
 #[inline]
+#[cfg(not(PyPy))]
 pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
     Py_CompileStringExFlags(string, p, s, ptr::null_mut(), -1)
 }
-#[cfg(not(Py_LIMITED_API))]
+
 #[inline]
-pub unsafe fn Py_CompileStringFlags(
-    string: *const c_char,
-    p: *const c_char,
-    s: c_int,
-    f: *mut PyCompilerFlags,
-) -> *mut PyObject {
-    Py_CompileStringExFlags(string, p, s, f, -1)
+#[cfg(PyPy)]
+pub unsafe fn Py_CompileString(string: *const c_char, p: *const c_char, s: c_int) -> *mut PyObject {
+    Py_CompileStringFlags(string, p, s, ptr::null_mut())
 }
+
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(PyPy))]
     pub fn Py_CompileStringExFlags(
         str: *const c_char,
         filename: *const c_char,
@@ -207,11 +219,15 @@ extern "C" {
         start: c_int,
     ) -> *mut symtable;
 
+    #[cfg_attr(PyPy, link_name = "PyPyErr_Print")]
     pub fn PyErr_Print() -> ();
+    #[cfg_attr(PyPy, link_name = "PyPyErr_PrintEx")]
     pub fn PyErr_PrintEx(arg1: c_int) -> ();
+    #[cfg_attr(PyPy, link_name = "PyPyErr_Display")]
     pub fn PyErr_Display(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> ();
 
     // TODO: these moved to pylifecycle.h
+    #[cfg_attr(PyPy, link_name = "PyPy_AtExit")]
     pub fn Py_AtExit(func: Option<extern "C" fn() -> ()>) -> c_int;
     pub fn Py_Exit(arg1: c_int) -> ();
     pub fn Py_Main(argc: c_int, argv: *mut *mut wchar_t) -> c_int;
@@ -220,6 +236,7 @@ extern "C" {
     pub fn Py_GetExecPrefix() -> *mut wchar_t;
     pub fn Py_GetPath() -> *mut wchar_t;
     pub fn Py_SetPath(arg1: *const wchar_t) -> ();
+    #[cfg_attr(PyPy, link_name = "PyPy_GetVersion")]
     pub fn Py_GetVersion() -> *const c_char;
     pub fn Py_GetPlatform() -> *const c_char;
     pub fn Py_GetCopyright() -> *const c_char;

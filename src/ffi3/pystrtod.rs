@@ -3,11 +3,13 @@ use std::os::raw::{c_char, c_double, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    #[cfg_attr(PyPy, link_name = "PyPyOS_string_to_double")]
     pub fn PyOS_string_to_double(
         str: *const c_char,
         endptr: *mut *mut c_char,
         overflow_exception: *mut PyObject,
     ) -> c_double;
+    #[cfg_attr(PyPy, link_name = "PyPyOS_double_to_string")]
     pub fn PyOS_double_to_string(
         val: c_double,
         format_code: c_char,

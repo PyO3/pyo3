@@ -10,4 +10,5 @@
 - [Debugging](debugging.md)
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building-and-distribution.md)
+- [PyPy support](pypy.md)
 - [Appendix: Pyo3 and rust-cpython](rust-cpython.md)
