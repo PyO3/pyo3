@@ -46,7 +46,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.6.0"
+version = "0.7.0-alpha.1"
 features = ["extension-module"]
 ```
 
@@ -94,7 +94,7 @@ Add `pyo3` this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pyo3 = "0.6.0-alpha.4"
+pyo3 = "0.7.0-alpha.1"
 ```
 
 Example program displaying the value of `sys.version`:
