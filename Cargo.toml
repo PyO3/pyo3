@@ -26,10 +26,10 @@ pyo3cls = { path = "pyo3cls", version = "=0.7.0-alpha.1" }
 mashup = "0.1.9"
 num-complex = { version = "0.2.1", optional = true }
 inventory = "0.1.3"
+doc-comment = "0.3"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-docmatic = "0.1.2"
 indoc = "0.3.1"
 
 [build-dependencies]
@@ -51,9 +51,6 @@ extension-module = []
 # many compilation errors. Pull Requests working towards fixing that
 # are welcome.
 # abi3 = []
-
-# Use this feature to test the examples in the user guide
-test-doc = []
 
 [workspace]
 members = [

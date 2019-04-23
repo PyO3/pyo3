@@ -12,7 +12,6 @@ matrix:
   include:
     - name: Python 3.5
       python: "3.5"
-      env: FEATURES="test-doc"
     - name: Python 3.6
       python: "3.6"
     - name: Python 3.7
