@@ -133,6 +133,7 @@ doctest!("../guide/src/function.md", guide_function_md);
 doctest!("../guide/src/get_started.md", guide_get_started_md);
 doctest!("../guide/src/module.md", guide_module_md);
 doctest!("../guide/src/parallelism.md", guide_parallelism_md);
+doctest!("../guide/src/pypy.md", guide_pypy_md);
 doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
 
 pub use crate::class::*;
