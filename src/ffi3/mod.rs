@@ -25,7 +25,6 @@ pub use self::intrcheck::*;
 pub use self::iterobject::*;
 pub use self::listobject::*;
 pub use self::longobject::*;
-pub use self::marshal::*;
 pub use self::memoryobject::*;
 pub use self::methodobject::*;
 pub use self::modsupport::*;
@@ -145,8 +144,6 @@ mod pystrtod; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and
 
 // Additional headers that are not exported by Python.h
 pub mod structmember; // TODO supports PEP-384 only; needs adjustment for Python 3.3 and 3.5
-
-pub mod marshal;
 
 #[cfg(not(Py_LIMITED_API))]
 pub mod frameobject;
