@@ -482,7 +482,6 @@ mod test {
         }
     }
 
-    #[ignore]
     #[test]
     fn test_pyobject_drop() {
         gil::init_once();
@@ -501,7 +500,7 @@ mod test {
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
             }
             drop(obj);
-            assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
+            assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
 
             {
                 let _gil = Python::acquire_gil();
