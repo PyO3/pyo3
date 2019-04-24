@@ -10,7 +10,7 @@ use crate::object::PyObject;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::AsPyPointer;
-use crate::{IntoPyPointer, PyTryFrom};
+use crate::{FromPyPointer, IntoPyPointer, PyTryFrom};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -193,7 +193,7 @@ impl<'p> Python<'p> {
 }
 
 impl<'p> Python<'p> {
-    unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p T {
+    pub(crate) unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p T {
         if T::OFFSET == 0 {
             &*(ob as *const _ as *const T)
         } else {
@@ -203,7 +203,7 @@ impl<'p> Python<'p> {
     }
 
     #[allow(clippy::cast_ref_to_mut)] // FIXME
-    unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p mut T {
+    pub(crate) unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p mut T {
         if T::OFFSET == 0 {
             &mut *(ob as *const _ as *mut T)
         } else {
@@ -240,18 +240,11 @@ impl<'p> Python<'p> {
 
     /// Register `ffi::PyObject` pointer in release pool,
     /// and do unchecked downcast to specific type.
-
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
         T: PyTypeInfo,
     {
-        match NonNull::new(ptr) {
-            Some(p) => {
-                let p = gil::register_owned(self, p);
-                self.unchecked_downcast(p)
-            }
-            None => crate::err::panic_after_error(),
-        }
+        FromPyPointer::from_owned_ptr(self, ptr)
     }
 
     /// Register `ffi::PyObject` pointer in release pool,
@@ -260,13 +253,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        match NonNull::new(ptr) {
-            Some(p) => {
-                let p = gil::register_owned(self, p);
-                self.unchecked_mut_downcast(p)
-            }
-            None => crate::err::panic_after_error(),
-        }
+        FromPyPointer::from_owned_ptr(self, ptr)
     }
 
     /// Register owned `ffi::PyObject` pointer in release pool.
@@ -276,13 +263,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        match NonNull::new(ptr) {
-            Some(p) => {
-                let p = gil::register_owned(self, p);
-                Ok(self.unchecked_downcast(p))
-            }
-            None => Err(PyErr::fetch(self)),
-        }
+        FromPyPointer::from_owned_ptr_or_err(self, ptr)
     }
 
     /// Register owned `ffi::PyObject` pointer in release pool.
@@ -292,10 +273,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        NonNull::new(ptr).map(|p| {
-            let p = gil::register_owned(self, p);
-            self.unchecked_downcast(p)
-        })
+        FromPyPointer::from_owned_ptr_or_opt(self, ptr)
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
@@ -305,13 +283,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        match NonNull::new(ptr) {
-            Some(p) => {
-                let p = gil::register_borrowed(self, p);
-                self.unchecked_downcast(p)
-            }
-            None => crate::err::panic_after_error(),
-        }
+        FromPyPointer::from_borrowed_ptr(self, ptr)
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
@@ -321,13 +293,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        match NonNull::new(ptr) {
-            Some(p) => {
-                let p = gil::register_borrowed(self, p);
-                self.unchecked_mut_downcast(p)
-            }
-            None => crate::err::panic_after_error(),
-        }
+        FromPyPointer::from_borrowed_ptr(self, ptr)
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
@@ -337,13 +303,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        match NonNull::new(ptr) {
-            Some(p) => {
-                let p = gil::register_borrowed(self, p);
-                Ok(self.unchecked_downcast(p))
-            }
-            None => Err(PyErr::fetch(self)),
-        }
+        FromPyPointer::from_borrowed_ptr_or_err(self, ptr)
     }
 
     /// Register borrowed `ffi::PyObject` pointer in release pool.
@@ -353,10 +313,7 @@ impl<'p> Python<'p> {
     where
         T: PyTypeInfo,
     {
-        NonNull::new(ptr).map(|p| {
-            let p = gil::register_borrowed(self, p);
-            self.unchecked_downcast(p)
-        })
+        FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }
 
     #[doc(hidden)]
