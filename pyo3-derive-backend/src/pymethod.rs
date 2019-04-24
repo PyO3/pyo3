@@ -40,8 +40,18 @@ pub fn gen_py_method(
 }
 
 fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
-    if !sig.decl.generics.params.is_empty() {
-        panic!("python method can not be generic: {:?}", name);
+    for param in &sig.decl.generics.params {
+        match param {
+            syn::GenericParam::Lifetime(_) => {}
+            syn::GenericParam::Type(_) => panic!(
+                "A Python method can't have a generic type parameter: {}",
+                name
+            ),
+            syn::GenericParam::Const(_) => panic!(
+                "A Python method can't have a const generic parameter: {}",
+                name
+            ),
+        }
     }
 }
 
