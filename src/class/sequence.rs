@@ -146,7 +146,7 @@ where
     T: PySequenceProtocol<'p>,
 {
     fn tp_as_sequence() -> Option<ffi::PySequenceMethods> {
-        return Some(ffi::PySequenceMethods {
+        Some(ffi::PySequenceMethods {
             sq_length: Self::sq_length(),
             sq_concat: Self::sq_concat(),
             sq_repeat: Self::sq_repeat(),
@@ -157,7 +157,7 @@ where
             sq_contains: Self::sq_contains(),
             sq_inplace_concat: Self::sq_inplace_concat(),
             sq_inplace_repeat: Self::sq_inplace_repeat(),
-        });
+        })
     }
 }
 

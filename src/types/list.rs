@@ -20,10 +20,7 @@ pyobject_native_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.
-    pub fn new<'p, T, U>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> &'p PyList
+    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
