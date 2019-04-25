@@ -1,7 +1,7 @@
-use crate::conversion::AsPyPointer;
 use crate::ffi;
-use crate::{PyErr, PyObject, PyResult, Python};
-use std::os::raw::c_int;
+use crate::types::{PyAny, PyBytes};
+use crate::{AsPyPointer, FromPyPointer, PyResult, Python};
+use std::os::raw::{c_char, c_int};
 
 /// The current version of the marshal binary format.
 pub const VERSION: i32 = 4;
@@ -10,40 +10,30 @@ pub const VERSION: i32 = 4;
 ///
 /// The built-in marshalling only supports a limited range of object.
 /// See the [python documentation](https://docs.python.org/3/library/marshal.html) for more details.
-pub fn dumps(py: Python, object: &PyObject, version: i32) -> PyResult<Vec<u8>> {
-    let bytes = unsafe { ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int) };
-    if bytes.is_null() {
-        return Err(PyErr::fetch(py));
-    }
-
-    let mut size = 0isize;
-    let mut data = std::ptr::null_mut();
+pub fn dumps<'a>(py: Python<'a>, object: &impl AsPyPointer, version: i32) -> PyResult<&'a PyBytes> {
     unsafe {
-        ffi::PyBytes_AsStringAndSize(bytes, &mut data, &mut size);
-        let data = Vec::from(std::slice::from_raw_parts(data as *const u8, size as usize));
-        ffi::Py_DecRef(bytes);
-        Ok(data)
+        let bytes = ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int);
+        FromPyPointer::from_owned_ptr_or_err(py, bytes)
     }
 }
 
 /// Deserialize an object from bytes using the Python built-in marshal module.
-pub fn loads(py: Python, data: &impl AsRef<[u8]>) -> PyResult<PyObject> {
+pub fn loads<'a, B>(py: Python<'a>, data: &B) -> PyResult<&'a PyAny>
+where
+    B: AsRef<[u8]> + ?Sized,
+{
     let data = data.as_ref();
-
-    let object = unsafe {
-        ffi::PyMarshal_ReadObjectFromString(data.as_ptr() as *const i8, data.len() as isize)
-    };
-    if object.is_null() {
-        return Err(PyErr::fetch(py));
+    unsafe {
+        let c_str = data.as_ptr() as *const c_char;
+        let object = ffi::PyMarshal_ReadObjectFromString(c_str, data.len() as isize);
+        FromPyPointer::from_owned_ptr_or_err(py, object)
     }
-
-    Ok(unsafe { PyObject::from_owned_ptr(py, object) })
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{types::PyDict, ToPyObject};
+    use crate::types::PyDict;
 
     #[test]
     fn marhshal_roundtrip() {
@@ -54,15 +44,16 @@ mod test {
         dict.set_item("aap", "noot").unwrap();
         dict.set_item("mies", "wim").unwrap();
         dict.set_item("zus", "jet").unwrap();
-        let dict = dict.to_object(py);
 
-        let bytes = dumps(py, &dict, VERSION).expect("marshalling failed");
-        let deserialzed = loads(py, &bytes).expect("unmarshalling failed");
+        let bytes = dumps(py, dict, VERSION)
+            .expect("marshalling failed")
+            .as_bytes();
+        let deserialzed = loads(py, bytes).expect("unmarshalling failed");
 
-        assert!(equal(py, &dict, &deserialzed));
+        assert!(equal(py, dict, deserialzed));
     }
 
-    fn equal(_py: Python, a: &PyObject, b: &PyObject) -> bool {
+    fn equal(_py: Python, a: &impl AsPyPointer, b: &impl AsPyPointer) -> bool {
         unsafe { ffi::PyObject_RichCompareBool(a.as_ptr(), b.as_ptr(), ffi::Py_EQ) != 0 }
     }
 }
