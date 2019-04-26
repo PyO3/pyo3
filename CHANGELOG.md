@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * PyPy support by omerbenamram in [#393](https://github.com/PyO3/pyo3/pull/393)
  * Have `PyModule` generate an index of its members (`__all__` list).
  * Allow `slf: PyRef<T>` for pyclass(#419)
+ * Add `marshal` module. [#460](https://github.com/PyO3/pyo3/pull/460)
 
 ### Changed
 
