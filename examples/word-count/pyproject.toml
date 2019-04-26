@@ -1,2 +1,3 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools-rust"]
+requires = ["setuptools", "wheel", "setuptools-rust", "toml"]
+build-backend = "setuptools.build_meta"
