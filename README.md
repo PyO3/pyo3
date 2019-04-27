@@ -12,7 +12,7 @@
 
 * API Documentation: [master](https://pyo3.rs/master/doc)
 
-A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust-cpython.html).
+A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
 ## Usage
 
