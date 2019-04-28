@@ -10,6 +10,7 @@ use pyo3_derive_backend::{
     process_functions_in_module, py_init, PyClassArgs, PyFunctionAttr,
 };
 use quote::quote;
+use syn::ext::IdentExt;
 use syn::parse_macro_input;
 
 /// Internally, this proc macro create a new c function called `PyInit_{my_module}`
@@ -77,11 +78,7 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as syn::ItemFn);
     let args = parse_macro_input!(attr as PyFunctionAttr);
 
-    // Workaround for https://github.com/dtolnay/syn/issues/478
-    let python_name = syn::Ident::new(
-        &ast.ident.to_string().trim_start_matches("r#"),
-        Span::call_site(),
-    );
+    let python_name = syn::Ident::new(&ast.ident.unraw().to_string(), Span::call_site());
     let expanded = add_fn_to_module(&ast, &python_name, args.arguments);
 
     quote!(
