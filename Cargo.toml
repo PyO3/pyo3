@@ -26,7 +26,6 @@ pyo3cls = { path = "pyo3cls", version = "=0.7.0-alpha.1" }
 mashup = "0.1.9"
 num-complex = { version = "0.2.1", optional = true }
 inventory = "0.1.3"
-doc-comment = "0.3"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
