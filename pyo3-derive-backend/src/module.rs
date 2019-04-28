@@ -9,6 +9,7 @@ use crate::pymethod::get_arg_names;
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
+use syn::ext::IdentExt;
 use syn::Ident;
 
 /// Generates the function that is called by the python interpreter to initialize the native
@@ -138,12 +139,8 @@ fn extract_pyfn_attrs(
 /// Coordinates the naming of a the add-function-to-python-module function
 fn function_wrapper_ident(name: &Ident) -> Ident {
     // Make sure this ident matches the one of wrap_pyfunction
-    // The trim_start_matches("r#") is for https://github.com/dtolnay/syn/issues/478
     Ident::new(
-        &format!(
-            "__pyo3_get_function_{}",
-            name.to_string().trim_start_matches("r#")
-        ),
+        &format!("__pyo3_get_function_{}", name.unraw().to_string()),
         Span::call_site(),
     )
 }
