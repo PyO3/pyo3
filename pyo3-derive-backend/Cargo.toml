@@ -11,6 +11,6 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-quote = "0.6.9"
-proc-macro2 = "0.4.20"
-syn = { version = "0.15.15", features = ["full", "extra-traits"] }
+quote = "0.6.12"
+proc-macro2 = "0.4.28"
+syn = { version = "0.15.33", features = ["full", "extra-traits"] }
