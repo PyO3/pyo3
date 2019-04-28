@@ -176,6 +176,7 @@ pub mod exceptions;
 pub mod freelist;
 mod gil;
 mod instance;
+pub mod marshal;
 mod object;
 mod objectprotocol;
 pub mod prelude;

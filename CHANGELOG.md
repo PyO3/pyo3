@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Have `PyModule` generate an index of its members (`__all__` list).
  * Allow `slf: PyRef<T>` for pyclass(#419)
  * Allow to use lifetime specifiers in `pymethods`
+ * Add `marshal` module. [#460](https://github.com/PyO3/pyo3/pull/460)
 
 ### Changed
 

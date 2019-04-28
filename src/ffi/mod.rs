@@ -3,5 +3,7 @@
 pub use crate::ffi3::*;
 
 pub use self::datetime::*;
+pub use self::marshal::*;
 
 pub(crate) mod datetime;
+pub(crate) mod marshal;
