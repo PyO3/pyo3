@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict, PyString, PyTuple, PyType};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 use pyo3::PyRawObject;
 
 #[macro_use]
@@ -305,4 +305,32 @@ fn meth_doc() {
         Some(d),
     )
     .unwrap();
+}
+
+#[pyclass]
+struct MethodWithLifeTime {}
+
+#[pymethods]
+impl MethodWithLifeTime {
+    fn set_to_list<'py>(&self, py: Python<'py>, set: &'py PySet) -> PyResult<&'py PyList> {
+        let mut items = vec![];
+        for _ in 0..set.len() {
+            items.push(set.pop().unwrap());
+        }
+        let list = PyList::new(py, items);
+        list.sort()?;
+        Ok(list)
+    }
+}
+
+#[test]
+fn method_with_lifetime() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let obj = PyRef::new(py, MethodWithLifeTime {}).unwrap();
+    py_run!(
+        py,
+        obj,
+        "assert obj.set_to_list(set((1, 2, 3))) == [1, 2, 3]"
+    );
 }
