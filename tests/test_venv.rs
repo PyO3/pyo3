@@ -29,7 +29,7 @@ fn test_building_example_using_venv() {
                     .as_str(),
                 ])
                 .status()
-                .expect("failed to execute commands chain")
+                .expect("failed to build example")
                 .success()
         } else {
             Command::new("sh")
@@ -44,7 +44,7 @@ fn test_building_example_using_venv() {
                     .as_str(),
                 ])
                 .status()
-                .expect("failed to execute commands chain")
+                .expect("failed to build example")
                 .success()
         }
     }
