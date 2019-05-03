@@ -503,7 +503,7 @@ if PYPY:
 else:
     print(sysconfig.get_config_var('Py_ENABLE_SHARED'))
 print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
-print(sys.exec_prefix)
+print(sys.base_prefix)
 print(platform.python_implementation())
 "#;
     let out = run_python_script(interpreter, script)?;
