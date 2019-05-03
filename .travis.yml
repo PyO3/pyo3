@@ -46,7 +46,7 @@ addons:
       - libiberty-dev
 
 before_install:
-  - source ./ci/travis/setup.sh
+  - ./ci/travis/setup.sh
 
 install:
   - pip install setuptools-rust pytest pytest-benchmark tox
