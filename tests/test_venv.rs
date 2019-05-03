@@ -23,6 +23,7 @@ fn test_building_example_using_venv() {
                     format!(
                         "{0}\\Scripts\\activate.bat && \
                          cd examples\\{1} && \
+                         python -m pip install --upgrade setuptools-rust && \
                          python setup.py build",
                         venv_name, example_name
                     )
@@ -38,6 +39,7 @@ fn test_building_example_using_venv() {
                     format!(
                         ". {0}/bin/activate && \
                          cd examples/{1} && \
+                         python -m pip install --upgrade setuptools-rust && \
                          python setup.py build",
                         venv_name, example_name
                     )
