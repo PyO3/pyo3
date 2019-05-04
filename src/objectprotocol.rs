@@ -45,9 +45,7 @@ pub trait ObjectProtocol {
 
     /// Compares two Python objects.
     ///
-    /// On Python 2, this is equivalent to the Python expression `cmp(self, other)`.
-    ///
-    /// On Python 3, this is equivalent to:
+    /// This is equivalent to:
     /// ```python
     /// if self == other:
     ///     return Equal
@@ -87,19 +85,19 @@ pub trait ObjectProtocol {
     fn is_callable(&self) -> bool;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: `self(*args, **kwargs)`
+    /// This is equivalent to the Python expression: `self(*args, **kwargs)`.
     fn call(&self, args: impl IntoPy<Py<PyTuple>>, kwargs: Option<&PyDict>) -> PyResult<&PyAny>;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: `self()`
+    /// This is equivalent to the Python expression: `self()`.
     fn call0(&self) -> PyResult<&PyAny>;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: `self(*args)`
+    /// This is equivalent to the Python expression: `self(*args)`.
     fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
 
     /// Calls a method on the object.
-    /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`
+    /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`.
     ///
     /// # Example
     /// ```rust
@@ -121,30 +119,34 @@ pub trait ObjectProtocol {
     ) -> PyResult<&PyAny>;
 
     /// Calls a method on the object.
-    /// This is equivalent to the Python expression: `self.name()`
+    /// This is equivalent to the Python expression: `self.name()`.
     fn call_method0(&self, name: &str) -> PyResult<&PyAny>;
 
-    /// Calls a method on the object with positional arguments only .
-    /// This is equivalent to the Python expression: `self.name(*args)`
+    /// Calls a method on the object with positional arguments only.
+    /// This is equivalent to the Python expression: `self.name(*args)`.
     fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
 
     /// Retrieves the hash code of the object.
-    /// This is equivalent to the Python expression: `hash(self)`
+    /// This is equivalent to the Python expression: `hash(self)`.
     fn hash(&self) -> PyResult<isize>;
 
     /// Returns whether the object is considered to be true.
-    /// This is equivalent to the Python expression: `not not self`
+    /// This is equivalent to the Python expression: `not not self`.
     fn is_true(&self) -> PyResult<bool>;
 
     /// Returns whether the object is considered to be None.
-    /// This is equivalent to the Python expression: `is None`
+    /// This is equivalent to the Python expression: `is None`.
     fn is_none(&self) -> bool;
 
     /// Returns the length of the sequence or mapping.
-    /// This is equivalent to the Python expression: `len(self)`
+    /// This is equivalent to the Python expression: `len(self)`.
     fn len(&self) -> PyResult<usize>;
 
-    /// This is equivalent to the Python expression: `self[key]`
+    /// Returns true if the sequence or mapping has a length of 0.
+    /// This is equivalent to the Python expression: `len(self) == 0`.
+    fn is_empty(&self) -> PyResult<bool>;
+
+    /// This is equivalent to the Python expression: `self[key]`.
     fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
     where
         K: ToBorrowedObject;
@@ -403,6 +405,10 @@ where
         } else {
             Ok(v as usize)
         }
+    }
+
+    fn is_empty(&self) -> PyResult<bool> {
+        self.len().map(|l| l == 0)
     }
 
     fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
