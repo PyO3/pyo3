@@ -53,6 +53,7 @@ install:
 
 script:
   - ./ci/travis/test.sh
+  - ./ci/test_venv.sh
 
 after_success:
   - ./ci/travis/cover.sh
