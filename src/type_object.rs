@@ -379,7 +379,7 @@ where
     }
 
     // normal methods
-    let (new, init, call, mut methods) = py_class_method_defs::<T>()?;
+    let (new, init, call, mut methods) = py_class_method_defs::<T>();
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
         type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as *mut _;
@@ -453,12 +453,12 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
-fn py_class_method_defs<T: PyMethodsProtocol>() -> PyResult<(
+fn py_class_method_defs<T: PyMethodsProtocol>() -> (
     Option<ffi::newfunc>,
     Option<ffi::initproc>,
     Option<ffi::PyCFunctionWithKeywords>,
     Vec<ffi::PyMethodDef>,
-)> {
+) {
     let mut defs = Vec::new();
     let mut call = None;
     let mut new = None;
@@ -512,7 +512,7 @@ fn py_class_method_defs<T: PyMethodsProtocol>() -> PyResult<(
 
     py_class_async_methods::<T>(&mut defs);
 
-    Ok((new, init, call, defs))
+    (new, init, call, defs)
 }
 
 fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
