@@ -1,4 +1,3 @@
-$ErrorActionPreference = "Stop"
 Set-PSDebug -trace 2
 
 python -m venv venv
@@ -13,8 +12,9 @@ foreach ($example in Get-ChildItem $examplesDirectory) {
     Pop-Location
     if ($LastExitCode -ne 0)
     {
-        Write-Error "${example} failed to build"
+        Throw "${example} failed to build"
     }
 }
 
+deactivate
 Remove-Item -Recurse venv
