@@ -23,4 +23,4 @@ test_script:
   - cargo test --verbose
   - pip install setuptools-rust pytest pytest-benchmark
   - cd examples/word-count && python setup.py install && pytest -v tests
-  - ps: ci/test_venv.ps1
+  - ps: .\ci\test_venv.ps1
