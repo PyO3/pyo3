@@ -11,4 +11,5 @@ for example_dir in examples/*; do
     cd -
 done
 
+deactivate
 rm -r venv
