@@ -2,7 +2,7 @@
 
 ## Python version
 
-PyO3 uses a build script to determine the python version and set the correct linker arguments. By default it uses the `python3` executable. You can override the python interpreter by setting `PYTHON_SYS_EXECUTABLE`, e.g., `PYTHON_SYS_EXECUTABLE=python3.6`.
+PyO3 uses a build script to determine the Python version and set the correct linker arguments. By default it uses the `python3` executable. You can override the Python interpreter by setting `PYTHON_SYS_EXECUTABLE`, e.g., `PYTHON_SYS_EXECUTABLE=python3.6`.
 
 ## Linking
 
@@ -32,11 +32,11 @@ my_main_crate = { path = "..", default-features = false }
 pyo3 = "0.6"
 ```
 
-On linux/mac you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a python installation.
+On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, while on windows you might need to set `LIB` to include `pythonxy.lib` (where x and y are major and minor version), which is normally either in the `libs` or `Lib` folder of a Python installation.
 
 ## Distribution
 
-There are two ways to distribute your module as python package: The old [setuptools-rust](https://github.com/PyO3/setuptools-rust) and the new [pyo3-pack](https://github.com/pyo3/pyo3-pack). setuptools-rust needs some configuration files (`setup.py`,  `MANIFEST.in`, `build-wheels.sh`, etc.) and external tools (docker, twine). pyo3-pack doesn't need any configuration files. It can not yet build sdist though ([pyo3/pyo3-pack#2](https://github.com/PyO3/pyo3-pack/issues/2)).
+There are two ways to distribute your module as a Python package: the old, [setuptools-rust](https://github.com/PyO3/setuptools-rust), and the new, [pyo3-pack](https://github.com/pyo3/pyo3-pack). setuptools-rust needs some configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.) and external tools (docker, twine). pyo3-pack doesn't need any configuration files. It can not yet build sdist though ([pyo3/pyo3-pack#2](https://github.com/PyO3/pyo3-pack/issues/2)).
 
 ## Cross Compiling
 
@@ -49,9 +49,9 @@ Cross compiling PyO3 modules is relatively straightforward and requires a few pi
 
 See https://github.com/japaric/rust-cross for a primer on cross compiling Rust in general.
 
-After you've obtained the above, you can build a cross compiled Pyo3 module by setting a few extra environment variables:
+After you've obtained the above, you can build a cross compiled PyO3 module by setting a few extra environment variables:
 
-* `PYO3_CROSS_INCLUDE_DIR`: This variable must be set to the directory containing the headers for the target's python interpreter.
+* `PYO3_CROSS_INCLUDE_DIR`: This variable must be set to the directory containing the headers for the target's Python interpreter.
 * `PYO3_CROSS_LIB_DIR`: This variable must be set to the directory containing the target's libpython DSO.
 
 An example might look like the following (assuming your target's sysroot is at `/home/pyo3/cross/sysroot` and that your target is `armv7`):

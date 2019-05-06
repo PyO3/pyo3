@@ -1,6 +1,6 @@
 # PyO3
 
-[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
+[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with Python code from a Rust binary, as well as writing native Python modules.
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 
@@ -10,13 +10,13 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
+PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.34.0-nightly 2019-02-06.
 
-You can either write a native python module in rust or use python from a rust binary.
+You can either write a native Python module in Rust, or use Python from a Rust binary.
 
 On some OSs, you need some additional packages.
 
-E.g. if you are on Ubuntu18.04, please run
+E.g. if you are on Ubuntu 18.04, please run
 
 ```bash
 sudo apt install python3-dev python-dev
@@ -24,7 +24,7 @@ sudo apt install python3-dev python-dev
 
 ## Using rust from python
 
-PyO3 can be used to generate a native python module.
+PyO3 can be used to generate a native Python module.
 
 **`Cargo.toml`:**
 
@@ -63,7 +63,7 @@ fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-On windows and linux, you can build normally with `cargo build --release`. On macOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
+On Windows and Linux, you can build normally with `cargo build --release`. On macOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
 
 ```toml
 [target.x86_64-apple-darwin]
@@ -73,20 +73,20 @@ rustflags = [
 ]
 ```
 
-For developing, you can copy and rename the shared library from the target folder: On macOS, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `string_sum.so`. Then open a python shell in the same folder and you'll be able to `import string_sum`.
+For developing, you can copy and rename the shared library from the target folder: On macOS, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
-To build, test and publish your crate as python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
+To build, test and publish your crate as a Python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
 
-## Using python from rust
+## Using Python from Rust
 
-Add `pyo3` this to your `Cargo.toml`:
+Add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
 pyo3 = "0.6"
 ```
 
-Example program displaying the value of `sys.version`:
+Example program displaying the value of `sys.version` and the current user name:
 
 ```rust
 use pyo3::prelude::*;
@@ -99,7 +99,8 @@ fn main() -> PyResult<()> {
     let version: String = sys.get("version")?.extract()?;
 
     let locals = [("os", py.import("os")?)].into_py_dict(py);
-    let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')", None, Some(&locals))?.extract()?;
+    let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')",
+                               None, Some(&locals))?.extract()?;
 
     println!("Hello {}, I'm Python {}", user, version);
     Ok(())

@@ -1,12 +1,12 @@
 # Appendix: PyO3 and rust-cpython
 
-PyO3 began as fork of [rust-cpython](https://github.com/dgrunwald/rust-cpython) when rust-cpython wasn't maintained. Over the time pyo3 has become fundamentally different from rust-cpython.
+PyO3 began as fork of [rust-cpython](https://github.com/dgrunwald/rust-cpython) when rust-cpython wasn't maintained. Over the time PyO3 has become fundamentally different from rust-cpython.
 
 This chapter is based on the discussion in [PyO3/pyo3#55](https://github.com/PyO3/pyo3/issues/55).
 
 ## Macros
 
-While rust-cpython has a macro based dsl for declaring modules and classes, PyO3 use proc macros and specialization. PyO3 also doesn't change your struct and functions so you can still use them as normal rust functions. The disadvantage is that proc macros and specialization currently only work on nightly.
+While rust-cpython has a macro based dsl for declaring modules and classes, PyO3 uses proc macros and specialization. PyO3 also doesn't change your struct and functions so you can still use them as normal Rust functions. The disadvantage is that specialization currently only works on nightly.
 
 **rust-cpython**
 
@@ -52,9 +52,9 @@ impl MyClass {
 
 ## Ownership and lifetimes
 
-All objects are owned by PyO3 library and all apis available with references, while in rust-cpython, you own python objects.
+All objects are owned by the PyO3 library and all APIs available with references, while in rust-cpython, you own python objects.
 
-Here is example of PyList api:
+Here is an example of the PyList API:
 
 **rust-cpython**
 
@@ -78,10 +78,10 @@ impl PyList {
 }
 ```
 
-Because PyO3 allows only references to python object, all reference have the Gil lifetime. So the python object is not required, and it is safe to have functions like `fn py<'p>(&'p self) -> Python<'p> {}`.
+Because PyO3 allows only references to Python objects, all references have the GIL lifetime. So the owned Python object is not required, and it is safe to have functions like `fn py<'p>(&'p self) -> Python<'p> {}`.
 
 ## Error handling
 
-rust-cpython requires a `Python` parameter for `PyErr`, so error handling ergonomics is pretty bad. It is not possible to use `?` with rust errors.
+rust-cpython requires a `Python` parameter for constructing a `PyErr`, so error handling ergonomics is pretty bad. It is not possible to use `?` with Rust errors.
 
-PyO3 on other hand does not require `Python` for `PyErr`, it is only required if you want to raise an exception in python with the `PyErr::restore()` method. Due to the `std::convert::From<Err> for PyErr` trait `?` is supported automatically.
+PyO3 on other hand does not require `Python` for constructing a `PyErr`, it is only required if you want to raise an exception in Python with the `PyErr::restore()` method. Due to various `std::convert::From<E> for PyErr` implementations for Rust standard error types `E`, propagating `?` is supported automatically.

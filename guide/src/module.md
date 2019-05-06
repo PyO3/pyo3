@@ -1,4 +1,4 @@
-# Python Module
+# Python Modules
 
 As shown in the Getting Started chapter, you can create a module as follows:
 
@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 #[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
-    // PyO3 aware function. All of our python interface could be declared in a separate module.
+    // PyO3 aware function. All of our python interfaces could be declared in a separate module.
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
     // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
@@ -31,7 +31,7 @@ fn sum_as_string(a:i64, b:i64) -> String {
 # fn main() {}
 ```
 
-The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your module to Python. It takes one argument as the name of your module, which must be the name of the `.so` or `.pyd` file.
+The `#[pymodule]` procedural macro attribute takes care of exporting the initialization function of your module to Python. It can take as an argument the name of your module, which must be the name of the `.so` or `.pyd` file; the default is the Rust function's name.
 
 To import the module, either copy the shared library as described in [Get Started](./overview.md) or use a tool, e.g. `pyo3-pack develop` with [pyo3-pack](https://github.com/PyO3/pyo3-pack) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
@@ -49,7 +49,7 @@ Which means that the above Python code will print `This module is implemented in
 
 ## Modules as objects
 
-In python, modules are first class objects. This means can store them as values or add them to dicts or other modules:
+In Python, modules are first class objects. This means that you can store them as values or add them to dicts or other modules:
 
 ```rust
 use pyo3::prelude::*;
@@ -82,3 +82,5 @@ fn nested_call() {
     py.run("assert supermodule.submodule.subfunction() == 'Subfunction'", None, Some(&ctx)).unwrap();
 }
 ```
+
+This way, you can create a module hierarchy within a single extension module.

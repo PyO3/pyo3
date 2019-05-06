@@ -1,7 +1,7 @@
-# Python Function
+# Python Functions
 
-PyO3 supports two ways to define a function in python. Both require registering
-the function to a [module](./module.md)
+PyO3 supports two ways to define a free function in Python. Both require registering
+the function to a [module](./module.md).
 
 One way is defining the function in the module definition.
 
@@ -15,7 +15,7 @@ fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
     // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a:i64, b:i64) -> PyResult<String> {
-       Ok(format!("{}", a + b).to_string())
+       Ok(format!("{}", a + b))
     }
 
     Ok(())
@@ -25,9 +25,7 @@ fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 ```
 
 The other is annotating a function with `#[pyfunction]` and then adding it
-to the module using the `add_wrapped_to_module!` macro, which takes the module
-as first parameter, the function name as second and an instance of `Python`
-as third.
+to the module using the `wrap_pyfunction!` macro.
 
 ```rust
 use pyo3::prelude::*;
@@ -51,13 +49,13 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 ### Making the function signature available to Python
 
 In order to make the function signature available to Python to be retrieved via
-`inspect.signature`, simply make sure the first line of your doc-string is
-formatted like in the example below. Please note that the new-line after the
-`--` is mandatory. The `/` signifies the end of positional only arguments. This
+`inspect.signature`, simply make sure the first line of your docstring is
+formatted like in the example below. Please note that the newline after the
+`--` is mandatory. The `/` signifies the end of positional-only arguments. This
 is not a feature of this library in particular, but the general format used by
 CPython for annotating signatures of built-in functions. Function signatures for
-built-ins are new in Python 3 — in Python 2, it is simply considered to be part
-of the doc-string.
+built-ins are new in Python 3 — in Python 2, they are simply considered to be a
+part of the docstring.
 
 ```rust
 use pyo3::prelude::*;
@@ -82,13 +80,12 @@ Type:      builtin_function_or_method
 
 ## Closures
 
-Currently, there are no conversions between `Fn`s in rust and callables in python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:
+Currently, there are no conversions between `Fn`s in Rust and callables in Python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:
 
-### Calling a python function in rust
+### Calling a Python function in Rust
 
-You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the args.
+You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the positional args.
 
-### Calling rust `Fn`s in python
+### Calling Rust `Fn`s in Python
 
-If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_pyfunction!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambda and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (Long-Term a special container similar to wasm-bindgen's `Closure` should take care of that). You can than use a `#[pyclass]` struct with that container as field as a way to pass the function over the ffi-barrier. You can even make that class callable with `__call__` so it looks like a function in python code.
-
+If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_pyfunction!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambda and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.
