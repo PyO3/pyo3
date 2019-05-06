@@ -5,7 +5,7 @@ use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
-use crate::instance::{Py, PyNativeType};
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
@@ -30,10 +30,10 @@ impl PyString {
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
-    pub fn new(_py: Python, s: &str) -> Py<PyString> {
+    pub fn new<'p>(py: Python<'p>, s: &str) -> &'p PyString {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
+        unsafe { py.from_owned_ptr(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
     pub fn from_object<'p>(src: &'p PyAny, encoding: &str, errors: &str) -> PyResult<&'p PyString> {
@@ -87,17 +87,17 @@ impl PyBytes {
     /// The byte string is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new(_py: Python, s: &[u8]) -> Py<PyBytes> {
+    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(ptr, len)) }
+        unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
     }
 
     /// Creates a new Python byte string object from raw pointer.
     ///
     /// Panics if out of memory.
-    pub unsafe fn from_ptr(_py: Python, ptr: *const u8, len: usize) -> Py<PyBytes> {
-        Py::from_owned_ptr_or_panic(ffi::PyBytes_FromStringAndSize(
+    pub unsafe fn from_ptr<'p>(py: Python<'p>, ptr: *const u8, len: usize) -> &'p PyBytes {
+        py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(
             ptr as *const _,
             len as isize,
         ))

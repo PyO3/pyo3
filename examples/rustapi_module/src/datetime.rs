@@ -6,7 +6,7 @@ use pyo3::types::{
 use pyo3::wrap_pyfunction;
 
 #[pyfunction]
-fn make_date(py: Python<'_>, year: i32, month: u8, day: u8) -> PyResult<Py<PyDate>> {
+fn make_date<'p>(py: Python<'p>, year: i32, month: u8, day: u8) -> PyResult<&'p PyDate> {
     PyDate::new(py, year, month, day)
 }
 
@@ -19,19 +19,19 @@ fn get_date_tuple(py: Python<'_>, d: &PyDate) -> Py<PyTuple> {
 }
 
 #[pyfunction]
-fn date_from_timestamp(py: Python<'_>, timestamp: i64) -> PyResult<Py<PyDate>> {
+fn date_from_timestamp<'p>(py: Python<'p>, timestamp: i64) -> PyResult<&'p PyDate> {
     PyDate::from_timestamp(py, timestamp)
 }
 
 #[pyfunction]
-fn make_time(
-    py: Python<'_>,
+fn make_time<'p>(
+    py: Python<'p>,
     hour: u8,
     minute: u8,
     second: u8,
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
-) -> PyResult<Py<PyTime>> {
+) -> PyResult<&'p PyTime> {
     PyTime::new(
         py,
         hour,
@@ -44,15 +44,15 @@ fn make_time(
 
 #[cfg(Py_3_6)]
 #[pyfunction]
-fn time_with_fold(
-    py: Python,
+fn time_with_fold<'p>(
+    py: Python<'p>,
     hour: u8,
     minute: u8,
     second: u8,
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
     fold: bool,
-) -> PyResult<Py<PyTime>> {
+) -> PyResult<&'p PyTime> {
     PyTime::new_with_fold(
         py,
         hour,
@@ -93,7 +93,12 @@ fn get_time_tuple_fold(py: Python, dt: &PyTime) -> Py<PyTuple> {
 }
 
 #[pyfunction]
-fn make_delta(py: Python<'_>, days: i32, seconds: i32, microseconds: i32) -> PyResult<Py<PyDelta>> {
+fn make_delta<'p>(
+    py: Python<'p>,
+    days: i32,
+    seconds: i32,
+    microseconds: i32,
+) -> PyResult<&'p PyDelta> {
     PyDelta::new(py, days, seconds, microseconds, true)
 }
 
@@ -110,8 +115,8 @@ fn get_delta_tuple(py: Python<'_>, delta: &PyDelta) -> Py<PyTuple> {
 }
 
 #[pyfunction]
-fn make_datetime(
-    py: Python<'_>,
+fn make_datetime<'p>(
+    py: Python<'p>,
     year: i32,
     month: u8,
     day: u8,
@@ -120,7 +125,7 @@ fn make_datetime(
     second: u8,
     microsecond: u32,
     tzinfo: Option<&PyTzInfo>,
-) -> PyResult<Py<PyDateTime>> {
+) -> PyResult<&'p PyDateTime> {
     PyDateTime::new(
         py,
         year,
@@ -169,11 +174,11 @@ fn get_datetime_tuple_fold(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
 }
 
 #[pyfunction]
-fn datetime_from_timestamp(
-    py: Python<'_>,
+fn datetime_from_timestamp<'p>(
+    py: Python<'p>,
     ts: f64,
     tz: Option<&PyTzInfo>,
-) -> PyResult<Py<PyDateTime>> {
+) -> PyResult<&'p PyDateTime> {
     PyDateTime::from_timestamp(py, ts, tz)
 }
 
@@ -194,7 +199,7 @@ impl TzClass {
         obj.init(TzClass {})
     }
 
-    fn utcoffset(&self, py: Python<'_>, _dt: &PyDateTime) -> PyResult<Py<PyDelta>> {
+    fn utcoffset<'p>(&self, py: Python<'p>, _dt: &PyDateTime) -> PyResult<&'p PyDelta> {
         PyDelta::new(py, 0, 3600, 0, true)
     }
 

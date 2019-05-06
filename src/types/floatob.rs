@@ -4,7 +4,7 @@
 
 use crate::err::PyErr;
 use crate::ffi;
-use crate::instance::{Py, PyNativeType};
+use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::PyAny;
@@ -28,8 +28,8 @@ pyobject_native_type!(PyFloat, ffi::PyFloat_Type, ffi::PyFloat_Check);
 
 impl PyFloat {
     /// Creates a new Python `float` object.
-    pub fn new(_py: Python, val: c_double) -> Py<PyFloat> {
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyFloat_FromDouble(val)) }
+    pub fn new<'p>(py: Python<'p>, val: c_double) -> &'p PyFloat {
+        unsafe { py.from_owned_ptr(ffi::PyFloat_FromDouble(val)) }
     }
 
     /// Gets the value of this float.
