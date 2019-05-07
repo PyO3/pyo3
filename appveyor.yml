@@ -21,5 +21,5 @@ build_script:
 
 test_script:
   - cargo test --verbose
-  - pip install setuptools-rust pytest pytest-benchmark
-  - cd examples/word-count && python setup.py install && pytest -v tests
+  - pip install setuptools-rust pytest pytest-benchmark tox
+  - cd examples/word-count && tox -e py
