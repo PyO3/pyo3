@@ -7,20 +7,17 @@ environment:
     - PYTHON: "C:/Python36-x64"
 
 install:
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - "python --version"
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-nightly-${env:TARGET}.msi"
-  - start /wait msiexec /i rust-nightly-%TARGET%.msi INSTALLDIR="%CD%\rust-nightly-%TARGET%" /quiet /qn /norestart
+  - python -V
+  - ps: .\ci\appveyor\setup.ps1
   - call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" amd64
-  - set PATH=%PATH%;%CD%/rust-nightly-%TARGET%/bin
   - rustc -V
   - cargo -V
 
 build_script:
   - cargo build --verbose
 
+before_test:
+  - pip install setuptools-rust pytest pytest-benchmark tox tox-venv
+
 test_script:
-  - cargo test --verbose
-  - pip install setuptools-rust pytest pytest-benchmark
-  - pushd examples\word-count && python setup.py install && pytest -v tests && popd
-  - ps: ci\test_venv.ps1
+  - ps: .\ci\appveyor\test.ps1
