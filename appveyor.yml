@@ -17,6 +17,7 @@ build_script:
   - cargo build --verbose
 
 before_test:
+  - pip install -U pip setuptools
   - pip install setuptools-rust pytest pytest-benchmark tox tox-venv
 
 test_script:
