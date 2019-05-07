@@ -1,6 +1,7 @@
 version: 0.2.{build}
 environment:
   TARGET: x86_64-pc-windows-msvc
+  RUST_BACKTRACE: 1
   matrix:
     - PYTHON: "C:/Python35-x64"
     - PYTHON: "C:/Python36-x64"
@@ -14,7 +15,6 @@ install:
   - set PATH=%PATH%;%CD%/rust-nightly-%TARGET%/bin
   - rustc -V
   - cargo -V
-  - set RUST_BACKTRACE=1
 
 build_script:
   - cargo build --verbose
