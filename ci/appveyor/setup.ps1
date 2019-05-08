@@ -4,6 +4,5 @@ Start-FileDownload "https://static.rust-lang.org/dist/rust-nightly-${env:TARGET}
 Start-Process -FilePath "msiexec.exe" -ArgumentList "/i rust-nightly-$env:TARGET.msi INSTALLDIR=`"$((Get-Location).Path)\rust-nightly-$env:TARGET`" /quiet /qn /norestart" -Wait
 $env:PATH="$env:PATH;$((Get-Location).Path)/rust-nightly-$env:TARGET/bin"
 
-$pythonBinary = "python"
-$pythonLocation = Invoke-Expression "$pythonBinary -c `"import sys; print(sys.base_prefix)`""
+$pythonLocation = Invoke-Expression "python -c `"import sys; print(sys.base_prefix)`""
 $env:LIBPATH = "$env:LIBPATH; $( Join-Path $pythonLocation "libs" )"
