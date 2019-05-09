@@ -531,10 +531,10 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
         interpreter_version
     ));
 
-    let libpath: &str = &lines[1];
-    let enable_shared: &str = &lines[2];
-    let ld_version: &str = &lines[3];
-    let base_prefix: &str = &lines[4];
+    let libpath = &lines[1];
+    let enable_shared = &lines[2];
+    let ld_version = &lines[3];
+    let base_prefix = &lines[4];
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os = "windows") {
