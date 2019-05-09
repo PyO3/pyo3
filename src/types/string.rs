@@ -2,7 +2,7 @@
 
 use crate::conversion::FromPyObject;
 use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
-use crate::err::{PyErr, PyResult};
+use crate::err::{self, PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
@@ -53,14 +53,18 @@ impl PyString {
     }
 
     /// Get the Python string as a byte slice.
+    ///
+    /// Panics if out of memory.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
             let mut size: ffi::Py_ssize_t = mem::uninitialized();
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
-            // PyUnicode_AsUTF8AndSize would return null if the pointer did not reference a valid
-            // unicode object, but because we have a valid PyString, assume success
-            debug_assert!(!data.is_null());
+            // PyUnicode_AsUTF8AndSize returns null in case of error, but because we have a valid
+            // PyString, only an out-of-memory error is possible.
+            if data.is_null() {
+                err::panic_after_error();
+            }
             std::slice::from_raw_parts(data, size as usize)
         }
     }
