@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fixed issues with `pymethods` crashing on doc comments containing double quotes.
  * `PySet::new` and `PyFrozenSet::new` now return `PyResult<&Py[Frozen]Set>`; exceptions are raised if
    the items are not hashable.
+ * Fixed building using `venv` on Windows.
 
 ## [0.6.0] - 2018-03-28
 
