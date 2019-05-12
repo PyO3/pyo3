@@ -45,6 +45,8 @@ features = ["extension-module"]
 **`src/lib.rs`**
 
 ```rust
+extern crate pyo3;
+
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
