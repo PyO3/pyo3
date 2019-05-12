@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
+use pyo3::type_object::initialize_type;
 use pyo3::types::IntoPyDict;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyDict, PyTuple};
 use pyo3::wrap_pyfunction;
 use std::isize;
 
@@ -116,4 +117,56 @@ fn pytuple_pyclass_iter() {
     py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
     py_assert!(py, tup, "tup[0] != tup[1]");
+}
+
+#[pyclass(dict)]
+struct PickleSupport {}
+
+#[pymethods]
+impl PickleSupport {
+    #[new]
+    fn new(obj: &PyRawObject) {
+        obj.init({ PickleSupport {} });
+    }
+
+    pub fn __reduce__(slf: PyRef<Self>) -> PyResult<(PyObject, Py<PyTuple>, PyObject)> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let cls = slf.to_object(py).getattr(py, "__class__")?;
+        let dict = slf.to_object(py).getattr(py, "__dict__")?;
+        Ok((cls, PyTuple::empty(py), dict))
+    }
+}
+
+fn add_module(py: Python, module: &PyModule) -> PyResult<()> {
+    py.import("sys")?
+        .dict()
+        .get_item("modules")
+        .unwrap()
+        .downcast_mut::<PyDict>()?
+        .set_item(module.name()?, module)
+}
+
+#[test]
+fn test_pickle() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let module = PyModule::new(py, "test_module").unwrap();
+    module.add_class::<PickleSupport>().unwrap();
+    add_module(py, module).unwrap();
+    initialize_type::<PickleSupport>(py, Some("test_module")).unwrap();
+    let inst = PyRef::new(py, PickleSupport {}).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
+        inst.a = 1
+        assert inst.__dict__ == {'a': 1}
+
+        import pickle
+        inst2 = pickle.loads(pickle.dumps(inst))
+
+        assert inst2.__dict__ == {'a': 1}
+    "#
+    );
 }

@@ -256,7 +256,7 @@ where
             let gil = Python::acquire_gil();
             let py = gil.python();
 
-            initialize_type::<Self>(py).unwrap_or_else(|_| {
+            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
                 panic!("An error occurred while initializing class {}", Self::NAME)
             });
         }
@@ -290,20 +290,14 @@ pub trait PyTypeCreate: PyObjectAlloc + PyTypeObject + Sized {
 impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeObject + Sized {}
 
 /// Register new type in python object system.
-///
-/// Currently, module_name is always None, so it defaults to pyo3_extension
 #[cfg(not(Py_LIMITED_API))]
-pub fn initialize_type<T>(py: Python) -> PyResult<*mut ffi::PyTypeObject>
+pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
 where
     T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
 {
-    let type_name = CString::new(T::NAME).expect("class name must not contain NUL byte");
-
     let type_object: &mut ffi::PyTypeObject = unsafe { T::type_object() };
     let base_type_object: &mut ffi::PyTypeObject =
         unsafe { <T::BaseType as PyTypeInfo>::type_object() };
-
-    type_object.tp_name = type_name.into_raw();
 
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
@@ -314,6 +308,13 @@ where
     };
 
     type_object.tp_base = base_type_object;
+
+    let name = match module_name {
+        Some(module_name) => format!("{}.{}", module_name, T::NAME),
+        None => T::NAME.to_string(),
+    };
+    let name = CString::new(name).expect("Module name/type name must not contain NUL byte");
+    type_object.tp_name = name.into_raw();
 
     // dealloc
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
