@@ -106,9 +106,9 @@ Many conversions in PyO3 can't use `std::convert::Into` because they need a GIL 
 
 Eventually, traits such as `IntoPyObject` will be replaced by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`.
 
-[`ToPyObject`]: https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/trait.ToPyObject.html
-[IntoPyObject]: https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/trait.IntoPyObject.html
-[PyObject]: https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/struct.PyObject.html
-[PyTuple]: https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/types/struct.PyTuple.html
-[ObjectProtocol]: https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/trait.ObjectProtocol.html
-[IntoPyDict]: https://docs.rs/pyo3/0.7.0-alpha.1/pyo3/types/trait.IntoPyDict.html
+[`ToPyObject`]: https://docs.rs/pyo3/0.7.0/pyo3/trait.ToPyObject.html
+[IntoPyObject]: https://docs.rs/pyo3/0.7.0/pyo3/trait.IntoPyObject.html
+[PyObject]: https://docs.rs/pyo3/0.7.0/pyo3/struct.PyObject.html
+[PyTuple]: https://docs.rs/pyo3/0.7.0/pyo3/types/struct.PyTuple.html
+[ObjectProtocol]: https://docs.rs/pyo3/0.7.0/pyo3/trait.ObjectProtocol.html
+[IntoPyDict]: https://docs.rs/pyo3/0.7.0/pyo3/types/trait.IntoPyDict.html

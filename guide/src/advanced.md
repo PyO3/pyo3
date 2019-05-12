@@ -12,7 +12,7 @@ Currently, [#341](https://github.com/PyO3/pyo3/issues/341) causes `cargo test` t
 
 ```toml
 [dependencies.pyo3]
-version = "0.7.0-alpha.1"
+version = "0.7.0"
 
 [features]
 extension-module = ["pyo3/extension-module"]
