@@ -123,6 +123,7 @@ fn main() -> PyResult<()> {
  * [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library_
  * [autopy](https://github.com/autopilot-rs/autopy) _A simple, cross-platform GUI automation library for Python and Rust._
  * [orjson](https://github.com/ijl/orjson)  _Fast Python JSON library_
+ * [inline-python](https://github.com/dronesforwork/inline-python) _Inline Python code directly in your Rust code_
 
 ## License
 
