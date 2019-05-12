@@ -6,32 +6,34 @@
 
 * API Documentation: [master](https://pyo3.rs/master/doc)
 
-A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust-cpython.html).
+A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
 ## Usage
 
 PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.34.0-nightly 2019-02-06.
 
+PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
+Please refer to the guide for installation instruction against PyPy.
+
 You can either write a native Python module in Rust, or use Python from a Rust binary.
 
-On some OSs, you need some additional packages.
-
-E.g. if you are on Ubuntu 18.04, please run
+However, on some OSs, you need some additional packages. E.g. if you are on *Ubuntu 18.04*, please run
 
 ```bash
 sudo apt install python3-dev python-dev
 ```
 
-## Using rust from python
+## Using Rust from Python
 
 PyO3 can be used to generate a native Python module.
 
-**`Cargo.toml`:**
+**`Cargo.toml`**
 
 ```toml
 [package]
 name = "string-sum"
 version = "0.1.0"
+edition = "2018"
 
 [lib]
 name = "string_sum"
@@ -73,7 +75,7 @@ rustflags = [
 ]
 ```
 
-For developing, you can copy and rename the shared library from the target folder: On macOS, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
+For developing, you can copy and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
 To build, test and publish your crate as a Python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
 
@@ -83,7 +85,7 @@ Add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
-pyo3 = "0.6"
+pyo3 = "0.7.0-alpha.1"
 ```
 
 Example program displaying the value of `sys.version` and the current user name:
@@ -97,11 +99,9 @@ fn main() -> PyResult<()> {
     let py = gil.python();
     let sys = py.import("sys")?;
     let version: String = sys.get("version")?.extract()?;
-
     let locals = [("os", py.import("os")?)].into_py_dict(py);
-    let user: String = py.eval("os.getenv('USER') or os.getenv('USERNAME')",
-                               None, Some(&locals))?.extract()?;
-
+    let code = "os.getenv('USER') or os.getenv('USERNAME') or 'Unknown'";
+    let user: String = py.eval(code, None, Some(&locals))?.extract()?;
     println!("Hello {}, I'm Python {}", user, version);
     Ok(())
 }

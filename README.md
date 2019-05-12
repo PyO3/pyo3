@@ -6,7 +6,7 @@
 [![crates.io](http://meritbadge.herokuapp.com/pyo3)](https://crates.io/crates/pyo3)
 [![Join the dev chat](https://img.shields.io/gitter/room/nwjs/nw.js.svg)](https://gitter.im/PyO3/Lobby)
 
-[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with python code from a rust binaries as well as writing native python modules.
+[Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with Python code from a Rust binary, as well as writing native Python modules.
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 
@@ -16,12 +16,12 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports Python 3.5 and up. The minimum required rust version is 1.34.0-nightly 2019-02-06.
+PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.34.0-nightly 2019-02-06.
 
 PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
 Please refer to the guide for installation instruction against PyPy.
 
-You can either write a native Python module in rust or use Python from a Rust binary.
+You can either write a native Python module in Rust, or use Python from a Rust binary.
 
 However, on some OSs, you need some additional packages. E.g. if you are on *Ubuntu 18.04*, please run
 
@@ -31,7 +31,7 @@ sudo apt install python3-dev python-dev
 
 ## Using Rust from Python
 
-PyO3 can be used to generate a native python module.
+PyO3 can be used to generate a native Python module.
 
 **`Cargo.toml`**
 
@@ -71,7 +71,7 @@ fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-On Windows and Linux, you can build normally with `cargo build --release`. On MacOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
+On Windows and Linux, you can build normally with `cargo build --release`. On macOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
 
 ```toml
 [target.x86_64-apple-darwin]
@@ -83,18 +83,18 @@ rustflags = [
 
 For developing, you can copy and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
-To build, test and publish your crate as Python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
+To build, test and publish your crate as a Python module, you can use [pyo3-pack](https://github.com/PyO3/pyo3-pack) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while pyo3-pack should work on your crate without any configuration.
 
-## Using python from rust
+## Using Python from Rust
 
-Add `pyo3` this to your `Cargo.toml`:
+Add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
 pyo3 = "0.7.0-alpha.1"
 ```
 
-Example program displaying the value of `sys.version`:
+Example program displaying the value of `sys.version` and the current user name:
 
 ```rust
 use pyo3::prelude::*;
