@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Add `marshal` module. [#460](https://github.com/PyO3/pyo3/pull/460)
 
 ### Changed
-
+ * `Python::run` returns `PyResult<()>` instead of `PyResult<&PyAny>`.
  * Methods decorated with `#[getter]` and `#[setter]` can now omit wrapping the
    result type in `PyResult` if they don't raise exceptions.
 

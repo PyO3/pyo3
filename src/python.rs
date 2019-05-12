@@ -108,8 +108,11 @@ impl<'p> Python<'p> {
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
-        self.run_code(code, ffi::Py_file_input, globals, locals)
+    ) -> PyResult<()> {
+        let res = self.run_code(code, ffi::Py_file_input, globals, locals);
+        res.map(|obj| {
+            debug_assert!(crate::ObjectProtocol::is_none(obj));
+        })
     }
 
     /// Runs code in the given context.
