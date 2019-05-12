@@ -503,7 +503,7 @@ if PYPY:
 else:
     print(sysconfig.get_config_var('Py_ENABLE_SHARED'))
 print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
-print(sys.exec_prefix)
+print(sys.base_prefix)
 print(platform.python_implementation())
 "#;
     let out = run_python_script(interpreter, script)?;
@@ -531,10 +531,10 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
         interpreter_version
     ));
 
-    let libpath: &str = &lines[1];
-    let enable_shared: &str = &lines[2];
-    let ld_version: &str = &lines[3];
-    let exec_prefix: &str = &lines[4];
+    let libpath = &lines[1];
+    let enable_shared = &lines[2];
+    let ld_version = &lines[3];
+    let base_prefix = &lines[4];
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os = "windows") {
@@ -545,7 +545,7 @@ fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<
         if libpath != "None" {
             println!("cargo:rustc-link-search=native={}", libpath);
         } else if cfg!(target_os = "windows") {
-            println!("cargo:rustc-link-search=native={}\\libs", exec_prefix);
+            println!("cargo:rustc-link-search=native={}\\libs", base_prefix);
         }
     }
 
