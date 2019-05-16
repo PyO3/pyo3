@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::env;
@@ -18,13 +19,24 @@ use version_check::{is_min_date, is_min_version, supports_features};
 const MIN_DATE: &'static str = "2019-02-06";
 const MIN_VERSION: &'static str = "1.34.0-nightly";
 
-#[derive(Debug, Clone, PartialEq)]
+/// Information returned from python interpreter
+#[derive(Deserialize, Debug)]
+struct InterpreterConfig {
+    version: PythonVersion,
+    libdir: Option<String>,
+    shared: bool,
+    ld_version: String,
+    /// Prefix used for determining the directory of libpython
+    base_prefix: String,
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum PythonInterpreterKind {
     CPython,
     PyPy,
 }
 
-#[derive(Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct PythonVersion {
     major: u8,
     // minor == None means any minor version will do
@@ -129,8 +141,7 @@ fn fix_config_map(mut config_map: HashMap<String, String>) -> HashMap<String, St
     config_map
 }
 
-fn load_cross_compile_info() -> Result<(PythonVersion, HashMap<String, String>, Vec<String>), String>
-{
+fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, String>), String> {
     let python_include_dir = env::var("PYO3_CROSS_INCLUDE_DIR").unwrap();
     let python_include_dir = Path::new(&python_include_dir);
 
@@ -153,19 +164,25 @@ fn load_cross_compile_info() -> Result<(PythonVersion, HashMap<String, String>, 
     };
 
     let config_map = parse_header_defines(python_include_dir.join("pyconfig.h"))?;
+    let shared = match config_map
+        .get("Py_ENABLE_SHARED")
+        .map(|x| x.as_str())
+        .ok_or("Py_ENABLE_SHARED is not defined".to_string())?
+    {
+        "1" | "true" | "True" => true,
+        "0" | "false" | "False" => false,
+        _ => panic!("Py_ENABLE_SHARED must be a bool (1/true/True or 0/false/False"),
+    };
 
-    let config_lines = vec![
-        "".to_owned(), // compatibility, not used when cross compiling.
-        env::var("PYO3_CROSS_LIB_DIR").unwrap(),
-        config_map
-            .get("Py_ENABLE_SHARED")
-            .expect("Py_ENABLE_SHARED undefined")
-            .to_owned(),
-        format!("{}.{}", major, minor),
-        "".to_owned(), // compatibility, not used when cross compiling.
-    ];
+    let intepreter_config = InterpreterConfig {
+        version: python_version,
+        libdir: Some(env::var("PYO3_CROSS_LIB_DIR").expect("PYO3_CROSS_LIB_DIR is not set")),
+        shared,
+        ld_version: "".to_string(),
+        base_prefix: "".to_string(),
+    };
 
-    Ok((python_version, fix_config_map(config_map), config_lines))
+    Ok((intepreter_config, fix_config_map(config_map)))
 }
 
 /// Examine python's compile flags to pass to cfg by launching
@@ -382,26 +399,6 @@ fn get_rustc_link_lib(
     ))
 }
 
-/// Parse string as interpreter version.
-fn get_interpreter_version(line: &str, implementation: &str) -> Result<PythonVersion, String> {
-    let version_re = Regex::new(r"\((\d+), (\d+)\)").unwrap();
-    match version_re.captures(&line) {
-        Some(cap) => Ok(PythonVersion {
-            major: cap.get(1).unwrap().as_str().parse().unwrap(),
-            minor: Some(cap.get(2).unwrap().as_str().parse().unwrap()),
-            implementation: match implementation {
-                "CPython" => PythonInterpreterKind::CPython,
-                "PyPy" => PythonInterpreterKind::PyPy,
-                _ => panic!(format!(
-                    "Unsupported python implementation `{}`",
-                    implementation
-                )),
-            },
-        }),
-        None => Err(format!("Unexpected response to version query {}", line)),
-    }
-}
-
 /// Locate a suitable python interpreter and extract config from it.
 ///
 /// The following locations are checked in the order listed:
@@ -413,204 +410,130 @@ fn get_interpreter_version(line: &str, implementation: &str) -> Result<PythonVer
 /// 4. `python{major version}.{minor version}`
 ///
 /// If none of the above works, an error is returned
-fn find_interpreter_and_get_config(
-) -> Result<(PythonVersion, HashMap<String, String>, Vec<String>), String> {
-    let version = version_from_env();
-
+fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<String, String>), String>
+{
     if let Some(sys_executable) = env::var_os("PYTHON_SYS_EXECUTABLE") {
         let interpreter_path = sys_executable
             .to_str()
             .expect("Unable to get PYTHON_SYS_EXECUTABLE value");
-        let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
-        if version != None && version.as_ref().unwrap() != &interpreter_version {
-            panic!(
-                "Unsupported python version in PYTHON_SYS_EXECUTABLE={}\n\
-                 \tmin version {} != found {}",
-                interpreter_path,
-                version.unwrap(),
-                interpreter_version
-            );
-        } else {
-            return Ok((
-                interpreter_version,
-                fix_config_map(get_config_vars(interpreter_path)?),
-                lines,
-            ));
-        }
-    };
+        let interpreter_config = get_config_from_interpreter(interpreter_path)?;
 
-    let expected_version = version.unwrap_or(PythonVersion {
-        major: 3,
-        minor: None,
-        implementation: PythonInterpreterKind::CPython,
-    });
-
-    let binary_name = match expected_version.implementation {
-        PythonInterpreterKind::CPython => "python",
-        PythonInterpreterKind::PyPy => "pypy",
+        return Ok((
+            interpreter_config,
+            fix_config_map(get_config_vars(interpreter_path)?),
+        ));
     };
 
     // check default python
-    let interpreter_path = binary_name;
+    let interpreter_path = "python";
 
-    let (interpreter_version, lines) = get_config_from_interpreter(interpreter_path)?;
-    if expected_version == interpreter_version {
+    let interpreter_config = get_config_from_interpreter(interpreter_path)?;
+    if interpreter_config.version.major == 3 {
         return Ok((
-            interpreter_version,
+            interpreter_config,
             fix_config_map(get_config_vars(interpreter_path)?),
-            lines,
         ));
     }
 
-    let major_interpreter_path = &format!("python{}", expected_version.major);
-    let (interpreter_version, lines) = get_config_from_interpreter(major_interpreter_path)?;
-    if expected_version == interpreter_version {
+    let major_interpreter_path = "python3";
+    let interpreter_config = get_config_from_interpreter(major_interpreter_path)?;
+    if interpreter_config.version.major == 3 {
         return Ok((
-            interpreter_version,
+            interpreter_config,
             fix_config_map(get_config_vars(major_interpreter_path)?),
-            lines,
         ));
-    }
-
-    if let Some(minor) = expected_version.minor {
-        let minor_interpreter_path = &format!("python{}.{}", expected_version.major, minor);
-        let (interpreter_version, lines) = get_config_from_interpreter(minor_interpreter_path)?;
-        if expected_version == interpreter_version {
-            return Ok((
-                interpreter_version,
-                fix_config_map(get_config_vars(minor_interpreter_path)?),
-                lines,
-            ));
-        }
     }
 
     Err(format!("No python interpreter found"))
 }
 
 /// Extract compilation vars from the specified interpreter.
-fn get_config_from_interpreter(interpreter: &str) -> Result<(PythonVersion, Vec<String>), String> {
+fn get_config_from_interpreter(interpreter: &str) -> Result<InterpreterConfig, String> {
     let script = r#"
 import sys
 import sysconfig
 import platform
+import json
 
 PYPY = platform.python_implementation() == "PyPy"
 
-print(sys.version_info[0:2])
-print(sysconfig.get_config_var('LIBDIR'))
-if PYPY:
-    print("1")
-else:
-    print(sysconfig.get_config_var('Py_ENABLE_SHARED'))
-print(sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'))
 try:
-    print(sys.base_prefix)
+    base_prefix = sys.base_prefix
 except AttributeError:
-    print(sys.exec_prefix)
-print(platform.python_implementation())
+    base_prefix = sys.exec_prefix
+
+print(json.dumps({
+    "version": {
+        "major": sys.version_info[0],
+        "minor": sys.version_info[1],
+        "implementation": platform.python_implementation()
+    },
+    "libdir": sysconfig.get_config_var('LIBDIR'),
+    "ld_version": sysconfig.get_config_var('LDVERSION') or sysconfig.get_config_var('py_version_short'),
+    "base_prefix": base_prefix,
+    "shared": PYPY or bool(sysconfig.get_config_var('Py_ENABLE_SHARED'))
+}))
 "#;
-    let out = run_python_script(interpreter, script)?;
-    let lines: Vec<String> = out.lines().map(|line| line.to_owned()).collect();
-    let interpreter_version = get_interpreter_version(&lines[0], &lines[5])?;
-    Ok((interpreter_version, lines))
+    let json = run_python_script(interpreter, script)?;
+    serde_json::from_str(&json).map_err(|e| format!("Deserializing failed: {}", e))
 }
 
-fn ensure_python_version_is_supported(version: &PythonVersion) -> Result<(), String> {
-    match (&version.implementation, version.major, version.minor) {
-        (PythonInterpreterKind::PyPy, 2, _) => {
-            Err("PyPy cpyext bindings is only supported for Python3".to_string())
+fn configure(interpreter_config: &InterpreterConfig) -> Result<(String), String> {
+    if let Some(minor) = interpreter_config.version.minor {
+        if minor < PY3_MIN_MINOR {
+            return Err(format!(
+                "Python 3 required version is 3.{}, current version is 3.{}",
+                PY3_MIN_MINOR, minor
+            ));
         }
-        (_, 3, Some(minor)) if minor < PY3_MIN_MINOR => Err(format!(
-            "Python 3 required version is 3.{}, current version is 3.{}",
-            PY3_MIN_MINOR, minor
-        )),
-        _ => Ok(()),
     }
-}
-
-fn configure(interpreter_version: &PythonVersion, lines: Vec<String>) -> Result<(String), String> {
-    ensure_python_version_is_supported(&interpreter_version).expect(&format!(
-        "Unsupported interpreter {:?}",
-        interpreter_version
-    ));
-
-    let libpath = &lines[1];
-    let enable_shared = &lines[2];
-    let ld_version = &lines[3];
-    let base_prefix = &lines[4];
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os = "windows") {
         println!(
             "{}",
-            get_rustc_link_lib(&interpreter_version, ld_version, enable_shared == "1").unwrap()
+            get_rustc_link_lib(
+                &interpreter_config.version,
+                &interpreter_config.ld_version,
+                interpreter_config.shared
+            )
+            .unwrap()
         );
-        if libpath != "None" {
-            println!("cargo:rustc-link-search=native={}", libpath);
+        if let Some(libdir) = &interpreter_config.libdir {
+            println!("cargo:rustc-link-search=native={}", libdir);
         } else if cfg!(target_os = "windows") {
-            println!("cargo:rustc-link-search=native={}\\libs", base_prefix);
+            println!(
+                "cargo:rustc-link-search=native={}\\libs",
+                interpreter_config.base_prefix
+            );
         }
     }
 
     let mut flags = String::new();
 
-    if interpreter_version.implementation == PythonInterpreterKind::PyPy {
+    if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
         println!("cargo:rustc-cfg=PyPy");
         flags += format!("CFG_PyPy").as_ref();
     };
 
-    if let PythonVersion {
-        major: 3,
-        minor: some_minor,
-        implementation: _,
-    } = interpreter_version
-    {
-        if env::var_os("CARGO_FEATURE_ABI3").is_some() {
-            println!("cargo:rustc-cfg=Py_LIMITED_API");
-        }
-
-        if let Some(minor) = some_minor {
-            for i in 5..(minor + 1) {
-                println!("cargo:rustc-cfg=Py_3_{}", i);
-                flags += format!("CFG_Py_3_{},", i).as_ref();
-            }
-        }
-        println!("cargo:rustc-cfg=Py_3");
-    } else {
+    if interpreter_config.version.major == 2 {
         // fail PYTHON_SYS_EXECUTABLE=python2 cargo ...
         return Err("Python 2 is not supported".to_string());
     }
-    return Ok(flags);
-}
 
-/// Determine the python version we're supposed to be building
-/// from the features passed via the environment.
-///
-/// The environment variable can choose to omit a minor
-/// version if the user doesn't care.
-fn version_from_env() -> Option<PythonVersion> {
-    let re = Regex::new(r"CARGO_FEATURE_PYTHON(\d+)(_(\d+))?").unwrap();
-    // sort env::vars so we get more explicit version specifiers first
-    // so if the user passes e.g. the python-3 feature and the python-3-5
-    // feature, python-3-5 takes priority.
-    let mut vars = env::vars().collect::<Vec<_>>();
-    vars.sort_by(|a, b| b.cmp(a));
-    for (key, _) in vars {
-        match re.captures(&key) {
-            Some(cap) => {
-                return Some(PythonVersion {
-                    major: cap.get(1).unwrap().as_str().parse().unwrap(),
-                    minor: match cap.get(3) {
-                        Some(s) => Some(s.as_str().parse().unwrap()),
-                        None => None,
-                    },
-                    implementation: PythonInterpreterKind::CPython,
-                });
-            }
-            None => (),
+    if env::var_os("CARGO_FEATURE_ABI3").is_some() {
+        println!("cargo:rustc-cfg=Py_LIMITED_API");
+    }
+
+    if let Some(minor) = interpreter_config.version.minor {
+        for i in 5..(minor + 1) {
+            println!("cargo:rustc-cfg=Py_3_{}", i);
+            flags += format!("CFG_Py_3_{},", i).as_ref();
         }
     }
-    None
+    println!("cargo:rustc-cfg=Py_3");
+
+    return Ok(flags);
 }
 
 fn check_rustc_version() {
@@ -667,14 +590,14 @@ fn main() -> Result<(), String> {
     // match the pkg-config package name, which is going to have a . in it).
     let cross_compiling =
         env::var("PYO3_CROSS_INCLUDE_DIR").is_ok() && env::var("PYO3_CROSS_LIB_DIR").is_ok();
-    let (interpreter_version, mut config_map, lines) = if cross_compiling {
+    let (interpreter_config, mut config_map) = if cross_compiling {
         load_cross_compile_info()?
     } else {
         find_interpreter_and_get_config()?
     };
 
     let flags;
-    match configure(&interpreter_version, lines) {
+    match configure(&interpreter_config) {
         Ok(val) => flags = val,
         Err(err) => {
             eprintln!("{}", err);
@@ -684,7 +607,7 @@ fn main() -> Result<(), String> {
 
     // These flags need to be enabled manually for PyPy, because it does not expose
     // them in `sysconfig.get_config_vars()`
-    if interpreter_version.implementation == PythonInterpreterKind::PyPy {
+    if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
         config_map.insert("Py_USING_UNICODE".to_owned(), "1".to_owned());
         config_map.insert("Py_UNICODE_SIZE".to_owned(), "4".to_owned());
@@ -692,7 +615,7 @@ fn main() -> Result<(), String> {
     }
 
     // WITH_THREAD is always on for 3.7
-    if interpreter_version.major == 3 && interpreter_version.minor.unwrap_or(0) >= 7 {
+    if interpreter_config.version.major == 3 && interpreter_config.version.minor.unwrap_or(0) >= 7 {
         config_map.insert("WITH_THREAD".to_owned(), "1".to_owned());
     }
 

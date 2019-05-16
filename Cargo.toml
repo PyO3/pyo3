@@ -19,7 +19,7 @@ travis-ci = { repository = "PyO3/pyo3", branch = "master" }
 appveyor = { repository = "fafhrd91/pyo3" }
 
 [dependencies]
-libc = "0.2.53"
+libc = "0.2.54"
 spin = "0.5.0"
 num-traits = "0.2.6"
 pyo3cls = { path = "pyo3cls", version = "=0.7.0-alpha.1" }
@@ -34,6 +34,8 @@ indoc = "0.3.3"
 [build-dependencies]
 regex = "1.1.6"
 version_check = "0.1.5"
+serde = { version = "1.0.91", features = ["derive"] }
+serde_json = "1.0.39"
 
 [features]
 default = []
