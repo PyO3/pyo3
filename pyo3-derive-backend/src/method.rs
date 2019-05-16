@@ -120,7 +120,7 @@ impl<'a> FnSpec<'a> {
         let ty = get_return_info(&sig.decl.output);
 
         if fn_type == FnType::Fn && !has_self {
-            if arguments.len() == 0 {
+            if arguments.is_empty() {
                 panic!("Static method needs #[staticmethod] attribute");
             }
             let tp = match arguments.remove(0).ty {
