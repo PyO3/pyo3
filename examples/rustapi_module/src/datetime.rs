@@ -11,7 +11,7 @@ fn make_date<'p>(py: Python<'p>, year: i32, month: u8, day: u8) -> PyResult<&'p 
 }
 
 #[pyfunction]
-fn get_date_tuple(py: Python<'_>, d: &PyDate) -> Py<PyTuple> {
+fn get_date_tuple<'p>(py: Python<'p>, d: &PyDate) -> &'p PyTuple {
     PyTuple::new(
         py,
         &[d.get_year(), d.get_month() as i32, d.get_day() as i32],
@@ -65,7 +65,7 @@ fn time_with_fold<'p>(
 }
 
 #[pyfunction]
-fn get_time_tuple(py: Python<'_>, dt: &PyTime) -> Py<PyTuple> {
+fn get_time_tuple<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     PyTuple::new(
         py,
         &[
@@ -79,7 +79,7 @@ fn get_time_tuple(py: Python<'_>, dt: &PyTime) -> Py<PyTuple> {
 
 #[cfg(Py_3_6)]
 #[pyfunction]
-fn get_time_tuple_fold(py: Python, dt: &PyTime) -> Py<PyTuple> {
+fn get_time_tuple_fold<'p>(py: Python<'p>, dt: &PyTime) -> &'p PyTuple {
     PyTuple::new(
         py,
         &[
@@ -103,7 +103,7 @@ fn make_delta<'p>(
 }
 
 #[pyfunction]
-fn get_delta_tuple(py: Python<'_>, delta: &PyDelta) -> Py<PyTuple> {
+fn get_delta_tuple<'p>(py: Python<'p>, delta: &PyDelta) -> &'p PyTuple {
     PyTuple::new(
         py,
         &[
@@ -140,7 +140,7 @@ fn make_datetime<'p>(
 }
 
 #[pyfunction]
-fn get_datetime_tuple(py: Python<'_>, dt: &PyDateTime) -> Py<PyTuple> {
+fn get_datetime_tuple<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     PyTuple::new(
         py,
         &[
@@ -157,7 +157,7 @@ fn get_datetime_tuple(py: Python<'_>, dt: &PyDateTime) -> Py<PyTuple> {
 
 #[cfg(Py_3_6)]
 #[pyfunction]
-fn get_datetime_tuple_fold(py: Python, dt: &PyDateTime) -> Py<PyTuple> {
+fn get_datetime_tuple_fold<'p>(py: Python<'p>, dt: &PyDateTime) -> &'p PyTuple {
     PyTuple::new(
         py,
         &[
