@@ -129,9 +129,10 @@ impl PickleSupport {
         obj.init({ PickleSupport {} });
     }
 
-    pub fn __reduce__(slf: PyRef<Self>) -> PyResult<(PyObject, Py<PyTuple>, PyObject)> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    pub fn __reduce__<'py>(
+        slf: PyRef<Self>,
+        py: Python<'py>,
+    ) -> PyResult<(PyObject, &'py PyTuple, PyObject)> {
         let cls = slf.to_object(py).getattr(py, "__class__")?;
         let dict = slf.to_object(py).getattr(py, "__dict__")?;
         Ok((cls, PyTuple::empty(py), dict))

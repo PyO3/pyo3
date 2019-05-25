@@ -426,7 +426,7 @@ where
 /// Converts `()` to an empty Python tuple.
 impl FromPy<()> for Py<PyTuple> {
     fn from_py(_: (), py: Python) -> Py<PyTuple> {
-        PyTuple::empty(py)
+        Py::from_py(PyTuple::empty(py), py)
     }
 }
 

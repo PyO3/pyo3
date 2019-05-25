@@ -93,8 +93,8 @@ impl Drop for ClassWithDrop {
         unsafe {
             let py = Python::assume_gil_acquired();
 
-            let _empty1 = PyTuple::empty(py);
-            let _empty2: PyObject = PyTuple::empty(py).into();
+            let _empty1: Py<PyTuple> = FromPy::from_py(PyTuple::empty(py), py);
+            let _empty2 = PyTuple::empty(py).into_object(py);
             let _empty3: &PyAny = py.from_owned_ptr(ffi::PyTuple_New(0));
         }
     }
@@ -110,9 +110,10 @@ fn create_pointers_in_drop() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let empty = PyTuple::empty(py);
+        let empty = PyTuple::empty(py).into_object(py);
         ptr = empty.as_ptr();
-        cnt = empty.get_refcnt() - 1;
+        // substract 2, because `PyTuple::empty(py).into_object(py)` increases the refcnt by 2
+        cnt = empty.get_refcnt() - 2;
         let inst = Py::new(py, ClassWithDrop {}).unwrap();
         drop(inst);
     }
