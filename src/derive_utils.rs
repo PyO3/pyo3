@@ -45,78 +45,63 @@ pub fn parse_fn_args<'p>(
 ) -> PyResult<()> {
     let nargs = args.len();
     let mut used_args = 0;
+    macro_rules! raise_error {
+        ($s: expr $(,$arg:expr)*) => (return Err(TypeError::py_err(format!(
+            concat!("{} ", $s), fname.unwrap_or("function") $(,$arg)*
+        ))))
+    }
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(p.name)) {
+        *out = match kwargs.and_then(|d| d.get_item(p.name)) {
             Some(kwarg) => {
-                *out = Some(kwarg);
                 if i < nargs {
-                    return Err(TypeError::py_err(format!(
-                        "{} got multiple values for argument '{}'",
-                        fname.unwrap_or("function"),
-                        p.name
-                    )));
+                    raise_error!("got multiple values for argument: {}", p.name)
                 }
                 kwargs.as_ref().unwrap().del_item(p.name).unwrap();
+                Some(kwarg)
             }
             None => {
                 if p.kw_only {
                     if !p.is_optional {
-                        return Err(TypeError::py_err(format!(
-                            "{} missing required keyword-only argument '{}'",
-                            fname.unwrap_or("function"),
-                            p.name
-                        )));
+                        raise_error!("missing required keyword-only argument: {}", p.name)
                     }
-                    *out = None;
+                    None
                 } else if i < nargs {
-                    *out = Some(args.get_item(i));
                     used_args += 1;
+                    Some(args.get_item(i))
                 } else {
-                    *out = None;
                     if !p.is_optional {
-                        return Err(TypeError::py_err(format!(
-                            "{} missing required positional argument: '{}'",
-                            fname.unwrap_or("function"),
-                            p.name
-                        )));
+                        raise_error!("missing required positional argument: {}", p.name)
                     }
+                    None
                 }
             }
         }
     }
-    // check for extraneous keyword arguments
-    if !accept_kwargs && !kwargs.as_ref().map_or(true, |d| d.is_empty()) {
-        for (key, _) in kwargs.unwrap().iter() {
-            // raise an error with any of the keys
-            return Err(TypeError::py_err(format!(
-                "{} got an unexpected keyword argument '{}'",
-                fname.unwrap_or("function"),
-                key
-            )));
-        }
+    let is_kwargs_empty = kwargs.as_ref().map_or(true, |dict| dict.is_empty());
+    // Raise an error when we get an unknown key
+    if !accept_kwargs && !is_kwargs_empty {
+        let (key, _) = kwargs.unwrap().iter().next().unwrap();
+        raise_error!("got an unexpected keyword argument: {}", key)
     }
-    // check for extraneous positional arguments
+    // Raise an error when we get too many positional args
     if !accept_args && used_args < nargs {
-        return Err(TypeError::py_err(format!(
-            "{} takes at most {} positional argument{} ({} given)",
-            fname.unwrap_or("function"),
+        raise_error!(
+            "takes at most {} positional argument{} ({} given)",
             used_args,
             if used_args == 1 { "" } else { "s" },
             nargs
-        )));
+        )
     }
-    // adjust the remaining args
+    // Adjust the remaining args
     if accept_args {
         let slice = args
             .slice(used_args as isize, nargs as isize)
             .into_object(py);
         *args = py.checked_cast_as(slice).unwrap();
     }
-    if accept_kwargs {
-        if kwargs.map_or(false, |d| d.is_empty()) {
-            *kwargs = None;
-        }
+    if accept_kwargs && is_kwargs_empty {
+        *kwargs = None;
     }
     Ok(())
 }
