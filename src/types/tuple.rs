@@ -21,7 +21,10 @@ pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.
-    pub fn new<'p, T, U>(py: Python<'p>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &'p PyTuple
+    pub fn new<'p, T, U>(
+        py: Python<'p>,
+        elements: impl IntoIterator<Item = T, IntoIter = U>,
+    ) -> &'p PyTuple
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
