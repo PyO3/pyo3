@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.7.0] - 2018-05-26
+
 ### Added
 
  * PyPy support by omerbenamram in [#393](https://github.com/PyO3/pyo3/pull/393)
@@ -289,7 +291,8 @@ Yanked
 
 * Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/pyo3/pyo3/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pyo3/pyo3/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/pyo3/pyo3/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/pyo3/pyo3/compare/v0.5.0...v0.5.2
