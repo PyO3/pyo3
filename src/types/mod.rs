@@ -79,9 +79,9 @@ macro_rules! pyobject_native_type_named (
 
 #[macro_export]
 macro_rules! pyobject_native_type (
-    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+    ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         pyobject_native_type_named!($name $(,$type_param)*);
-        pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
+        pyobject_native_type_convert!($name, $typeobject, $module, $checkfunction $(,$type_param)*);
 
         impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
             fn from(ob: &'a $name) -> Self {
@@ -93,12 +93,13 @@ macro_rules! pyobject_native_type (
 
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
-    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+    ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::types::PyAny;
 
             const NAME: &'static str = stringify!($name);
+            const MODULE: Option<&'static str> = $module;
             const SIZE: usize = ::std::mem::size_of::<$crate::ffi::PyObject>();
             const OFFSET: isize = 0;
 
