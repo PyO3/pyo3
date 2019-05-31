@@ -17,7 +17,12 @@ use std::slice;
 #[repr(transparent)]
 pub struct PyTuple(PyObject);
 
-pyobject_native_type!(PyTuple, ffi::PyTuple_Type, Some("builtins"), ffi::PyTuple_Check);
+pyobject_native_type!(
+    PyTuple,
+    ffi::PyTuple_Type,
+    Some("builtins"),
+    ffi::PyTuple_Check
+);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.

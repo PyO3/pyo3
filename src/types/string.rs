@@ -18,13 +18,23 @@ use std::{mem, str};
 #[repr(transparent)]
 pub struct PyString(PyObject);
 
-pyobject_native_type!(PyString, ffi::PyUnicode_Type, Some("builtins"), ffi::PyUnicode_Check);
+pyobject_native_type!(
+    PyString,
+    ffi::PyUnicode_Type,
+    Some("builtins"),
+    ffi::PyUnicode_Check
+);
 
 /// Represents a Python `byte` string.
 #[repr(transparent)]
 pub struct PyBytes(PyObject);
 
-pyobject_native_type!(PyBytes, ffi::PyBytes_Type, Some("builtins"), ffi::PyBytes_Check);
+pyobject_native_type!(
+    PyBytes,
+    ffi::PyBytes_Type,
+    Some("builtins"),
+    ffi::PyBytes_Check
+);
 
 impl PyString {
     /// Creates a new Python string object.

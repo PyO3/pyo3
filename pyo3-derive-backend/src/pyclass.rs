@@ -98,26 +98,19 @@ impl PyClassArgs {
             },
 
             "module" => match *assign.right {
-                syn::Expr::Lit(ref exp) => {
-                    match exp.lit {
-                        syn::Lit::Str(ref lit) => {
-                            self.module = Some(lit.clone());
-                        }
-                        _ => {
-                            return Err(syn::Error::new_spanned(
-                                *assign.right.clone(),
-                                "Wrong format for module",
-                            ));
-                        }
-                    }
-                },
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(ref lit),
+                    ..
+                }) => {
+                    self.module = Some(lit.clone());
+                }
                 _ => {
                     return Err(syn::Error::new_spanned(
                         *assign.right.clone(),
                         "Wrong format for module",
                     ));
                 }
-            }
+            },
 
             _ => {
                 return Err(syn::Error::new_spanned(

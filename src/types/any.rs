@@ -23,7 +23,12 @@ use crate::{ffi, PyObject, PyRef, PyRefMut, PyTryFrom, PyTypeInfo};
 #[repr(transparent)]
 pub struct PyAny(PyObject);
 pyobject_native_type_named!(PyAny);
-pyobject_native_type_convert!(PyAny, ffi::PyBaseObject_Type, Some("builtins"), ffi::PyObject_Check);
+pyobject_native_type_convert!(
+    PyAny,
+    ffi::PyBaseObject_Type,
+    Some("builtins"),
+    ffi::PyObject_Check
+);
 
 impl PyAny {
     pub fn downcast_ref<T>(&self) -> Result<&T, PyDowncastError>
