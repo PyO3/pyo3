@@ -66,7 +66,7 @@ pub trait PyTimeAccess {
 
 /// Bindings around `datetime.date`
 pub struct PyDate(PyObject);
-pyobject_native_type!(PyDate, *PyDateTimeAPI.DateType, PyDate_Check);
+pyobject_native_type!(PyDate, *PyDateTimeAPI.DateType, Some("datetime"), PyDate_Check);
 
 impl PyDate {
     pub fn new<'p>(py: Python<'p>, year: i32, month: u8, day: u8) -> PyResult<&'p PyDate> {
@@ -116,7 +116,7 @@ impl PyDateAccess for PyDate {
 
 /// Bindings for `datetime.datetime`
 pub struct PyDateTime(PyObject);
-pyobject_native_type!(PyDateTime, *PyDateTimeAPI.DateTimeType, PyDateTime_Check);
+pyobject_native_type!(PyDateTime, *PyDateTimeAPI.DateTimeType, Some("datetime"), PyDateTime_Check);
 
 impl PyDateTime {
     pub fn new<'p>(
@@ -220,7 +220,7 @@ impl PyTimeAccess for PyDateTime {
 
 /// Bindings for `datetime.time`
 pub struct PyTime(PyObject);
-pyobject_native_type!(PyTime, *PyDateTimeAPI.TimeType, PyTime_Check);
+pyobject_native_type!(PyTime, *PyDateTimeAPI.TimeType, Some("datetime"), PyTime_Check);
 
 impl PyTime {
     pub fn new<'p>(
@@ -299,11 +299,11 @@ impl PyTimeAccess for PyTime {
 ///
 /// This is an abstract base class and should not be constructed directly.
 pub struct PyTzInfo(PyObject);
-pyobject_native_type!(PyTzInfo, *PyDateTimeAPI.TZInfoType, PyTZInfo_Check);
+pyobject_native_type!(PyTzInfo, *PyDateTimeAPI.TZInfoType, Some("datetime"), PyTZInfo_Check);
 
 /// Bindings for `datetime.timedelta`
 pub struct PyDelta(PyObject);
-pyobject_native_type!(PyDelta, *PyDateTimeAPI.DeltaType, PyDelta_Check);
+pyobject_native_type!(PyDelta, *PyDateTimeAPI.DeltaType, Some("datetime"), PyDelta_Check);
 
 impl PyDelta {
     pub fn new<'p>(

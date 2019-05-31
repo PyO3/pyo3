@@ -18,8 +18,8 @@ pub struct PySet(PyObject);
 #[repr(transparent)]
 pub struct PyFrozenSet(PyObject);
 
-pyobject_native_type!(PySet, ffi::PySet_Type, ffi::PySet_Check);
-pyobject_native_type!(PyFrozenSet, ffi::PyFrozenSet_Type, ffi::PyFrozenSet_Check);
+pyobject_native_type!(PySet, ffi::PySet_Type, Some("builtins"), ffi::PySet_Check);
+pyobject_native_type!(PyFrozenSet, ffi::PyFrozenSet_Type, Some("builtins"), ffi::PyFrozenSet_Check);
 
 impl PySet {
     /// Creates a new set.
