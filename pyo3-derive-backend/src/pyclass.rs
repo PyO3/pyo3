@@ -96,7 +96,6 @@ impl PyClassArgs {
                     ));
                 }
             },
-
             "module" => match *assign.right {
                 syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(ref lit),
@@ -111,7 +110,6 @@ impl PyClassArgs {
                     ));
                 }
             },
-
             _ => {
                 return Err(syn::Error::new_spanned(
                     *assign.left.clone(),
