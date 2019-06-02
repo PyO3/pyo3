@@ -89,6 +89,9 @@ macro_rules! pyobject_native_type (
             }
         }
     };
+    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        pyobject_native_type!($name, $typeobject, None, $checkfunction, $(,$type_param)*);
+    }
 );
 
 #[macro_export]
@@ -154,6 +157,9 @@ macro_rules! pyobject_native_type_convert(
                 f.write_str(&s.to_string_lossy())
             }
         }
+    };
+    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
     };
 );
 
