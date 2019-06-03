@@ -25,6 +25,9 @@ pub trait PyTypeInfo {
     /// Class name
     const NAME: &'static str;
 
+    /// Module name, if any
+    const MODULE: Option<&'static str>;
+
     /// Class doc string
     const DESCRIPTION: &'static str = "\0";
 
@@ -256,7 +259,7 @@ where
             let gil = Python::acquire_gil();
             let py = gil.python();
 
-            initialize_type::<Self>(py, None).unwrap_or_else(|_| {
+            initialize_type::<Self>(py, <Self as PyTypeInfo>::MODULE).unwrap_or_else(|_| {
                 panic!("An error occurred while initializing class {}", Self::NAME)
             });
         }

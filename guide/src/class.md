@@ -104,6 +104,8 @@ If a custom class contains references to other Python objects that can be collec
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class.
 * `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
+* `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
+  will be a virtual member of the `builtins` module.
 
 ## Constructor
 

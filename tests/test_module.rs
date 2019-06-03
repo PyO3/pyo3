@@ -6,7 +6,10 @@ use pyo3::types::IntoPyDict;
 mod common;
 
 #[pyclass]
-struct EmptyClass {}
+struct AnonClass {}
+
+#[pyclass(module = "module")]
+struct LocatedClass {}
 
 fn sum_as_string(a: i64, b: i64) -> String {
     format!("{}", a + b).to_string()
@@ -34,7 +37,8 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
         Ok(42)
     }
 
-    m.add_class::<EmptyClass>().unwrap();
+    m.add_class::<AnonClass>().unwrap();
+    m.add_class::<LocatedClass>().unwrap();
 
     m.add("foo", "bar").unwrap();
 
@@ -63,7 +67,9 @@ fn test_module_with_functions() {
     run("assert module_with_functions.sum_as_string(1, 2) == '3'");
     run("assert module_with_functions.no_parameters() == 42");
     run("assert module_with_functions.foo == 'bar'");
-    run("assert module_with_functions.EmptyClass != None");
+    run("assert module_with_functions.AnonClass != None");
+    run("assert module_with_functions.LocatedClass != None");
+    run("assert module_with_functions.LocatedClass.__module__ == 'module'");
     run("assert module_with_functions.double(3) == 6");
     run("assert module_with_functions.double.__doc__ == 'Doubles the given value'");
     run("assert module_with_functions.also_double(3) == 6");

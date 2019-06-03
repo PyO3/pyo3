@@ -15,6 +15,7 @@ pub struct PyClassArgs {
     pub name: Option<syn::Expr>,
     pub flags: Vec<syn::Expr>,
     pub base: syn::TypePath,
+    pub module: Option<syn::LitStr>,
 }
 
 impl Parse for PyClassArgs {
@@ -34,6 +35,7 @@ impl Default for PyClassArgs {
         PyClassArgs {
             freelist: None,
             name: None,
+            module: None,
             // We need the 0 as value for the constant we're later building using quote for when there
             // are no other flags
             flags: vec![parse_quote! {0}],
@@ -91,6 +93,20 @@ impl PyClassArgs {
                     return Err(syn::Error::new_spanned(
                         *assign.right.clone(),
                         "Wrong format for extends",
+                    ));
+                }
+            },
+            "module" => match *assign.right {
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(ref lit),
+                    ..
+                }) => {
+                    self.module = Some(lit.clone());
+                }
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        *assign.right.clone(),
+                        "Wrong format for module",
                     ));
                 }
             },
@@ -298,6 +314,11 @@ fn impl_class(
     } else {
         quote! {0}
     };
+    let module = if let Some(m) = &attr.module {
+        quote! { Some(#m) }
+    } else {
+        quote! { None }
+    };
 
     let inventory_impl = impl_inventory(&cls);
 
@@ -310,6 +331,7 @@ fn impl_class(
             type BaseType = #base;
 
             const NAME: &'static str = #cls_name;
+            const MODULE: Option<&'static str> = #module;
             const DESCRIPTION: &'static str = #doc;
             const FLAGS: usize = #(#flags)|*;
 
