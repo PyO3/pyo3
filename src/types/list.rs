@@ -16,12 +16,7 @@ use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 #[repr(transparent)]
 pub struct PyList(PyObject);
 
-pyobject_native_type!(
-    PyList,
-    ffi::PyList_Type,
-    Some("builtins"),
-    ffi::PyList_Check
-);
+pyobject_native_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
 impl PyList {
     /// Construct a new list with the given elements.

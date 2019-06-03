@@ -12,12 +12,7 @@ use std::os::raw::c_double;
 #[repr(transparent)]
 pub struct PyComplex(PyObject);
 
-pyobject_native_type!(
-    PyComplex,
-    ffi::PyComplex_Type,
-    Some("builtins"),
-    ffi::PyComplex_Check
-);
+pyobject_native_type!(PyComplex, ffi::PyComplex_Type, ffi::PyComplex_Check);
 
 impl PyComplex {
     /// Creates a new Python `PyComplex` object, from its real and imaginary values.

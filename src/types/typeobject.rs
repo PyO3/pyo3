@@ -16,12 +16,7 @@ use std::ffi::CStr;
 #[repr(transparent)]
 pub struct PyType(PyObject);
 
-pyobject_native_type!(
-    PyType,
-    ffi::PyType_Type,
-    Some("builtins"),
-    ffi::PyType_Check
-);
+pyobject_native_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 
 impl PyType {
     #[inline]

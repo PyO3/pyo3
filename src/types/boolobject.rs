@@ -12,12 +12,7 @@ use crate::{IntoPyObject, PyTryFrom, ToPyObject};
 #[repr(transparent)]
 pub struct PyBool(PyObject);
 
-pyobject_native_type!(
-    PyBool,
-    ffi::PyBool_Type,
-    Some("builtins"),
-    ffi::PyBool_Check
-);
+pyobject_native_type!(PyBool, ffi::PyBool_Type, ffi::PyBool_Check);
 
 impl PyBool {
     /// Depending on `val`, returns `py.True()` or `py.False()`.

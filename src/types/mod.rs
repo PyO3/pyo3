@@ -90,8 +90,8 @@ macro_rules! pyobject_native_type (
         }
     };
     ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        pyobject_native_type!($name, $typeobject, None, $checkfunction, $(,$type_param)*);
-    }
+        pyobject_native_type!{$name, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*}
+    };
 );
 
 #[macro_export]
@@ -159,7 +159,7 @@ macro_rules! pyobject_native_type_convert(
         }
     };
     ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        pyobject_native_type_convert!($name, $typeobject, $checkfunction $(,$type_param)*);
+        pyobject_native_type_convert!{$name, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*}
     };
 );
 

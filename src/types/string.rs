@@ -18,12 +18,7 @@ use std::{mem, str};
 #[repr(transparent)]
 pub struct PyString(PyObject);
 
-pyobject_native_type!(
-    PyString,
-    ffi::PyUnicode_Type,
-    Some("builtins"),
-    ffi::PyUnicode_Check
-);
+pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
 /// Represents a Python `byte` string.
 #[repr(transparent)]
