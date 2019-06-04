@@ -154,6 +154,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::R
     let doc = utils::get_doc(&class.attrs, true);
     let mut descriptors = Vec::new();
 
+    check_generics(class)?;
     if let syn::Fields::Named(ref mut fields) = class.fields {
         for field in fields.named.iter_mut() {
             let field_descs = parse_descriptors(field)?;
@@ -459,5 +460,16 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                 <ClsInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }
         }
+    }
+}
+
+fn check_generics(class: &mut syn::ItemStruct) -> syn::Result<()> {
+    if class.generics.params.is_empty() {
+        Ok(())
+    } else {
+        Err(syn::Error::new_spanned(
+            &class.generics,
+            "#[pyclass] cannot have generic parameters",
+        ))
     }
 }

@@ -30,6 +30,7 @@ inventory = "0.1.3"
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
 indoc = "0.3.3"
+trybuild = "1.0"
 
 [build-dependencies]
 regex = "1.1.6"
