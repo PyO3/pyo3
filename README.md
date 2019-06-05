@@ -122,8 +122,11 @@ fn main() -> PyResult<()> {
  * [pyo3-built](https://github.com/PyO3/pyo3-built) _Simple macro to expose metadata obtained with the [`built`](https://crates.io/crates/built) crate as a [`PyDict`](https://pyo3.github.io/pyo3/pyo3/struct.PyDict.html)_
  * [point-process](https://github.com/ManifoldFR/point-process-rust/tree/master/pylib) _High level API for pointprocesses as a Python library_
  * [autopy](https://github.com/autopilot-rs/autopy) _A simple, cross-platform GUI automation library for Python and Rust._
+   * Contains an example of building wheels on TravisCI and appveyor using [cibuildwheel](https://github.com/joerick/cibuildwheel)
  * [orjson](https://github.com/ijl/orjson)  _Fast Python JSON library_
  * [inline-python](https://github.com/dronesforwork/inline-python) _Inline Python code directly in your Rust code_
+ * [Rogue-Gym](https://github.com/kngwyu/rogue-gym) _Customizable rogue-like game for AI expmeriments_
+   * Contains an example of building wheels on Azure Pipelines
 
 ## License
 
