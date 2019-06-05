@@ -259,7 +259,8 @@ where
             let gil = Python::acquire_gil();
             let py = gil.python();
 
-            initialize_type::<Self>(py, <Self as PyTypeInfo>::MODULE).unwrap_or_else(|_| {
+            initialize_type::<Self>(py, <Self as PyTypeInfo>::MODULE).unwrap_or_else(|e| {
+                e.print(py);
                 panic!("An error occurred while initializing class {}", Self::NAME)
             });
         }
