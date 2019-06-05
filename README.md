@@ -127,6 +127,7 @@ fn main() -> PyResult<()> {
  * [inline-python](https://github.com/dronesforwork/inline-python) _Inline Python code directly in your Rust code_
  * [Rogue-Gym](https://github.com/kngwyu/rogue-gym) _Customizable rogue-like game for AI expmeriments_
    * Contains an example of building wheels on Azure Pipelines
+ * [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library_
 
 ## License
 
