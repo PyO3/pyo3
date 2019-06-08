@@ -125,9 +125,10 @@ fn main() -> PyResult<()> {
    * Contains an example of building wheels on TravisCI and appveyor using [cibuildwheel](https://github.com/joerick/cibuildwheel)
  * [orjson](https://github.com/ijl/orjson)  _Fast Python JSON library_
  * [inline-python](https://github.com/dronesforwork/inline-python) _Inline Python code directly in your Rust code_
- * [Rogue-Gym](https://github.com/kngwyu/rogue-gym) _Customizable rogue-like game for AI expmeriments_
+ * [Rogue-Gym](https://github.com/kngwyu/rogue-gym) _Customizable rogue-like game for AI experiments_
    * Contains an example of building wheels on Azure Pipelines
  * [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library_
+ * [python-ext-wasm](https://github.com/wasmerio/python-ext-wasm) _Python library to run WebAssembly binaries_
 
 ## License
 
