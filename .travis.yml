@@ -55,12 +55,12 @@ script:
   - ./ci/travis/test.sh
 
 after_success:
-  - ./ci/travis/cover.sh
+  - ./ci/travis/cover.sh || true
 
 deploy:
   - provider: script
     skip_cleanup: true
-    script: ./ci/travis/cover.sh
+    script: ./ci/travis/cover.sh || true
     on:
       branch: master
       condition: $TRAVIS_EVENT_TYPE != "cron"
