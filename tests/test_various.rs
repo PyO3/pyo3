@@ -2,10 +2,9 @@ use pyo3::prelude::*;
 use pyo3::type_object::initialize_type;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::wrap_pyfunction;
+use pyo3::{py_run, wrap_pyfunction};
 use std::isize;
 
-#[macro_use]
 mod common;
 
 #[pyclass]

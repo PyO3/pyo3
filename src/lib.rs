@@ -133,6 +133,9 @@ pub use crate::type_object::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 // Re-exported for wrap_function
 #[doc(hidden)]
 pub use mashup;
+// Re-exported for py_run
+#[doc(hidden)]
+pub use indoc;
 // Re-exported for pymethods
 #[doc(hidden)]
 pub use inventory;
@@ -208,6 +211,96 @@ macro_rules! wrap_pymodule {
             &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, "method"()) }
         }
     }};
+}
+
+/// A convinient macro to execute a Python code snippet, with some local variables set.
+///
+/// # Example
+/// ```
+/// use pyo3::{prelude::*, py_run, types::PyList};
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let obj = pyo3::types::PyDict::new(py);
+/// let list = PyList::new(py, &[1, 2, 3]);
+/// py_run!(py, list, "assert list == [1, 2, 3]");
+/// ```
+///
+/// You can use this macro to test pyfunctions or pyclasses quickly.
+///
+/// # Example
+/// ```
+/// use pyo3::{prelude::*, PyRawObject, py_run};
+/// #[pyclass]
+/// struct Time {
+///     hour: u32,
+///     minute: u32,
+///     second: u32,
+/// }
+/// #[pymethods]
+/// impl Time {
+///     fn repl_japanese(&self) -> String {
+///         format!("{}時{}分{}秒", self.hour, self.minute, self.second)
+///     }
+///     #[getter]
+///     fn hour(&self) -> PyResult<u32> {
+///         Ok(self.hour)
+///     }
+/// }
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let time = PyRef::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+/// py_run!(py, time, r#"
+/// assert time.hour == 8
+/// assert time.repl_japanese() == "8時43分16秒"
+/// "#);
+/// ```
+#[macro_export]
+macro_rules! py_run {
+    ($py:expr, $($val:ident )+, $code:literal) => {{
+        pyo3::py_run_impl!($py, $($val)+, pyo3::indoc::indoc!($code))
+    }};
+    ($py:expr, $($val:ident )+, $code:expr) => {{
+        pyo3::py_run_impl!($py, $($val)+, &pyo3::_indoc_runtime($code))
+    }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_run_impl {
+    ($py:expr, $($val:ident )+, $code:expr) => {{
+        use pyo3::types::IntoPyDict;
+        let d = [$((stringify!($val), &$val))*].into_py_dict($py);
+
+        $py.run($code, None, Some(d))
+            .map_err(|e| {
+                e.print($py);
+                // So when this c api function the last line called printed the error to stderr,
+                // the output is only written into a buffer which is never flushed because we
+                // panic before flushing. This is where this hack comes into place
+                $py.run("import sys; sys.stderr.flush()", None, None)
+                    .unwrap();
+            })
+            .expect($code)
+    }};
+}
+
+/// Removes indentation from multiline strings in pyrun commands
+#[doc(hidden)]
+pub fn _indoc_runtime(commands: &str) -> String {
+    let indent;
+    if let Some(second) = commands.lines().nth(1) {
+        indent = second
+            .chars()
+            .take_while(char::is_ascii_whitespace)
+            .collect::<String>();
+    } else {
+        indent = "".to_string();
+    }
+
+    commands
+        .trim_end()
+        .replace(&("\n".to_string() + &indent), "\n")
+        + "\n"
 }
 
 /// Test readme and user guide

@@ -25,11 +25,11 @@ num-traits = "0.2.6"
 pyo3cls = { path = "pyo3cls", version = "=0.7.0" }
 mashup = "0.1.9"
 num-complex = { version = "0.2.1", optional = true }
+indoc = "0.3.3"
 inventory = "0.1.3"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-indoc = "0.3.3"
 trybuild = "1.0"
 
 [build-dependencies]
