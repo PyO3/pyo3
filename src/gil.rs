@@ -123,7 +123,7 @@ struct ReleasePool {
     owned: ArrayList<NonNull<ffi::PyObject>>,
     borrowed: ArrayList<NonNull<ffi::PyObject>>,
     pointers: *mut Vec<NonNull<ffi::PyObject>>,
-    obj: Vec<Box<any::Any>>,
+    obj: Vec<Box<dyn any::Any>>,
     p: spin::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
