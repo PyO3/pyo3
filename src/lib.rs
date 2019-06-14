@@ -213,14 +213,13 @@ macro_rules! wrap_pymodule {
     }};
 }
 
-/// A convinient macro to execute a Python code snippet, with some local variables set.
+/// A convenient macro to execute a Python code snippet, with some local variables set.
 ///
 /// # Example
 /// ```
 /// use pyo3::{prelude::*, py_run, types::PyList};
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let obj = pyo3::types::PyDict::new(py);
 /// let list = PyList::new(py, &[1, 2, 3]);
 /// py_run!(py, list, "assert list == [1, 2, 3]");
 /// ```
@@ -229,8 +228,9 @@ macro_rules! wrap_pymodule {
 ///
 /// # Example
 /// ```
-/// use pyo3::{prelude::*, PyRawObject, py_run};
+/// use pyo3::{prelude::*, py_run};
 /// #[pyclass]
+/// #[derive(Debug)]
 /// struct Time {
 ///     hour: u32,
 ///     minute: u32,
@@ -242,24 +242,35 @@ macro_rules! wrap_pymodule {
 ///         format!("{}時{}分{}秒", self.hour, self.minute, self.second)
 ///     }
 ///     #[getter]
-///     fn hour(&self) -> PyResult<u32> {
-///         Ok(self.hour)
+///     fn hour(&self) -> u32 {
+///         self.hour
+///     }
+///     fn as_tuple(&self) -> (u32, u32, u32) {
+///         (self.hour, self.minute, self.second)
 ///     }
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let time = PyRef::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
-/// py_run!(py, time, r#"
+/// let time_as_tuple = (8, 43, 16);
+/// py_run!(py, time time_as_tuple, r#"
 /// assert time.hour == 8
 /// assert time.repl_japanese() == "8時43分16秒"
+/// assert time.as_tuple() == time_as_tuple
 /// "#);
 /// ```
+///
+/// **Note**
+/// Since this macro is intended to use for testing, it **causes panic** when
+/// [Python::run] returns `Err` internally.
+/// If you need to handle failures, please use [Python::run] directly.
+///
 #[macro_export]
 macro_rules! py_run {
-    ($py:expr, $($val:ident )+, $code:literal) => {{
+    ($py:expr, $($val:ident)+, $code:literal) => {{
         pyo3::py_run_impl!($py, $($val)+, pyo3::indoc::indoc!($code))
     }};
-    ($py:expr, $($val:ident )+, $code:expr) => {{
+    ($py:expr, $($val:ident)+, $code:expr) => {{
         pyo3::py_run_impl!($py, $($val)+, &pyo3::_indoc_runtime($code))
     }};
 }
@@ -267,9 +278,10 @@ macro_rules! py_run {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_run_impl {
-    ($py:expr, $($val:ident )+, $code:expr) => {{
+    ($py:expr, $($val:ident)+, $code:expr) => {{
         use pyo3::types::IntoPyDict;
-        let d = [$((stringify!($val), &$val))*].into_py_dict($py);
+        use pyo3::ToPyObject;
+        let d = [$((stringify!($val), $val.to_object($py)),)+].into_py_dict($py);
 
         $py.run($code, None, Some(d))
             .map_err(|e| {
@@ -287,20 +299,25 @@ macro_rules! py_run_impl {
 /// Removes indentation from multiline strings in pyrun commands
 #[doc(hidden)]
 pub fn _indoc_runtime(commands: &str) -> String {
-    let indent;
-    if let Some(second) = commands.lines().nth(1) {
-        indent = second
-            .chars()
-            .take_while(char::is_ascii_whitespace)
-            .collect::<String>();
-    } else {
-        indent = "".to_string();
+    let ignore_first_line = commands.starts_with("\n") || commands.starts_with("\r\n");
+    let num_spaces = commands
+        .lines()
+        .skip(1)
+        .map(|s| s.chars().take_while(char::is_ascii_whitespace).count())
+        .min()
+        .unwrap_or(0);
+    let mut res = String::with_capacity(commands.len());
+    for (i, line) in commands.lines().enumerate() {
+        if i > 1 || (i == 1 && !ignore_first_line) {
+            res.push_str("\n")
+        }
+        if i == 0 {
+            res.push_str(line);
+        } else if line.len() > num_spaces {
+            res.push_str(&line[num_spaces..])
+        }
     }
-
-    commands
-        .trim_end()
-        .replace(&("\n".to_string() + &indent), "\n")
-        + "\n"
+    res
 }
 
 /// Test readme and user guide
@@ -335,4 +352,30 @@ pub mod doc_test {
     doctest!("../guide/src/parallelism.md", guide_parallelism_md);
     doctest!("../guide/src/pypy.md", guide_pypy_md);
     doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
+}
+
+#[test]
+fn test_indoc_runtime() {
+    macro_rules! test_indoc {
+        ($code: literal) => {
+            assert_eq!(indoc::indoc!($code), &_indoc_runtime($code));
+        };
+    }
+    test_indoc!(
+        r#"
+    assert time.hour == 8
+    assert time.repl_japanese() == "8時43分16秒"
+    assert time.as_tuple() == time_as_tuple
+"#
+    );
+    test_indoc!(
+        r#"
+def euclid(m, n):
+    assert m >= n
+    if n == 0:
+        return m
+    else:
+        return euclid(n, m % n)
+"#
+    );
 }
