@@ -192,7 +192,7 @@ impl PyModule {
     /// ```rust,ignore
     /// m.add("also_double", wrap_pyfunction!(double)(py));
     /// ```
-    pub fn add_wrapped(&self, wrapper: &dyn Fn(Python) -> PyObject) -> PyResult<()> {
+    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) -> PyResult<()> {
         let function = wrapper(self.py());
         let name = function
             .getattr(self.py(), "__name__")
