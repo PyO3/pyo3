@@ -142,6 +142,9 @@ pub use inventory;
 // Re-exported for the `__wrap` functions
 #[doc(hidden)]
 pub use libc;
+// Re-exported for py_run
+#[doc(hidden)]
+pub use unindent;
 
 /// Raw ffi declarations for the c interface of python
 pub mod ffi;
@@ -271,7 +274,7 @@ macro_rules! py_run {
         pyo3::py_run_impl!($py, $($val)+, pyo3::indoc::indoc!($code))
     }};
     ($py:expr, $($val:ident)+, $code:expr) => {{
-        pyo3::py_run_impl!($py, $($val)+, &pyo3::_indoc_runtime($code))
+        pyo3::py_run_impl!($py, $($val)+, &pyo3::unindent::unindent($code))
     }};
 }
 
@@ -294,30 +297,6 @@ macro_rules! py_run_impl {
             })
             .expect($code)
     }};
-}
-
-/// Removes indentation from multiline strings in pyrun commands
-#[doc(hidden)]
-pub fn _indoc_runtime(commands: &str) -> String {
-    let ignore_first_line = commands.starts_with("\n") || commands.starts_with("\r\n");
-    let num_spaces = commands
-        .lines()
-        .skip(1)
-        .map(|s| s.chars().take_while(char::is_ascii_whitespace).count())
-        .min()
-        .unwrap_or(0);
-    let mut res = String::with_capacity(commands.len());
-    for (i, line) in commands.lines().enumerate() {
-        if i > 1 || (i == 1 && !ignore_first_line) {
-            res.push_str("\n")
-        }
-        if i == 0 {
-            res.push_str(line);
-        } else if line.len() > num_spaces {
-            res.push_str(&line[num_spaces..])
-        }
-    }
-    res
 }
 
 /// Test readme and user guide
@@ -352,30 +331,4 @@ pub mod doc_test {
     doctest!("../guide/src/parallelism.md", guide_parallelism_md);
     doctest!("../guide/src/pypy.md", guide_pypy_md);
     doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
-}
-
-#[test]
-fn test_indoc_runtime() {
-    macro_rules! test_indoc {
-        ($code: literal) => {
-            assert_eq!(indoc::indoc!($code), &_indoc_runtime($code));
-        };
-    }
-    test_indoc!(
-        r#"
-    assert time.hour == 8
-    assert time.repl_japanese() == "8時43分16秒"
-    assert time.as_tuple() == time_as_tuple
-"#
-    );
-    test_indoc!(
-        r#"
-def euclid(m, n):
-    assert m >= n
-    if n == 0:
-        return m
-    else:
-        return euclid(n, m % n)
-"#
-    );
 }
