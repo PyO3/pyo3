@@ -1,8 +1,8 @@
 use pyo3::prelude::*;
+use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
 use pyo3::PyRawObject;
 
-#[macro_use]
 mod common;
 
 #[pyclass]

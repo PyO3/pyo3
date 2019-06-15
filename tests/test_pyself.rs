@@ -5,7 +5,6 @@ use pyo3::types::{PyBytes, PyString};
 use pyo3::PyIterProtocol;
 use std::collections::HashMap;
 
-#[macro_use]
 mod common;
 
 /// Assumes it's a file reader or so.

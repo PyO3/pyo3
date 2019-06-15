@@ -3,6 +3,7 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
+use pyo3::py_run;
 use pyo3::types::PyAny;
 use pyo3::types::PyTuple;
 use pyo3::AsPyPointer;
@@ -11,7 +12,6 @@ use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[macro_use]
 mod common;
 
 #[pyclass(freelist = 2)]

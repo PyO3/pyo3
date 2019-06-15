@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 
 use pyo3::types::IntoPyDict;
 
-#[macro_use]
 mod common;
 
 #[pyclass]

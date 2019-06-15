@@ -1,9 +1,9 @@
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;
+use pyo3::py_run;
 use pyo3::types::PyAny;
 
-#[macro_use]
 mod common;
 
 #[pyclass]
