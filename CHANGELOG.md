@@ -10,7 +10,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * `module` argument to `pyclass` macro. [#499](https://github.com/PyO3/pyo3/pull/499)
+ * `py_run!` macro [#512](https://github.com/PyO3/pyo3/pull/512)
 
+### Fixed
+
+ * More readable error message for generics in pyclass [#503](https://github.com/PyO3/pyo3/pull/503)
+
+### Changed
 
 ## [0.7.0] - 2018-05-26
 
