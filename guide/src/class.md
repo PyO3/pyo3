@@ -460,8 +460,8 @@ use pyo3::types::{PyDict, PyTuple};
 #
 #[pymethods]
 impl MyClass {
-    #[args(arg1=true, args="*", arg2=10, kwargs="**")]
-    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, kwargs: Option<&PyDict>) -> PyResult<i32> {
+    #[args(arg1=true, args="*", arg2=10, args3="\"Hello\"", kwargs="**")]
+    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, arg3: &str, kwargs: Option<&PyDict>) -> PyResult<i32> {
         Ok(1)
     }
 }
