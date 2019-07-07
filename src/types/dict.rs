@@ -10,7 +10,7 @@ use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
 use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
-use std::{cmp, collections, hash, mem};
+use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -172,8 +172,8 @@ impl<'py> Iterator for PyDictIterator<'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
-            let mut key: *mut ffi::PyObject = mem::uninitialized();
-            let mut value: *mut ffi::PyObject = mem::uninitialized();
+            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.py;
                 Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
