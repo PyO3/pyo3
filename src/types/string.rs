@@ -12,7 +12,7 @@ use crate::AsPyPointer;
 use crate::Python;
 use std::borrow::Cow;
 use std::os::raw::c_char;
-use std::{mem, str};
+use std::str;
 
 /// Represents a Python `string`.
 #[repr(transparent)]
@@ -56,7 +56,7 @@ impl PyString {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
-            let mut size: ffi::Py_ssize_t = mem::uninitialized();
+            let mut size: ffi::Py_ssize_t = 0;
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
             // PyUnicode_AsUTF8AndSize would return null if the pointer did not reference a valid
             // unicode object, but because we have a valid PyString, assume success

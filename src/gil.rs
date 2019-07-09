@@ -9,8 +9,8 @@ use spin;
 use std::ptr::NonNull;
 use std::{any, marker, rc, sync};
 
-static START: sync::Once = sync::ONCE_INIT;
-static START_PYO3: sync::Once = sync::ONCE_INIT;
+static START: sync::Once = sync::Once::new();
+static START_PYO3: sync::Once = sync::Once::new();
 
 /// Prepares the use of Python in a free-threaded context.
 ///
@@ -301,7 +301,8 @@ mod array_list {
         pub fn push_back(&mut self, item: T) -> &T {
             let next_idx = self.next_idx();
             if next_idx == 0 {
-                self.inner.push_back(unsafe { mem::uninitialized() });
+                self.inner
+                    .push_back(unsafe { mem::MaybeUninit::uninit().assume_init() });
             }
             self.inner.back_mut().unwrap()[next_idx] = item;
             self.length += 1;
