@@ -352,36 +352,24 @@ where
     // basic methods
     <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
 
+    fn to_ptr<T>(value: Option<T>) -> *mut T {
+        value
+            .map(|v| Box::into_raw(Box::new(v)))
+            .unwrap_or_else(ptr::null_mut)
+    }
+
     // number methods
-    if let Some(meth) = <T as class::number::PyNumberProtocolImpl>::tp_as_number() {
-        type_object.tp_as_number = Box::into_raw(Box::new(meth));
-    } else {
-        type_object.tp_as_number = ::std::ptr::null_mut()
-    }
-
+    type_object.tp_as_number = to_ptr(<T as class::number::PyNumberProtocolImpl>::tp_as_number());
     // mapping methods
-    if let Some(meth) = <T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping() {
-        type_object.tp_as_mapping = Box::into_raw(Box::new(meth));
-    } else {
-        type_object.tp_as_mapping = ::std::ptr::null_mut()
-    }
-
+    type_object.tp_as_mapping =
+        to_ptr(<T as class::mapping::PyMappingProtocolImpl>::tp_as_mapping());
     // sequence methods
-    if let Some(meth) = <T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence() {
-        type_object.tp_as_sequence = Box::into_raw(Box::new(meth));
-    } else {
-        type_object.tp_as_sequence = ::std::ptr::null_mut()
-    }
-
+    type_object.tp_as_sequence =
+        to_ptr(<T as class::sequence::PySequenceProtocolImpl>::tp_as_sequence());
     // async methods
-    async_methods::<T>(type_object);
-
+    type_object.tp_as_async = to_ptr(<T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async());
     // buffer protocol
-    if let Some(meth) = <T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer() {
-        type_object.tp_as_buffer = Box::into_raw(Box::new(meth));
-    } else {
-        type_object.tp_as_buffer = ::std::ptr::null_mut()
-    }
+    type_object.tp_as_buffer = to_ptr(<T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer());
 
     // normal methods
     let (new, init, call, mut methods) = py_class_method_defs::<T>();
@@ -425,14 +413,6 @@ where
         } else {
             PyErr::fetch(py).into()
         }
-    }
-}
-
-fn async_methods<T>(type_info: &mut ffi::PyTypeObject) {
-    if let Some(meth) = <T as class::pyasync::PyAsyncProtocolImpl>::tp_as_async() {
-        type_info.tp_as_async = Box::into_raw(Box::new(meth));
-    } else {
-        type_info.tp_as_async = ::std::ptr::null_mut()
     }
 }
 
