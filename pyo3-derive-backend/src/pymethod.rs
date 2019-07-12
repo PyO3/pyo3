@@ -9,13 +9,13 @@ pub fn gen_py_method(
     name: &syn::Ident,
     sig: &mut syn::MethodSig,
     meth_attrs: &mut Vec<syn::Attribute>,
-) -> TokenStream {
-    check_generic(name, sig);
+) -> syn::Result<TokenStream> {
+    check_generic(name, sig)?;
 
     let doc = utils::get_doc(&meth_attrs, true);
-    let spec = FnSpec::parse(name, sig, meth_attrs).unwrap();
+    let spec = FnSpec::parse(name, sig, meth_attrs)?;
 
-    match spec.tp {
+    Ok(match spec.tp {
         FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
         FnType::PySelf(ref self_ty) => impl_py_method_def(
             name,
@@ -31,28 +31,43 @@ pub fn gen_py_method(
             impl_py_method_def_static(name, doc, &impl_wrap_static(cls, name, &spec))
         }
         FnType::Getter(ref getter) => {
-            impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name))
+            let mut takes_py = false;
+            for arg in &spec.args {
+                if !utils::if_type_is_python(arg.ty) {
+                    return Err(syn::Error::new_spanned(
+                        arg.ty,
+                        "Getter function cannot have arguments other than pyo3::Python!",
+                    ));
+                }
+                takes_py = true;
+            }
+            impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name, takes_py))
         }
         FnType::Setter(ref setter) => {
             impl_py_setter_def(name, doc, setter, &impl_wrap_setter(cls, name, &spec))
         }
-    }
+    })
 }
 
-fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) {
+fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) -> syn::Result<()> {
+    let err_msg = |typ| {
+        format!(
+            "A Python method can't have a generic {} parameter: {}",
+            name, typ
+        )
+    };
     for param in &sig.decl.generics.params {
         match param {
             syn::GenericParam::Lifetime(_) => {}
-            syn::GenericParam::Type(_) => panic!(
-                "A Python method can't have a generic type parameter: {}",
-                name
-            ),
-            syn::GenericParam::Const(_) => panic!(
-                "A Python method can't have a const generic parameter: {}",
-                name
-            ),
+            syn::GenericParam::Type(_) => {
+                return Err(syn::Error::new_spanned(param, err_msg("type")))
+            }
+            syn::GenericParam::Const(_) => {
+                return Err(syn::Error::new_spanned(param, err_msg("const")))
+            }
         }
     }
+    Ok(())
 }
 
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
@@ -302,7 +317,12 @@ pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStream {
+pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident, takes_py: bool) -> TokenStream {
+    let fncall = if takes_py {
+        quote! { _slf.#name(_py) }
+    } else {
+        quote! { _slf.#name() }
+    };
     quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
@@ -313,7 +333,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident) -> TokenStrea
             let _py = pyo3::Python::assume_gil_acquired();
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
 
-            let result = pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name());
+            let result = pyo3::derive_utils::IntoPyResult::into_py_result(#fncall);
 
             match result {
                 Ok(val) => {

@@ -1,0 +1,5 @@
+error: Getter function cannot have arguments other than pyo3::Python!
+  --> $DIR/too_many_args_to_getter.rs:11:30
+   |
+11 |     fn get_num(&self, index: u32) {}
+   |                              ^^^

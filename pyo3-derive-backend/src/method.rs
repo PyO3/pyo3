@@ -200,11 +200,6 @@ impl<'a> FnSpec<'a> {
         }
         false
     }
-
-    /// A FnSpec is valid as getter if it has no argument or has one argument of type `Python`
-    pub fn valid_as_getter(&self) -> bool {
-        false
-    }
 }
 
 pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {

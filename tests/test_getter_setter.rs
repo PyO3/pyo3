@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyList};
 use std::isize;
 
 mod common;
@@ -32,9 +32,15 @@ impl ClassWithProperties {
     fn get_unwrapped(&self) -> i32 {
         self.num
     }
+
     #[setter]
     fn set_unwrapped(&mut self, value: i32) {
         self.num = value;
+    }
+
+    #[getter]
+    fn get_data_list<'py>(&self, py: Python<'py>) -> &'py PyList {
+        PyList::new(py, &[self.num])
     }
 }
 
@@ -48,12 +54,12 @@ fn class_with_properties() {
     py_run!(py, inst, "assert inst.get_num() == 10");
     py_run!(py, inst, "assert inst.get_num() == inst.DATA");
     py_run!(py, inst, "inst.DATA = 20");
-    py_run!(py, inst, "assert inst.get_num() == 20");
-    py_run!(py, inst, "assert inst.get_num() == inst.DATA");
+    py_run!(py, inst, "assert inst.get_num() == 20 == inst.DATA");
 
     py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 20");
     py_run!(py, inst, "inst.unwrapped = 42");
     py_run!(py, inst, "assert inst.get_num() == inst.unwrapped == 42");
+    py_run!(py, inst, "assert inst.data_list == [42]");
 
     let d = [("C", py.get_type::<ClassWithProperties>())].into_py_dict(py);
     py.run(

@@ -417,9 +417,12 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
 
                     let field_ty = &field.ty;
                     match *desc {
-                        FnType::Getter(ref getter) => {
-                            impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
-                        }
+                        FnType::Getter(ref getter) => impl_py_getter_def(
+                            &name,
+                            doc,
+                            getter,
+                            &impl_wrap_getter(&cls, &name, false),
+                        ),
                         FnType::Setter(ref setter) => {
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());

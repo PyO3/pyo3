@@ -23,7 +23,7 @@ echo $FILES | xargs -n1 -P1 sh -c '
   echo "Collecting coverage data of $(basename $@)"
   kcov \
     --exclude-path=./tests \
-    --exclude-region="#[cfg(test)]:#[cfg(testkcovstopmarker)]" \
+    --exclude-region="#[cfg(test)]:#[cfg(not(testkcovstopmarker))]" \
     --exclude-pattern=/.cargo,/usr/lib \
     --verify $dir "$@" 2>&1 >/dev/null
 ' _
