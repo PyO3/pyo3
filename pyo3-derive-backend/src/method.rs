@@ -85,16 +85,7 @@ impl<'a> FnSpec<'a> {
                         }
                     };
 
-                    let py = match ty {
-                        syn::Type::Path(syn::TypePath { ref path, .. }) => {
-                            if let Some(segment) = path.segments.last() {
-                                segment.value().ident == "Python"
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    };
+                    let py = crate::utils::if_type_is_python(ty);
 
                     let opt = check_arg_ty_and_optional(name, ty);
                     arguments.push(FnArg {
@@ -207,6 +198,11 @@ impl<'a> FnSpec<'a> {
                 }
             }
         }
+        false
+    }
+
+    /// A FnSpec is valid as getter if it has no argument or has one argument of type `Python`
+    pub fn valid_as_getter(&self) -> bool {
         false
     }
 }
