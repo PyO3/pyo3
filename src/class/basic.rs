@@ -207,12 +207,37 @@ where
     T: for<'p> PyObjectGetAttrProtocol<'p>,
 {
     fn tp_getattro() -> Option<ffi::binaryfunc> {
-        py_binary_func!(
-            PyObjectGetAttrProtocol,
-            T::__getattr__,
-            T::Success,
-            PyObjectCallbackConverter
-        )
+        #[allow(unused_mut)]
+        unsafe extern "C" fn wrap<T>(
+            slf: *mut ffi::PyObject,
+            arg: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
+        where
+            T: for<'p> PyObjectGetAttrProtocol<'p>,
+        {
+            let _pool = crate::GILPool::new();
+            let py = Python::assume_gil_acquired();
+
+            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
+            // for existing fields and methods first
+            let existing = ffi::PyObject_GenericGetAttr(slf, arg);
+            if existing == std::ptr::null_mut() {
+                // PyObject_HasAttr also tries to get an object and clears the error if it fails
+                ffi::PyErr_Clear();
+            } else {
+                return existing;
+            }
+
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
+
+            let result = match arg.extract() {
+                Ok(arg) => slf.__getattr__(arg).into(),
+                Err(e) => Err(e.into()),
+            };
+            crate::callback::cb_convert(PyObjectCallbackConverter, py, result)
+        }
+        Some(wrap::<T>)
     }
 }
 
