@@ -221,7 +221,7 @@ where
             // Behave like python's __getattr__ (as opposed to __getattribute__) and check
             // for existing fields and methods first
             let existing = ffi::PyObject_GenericGetAttr(slf, arg);
-            if existing == std::ptr::null_mut() {
+            if existing.is_null() {
                 // PyObject_HasAttr also tries to get an object and clears the error if it fails
                 ffi::PyErr_Clear();
             } else {
@@ -233,7 +233,7 @@ where
 
             let result = match arg.extract() {
                 Ok(arg) => slf.__getattr__(arg).into(),
-                Err(e) => Err(e.into()),
+                Err(e) => Err(e),
             };
             crate::callback::cb_convert(PyObjectCallbackConverter, py, result)
         }

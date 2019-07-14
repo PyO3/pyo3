@@ -21,10 +21,7 @@ pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
 impl PyTuple {
     /// Construct a new tuple with the given elements.
-    pub fn new<'p, T, U>(
-        py: Python<'p>,
-        elements: impl IntoIterator<Item = T, IntoIter = U>,
-    ) -> &'p PyTuple
+    pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyTuple
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -41,7 +38,7 @@ impl PyTuple {
     }
 
     /// Retrieves the empty tuple.
-    pub fn empty<'p>(py: Python<'p>) -> &'p PyTuple {
+    pub fn empty(py: Python) -> &PyTuple {
         unsafe { py.from_owned_ptr(ffi::PyTuple_New(0)) }
     }
 
