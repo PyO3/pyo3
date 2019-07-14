@@ -64,16 +64,7 @@ fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a Ident) -> Option<method
                 _ => panic!("unsupported argument: {:?}", cap.pat),
             };
 
-            let py = match cap.ty {
-                syn::Type::Path(ref typath) => typath
-                    .path
-                    .segments
-                    .last()
-                    .map(|seg| seg.value().ident == "Python")
-                    .unwrap_or(false),
-                _ => false,
-            };
-
+            let py = crate::utils::if_type_is_python(&cap.ty);
             let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
             Some(method::FnArg {
                 name: ident,
@@ -111,7 +102,7 @@ fn extract_pyfn_attrs(
                         }
                         _ => panic!("The first parameter of pyfn must be a MetaItem"),
                     }
-                    // read Python fonction name
+                    // read Python function name
                     match meta[1] {
                         syn::NestedMeta::Literal(syn::Lit::Str(ref lits)) => {
                             fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
