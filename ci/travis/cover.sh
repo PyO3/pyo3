@@ -16,7 +16,8 @@ rm -f target/debug/test_doc-*
 
 # Note: On travis this is run with -P1 because it started failing with
 # `-P $(nproc)`. kcov can probably be run in parallel if used with different CI
-FILES=$(find . -path ./target/debug/pyo3\* -or -path ./target/debug/test_\*)
+# Exclude test_compile_error.rs (See https://github.com/PyO3/pyo3/pull/503)
+FILES=$(find . -path ./target/debug/pyo3\* -or -path ./target/debug/test_\* -not -name '*test_compile_error*')
 echo $FILES | xargs -n1 -P1 sh -c '
   dir="target/cov/$(basename $@)"
   mkdir -p $dir

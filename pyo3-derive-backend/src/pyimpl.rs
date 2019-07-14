@@ -16,11 +16,11 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
             "#[pymethods] can not be used with lifetime parameters or generics",
         ))
     } else {
-        Ok(impl_methods(&ast.self_ty, &mut ast.items))
+        impl_methods(&ast.self_ty, &mut ast.items)
     }
 }
 
-pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStream {
+pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Result<TokenStream> {
     // get method names in impl block
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
@@ -31,16 +31,16 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> TokenStre
                 &name,
                 &mut meth.sig,
                 &mut meth.attrs,
-            ));
+            )?);
         }
     }
 
-    quote! {
+    Ok(quote! {
        pyo3::inventory::submit! {
             #![crate = pyo3] {
                 type TyInventory = <#ty as pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;
                 <TyInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#methods),*])
             }
         }
-    }
+    })
 }

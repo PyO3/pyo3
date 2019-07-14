@@ -2,10 +2,22 @@
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use syn;
 
 pub fn print_err(msg: String, t: TokenStream) {
     println!("Error: {} in '{}'", msg, t.to_string());
+}
+
+/// Check if the given type `ty` is `pyo3::Python`.
+pub fn if_type_is_python(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(ref typath) => typath
+            .path
+            .segments
+            .last()
+            .map(|seg| seg.value().ident == "Python")
+            .unwrap_or(false),
+        _ => false,
+    }
 }
 
 // FIXME(althonos): not sure the docstring formatting is on par here.
