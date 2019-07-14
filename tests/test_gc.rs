@@ -185,6 +185,7 @@ impl PyGCProtocol for GCIntegration2 {
     fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
         Ok(())
     }
+    fn __clear__(&mut self) {}
 }
 
 #[test]
