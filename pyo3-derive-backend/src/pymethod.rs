@@ -31,16 +31,16 @@ pub fn gen_py_method(
             impl_py_method_def_static(name, doc, &impl_wrap_static(cls, name, &spec))
         }
         FnType::Getter(ref getter) => {
-            let mut takes_py = false;
-            for arg in &spec.args {
-                if !utils::if_type_is_python(arg.ty) {
+            let takes_py = match &*spec.args {
+                [] => false,
+                [arg] if utils::if_type_is_python(arg.ty) => true,
+                _ => {
                     return Err(syn::Error::new_spanned(
-                        arg.ty,
-                        "Getter function cannot have arguments other than pyo3::Python!",
-                    ));
+                        spec.args[0].ty,
+                        "Getter function can only have one argument of type pyo3::Python!",
+                    ))
                 }
-                takes_py = true;
-            }
+            };
             impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name, takes_py))
         }
         FnType::Setter(ref setter) => {
