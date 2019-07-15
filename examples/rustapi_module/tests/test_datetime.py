@@ -48,11 +48,10 @@ MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 IS_X86 = platform.architecture()[0] == '32bit'
 IS_WINDOWS = sys.platform == 'win32'
 if IS_WINDOWS:
+    MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(86400)
     if IS_X86:
-        MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(86400)
         MAX_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(32536789199)
     else:
-        MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(0)
         MAX_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(32536799999)
 else:
     if IS_X86:
