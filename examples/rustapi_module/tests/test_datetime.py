@@ -4,7 +4,7 @@ import platform
 
 import pytest
 import rustapi_module.datetime as rdt
-from hypothesis import given
+from hypothesis import given, example
 from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
 
@@ -240,6 +240,7 @@ def test_datetime_typeerror():
 
 @given(dt=st.datetimes(MIN_DATETIME_FROM_TIMESTAMP,
                        MAX_DATETIME_FROM_TIMESTAMP))
+@example(dt=pdt.datetime(1970, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
     if PYPY and dt < pdt.datetime(1900, 1, 1):
         pytest.xfail("get_timestamp will raise on PyPy with dates before 1900")
