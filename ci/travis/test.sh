@@ -12,7 +12,7 @@ fi
 
 if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
     cargo fmt --all -- --check
-    cargo clippy --features "$FEATURES num-complex"
+    cargo clippy --features "$FEATURES num-complex" -- -D warnings
 fi
 
 for example_dir in examples/*; do

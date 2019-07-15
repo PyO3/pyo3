@@ -47,10 +47,10 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
 
         Ok(tokens)
     } else {
-        return Err(syn::Error::new_spanned(
+        Err(syn::Error::new_spanned(
             ast,
             "#[pyproto] can only be used with protocol trait implementations",
-        ));
+        ))
     }
 }
 
