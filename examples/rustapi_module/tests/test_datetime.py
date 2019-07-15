@@ -4,7 +4,7 @@ import platform
 
 import pytest
 import rustapi_module.datetime as rdt
-from hypothesis import given
+from hypothesis import given, example
 from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
 
@@ -34,13 +34,8 @@ UTC = _get_utc()
 MAX_SECONDS = int(pdt.timedelta.max.total_seconds())
 MIN_SECONDS = int(pdt.timedelta.min.total_seconds())
 
-try:
-    MAX_DAYS = pdt.timedelta.max // pdt.timedelta(days=1)
-    MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
-except Exception:
-    # Python 2 compatibility
-    MAX_DAYS = MAX_SECONDS // pdt.timedelta(days=1).total_seconds()
-    MIN_DAYS = MIN_SECONDS // pdt.timedelta(days=1).total_seconds()
+MAX_DAYS = pdt.timedelta.max // pdt.timedelta(days=1)
+MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
 
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
@@ -48,11 +43,10 @@ MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 IS_X86 = platform.architecture()[0] == '32bit'
 IS_WINDOWS = sys.platform == 'win32'
 if IS_WINDOWS:
+    MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(86400)
     if IS_X86:
-        MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(86400)
         MAX_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(32536789199)
     else:
-        MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(0)
         MAX_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(32536799999)
 else:
     if IS_X86:
@@ -64,14 +58,6 @@ else:
 
 PYPY = platform.python_implementation() == "PyPy"
 HAS_FOLD = getattr(pdt.datetime, "fold", False)
-
-# Helper functions
-get_timestamp = getattr(pdt.datetime, "timestamp", None)
-if get_timestamp is None:
-
-    def get_timestamp(dt):
-        # Python 2 compatibility
-        return (dt - pdt.datetime(1970, 1, 1)).total_seconds()
 
 
 xfail_date_bounds = pytest.mark.xfail(
@@ -103,9 +89,9 @@ def test_invalid_date_fails():
                   MAX_DATETIME_FROM_TIMESTAMP.date()))
 def test_date_from_timestamp(d):
     if PYPY and d < pdt.date(1900, 1, 1):
-        pytest.xfail("get_timestamp will raise on PyPy with dates before 1900")
+        pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
 
-    ts = get_timestamp(pdt.datetime.combine(d, pdt.time(0)))
+    ts = pdt.datetime.timestamp(pdt.datetime.combine(d, pdt.time(0)))
     assert rdt.date_from_timestamp(int(ts)) == pdt.date.fromtimestamp(ts)
 
 
@@ -241,11 +227,12 @@ def test_datetime_typeerror():
 
 @given(dt=st.datetimes(MIN_DATETIME_FROM_TIMESTAMP,
                        MAX_DATETIME_FROM_TIMESTAMP))
+@example(dt=pdt.datetime(1970, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
     if PYPY and dt < pdt.datetime(1900, 1, 1):
-        pytest.xfail("get_timestamp will raise on PyPy with dates before 1900")
+        pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
 
-    ts = get_timestamp(dt)
+    ts = pdt.datetime.timestamp(dt)
     assert rdt.datetime_from_timestamp(ts) == pdt.datetime.fromtimestamp(ts)
 
 
