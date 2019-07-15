@@ -296,12 +296,15 @@ fn impl_class(
     // insert space for weak ref
     let mut has_weakref = false;
     let mut has_dict = false;
+    let mut has_gc = false;
     for f in attr.flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
             if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
             } else if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_DICT} {
                 has_dict = true;
+            } else if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_GC} {
+                has_gc = true;
             }
         }
     }
@@ -319,6 +322,22 @@ fn impl_class(
         quote! { Some(#m) }
     } else {
         quote! { None }
+    };
+
+    // Enforce at compile time that PyGCProtocol is implemented
+    let gc_impl = if has_gc {
+        let closure_name = format!("__assertion_closure_{}", cls.to_string());
+        let closure_token = syn::Ident::new(&closure_name, Span::call_site());
+        quote! {
+            fn #closure_token() {
+                use pyo3::class;
+
+                fn _assert_implements_protocol<'p, T: pyo3::class::PyGCProtocol<'p>>() {}
+                _assert_implements_protocol::<#cls>();
+            }
+        }
+    } else {
+        quote! {}
     };
 
     let inventory_impl = impl_inventory(&cls);
@@ -365,6 +384,9 @@ fn impl_class(
         #inventory_impl
 
         #extra
+
+        #gc_impl
+
     }
 }
 
