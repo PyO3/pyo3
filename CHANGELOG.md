@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * `module` argument to `pyclass` macro. [#499](https://github.com/PyO3/pyo3/pull/499)
  * `py_run!` macro [#512](https://github.com/PyO3/pyo3/pull/512)
  * Use existing fields and methods before calling custom __getattr__. [#505](https://github.com/PyO3/pyo3/pull/512)
+ * `PyBytes` can now be indexed just like `Vec<u8>`
 
 ### Fixed
 
