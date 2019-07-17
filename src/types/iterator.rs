@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::err::{PyDowncastError, PyErr, PyResult};
+use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::types::PyAny;
@@ -34,19 +34,13 @@ pub struct PyIterator<'p>(&'p PyAny);
 
 impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
-    pub fn from_object<T>(py: Python<'p>, obj: &T) -> Result<PyIterator<'p>, PyDowncastError>
+    pub fn from_object<T>(py: Python<'p>, object: &T) -> PyResult<PyIterator<'p>>
     where
         T: AsPyPointer,
     {
         unsafe {
-            let ptr = ffi::PyObject_GetIter(obj.as_ptr());
-
-            if ffi::PyIter_Check(ptr) != 0 {
-                // this is not right, but this cause of segfault check #71
-                Ok(PyIterator(py.from_borrowed_ptr(ptr)))
-            } else {
-                Err(PyDowncastError)
-            }
+            let ptr = ffi::PyObject_GetIter(object.as_ptr());
+            Ok(PyIterator(py.from_owned_ptr_or_err(ptr)?))
         }
     }
 }
@@ -84,6 +78,8 @@ impl<'p> Drop for PyIterator<'p> {
 
 #[cfg(test)]
 mod tests {
+    use super::PyIterator;
+    use crate::conversion::IntoPyObject;
     use crate::gil::GILPool;
     use crate::instance::AsPyRef;
     use crate::objectprotocol::ObjectProtocol;
@@ -103,6 +99,15 @@ mod tests {
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
         assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn iter_from_invalid_type_issue_494() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let obj = 1_i32.into_object(py);
+        assert!(PyIterator::from_object(py, &obj).is_err());
     }
 
     #[test]

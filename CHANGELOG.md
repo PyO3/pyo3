@@ -17,11 +17,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * More readable error message for generics in pyclass [#503](https://github.com/PyO3/pyo3/pull/503)
+ * Fixed a segmentation fault when passing a non-iterable object to `PyIterator::from_object`
 
 ### Changed
 
  * Implementing the Using the `gc` parameter for `pyclass` (e.g. `#[pyclass(gc)]`) without implementing the `class::PyGCProtocol` trait is now a compile-time error. Failing to implement this trait could lead to segfaults. [#532](https://github.com/PyO3/pyo3/pull/532)
  * `PyByteArray::data` has been replaced with `PyDataArray::to_vec` because returning a `&[u8]` is unsound. (See [this comment](https://github.com/PyO3/pyo3/issues/373#issuecomment-512332696) for a great write-up for why that was unsound)
+ * `PyIterator::from_object` returns a `PyResult<PyIterator<'p>>` instead of a `Result<PyIterator<'p>, PyDowncastError>`
 
 ## [0.7.0] - 2018-05-26
 
