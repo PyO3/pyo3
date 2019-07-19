@@ -103,13 +103,13 @@ mod test {
         let src = b"Hello Python";
         let bytearray = PyByteArray::new(py, src);
         assert_eq!(src.len(), bytearray.len());
-        assert_eq!(src, bytearray.data().as_slice());
+        assert_eq!(src, bytearray.to_vec().as_slice());
 
         let ba: PyObject = bytearray.into();
         let bytearray = PyByteArray::from(py, &ba).unwrap();
 
         assert_eq!(src.len(), bytearray.len());
-        assert_eq!(src, bytearray.data().as_slice());
+        assert_eq!(src, bytearray.to_vec().as_slice());
 
         bytearray.resize(20).unwrap();
         assert_eq!(20, bytearray.len());
