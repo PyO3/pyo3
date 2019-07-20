@@ -57,7 +57,7 @@ impl PyByteArray {
     /// # let py = gil.python();
     /// #
     /// let bytearray = PyByteArray::new(py, b"Hello World.");
-    /// let mut copied_message = bytearray.data();
+    /// let mut copied_message = bytearray.to_vec();
     /// assert_eq!(b"Hello World.", copied_message.as_slice());
     ///
     /// copied_message[11] = b'!';
