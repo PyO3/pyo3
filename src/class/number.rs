@@ -1271,7 +1271,7 @@ where
     }
 }
 
-trait PyNumberRAddProtocolImpl {
+pub trait PyNumberRAddProtocolImpl {
     fn __radd__() -> Option<PyMethodDef> {
         None
     }
@@ -1279,7 +1279,7 @@ trait PyNumberRAddProtocolImpl {
 
 impl<'p, T> PyNumberRAddProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRSubProtocolImpl {
+pub trait PyNumberRSubProtocolImpl {
     fn __rsub__() -> Option<PyMethodDef> {
         None
     }
@@ -1287,7 +1287,7 @@ trait PyNumberRSubProtocolImpl {
 
 impl<'p, T> PyNumberRSubProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRMulProtocolImpl {
+pub trait PyNumberRMulProtocolImpl {
     fn __rmul__() -> Option<PyMethodDef> {
         None
     }
@@ -1295,7 +1295,7 @@ trait PyNumberRMulProtocolImpl {
 
 impl<'p, T> PyNumberRMulProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRMatmulProtocolImpl {
+pub trait PyNumberRMatmulProtocolImpl {
     fn __rmatmul__() -> Option<PyMethodDef> {
         None
     }
@@ -1303,7 +1303,7 @@ trait PyNumberRMatmulProtocolImpl {
 
 impl<'p, T> PyNumberRMatmulProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRTruedivProtocolImpl {
+pub trait PyNumberRTruedivProtocolImpl {
     fn __rtruediv__() -> Option<PyMethodDef> {
         None
     }
@@ -1311,7 +1311,7 @@ trait PyNumberRTruedivProtocolImpl {
 
 impl<'p, T> PyNumberRTruedivProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRFloordivProtocolImpl {
+pub trait PyNumberRFloordivProtocolImpl {
     fn __rfloordiv__() -> Option<PyMethodDef> {
         None
     }
@@ -1319,7 +1319,7 @@ trait PyNumberRFloordivProtocolImpl {
 
 impl<'p, T> PyNumberRFloordivProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRModProtocolImpl {
+pub trait PyNumberRModProtocolImpl {
     fn __rmod__() -> Option<PyMethodDef> {
         None
     }
@@ -1327,7 +1327,7 @@ trait PyNumberRModProtocolImpl {
 
 impl<'p, T> PyNumberRModProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRDivmodProtocolImpl {
+pub trait PyNumberRDivmodProtocolImpl {
     fn __rdivmod__() -> Option<PyMethodDef> {
         None
     }
@@ -1335,7 +1335,7 @@ trait PyNumberRDivmodProtocolImpl {
 
 impl<'p, T> PyNumberRDivmodProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRPowProtocolImpl {
+pub trait PyNumberRPowProtocolImpl {
     fn __rpow__() -> Option<PyMethodDef> {
         None
     }
@@ -1343,7 +1343,7 @@ trait PyNumberRPowProtocolImpl {
 
 impl<'p, T> PyNumberRPowProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRLShiftProtocolImpl {
+pub trait PyNumberRLShiftProtocolImpl {
     fn __rlshift__() -> Option<PyMethodDef> {
         None
     }
@@ -1351,7 +1351,7 @@ trait PyNumberRLShiftProtocolImpl {
 
 impl<'p, T> PyNumberRLShiftProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRRShiftProtocolImpl {
+pub trait PyNumberRRShiftProtocolImpl {
     fn __rrshift__() -> Option<PyMethodDef> {
         None
     }
@@ -1359,7 +1359,7 @@ trait PyNumberRRShiftProtocolImpl {
 
 impl<'p, T> PyNumberRRShiftProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRAndProtocolImpl {
+pub trait PyNumberRAndProtocolImpl {
     fn __rand__() -> Option<PyMethodDef> {
         None
     }
@@ -1367,7 +1367,7 @@ trait PyNumberRAndProtocolImpl {
 
 impl<'p, T> PyNumberRAndProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberRXorProtocolImpl {
+pub trait PyNumberRXorProtocolImpl {
     fn __rxor__() -> Option<PyMethodDef> {
         None
     }
@@ -1375,7 +1375,7 @@ trait PyNumberRXorProtocolImpl {
 
 impl<'p, T> PyNumberRXorProtocolImpl for T where T: PyNumberProtocol<'p> {}
 
-trait PyNumberROrProtocolImpl {
+pub trait PyNumberROrProtocolImpl {
     fn __ror__() -> Option<PyMethodDef> {
         None
     }
