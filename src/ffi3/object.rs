@@ -299,7 +299,7 @@ mod typeobject {
     impl Default for PyNumberMethods {
         #[inline]
         fn default() -> Self {
-            unsafe { mem::zeroed() }
+            PyNumberMethods_INIT
         }
     }
     macro_rules! as_expr {
