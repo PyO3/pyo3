@@ -8,7 +8,6 @@ from hypothesis import given, example
 from hypothesis import strategies as st
 from hypothesis.strategies import dates, datetimes
 
-
 # Constants
 def _get_utc():
     timezone = getattr(pdt, "timezone", None)

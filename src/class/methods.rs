@@ -117,7 +117,7 @@ impl PySetterDef {
 }
 
 #[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
-/// This trait is implemented for all pyclass so to implement the [PyMethodsProtocol]
+/// This trait is implemented for all pyclass to implement the [PyMethodsProtocol]
 /// through inventory
 pub trait PyMethodsInventoryDispatch {
     /// This allows us to get the inventory type when only the pyclass is in scope
@@ -151,5 +151,77 @@ where
             .into_iter()
             .flat_map(PyMethodsInventory::get_methods)
             .collect()
+    }
+}
+
+/// Utils to define and collect dunder methods, powered by inventory
+pub mod protocols {
+    use crate::ffi;
+
+    #[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
+    /// The c wrapper around a dunder method defined in an impl block
+    pub enum PyProcotolMethodWrapped {
+        Add(ffi::binaryfunc),
+    }
+
+    #[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
+    /// All defined dunder methods collected into a single struct
+    #[derive(Default)]
+    pub struct PyProcolTypes {
+        pub(crate) add: Option<ffi::binaryfunc>,
+    }
+
+    impl PyProcolTypes {
+        /// Returns whether any dunder method has been defined
+        pub fn any_defined(&self) -> bool {
+            self.add.is_some()
+        }
+    }
+
+    #[doc(hidden)] // Only to be used through the proc macros, use PyMethodsProtocol in custom code
+    /// This trait is implemented for all pyclass to implement the [PyProtocolInventory]
+    /// through inventory
+    pub trait PyProtocolInventoryDispatch {
+        /// This allows us to get the inventory type when only the pyclass is in scope
+        type ProtocolInventoryType: PyProtocolInventory;
+    }
+
+    #[doc(hidden)]
+    /// Allows arbitrary pymethod blocks to submit dunder methods, which are eventually collected
+    /// into [PyProcolTypes]
+    pub trait PyProtocolInventory: inventory::Collect {
+        fn new(methods: &'static [PyProcotolMethodWrapped]) -> Self;
+        fn get_methods(&self) -> &'static [PyProcotolMethodWrapped];
+    }
+
+    /// Defines which protocols this class implements
+    pub trait PyProtocol {
+        /// Returns all methods that are defined for a class
+        fn py_protocols() -> PyProcolTypes;
+    }
+
+    impl<T> PyProtocol for T
+    where
+        T: PyProtocolInventoryDispatch,
+    {
+        /// Collects all defined dunder methods into a single [PyProcolTypes] instance
+        fn py_protocols() -> PyProcolTypes {
+            let mut py_protocol_types = PyProcolTypes::default();
+            let flattened = inventory::iter::<T::ProtocolInventoryType>
+                .into_iter()
+                .flat_map(PyProtocolInventory::get_methods);
+            for method in flattened {
+                match method {
+                    PyProcotolMethodWrapped::Add(add) => {
+                        if py_protocol_types.add.is_some() {
+                            panic!("You can't define `__add__` more than once");
+                        }
+                        py_protocol_types.add = Some(*add);
+                    }
+                }
+            }
+
+            py_protocol_types
+        }
     }
 }

@@ -217,6 +217,8 @@ fn impl_inventory(cls: &syn::Ident) -> TokenStream {
     // it comes up in error messages
     let name = cls.to_string() + "GeneratedPyo3Inventory";
     let inventory_cls = syn::Ident::new(&name, Span::call_site());
+    let protocol_name = cls.to_string() + "GeneratedPyo3InventoryProtocol";
+    let protocol_inventory_cls = syn::Ident::new(&protocol_name, Span::call_site());
 
     quote! {
         #[doc(hidden)]
@@ -241,6 +243,31 @@ fn impl_inventory(cls: &syn::Ident) -> TokenStream {
         }
 
         pyo3::inventory::collect!(#inventory_cls);
+
+        // Dunder methods/Protocol support
+
+        #[doc(hidden)]
+        pub struct #protocol_inventory_cls {
+            methods: &'static [pyo3::methods::protocols::PyProcotolMethodWrapped],
+        }
+
+        impl pyo3::class::methods::protocols::PyProtocolInventory for #protocol_inventory_cls {
+            fn new(methods: &'static [pyo3::methods::protocols::PyProcotolMethodWrapped]) -> Self {
+                Self {
+                    methods
+                }
+            }
+
+            fn get_methods(&self) -> &'static [pyo3::methods::protocols::PyProcotolMethodWrapped] {
+                self.methods
+            }
+        }
+
+        impl pyo3::class::methods::protocols::PyProtocolInventoryDispatch for #cls {
+            type ProtocolInventoryType = #protocol_inventory_cls;
+        }
+
+        pyo3::inventory::collect!(#protocol_inventory_cls);
     }
 }
 

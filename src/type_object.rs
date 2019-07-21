@@ -2,6 +2,7 @@
 
 //! Python type object information
 
+use crate::class::methods::protocols::PyProtocol;
 use crate::class::methods::PyMethodDefType;
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyNativeType};
@@ -249,7 +250,7 @@ pub unsafe trait PyTypeObject {
 
 unsafe impl<T> PyTypeObject for T
 where
-    T: PyTypeInfo + PyMethodsProtocol + PyObjectAlloc,
+    T: PyTypeInfo + PyMethodsProtocol + PyObjectAlloc + PyProtocol,
 {
     fn init_type() -> NonNull<ffi::PyTypeObject> {
         let type_object = unsafe { <Self as PyTypeInfo>::type_object() };
@@ -297,7 +298,7 @@ impl<T> PyTypeCreate for T where T: PyObjectAlloc + PyTypeObject + Sized {}
 #[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
 where
-    T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol,
+    T: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + PyProtocol,
 {
     let type_object: &mut ffi::PyTypeObject = unsafe { T::type_object() };
     let base_type_object: &mut ffi::PyTypeObject =
@@ -438,7 +439,7 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     }
 }
 
-fn py_class_method_defs<T: PyMethodsProtocol>() -> (
+fn py_class_method_defs<T: PyMethodsProtocol + PyProtocol>() -> (
     Option<ffi::newfunc>,
     Option<ffi::initproc>,
     Option<ffi::PyCFunctionWithKeywords>,

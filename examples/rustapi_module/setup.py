@@ -102,6 +102,11 @@ setup(
             "Cargo.toml",
             rustc_flags=get_py_version_cfgs(),
         ),
+        RustExtension(
+            "rustapi_module.dunder",
+            "Cargo.toml",
+            rustc_flags=get_py_version_cfgs(),
+        ),
     ],
     install_requires=install_requires,
     tests_require=tests_require,

@@ -5,6 +5,7 @@
 
 use crate::callback::PyObjectCallbackConverter;
 use crate::class::basic::PyObjectProtocolImpl;
+use crate::class::methods::protocols::PyProtocol;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::ffi;
@@ -621,7 +622,7 @@ pub trait PyNumberIndexProtocol<'p>: PyNumberProtocol<'p> {
 }
 
 #[doc(hidden)]
-pub trait PyNumberProtocolImpl: PyObjectProtocolImpl {
+pub trait PyNumberProtocolImpl: PyObjectProtocolImpl + PyProtocol {
     fn methods() -> Vec<PyMethodDef> {
         Vec::new()
     }
@@ -629,6 +630,13 @@ pub trait PyNumberProtocolImpl: PyObjectProtocolImpl {
         if let Some(nb_bool) = <Self as PyObjectProtocolImpl>::nb_bool_fn() {
             let meth = ffi::PyNumberMethods {
                 nb_bool: Some(nb_bool),
+                nb_add: Self::py_protocols().add,
+                ..ffi::PyNumberMethods_INIT
+            };
+            Some(meth)
+        } else if Self::py_protocols().any_defined() {
+            let meth = ffi::PyNumberMethods {
+                nb_add: Self::py_protocols().add,
                 ..ffi::PyNumberMethods_INIT
             };
             Some(meth)
@@ -638,11 +646,11 @@ pub trait PyNumberProtocolImpl: PyObjectProtocolImpl {
     }
 }
 
-impl<'p, T> PyNumberProtocolImpl for T {}
+impl<'p, T> PyNumberProtocolImpl for T where T: PyProtocol {}
 
 impl<'p, T> PyNumberProtocolImpl for T
 where
-    T: PyNumberProtocol<'p>,
+    T: PyNumberProtocol<'p> + PyProtocol,
 {
     fn tp_as_number() -> Option<ffi::PyNumberMethods> {
         Some(ffi::PyNumberMethods {
@@ -742,17 +750,17 @@ where
     }
 }
 
-trait PyNumberAddProtocolImpl {
+trait PyNumberAddProtocolImpl: PyProtocol {
     fn nb_add() -> Option<ffi::binaryfunc> {
-        None
+        Self::py_protocols().add
     }
 }
 
-impl<'p, T> PyNumberAddProtocolImpl for T where T: PyNumberProtocol<'p> {}
+impl<'p, T> PyNumberAddProtocolImpl for T where T: PyNumberProtocol<'p> + PyProtocol {}
 
 impl<T> PyNumberAddProtocolImpl for T
 where
-    T: for<'p> PyNumberAddProtocol<'p>,
+    T: for<'p> PyNumberAddProtocol<'p> + PyProtocol,
 {
     fn nb_add() -> Option<ffi::binaryfunc> {
         py_binary_num_func!(
