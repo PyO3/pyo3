@@ -1,3 +1,5 @@
+#![feature(specialization)]
+
 use pyo3::class::basic::CompareOp;
 use pyo3::class::*;
 use pyo3::prelude::*;
@@ -184,6 +186,26 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
     py_run!(py, c, "assert c | 1 == 'BA | 1'");
     py_run!(py, c, "assert 1 | c == '1 | BA'");
+}
+
+#[pyclass]
+struct RhsArithmetic {}
+
+#[pyproto]
+impl PyNumberProtocol for RhsArithmetic {
+    fn __radd__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} + RA", other))
+    }
+}
+
+#[test]
+fn rhs_arithmetic() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let c = Py::new(py, RhsArithmetic {}).unwrap();
+    py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
+    py_run!(py, c, "assert 1 + c == '1 + RA'");
 }
 
 #[pyclass]
