@@ -53,9 +53,7 @@ In order to make the function signature available to Python to be retrieved via
 formatted like in the example below. Please note that the newline after the
 `--` is mandatory. The `/` signifies the end of positional-only arguments. This
 is not a feature of this library in particular, but the general format used by
-CPython for annotating signatures of built-in functions. Function signatures for
-built-ins are new in Python 3 — in Python 2, they are simply considered to be a
-part of the docstring.
+CPython for annotating signatures of built-in functions.
 
 ```rust
 use pyo3::prelude::*;
