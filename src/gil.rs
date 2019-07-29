@@ -7,10 +7,10 @@ use crate::types::PyAny;
 use crate::Python;
 use spin;
 use std::ptr::NonNull;
-use std::{any, marker, rc, sync};
+use std::{any, marker, rc, sync::Once};
 
-static START: sync::Once = sync::ONCE_INIT;
-static START_PYO3: sync::Once = sync::ONCE_INIT;
+static START: Once = Once::new();
+static START_PYO3: Once = Once::new();
 
 /// Prepares the use of Python in a free-threaded context.
 ///
