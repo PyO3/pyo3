@@ -11,7 +11,6 @@ use crate::IntoPyPointer;
 use crate::Python;
 use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
 use libc::c_int;
-use std::error::Error;
 use std::ffi::CString;
 use std::io;
 use std::os::raw::c_char;
@@ -412,7 +411,7 @@ macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
             fn arguments(&self, py: Python) -> PyObject {
-                self.description().to_object(py)
+                self.to_string().to_object(py)
             }
         }
 
@@ -459,10 +458,9 @@ impl std::convert::From<io::Error> for PyErr {
     }
 }
 
-/// Extract `errno` and `errdesc` from from `io::Error`
 impl PyErrArguments for io::Error {
     fn arguments(&self, py: Python) -> PyObject {
-        (self.raw_os_error().unwrap_or(0), self.description()).to_object(py)
+        self.to_string().to_object(py)
     }
 }
 
@@ -474,7 +472,7 @@ impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerE
 
 impl<W: Send + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
     fn arguments(&self, py: Python) -> PyObject {
-        self.description().to_object(py)
+        self.to_string().to_object(py)
     }
 }
 
