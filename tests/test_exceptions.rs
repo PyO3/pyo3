@@ -13,6 +13,7 @@ fn fail_to_open_file() -> PyResult<()> {
 }
 
 #[test]
+#[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
     let gil = Python::acquire_gil();
     let py = gil.python();
