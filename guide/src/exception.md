@@ -128,23 +128,39 @@ more complex arguments are required, the
 trait can be implemented. In that case, actual exception argument creation is delayed
 until a `Python` object is available.
 
-```rust,ignore
-use std::net::TcpListener;
-use pyo3::{PyErr, PyResult, exc};
+```rust
+# use pyo3::{exceptions, PyErr, PyResult};
+# use std::error::Error;
+# use std::fmt;
+#
+# #[derive(Debug)]
+# struct CustomIOError;
+#
+# impl Error for CustomIOError {}
+#
+# impl fmt::Display for CustomIOError {
+#     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+#         write!(f, "Oh no!")
+#     }
+# }
+#
+# fn bind(_addr: &str) -> Result<(), CustomIOError> {
+#     Err(CustomIOError)
+# }
 
-impl std::convert::From<std::io::Error> for PyErr {
-    fn from(err: std::io::Error) -> PyErr {
-        exceptions::OSError.into()
+impl std::convert::From<CustomIOError> for PyErr {
+    fn from(err: CustomIOError) -> PyErr {
+        exceptions::OSError::py_err(err.to_string())
     }
 }
 
 fn connect(s: String) -> PyResult<bool> {
-    TcpListener::bind("127.0.0.1:80")?;
+    bind("127.0.0.1:80")?;
     Ok(true)
 }
 ```
 
-The code snippet above will raise an `OSError` in Python if `TcpListener::bind()` returns an error.
+The code snippet above will raise an `OSError` in Python if `bind()` returns a `CustomIOError`.
 
 The `std::convert::From<T>` trait is implemented for most of the Rust standard library's error
 types so the `try!` macro or the `?` operator can be used.
