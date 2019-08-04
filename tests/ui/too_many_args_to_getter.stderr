@@ -3,3 +3,5 @@ error: Getter function can only have one argument of type pyo3::Python!
    |
 11 |     fn get_num(&self, index: u32) {}
    |                              ^^^
+
+error: Could not compile `pyo3-tests`.
