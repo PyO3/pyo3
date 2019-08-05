@@ -132,6 +132,12 @@ impl PyClassArgs {
                 parse_quote! {pyo3::type_object::PY_TYPE_FLAG_WEAKREF}
             }
             "subclass" => {
+                if cfg!(not(feature = "unsound-subclass")) {
+                    return Err(syn::Error::new_spanned(
+                        exp.path.clone(),
+                        "You need to activate the `unsound-subclass` feature if you want to use subclassing",
+                    ));
+                }
                 parse_quote! {pyo3::type_object::PY_TYPE_FLAG_BASETYPE}
             }
             "dict" => {

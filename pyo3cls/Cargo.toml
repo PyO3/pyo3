@@ -18,3 +18,6 @@ quote= "0.6.12"
 proc-macro2 = "0.4.30"
 syn = { version = "0.15.34", features = ["full", "extra-traits"] }
 pyo3-derive-backend = { path = "../pyo3-derive-backend", version = "=0.7.0" }
+
+[features]
+unsound-subclass = ["pyo3-derive-backend/unsound-subclass"]

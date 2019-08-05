@@ -55,6 +55,9 @@ extension-module = []
 # are welcome.
 # abi3 = []
 
+# Activate subclassing support
+unsound-subclass = ["pyo3cls/unsound-subclass"]
+
 [workspace]
 members = [
     "pyo3cls",
