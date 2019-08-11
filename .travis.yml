@@ -5,8 +5,6 @@ dist: xenial
 cache:
   pip: true
   cargo: true
-  directories:
-    - "$HOME/kcov"
 
 matrix:
   include:
@@ -47,11 +45,15 @@ addons:
 
 before_install:
   - source ./ci/travis/setup.sh
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
 
 install:
   - pip install setuptools-rust pytest pytest-benchmark tox
 
 script:
+  # Options for grcov
+  - if ! [[ $FEATURES == *"pypy"* ]]; then export CARGO_INCREMENTAL=0; fi
+  - if ! [[ $FEATURES == *"pypy"* ]]; then export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"; fi
   - ./ci/travis/test.sh
 
 after_success:
