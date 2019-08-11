@@ -14,7 +14,7 @@ pub fn if_type_is_python(ty: &syn::Type) -> bool {
             .path
             .segments
             .last()
-            .map(|seg| seg.value().ident == "Python")
+            .map(|seg| seg.ident == "Python")
             .unwrap_or(false),
         _ => false,
     }
@@ -28,8 +28,8 @@ pub fn get_doc(attrs: &[syn::Attribute], null_terminated: bool) -> syn::Lit {
     // let mut span = None;
 
     for attr in attrs.iter() {
-        if let Some(syn::Meta::NameValue(ref metanv)) = attr.interpret_meta() {
-            if metanv.ident == "doc" {
+        if let Ok(syn::Meta::NameValue(ref metanv)) = attr.parse_meta() {
+            if metanv.path.is_ident("doc") {
                 // span = Some(metanv.span());
                 if let syn::Lit::Str(ref litstr) = metanv.lit {
                     let d = litstr.value();

@@ -59,7 +59,7 @@ impl PyClassArgs {
     fn add_assign(&mut self, assign: &syn::ExprAssign) -> syn::Result<()> {
         let key = match *assign.left {
             syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
-                exp.path.segments.first().unwrap().value().ident.to_string()
+                exp.path.segments.first().unwrap().ident.to_string()
             }
             _ => {
                 return Err(syn::Error::new_spanned(assign, "could not parse argument"));
@@ -123,7 +123,7 @@ impl PyClassArgs {
 
     /// Match a key/value flag
     fn add_path(&mut self, exp: &syn::ExprPath) -> syn::Result<()> {
-        let flag = exp.path.segments.first().unwrap().value().ident.to_string();
+        let flag = exp.path.segments.first().unwrap().ident.to_string();
         let path = match flag.as_str() {
             "gc" => {
                 parse_quote! {pyo3::type_object::PY_TYPE_FLAG_GC}
@@ -184,28 +184,23 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
     let mut new_attrs = Vec::new();
     for attr in item.attrs.iter() {
         if let Ok(syn::Meta::List(ref list)) = attr.parse_meta() {
-            match list.ident.to_string().as_str() {
-                "pyo3" => {
-                    for meta in list.nested.iter() {
-                        if let syn::NestedMeta::Meta(ref metaitem) = meta {
-                            match metaitem.name().to_string().as_str() {
-                                "get" => {
-                                    descs.push(FnType::Getter(None));
-                                }
-                                "set" => {
-                                    descs.push(FnType::Setter(None));
-                                }
-                                _ => {
-                                    return Err(syn::Error::new_spanned(
-                                        metaitem,
-                                        "Only get and set are supported",
-                                    ));
-                                }
-                            }
+            if list.path.is_ident("pyo3") {
+                for meta in list.nested.iter() {
+                    if let syn::NestedMeta::Meta(ref metaitem) = meta {
+                        if metaitem.path().is_ident("get") {
+                            descs.push(FnType::Getter(None));
+                        } else if metaitem.path().is_ident("set") {
+                            descs.push(FnType::Setter(None));
+                        } else {
+                            return Err(syn::Error::new_spanned(
+                                metaitem,
+                                "Only get and set are supported",
+                            ));
                         }
                     }
                 }
-                _ => new_attrs.push(attr.clone()),
+            } else {
+                new_attrs.push(attr.clone())
             }
         } else {
             new_attrs.push(attr.clone());
