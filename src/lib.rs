@@ -132,7 +132,7 @@ pub use crate::type_object::{PyObjectAlloc, PyRawObject, PyTypeInfo};
 
 // Re-exported for wrap_function
 #[doc(hidden)]
-pub use mashup;
+pub use paste;
 // Re-exported for py_run
 #[doc(hidden)]
 pub use indoc;
@@ -183,18 +183,8 @@ pub mod proc_macro {
 /// Use this together with `#[pyfunction]` and [types::PyModule::add_wrapped].
 #[macro_export]
 macro_rules! wrap_pyfunction {
-    ($function_name:ident) => {{
-        // Get the mashup macro and its helpers into scope
-        use pyo3::mashup::*;
-
-        mashup! {
-            // Make sure this ident matches the one in function_wrapper_ident
-            m["method"] = __pyo3_get_function_ $function_name;
-        }
-
-        m! {
-            &"method"
-        }
+    ($function_name: ident) => {{
+        &pyo3::paste::expr! { [<__pyo3_get_function_ $function_name>] }
     }};
 }
 
@@ -204,14 +194,8 @@ macro_rules! wrap_pyfunction {
 #[macro_export]
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
-        use pyo3::mashup::*;
-
-        mashup! {
-            m["method"] = PyInit_ $module_name;
-        }
-
-        m! {
-            &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, "method"()) }
+        pyo3::paste::expr! {
+            &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, [<PyInit_ $module_name>]()) }
         }
     }};
 }

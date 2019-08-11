@@ -16,7 +16,7 @@ use version_check::{Channel, Date, Version};
 /// Specifies the minimum nightly version needed to compile pyo3.
 /// Keep this synced up with the travis ci config,
 /// But note that this is the rustc version which can be lower than the nightly version
-const MIN_DATE: &'static str = "2019-06-21";
+const MIN_DATE: &'static str = "2019-07-18";
 const MIN_VERSION: &'static str = "1.37.0-nightly";
 
 /// Information returned from python interpreter

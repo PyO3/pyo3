@@ -23,11 +23,11 @@ libc = "0.2.54"
 spin = "0.5.0"
 num-traits = "0.2.6"
 pyo3cls = { path = "pyo3cls", version = "=0.7.0" }
-mashup = "0.1.9"
 num-complex = { version = "0.2.1", optional = true }
 inventory = "0.1.3"
 indoc = "0.3.3"
 unindent = "0.1.3"
+paste = "0.1.5"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
