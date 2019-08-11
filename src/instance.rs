@@ -96,6 +96,12 @@ impl<'a, T: PyTypeInfo> ToPyObject for PyRef<'a, T> {
     }
 }
 
+impl<'a, T: PyTypeInfo> IntoPyObject for PyRef<'a, T> {
+    fn into_object(self, py: Python) -> PyObject {
+        self.to_object(py)
+    }
+}
+
 impl<'a, T: PyTypeInfo> Deref for PyRef<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
@@ -167,6 +173,12 @@ impl<'a, T: PyTypeInfo> AsPyPointer for PyRefMut<'a, T> {
 impl<'a, T: PyTypeInfo> ToPyObject for PyRefMut<'a, T> {
     fn to_object(&self, py: Python) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<'a, T: PyTypeInfo> IntoPyObject for PyRefMut<'a, T> {
+    fn into_object(self, py: Python) -> PyObject {
+        self.to_object(py)
     }
 }
 
