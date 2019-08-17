@@ -40,7 +40,7 @@ impl PySequenceProtocol for ByteSequence {
     fn __getitem__(&self, idx: isize) -> PyResult<u8> {
         self.elements
             .get(idx as usize)
-            .map(|&byte| byte)
+            .copied()
             .ok_or_else(|| IndexError::py_err("list index out of range"))
     }
 
