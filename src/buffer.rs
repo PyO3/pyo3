@@ -706,6 +706,7 @@ mod test {
         assert_eq!(buffer.to_vec::<u8>(py).unwrap(), b"abcde");
     }
 
+    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn test_array_buffer() {
         let gil = Python::acquire_gil();

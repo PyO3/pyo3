@@ -196,6 +196,7 @@ mod complex_conversion {
     complex_conversion!(f32);
     complex_conversion!(f64);
 
+    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn from_complex() {
         let gil = Python::acquire_gil();
@@ -230,11 +231,13 @@ mod test {
 
     #[test]
     fn test_from_double() {
+        use assert_approx_eq::assert_approx_eq;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
         let complex = PyComplex::from_doubles(py, 3.0, 1.2);
-        assert_eq!(complex.real(), 3.0);
-        assert_eq!(complex.imag(), 1.2);
+        assert_approx_eq!(complex.real(), 3.0);
+        assert_approx_eq!(complex.imag(), 1.2);
     }
 
     #[cfg(not(Py_LIMITED_API))]

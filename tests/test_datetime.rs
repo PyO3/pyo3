@@ -102,6 +102,7 @@ fn test_delta_check() {
 
 #[test]
 fn test_datetime_utc() {
+    use assert_approx_eq::assert_approx_eq;
     use pyo3::types::PyDateTime;
 
     let gil = Python::acquire_gil();
@@ -120,7 +121,7 @@ fn test_datetime_utc() {
         .unwrap()
         .extract()
         .unwrap();
-    assert_eq!(offset, 0f32);
+    assert_approx_eq!(offset, 0f32);
 }
 
 #[cfg(Py_3_6)]
