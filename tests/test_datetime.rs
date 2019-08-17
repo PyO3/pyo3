@@ -122,6 +122,7 @@ fn test_datetime_utc() {
     assert_eq!(offset, 0f32);
 }
 
+#[cfg(Py_3_6)]
 static INVALID_DATES: &[(i32, u8, u8)] = &[
     (-1, 1, 1),
     (0, 1, 1),
@@ -134,6 +135,7 @@ static INVALID_DATES: &[(i32, u8, u8)] = &[
     (2018, 1, 32),
 ];
 
+#[cfg(Py_3_6)]
 static INVALID_TIMES: &[(u8, u8, u8, u32)] =
     &[(25, 0, 0, 0), (255, 0, 0, 0), (0, 60, 0, 0), (0, 0, 61, 0)];
 
