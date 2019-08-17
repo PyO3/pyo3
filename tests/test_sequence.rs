@@ -41,7 +41,7 @@ impl PySequenceProtocol for ByteSequence {
         self.elements
             .get(idx as usize)
             .map(|&byte| byte)
-            .ok_or(IndexError::py_err("list index out of range"))
+            .ok_or_else(|| IndexError::py_err("list index out of range"))
     }
 
     fn __setitem__(&mut self, idx: isize, value: u8) -> PyResult<()> {
