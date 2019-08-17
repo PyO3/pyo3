@@ -149,7 +149,7 @@ fn test_pydate_out_of_bounds() {
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    for val in INVALID_DATES.into_iter() {
+    for val in INVALID_DATES {
         let (year, month, day) = val;
         let dt = PyDate::new(py, *year, *month, *day);
         dt.unwrap_err();
