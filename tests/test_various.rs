@@ -111,7 +111,7 @@ fn pytuple_pyclass_iter() {
             PyRef::new(py, SimplePyClass {}).unwrap(),
             PyRef::new(py, SimplePyClass {}).unwrap(),
         ]
-        .into_iter(),
+        .iter(),
     );
     py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
