@@ -154,7 +154,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn to_object(&self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+;
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
                 PyObject::from_owned_ptr_or_panic(py, ptr)
             }
         }
@@ -163,7 +163,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_object(self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+
                 PyObject::from_owned_ptr_or_panic(py, ptr)
             }
         }
@@ -173,7 +173,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+;
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+
                 Py::from_owned_ptr_or_panic(ptr)
             }
         }
