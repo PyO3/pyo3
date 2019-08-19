@@ -15,7 +15,7 @@ proc-macro = true
 
 [dependencies]
 quote= "0.6.12"
-proc-macro2 = "0.4.30"
+proc-macro2 = "1.0.1"
 syn = { version = "0.15.34", features = ["full", "extra-traits"] }
 pyo3-derive-backend = { path = "../pyo3-derive-backend", version = "=0.7.0" }
 
