@@ -7,7 +7,7 @@ use quote::quote;
 pub fn gen_py_method(
     cls: &syn::Type,
     name: &syn::Ident,
-    sig: &mut syn::MethodSig,
+    sig: &mut syn::Signature,
     meth_attrs: &mut Vec<syn::Attribute>,
 ) -> syn::Result<TokenStream> {
     check_generic(name, sig)?;
@@ -49,14 +49,14 @@ pub fn gen_py_method(
     })
 }
 
-fn check_generic(name: &syn::Ident, sig: &syn::MethodSig) -> syn::Result<()> {
+fn check_generic(name: &syn::Ident, sig: &syn::Signature) -> syn::Result<()> {
     let err_msg = |typ| {
         format!(
             "A Python method can't have a generic {} parameter: {}",
             name, typ
         )
     };
-    for param in &sig.decl.generics.params {
+    for param in &sig.generics.params {
         match param {
             syn::GenericParam::Lifetime(_) => {}
             syn::GenericParam::Type(_) => {

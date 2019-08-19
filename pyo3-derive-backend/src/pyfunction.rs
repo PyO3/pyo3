@@ -2,15 +2,15 @@
 
 use syn::parse::ParseBuffer;
 use syn::punctuated::Punctuated;
-use syn::{Ident, NestedMeta};
+use syn::{NestedMeta, Path};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
     VarArgsSeparator,
-    VarArgs(syn::Ident),
-    KeywordArgs(syn::Ident),
-    Arg(syn::Ident, Option<String>),
-    Kwarg(syn::Ident, String),
+    VarArgs(syn::Path),
+    KeywordArgs(syn::Path),
+    Arg(syn::Path, Option<String>),
+    Kwarg(syn::Path, String),
 }
 
 /// The attributes of the pyfunction macro
@@ -41,11 +41,11 @@ impl PyFunctionAttr {
 
     pub fn add_item(&mut self, item: &NestedMeta) -> syn::Result<()> {
         match item {
-            NestedMeta::Meta(syn::Meta::Word(ref ident)) => self.add_work(item, ident)?,
+            NestedMeta::Meta(syn::Meta::Path(ref ident)) => self.add_work(item, ident)?,
             NestedMeta::Meta(syn::Meta::NameValue(ref nv)) => {
                 self.add_name_value(item, nv)?;
             }
-            NestedMeta::Literal(ref lit) => {
+            NestedMeta::Lit(ref lit) => {
                 self.add_literal(item, lit)?;
             }
             _ => {
@@ -89,7 +89,7 @@ impl PyFunctionAttr {
         Ok(())
     }
 
-    fn add_work(&mut self, item: &NestedMeta, ident: &Ident) -> syn::Result<()> {
+    fn add_work(&mut self, item: &NestedMeta, path: &Path) -> syn::Result<()> {
         // self.arguments in form somename
         if self.has_kwargs {
             return Err(syn::Error::new_spanned(
@@ -103,7 +103,7 @@ impl PyFunctionAttr {
                 "syntax error, argument is not allowed after keyword argument",
             ));
         }
-        self.arguments.push(Argument::Arg(ident.clone(), None));
+        self.arguments.push(Argument::Arg(path.clone(), None));
         Ok(())
     }
 
@@ -122,7 +122,7 @@ impl PyFunctionAttr {
                         return Err(syn::Error::new_spanned(item, "*(var args) is defined"));
                     }
                     self.has_varargs = true;
-                    self.arguments.push(Argument::VarArgs(nv.ident.clone()));
+                    self.arguments.push(Argument::VarArgs(nv.path.clone()));
                 } else if litstr.value() == "**" {
                     // kwargs="**"
                     if self.has_kwargs {
@@ -132,10 +132,10 @@ impl PyFunctionAttr {
                         ));
                     }
                     self.has_kwargs = true;
-                    self.arguments.push(Argument::KeywordArgs(nv.ident.clone()));
+                    self.arguments.push(Argument::KeywordArgs(nv.path.clone()));
                 } else if self.has_varargs {
                     self.arguments
-                        .push(Argument::Kwarg(nv.ident.clone(), litstr.value().clone()))
+                        .push(Argument::Kwarg(nv.path.clone(), litstr.value()))
                 } else {
                     if self.has_kwargs {
                         return Err(syn::Error::new_spanned(
@@ -144,18 +144,14 @@ impl PyFunctionAttr {
                         ));
                     }
                     self.has_kw = true;
-                    self.arguments.push(Argument::Arg(
-                        nv.ident.clone(),
-                        Some(litstr.value().clone()),
-                    ))
+                    self.arguments
+                        .push(Argument::Arg(nv.path.clone(), Some(litstr.value())))
                 }
             }
             syn::Lit::Int(ref litint) => {
                 if self.has_varargs {
-                    self.arguments.push(Argument::Kwarg(
-                        nv.ident.clone(),
-                        format!("{}", litint.value()),
-                    ));
+                    self.arguments
+                        .push(Argument::Kwarg(nv.path.clone(), format!("{}", litint)));
                 } else {
                     if self.has_kwargs {
                         return Err(syn::Error::new_spanned(
@@ -164,16 +160,14 @@ impl PyFunctionAttr {
                         ));
                     }
                     self.has_kw = true;
-                    self.arguments.push(Argument::Arg(
-                        nv.ident.clone(),
-                        Some(format!("{}", litint.value())),
-                    ));
+                    self.arguments
+                        .push(Argument::Arg(nv.path.clone(), Some(format!("{}", litint))));
                 }
             }
             syn::Lit::Bool(ref litb) => {
                 if self.has_varargs {
                     self.arguments
-                        .push(Argument::Kwarg(nv.ident.clone(), format!("{}", litb.value)));
+                        .push(Argument::Kwarg(nv.path.clone(), format!("{}", litb.value)));
                 } else {
                     if self.has_kwargs {
                         return Err(syn::Error::new_spanned(
@@ -183,7 +177,7 @@ impl PyFunctionAttr {
                     }
                     self.has_kw = true;
                     self.arguments.push(Argument::Arg(
-                        nv.ident.clone(),
+                        nv.path.clone(),
                         Some(format!("{}", litb.value)),
                     ));
                 }
