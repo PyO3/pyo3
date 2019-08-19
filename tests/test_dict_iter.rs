@@ -12,5 +12,5 @@ fn iter_dict_nosegv() {
         let i: u64 = k.extract().unwrap();
         sum += i;
     }
-    assert_eq!(sum, 49999995000000);
+    assert_eq!(sum, 49_999_995_000_000);
 }

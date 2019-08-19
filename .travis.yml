@@ -18,10 +18,10 @@ matrix:
       python: "3.8-dev"
     - name: Minimum nightly
       python: "3.7"
-      # Keep this synced up with build.rs
-      env: TRAVIS_RUST_VERSION=nightly-2019-07-19
-      # Tested via anaconda PyPy (since travis's PyPy version is too old)
-    - name: PyPy3.5 7.0
+      # Keep this synced up with build.rs and ensure that the nightly version does have clippy available
+      # https://static.rust-lang.org/dist/YYYY-MM-DD/clippy-nightly-x86_64-unknown-linux-gnu.tar.gz exists
+      env: TRAVIS_RUST_VERSION=nightly-2019-07-19  
+    - name: PyPy3.5 7.0 # Tested via anaconda PyPy (since travis's PyPy version is too old)
       python: "3.7"
       env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
