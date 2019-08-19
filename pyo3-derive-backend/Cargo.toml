@@ -13,7 +13,7 @@ edition = "2018"
 [dependencies]
 quote = "0.6.12"
 proc-macro2 = "0.4.30"
-syn = { version = "0.15.34", features = ["full", "extra-traits"] }
+syn = { version = "1.0.3", features = ["full", "extra-traits"] }
 
 [features]
 unsound-subclass = []
