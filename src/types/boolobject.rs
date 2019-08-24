@@ -1,11 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
+use crate::ffi;
 use crate::object::PyObject;
 use crate::types::PyAny;
-use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
 use crate::Python;
-use crate::{ffi, IntoPy};
+use crate::{AsPyPointer, FromPy};
 use crate::{PyTryFrom, ToPyObject};
 
 /// Represents a Python `bool`.
@@ -45,10 +45,10 @@ impl ToPyObject for bool {
     }
 }
 
-impl IntoPy<PyObject> for bool {
+impl FromPy<bool> for PyObject {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        PyBool::new(py, self).into()
+    fn from_py(other: bool, py: Python) -> Self {
+        PyBool::new(py, other).into()
     }
 }
 

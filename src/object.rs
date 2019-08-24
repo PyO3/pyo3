@@ -297,13 +297,6 @@ impl PartialEq for PyObject {
     }
 }
 
-impl IntoPy<PyObject> for PyObject {
-    #[inline]
-    fn into_py(self, _py: Python) -> PyObject {
-        self
-    }
-}
-
 impl<'a> FromPyObject<'a> for PyObject {
     #[inline]
     /// Extracts `Self` from the source `PyObject`.

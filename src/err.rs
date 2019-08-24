@@ -1,6 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::ffi;
 use crate::instance::Py;
 use crate::object::PyObject;
 use crate::type_object::PyTypeObject;
@@ -9,6 +8,7 @@ use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
 use crate::{exceptions, IntoPy};
+use crate::{ffi, FromPy};
 use crate::{ToBorrowedObject, ToPyObject};
 use libc::c_int;
 use std::ffi::CString;
@@ -357,9 +357,9 @@ impl std::fmt::Debug for PyErr {
     }
 }
 
-impl IntoPy<PyObject> for PyErr {
-    fn into_py(self, py: Python) -> PyObject {
-        self.instance(py)
+impl FromPy<PyErr> for PyObject {
+    fn from_py(other: PyErr, py: Python) -> Self {
+        other.instance(py)
     }
 }
 

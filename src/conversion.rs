@@ -221,8 +221,8 @@ impl ToPyObject for () {
     }
 }
 
-impl IntoPy<PyObject> for () {
-    fn into_py(self, py: Python) -> PyObject {
+impl FromPy<()> for PyObject {
+    fn from_py(_: (), py: Python) -> Self {
         py.None()
     }
 }
