@@ -4,12 +4,11 @@
 
 use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
 use crate::err::PyResult;
-use crate::ffi;
 use crate::instance::PyRefMut;
 use crate::type_object::PyTypeInfo;
-use crate::IntoPyObject;
 use crate::IntoPyPointer;
 use crate::Python;
+use crate::{ffi, IntoPy, PyObject};
 use std::ptr;
 
 /// Python Iterator Interface.
@@ -34,12 +33,12 @@ pub trait PyIterProtocol<'p>: PyTypeInfo + Sized {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
@@ -111,13 +110,13 @@ struct IterNextConverter;
 
 impl<T> CallbackConverter<Option<T>> for IterNextConverter
 where
-    T: IntoPyObject,
+    T: IntoPy<PyObject>,
 {
     type R = *mut ffi::PyObject;
 
     fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
         match val {
-            Some(val) => val.into_object(py).into_ptr(),
+            Some(val) => val.into_py(py).into_ptr(),
             None => unsafe {
                 ffi::PyErr_SetNone(ffi::PyExc_StopIteration);
                 ptr::null_mut()

@@ -5,13 +5,13 @@
 
 use crate::callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
 use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
+use crate::FromPyObject;
 use crate::Python;
-use crate::{FromPyObject, IntoPyObject};
+use crate::{exceptions, IntoPy, PyObject};
 use std::os::raw::c_int;
 
 /// Sequence interface
@@ -90,7 +90,7 @@ pub trait PySequenceLenProtocol<'p>: PySequenceProtocol<'p> {
 
 pub trait PySequenceGetItemProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -112,22 +112,22 @@ pub trait PySequenceContainsProtocol<'p>: PySequenceProtocol<'p> {
 
 pub trait PySequenceConcatProtocol<'p>: PySequenceProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PySequenceRepeatProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPyObject {
+pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<PyObject> {
     type Other: FromPyObject<'p>;
     type Result: Into<PyResult<Self>>;
 }
 
-pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPyObject {
+pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<PyObject> {
     type Index: FromPyObject<'p> + From<isize>;
     type Result: Into<PyResult<Self>>;
 }

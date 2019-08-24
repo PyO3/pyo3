@@ -8,9 +8,7 @@ use crate::types::{PyAny, PyDict, PyTuple};
 use crate::AsPyPointer;
 use crate::Py;
 use crate::Python;
-use crate::{
-    FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject,
-};
+use crate::{FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject};
 use std::ptr::NonNull;
 
 /// A python object
@@ -299,9 +297,9 @@ impl PartialEq for PyObject {
     }
 }
 
-impl IntoPyObject for PyObject {
+impl IntoPy<PyObject> for PyObject {
     #[inline]
-    fn into_object(self, _py: Python) -> PyObject {
+    fn into_py(self, _py: Python) -> PyObject {
         self
     }
 }

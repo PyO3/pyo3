@@ -139,7 +139,7 @@ impl<T, U> IntoPy<U> for T
 where
     U: FromPy<T>,
 {
-    fn into_py(self, py: Python) -> U {
+    default fn into_py(self, py: Python) -> U {
         U::from_py(self, py)
     }
 }
@@ -149,13 +149,6 @@ impl<T> FromPy<T> for T {
     fn from_py(t: T, _: Python) -> T {
         t
     }
-}
-
-/// Conversion trait that allows various objects to be converted into `PyObject`
-/// by consuming original object.
-pub trait IntoPyObject {
-    /// Converts self into a Python object. (Consumes self)
-    fn into_object(self, py: Python) -> PyObject;
 }
 
 /// `FromPyObject` is implemented by various types that can be extracted from
@@ -209,13 +202,13 @@ where
     }
 }
 
-impl<T> IntoPyObject for Option<T>
+impl<T> IntoPy<PyObject> for Option<T>
 where
-    T: IntoPyObject,
+    T: IntoPy<PyObject>,
 {
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         match self {
-            Some(val) => val.into_object(py),
+            Some(val) => val.into_py(py),
             None => py.None(),
         }
     }
@@ -228,29 +221,19 @@ impl ToPyObject for () {
     }
 }
 
-impl IntoPyObject for () {
-    fn into_object(self, py: Python) -> PyObject {
+impl IntoPy<PyObject> for () {
+    fn into_py(self, py: Python) -> PyObject {
         py.None()
     }
 }
 
-impl<'a, T> IntoPyObject for &'a T
+impl<'a, T> FromPy<&'a T> for PyObject
 where
     T: AsPyPointer,
 {
     #[inline]
-    fn into_object(self, py: Python) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
-    }
-}
-
-impl<'a, T> IntoPyObject for &'a mut T
-where
-    T: AsPyPointer,
-{
-    #[inline]
-    fn into_object(self, py: Python) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    fn from_py(other: &'a T, py: Python) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, other.as_ptr()) }
     }
 }
 

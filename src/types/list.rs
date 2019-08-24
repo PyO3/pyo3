@@ -7,10 +7,10 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
-use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use crate::{AsPyPointer, IntoPy};
+use crate::{ToBorrowedObject, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
@@ -186,15 +186,15 @@ where
     }
 }
 
-impl<T> IntoPyObject for Vec<T>
+impl<T> IntoPy<PyObject> for Vec<T>
 where
-    T: IntoPyObject,
+    T: IntoPy<PyObject>,
 {
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {
-                let obj = e.into_object(py).into_ptr();
+                let obj = e.into_py(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
             PyObject::from_owned_ptr_or_panic(py, ptr)

@@ -323,7 +323,7 @@ impl MyClass {
 ```
 
 Calls to these methods are protected by the GIL, so both `&self` and `&mut self` can be used.
-The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`;
+The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`;
 the latter is allowed if the method cannot raise Python exceptions.
 
 A `Python` parameter can be specified as part of method signature, in this case the `py` argument
@@ -376,13 +376,13 @@ Declares a class method callable from Python.
   This may be the type object of a derived class.
 * The first parameter implicitly has type `&PyType`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
-* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`.
+* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
 
 ## Static methods
 
 To create a static method for a custom class, the method needs to be annotated with the
 `#[staticmethod]` attribute. The return type must be `T` or `PyResult<T>` for some `T` that implements
-`IntoPyObject`.
+`IntoPy<PyObject>`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -483,7 +483,7 @@ The [`PyObjectProtocol`](https://docs.rs/pyo3/0.7.0/pyo3/class/basic/trait.PyObj
 
 To customize object attribute access, define the following methods:
 
-  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPyObject>`
+  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
   * `fn __setattr__(&mut self, name: FromPyObject, value: FromPyObject) -> PyResult<()>`
   * `fn __delattr__(&mut self, name: FromPyObject) -> PyResult<()>`
 
@@ -589,8 +589,8 @@ struct GCTracked {} // Fails because it does not implement PyGCProtocol
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/0.7.0/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPyObject>`
-  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPyObject>>`
+  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 

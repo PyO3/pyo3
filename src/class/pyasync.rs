@@ -13,6 +13,7 @@ use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::ffi;
 use crate::type_object::PyTypeInfo;
+use crate::PyObject;
 
 /// Python Async/Await support interface.
 ///
@@ -61,22 +62,22 @@ pub trait PyAsyncProtocol<'p>: PyTypeInfo {
 }
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -84,7 +85,7 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type ExcType: crate::FromPyObject<'p>;
     type ExcValue: crate::FromPyObject<'p>;
     type Traceback: crate::FromPyObject<'p>;
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -186,23 +187,22 @@ impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p> {}
 mod anext {
     use super::{PyAsyncAnextProtocol, PyAsyncAnextProtocolImpl};
     use crate::callback::CallbackConverter;
-    use crate::ffi;
-    use crate::IntoPyObject;
     use crate::IntoPyPointer;
     use crate::Python;
+    use crate::{ffi, IntoPy, PyObject};
     use std::ptr;
 
     pub struct IterANextResultConverter;
 
     impl<T> CallbackConverter<Option<T>> for IterANextResultConverter
     where
-        T: IntoPyObject,
+        T: IntoPy<PyObject>,
     {
         type R = *mut ffi::PyObject;
 
         fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
             match val {
-                Some(val) => val.into_object(py).into_ptr(),
+                Some(val) => val.into_py(py).into_ptr(),
                 None => unsafe {
                     ffi::PyErr_SetNone(ffi::PyExc_StopAsyncIteration);
                     ptr::null_mut()

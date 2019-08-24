@@ -1,8 +1,8 @@
 use crate::ffi;
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::AsPyPointer;
+use crate::PyObject;
 use crate::Python;
 #[cfg(not(PyPy))]
 use std::ops::*;
@@ -130,7 +130,7 @@ mod complex_conversion {
     use crate::err::PyErr;
     use crate::types::PyAny;
     use crate::PyResult;
-    use crate::{FromPyObject, IntoPyObject, ToPyObject};
+    use crate::{FromPyObject, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {
@@ -150,11 +150,11 @@ mod complex_conversion {
             impl ToPyObject for Complex<$float> {
                 #[inline]
                 fn to_object(&self, py: Python) -> PyObject {
-                    IntoPyObject::into_object(self.to_owned(), py)
+                    crate::IntoPy::<PyObject>::into_py(self.to_owned(), py)
                 }
             }
-            impl IntoPyObject for Complex<$float> {
-                fn into_object(self, py: Python) -> PyObject {
+            impl crate::IntoPy<PyObject> for Complex<$float> {
+                fn into_py(self, py: Python) -> PyObject {
                     unsafe {
                         let raw_obj =
                             ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);

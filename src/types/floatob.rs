@@ -3,7 +3,6 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::err::PyErr;
-use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
@@ -12,7 +11,8 @@ use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
 use crate::Python;
-use crate::{IntoPyObject, ToPyObject};
+use crate::ToPyObject;
+use crate::{ffi, IntoPy};
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
@@ -44,8 +44,8 @@ impl ToPyObject for f64 {
     }
 }
 
-impl IntoPyObject for f64 {
-    fn into_object(self, py: Python) -> PyObject {
+impl IntoPy<PyObject> for f64 {
+    fn into_py(self, py: Python) -> PyObject {
         PyFloat::new(py, self).into()
     }
 }
@@ -70,8 +70,8 @@ impl ToPyObject for f32 {
     }
 }
 
-impl IntoPyObject for f32 {
-    fn into_object(self, py: Python) -> PyObject {
+impl IntoPy<PyObject> for f32 {
+    fn into_py(self, py: Python) -> PyObject {
         PyFloat::new(py, f64::from(self)).into()
     }
 }

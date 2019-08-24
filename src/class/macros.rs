@@ -21,7 +21,7 @@ macro_rules! py_unary_func {
             let py = $crate::Python::assume_gil_acquired();
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let res = slf.$f().into();
-            $crate::callback::cb_convert($conv, py, res)
+            $crate::callback::cb_convert($conv, py, res.map(|x| x))
         }
         Some(wrap::<$class>)
     }};

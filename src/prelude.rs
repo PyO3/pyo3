@@ -16,9 +16,7 @@ pub use crate::instance::{AsPyRef, Py, PyRef, PyRefMut};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::python::Python;
-pub use crate::{
-    FromPy, FromPyObject, IntoPy, IntoPyObject, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject,
-};
+pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject};
 // This is only part of the prelude because we need it for the pymodule function
 pub use crate::types::PyModule;
 // This is required for the constructor

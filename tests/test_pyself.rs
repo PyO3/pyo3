@@ -84,7 +84,7 @@ fn reader() -> Reader {
 fn test_nested_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = reader().into_object(py);
+    let reader: PyObject = reader().into_py(py);
     py_assert!(
         py,
         reader,
@@ -96,7 +96,7 @@ fn test_nested_iter() {
 fn test_clone_ref() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = reader().into_object(py);
+    let reader: PyObject = reader().into_py(py);
     py_assert!(py, reader, "reader == reader.clone_ref()");
 }
 
