@@ -5,8 +5,8 @@
 use crate::err::PyResult;
 use crate::exceptions::OverflowError;
 use crate::ffi::{self, Py_hash_t};
-use crate::Python;
-use crate::{IntoPyObject, IntoPyPointer};
+use crate::IntoPyPointer;
+use crate::{IntoPy, PyObject, Python};
 use std::os::raw::c_int;
 use std::{isize, ptr};
 
@@ -21,12 +21,12 @@ pub struct PyObjectCallbackConverter;
 
 impl<S> CallbackConverter<S> for PyObjectCallbackConverter
 where
-    S: IntoPyObject,
+    S: IntoPy<PyObject>,
 {
     type R = *mut ffi::PyObject;
 
     fn convert(val: S, py: Python) -> *mut ffi::PyObject {
-        val.into_object(py).into_ptr()
+        val.into_py(py).into_ptr()
     }
 
     #[inline]

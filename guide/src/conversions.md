@@ -6,10 +6,10 @@ PyO3 provides some handy traits to convert between Python types and Rust types.
 
 The easiest way to convert a Python object to a Rust value is using `.extract()?`.
 
-## `ToPyObject` and `IntoPyObject` trait
+## `ToPyObject` trait
 
 [`ToPyObject`] trait is a conversion trait that allows various objects to be
-converted into [`PyObject`][PyObject]. [`IntoPyObject`][IntoPyObject] serves the
+converted into [`PyObject`][PyObject]. `IntoPy<PyObject>` serves the
 same purpose, except that it consumes `self`.
 
 ## `FromPyObject` and `RefFromPyObject` trait
@@ -104,10 +104,9 @@ fn main() {
 
 Many conversions in PyO3 can't use `std::convert::Into` because they need a GIL token. That's why the `IntoPy<T>` trait offers an `into_py` method that works just like `into`, except for taking a `Python<'_>` argument.
 
-Eventually, traits such as `IntoPyObject` will be replaced by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`.
+Eventually, traits such as `ToPyObject` will be replaced by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`.
 
 [`ToPyObject`]: https://docs.rs/pyo3/0.7.0/pyo3/trait.ToPyObject.html
-[IntoPyObject]: https://docs.rs/pyo3/0.7.0/pyo3/trait.IntoPyObject.html
 [PyObject]: https://docs.rs/pyo3/0.7.0/pyo3/struct.PyObject.html
 [PyTuple]: https://docs.rs/pyo3/0.7.0/pyo3/types/struct.PyTuple.html
 [ObjectProtocol]: https://docs.rs/pyo3/0.7.0/pyo3/trait.ObjectProtocol.html

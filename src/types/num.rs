@@ -9,8 +9,9 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
+use crate::IntoPy;
 use crate::Python;
-use crate::{FromPyObject, IntoPyObject, ToPyObject};
+use crate::{FromPyObject, ToPyObject};
 use num_traits::cast::cast;
 use std::i64;
 use std::os::raw::c_int;
@@ -34,12 +35,12 @@ macro_rules! int_fits_larger_int (
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
-                (*self as $larger_type).into_object(py)
+                (*self as $larger_type).into_py(py)
             }
         }
-        impl IntoPyObject for $rust_type {
-            fn into_object(self, py: Python) -> PyObject {
-                (self as $larger_type).into_object(py)
+        impl IntoPy<PyObject> for $rust_type {
+            fn into_py(self, py: Python) -> PyObject {
+                (self as $larger_type).into_py(py)
             }
         }
 
@@ -62,11 +63,11 @@ macro_rules! int_convert_bignum (
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
-                self.into_object(py)
+                (*self).into_py(py)
             }
         }
-        impl IntoPyObject for $rust_type {
-            fn into_object(self, py: Python) -> PyObject {
+        impl IntoPy<PyObject> for $rust_type {
+            fn into_py(self, py: Python) -> PyObject {
                 unsafe {
                     // TODO: Replace this with functions from the from_bytes family
                     //       Once they are stabilized
@@ -140,9 +141,9 @@ macro_rules! int_fits_c_long (
                 }
             }
         }
-        impl IntoPyObject for $rust_type {
+        impl IntoPy<PyObject> for $rust_type {
             #![cfg_attr(feature="cargo-clippy", allow(clippy::cast_lossless))]
-            fn into_object(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(self as c_long))
                 }
@@ -181,9 +182,9 @@ macro_rules! int_convert_u64_or_i64 (
                 }
             }
         }
-        impl IntoPyObject for $rust_type {
+        impl IntoPy<PyObject> for $rust_type {
             #[inline]
-            fn into_object(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(self))
                 }

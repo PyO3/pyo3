@@ -1,6 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::gil;
 use crate::instance;
 use crate::object::PyObject;
@@ -8,9 +7,8 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::PyAny;
-use crate::{
-    AsPyPointer, FromPyObject, FromPyPointer, IntoPyObject, IntoPyPointer, Python, ToPyObject,
-};
+use crate::{ffi, IntoPy};
+use crate::{AsPyPointer, FromPyObject, FromPyPointer, IntoPyPointer, Python, ToPyObject};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -96,8 +94,8 @@ impl<'a, T: PyTypeInfo> ToPyObject for PyRef<'a, T> {
     }
 }
 
-impl<'a, T: PyTypeInfo> IntoPyObject for PyRef<'a, T> {
-    fn into_object(self, py: Python) -> PyObject {
+impl<'a, T: PyTypeInfo> IntoPy<PyObject> for PyRef<'a, T> {
+    fn into_py(self, py: Python) -> PyObject {
         self.to_object(py)
     }
 }
@@ -176,8 +174,8 @@ impl<'a, T: PyTypeInfo> ToPyObject for PyRefMut<'a, T> {
     }
 }
 
-impl<'a, T: PyTypeInfo> IntoPyObject for PyRefMut<'a, T> {
-    fn into_object(self, py: Python) -> PyObject {
+impl<'a, T: PyTypeInfo> IntoPy<PyObject> for PyRefMut<'a, T> {
+    fn into_py(self, py: Python) -> PyObject {
         self.to_object(py)
     }
 }
@@ -407,11 +405,11 @@ impl<T> ToPyObject for Py<T> {
     }
 }
 
-impl<T> IntoPyObject for Py<T> {
+impl<T> IntoPy<PyObject> for Py<T> {
     /// Converts `Py` instance -> PyObject.
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         unsafe { PyObject::from_owned_ptr(py, self.into_ptr()) }
     }
 }

@@ -10,7 +10,7 @@ use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::{FromPyObject, IntoPy, IntoPyObject, PyTryFrom, ToPyObject};
+use crate::{FromPyObject, IntoPy, PyTryFrom, ToPyObject};
 use std::slice;
 
 /// Represents a Python `tuple` object.
@@ -159,21 +159,21 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
     }
-    impl <$($T: IntoPyObject),+> IntoPyObject for ($($T,)+) {
-        fn into_object(self, py: Python) -> PyObject {
+    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
+        fn into_py(self, py: Python) -> PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
                 PyObject::from_owned_ptr_or_panic(py, ptr)
             }
         }
     }
 
-    impl <$($T: IntoPyObject),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
+    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
-                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_object(py).into_ptr());)+
+                $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
                 Py::from_owned_ptr_or_panic(ptr)
             }
         }

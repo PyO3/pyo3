@@ -337,7 +337,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident, takes_py: boo
 
             match result {
                 Ok(val) => {
-                    pyo3::IntoPyPointer::into_ptr(val.into_object(_py))
+                    pyo3::IntoPyPointer::into_ptr(pyo3::IntoPy::<PyObject>::into_py(val, _py))
                 }
                 Err(e) => {
                     e.restore(_py);

@@ -1,15 +1,15 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::conversion::FromPyObject;
-use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
+use crate::conversion::{PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
-use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
+use crate::{exceptions, IntoPy};
+use crate::{ffi, FromPy};
 use std::borrow::Cow;
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -144,9 +144,9 @@ impl ToPyObject for str {
     }
 }
 
-impl<'a> IntoPyObject for &'a str {
+impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -169,16 +169,15 @@ impl ToPyObject for String {
     }
 }
 
-impl IntoPyObject for String {
-    #[inline]
-    fn into_object(self, py: Python) -> PyObject {
-        PyString::new(py, &self).into()
+impl FromPy<String> for PyObject {
+    fn from_py(other: String, py: Python) -> Self {
+        PyString::new(py, &other).into()
     }
 }
 
-impl<'a> IntoPyObject for &'a String {
+impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }

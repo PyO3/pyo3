@@ -391,11 +391,11 @@ impl<'p> PyMappingProtocol<'p> for Test {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".into_object(gil.python()));
+                return Ok("slice".into_py(gil.python()));
             }
         } else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".into_object(gil.python()));
+                return Ok("int".into_py(gil.python()));
             }
         }
         Err(PyErr::new::<ValueError, _>("error"))

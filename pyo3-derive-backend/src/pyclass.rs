@@ -376,9 +376,9 @@ fn impl_class(
             }
         }
 
-        impl pyo3::IntoPyObject for #cls {
-            fn into_object(self, py: pyo3::Python) -> pyo3::PyObject {
-                pyo3::Py::new(py, self).unwrap().into_object(py)
+        impl pyo3::IntoPy<PyObject> for #cls {
+            fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+                pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
             }
         }
 
