@@ -135,8 +135,8 @@ pub unsafe fn make_module(
         return module;
     }
 
-    let _pool = GILPool::new();
     let py = Python::assume_gil_acquired();
+    let _pool = GILPool::new(py);
     let module = match py.from_owned_ptr_or_err::<PyModule>(module) {
         Ok(m) => m,
         Err(e) => {

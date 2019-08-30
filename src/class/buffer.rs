@@ -85,8 +85,8 @@ where
         where
             T: for<'p> PyBufferGetBufferProtocol<'p>,
         {
-            let _pool = crate::GILPool::new();
             let py = crate::Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let result = slf.bf_getbuffer(arg1, arg2).into();
