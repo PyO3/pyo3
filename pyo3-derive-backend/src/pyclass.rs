@@ -59,7 +59,7 @@ impl PyClassArgs {
     fn add_assign(&mut self, assign: &syn::ExprAssign) -> syn::Result<()> {
         let key = match *assign.left {
             syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
-                exp.path.segments.first().unwrap().value().ident.to_string()
+                exp.path.segments.first().unwrap().ident.to_string()
             }
             _ => {
                 return Err(syn::Error::new_spanned(assign, "could not parse argument"));
@@ -123,7 +123,7 @@ impl PyClassArgs {
 
     /// Match a key/value flag
     fn add_path(&mut self, exp: &syn::ExprPath) -> syn::Result<()> {
-        let flag = exp.path.segments.first().unwrap().value().ident.to_string();
+        let flag = exp.path.segments.first().unwrap().ident.to_string();
         let path = match flag.as_str() {
             "gc" => {
                 parse_quote! {pyo3::type_object::PY_TYPE_FLAG_GC}
@@ -132,6 +132,12 @@ impl PyClassArgs {
                 parse_quote! {pyo3::type_object::PY_TYPE_FLAG_WEAKREF}
             }
             "subclass" => {
+                if cfg!(not(feature = "unsound-subclass")) {
+                    return Err(syn::Error::new_spanned(
+                        exp.path.clone(),
+                        "You need to activate the `unsound-subclass` feature if you want to use subclassing",
+                    ));
+                }
                 parse_quote! {pyo3::type_object::PY_TYPE_FLAG_BASETYPE}
             }
             "dict" => {
@@ -178,28 +184,23 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
     let mut new_attrs = Vec::new();
     for attr in item.attrs.iter() {
         if let Ok(syn::Meta::List(ref list)) = attr.parse_meta() {
-            match list.ident.to_string().as_str() {
-                "pyo3" => {
-                    for meta in list.nested.iter() {
-                        if let syn::NestedMeta::Meta(ref metaitem) = meta {
-                            match metaitem.name().to_string().as_str() {
-                                "get" => {
-                                    descs.push(FnType::Getter(None));
-                                }
-                                "set" => {
-                                    descs.push(FnType::Setter(None));
-                                }
-                                _ => {
-                                    return Err(syn::Error::new_spanned(
-                                        metaitem,
-                                        "Only get and set are supported",
-                                    ));
-                                }
-                            }
+            if list.path.is_ident("pyo3") {
+                for meta in list.nested.iter() {
+                    if let syn::NestedMeta::Meta(ref metaitem) = meta {
+                        if metaitem.path().is_ident("get") {
+                            descs.push(FnType::Getter(None));
+                        } else if metaitem.path().is_ident("set") {
+                            descs.push(FnType::Setter(None));
+                        } else {
+                            return Err(syn::Error::new_spanned(
+                                metaitem,
+                                "Only get and set are supported",
+                            ));
                         }
                     }
                 }
-                _ => new_attrs.push(attr.clone()),
+            } else {
+                new_attrs.push(attr.clone())
             }
         } else {
             new_attrs.push(attr.clone());
@@ -296,12 +297,15 @@ fn impl_class(
     // insert space for weak ref
     let mut has_weakref = false;
     let mut has_dict = false;
+    let mut has_gc = false;
     for f in attr.flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
             if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_WEAKREF} {
                 has_weakref = true;
             } else if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_DICT} {
                 has_dict = true;
+            } else if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_GC} {
+                has_gc = true;
             }
         }
     }
@@ -319,6 +323,22 @@ fn impl_class(
         quote! { Some(#m) }
     } else {
         quote! { None }
+    };
+
+    // Enforce at compile time that PyGCProtocol is implemented
+    let gc_impl = if has_gc {
+        let closure_name = format!("__assertion_closure_{}", cls.to_string());
+        let closure_token = syn::Ident::new(&closure_name, Span::call_site());
+        quote! {
+            fn #closure_token() {
+                use pyo3::class;
+
+                fn _assert_implements_protocol<'p, T: pyo3::class::PyGCProtocol<'p>>() {}
+                _assert_implements_protocol::<#cls>();
+            }
+        }
+    } else {
+        quote! {}
     };
 
     let inventory_impl = impl_inventory(&cls);
@@ -356,15 +376,18 @@ fn impl_class(
             }
         }
 
-        impl pyo3::IntoPyObject for #cls {
-            fn into_object(self, py: pyo3::Python) -> pyo3::PyObject {
-                pyo3::Py::new(py, self).unwrap().into_object(py)
+        impl pyo3::IntoPy<PyObject> for #cls {
+            fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+                pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
             }
         }
 
         #inventory_impl
 
         #extra
+
+        #gc_impl
+
     }
 }
 
@@ -417,9 +440,12 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
 
                     let field_ty = &field.ty;
                     match *desc {
-                        FnType::Getter(ref getter) => {
-                            impl_py_getter_def(&name, doc, getter, &impl_wrap_getter(&cls, &name))
-                        }
+                        FnType::Getter(ref getter) => impl_py_getter_def(
+                            &name,
+                            doc,
+                            getter,
+                            &impl_wrap_getter(&cls, &name, false),
+                        ),
                         FnType::Setter(ref setter) => {
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());

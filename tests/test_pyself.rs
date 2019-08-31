@@ -17,6 +17,9 @@ struct Reader {
 
 #[pymethods]
 impl Reader {
+    fn clone_ref(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
     fn get_iter(slf: PyRef<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
         Ok(Iter {
             reader: slf.into(),
@@ -70,15 +73,18 @@ impl PyIterProtocol for Iter {
     }
 }
 
+fn reader() -> Reader {
+    let reader = [(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")];
+    Reader {
+        inner: reader.iter().map(|(k, v)| (*k, v.to_string())).collect(),
+    }
+}
+
 #[test]
 fn test_nested_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = [(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")];
-    let reader = Reader {
-        inner: reader.iter().map(|(k, v)| (*k, v.to_string())).collect(),
-    }
-    .into_object(py);
+    let reader: PyObject = reader().into_py(py);
     py_assert!(
         py,
         reader,
@@ -87,22 +93,22 @@ fn test_nested_iter() {
 }
 
 #[test]
+fn test_clone_ref() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let reader: PyObject = reader().into_py(py);
+    py_assert!(py, reader, "reader == reader.clone_ref()");
+}
+
+#[test]
 fn test_nested_iter_reset() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = [(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")];
-    let reader = PyRef::new(
-        py,
-        Reader {
-            inner: reader.iter().map(|(k, v)| (*k, v.to_string())).collect(),
-        },
-    )
-    .unwrap();
-    let obj = reader.into_object(py);
+    let reader = PyRef::new(py, reader()).unwrap();
     py_assert!(
         py,
-        obj,
-        "list(obj.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
+        reader,
+        "list(reader.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
     );
     assert!(reader.inner.is_empty());
 }

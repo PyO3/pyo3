@@ -12,7 +12,7 @@ use quote::ToTokens;
 pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
     if let Some((_, ref mut path, _)) = ast.trait_ {
         let proto = if let Some(ref mut segment) = path.segments.last() {
-            match segment.value().ident.to_string().as_str() {
+            match segment.ident.to_string().as_str() {
                 "PyObjectProtocol" => &defs::OBJECT,
                 "PyAsyncProtocol" => &defs::ASYNC,
                 "PyMappingProtocol" => &defs::MAPPING,
@@ -47,10 +47,10 @@ pub fn build_py_proto(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
 
         Ok(tokens)
     } else {
-        return Err(syn::Error::new_spanned(
+        Err(syn::Error::new_spanned(
             ast,
             "#[pyproto] can only be used with protocol trait implementations",
-        ));
+        ))
     }
 }
 

@@ -5,8 +5,6 @@ dist: xenial
 cache:
   pip: true
   cargo: true
-  directories:
-    - "$HOME/kcov"
 
 matrix:
   include:
@@ -20,10 +18,10 @@ matrix:
       python: "3.8-dev"
     - name: Minimum nightly
       python: "3.7"
-      # Keep this synced up with build.rs
-      env: TRAVIS_RUST_VERSION=nightly-2019-02-07
-      # Tested via anaconda PyPy (since travis's PyPy version is too old)
-    - name: PyPy3.5 7.0
+      # Keep this synced up with build.rs and ensure that the nightly version does have clippy available
+      # https://static.rust-lang.org/dist/YYYY-MM-DD/clippy-nightly-x86_64-unknown-linux-gnu.tar.gz exists
+      env: TRAVIS_RUST_VERSION=nightly-2019-07-19  
+    - name: PyPy3.5 7.0 # Tested via anaconda PyPy (since travis's PyPy version is too old)
       python: "3.7"
       env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
@@ -47,11 +45,15 @@ addons:
 
 before_install:
   - source ./ci/travis/setup.sh
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
 
 install:
-  - pip install setuptools-rust pytest pytest-benchmark tox tox-venv
+  - pip install setuptools-rust pytest pytest-benchmark tox
 
 script:
+  # Options for grcov
+  - if ! [[ $FEATURES == *"pypy"* ]]; then export CARGO_INCREMENTAL=0; fi
+  - if ! [[ $FEATURES == *"pypy"* ]]; then export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"; fi
   - ./ci/travis/test.sh
 
 after_success:

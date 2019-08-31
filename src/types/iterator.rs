@@ -40,6 +40,10 @@ impl<'p> PyIterator<'p> {
     {
         unsafe {
             let ptr = ffi::PyObject_GetIter(obj.as_ptr());
+            // Returns NULL if an object cannot be iterated.
+            if ptr.is_null() {
+                return Err(PyDowncastError);
+            }
 
             if ffi::PyIter_Check(ptr) != 0 {
                 // this is not right, but this cause of segfault check #71

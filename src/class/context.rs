@@ -7,6 +7,7 @@
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::type_object::PyTypeInfo;
+use crate::PyObject;
 
 /// Context manager interface
 #[allow(unused_variables)]
@@ -32,7 +33,7 @@ pub trait PyContextProtocol<'p>: PyTypeInfo {
 }
 
 pub trait PyContextEnterProtocol<'p>: PyContextProtocol<'p> {
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -40,7 +41,7 @@ pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
     type ExcType: crate::FromPyObject<'p>;
     type ExcValue: crate::FromPyObject<'p>;
     type Traceback: crate::FromPyObject<'p>;
-    type Success: crate::IntoPyObject;
+    type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 

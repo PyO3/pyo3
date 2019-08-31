@@ -4,6 +4,7 @@ use pyo3::ffi::*;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyAny};
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn _get_subclasses<'p>(
     py: &'p Python,
     py_type: &str,
@@ -101,6 +102,7 @@ fn test_delta_check() {
 
 #[test]
 fn test_datetime_utc() {
+    use assert_approx_eq::assert_approx_eq;
     use pyo3::types::PyDateTime;
 
     let gil = Python::acquire_gil();
@@ -119,10 +121,11 @@ fn test_datetime_utc() {
         .unwrap()
         .extract()
         .unwrap();
-    assert_eq!(offset, 0f32);
+    assert_approx_eq!(offset, 0f32);
 }
 
-static INVALID_DATES: &'static [(i32, u8, u8)] = &[
+#[cfg(Py_3_6)]
+static INVALID_DATES: &[(i32, u8, u8)] = &[
     (-1, 1, 1),
     (0, 1, 1),
     (10000, 1, 1),
@@ -134,7 +137,8 @@ static INVALID_DATES: &'static [(i32, u8, u8)] = &[
     (2018, 1, 32),
 ];
 
-static INVALID_TIMES: &'static [(u8, u8, u8, u32)] =
+#[cfg(Py_3_6)]
+static INVALID_TIMES: &[(u8, u8, u8, u32)] =
     &[(25, 0, 0, 0), (255, 0, 0, 0), (0, 60, 0, 0), (0, 0, 61, 0)];
 
 #[cfg(Py_3_6)]
@@ -145,7 +149,7 @@ fn test_pydate_out_of_bounds() {
     // This test is an XFAIL on Python < 3.6 until bounds checking is implemented
     let gil = Python::acquire_gil();
     let py = gil.python();
-    for val in INVALID_DATES.into_iter() {
+    for val in INVALID_DATES {
         let (year, month, day) = val;
         let dt = PyDate::new(py, *year, *month, *day);
         dt.unwrap_err();

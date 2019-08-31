@@ -5,18 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0]
 
 ### Added
 
  * `module` argument to `pyclass` macro. [#499](https://github.com/PyO3/pyo3/pull/499)
  * `py_run!` macro [#512](https://github.com/PyO3/pyo3/pull/512)
+ * Use existing fields and methods before calling custom __getattr__. [#505](https://github.com/PyO3/pyo3/pull/512)
+ * `PyBytes` can now be indexed just like `Vec<u8>`
+ * Implement `IntoPy<PyObject>` for `PyRef` and `PyRefMut`.
+
+## Removed
+
+ * `IntoPyObject` was replaced with `IntoPy<PyObject>`
+ * `#[pyclass(subclass)]` is hidden a `unsound-subclass` feature because it's causing segmentation faults.
 
 ### Fixed
 
  * More readable error message for generics in pyclass [#503](https://github.com/PyO3/pyo3/pull/503)
 
 ### Changed
+
+ * Implementing the Using the `gc` parameter for `pyclass` (e.g. `#[pyclass(gc)]`) without implementing the `class::PyGCProtocol` trait is now a compile-time error. Failing to implement this trait could lead to segfaults. [#532](https://github.com/PyO3/pyo3/pull/532)
+ * `PyByteArray::data` has been replaced with `PyDataArray::to_vec` because returning a `&[u8]` is unsound. (See [this comment](https://github.com/PyO3/pyo3/issues/373#issuecomment-512332696) for a great write-up for why that was unsound)
+ * Replace `mashup` with `paste`.
 
 ## [0.7.0] - 2018-05-26
 

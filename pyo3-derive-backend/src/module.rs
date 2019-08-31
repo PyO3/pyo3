@@ -8,8 +8,7 @@ use crate::pymethod;
 use crate::pymethod::get_arg_names;
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
-use syn::ext::IdentExt;
+use quote::{format_ident, quote};
 use syn::Ident;
 
 /// Generates the function that is called by the python interpreter to initialize the native
@@ -38,7 +37,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
                 extract_pyfn_attrs(&mut func.attrs)
             {
                 let function_to_python = add_fn_to_module(func, &python_name, pyfn_attrs);
-                let function_wrapper_ident = function_wrapper_ident(&func.ident);
+                let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
                 let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
                         #function_to_python
@@ -57,23 +56,14 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
 fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a Ident) -> Option<method::FnArg<'a>> {
     match input {
-        syn::FnArg::SelfRef(_) | &syn::FnArg::SelfValue(_) => None,
-        syn::FnArg::Captured(ref cap) => {
-            let (mutability, by_ref, ident) = match cap.pat {
+        syn::FnArg::Receiver(_) => None,
+        syn::FnArg::Typed(ref cap) => {
+            let (mutability, by_ref, ident) = match *cap.pat {
                 syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
                 _ => panic!("unsupported argument: {:?}", cap.pat),
             };
 
-            let py = match cap.ty {
-                syn::Type::Path(ref typath) => typath
-                    .path
-                    .segments
-                    .last()
-                    .map(|seg| seg.value().ident == "Python")
-                    .unwrap_or(false),
-                _ => false,
-            };
-
+            let py = crate::utils::if_type_is_python(&cap.ty);
             let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
             Some(method::FnArg {
                 name: ident,
@@ -85,15 +75,13 @@ fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a Ident) -> Option<method
                 reference: method::is_ref(&name, &cap.ty),
             })
         }
-        syn::FnArg::Ignored(_) => panic!("ignored argument: {:?}", name),
-        syn::FnArg::Inferred(_) => panic!("inferred argument: {:?}", name),
     }
 }
 
 /// Extracts the data from the #[pyfn(...)] attribute of a function
 fn extract_pyfn_attrs(
     attrs: &mut Vec<syn::Attribute>,
-) -> Option<(Ident, Ident, Vec<pyfunction::Argument>)> {
+) -> Option<(syn::Path, Ident, Vec<pyfunction::Argument>)> {
     let mut new_attrs = Vec::new();
     let mut fnname = None;
     let mut modname = None;
@@ -101,19 +89,19 @@ fn extract_pyfn_attrs(
 
     for attr in attrs.iter() {
         match attr.parse_meta() {
-            Ok(syn::Meta::List(ref list)) if list.ident == "pyfn" => {
+            Ok(syn::Meta::List(ref list)) if list.path.is_ident("pyfn") => {
                 let meta: Vec<_> = list.nested.iter().cloned().collect();
                 if meta.len() >= 2 {
                     // read module name
                     match meta[0] {
-                        syn::NestedMeta::Meta(syn::Meta::Word(ref ident)) => {
-                            modname = Some(ident.clone())
+                        syn::NestedMeta::Meta(syn::Meta::Path(ref path)) => {
+                            modname = Some(path.clone())
                         }
                         _ => panic!("The first parameter of pyfn must be a MetaItem"),
                     }
-                    // read Python fonction name
+                    // read Python function name
                     match meta[1] {
-                        syn::NestedMeta::Literal(syn::Lit::Str(ref lits)) => {
+                        syn::NestedMeta::Lit(syn::Lit::Str(ref lits)) => {
                             fnname = Some(syn::Ident::new(&lits.value(), lits.span()));
                         }
                         _ => panic!("The second parameter of pyfn must be a Literal"),
@@ -139,10 +127,7 @@ fn extract_pyfn_attrs(
 /// Coordinates the naming of a the add-function-to-python-module function
 fn function_wrapper_ident(name: &Ident) -> Ident {
     // Make sure this ident matches the one of wrap_pyfunction
-    Ident::new(
-        &format!("__pyo3_get_function_{}", name.unraw().to_string()),
-        Span::call_site(),
-    )
+    format_ident!("__pyo3_get_function_{}", name)
 }
 
 /// Generates python wrapper over a function that allows adding it to a python module as a python
@@ -154,13 +139,13 @@ pub fn add_fn_to_module(
 ) -> TokenStream {
     let mut arguments = Vec::new();
 
-    for input in func.decl.inputs.iter() {
-        if let Some(fn_arg) = wrap_fn_argument(input, &func.ident) {
+    for input in func.sig.inputs.iter() {
+        if let Some(fn_arg) = wrap_fn_argument(input, &func.sig.ident) {
             arguments.push(fn_arg);
         }
     }
 
-    let ty = method::get_return_info(&func.decl.output);
+    let ty = method::get_return_info(&func.sig.output);
 
     let spec = method::FnSpec {
         tp: method::FnType::Fn,
@@ -169,9 +154,9 @@ pub fn add_fn_to_module(
         output: ty,
     };
 
-    let function_wrapper_ident = function_wrapper_ident(&func.ident);
+    let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
-    let wrapper = function_c_wrapper(&func.ident, &spec);
+    let wrapper = function_c_wrapper(&func.sig.ident, &spec);
     let doc = utils::get_doc(&func.attrs, true);
 
     let tokens = quote! {

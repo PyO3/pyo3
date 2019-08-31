@@ -16,7 +16,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.34.0-nightly 2019-02-06.
+PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.37.0-nightly 2019-07-19.
 
 PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
 Please refer to the guide for installation instruction against PyPy.
@@ -129,6 +129,7 @@ fn main() -> PyResult<()> {
    * Contains an example of building wheels on Azure Pipelines
  * [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library_
  * [python-ext-wasm](https://github.com/wasmerio/python-ext-wasm) _Python library to run WebAssembly binaries_
+ * [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
 
 ## License
 

@@ -6,11 +6,11 @@
 use crate::callback::{LenResultConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
 use crate::ffi;
 use crate::type_object::PyTypeInfo;
+use crate::FromPyObject;
 use crate::Python;
-use crate::{FromPyObject, IntoPyObject};
+use crate::{exceptions, IntoPy, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -74,7 +74,7 @@ pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
 
 pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -90,7 +90,7 @@ pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 pub trait PyMappingIterProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -100,7 +100,7 @@ pub trait PyMappingContainsProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 

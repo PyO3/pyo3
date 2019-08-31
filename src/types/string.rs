@@ -1,26 +1,32 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::conversion::FromPyObject;
-use crate::conversion::{IntoPyObject, PyTryFrom, ToPyObject};
+use crate::conversion::{PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
-use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
+use crate::{exceptions, IntoPy};
+use crate::{ffi, FromPy};
 use std::borrow::Cow;
+use std::ops::Index;
 use std::os::raw::c_char;
-use std::{mem, str};
+use std::slice::SliceIndex;
+use std::str;
 
 /// Represents a Python `string`.
+///
+/// This type is immutable
 #[repr(transparent)]
 pub struct PyString(PyObject);
 
 pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
-/// Represents a Python `byte` string.
+/// Represents a Python `bytes`.
+///
+/// This type is immutable
 #[repr(transparent)]
 pub struct PyBytes(PyObject);
 
@@ -56,7 +62,7 @@ impl PyString {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
-            let mut size: ffi::Py_ssize_t = mem::uninitialized();
+            let mut size: ffi::Py_ssize_t = 0;
             let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
             // PyUnicode_AsUTF8AndSize would return null if the pointer did not reference a valid
             // unicode object, but because we have a valid PyString, assume success
@@ -120,6 +126,15 @@ impl PyBytes {
     }
 }
 
+/// This is the same way [Vec] is indexed
+impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.as_bytes()[index]
+    }
+}
+
 /// Converts Rust `str` to Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
@@ -129,9 +144,9 @@ impl ToPyObject for str {
     }
 }
 
-impl<'a> IntoPyObject for &'a str {
+impl<'a> IntoPy<PyObject> for &'a str {
     #[inline]
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -154,16 +169,15 @@ impl ToPyObject for String {
     }
 }
 
-impl IntoPyObject for String {
-    #[inline]
-    fn into_object(self, py: Python) -> PyObject {
-        PyString::new(py, &self).into()
+impl FromPy<String> for PyObject {
+    fn from_py(other: String, py: Python) -> Self {
+        PyString::new(py, &other).into()
     }
 }
 
-impl<'a> IntoPyObject for &'a String {
+impl<'a> IntoPy<PyObject> for &'a String {
     #[inline]
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -203,7 +217,7 @@ impl<'source> FromPyObject<'source> for String {
 
 #[cfg(test)]
 mod test {
-    use super::PyString;
+    use super::{PyBytes, PyString};
     use crate::instance::AsPyRef;
     use crate::object::PyObject;
     use crate::Python;
@@ -260,5 +274,13 @@ mod test {
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
+    }
+
+    #[test]
+    fn test_bytes_index() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let bytes = PyBytes::new(py, b"Hello World");
+        assert_eq!(bytes[1], b'e');
     }
 }

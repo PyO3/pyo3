@@ -49,22 +49,19 @@ impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
     pub fn parse(
         name: &'a syn::Ident,
-        sig: &'a syn::MethodSig,
+        sig: &'a syn::Signature,
         meth_attrs: &'a mut Vec<syn::Attribute>,
     ) -> syn::Result<FnSpec<'a>> {
         let (mut fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
 
         let mut has_self = false;
         let mut arguments = Vec::new();
-        for input in sig.decl.inputs.iter() {
+        for input in sig.inputs.iter() {
             match input {
-                syn::FnArg::SelfRef(_) => {
+                syn::FnArg::Receiver(_) => {
                     has_self = true;
                 }
-                syn::FnArg::SelfValue(_) => {
-                    has_self = true;
-                }
-                syn::FnArg::Captured(syn::ArgCaptured {
+                syn::FnArg::Typed(syn::PatType {
                     ref pat, ref ty, ..
                 }) => {
                     // skip first argument (cls)
@@ -73,7 +70,7 @@ impl<'a> FnSpec<'a> {
                         continue;
                     }
 
-                    let (ident, by_ref, mutability) = match pat {
+                    let (ident, by_ref, mutability) = match **pat {
                         syn::Pat::Ident(syn::PatIdent {
                             ref ident,
                             ref by_ref,
@@ -85,16 +82,7 @@ impl<'a> FnSpec<'a> {
                         }
                     };
 
-                    let py = match ty {
-                        syn::Type::Path(syn::TypePath { ref path, .. }) => {
-                            if let Some(segment) = path.segments.last() {
-                                segment.value().ident == "Python"
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    };
+                    let py = crate::utils::if_type_is_python(ty);
 
                     let opt = check_arg_ty_and_optional(name, ty);
                     arguments.push(FnArg {
@@ -108,16 +96,10 @@ impl<'a> FnSpec<'a> {
                         reference: is_ref(name, ty),
                     });
                 }
-                syn::FnArg::Ignored(_) => {
-                    return Err(syn::Error::new_spanned(name, "ignored argument"));
-                }
-                syn::FnArg::Inferred(_) => {
-                    return Err(syn::Error::new_spanned(name, "inferred argument"));
-                }
             }
         }
 
-        let ty = get_return_info(&sig.decl.output);
+        let ty = get_return_info(&sig.output);
 
         if fn_type == FnType::Fn && !has_self {
             if arguments.is_empty() {
@@ -140,8 +122,8 @@ impl<'a> FnSpec<'a> {
 
     pub fn is_args(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
-            if let Argument::VarArgs(ref ident) = s {
-                return name == ident;
+            if let Argument::VarArgs(ref path) = s {
+                return path.is_ident(name);
             }
         }
         false
@@ -160,8 +142,8 @@ impl<'a> FnSpec<'a> {
 
     pub fn is_kwargs(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
-            if let Argument::KeywordArgs(ref ident) = s {
-                return name == ident;
+            if let Argument::KeywordArgs(ref path) = s {
+                return path.is_ident(name);
             }
         }
         false
@@ -179,16 +161,16 @@ impl<'a> FnSpec<'a> {
     pub fn default_value(&self, name: &syn::Ident) -> Option<TokenStream> {
         for s in self.attrs.iter() {
             match *s {
-                Argument::Arg(ref ident, ref opt) => {
-                    if ident == name {
+                Argument::Arg(ref path, ref opt) => {
+                    if path.is_ident(name) {
                         if let Some(ref val) = opt {
                             let i: syn::Expr = syn::parse_str(&val).unwrap();
                             return Some(i.into_token_stream());
                         }
                     }
                 }
-                Argument::Kwarg(ref ident, ref opt) => {
-                    if ident == name {
+                Argument::Kwarg(ref path, ref opt) => {
+                    if path.is_ident(name) {
                         let i: syn::Expr = syn::parse_str(&opt).unwrap();
                         return Some(quote!(#i));
                     }
@@ -201,8 +183,8 @@ impl<'a> FnSpec<'a> {
 
     pub fn is_kw_only(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
-            if let Argument::Kwarg(ref ident, _) = s {
-                if ident == name {
+            if let Argument::Kwarg(ref path, _) = s {
+                if path.is_ident(name) {
                     return true;
                 }
             }
@@ -216,8 +198,8 @@ pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {
         syn::Type::Reference(_) => return true,
         syn::Type::Path(syn::TypePath { ref path, .. }) => {
             if let Some(segment) = path.segments.last() {
-                if "Option" == segment.value().ident.to_string().as_str() {
-                    match segment.value().arguments {
+                if "Option" == segment.ident.to_string().as_str() {
+                    match segment.arguments {
                         syn::PathArguments::AngleBracketed(ref params) => {
                             if params.args.len() != 1 {
                                 panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
@@ -257,8 +239,8 @@ pub fn check_arg_ty_and_optional<'a>(
             //}
 
             if let Some(segment) = path.segments.last() {
-                match segment.value().ident.to_string().as_str() {
-                    "Option" => match segment.value().arguments {
+                match segment.ident.to_string().as_str() {
+                    "Option" => match segment.arguments {
                         syn::PathArguments::AngleBracketed(ref params) => {
                             if params.args.len() != 1 {
                                 panic!("argument type is not supported by python method: {:?} ({:?}) {:?}",
@@ -303,40 +285,46 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
     let mut res: Option<FnType> = None;
 
     for attr in attrs.iter() {
-        match attr.interpret_meta().unwrap() {
-            syn::Meta::Word(ref name) => match name.to_string().as_ref() {
-                "new" | "__new__" => res = Some(FnType::FnNew),
-                "init" | "__init__" => res = Some(FnType::FnInit),
-                "call" | "__call__" => res = Some(FnType::FnCall),
-                "classmethod" => res = Some(FnType::FnClass),
-                "staticmethod" => res = Some(FnType::FnStatic),
-                "setter" | "getter" => {
+        match attr.parse_meta().unwrap() {
+            syn::Meta::Path(ref name) => {
+                if name.is_ident("new") || name.is_ident("__new__") {
+                    res = Some(FnType::FnNew)
+                } else if name.is_ident("init") || name.is_ident("__init__") {
+                    res = Some(FnType::FnInit)
+                } else if name.is_ident("call") || name.is_ident("__call__") {
+                    res = Some(FnType::FnCall)
+                } else if name.is_ident("classmethod") {
+                    res = Some(FnType::FnClass)
+                } else if name.is_ident("staticmethod") {
+                    res = Some(FnType::FnStatic)
+                } else if name.is_ident("setter") || name.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
-                        panic!(
-                            "Inner style attribute is not
-                                    supported for setter and getter"
-                        );
+                        panic!("Inner style attribute is not supported for setter and getter");
                     }
                     if res != None {
                         panic!("setter/getter attribute can not be used mutiple times");
                     }
-                    if name == "setter" {
+                    if name.is_ident("setter") {
                         res = Some(FnType::Setter(None))
                     } else {
                         res = Some(FnType::Getter(None))
                     }
+                } else {
+                    new_attrs.push(attr.clone())
                 }
-                _ => new_attrs.push(attr.clone()),
-            },
+            }
             syn::Meta::List(syn::MetaList {
-                ref ident,
+                ref path,
                 ref nested,
                 ..
-            }) => match ident.to_string().as_str() {
-                "new" => res = Some(FnType::FnNew),
-                "init" => res = Some(FnType::FnInit),
-                "call" => res = Some(FnType::FnCall),
-                "setter" | "getter" => {
+            }) => {
+                if path.is_ident("new") {
+                    res = Some(FnType::FnNew)
+                } else if path.is_ident("init") {
+                    res = Some(FnType::FnInit)
+                } else if path.is_ident("call") {
+                    res = Some(FnType::FnCall)
+                } else if path.is_ident("setter") || path.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
                         panic!(
                             "Inner style attribute is not
@@ -349,17 +337,17 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
                     if nested.len() != 1 {
                         panic!("setter/getter requires one value");
                     }
-                    match nested.first().unwrap().value() {
-                        syn::NestedMeta::Meta(syn::Meta::Word(ref w)) => {
-                            if ident == "setter" {
-                                res = Some(FnType::Setter(Some(w.to_string())))
+                    match nested.first().unwrap() {
+                        syn::NestedMeta::Meta(syn::Meta::Path(ref w)) => {
+                            if path.is_ident("setter") {
+                                res = Some(FnType::Setter(Some(w.segments[0].ident.to_string())))
                             } else {
-                                res = Some(FnType::Getter(Some(w.to_string())))
+                                res = Some(FnType::Getter(Some(w.segments[0].ident.to_string())))
                             }
                         }
-                        syn::NestedMeta::Literal(ref lit) => match *lit {
+                        syn::NestedMeta::Lit(ref lit) => match *lit {
                             syn::Lit::Str(ref s) => {
-                                if ident == "setter" {
+                                if path.is_ident("setter") {
                                     res = Some(FnType::Setter(Some(s.value())))
                                 } else {
                                     res = Some(FnType::Getter(Some(s.value())))
@@ -370,16 +358,16 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
                             }
                         },
                         _ => {
-                            println!("cannot parse {:?} attribute: {:?}", ident, nested);
+                            println!("cannot parse {:?} attribute: {:?}", path, nested);
                         }
                     }
-                }
-                "args" => {
+                } else if path.is_ident("args") {
                     let attrs = PyFunctionAttr::from_meta(nested)?;
                     spec.extend(attrs.arguments)
+                } else {
+                    new_attrs.push(attr.clone())
                 }
-                _ => new_attrs.push(attr.clone()),
-            },
+            }
             syn::Meta::NameValue(_) => new_attrs.push(attr.clone()),
         }
     }

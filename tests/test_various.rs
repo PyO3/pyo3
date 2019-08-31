@@ -111,7 +111,7 @@ fn pytuple_pyclass_iter() {
             PyRef::new(py, SimplePyClass {}).unwrap(),
             PyRef::new(py, SimplePyClass {}).unwrap(),
         ]
-        .into_iter(),
+        .iter(),
     );
     py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[0]).__name__");
@@ -169,4 +169,14 @@ fn test_pickle() {
         assert inst2.__dict__ == {'a': 1}
     "#
     );
+}
+
+#[test]
+fn incorrect_iter() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let int = 13isize.to_object(py);
+    let int_ref = int.as_ref(py);
+    // Should not segfault.
+    assert!(int_ref.iter().is_err());
 }

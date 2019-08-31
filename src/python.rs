@@ -234,6 +234,7 @@ impl<'p> Python<'p> {
     }
 
     /// Register `ffi::PyObject` pointer in release pool
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyAny {
         match NonNull::new(ptr) {
             Some(p) => gil::register_borrowed(self, p),
@@ -243,6 +244,7 @@ impl<'p> Python<'p> {
 
     /// Register `ffi::PyObject` pointer in release pool,
     /// and do unchecked downcast to specific type.
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
         T: PyTypeInfo,
@@ -262,6 +264,7 @@ impl<'p> Python<'p> {
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
         T: PyTypeInfo,
@@ -272,6 +275,7 @@ impl<'p> Python<'p> {
     /// Register owned `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
         T: PyTypeInfo,
@@ -282,6 +286,7 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Panics if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
         T: PyTypeInfo,
@@ -302,6 +307,7 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `Err(PyErr)` if the pointer is `null`.
     /// do unchecked downcast to specific type.
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
         T: PyTypeInfo,
@@ -312,6 +318,7 @@ impl<'p> Python<'p> {
     /// Register borrowed `ffi::PyObject` pointer in release pool.
     /// Returns `None` if the pointer is `null`.
     /// do unchecked downcast to specific `T`.
+    #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
         T: PyTypeInfo,

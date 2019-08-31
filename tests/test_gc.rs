@@ -94,7 +94,7 @@ impl Drop for ClassWithDrop {
             let py = Python::assume_gil_acquired();
 
             let _empty1: Py<PyTuple> = FromPy::from_py(PyTuple::empty(py), py);
-            let _empty2 = PyTuple::empty(py).into_object(py);
+            let _empty2: PyObject = PyTuple::empty(py).into_py(py);
             let _empty3: &PyAny = py.from_owned_ptr(ffi::PyTuple_New(0));
         }
     }
@@ -110,9 +110,9 @@ fn create_pointers_in_drop() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let empty = PyTuple::empty(py).into_object(py);
+        let empty: PyObject = PyTuple::empty(py).into_py(py);
         ptr = empty.as_ptr();
-        // substract 2, because `PyTuple::empty(py).into_object(py)` increases the refcnt by 2
+        // substract 2, because `PyTuple::empty(py).into_py(py)` increases the refcnt by 2
         cnt = empty.get_refcnt() - 2;
         let inst = Py::new(py, ClassWithDrop {}).unwrap();
         drop(inst);
@@ -180,15 +180,20 @@ fn gc_integration() {
 #[pyclass(gc)]
 struct GCIntegration2 {}
 
+#[pyproto]
+impl PyGCProtocol for GCIntegration2 {
+    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
+        Ok(())
+    }
+    fn __clear__(&mut self) {}
+}
+
 #[test]
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    // Temporarily disable pythons garbage collector to avoid a race condition
-    py.run("import gc; gc.disable()", None, None).unwrap();
     let inst = PyRef::new(py, GCIntegration2 {}).unwrap();
-    py_run!(py, inst, "assert inst in gc.get_objects()");
-    py.run("gc.enable()", None, None).unwrap();
+    py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
 #[pyclass(weakref)]

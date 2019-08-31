@@ -2,6 +2,7 @@
 use crate::utils::print_err;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
+use syn::Token;
 
 // TODO:
 //   Add lifetime support for args with Rptr
@@ -70,7 +71,7 @@ impl PartialEq<str> for MethodProto {
 
 pub fn impl_method_proto(
     cls: &syn::Type,
-    sig: &mut syn::MethodSig,
+    sig: &mut syn::Signature,
     meth: &MethodProto,
 ) -> TokenStream {
     if let MethodProto::Free { proto, .. } = meth {
@@ -80,7 +81,7 @@ pub fn impl_method_proto(
         };
     }
 
-    let ty = &*if let syn::ReturnType::Type(_, ref ty) = sig.decl.output {
+    let ty = &*if let syn::ReturnType::Type(_, ref ty) = sig.output {
         ty.clone()
     } else {
         panic!("fn return type is not supported")
@@ -95,7 +96,7 @@ pub fn impl_method_proto(
             let tmp: syn::ItemFn = syn::parse_quote! {
                 fn test(&self) -> <#cls as #p<'p>>::Result {}
             };
-            sig.decl.output = tmp.decl.output;
+            sig.output = tmp.sig.output;
             modify_self_ty(sig);
 
             if pyres {
@@ -119,7 +120,7 @@ pub fn impl_method_proto(
             pyres,
             proto,
         } => {
-            if sig.decl.inputs.len() <= 1 {
+            if sig.inputs.len() <= 1 {
                 println!("Not enough arguments for {}", name);
                 return TokenStream::new();
             }
@@ -164,7 +165,7 @@ pub fn impl_method_proto(
             pyres,
             proto,
         } => {
-            if sig.decl.inputs.len() <= 1 {
+            if sig.inputs.len() <= 1 {
                 print_err(format!("Not enough arguments {}", name), quote!(sig));
                 return TokenStream::new();
             }
@@ -213,7 +214,7 @@ pub fn impl_method_proto(
             pyres,
             proto,
         } => {
-            if sig.decl.inputs.len() <= 2 {
+            if sig.inputs.len() <= 2 {
                 print_err(format!("Not enough arguments {}", name), quote!(sig));
                 return TokenStream::new();
             }
@@ -266,7 +267,7 @@ pub fn impl_method_proto(
             pyres,
             proto,
         } => {
-            if sig.decl.inputs.len() <= 2 {
+            if sig.inputs.len() <= 2 {
                 print_err(format!("Not enough arguments {}", name), quote!(sig));
                 return TokenStream::new();
             }
@@ -322,7 +323,7 @@ pub fn impl_method_proto(
             arg3,
             proto,
         } => {
-            if sig.decl.inputs.len() <= 3 {
+            if sig.inputs.len() <= 3 {
                 print_err(format!("Not enough arguments {}", name), quote!(sig));
                 return TokenStream::new();
             }
@@ -367,26 +368,26 @@ pub fn impl_method_proto(
 }
 
 // TODO: better arg ty detection
-fn get_arg_ty(sig: &syn::MethodSig, idx: usize) -> syn::Type {
-    let mut ty = match sig.decl.inputs[idx] {
-        syn::FnArg::Captured(ref cap) => {
-            match cap.ty {
+fn get_arg_ty(sig: &syn::Signature, idx: usize) -> syn::Type {
+    let mut ty = match sig.inputs[idx] {
+        syn::FnArg::Typed(ref cap) => {
+            match *cap.ty {
                 syn::Type::Path(ref ty) => {
                     // use only last path segment for Option<>
-                    let seg = *ty.path.segments.last().unwrap().value();
+                    let seg = ty.path.segments.last().unwrap().clone();
                     if seg.ident == "Option" {
                         if let syn::PathArguments::AngleBracketed(ref data) = seg.arguments {
                             if let Some(pair) = data.args.last() {
-                                match pair.value() {
+                                match pair {
                                     syn::GenericArgument::Type(ref ty) => return ty.clone(),
                                     _ => panic!("Option only accepted for concrete types"),
                                 }
                             };
                         }
                     }
-                    cap.ty.clone()
+                    *cap.ty.clone()
                 }
-                _ => cap.ty.clone(),
+                _ => *cap.ty.clone(),
             }
         }
         _ => panic!("fn arg type is not supported"),
@@ -408,9 +409,9 @@ fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
     match ty {
         syn::Type::Path(ref typath) => {
             if let Some(segment) = typath.path.segments.last() {
-                match segment.value().ident.to_string().as_str() {
+                match segment.ident.to_string().as_str() {
                     // check for PyResult<T>
-                    "PyResult" => match segment.value().arguments {
+                    "PyResult" => match segment.arguments {
                         syn::PathArguments::AngleBracketed(ref data) => {
                             result = true;
                             succ = data.args[0].clone();
@@ -420,10 +421,10 @@ fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
                                 data.args[0]
                             {
                                 if let Some(segment) = typath.path.segments.last() {
-                                    if "Option" == segment.value().ident.to_string().as_str() {
+                                    if "Option" == segment.ident.to_string().as_str() {
                                         // get T from Option<T>
                                         if let syn::PathArguments::AngleBracketed(ref data) =
-                                            segment.value().arguments
+                                            segment.arguments
                                         {
                                             result = false;
                                             succ = data.args[0].clone();
@@ -436,7 +437,7 @@ fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
                     },
                     _ => panic!(
                         "fn result type has to be PyResult or (), got {:?}",
-                        segment.value().ident
+                        segment.ident
                     ),
                 }
             } else {
@@ -456,50 +457,55 @@ fn get_res_success(ty: &syn::Type) -> (TokenStream, syn::GenericArgument) {
     (res, succ)
 }
 
-fn extract_decl(spec: syn::Item) -> syn::FnDecl {
+fn extract_decl(spec: syn::Item) -> syn::Signature {
     match spec {
-        syn::Item::Fn(f) => *f.decl,
+        syn::Item::Fn(f) => f.sig,
         _ => panic!(),
     }
 }
 
 // modify method signature
-fn modify_arg_ty(sig: &mut syn::MethodSig, idx: usize, decl1: &syn::FnDecl, decl2: &syn::FnDecl) {
-    let arg = sig.decl.inputs[idx].clone();
+fn modify_arg_ty(
+    sig: &mut syn::Signature,
+    idx: usize,
+    decl1: &syn::Signature,
+    decl2: &syn::Signature,
+) {
+    let arg = sig.inputs[idx].clone();
     match arg {
-        syn::FnArg::Captured(ref cap) => match cap.ty {
+        syn::FnArg::Typed(ref cap) => match *cap.ty {
             syn::Type::Path(ref typath) => {
-                let seg = *typath.path.segments.last().unwrap().value();
+                let seg = typath.path.segments.last().unwrap().clone();
                 if seg.ident == "Option" {
-                    sig.decl.inputs[idx] = fix_name(&cap.pat, &decl2.inputs[idx]);
+                    sig.inputs[idx] = fix_name(&cap.pat, &decl2.inputs[idx]);
                 } else {
-                    sig.decl.inputs[idx] = fix_name(&cap.pat, &decl1.inputs[idx]);
+                    sig.inputs[idx] = fix_name(&cap.pat, &decl1.inputs[idx]);
                 }
             }
             _ => {
-                sig.decl.inputs[idx] = fix_name(&cap.pat, &decl1.inputs[idx]);
+                sig.inputs[idx] = fix_name(&cap.pat, &decl1.inputs[idx]);
             }
         },
         _ => panic!("not supported"),
     }
 
-    sig.decl.output = decl1.output.clone();
+    sig.output = decl1.output.clone();
 }
 
-fn modify_self_ty(sig: &mut syn::MethodSig) {
-    match sig.decl.inputs[0] {
-        syn::FnArg::SelfRef(ref mut slf) => {
-            slf.lifetime = Some(syn::parse_quote! {'p});
+fn modify_self_ty(sig: &mut syn::Signature) {
+    match sig.inputs[0] {
+        syn::FnArg::Receiver(ref mut slf) => {
+            slf.reference = Some((Token![&](Span::call_site()), syn::parse_quote! {'p}));
         }
-        syn::FnArg::Captured(_) => {}
-        _ => panic!("not supported"),
+        syn::FnArg::Typed(_) => {}
     }
 }
 
 fn fix_name(pat: &syn::Pat, arg: &syn::FnArg) -> syn::FnArg {
-    if let syn::FnArg::Captured(ref cap) = arg {
-        syn::FnArg::Captured(syn::ArgCaptured {
-            pat: pat.clone(),
+    if let syn::FnArg::Typed(ref cap) = arg {
+        syn::FnArg::Typed(syn::PatType {
+            attrs: cap.attrs.clone(),
+            pat: Box::new(pat.clone()),
             colon_token: cap.colon_token,
             ty: cap.ty.clone(),
         })

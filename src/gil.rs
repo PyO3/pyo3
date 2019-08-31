@@ -9,8 +9,8 @@ use spin;
 use std::ptr::NonNull;
 use std::{any, marker, rc, sync};
 
-static START: sync::Once = sync::ONCE_INIT;
-static START_PYO3: sync::Once = sync::ONCE_INIT;
+static START: sync::Once = sync::Once::new();
+static START_PYO3: sync::Once = sync::Once::new();
 
 /// Prepares the use of Python in a free-threaded context.
 ///
@@ -280,18 +280,16 @@ use self::array_list::ArrayList;
 
 mod array_list {
     use std::collections::LinkedList;
-    use std::mem;
-
     const BLOCK_SIZE: usize = 256;
 
     /// A container type for Release Pool
     /// See #271 for why this is crated
     pub(super) struct ArrayList<T> {
-        inner: LinkedList<[T; BLOCK_SIZE]>,
+        inner: LinkedList<[Option<T>; BLOCK_SIZE]>,
         length: usize,
     }
 
-    impl<T: Clone> ArrayList<T> {
+    impl<T: Copy> ArrayList<T> {
         pub fn new() -> Self {
             ArrayList {
                 inner: LinkedList::new(),
@@ -301,20 +299,20 @@ mod array_list {
         pub fn push_back(&mut self, item: T) -> &T {
             let next_idx = self.next_idx();
             if next_idx == 0 {
-                self.inner.push_back(unsafe { mem::uninitialized() });
+                self.inner.push_back([None; BLOCK_SIZE]);
             }
-            self.inner.back_mut().unwrap()[next_idx] = item;
+            self.inner.back_mut().unwrap()[next_idx] = Some(item);
             self.length += 1;
-            &self.inner.back().unwrap()[next_idx]
+            self.inner.back().unwrap()[next_idx].as_ref().unwrap()
         }
         pub fn pop_back(&mut self) -> Option<T> {
             self.length -= 1;
             let current_idx = self.next_idx();
             if current_idx == 0 {
                 let last_list = self.inner.pop_back()?;
-                return Some(last_list[0].clone());
+                return last_list[0];
             }
-            self.inner.back().map(|arr| arr[current_idx].clone())
+            self.inner.back().and_then(|arr| arr[current_idx])
         }
         pub fn len(&self) -> usize {
             self.length

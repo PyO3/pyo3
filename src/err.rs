@@ -1,7 +1,5 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::exceptions;
-use crate::ffi;
 use crate::instance::Py;
 use crate::object::PyObject;
 use crate::type_object::PyTypeObject;
@@ -9,9 +7,10 @@ use crate::types::{PyAny, PyType};
 use crate::AsPyPointer;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
+use crate::{exceptions, IntoPy};
+use crate::{ffi, FromPy};
+use crate::{ToBorrowedObject, ToPyObject};
 use libc::c_int;
-use std::error::Error;
 use std::ffi::CString;
 use std::io;
 use std::os::raw::c_char;
@@ -358,9 +357,9 @@ impl std::fmt::Debug for PyErr {
     }
 }
 
-impl IntoPyObject for PyErr {
-    fn into_object(self, py: Python) -> PyObject {
-        self.instance(py)
+impl FromPy<PyErr> for PyObject {
+    fn from_py(other: PyErr, py: Python) -> Self {
+        other.instance(py)
     }
 }
 
@@ -371,8 +370,8 @@ impl ToPyObject for PyErr {
     }
 }
 
-impl<'a> IntoPyObject for &'a PyErr {
-    fn into_object(self, py: Python) -> PyObject {
+impl<'a> IntoPy<PyObject> for &'a PyErr {
+    fn into_py(self, py: Python) -> PyObject {
         let err = self.clone_ref(py);
         err.instance(py)
     }
@@ -412,7 +411,7 @@ macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
             fn arguments(&self, py: Python) -> PyObject {
-                self.description().to_object(py)
+                self.to_string().to_object(py)
             }
         }
 
@@ -459,10 +458,9 @@ impl std::convert::From<io::Error> for PyErr {
     }
 }
 
-/// Extract `errno` and `errdesc` from from `io::Error`
 impl PyErrArguments for io::Error {
     fn arguments(&self, py: Python) -> PyObject {
-        (self.raw_os_error().unwrap_or(0), self.description()).to_object(py)
+        self.to_string().to_object(py)
     }
 }
 
@@ -474,7 +472,7 @@ impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerE
 
 impl<W: Send + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
     fn arguments(&self, py: Python) -> PyObject {
-        self.description().to_object(py)
+        self.to_string().to_object(py)
     }
 }
 

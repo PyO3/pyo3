@@ -391,11 +391,11 @@ impl<'p> PyMappingProtocol<'p> for Test {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;
             if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                return Ok("slice".into_object(gil.python()));
+                return Ok("slice".into_py(gil.python()));
             }
         } else if let Ok(idx) = idx.extract::<isize>() {
             if idx == 1 {
-                return Ok("int".into_object(gil.python()));
+                return Ok("int".into_py(gil.python()));
             }
         }
         Err(PyErr::new::<ValueError, _>("error"))
@@ -461,4 +461,26 @@ fn weakref_dunder_dict_support() {
         inst,
         "import weakref; assert weakref.ref(inst)() is inst; inst.a = 1; assert inst.a == 1"
     );
+}
+
+#[pyclass]
+struct ClassWithGetAttr {
+    #[pyo3(get, set)]
+    data: u32,
+}
+
+#[pyproto]
+impl PyObjectProtocol for ClassWithGetAttr {
+    fn __getattr__(&self, _name: &str) -> PyResult<u32> {
+        Ok(self.data * 2)
+    }
+}
+
+#[test]
+fn getattr_doesnt_override_member() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyRef::new(py, ClassWithGetAttr { data: 4 }).unwrap();
+    py_assert!(py, inst, "inst.data == 4");
+    py_assert!(py, inst, "inst.a == 8");
 }

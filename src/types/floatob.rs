@@ -8,11 +8,11 @@ use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::PyAny;
-use crate::AsPyPointer;
 use crate::FromPyObject;
 use crate::PyResult;
 use crate::Python;
-use crate::{IntoPyObject, ToPyObject};
+use crate::ToPyObject;
+use crate::{AsPyPointer, FromPy};
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.
@@ -44,9 +44,9 @@ impl ToPyObject for f64 {
     }
 }
 
-impl IntoPyObject for f64 {
-    fn into_object(self, py: Python) -> PyObject {
-        PyFloat::new(py, self).into()
+impl FromPy<f64> for PyObject {
+    fn from_py(other: f64, py: Python) -> Self {
+        PyFloat::new(py, other).into()
     }
 }
 
@@ -70,9 +70,9 @@ impl ToPyObject for f32 {
     }
 }
 
-impl IntoPyObject for f32 {
-    fn into_object(self, py: Python) -> PyObject {
-        PyFloat::new(py, f64::from(self)).into()
+impl FromPy<f32> for PyObject {
+    fn from_py(other: f32, py: Python) -> Self {
+        PyFloat::new(py, f64::from(other)).into()
     }
 }
 
@@ -91,11 +91,13 @@ mod test {
         ($func_name:ident, $t1:ty, $t2:ty) => (
             #[test]
             fn $func_name() {
+                use assert_approx_eq::assert_approx_eq;
+
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 let val = 123 as $t1;
                 let obj = val.to_object(py);
-                assert_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                assert_approx_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
             }
         )
     );
@@ -106,10 +108,12 @@ mod test {
 
     #[test]
     fn test_as_double_macro() {
+        use assert_approx_eq::assert_approx_eq;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = 1.23f64;
         let obj = v.to_object(py);
-        assert_eq!(v, unsafe { PyFloat_AS_DOUBLE(obj.as_ptr()) });
+        assert_approx_eq!(v, unsafe { PyFloat_AS_DOUBLE(obj.as_ptr()) });
     }
 }

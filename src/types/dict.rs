@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::err::{self, PyErr, PyResult};
-use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
@@ -9,8 +8,9 @@ use crate::AsPyPointer;
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::{IntoPyObject, ToBorrowedObject, ToPyObject};
-use std::{cmp, collections, hash, mem};
+use crate::{ffi, IntoPy};
+use crate::{ToBorrowedObject, ToPyObject};
+use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
@@ -172,8 +172,8 @@ impl<'py> Iterator for PyDictIterator<'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
-            let mut key: *mut ffi::PyObject = mem::uninitialized();
-            let mut value: *mut ffi::PyObject = mem::uninitialized();
+            let mut key: *mut ffi::PyObject = std::ptr::null_mut();
+            let mut value: *mut ffi::PyObject = std::ptr::null_mut();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
                 let py = self.py;
                 Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
@@ -214,29 +214,29 @@ where
     }
 }
 
-impl<K, V, H> IntoPyObject for collections::HashMap<K, V, H>
+impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPyObject,
-    V: IntoPyObject,
+    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
+    V: IntoPy<PyObject>,
     H: hash::BuildHasher,
 {
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         let iter = self
             .into_iter()
-            .map(|(k, v)| (k.into_object(py), v.into_object(py)));
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
     }
 }
 
-impl<K, V> IntoPyObject for collections::BTreeMap<K, V>
+impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
 where
-    K: cmp::Eq + IntoPyObject,
-    V: IntoPyObject,
+    K: cmp::Eq + IntoPy<PyObject>,
+    V: IntoPy<PyObject>,
 {
-    fn into_object(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         let iter = self
             .into_iter()
-            .map(|(k, v)| (k.into_object(py), v.into_object(py)));
+            .map(|(k, v)| (k.into_py(py), v.into_py(py)));
         IntoPyDict::into_py_dict(iter, py).into()
     }
 }
@@ -304,12 +304,13 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::conversion::IntoPy;
     use crate::instance::AsPyRef;
     use crate::types::dict::IntoPyDict;
     use crate::types::{PyDict, PyList, PyTuple};
-    use crate::ObjectProtocol;
     use crate::Python;
-    use crate::{IntoPyObject, PyTryFrom, ToPyObject};
+    use crate::{ObjectProtocol, PyObject};
+    use crate::{PyTryFrom, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -600,7 +601,7 @@ mod test {
         let mut map = HashMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let m = map.into_object(py);
+        let m: PyObject = map.into_py(py);
         let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);
@@ -622,14 +623,14 @@ mod test {
     }
 
     #[test]
-    fn test_btreemap_into_object() {
+    fn test_btreemap_into_py() {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let mut map = BTreeMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let m = map.into_object(py);
+        let m: PyObject = map.into_py(py);
         let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
 
         assert!(py_map.len() == 1);

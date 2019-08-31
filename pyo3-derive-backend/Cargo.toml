@@ -11,6 +11,9 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
-quote = "0.6.12"
-proc-macro2 = "0.4.30"
-syn = { version = "0.15.34", features = ["full", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"
+syn = { version = "1", features = ["full", "extra-traits"] }
+
+[features]
+unsound-subclass = []

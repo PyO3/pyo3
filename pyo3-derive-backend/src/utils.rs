@@ -2,10 +2,22 @@
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use syn;
 
 pub fn print_err(msg: String, t: TokenStream) {
     println!("Error: {} in '{}'", msg, t.to_string());
+}
+
+/// Check if the given type `ty` is `pyo3::Python`.
+pub fn if_type_is_python(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(ref typath) => typath
+            .path
+            .segments
+            .last()
+            .map(|seg| seg.ident == "Python")
+            .unwrap_or(false),
+        _ => false,
+    }
 }
 
 // FIXME(althonos): not sure the docstring formatting is on par here.
@@ -16,8 +28,8 @@ pub fn get_doc(attrs: &[syn::Attribute], null_terminated: bool) -> syn::Lit {
     // let mut span = None;
 
     for attr in attrs.iter() {
-        if let Some(syn::Meta::NameValue(ref metanv)) = attr.interpret_meta() {
-            if metanv.ident == "doc" {
+        if let Ok(syn::Meta::NameValue(ref metanv)) = attr.parse_meta() {
+            if metanv.path.is_ident("doc") {
                 // span = Some(metanv.span());
                 if let syn::Lit::Str(ref litstr) = metanv.lit {
                     let d = litstr.value();

@@ -11,13 +11,13 @@ use std::path::Path;
 use std::process::exit;
 use std::process::Command;
 use std::process::Stdio;
-use version_check::{is_min_date, is_min_version, supports_features};
+use version_check::{Channel, Date, Version};
 
 /// Specifies the minimum nightly version needed to compile pyo3.
 /// Keep this synced up with the travis ci config,
 /// But note that this is the rustc version which can be lower than the nightly version
-const MIN_DATE: &'static str = "2019-02-06";
-const MIN_VERSION: &'static str = "1.34.0-nightly";
+const MIN_DATE: &'static str = "2019-07-18";
+const MIN_VERSION: &'static str = "1.37.0-nightly";
 
 /// Information returned from python interpreter
 #[derive(Deserialize, Debug)]
@@ -537,42 +537,25 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<(String), String>
 }
 
 fn check_rustc_version() {
-    let ok_channel = supports_features();
-    let ok_version = is_min_version(MIN_VERSION);
-    let ok_date = is_min_date(MIN_DATE);
+    let channel = Channel::read().expect("Failed to determine rustc channel");
+    if !channel.supports_features() {
+        panic!("Error: pyo3 requires a nightly or dev version of Rust.");
+    }
 
-    let print_version_err = |version: &str, date: &str| {
-        eprintln!(
-            "Installed version is: {} ({}). Minimum required: {} ({}).",
-            version, date, MIN_VERSION, MIN_DATE
-        );
-    };
+    let actual_version = Version::read().expect("Failed to determine the rustc version");
+    if !actual_version.at_least(MIN_VERSION) {
+        panic!(
+            "pyo3 requires at least rustc {}, while the current version is {}",
+            MIN_VERSION, actual_version
+        )
+    }
 
-    match (ok_channel, ok_version, ok_date) {
-        (Some(ok_channel), Some((ok_version, version)), Some((ok_date, date))) => {
-            if !ok_channel {
-                eprintln!("Error: pyo3 requires a nightly or dev version of Rust.");
-                print_version_err(&*version, &*date);
-                panic!("Aborting compilation due to incompatible compiler.")
-            }
-
-            if !ok_version || !ok_date {
-                eprintln!("Error: pyo3 requires a more recent version of rustc.");
-                eprintln!("Use `rustup update` or your preferred method to update Rust");
-                print_version_err(&*version, &*date);
-                panic!("Aborting compilation due to incompatible compiler.")
-            }
-        }
-        _ => {
-            println!(
-                "cargo:warning={}",
-                "pyo3 was unable to check rustc compatibility."
-            );
-            println!(
-                "cargo:warning={}",
-                "Build may fail due to incompatible rustc version."
-            );
-        }
+    let actual_date = Date::read().expect("Failed to determine the rustc date");
+    if !actual_date.at_least(MIN_DATE) {
+        panic!(
+            "pyo3 requires at least rustc {}, while the current rustc date is {}",
+            MIN_DATE, actual_date
+        )
     }
 }
 

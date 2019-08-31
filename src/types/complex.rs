@@ -1,8 +1,8 @@
 use crate::ffi;
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::AsPyPointer;
+use crate::PyObject;
 use crate::Python;
 #[cfg(not(PyPy))]
 use std::ops::*;
@@ -130,7 +130,7 @@ mod complex_conversion {
     use crate::err::PyErr;
     use crate::types::PyAny;
     use crate::PyResult;
-    use crate::{FromPyObject, IntoPyObject, ToPyObject};
+    use crate::{FromPyObject, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {
@@ -150,11 +150,11 @@ mod complex_conversion {
             impl ToPyObject for Complex<$float> {
                 #[inline]
                 fn to_object(&self, py: Python) -> PyObject {
-                    IntoPyObject::into_object(self.to_owned(), py)
+                    crate::IntoPy::<PyObject>::into_py(self.to_owned(), py)
                 }
             }
-            impl IntoPyObject for Complex<$float> {
-                fn into_object(self, py: Python) -> PyObject {
+            impl crate::IntoPy<PyObject> for Complex<$float> {
+                fn into_py(self, py: Python) -> PyObject {
                     unsafe {
                         let raw_obj =
                             ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);
@@ -196,6 +196,7 @@ mod complex_conversion {
     complex_conversion!(f32);
     complex_conversion!(f64);
 
+    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn from_complex() {
         let gil = Python::acquire_gil();
@@ -230,11 +231,13 @@ mod test {
 
     #[test]
     fn test_from_double() {
+        use assert_approx_eq::assert_approx_eq;
+
         let gil = Python::acquire_gil();
         let py = gil.python();
         let complex = PyComplex::from_doubles(py, 3.0, 1.2);
-        assert_eq!(complex.real(), 3.0);
-        assert_eq!(complex.imag(), 1.2);
+        assert_approx_eq!(complex.real(), 3.0);
+        assert_approx_eq!(complex.imag(), 1.2);
     }
 
     #[cfg(not(Py_LIMITED_API))]
@@ -281,8 +284,8 @@ mod test {
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.0, 2.6);
         let res = l / r;
-        assert_approx_eq!(res.real(), 0.7886597938144329);
-        assert_approx_eq!(res.imag(), -0.8505154639175257);
+        assert_approx_eq!(res.real(), 0.788_659_793_814_432_9);
+        assert_approx_eq!(res.imag(), -0.850_515_463_917_525_7);
     }
 
     #[cfg(not(Py_LIMITED_API))]
@@ -302,7 +305,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let val = PyComplex::from_doubles(py, 3.0, 1.2);
-        assert_approx_eq!(val.abs(), 3.2310988842807022);
+        assert_approx_eq!(val.abs(), 3.231_098_884_280_702_2);
     }
 
     #[cfg(not(Py_LIMITED_API))]
@@ -313,7 +316,7 @@ mod test {
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.2, 2.6);
         let val = l.pow(r);
-        assert_approx_eq!(val.real(), -1.4193099970166037);
-        assert_approx_eq!(val.imag(), -0.5412974660335446);
+        assert_approx_eq!(val.real(), -1.419_309_997_016_603_7);
+        assert_approx_eq!(val.imag(), -0.541_297_466_033_544_6);
     }
 }

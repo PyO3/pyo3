@@ -102,10 +102,10 @@ so that they can benefit from a freelist. `XXX` is a number of items for the fre
 If a custom class contains references to other Python objects that can be collected, the `PyGCProtocol` trait has to be implemented.
 * `weakref` - Adds support for Python weak references.
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
-* `subclass` - Allows Python classes to inherit from this class.
 * `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
 * `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
   will be a virtual member of the `builtins` module.
+* `subclass` - Allows Python classes to inherit from this class. This feature is hidden behind a `unsound-subclass` feature because it is currently causing segmentation faults
 
 ## Constructor
 
@@ -323,7 +323,7 @@ impl MyClass {
 ```
 
 Calls to these methods are protected by the GIL, so both `&self` and `&mut self` can be used.
-The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`;
+The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`;
 the latter is allowed if the method cannot raise Python exceptions.
 
 A `Python` parameter can be specified as part of method signature, in this case the `py` argument
@@ -376,13 +376,13 @@ Declares a class method callable from Python.
   This may be the type object of a derived class.
 * The first parameter implicitly has type `&PyType`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
-* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPyObject`.
+* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
 
 ## Static methods
 
 To create a static method for a custom class, the method needs to be annotated with the
 `#[staticmethod]` attribute. The return type must be `T` or `PyResult<T>` for some `T` that implements
-`IntoPyObject`.
+`IntoPy<PyObject>`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -460,8 +460,8 @@ use pyo3::types::{PyDict, PyTuple};
 #
 #[pymethods]
 impl MyClass {
-    #[args(arg1=true, args="*", arg2=10, kwargs="**")]
-    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, kwargs: Option<&PyDict>) -> PyResult<i32> {
+    #[args(arg1=true, args="*", arg2=10, args3="\"Hello\"", kwargs="**")]
+    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, arg3: &str, kwargs: Option<&PyDict>) -> PyResult<i32> {
         Ok(1)
     }
 }
@@ -483,7 +483,7 @@ The [`PyObjectProtocol`](https://docs.rs/pyo3/0.7.0/pyo3/class/basic/trait.PyObj
 
 To customize object attribute access, define the following methods:
 
-  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPyObject>`
+  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
   * `fn __setattr__(&mut self, name: FromPyObject, value: FromPyObject) -> PyResult<()>`
   * `fn __delattr__(&mut self, name: FromPyObject) -> PyResult<()>`
 
@@ -573,17 +573,24 @@ impl PyGCProtocol for ClassWithGCSupport {
 
 Special protocol trait implementations have to be annotated with the `#[pyproto]` attribute.
 
-It is also possible to enable GC for custom class using the `gc` parameter of the `pyclass` attribute.
+It is also possible to enable GC for custom classes using the `gc` parameter of the `pyclass` attribute.
 i.e. `#[pyclass(gc)]`. In that case instances of custom class participate in Python garbage
-collection, and it is possible to track them with `gc` module methods.
+collection, and it is possible to track them with `gc` module methods. When using the `gc` parameter,
+it is *required* to implement the `PyGCProtocol` trait, failure to do so will result in an error
+at compile time:
+
+```compile_fail
+#[pyclass(gc)]
+struct GCTracked {} // Fails because it does not implement PyGCProtocol
+```
 
 ### Iterator Types
 
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/0.7.0/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPyObject>`
-  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPyObject>>`
+  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 

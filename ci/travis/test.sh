@@ -11,8 +11,7 @@ else
 fi
 
 if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
-    cargo fmt --all -- --check
-    cargo clippy --features "$FEATURES num-complex"
+    make lint
 fi
 
 for example_dir in examples/*; do

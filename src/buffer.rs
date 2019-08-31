@@ -26,11 +26,13 @@ use crate::Python;
 use libc;
 use std::ffi::CStr;
 use std::os::raw;
+use std::pin::Pin;
 use std::{cell, mem, slice};
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
+// use Pin<Box> because Python expects that the Py_buffer struct has a stable memory address
 #[repr(transparent)]
-pub struct PyBuffer(Box<ffi::Py_buffer>); // use Box<> because Python expects that the Py_buffer struct has a stable memory address
+pub struct PyBuffer(Pin<Box<ffi::Py_buffer>>);
 
 // PyBuffer is thread-safe: the shape of the buffer is immutable while a Py_buffer exists.
 // Accessing the buffer contents is protected using the GIL.
@@ -165,7 +167,7 @@ impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
     pub fn get(py: Python, obj: &PyAny) -> PyResult<PyBuffer> {
         unsafe {
-            let mut buf = Box::new(mem::zeroed::<ffi::Py_buffer>());
+            let mut buf = Box::pin(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(
                 py,
                 ffi::PyObject_GetBuffer(obj.as_ptr(), &mut *buf, ffi::PyBUF_FULL_RO),
@@ -704,6 +706,7 @@ mod test {
         assert_eq!(buffer.to_vec::<u8>(py).unwrap(), b"abcde");
     }
 
+    #[allow(clippy::float_cmp)] // The test wants to ensure that no precision was lost on the Python round-trip
     #[test]
     fn test_array_buffer() {
         let gil = Python::acquire_gil();
@@ -713,7 +716,7 @@ mod test {
             .unwrap()
             .call_method("array", ("f", (1.0, 1.5, 2.0, 2.5)), None)
             .unwrap();
-        let buffer = PyBuffer::get(py, array.into()).unwrap();
+        let buffer = PyBuffer::get(py, array).unwrap();
         assert_eq!(buffer.dimensions(), 1);
         assert_eq!(buffer.item_count(), 4);
         assert_eq!(buffer.format().to_str().unwrap(), "f");

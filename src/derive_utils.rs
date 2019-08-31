@@ -6,12 +6,11 @@
 
 use crate::err::PyResult;
 use crate::exceptions::TypeError;
-use crate::ffi;
 use crate::init_once;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::GILPool;
-use crate::IntoPyObject;
 use crate::Python;
+use crate::{ffi, IntoPy, PyObject};
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -154,7 +153,7 @@ pub unsafe fn make_module(
     }
 }
 
-/// This trait wraps a T: IntoPyObject into PyResult<T> while PyResult<T> remains PyResult<T>.
+/// This trait wraps a T: IntoPy<PyObject> into PyResult<T> while PyResult<T> remains PyResult<T>.
 ///
 /// This is necessary because proc macros run before typechecking and can't decide
 /// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
@@ -163,13 +162,13 @@ pub trait IntoPyResult<T> {
     fn into_py_result(self) -> PyResult<T>;
 }
 
-impl<T: IntoPyObject> IntoPyResult<T> for T {
+impl<T: IntoPy<PyObject>> IntoPyResult<T> for T {
     fn into_py_result(self) -> PyResult<T> {
         Ok(self)
     }
 }
 
-impl<T: IntoPyObject> IntoPyResult<T> for PyResult<T> {
+impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
     fn into_py_result(self) -> PyResult<T> {
         self
     }

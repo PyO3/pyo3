@@ -8,6 +8,7 @@ use crate::object::PyObject;
 use crate::AsPyPointer;
 use crate::Python;
 use crate::{ToBorrowedObject, ToPyObject};
+use std::ptr;
 use std::{collections, hash};
 
 /// Represents a Python `set`
@@ -26,6 +27,11 @@ impl PySet {
     pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PySet> {
         let list = elements.to_object(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(list.as_ptr())) }
+    }
+
+    /// Creates a new empty set
+    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
+        unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
     }
 
     /// Remove all elements from the set.
@@ -128,6 +134,11 @@ impl PyFrozenSet {
         unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(list.as_ptr())) }
     }
 
+    /// Creates a new empty frozen set
+    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
+        unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
+    }
+
     /// Return the number of items in the set.
     /// This is equivalent to len(p) on a set.
     #[inline]
@@ -175,6 +186,14 @@ mod test {
 
         let v = vec![1];
         assert!(PySet::new(py, &[v]).is_err());
+    }
+
+    #[test]
+    fn test_set_empty() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let set = PySet::empty(py).unwrap();
+        assert_eq!(0, set.len());
     }
 
     #[test]
@@ -262,6 +281,14 @@ mod test {
 
         let v = vec![1];
         assert!(PyFrozenSet::new(py, &[v]).is_err());
+    }
+
+    #[test]
+    fn test_frozenset_empty() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let set = PyFrozenSet::empty(py).unwrap();
+        assert_eq!(0, set.len());
     }
 
     #[test]

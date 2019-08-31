@@ -11,14 +11,14 @@
 use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
-use crate::exceptions;
 use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
+use crate::FromPyObject;
 use crate::IntoPyPointer;
 use crate::Python;
-use crate::{FromPyObject, IntoPyObject};
+use crate::{exceptions, IntoPy, PyObject};
 use std::os::raw::c_int;
 use std::ptr;
 
@@ -109,7 +109,7 @@ pub trait PyObjectProtocol<'p>: PyTypeInfo {
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
@@ -122,16 +122,16 @@ pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
     type Format: FromPyObject<'p>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
@@ -141,12 +141,12 @@ pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<bool>>;
 }
 pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPyObject;
+    type Success: IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -207,12 +207,37 @@ where
     T: for<'p> PyObjectGetAttrProtocol<'p>,
 {
     fn tp_getattro() -> Option<ffi::binaryfunc> {
-        py_binary_func!(
-            PyObjectGetAttrProtocol,
-            T::__getattr__,
-            T::Success,
-            PyObjectCallbackConverter
-        )
+        #[allow(unused_mut)]
+        unsafe extern "C" fn wrap<T>(
+            slf: *mut ffi::PyObject,
+            arg: *mut ffi::PyObject,
+        ) -> *mut ffi::PyObject
+        where
+            T: for<'p> PyObjectGetAttrProtocol<'p>,
+        {
+            let _pool = crate::GILPool::new();
+            let py = Python::assume_gil_acquired();
+
+            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
+            // for existing fields and methods first
+            let existing = ffi::PyObject_GenericGetAttr(slf, arg);
+            if existing.is_null() {
+                // PyObject_HasAttr also tries to get an object and clears the error if it fails
+                ffi::PyErr_Clear();
+            } else {
+                return existing;
+            }
+
+            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
+
+            let result = match arg.extract() {
+                Ok(arg) => slf.__getattr__(arg).into(),
+                Err(e) => Err(e),
+            };
+            crate::callback::cb_convert(PyObjectCallbackConverter, py, result)
+        }
+        Some(wrap::<T>)
     }
 }
 
@@ -438,7 +463,7 @@ where
                 Err(e) => Err(e),
             };
             match res {
-                Ok(val) => val.into_object(py).into_ptr(),
+                Ok(val) => val.into_py(py).into_ptr(),
                 Err(e) => {
                     e.restore(py);
                     ptr::null_mut()
