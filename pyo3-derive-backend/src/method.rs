@@ -5,6 +5,7 @@ use crate::pyfunction::PyFunctionAttr;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
+use syn::spanned::Spanned;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FnArg<'a> {
@@ -390,13 +391,23 @@ fn replace_self(path: &syn::TypePath) -> syn::TypePath {
     let mut res = path.to_owned();
     for seg in &mut res.path.segments {
         if let syn::PathArguments::AngleBracketed(ref mut g) = seg.arguments {
-            for arg in &mut g.args {
+            let mut args = syn::punctuated::Punctuated::new();
+            for arg in &g.args {
+                let mut add_arg = true;
+                if let syn::GenericArgument::Lifetime(_) = arg {
+                    add_arg = false;
+                }
                 if let syn::GenericArgument::Type(syn::Type::Path(p)) = arg {
                     if p.path.segments.len() == 1 && p.path.segments[0].ident == "Self" {
-                        *arg = infer(p.path.segments[0].ident.span());
+                        args.push(infer(p.span()));
+                        add_arg = false;
                     }
                 }
+                if add_arg {
+                    args.push(arg.clone());
+                }
             }
+            g.args = args;
         }
     }
     res

@@ -20,6 +20,9 @@ impl Reader {
     fn clone_ref(slf: PyRef<Self>) -> PyRef<Self> {
         slf
     }
+    fn clone_ref_with_py<'py>(slf: PyRef<'py, Self>, _py: Python<'py>) -> PyRef<'py, Self> {
+        slf
+    }
     fn get_iter(slf: PyRef<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
         Ok(Iter {
             reader: slf.into(),
@@ -98,6 +101,7 @@ fn test_clone_ref() {
     let py = gil.python();
     let reader: PyObject = reader().into_py(py);
     py_assert!(py, reader, "reader == reader.clone_ref()");
+    py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
 }
 
 #[test]
