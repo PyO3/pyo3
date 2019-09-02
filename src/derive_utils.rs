@@ -7,6 +7,7 @@
 use crate::err::PyResult;
 use crate::exceptions::TypeError;
 use crate::init_once;
+use crate::instance::PyNativeType;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::GILPool;
 use crate::Python;
@@ -33,7 +34,6 @@ pub struct ParamDescription {
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
 pub fn parse_fn_args<'p>(
-    py: Python<'p>,
     fname: Option<&str>,
     params: &[ParamDescription],
     args: &'p PyTuple,
@@ -99,6 +99,7 @@ pub fn parse_fn_args<'p>(
     }
     // Adjust the remaining args
     let args = if accept_args {
+        let py = args.py();
         let slice = args.slice(used_args as isize, nargs as isize).into_py(py);
         py.checked_cast_as(slice).unwrap()
     } else {
