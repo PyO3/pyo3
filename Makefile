@@ -16,6 +16,7 @@ test_py3:
 
 fmt:
 	cargo fmt --all -- --check
+	black . --check
 
 clippy:
 	@touch src/lib.rs  # Touching file to ensure that cargo clippy will re-check the project
