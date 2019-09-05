@@ -48,7 +48,8 @@ before_install:
   - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
 
 install:
-  - pip install setuptools-rust pytest pytest-benchmark tox black==19.3b0
+  - pip install setuptools-rust pytest pytest-benchmark tox
+  - pip install --pre black==19.3b0
 
 script:
   # Options for grcov
