@@ -470,13 +470,15 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
         ];
 
         let mut output = [#(#placeholders),*];
+        let mut _args = _args;
+        let mut _kwargs = _kwargs;
 
         // Workaround to use the question mark operator without rewriting everything
         let _result = (|| {
-            pyo3::derive_utils::parse_fn_args(
+            let (_args, _kwargs) = pyo3::derive_utils::parse_fn_args(
                 Some(_LOCATION),
                 PARAMS,
-                &_args,
+                _args,
                 _kwargs,
                 #accept_args,
                 #accept_kwargs,

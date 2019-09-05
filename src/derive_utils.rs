@@ -7,9 +7,9 @@
 use crate::err::PyResult;
 use crate::exceptions::TypeError;
 use crate::init_once;
-use crate::types::{PyAny, PyDict, PyModule, PyString, PyTuple};
+use crate::instance::PyNativeType;
+use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::GILPool;
-use crate::PyTryFrom;
 use crate::Python;
 use crate::{ffi, IntoPy, PyObject};
 use std::ptr;
@@ -41,72 +41,76 @@ pub fn parse_fn_args<'p>(
     accept_args: bool,
     accept_kwargs: bool,
     output: &mut [Option<&'p PyAny>],
-) -> PyResult<()> {
+) -> PyResult<(&'p PyTuple, Option<&'p PyDict>)> {
     let nargs = args.len();
-    let nkeywords = kwargs.map_or(0, PyDict::len);
-    if !accept_args && !accept_kwargs && (nargs + nkeywords > params.len()) {
-        return Err(TypeError::py_err(format!(
-            "{}{} takes at most {} argument{} ({} given)",
-            fname.unwrap_or("function"),
-            if fname.is_some() { "()" } else { "" },
-            params.len(),
-            if params.len() == 1 { "s" } else { "" },
-            nargs + nkeywords
-        )));
+    let mut used_args = 0;
+    macro_rules! raise_error {
+        ($s: expr $(,$arg:expr)*) => (return Err(TypeError::py_err(format!(
+            concat!("{} ", $s), fname.unwrap_or("function") $(,$arg)*
+        ))))
     }
-    let mut used_keywords = 0;
+    // Copy kwargs not to modify it
+    let kwargs = match kwargs {
+        Some(k) => Some(k.copy()?),
+        None => None,
+    };
     // Iterate through the parameters and assign values to output:
     for (i, (p, out)) in params.iter().zip(output).enumerate() {
-        match kwargs.and_then(|d| d.get_item(p.name)) {
+        *out = match kwargs.and_then(|d| d.get_item(p.name)) {
             Some(kwarg) => {
-                *out = Some(kwarg);
-                used_keywords += 1;
                 if i < nargs {
-                    return Err(TypeError::py_err(format!(
-                        "Argument given by name ('{}') and position ({})",
-                        p.name,
-                        i + 1
-                    )));
+                    raise_error!("got multiple values for argument: {}", p.name)
                 }
+                kwargs.as_ref().unwrap().del_item(p.name).unwrap();
+                Some(kwarg)
             }
             None => {
                 if p.kw_only {
                     if !p.is_optional {
-                        return Err(TypeError::py_err(format!(
-                            "Required argument ('{}') is keyword only argument",
-                            p.name
-                        )));
+                        raise_error!("missing required keyword-only argument: {}", p.name)
                     }
-                    *out = None;
+                    None
                 } else if i < nargs {
-                    *out = Some(args.get_item(i));
+                    used_args += 1;
+                    Some(args.get_item(i))
                 } else {
-                    *out = None;
                     if !p.is_optional {
-                        return Err(TypeError::py_err(format!(
-                            "Required argument ('{}') (pos {}) not found",
-                            p.name,
-                            i + 1
-                        )));
+                        raise_error!("missing required positional argument: {}", p.name)
                     }
+                    None
                 }
             }
         }
     }
-    if !accept_kwargs && used_keywords != nkeywords {
-        // check for extraneous keyword arguments
-        for item in kwargs.unwrap().items().iter() {
-            let item = <PyTuple as PyTryFrom>::try_from(item)?;
-            let key = <PyString as PyTryFrom>::try_from(item.get_item(0))?.to_string()?;
-            if !params.iter().any(|p| p.name == key) {
-                return Err(TypeError::py_err(format!(
-                    "'{}' is an invalid keyword argument for this function",
-                    key
-                )));
-            }
-        }
+    let is_kwargs_empty = kwargs.as_ref().map_or(true, |dict| dict.is_empty());
+    // Raise an error when we get an unknown key
+    if !accept_kwargs && !is_kwargs_empty {
+        let (key, _) = kwargs.unwrap().iter().next().unwrap();
+        raise_error!("got an unexpected keyword argument: {}", key)
     }
-    Ok(())
+    // Raise an error when we get too many positional args
+    if !accept_args && used_args < nargs {
+        raise_error!(
+            "takes at most {} positional argument{} ({} given)",
+            used_args,
+            if used_args == 1 { "" } else { "s" },
+            nargs
+        )
+    }
+    // Adjust the remaining args
+    let args = if accept_args {
+        let py = args.py();
+        let slice = args.slice(used_args as isize, nargs as isize).into_py(py);
+        py.checked_cast_as(slice).unwrap()
+    } else {
+        args
+    };
+    let kwargs = if accept_kwargs && is_kwargs_empty {
+        None
+    } else {
+        kwargs
+    };
+    Ok((args, kwargs))
 }
 
 /// Builds a module (or null) from a user given initializer. Used for `#[pymodule]`.
