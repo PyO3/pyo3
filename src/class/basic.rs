@@ -215,8 +215,8 @@ where
         where
             T: for<'p> PyObjectGetAttrProtocol<'p>,
         {
-            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new(py);
 
             // Behave like python's __getattr__ (as opposed to __getattribute__) and check
             // for existing fields and methods first
@@ -450,8 +450,8 @@ where
         where
             T: for<'p> PyObjectRichcmpProtocol<'p>,
         {
-            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<T>(slf);
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 

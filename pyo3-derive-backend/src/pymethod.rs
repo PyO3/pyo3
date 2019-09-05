@@ -113,8 +113,8 @@ fn impl_wrap_common(
             {
                 const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
-                let _pool = pyo3::GILPool::new();
                 let _py = pyo3::Python::assume_gil_acquired();
+                let _pool = pyo3::GILPool::new(_py);
                 #slf
                 let _result = {
                     pyo3::derive_utils::IntoPyResult::into_py_result(#body)
@@ -135,8 +135,8 @@ fn impl_wrap_common(
             {
                 const _LOCATION: &'static str = concat!(
                     stringify!(#cls), ".", stringify!(#name), "()");
-                let _pool = pyo3::GILPool::new();
                 let _py = pyo3::Python::assume_gil_acquired();
+                let _pool = pyo3::GILPool::new(_py);
                 #slf
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -163,8 +163,8 @@ pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) ->
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -194,8 +194,8 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> T
             use pyo3::type_object::PyTypeInfo;
 
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             match pyo3::type_object::PyRawObject::new(_py, #cls::type_object(), _cls) {
                 Ok(_obj) => {
                     let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -240,8 +240,8 @@ fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> Toke
             _kwargs: *mut pyo3::ffi::PyObject) -> pyo3::libc::c_int
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -274,8 +274,8 @@ pub fn impl_wrap_class(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) ->
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             let _cls = pyo3::types::PyType::from_type_ptr(_py, _cls as *mut pyo3::ffi::PyTypeObject);
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
@@ -303,8 +303,8 @@ pub fn impl_wrap_static(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
@@ -329,8 +329,8 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, name: &syn::Ident, takes_py: boo
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
 
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
 
             let result = pyo3::derive_utils::IntoPyResult::into_py_result(#fncall);
@@ -370,8 +370,8 @@ pub(crate) fn impl_wrap_setter(
             _value: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> pyo3::libc::c_int
         {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _pool = pyo3::GILPool::new();
             let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new(_py);
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
             let _value = _py.from_borrowed_ptr(_value);
 

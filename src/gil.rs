@@ -111,7 +111,7 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.drain(self.owned, self.borrowed, true);
+            pool.drain(self.python(), self.owned, self.borrowed, true);
 
             ffi::PyGILState_Release(self.gstate);
         }
@@ -156,7 +156,7 @@ impl ReleasePool {
         vec.set_len(0);
     }
 
-    pub unsafe fn drain(&mut self, owned: usize, borrowed: usize, pointers: bool) {
+    pub unsafe fn drain(&mut self, _py: Python, owned: usize, borrowed: usize, pointers: bool) {
         // Release owned objects(call decref)
         while owned < self.owned.len() {
             let last = self.owned.pop_back().unwrap();
@@ -176,35 +176,31 @@ impl ReleasePool {
 static mut POOL: *mut ReleasePool = ::std::ptr::null_mut();
 
 #[doc(hidden)]
-pub struct GILPool {
+pub struct GILPool<'p> {
+    py: Python<'p>,
     owned: usize,
     borrowed: usize,
     pointers: bool,
     no_send: marker::PhantomData<rc::Rc<()>>,
 }
 
-impl Default for GILPool {
+impl<'p> GILPool<'p> {
     #[inline]
-    fn default() -> GILPool {
+    pub fn new(py: Python) -> GILPool {
         let p: &'static mut ReleasePool = unsafe { &mut *POOL };
         GILPool {
+            py,
             owned: p.owned.len(),
             borrowed: p.borrowed.len(),
             pointers: true,
             no_send: marker::PhantomData,
         }
     }
-}
-
-impl GILPool {
     #[inline]
-    pub fn new() -> GILPool {
-        GILPool::default()
-    }
-    #[inline]
-    pub fn new_no_pointers() -> GILPool {
+    pub fn new_no_pointers(py: Python) -> GILPool {
         let p: &'static mut ReleasePool = unsafe { &mut *POOL };
         GILPool {
+            py,
             owned: p.owned.len(),
             borrowed: p.borrowed.len(),
             pointers: false,
@@ -213,11 +209,11 @@ impl GILPool {
     }
 }
 
-impl Drop for GILPool {
+impl<'p> Drop for GILPool<'p> {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.drain(self.owned, self.borrowed, self.pointers);
+            pool.drain(self.py, self.owned, self.borrowed, self.pointers);
         }
     }
 }
@@ -394,7 +390,7 @@ mod test {
             let p: &'static mut ReleasePool = &mut *POOL;
 
             {
-                let _pool = GILPool::new();
+                let _pool = GILPool::new(py);
                 assert_eq!(p.owned.len(), 0);
 
                 let _ = gil::register_owned(py, obj.into_nonnull());
@@ -402,7 +398,7 @@ mod test {
                 assert_eq!(p.owned.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 {
-                    let _pool = GILPool::new();
+                    let _pool = GILPool::new(py);
                     let obj = get_object();
                     let _ = gil::register_owned(py, obj.into_nonnull());
                     assert_eq!(p.owned.len(), 2);
@@ -463,7 +459,7 @@ mod test {
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
 
                 {
-                    let _pool = GILPool::new();
+                    let _pool = GILPool::new(py);
                     assert_eq!(p.borrowed.len(), 1);
                     gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
                     assert_eq!(p.borrowed.len(), 2);

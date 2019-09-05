@@ -17,8 +17,8 @@ macro_rules! py_unary_func {
         where
             T: for<'p> $trait<'p>,
         {
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let res = slf.$f().into();
             $crate::callback::cb_convert($conv, py, res.map(|x| x))
@@ -36,8 +36,8 @@ macro_rules! py_unary_pyref_func {
             T: for<'p> $trait<'p>,
         {
             use $crate::instance::PyRefMut;
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let res = $class::$f(PyRefMut::from_mut(slf)).into();
             $crate::callback::cb_convert($conv, py, res)
@@ -54,8 +54,8 @@ macro_rules! py_len_func {
         where
             T: for<'p> $trait<'p>,
         {
-            let _pool = $crate::GILPool::new();
             let py = Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let result = slf.$f().into();
@@ -84,8 +84,8 @@ macro_rules! py_binary_func {
             T: for<'p> $trait<'p>,
         {
             use $crate::ObjectProtocol;
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let arg = py.from_borrowed_ptr::<$crate::types::PyAny>(arg);
 
@@ -112,8 +112,8 @@ macro_rules! py_binary_num_func {
             T: for<'p> $trait<'p>,
         {
             use $crate::ObjectProtocol;
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let lhs = py.from_borrowed_ptr::<$crate::types::PyAny>(lhs);
             let rhs = py.from_borrowed_ptr::<$crate::types::PyAny>(rhs);
 
@@ -144,8 +144,8 @@ macro_rules! py_binary_self_func {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf1 = py.mut_from_borrowed_ptr::<T>(slf);
             let arg = py.from_borrowed_ptr::<$crate::types::PyAny>(arg);
 
@@ -180,8 +180,8 @@ macro_rules! py_ssizearg_func {
         where
             T: for<'p> $trait<'p>,
         {
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let result = slf.$f(arg.into()).into();
             $crate::callback::cb_convert($conv, py, result)
@@ -213,8 +213,8 @@ macro_rules! py_ternary_func {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
@@ -247,8 +247,8 @@ macro_rules! py_ternary_num_func {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
             let arg3 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg3);
@@ -284,8 +284,8 @@ macro_rules! py_ternary_self_func {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf1 = py.mut_from_borrowed_ptr::<T>(slf);
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
@@ -323,8 +323,8 @@ macro_rules! py_func_set {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
 
             let result = if value.is_null() {
@@ -371,8 +371,8 @@ macro_rules! py_func_del {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
 
             let result = if value.is_null() {
                 let slf = py.mut_from_borrowed_ptr::<U>(slf);
@@ -413,8 +413,8 @@ macro_rules! py_func_set_del {
         {
             use $crate::ObjectProtocol;
 
-            let _pool = $crate::GILPool::new();
             let py = $crate::Python::assume_gil_acquired();
+            let _pool = $crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
             let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
 

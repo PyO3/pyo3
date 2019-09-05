@@ -278,7 +278,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = crate::GILPool::new();
+            let _pool = crate::GILPool::new(py);
             let v = vec![2];
             let ob = v.to_object(py);
             let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
@@ -313,7 +313,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = crate::GILPool::new();
+            let _pool = crate::GILPool::new(py);
             let list = PyList::empty(py);
             let none = py.None();
             cnt = none.get_refcnt();
@@ -342,7 +342,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = crate::GILPool::new();
+            let _pool = crate::GILPool::new(py);
             let list = PyList::empty(py);
             let none = py.None();
             cnt = none.get_refcnt();

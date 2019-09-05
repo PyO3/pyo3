@@ -420,8 +420,8 @@ unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
 where
     T: PyObjectAlloc,
 {
-    let _pool = gil::GILPool::new_no_pointers();
     let py = Python::assume_gil_acquired();
+    let _pool = gil::GILPool::new_no_pointers(py);
     <T as PyObjectAlloc>::dealloc(py, obj)
 }
 fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
