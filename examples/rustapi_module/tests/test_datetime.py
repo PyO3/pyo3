@@ -40,8 +40,8 @@ MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
-IS_X86 = platform.architecture()[0] == '32bit'
-IS_WINDOWS = sys.platform == 'win32'
+IS_X86 = platform.architecture()[0] == "32bit"
+IS_WINDOWS = sys.platform == "win32"
 if IS_WINDOWS:
     MIN_DATETIME_FROM_TIMESTAMP = pdt.datetime.fromtimestamp(86400)
     if IS_X86:
@@ -85,8 +85,9 @@ def test_invalid_date_fails():
         rdt.make_date(2017, 2, 30)
 
 
-@given(d=st.dates(MIN_DATETIME_FROM_TIMESTAMP.date(),
-                  MAX_DATETIME_FROM_TIMESTAMP.date()))
+@given(
+    d=st.dates(MIN_DATETIME_FROM_TIMESTAMP.date(), MAX_DATETIME_FROM_TIMESTAMP.date())
+)
 def test_date_from_timestamp(d):
     if PYPY and d < pdt.date(1900, 1, 1):
         pytest.xfail("pdt.datetime.timestamp will raise on PyPy with dates before 1900")
@@ -225,8 +226,7 @@ def test_datetime_typeerror():
         rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
 
 
-@given(dt=st.datetimes(MIN_DATETIME_FROM_TIMESTAMP,
-                       MAX_DATETIME_FROM_TIMESTAMP))
+@given(dt=st.datetimes(MIN_DATETIME_FROM_TIMESTAMP, MAX_DATETIME_FROM_TIMESTAMP))
 @example(dt=pdt.datetime(1970, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
     if PYPY and dt < pdt.datetime(1900, 1, 1):

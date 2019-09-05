@@ -7,5 +7,6 @@ Here are some things you should check for submitting your pull request:
  - If applicable, add an entry in the changelog.
  - If applicable, add documentation to all new items and extend the guide.
  - If applicable, add tests for all new or fixed functions
+ - If you changed any python code, run `black .`. You can install black with `pip install black`)
 
 You might want to run `tox` (`pip install tox`) locally to check compatibility with all supported python versions. If you're using linux or mac you might find the Makefile helpful for testing.
