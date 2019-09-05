@@ -49,7 +49,6 @@ before_install:
 
 install:
   - pip install setuptools-rust pytest pytest-benchmark tox
-  - pip install --pre black==19.3b0
 
 script:
   # Options for grcov
