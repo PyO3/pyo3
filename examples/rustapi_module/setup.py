@@ -38,20 +38,21 @@ class CargoModifiedSdist(SdistCommand):
         super().make_release_tree(base_dir, files)
 
         import toml
+
         # Cargo.toml is now staged and ready to be modified
-        cargo_loc = os.path.join(base_dir, 'Cargo.toml')
+        cargo_loc = os.path.join(base_dir, "Cargo.toml")
         assert os.path.exists(cargo_loc)
 
-        with open(cargo_loc, 'r') as f:
+        with open(cargo_loc, "r") as f:
             cargo_toml = toml.load(f)
 
-        rel_pyo3_path = cargo_toml['dependencies']['pyo3']['path']
+        rel_pyo3_path = cargo_toml["dependencies"]["pyo3"]["path"]
         base_path = os.path.dirname(__file__)
         abs_pyo3_path = os.path.abspath(os.path.join(base_path, rel_pyo3_path))
 
-        cargo_toml['dependencies']['pyo3']['path'] = abs_pyo3_path
+        cargo_toml["dependencies"]["pyo3"]["path"] = abs_pyo3_path
 
-        with open(cargo_loc, 'w') as f:
+        with open(cargo_loc, "w") as f:
             toml.dump(cargo_toml, f)
 
 
@@ -98,17 +99,12 @@ setup(
             rustc_flags=get_py_version_cfgs(),
         ),
         RustExtension(
-            "rustapi_module.test_dict",
-            "Cargo.toml",
-            rustc_flags=get_py_version_cfgs(),
+            "rustapi_module.test_dict", "Cargo.toml", rustc_flags=get_py_version_cfgs()
         ),
     ],
     install_requires=install_requires,
     tests_require=tests_require,
     include_package_data=True,
     zip_safe=False,
-    cmdclass={
-        'test': PyTest,
-        'sdist': CargoModifiedSdist,
-    },
+    cmdclass={"test": PyTest, "sdist": CargoModifiedSdist},
 )
