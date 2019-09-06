@@ -149,8 +149,6 @@ pub use unindent;
 /// Raw ffi declarations for the c interface of python
 pub mod ffi;
 
-mod ffi3;
-
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
