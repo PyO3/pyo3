@@ -18,6 +18,7 @@ use version_check::{Channel, Date, Version};
 /// But note that this is the rustc version which can be lower than the nightly version
 const MIN_DATE: &'static str = "2019-07-18";
 const MIN_VERSION: &'static str = "1.37.0-nightly";
+const PYTHON_INTERPRETER: &'static str = "python3";
 
 /// Information returned from python interpreter
 #[derive(Deserialize, Debug)]
@@ -357,7 +358,7 @@ elif sysconfig.get_config_var("Py_ENABLE_SHARED"):
 else:
     print("static")
 "#;
-    let out = run_python_script("python", script).unwrap();
+    let out = run_python_script(PYTHON_INTERPRETER, script).unwrap();
     Ok(out.trim_end().to_owned())
 }
 
@@ -425,22 +426,19 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<Strin
     };
 
     // check default python
-    let interpreter_path = "python";
-
-    let interpreter_config = get_config_from_interpreter(interpreter_path)?;
+    let interpreter_config = get_config_from_interpreter(PYTHON_INTERPRETER)?;
     if interpreter_config.version.major == 3 {
         return Ok((
             interpreter_config,
-            fix_config_map(get_config_vars(interpreter_path)?),
+            fix_config_map(get_config_vars(PYTHON_INTERPRETER)?),
         ));
     }
 
-    let major_interpreter_path = "python3";
-    let interpreter_config = get_config_from_interpreter(major_interpreter_path)?;
+    let interpreter_config = get_config_from_interpreter(PYTHON_INTERPRETER)?;
     if interpreter_config.version.major == 3 {
         return Ok((
             interpreter_config,
-            fix_config_map(get_config_vars(major_interpreter_path)?),
+            fix_config_map(get_config_vars(PYTHON_INTERPRETER)?),
         ));
     }
 
