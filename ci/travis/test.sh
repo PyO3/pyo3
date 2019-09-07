@@ -11,6 +11,7 @@ else
 fi
 
 if [ "$TRAVIS_JOB_NAME" = "Minimum nightly" ]; then
+    pip install --pre black==19.3b0
     make lint
 fi
 

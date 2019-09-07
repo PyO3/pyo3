@@ -221,8 +221,8 @@ where
         where
             T: for<'p> PySequenceSetItemProtocol<'p>,
         {
-            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let result = if value.is_null() {
@@ -295,8 +295,8 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let _pool = crate::GILPool::new();
                 let py = Python::assume_gil_acquired();
+                let _pool = crate::GILPool::new(py);
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
                 let result = if value.is_null() {
@@ -341,8 +341,8 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let _pool = crate::GILPool::new();
                 let py = Python::assume_gil_acquired();
+                let _pool = crate::GILPool::new(py);
                 let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
                 let result = if value.is_null() {

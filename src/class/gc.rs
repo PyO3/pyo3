@@ -85,8 +85,8 @@ where
         where
             T: for<'p> PyGCTraverseProtocol<'p>,
         {
-            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             let visit = PyVisit {
@@ -122,8 +122,8 @@ where
         where
             T: for<'p> PyGCClearProtocol<'p>,
         {
-            let _pool = crate::GILPool::new();
             let py = Python::assume_gil_acquired();
+            let _pool = crate::GILPool::new(py);
             let slf = py.mut_from_borrowed_ptr::<T>(slf);
 
             slf.__clear__();

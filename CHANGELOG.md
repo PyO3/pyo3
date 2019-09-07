@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.8.0]
+## [0.8.0] - 2018-09-05
 
 ### Added
 
@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Implementing the Using the `gc` parameter for `pyclass` (e.g. `#[pyclass(gc)]`) without implementing the `class::PyGCProtocol` trait is now a compile-time error. Failing to implement this trait could lead to segfaults. [#532](https://github.com/PyO3/pyo3/pull/532)
  * `PyByteArray::data` has been replaced with `PyDataArray::to_vec` because returning a `&[u8]` is unsound. (See [this comment](https://github.com/PyO3/pyo3/issues/373#issuecomment-512332696) for a great write-up for why that was unsound)
  * Replace `mashup` with `paste`.
+ * `GILPool` gained a `Python` marker to prevent it from being misused to release Python objects without the GIL held.
 
 ## [0.7.0] - 2018-05-26
 
@@ -56,6 +57,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    the items are not hashable.
  * Fixed building using `venv` on Windows.
  * `PyTuple::new` now returns `&PyTuple` instead of `Py<PyTuple>`.
+ * Fixed several issues with argument parsing; notable, the `*args` and `**kwargs`
+   tuple/dict now doesn't contain arguments that are otherwise assigned to parameters.
 
 ## [0.6.0] - 2018-03-28
 
@@ -314,7 +317,8 @@ Yanked
 
 * Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/pyo3/pyo3/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pyo3/pyo3/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pyo3/pyo3/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/pyo3/pyo3/compare/v0.5.2...v0.5.3

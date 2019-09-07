@@ -1,0 +1,18 @@
+[tool.black]
+target_version = ['py35']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | venv
+    | target
+    | dist
+  )/
+)
+'''

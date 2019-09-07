@@ -1,10 +1,8 @@
 import pytest
 from rustapi_module.test_dict import DictSize
 
-@pytest.mark.parametrize(
-    "size",
-    [64, 128, 256],
-)
+
+@pytest.mark.parametrize("size", [64, 128, 256])
 def test_size(size):
     d = {}
     for i in range(size):
