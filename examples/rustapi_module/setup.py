@@ -70,6 +70,12 @@ def get_py_version_cfgs():
     return out_cfg
 
 
+def make_rust_extension(module_name):
+    return RustExtension(
+        module_name, "Cargo.toml", rustc_flags=get_py_version_cfgs(), debug=True
+    )
+
+
 install_requires = []
 tests_require = install_requires + ["pytest", "pytest-benchmark"]
 
@@ -87,20 +93,10 @@ setup(
     ],
     packages=["rustapi_module"],
     rust_extensions=[
-        RustExtension(
-            "rustapi_module.othermod", "Cargo.toml", rustc_flags=get_py_version_cfgs()
-        ),
-        RustExtension(
-            "rustapi_module.datetime", "Cargo.toml", rustc_flags=get_py_version_cfgs()
-        ),
-        RustExtension(
-            "rustapi_module.subclassing",
-            "Cargo.toml",
-            rustc_flags=get_py_version_cfgs(),
-        ),
-        RustExtension(
-            "rustapi_module.test_dict", "Cargo.toml", rustc_flags=get_py_version_cfgs()
-        ),
+        make_rust_extension("rustapi_module.othermod"),
+        make_rust_extension("rustapi_module.datetime"),
+        make_rust_extension("rustapi_module.subclassing"),
+        make_rust_extension("rustapi_module.test_dict"),
     ],
     install_requires=install_requires,
     tests_require=tests_require,
