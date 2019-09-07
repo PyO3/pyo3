@@ -19,7 +19,7 @@ use std::os::raw::c_char;
 ///
 /// **CAUTION**
 ///
-/// When you construct an instance of `PyErrValue`, we highly recommend to use `to_args` method.
+/// When you construct an instance of `PyErrValue`, we highly recommend to use `from_err_args` method.
 /// If you want to to construct `PyErrValue::ToArgs` directly, please do not forget calling
 /// `Python::acquire_gil`.
 pub enum PyErrValue {
@@ -30,7 +30,7 @@ pub enum PyErrValue {
 }
 
 impl PyErrValue {
-    pub fn to_args<T: 'static + PyErrArguments>(value: T) -> Self {
+    pub fn from_err_args<T: 'static + PyErrArguments>(value: T) -> Self {
         let _ = Python::acquire_gil();
         PyErrValue::ToArgs(Box::new(value))
     }
@@ -430,7 +430,7 @@ macro_rules! impl_to_pyerr {
 
         impl std::convert::From<$err> for PyErr {
             fn from(err: $err) -> PyErr {
-                PyErr::from_value::<$pyexc>(PyErrValue::to_args(err))
+                PyErr::from_value::<$pyexc>(PyErrValue::from_err_args(err))
             }
         }
     };
@@ -441,7 +441,7 @@ impl std::convert::From<io::Error> for PyErr {
     fn from(err: io::Error) -> PyErr {
         macro_rules! err_value {
             () => {
-                PyErrValue::to_args(err)
+                PyErrValue::from_err_args(err)
             };
         }
         match err.kind() {
@@ -480,7 +480,7 @@ impl PyErrArguments for io::Error {
 
 impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerError<W>> for PyErr {
     fn from(err: std::io::IntoInnerError<W>) -> PyErr {
-        PyErr::from_value::<exceptions::OSError>(PyErrValue::to_args(err))
+        PyErr::from_value::<exceptions::OSError>(PyErrValue::from_err_args(err))
     }
 }
 
