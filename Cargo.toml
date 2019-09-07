@@ -38,6 +38,7 @@ regex = "1.2.1"
 version_check = "0.9.1"
 serde = { version = "1.0.99", features = ["derive"] }
 serde_json = "1.0.40"
+lazy_static = "1.4"
 
 [features]
 default = []
