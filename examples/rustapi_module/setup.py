@@ -97,6 +97,7 @@ setup(
         make_rust_extension("rustapi_module.datetime"),
         make_rust_extension("rustapi_module.subclassing"),
         make_rust_extension("rustapi_module.test_dict"),
+        make_rust_extension("rustapi_module.buf_and_str"),
     ],
     install_requires=install_requires,
     tests_require=tests_require,
