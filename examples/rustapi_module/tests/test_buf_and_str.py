@@ -4,7 +4,7 @@ from rustapi_module.buf_and_str import BytesExtractor
 
 
 def test_pybuffer_doesnot_leak_memory():
-    N = int(1e5)
+    N = 1000
     extractor = BytesExtractor()
     process = psutil.Process(os.getpid())
 
@@ -25,6 +25,5 @@ def test_pybuffer_doesnot_leak_memory():
         for i in range(N):
             extractor.to_str(message_s)
 
-    mv = memory_diff(to_vec)
-    ms = memory_diff(to_str)
-    assert abs(mv - ms) < 1000
+    memory_diff(to_vec) == 0
+    memory_diff(to_str) == 0
