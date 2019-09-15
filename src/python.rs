@@ -106,10 +106,10 @@ impl<'p> Python<'p> {
     ///
     /// # Example:
     /// ```
-    /// use pyo3::{types::{IntoPyDict, PyBytes, PyDict}, prelude::*};
+    /// use pyo3::{types::{PyBytes, PyDict}, prelude::*};
     /// let gil = pyo3::Python::acquire_gil();
     /// let py = gil.python();
-    /// let locals = [("ret", py.None())].into_py_dict(py);
+    /// let locals = PyDict::new(py);
     /// py.run(
     ///     r#"
     /// import base64
@@ -118,7 +118,7 @@ impl<'p> Python<'p> {
     /// "#,
     ///    None,
     ///    Some(locals),
-    /// );
+    /// ).unwrap();
     /// let ret = locals.get_item("ret").unwrap();
     /// let b64: &PyBytes = ret.downcast_ref().unwrap();
     /// assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");

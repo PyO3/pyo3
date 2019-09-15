@@ -121,7 +121,7 @@ fn main_(py: Python) -> PyResult<()> {
 }
 ```
 
-If you want to excute a code with multiple lines, you can use
+If you want to excute one or more statements, you can use
 [`Python::run`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run)
 or [`py_run!](https://pyo3.rs/master/doc/pyo3/macro.py_run.htm) macro.
 

@@ -77,23 +77,3 @@ fn new_with_two_args() {
     assert_eq!(obj._data1, 10);
     assert_eq!(obj._data2, 20);
 }
-
-#[test]
-fn py_run_example() {
-    use pyo3::types::{IntoPyDict, PyDict, PyList};
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let ret_dict = [("ret", py.None())].into_py_dict(py);
-    py.run(
-        r#"
-l = [8, 7, 3, 4, 5]
-l.sort()
-ret = l
-"#,
-        None,
-        Some(ret_dict),
-    );
-    let list: &PyList = ret_dict.get_item("ret").unwrap().downcast_ref().unwrap();
-    let ret: Vec<i32> = list.extract().unwrap();
-    assert_eq!(&ret, &[3, 4, 5, 7, 8]);
-}

@@ -94,9 +94,17 @@ Example program displaying the value of `sys.version` and the current user name:
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
-fn main() -> PyResult<()> {
+fn main() -> Result<(), ()> {
     let gil = Python::acquire_gil();
     let py = gil.python();
+    main_(py).map_err(|e| {
+        // We can't display python error type via ::std::fmt::Display,
+        // so print error here manually.
+        e.print_and_set_sys_last_vars(py);
+    })
+}
+
+fn main_(py: Python) -> PyResult<()> {
     let sys = py.import("sys")?;
     let version: String = sys.get("version")?.extract()?;
     let locals = [("os", py.import("os")?)].into_py_dict(py);
@@ -106,6 +114,10 @@ fn main() -> PyResult<()> {
     Ok(())
 }
 ```
+
+If you want to excute one or more statements, you can use
+[`Python::run`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run)
+or [`py_run!](https://pyo3.rs/master/doc/pyo3/macro.py_run.htm) macro.
 
 ## Examples and tooling
 
