@@ -310,6 +310,10 @@ pub mod doc_test {
     doctest!("../guide/src/function.md", guide_function_md);
     doctest!("../guide/src/get_started.md", guide_get_started_md);
     doctest!("../guide/src/module.md", guide_module_md);
+    doctest!(
+        "../guide/src/python_from_rust.md",
+        guide_python_from_rust_md
+    );
     doctest!("../guide/src/parallelism.md", guide_parallelism_md);
     doctest!("../guide/src/pypy.md", guide_pypy_md);
     doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);

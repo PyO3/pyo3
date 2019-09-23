@@ -90,6 +90,16 @@ impl<'p> Python<'p> {
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
+    ///
+    /// # Example:
+    /// ```
+    /// # use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// # let gil = pyo3::Python::acquire_gil();
+    /// # let py = gil.python();
+    /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let res: Vec<i64> = result.extract().unwrap();
+    /// assert_eq!(res, vec![0, 10, 20, 30, 40])
+    /// ```
     pub fn eval(
         self,
         code: &str,

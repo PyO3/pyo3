@@ -115,9 +115,8 @@ fn main_(py: Python) -> PyResult<()> {
 }
 ```
 
-If you want to excute one or more statements, you can use
-[`Python::run`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run)
-or [`py_run!](https://pyo3.rs/master/doc/pyo3/macro.py_run.htm) macro.
+Our guide has [a section](https://pyo3.rs/master/python_from_rust.html) with lots of examples
+about this topic.
 
 ## Examples and tooling
 
