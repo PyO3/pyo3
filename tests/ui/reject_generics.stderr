@@ -3,5 +3,3 @@ error: #[pyclass] cannot have generic parameters
   |
 4 | struct ClassWithGenerics<A> {
   |                         ^^^
-
-error: Could not compile `pyo3-tests`.
