@@ -3,7 +3,7 @@ set -ex
 
 # run `cargo test` only if testing against cpython.
 if ! [[ $FEATURES == *"pypy"* ]]; then
-  cargo test --features "$FEATURES num-complex"
+  cargo test --features "$FEATURES num-bigint num-complex"
   ( cd pyo3-derive-backend; cargo test )
 else
   # check that pypy at least builds

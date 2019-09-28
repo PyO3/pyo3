@@ -10,7 +10,7 @@ function Invoke-Call
     }
 }
 
-Invoke-Call { cargo test --verbose }
+Invoke-Call { cargo test --verbose --features="num-bigint num-complex" }
 
 $examplesDirectory = "examples"
 
