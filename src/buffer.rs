@@ -582,7 +582,6 @@ impl PyBuffer {
             let ptr = &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer;
             ffi::PyBuffer_Release(ptr)
         };
-        mem::forget(self);
     }
 }
 
