@@ -363,7 +363,7 @@ mod bitint_conversion {
             let locals = PyDict::new(py);
             locals.set_item("rs_result", &rs_result).unwrap();
             locals.set_item("fib", fib).unwrap();
-            // Checks if Rust BitUint -> Python Long conversion is correct
+            // Checks if Rust BigUint -> Python Long conversion is correct
             py.run("assert fib.fib(400) == rs_result", None, Some(locals))
                 .unwrap();
             // Checks if Python Long -> Rust BigUint conversion is correct if N is small
@@ -386,7 +386,7 @@ mod bitint_conversion {
             let locals = PyDict::new(py);
             locals.set_item("rs_result", &rs_result).unwrap();
             locals.set_item("fib", fib).unwrap();
-            // Checks if Rust BitInt -> Python Long conversion is correct
+            // Checks if Rust BigInt -> Python Long conversion is correct
             py.run("assert fib.fib_neg(400) == rs_result", None, Some(locals))
                 .unwrap();
             // Checks if Python Long -> Rust BigInt conversion is correct if N is small
