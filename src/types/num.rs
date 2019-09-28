@@ -17,7 +17,7 @@ use std::i64;
 use std::os::raw::c_int;
 use std::os::raw::{c_long, c_uchar};
 
-pub(super) fn err_if_invalid_value<T: PartialEq + Copy>(
+fn err_if_invalid_value<T: PartialEq>(
     py: Python,
     invalid_value: T,
     actual_value: T,
@@ -29,7 +29,6 @@ pub(super) fn err_if_invalid_value<T: PartialEq + Copy>(
     }
 }
 
-#[macro_export]
 macro_rules! int_fits_larger_int (
     ($rust_type:ty, $larger_type:ty) => (
         impl ToPyObject for $rust_type {
@@ -56,10 +55,15 @@ macro_rules! int_fits_larger_int (
     )
 );
 
+// manual implementation for 128bit integers
+#[cfg(target_endian = "little")]
+const IS_LITTLE_ENDIAN: c_int = 1;
+#[cfg(not(target_endian = "little"))]
+const IS_LITTLE_ENDIAN: c_int = 0;
+
 // for 128bit Integers
-#[macro_export]
-macro_rules! int_convert_bignum (
-    ($rust_type: ty, $byte_size: expr, $is_little_endian: expr, $is_signed: expr) => (
+macro_rules! int_convert_128 (
+    ($rust_type: ty, $byte_size: expr, $is_signed: expr) => (
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
@@ -69,14 +73,11 @@ macro_rules! int_convert_bignum (
         impl IntoPy<PyObject> for $rust_type {
             fn into_py(self, py: Python) -> PyObject {
                 unsafe {
-                    // TODO: Replace this with functions from the from_bytes family
-                    //       Once they are stabilized
-                    //       https://github.com/rust-lang/rust/issues/52963
-                    let bytes = ::std::mem::transmute::<_, [c_uchar; $byte_size]>(self);
+                    let bytes = self.to_ne_bytes();
                     let obj = ffi::_PyLong_FromByteArray(
                         bytes.as_ptr() as *const c_uchar,
                         $byte_size,
-                        $is_little_endian,
+                        IS_LITTLE_ENDIAN,
                         $is_signed,
                     );
                     PyObject::from_owned_ptr_or_panic(py, obj)
@@ -95,25 +96,19 @@ macro_rules! int_convert_bignum (
                         ob.as_ptr() as *mut ffi::PyLongObject,
                         buffer.as_ptr() as *const c_uchar,
                         $byte_size,
-                        $is_little_endian,
+                        IS_LITTLE_ENDIAN,
                         $is_signed,
                     );
                     if ok == -1 {
                         Err(PyErr::fetch(ob.py()))
                     } else {
-                        Ok(::std::mem::transmute::<_, $rust_type>(buffer))
+                        Ok(<$rust_type>::from_ne_bytes(buffer))
                     }
                 }
             }
         }
     )
 );
-
-// manual implementation for 128bit integers
-#[cfg(target_endian = "little")]
-pub(super) const IS_LITTLE_ENDIAN: c_int = 1;
-#[cfg(not(target_endian = "little"))]
-pub(super) const IS_LITTLE_ENDIAN: c_int = 0;
 
 /// Represents a Python `int` object.
 ///
@@ -242,10 +237,10 @@ int_convert_u64_or_i64!(
     ffi::PyLong_AsUnsignedLongLong
 );
 
+#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+int_convert_128!(i128, 16, 1);
 #[cfg(not(Py_LIMITED_API))]
-int_convert_bignum!(i128, 16, IS_LITTLE_ENDIAN, 1);
-#[cfg(not(Py_LIMITED_API))]
-int_convert_bignum!(u128, 16, IS_LITTLE_ENDIAN, 0);
+int_convert_128!(u128, 16, 0);
 
 #[cfg(test)]
 mod test {
