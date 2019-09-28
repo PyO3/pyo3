@@ -75,3 +75,18 @@ fn test_custom_error() {
         "#
     );
 }
+
+#[test]
+fn test_exception_nosegfault() {
+    use std::{net::TcpListener, panic};
+    fn io_err() -> PyResult<()> {
+        TcpListener::bind("no:address")?;
+        Ok(())
+    }
+    fn parse_int() -> PyResult<()> {
+        "@_@".parse::<i64>()?;
+        Ok(())
+    }
+    assert!(io_err().is_err());
+    assert!(parse_int().is_err());
+}
