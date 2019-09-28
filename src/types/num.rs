@@ -258,7 +258,7 @@ mod bitint_conversion {
         }
     }
 
-    unsafe fn extract_big(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<Vec<c_uchar>> {
+    unsafe fn extract_large(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<Vec<c_uchar>> {
         let buffer = vec![0; n];
         let ok = ffi::_PyLong_AsByteArray(
             ob.as_ptr() as *mut ffi::PyLongObject,
@@ -299,9 +299,10 @@ mod bitint_conversion {
                         }
                         let n_bytes = (ffi::_PyLong_NumBits(ob.as_ptr()) as usize - 1) / 8 + 1;
                         if n_bytes <= 128 {
-                            extract_small(ob, n_bytes, $is_signed).map(|b| $from_bytes(&b))
+                            extract_small(ob, n_bytes, $is_signed)
+                                .map(|b| $from_bytes(&b[..n_bytes]))
                         } else {
-                            extract_big(ob, n_bytes, $is_signed).map(|b| $from_bytes(&b))
+                            extract_large(ob, n_bytes, $is_signed).map(|b| $from_bytes(&b))
                         }
                     }
                 }
@@ -322,6 +323,7 @@ mod bitint_conversion {
         use crate::types::{PyDict, PyModule};
         use indoc::indoc;
         use num_traits::{One, Zero};
+
         fn python_fib(py: Python) -> &PyModule {
             let fib_code = indoc!(
                 r#"
@@ -330,51 +332,72 @@ mod bitint_conversion {
                     for _ in range(n):
                         f0, f1 = f1, f0 + f1
                     return f0
+
+                def fib_neg(n):
+                    return -fib(n)
         "#
             );
             PyModule::from_code(py, fib_code, "fib.py", "fib").unwrap()
+        }
+
+        fn rust_fib<T>(n: usize) -> T
+        where
+            T: Zero + One,
+            for<'a> &'a T: std::ops::Add<Output = T>,
+        {
+            let mut f0: T = Zero::zero();
+            let mut f1: T = One::one();
+            for _ in 0..n {
+                let f2 = &f0 + &f1;
+                f0 = std::mem::replace(&mut f1, f2);
+            }
+            f0
         }
 
         #[test]
         fn convert_biguint() {
             let gil = Python::acquire_gil();
             let py = gil.python();
-            let mut f0: BigUint = Zero::zero();
-            let mut f1: BigUint = One::one();
-            for _ in 0..1000 {
-                let f2 = f0 + &f1;
-                f0 = std::mem::replace(&mut f1, f2);
-            }
-            let fib = python_fib(py);
-            let locals = PyDict::new(py);
-            locals.set_item("rs_result", &f0).unwrap();
-            locals.set_item("fib", fib).unwrap();
-            py.run("assert fib.fib(1000) == rs_result", None, Some(locals))
-                .unwrap();
-            let py_result: BigUint =
-                FromPyObject::extract(fib.call1("fib", (1000,)).unwrap()).unwrap();
-            assert_eq!(f0, py_result);
-        }
-        #[test]
-        fn convert_bigint() {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            let mut f0: BigInt = Zero::zero();
-            let mut f1: BigInt = One::one();
-            for _ in 0..1000 {
-                let f2 = f0 + &f1;
-                f0 = std::mem::replace(&mut f1, f2);
-            }
-            let rs_result = f0 * -3;
+            let rs_result: BigUint = rust_fib(400);
             let fib = python_fib(py);
             let locals = PyDict::new(py);
             locals.set_item("rs_result", &rs_result).unwrap();
             locals.set_item("fib", fib).unwrap();
-            py.run("assert fib.fib(1000) * -3 == rs_result", None, Some(locals))
+            // Checks if Rust BitUint -> Python Long conversion is correct
+            py.run("assert fib.fib(400) == rs_result", None, Some(locals))
                 .unwrap();
+            // Checks if Python Long -> Rust BigUint conversion is correct if N is small
+            let py_result: BigUint =
+                FromPyObject::extract(fib.call1("fib", (400,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result);
+            // Checks if Python Long -> Rust BigUint conversion is correct if N is large
+            let rs_result: BigUint = rust_fib(2000);
+            let py_result: BigUint =
+                FromPyObject::extract(fib.call1("fib", (2000,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result);
+        }
+
+        #[test]
+        fn convert_bigint() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let rs_result = rust_fib::<BigInt>(400) * -1;
+            let fib = python_fib(py);
+            let locals = PyDict::new(py);
+            locals.set_item("rs_result", &rs_result).unwrap();
+            locals.set_item("fib", fib).unwrap();
+            // Checks if Rust BitInt -> Python Long conversion is correct
+            py.run("assert fib.fib_neg(400) == rs_result", None, Some(locals))
+                .unwrap();
+            // Checks if Python Long -> Rust BigInt conversion is correct if N is small
             let py_result: BigInt =
-                FromPyObject::extract(fib.call1("fib", (1000,)).unwrap()).unwrap();
-            assert_eq!(rs_result, py_result * -3);
+                FromPyObject::extract(fib.call1("fib_neg", (400,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result);
+            // Checks if Python Long -> Rust BigInt conversion is correct if N is large
+            let rs_result = rust_fib::<BigInt>(2000) * -1;
+            let py_result: BigInt =
+                FromPyObject::extract(fib.call1("fib_neg", (2000,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result);
         }
     }
 }
