@@ -31,7 +31,7 @@ paste = "0.1.6"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-trybuild = "1.0.11"
+trybuild = "1.0.14"
 
 [build-dependencies]
 regex = "1.2.1"
