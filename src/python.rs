@@ -90,6 +90,16 @@ impl<'p> Python<'p> {
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
+    ///
+    /// # Example:
+    /// ```
+    /// # use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// # let gil = pyo3::Python::acquire_gil();
+    /// # let py = gil.python();
+    /// let result = py.eval("[i * 10 for i in range(5)]", None, None).unwrap();
+    /// let res: Vec<i64> = result.extract().unwrap();
+    /// assert_eq!(res, vec![0, 10, 20, 30, 40])
+    /// ```
     pub fn eval(
         self,
         code: &str,
@@ -103,6 +113,26 @@ impl<'p> Python<'p> {
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
+    ///
+    /// # Example:
+    /// ```
+    /// use pyo3::{types::{PyBytes, PyDict}, prelude::*};
+    /// let gil = pyo3::Python::acquire_gil();
+    /// let py = gil.python();
+    /// let locals = PyDict::new(py);
+    /// py.run(
+    ///     r#"
+    /// import base64
+    /// s = 'Hello Rust!'
+    /// ret = base64.b64encode(s.encode('utf-8'))
+    /// "#,
+    ///    None,
+    ///    Some(locals),
+    /// ).unwrap();
+    /// let ret = locals.get_item("ret").unwrap();
+    /// let b64: &PyBytes = ret.downcast_ref().unwrap();
+    /// assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
+    /// ```
     pub fn run(
         self,
         code: &str,
@@ -129,7 +159,6 @@ impl<'p> Python<'p> {
         locals: Option<&PyDict>,
     ) -> PyResult<&'p PyAny> {
         let code = CString::new(code)?;
-
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
             if mptr.is_null() {

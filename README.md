@@ -10,7 +10,7 @@
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 
-* API Documentation: [master](https://pyo3.rs/master/doc)
+* API Documentation: [stable](https://docs.rs/pyo3/0.8.0/pyo3/) |  [master](https://pyo3.rs/master/doc)
 
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
@@ -100,9 +100,17 @@ Example program displaying the value of `sys.version` and the current user name:
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
-fn main() -> PyResult<()> {
+fn main() -> Result<(), ()> {
     let gil = Python::acquire_gil();
     let py = gil.python();
+    main_(py).map_err(|e| {
+        // We can't display python error type via ::std::fmt::Display,
+        // so print error here manually.
+        e.print_and_set_sys_last_vars(py);
+    })
+}
+
+fn main_(py: Python) -> PyResult<()> {
     let sys = py.import("sys")?;
     let version: String = sys.get("version")?.extract()?;
     let locals = [("os", py.import("os")?)].into_py_dict(py);
@@ -112,6 +120,9 @@ fn main() -> PyResult<()> {
     Ok(())
 }
 ```
+
+Our guide has [a section](https://pyo3.rs/master/python_from_rust.html) with lots of examples
+about this topic.
 
 ## Examples and tooling
 
