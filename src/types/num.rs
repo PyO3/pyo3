@@ -29,8 +29,8 @@ fn err_if_invalid_value<T: PartialEq>(
     }
 }
 
-macro_rules! int_fits_larger_int (
-    ($rust_type:ty, $larger_type:ty) => (
+macro_rules! int_fits_larger_int {
+    ($rust_type:ty, $larger_type:ty) => {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
@@ -48,12 +48,12 @@ macro_rules! int_fits_larger_int (
                 let val = $crate::objectprotocol::ObjectProtocol::extract::<$larger_type>(obj)?;
                 match cast::<$larger_type, $rust_type>(val) {
                     Some(v) => Ok(v),
-                    None => Err(exceptions::OverflowError.into())
+                    None => Err(exceptions::OverflowError.into()),
                 }
             }
         }
-    )
-);
+    };
+}
 
 // manual implementation for 128bit integers
 #[cfg(target_endian = "little")]
@@ -62,8 +62,8 @@ const IS_LITTLE_ENDIAN: c_int = 1;
 const IS_LITTLE_ENDIAN: c_int = 0;
 
 // for 128bit Integers
-macro_rules! int_convert_128 (
-    ($rust_type: ty, $byte_size: expr, $is_signed: expr) => (
+macro_rules! int_convert_128 {
+    ($rust_type: ty, $byte_size: expr, $is_signed: expr) => {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
@@ -89,7 +89,7 @@ macro_rules! int_convert_128 (
                 unsafe {
                     let num = ffi::PyNumber_Index(ob.as_ptr());
                     if num.is_null() {
-                         return Err(PyErr::fetch(ob.py()));
+                        return Err(PyErr::fetch(ob.py()));
                     }
                     let buffer: [c_uchar; $byte_size] = [0; $byte_size];
                     let ok = ffi::_PyLong_AsByteArray(
@@ -107,8 +107,8 @@ macro_rules! int_convert_128 (
                 }
             }
         }
-    )
-);
+    };
+}
 
 /// Represents a Python `int` object.
 ///
@@ -126,10 +126,10 @@ pyobject_native_type!(
     ffi::PyLong_Check
 );
 
-macro_rules! int_fits_c_long (
-    ($rust_type:ty) => (
+macro_rules! int_fits_c_long {
+    ($rust_type:ty) => {
         impl ToPyObject for $rust_type {
-            #![cfg_attr(feature="cargo-clippy", allow(clippy::cast_lossless))]
+            #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
             fn to_object(&self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(*self as c_long))
@@ -137,7 +137,7 @@ macro_rules! int_fits_c_long (
             }
         }
         impl IntoPy<PyObject> for $rust_type {
-            #![cfg_attr(feature="cargo-clippy", allow(clippy::cast_lossless))]
+            #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
             fn into_py(self, py: Python) -> PyObject {
                 unsafe {
                     PyObject::from_owned_ptr_or_panic(py, ffi::PyLong_FromLong(self as c_long))
@@ -160,34 +160,29 @@ macro_rules! int_fits_c_long (
                 }?;
                 match cast::<c_long, $rust_type>(val) {
                     Some(v) => Ok(v),
-                    None => Err(exceptions::OverflowError.into())
+                    None => Err(exceptions::OverflowError.into()),
                 }
             }
         }
-    )
-);
+    };
+}
 
-macro_rules! int_convert_u64_or_i64 (
-    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => (
+macro_rules! int_convert_u64_or_i64 {
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => {
         impl ToPyObject for $rust_type {
             #[inline]
             fn to_object(&self, py: Python) -> PyObject {
-                unsafe {
-                    PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self))
-                }
+                unsafe { PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(*self)) }
             }
         }
         impl IntoPy<PyObject> for $rust_type {
             #[inline]
             fn into_py(self, py: Python) -> PyObject {
-                unsafe {
-                    PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(self))
-                }
+                unsafe { PyObject::from_owned_ptr_or_panic(py, $pylong_from_ll_or_ull(self)) }
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type>
-            {
+            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
                 let ptr = ob.as_ptr();
                 unsafe {
                     let num = ffi::PyNumber_Index(ptr);
@@ -201,8 +196,8 @@ macro_rules! int_convert_u64_or_i64 (
                 }
             }
         }
-    )
-);
+    };
+}
 
 int_fits_c_long!(i8);
 int_fits_c_long!(u8);
@@ -241,6 +236,148 @@ int_convert_u64_or_i64!(
 int_convert_128!(i128, 16, 1);
 #[cfg(not(Py_LIMITED_API))]
 int_convert_128!(u128, 16, 0);
+
+#[cfg(all(feature = "num-bigint", not(Py_LIMITED_API)))]
+mod bitint_conversion {
+    use super::*;
+    use num_bigint::{BigInt, BigUint};
+
+    unsafe fn extract_small(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<[c_uchar; 128]> {
+        let buffer = [0; 128];
+        let ok = ffi::_PyLong_AsByteArray(
+            ob.as_ptr() as *mut ffi::PyLongObject,
+            buffer.as_ptr() as *const c_uchar,
+            n,
+            1,
+            is_signed,
+        );
+        if ok == -1 {
+            Err(PyErr::fetch(ob.py()))
+        } else {
+            Ok(buffer)
+        }
+    }
+
+    unsafe fn extract_big(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<Vec<c_uchar>> {
+        let buffer = vec![0; n];
+        let ok = ffi::_PyLong_AsByteArray(
+            ob.as_ptr() as *mut ffi::PyLongObject,
+            buffer.as_ptr() as *const c_uchar,
+            n,
+            1,
+            is_signed,
+        );
+        if ok == -1 {
+            Err(PyErr::fetch(ob.py()))
+        } else {
+            Ok(buffer)
+        }
+    }
+
+    macro_rules! bigint_conversion {
+        ($rust_ty: ty, $is_signed: expr, $to_bytes: path, $from_bytes: path) => {
+            impl ToPyObject for $rust_ty {
+                fn to_object(&self, py: Python) -> PyObject {
+                    unsafe {
+                        let bytes = $to_bytes(self);
+                        let obj = ffi::_PyLong_FromByteArray(
+                            bytes.as_ptr() as *const c_uchar,
+                            bytes.len(),
+                            1,
+                            $is_signed,
+                        );
+                        PyObject::from_owned_ptr_or_panic(py, obj)
+                    }
+                }
+            }
+            impl<'source> FromPyObject<'source> for $rust_ty {
+                fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
+                    unsafe {
+                        let num = ffi::PyNumber_Index(ob.as_ptr());
+                        if num.is_null() {
+                            return Err(PyErr::fetch(ob.py()));
+                        }
+                        let n_bytes = (ffi::_PyLong_NumBits(ob.as_ptr()) as usize - 1) / 8 + 1;
+                        if n_bytes <= 128 {
+                            extract_small(ob, n_bytes, $is_signed).map(|b| $from_bytes(&b))
+                        } else {
+                            extract_big(ob, n_bytes, $is_signed).map(|b| $from_bytes(&b))
+                        }
+                    }
+                }
+            }
+        };
+    }
+    bigint_conversion!(BigUint, 0, BigUint::to_bytes_le, BigUint::from_bytes_le);
+    bigint_conversion!(
+        BigInt,
+        1,
+        BigInt::to_signed_bytes_le,
+        BigInt::from_signed_bytes_le
+    );
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+        use crate::types::{PyDict, PyModule};
+        use indoc::indoc;
+        use num_traits::{One, Zero};
+        fn python_fib(py: Python) -> &PyModule {
+            let fib_code = indoc!(
+                r#"
+                def fib(n):
+                    f0, f1 = 0, 1
+                    for _ in range(n):
+                        f0, f1 = f1, f0 + f1
+                    return f0
+        "#
+            );
+            PyModule::from_code(py, fib_code, "fib.py", "fib").unwrap()
+        }
+
+        #[test]
+        fn convert_biguint() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let mut f0: BigUint = Zero::zero();
+            let mut f1: BigUint = One::one();
+            for _ in 0..1000 {
+                let f2 = f0 + &f1;
+                f0 = std::mem::replace(&mut f1, f2);
+            }
+            let fib = python_fib(py);
+            let locals = PyDict::new(py);
+            locals.set_item("rs_result", &f0).unwrap();
+            locals.set_item("fib", fib).unwrap();
+            py.run("assert fib.fib(1000) == rs_result", None, Some(locals))
+                .unwrap();
+            let py_result: BigUint =
+                FromPyObject::extract(fib.call1("fib", (1000,)).unwrap()).unwrap();
+            assert_eq!(f0, py_result);
+        }
+        #[test]
+        fn convert_bigint() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let mut f0: BigInt = Zero::zero();
+            let mut f1: BigInt = One::one();
+            for _ in 0..1000 {
+                let f2 = f0 + &f1;
+                f0 = std::mem::replace(&mut f1, f2);
+            }
+            let rs_result = f0 * -3;
+            let fib = python_fib(py);
+            let locals = PyDict::new(py);
+            locals.set_item("rs_result", &rs_result).unwrap();
+            locals.set_item("fib", fib).unwrap();
+            py.run("assert fib.fib(1000) * -3 == rs_result", None, Some(locals))
+                .unwrap();
+            let py_result: BigInt =
+                FromPyObject::extract(fib.call1("fib", (1000,)).unwrap()).unwrap();
+            assert_eq!(rs_result, py_result * -3);
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
