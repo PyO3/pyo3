@@ -93,7 +93,7 @@ macro_rules! int_convert_128 {
                     }
                     let buffer: [c_uchar; $byte_size] = [0; $byte_size];
                     let ok = ffi::_PyLong_AsByteArray(
-                        ob.as_ptr() as *mut ffi::PyLongObject,
+                        num as *mut ffi::PyLongObject,
                         buffer.as_ptr() as *const c_uchar,
                         $byte_size,
                         IS_LITTLE_ENDIAN,
@@ -232,13 +232,13 @@ int_convert_u64_or_i64!(
     ffi::PyLong_AsUnsignedLongLong
 );
 
-#[cfg(all(not(Py_LIMITED_API), target_endian = "little"))]
+#[cfg(not(Py_LIMITED_API))]
 int_convert_128!(i128, 16, 1);
 #[cfg(not(Py_LIMITED_API))]
 int_convert_128!(u128, 16, 0);
 
 #[cfg(all(feature = "num-bigint", not(Py_LIMITED_API)))]
-mod bitint_conversion {
+mod bigint_conversion {
     use super::*;
     use num_bigint::{BigInt, BigUint};
 
@@ -297,7 +297,14 @@ mod bitint_conversion {
                         if num.is_null() {
                             return Err(PyErr::fetch(ob.py()));
                         }
-                        let n_bytes = (ffi::_PyLong_NumBits(ob.as_ptr()) as usize - 1) / 8 + 1;
+                        let n_bits = ffi::_PyLong_NumBits(num);
+                        let n_bytes = if n_bits < 0 {
+                            return Err(PyErr::fetch(ob.py()));
+                        } else if n_bits == 0 {
+                            0
+                        } else {
+                            (n_bits as usize - 1) / 8 + 1
+                        };
                         if n_bytes <= 128 {
                             extract_small(ob, n_bytes, $is_signed)
                                 .map(|b| $from_bytes(&b[..n_bytes]))
@@ -398,6 +405,15 @@ mod bitint_conversion {
             let py_result: BigInt =
                 FromPyObject::extract(fib.call1("fib_neg", (2000,)).unwrap()).unwrap();
             assert_eq!(rs_result, py_result);
+        }
+
+        #[test]
+        fn handle_zero() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let fib = python_fib(py);
+            let zero: BigInt = FromPyObject::extract(fib.call1("fib", (0,)).unwrap()).unwrap();
+            assert_eq!(zero, BigInt::from(0));
         }
     }
 }
