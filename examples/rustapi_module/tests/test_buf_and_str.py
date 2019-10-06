@@ -34,5 +34,5 @@ def test_pybuffer_doesnot_leak_memory():
         for i in range(N):
             extractor.to_str(message_s)
 
-    memory_diff(to_vec) == 0
-    memory_diff(to_str) == 0
+    assert memory_diff(to_vec) == 0
+    assert memory_diff(to_str) == 0
