@@ -41,12 +41,14 @@ pub trait PyBufferReleaseBufferProtocol<'p>: PyBufferProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyBufferProtocolImpl {
-    fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
+    fn tp_as_buffer() -> Option<ffi::PyBufferProcs>;
+}
+
+impl<T> PyBufferProtocolImpl for T {
+    default fn tp_as_buffer() -> Option<ffi::PyBufferProcs> {
         None
     }
 }
-
-impl<T> PyBufferProtocolImpl for T {}
 
 impl<'p, T> PyBufferProtocolImpl for T
 where
@@ -64,12 +66,14 @@ where
 }
 
 trait PyBufferGetBufferProtocolImpl {
-    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
+    fn cb_bf_getbuffer() -> Option<ffi::getbufferproc>;
+}
+
+impl<'p, T> PyBufferGetBufferProtocolImpl for T where T: PyBufferProtocol<'p> {
+    default fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
         None
     }
 }
-
-impl<'p, T> PyBufferGetBufferProtocolImpl for T where T: PyBufferProtocol<'p> {}
 
 impl<T> PyBufferGetBufferProtocolImpl for T
 where

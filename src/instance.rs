@@ -359,21 +359,24 @@ impl<T> Py<T> {
 
 /// Specialization workaround
 trait AsPyRefDispatch<T: PyTypeInfo>: AsPyPointer {
-    fn as_ref_dispatch(&self, _py: Python) -> &T {
+    fn as_ref_dispatch(&self, _py: Python) -> &T;
+    fn as_mut_dispatch(&mut self, _py: Python) -> &mut T;
+}
+
+impl<T: PyTypeInfo> AsPyRefDispatch<T> for Py<T> {
+    default fn as_ref_dispatch(&self, _py: Python) -> &T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_ref().expect("Py has a null pointer")
         }
     }
-    fn as_mut_dispatch(&mut self, _py: Python) -> &mut T {
+    default fn as_mut_dispatch(&mut self, _py: Python) -> &mut T {
         unsafe {
             let ptr = (self.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
             ptr.as_mut().expect("Py has a null pointer")
         }
     }
 }
-
-impl<T: PyTypeInfo> AsPyRefDispatch<T> for Py<T> {}
 
 impl<T: PyTypeInfo + PyNativeType> AsPyRefDispatch<T> for Py<T> {
     fn as_ref_dispatch(&self, _py: Python) -> &T {
@@ -553,22 +556,10 @@ impl<'p, T: ToPyObject> AsPyPointer for ManagedPyRef<'p, T> {
 /// Helper trait to choose the right implementation for [ManagedPyRef]
 pub trait ManagedPyRefDispatch: ToPyObject {
     /// Optionally converts into a python object and stores the pointer to the python heap.
-    ///
-    /// Contains the case 1 impl (with to_object) to avoid a specialization error
-    fn to_managed_py_ref<'p>(&self, py: Python<'p>) -> ManagedPyRef<'p, Self> {
-        ManagedPyRef {
-            data: self.to_object(py).into_ptr(),
-            data_type: PhantomData,
-            _py: py,
-        }
-    }
+    fn to_managed_py_ref<'p>(&self, py: Python<'p>) -> ManagedPyRef<'p, Self>;
 
     /// Dispatch over a xdecref and a noop drop impl
-    ///
-    /// Contains the case 1 impl (decref) to avoid a specialization error
-    fn drop_impl(borrowed: &mut ManagedPyRef<Self>) {
-        unsafe { ffi::Py_DECREF(borrowed.data) };
-    }
+    fn drop_impl(borrowed: &mut ManagedPyRef<Self>);
 }
 
 /// Case 1: It's a rust object which still needs to be converted to a python object.
@@ -577,7 +568,21 @@ pub trait ManagedPyRefDispatch: ToPyObject {
 ///
 /// Note that the actual implementations are part of the trait declaration to avoid
 /// a specialization error
-impl<T: ToPyObject + ?Sized> ManagedPyRefDispatch for T {}
+impl<T: ToPyObject + ?Sized> ManagedPyRefDispatch for T {
+    /// Contains the case 1 impl (with to_object) to avoid a specialization error
+    default fn to_managed_py_ref<'p>(&self, py: Python<'p>) -> ManagedPyRef<'p, Self> {
+        ManagedPyRef {
+            data: self.to_object(py).into_ptr(),
+            data_type: PhantomData,
+            _py: py,
+        }
+    }
+
+    /// Contains the case 1 impl (decref) to avoid a specialization error
+    default fn drop_impl(borrowed: &mut ManagedPyRef<Self>) {
+        unsafe { ffi::Py_DECREF(borrowed.data) };
+    }
+}
 
 /// Case 2: It's an object on the python heap, we're just storing a borrowed pointer.
 /// The object we're getting is an owned pointer, it might have it's own drop impl.
