@@ -81,6 +81,8 @@ extern "C" {
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
+    pub fn _PyLong_NumBits(obj: *mut PyObject) -> c_int;
+
     #[cfg_attr(PyPy, link_name = "_PyPyLong_FromByteArray")]
     pub fn _PyLong_FromByteArray(
         bytes: *const c_uchar,
