@@ -10,7 +10,7 @@
 
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 
-* API Documentation: [stable](https://docs.rs/pyo3/0.8.0/pyo3/) |  [master](https://pyo3.rs/master/doc)
+* API Documentation: [stable](https://docs.rs/pyo3/0.8.1/pyo3/) |  [master](https://pyo3.rs/master/doc)
 
 A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/master/rust_cpython.html).
 
@@ -46,7 +46,7 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.8.0"
+version = "0.8.1"
 features = ["extension-module"]
 ```
 
@@ -91,7 +91,7 @@ Add `pyo3` to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
-pyo3 = "0.8.0"
+pyo3 = "0.8.1"
 ```
 
 Example program displaying the value of `sys.version` and the current user name:
