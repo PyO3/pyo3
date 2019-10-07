@@ -38,7 +38,7 @@ pub fn gen_py_method(
                     return Err(syn::Error::new_spanned(
                         spec.args[0].ty,
                         "Getter function can only have one argument of type pyo3::Python!",
-                    ))
+                    ));
                 }
             };
             impl_py_getter_def(name, doc, getter, &impl_wrap_getter(cls, name, takes_py))
@@ -60,10 +60,10 @@ fn check_generic(name: &syn::Ident, sig: &syn::Signature) -> syn::Result<()> {
         match param {
             syn::GenericParam::Lifetime(_) => {}
             syn::GenericParam::Type(_) => {
-                return Err(syn::Error::new_spanned(param, err_msg("type")))
+                return Err(syn::Error::new_spanned(param, err_msg("type")));
             }
             syn::GenericParam::Const(_) => {
-                return Err(syn::Error::new_spanned(param, err_msg("const")))
+                return Err(syn::Error::new_spanned(param, err_msg("const")));
             }
         }
     }

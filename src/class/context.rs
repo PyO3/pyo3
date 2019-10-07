@@ -47,12 +47,14 @@ pub trait PyContextExitProtocol<'p>: PyContextProtocol<'p> {
 
 #[doc(hidden)]
 pub trait PyContextProtocolImpl {
-    fn methods() -> Vec<PyMethodDef> {
+    fn methods() -> Vec<PyMethodDef>;
+}
+
+impl<T> PyContextProtocolImpl for T {
+    default fn methods() -> Vec<PyMethodDef> {
         Vec::new()
     }
 }
-
-impl<T> PyContextProtocolImpl for T {}
 
 impl<'p, T> PyContextProtocolImpl for T
 where
@@ -75,18 +77,28 @@ where
 
 #[doc(hidden)]
 pub trait PyContextEnterProtocolImpl {
-    fn __enter__() -> Option<PyMethodDef> {
+    fn __enter__() -> Option<PyMethodDef>;
+}
+
+impl<'p, T> PyContextEnterProtocolImpl for T
+where
+    T: PyContextProtocol<'p>,
+{
+    default fn __enter__() -> Option<PyMethodDef> {
         None
     }
 }
-
-impl<'p, T> PyContextEnterProtocolImpl for T where T: PyContextProtocol<'p> {}
 
 #[doc(hidden)]
 pub trait PyContextExitProtocolImpl {
-    fn __exit__() -> Option<PyMethodDef> {
+    fn __exit__() -> Option<PyMethodDef>;
+}
+
+impl<'p, T> PyContextExitProtocolImpl for T
+where
+    T: PyContextProtocol<'p>,
+{
+    default fn __exit__() -> Option<PyMethodDef> {
         None
     }
 }
-
-impl<'p, T> PyContextExitProtocolImpl for T where T: PyContextProtocol<'p> {}

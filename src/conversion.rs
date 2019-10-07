@@ -97,6 +97,15 @@ pub trait ToBorrowedObject: ToPyObject {
     /// to touch any reference counts when the input object already is a Python object.
     fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
     where
+        F: FnOnce(*mut ffi::PyObject) -> R;
+}
+
+impl<T> ToBorrowedObject for T
+where
+    T: ToPyObject,
+{
+    default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
+    where
         F: FnOnce(*mut ffi::PyObject) -> R,
     {
         let ptr = self.to_object(py).into_ptr();
@@ -107,8 +116,6 @@ pub trait ToBorrowedObject: ToPyObject {
         result
     }
 }
-
-impl<T> ToBorrowedObject for T where T: ToPyObject {}
 
 impl<T> ToBorrowedObject for T
 where

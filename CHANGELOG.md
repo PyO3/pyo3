@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Make sure the right Python interpreter is used in OSX builds. [#604](https://github.com/PyO3/pyo3/pull/604)
+ * Patch specialization being broken by Rust 1.40 [#614](https://github.com/PyO3/pyo3/issues/614)
 
 ## [0.8.0] - 2018-09-05
 
