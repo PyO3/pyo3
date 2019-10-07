@@ -13,7 +13,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.37.0-nightly 2019-07-19.
 
 PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
-Please refer to the guide for installation instruction against PyPy.
+Please refer to the [pypy section](https://pyo3.rs/master/pypy.html).
 
 You can either write a native Python module in Rust, or use Python from a Rust binary.
 
@@ -77,7 +77,7 @@ rustflags = [
 
 For developing, you can copy and rename the shared library from the target folder: On MacOS, rename `libstring_sum.dylib` to `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the same folder and you'll be able to `import string_sum`.
 
-To build, test and publish your crate as a Python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while maturin should work on your crate without any configuration.
+To build, test and publish your crate as a Python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count), while maturin should work on your crate without any configuration.
 
 ## Using Python from Rust
 
@@ -120,7 +120,7 @@ about this topic.
 
 ## Examples and tooling
 
- * [examples/word-count](examples/word-count) _Counting the occurrences of a word in a text file_
+ * [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count) _Counting the occurrences of a word in a text file_
  * [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json_
  * [rust-numpy](https://github.com/rust-numpy/rust-numpy) _Rust binding of NumPy C-API_
  * [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/master/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
