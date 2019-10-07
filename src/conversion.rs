@@ -100,7 +100,10 @@ pub trait ToBorrowedObject: ToPyObject {
         F: FnOnce(*mut ffi::PyObject) -> R;
 }
 
-impl<T> ToBorrowedObject for T where T: ToPyObject {
+impl<T> ToBorrowedObject for T
+where
+    T: ToPyObject,
+{
     default fn with_borrowed_ptr<F, R>(&self, py: Python, f: F) -> R
     where
         F: FnOnce(*mut ffi::PyObject) -> R,

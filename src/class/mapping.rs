@@ -160,7 +160,10 @@ trait PyMappingLenProtocolImpl {
     fn mp_length() -> Option<ffi::lenfunc>;
 }
 
-impl<'p, T> PyMappingLenProtocolImpl for T where T: PyMappingProtocol<'p> {
+impl<'p, T> PyMappingLenProtocolImpl for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn mp_length() -> Option<ffi::lenfunc> {
         None
     }
@@ -180,7 +183,10 @@ trait PyMappingGetItemProtocolImpl {
     fn mp_subscript() -> Option<ffi::binaryfunc>;
 }
 
-impl<'p, T> PyMappingGetItemProtocolImpl for T where T: PyMappingProtocol<'p> {
+impl<'p, T> PyMappingGetItemProtocolImpl for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn mp_subscript() -> Option<ffi::binaryfunc> {
         None
     }
@@ -205,7 +211,10 @@ trait PyMappingSetItemProtocolImpl {
     fn mp_ass_subscript() -> Option<ffi::objobjargproc>;
 }
 
-impl<'p, T> PyMappingSetItemProtocolImpl for T where T: PyMappingProtocol<'p> {
+impl<'p, T> PyMappingSetItemProtocolImpl for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn mp_ass_subscript() -> Option<ffi::objobjargproc> {
         None
     }
@@ -227,7 +236,10 @@ trait DeplItemDipatch {
     fn mp_del_subscript() -> Option<ffi::objobjargproc>;
 }
 
-impl<'p, T> DeplItemDipatch for T where T: PyMappingProtocol<'p> {
+impl<'p, T> DeplItemDipatch for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn mp_del_subscript() -> Option<ffi::objobjargproc> {
         None
     }
@@ -238,7 +250,10 @@ trait DelSetItemDispatch: Sized + for<'p> PyMappingDelItemProtocol<'p> {
     fn det_set_dispatch() -> Option<ffi::objobjargproc>;
 }
 
-impl<T> DelSetItemDispatch for T where T: Sized + for<'p> PyMappingDelItemProtocol<'p> {
+impl<T> DelSetItemDispatch for T
+where
+    T: Sized + for<'p> PyMappingDelItemProtocol<'p>,
+{
     default fn det_set_dispatch() -> Option<ffi::objobjargproc> {
         py_func_del!(PyMappingDelItemProtocol, Self, __delitem__)
     }
@@ -273,7 +288,10 @@ pub trait PyMappingContainsProtocolImpl {
     fn __contains__() -> Option<PyMethodDef>;
 }
 
-impl<'p, T> PyMappingContainsProtocolImpl for T where T: PyMappingProtocol<'p> {
+impl<'p, T> PyMappingContainsProtocolImpl for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn __contains__() -> Option<PyMethodDef> {
         None
     }
@@ -284,7 +302,10 @@ pub trait PyMappingReversedProtocolImpl {
     fn __reversed__() -> Option<PyMethodDef>;
 }
 
-impl<'p, T> PyMappingReversedProtocolImpl for T where T: PyMappingProtocol<'p> {
+impl<'p, T> PyMappingReversedProtocolImpl for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn __reversed__() -> Option<PyMethodDef> {
         None
     }
@@ -295,7 +316,10 @@ pub trait PyMappingIterProtocolImpl {
     fn __iter__() -> Option<PyMethodDef>;
 }
 
-impl<'p, T> PyMappingIterProtocolImpl for T where T: PyMappingProtocol<'p> {
+impl<'p, T> PyMappingIterProtocolImpl for T
+where
+    T: PyMappingProtocol<'p>,
+{
     default fn __iter__() -> Option<PyMethodDef> {
         None
     }

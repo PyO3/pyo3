@@ -167,7 +167,10 @@ trait PySequenceLenProtocolImpl {
     fn sq_length() -> Option<ffi::lenfunc>;
 }
 
-impl<'p, T> PySequenceLenProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceLenProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_length() -> Option<ffi::lenfunc> {
         None
     }
@@ -186,7 +189,10 @@ trait PySequenceGetItemProtocolImpl {
     fn sq_item() -> Option<ffi::ssizeargfunc>;
 }
 
-impl<'p, T> PySequenceGetItemProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceGetItemProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_item() -> Option<ffi::ssizeargfunc> {
         None
     }
@@ -210,7 +216,10 @@ trait PySequenceSetItemProtocolImpl {
     fn sq_ass_item() -> Option<ffi::ssizeobjargproc>;
 }
 
-impl<'p, T> PySequenceSetItemProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceSetItemProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_ass_item() -> Option<ffi::ssizeobjargproc> {
         None
     }
@@ -286,7 +295,10 @@ mod sq_ass_item_impl {
         fn del_item() -> Option<ffi::ssizeobjargproc>;
     }
 
-    impl<'p, T> DelItem for T where T: PySequenceProtocol<'p> {
+    impl<'p, T> DelItem for T
+    where
+        T: PySequenceProtocol<'p>,
+    {
         default fn del_item() -> Option<ffi::ssizeobjargproc> {
             None
         }
@@ -334,7 +346,10 @@ mod sq_ass_item_impl {
         fn del_set_item() -> Option<ffi::ssizeobjargproc>;
     }
 
-    impl<'p, T> DelSetItem for T where T: PySequenceProtocol<'p> {
+    impl<'p, T> DelSetItem for T
+    where
+        T: PySequenceProtocol<'p>,
+    {
         default fn del_set_item() -> Option<ffi::ssizeobjargproc> {
             None
         }
@@ -383,7 +398,10 @@ trait PySequenceContainsProtocolImpl {
     fn sq_contains() -> Option<ffi::objobjproc>;
 }
 
-impl<'p, T> PySequenceContainsProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceContainsProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_contains() -> Option<ffi::objobjproc> {
         None
     }
@@ -408,7 +426,10 @@ trait PySequenceConcatProtocolImpl {
     fn sq_concat() -> Option<ffi::binaryfunc>;
 }
 
-impl<'p, T> PySequenceConcatProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceConcatProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_concat() -> Option<ffi::binaryfunc> {
         None
     }
@@ -432,7 +453,10 @@ trait PySequenceRepeatProtocolImpl {
     fn sq_repeat() -> Option<ffi::ssizeargfunc>;
 }
 
-impl<'p, T> PySequenceRepeatProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceRepeatProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_repeat() -> Option<ffi::ssizeargfunc> {
         None
     }
@@ -456,7 +480,10 @@ trait PySequenceInplaceConcatProtocolImpl {
     fn sq_inplace_concat() -> Option<ffi::binaryfunc>;
 }
 
-impl<'p, T> PySequenceInplaceConcatProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceInplaceConcatProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_inplace_concat() -> Option<ffi::binaryfunc> {
         None
     }
@@ -480,7 +507,10 @@ trait PySequenceInplaceRepeatProtocolImpl {
     fn sq_inplace_repeat() -> Option<ffi::ssizeargfunc>;
 }
 
-impl<'p, T> PySequenceInplaceRepeatProtocolImpl for T where T: PySequenceProtocol<'p> {
+impl<'p, T> PySequenceInplaceRepeatProtocolImpl for T
+where
+    T: PySequenceProtocol<'p>,
+{
     default fn sq_inplace_repeat() -> Option<ffi::ssizeargfunc> {
         None
     }

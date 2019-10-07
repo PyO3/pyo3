@@ -68,7 +68,10 @@ trait PyGCTraverseProtocolImpl {
     fn tp_traverse() -> Option<ffi::traverseproc>;
 }
 
-impl<'p, T> PyGCTraverseProtocolImpl for T where T: PyGCProtocol<'p> {
+impl<'p, T> PyGCTraverseProtocolImpl for T
+where
+    T: PyGCProtocol<'p>,
+{
     default fn tp_traverse() -> Option<ffi::traverseproc> {
         None
     }
@@ -112,7 +115,10 @@ trait PyGCClearProtocolImpl {
     fn tp_clear() -> Option<ffi::inquiry>;
 }
 
-impl<'p, T> PyGCClearProtocolImpl for T where T: PyGCProtocol<'p> {
+impl<'p, T> PyGCClearProtocolImpl for T
+where
+    T: PyGCProtocol<'p>,
+{
     default fn tp_clear() -> Option<ffi::inquiry> {
         None
     }

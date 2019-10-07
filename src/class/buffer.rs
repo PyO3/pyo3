@@ -69,7 +69,10 @@ trait PyBufferGetBufferProtocolImpl {
     fn cb_bf_getbuffer() -> Option<ffi::getbufferproc>;
 }
 
-impl<'p, T> PyBufferGetBufferProtocolImpl for T where T: PyBufferProtocol<'p> {
+impl<'p, T> PyBufferGetBufferProtocolImpl for T
+where
+    T: PyBufferProtocol<'p>,
+{
     default fn cb_bf_getbuffer() -> Option<ffi::getbufferproc> {
         None
     }

@@ -137,7 +137,10 @@ trait PyAsyncAwaitProtocolImpl {
     fn am_await() -> Option<ffi::unaryfunc>;
 }
 
-impl<'p, T> PyAsyncAwaitProtocolImpl for T where T: PyAsyncProtocol<'p> {
+impl<'p, T> PyAsyncAwaitProtocolImpl for T
+where
+    T: PyAsyncProtocol<'p>,
+{
     default fn am_await() -> Option<ffi::unaryfunc> {
         None
     }
@@ -162,7 +165,10 @@ trait PyAsyncAiterProtocolImpl {
     fn am_aiter() -> Option<ffi::unaryfunc>;
 }
 
-impl<'p, T> PyAsyncAiterProtocolImpl for T where T: PyAsyncProtocol<'p> {
+impl<'p, T> PyAsyncAiterProtocolImpl for T
+where
+    T: PyAsyncProtocol<'p>,
+{
     default fn am_aiter() -> Option<ffi::unaryfunc> {
         None
     }
@@ -187,7 +193,10 @@ trait PyAsyncAnextProtocolImpl {
     fn am_anext() -> Option<ffi::unaryfunc>;
 }
 
-impl<'p, T> PyAsyncAnextProtocolImpl for T where T: PyAsyncProtocol<'p> {
+impl<'p, T> PyAsyncAnextProtocolImpl for T
+where
+    T: PyAsyncProtocol<'p>,
+{
     default fn am_anext() -> Option<ffi::unaryfunc> {
         None
     }
@@ -245,7 +254,10 @@ trait PyAsyncAenterProtocolImpl {
     fn __aenter__() -> Option<PyMethodDef>;
 }
 
-impl<'p, T> PyAsyncAenterProtocolImpl for T where T: PyAsyncProtocol<'p> {
+impl<'p, T> PyAsyncAenterProtocolImpl for T
+where
+    T: PyAsyncProtocol<'p>,
+{
     default fn __aenter__() -> Option<PyMethodDef> {
         None
     }
@@ -255,7 +267,10 @@ trait PyAsyncAexitProtocolImpl {
     fn __aexit__() -> Option<PyMethodDef>;
 }
 
-impl<'p, T> PyAsyncAexitProtocolImpl for T where T: PyAsyncProtocol<'p> {
+impl<'p, T> PyAsyncAexitProtocolImpl for T
+where
+    T: PyAsyncProtocol<'p>,
+{
     default fn __aexit__() -> Option<PyMethodDef> {
         None
     }
