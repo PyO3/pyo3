@@ -5,12 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.1]
+
+### Added
+
+ * Conversion between [num-bigint](https://github.com/rust-num/num-bigint) and Python int. [#608](https://github.com/PyO3/pyo3/pull/608)
+
 
 ### Fixed
 
  * Make sure the right Python interpreter is used in OSX builds. [#604](https://github.com/PyO3/pyo3/pull/604)
- * Patch specialization being broken by Rust 1.40 [#614](https://github.com/PyO3/pyo3/issues/614)
+ * Patch specialization being broken by Rust 1.40. [#614](https://github.com/PyO3/pyo3/issues/614)
+ * Fix a segfault around PyErr. [#597](https://github.com/PyO3/pyo3/pull/597)
 
 ## [0.8.0] - 2018-09-05
 
@@ -324,7 +330,8 @@ Yanked
 
 * Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/pyo3/pyo3/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/pyo3/pyo3/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pyo3/pyo3/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pyo3/pyo3/compare/v0.5.3...v0.6.0
