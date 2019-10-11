@@ -214,6 +214,21 @@ impl MethArgs {
     fn get_optional(&self, test: Option<i32>) -> PyResult<i32> {
         Ok(test.unwrap_or(10))
     }
+    fn get_optional2(&self, test: Option<i32>) -> PyResult<Option<i32>> {
+        Ok(test)
+    }
+    #[args(test = "None")]
+    fn get_optional3(&self, test: Option<i32>) -> PyResult<Option<i32>> {
+        Ok(test)
+    }
+    fn get_optional_positional(
+        &self,
+        _t1: Option<i32>,
+        t2: Option<i32>,
+        _t3: Option<i32>,
+    ) -> PyResult<Option<i32>> {
+        Ok(t2)
+    }
 
     #[args(test = "10")]
     fn get_default(&self, test: i32) -> PyResult<i32> {
@@ -264,6 +279,15 @@ fn meth_args() {
 
     py_run!(py, inst, "assert inst.get_optional() == 10");
     py_run!(py, inst, "assert inst.get_optional(100) == 100");
+    py_run!(py, inst, "assert inst.get_optional2() == None");
+    py_run!(py, inst, "assert inst.get_optional(100) == 100");
+    py_run!(py, inst, "assert inst.get_optional3() == None");
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_optional_positional(1, 2, 3) == 2"
+    );
+    py_run!(py, inst, "assert inst.get_optional_positional(1) == None");
     py_run!(py, inst, "assert inst.get_default() == 10");
     py_run!(py, inst, "assert inst.get_default(100) == 100");
     py_run!(py, inst, "assert inst.get_kwarg() == 10");
