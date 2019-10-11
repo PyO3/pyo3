@@ -26,13 +26,13 @@ def test_pybuffer_doesnot_leak_memory():
     message_b = b'\\(-"-;) Praying that memory leak would not happen..'
     message_s = '\\(-"-;) Praying that memory leak would not happen..'
 
-    def to_vec():
+    def from_bytes():
         for i in range(N):
-            extractor.to_vec(message_b)
+            extractor.from_bytes(message_b)
 
-    def to_str():
+    def from_str():
         for i in range(N):
-            extractor.to_str(message_s)
+            extractor.from_str(message_s)
 
-    assert memory_diff(to_vec) == 0
-    assert memory_diff(to_str) == 0
+    assert memory_diff(from_bytes) == 0
+    assert memory_diff(from_str) == 0
