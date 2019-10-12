@@ -25,11 +25,16 @@ const MIN_VERSION: &'static str = "1.37.0-nightly";
 
 lazy_static! {
     static ref PYTHON_INTERPRETER: &'static str = {
-        ["python3", "python"]
+        ["python", "python3"]
             .iter()
-            .map(|bin| (bin, Command::new(bin).spawn()))
-            .find(|(_, r)| r.is_ok())
-            .map(|(bin, _)| bin)
+            .find(|bin| {
+                if let Ok(out) = Command::new(bin).arg("--version").output() {
+                    // begin with `Python 3.X.X :: additional info`
+                    out.stdout.starts_with(b"Python 3") || out.stderr.starts_with(b"Python 3")
+                } else {
+                    false
+                }
+            })
             .expect("Python 3.x interpreter not found")
     };
 }
