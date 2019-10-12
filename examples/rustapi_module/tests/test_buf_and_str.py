@@ -1,5 +1,7 @@
+import gc
 import os
 import platform
+
 import psutil
 import pytest
 from rustapi_module.buf_and_str import BytesExtractor
@@ -13,26 +15,31 @@ PYPY = platform.python_implementation() == "PyPy"
     "See https://github.com/PyO3/pyo3/issues/589 for detail.",
 )
 def test_pybuffer_doesnot_leak_memory():
-    N = 1000
+    N = 10000
     extractor = BytesExtractor()
     process = psutil.Process(os.getpid())
 
     def memory_diff(f):
         before = process.memory_info().rss
-        f()
+        gc.collect()  # Trigger Garbage collection
+        for _ in range(N):
+            f()
+        gc.collect()  # Trigger Garbage collection
         after = process.memory_info().rss
         return after - before
 
     message_b = b'\\(-"-;) Praying that memory leak would not happen..'
     message_s = '\\(-"-;) Praying that memory leak would not happen..'
 
-    def to_vec():
-        for i in range(N):
-            extractor.to_vec(message_b)
+    def from_bytes():
+        extractor.from_bytes(message_b)
 
-    def to_str():
-        for i in range(N):
-            extractor.to_str(message_s)
+    def from_str():
+        extractor.from_str(message_s)
 
-    memory_diff(to_vec) == 0
-    memory_diff(to_str) == 0
+    # Running the memory_diff to warm-up the garbage collector
+    memory_diff(from_bytes)
+    memory_diff(from_str)
+
+    assert memory_diff(from_bytes) == 0
+    assert memory_diff(from_str) == 0
