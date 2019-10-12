@@ -286,7 +286,7 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
     let mut res: Option<FnType> = None;
 
     for attr in attrs.iter() {
-        match attr.parse_meta().unwrap() {
+        match attr.parse_meta()? {
             syn::Meta::Path(ref name) => {
                 if name.is_ident("new") || name.is_ident("__new__") {
                     res = Some(FnType::FnNew)
