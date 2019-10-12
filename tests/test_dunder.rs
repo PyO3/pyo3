@@ -155,11 +155,12 @@ impl PySequenceProtocol for Sequence {
         Ok(5)
     }
 
-    fn __getitem__(&self, key: isize) -> PyResult<isize> {
-        if key == 5 {
+    fn __getitem__(&self, key: isize) -> PyResult<usize> {
+        let idx: usize = std::convert::TryFrom::try_from(key)?;
+        if idx == 5 {
             return Err(PyErr::new::<IndexError, _>(()));
         }
-        Ok(key)
+        Ok(idx)
     }
 }
 
@@ -170,6 +171,7 @@ fn sequence() {
 
     let c = Py::new(py, Sequence {}).unwrap();
     py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
+    py_assert!(py, c, "c[-1] == 4");
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
 
