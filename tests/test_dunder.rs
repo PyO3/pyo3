@@ -9,6 +9,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyAny, PyBytes, PySlice, PyType};
 use pyo3::AsPyPointer;
+use std::convert::TryFrom;
 use std::{isize, iter};
 
 mod common;
@@ -147,20 +148,44 @@ fn comparisons() {
 }
 
 #[pyclass]
-struct Sequence {}
+#[derive(Debug)]
+struct Sequence {
+    fields: Vec<String>,
+}
+
+impl Default for Sequence {
+    fn default() -> Sequence {
+        let mut fields = vec![];
+        for s in &["A", "B", "C", "D", "E", "F", "G"] {
+            fields.push(s.to_string());
+        }
+        Sequence { fields }
+    }
+}
 
 #[pyproto]
 impl PySequenceProtocol for Sequence {
     fn __len__(&self) -> PyResult<usize> {
-        Ok(5)
+        Ok(self.fields.len())
     }
 
-    fn __getitem__(&self, key: isize) -> PyResult<usize> {
-        let idx: usize = std::convert::TryFrom::try_from(key)?;
-        if idx == 5 {
-            return Err(PyErr::new::<IndexError, _>(()));
+    fn __getitem__(&self, key: isize) -> PyResult<String> {
+        let idx = usize::try_from(key)?;
+        if let Some(s) = self.fields.get(idx) {
+            Ok(s.clone())
+        } else {
+            Err(PyErr::new::<IndexError, _>(()))
         }
-        Ok(idx)
+    }
+
+    fn __setitem__(&mut self, idx: isize, value: String) -> PyResult<()> {
+        let idx = usize::try_from(idx)?;
+        if let Some(elem) = self.fields.get_mut(idx) {
+            *elem = value;
+            Ok(())
+        } else {
+            Err(PyErr::new::<IndexError, _>(()))
+        }
     }
 }
 
@@ -169,9 +194,17 @@ fn sequence() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = Py::new(py, Sequence {}).unwrap();
-    py_assert!(py, c, "list(c) == [0, 1, 2, 3, 4]");
-    py_assert!(py, c, "c[-1] == 4");
+    let c = Py::new(py, Sequence::default()).unwrap();
+    py_assert!(py, c, "list(c) == ['A', 'B', 'C', 'D', 'E', 'F', 'G']");
+    py_assert!(py, c, "c[-1] == 'G'");
+    py_run!(
+        py,
+        c,
+        r#"
+    c[0] = 'H'
+    assert c[0] == 'H'
+"#
+    );
     py_expect_exception!(py, c, "c['abc']", TypeError);
 }
 
