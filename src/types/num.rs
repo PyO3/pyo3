@@ -290,6 +290,11 @@ mod bigint_conversion {
                     }
                 }
             }
+            impl IntoPy<PyObject> for $rust_ty {
+                fn into_py(self, py: Python) -> PyObject {
+                    self.to_object(py)
+                }
+            }
             impl<'source> FromPyObject<'source> for $rust_ty {
                 fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
                     unsafe {
