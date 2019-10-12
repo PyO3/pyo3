@@ -29,9 +29,9 @@ lazy_static! {
             .iter()
             .map(|bin| (bin, Command::new(bin).arg("--version").output()))
             .filter(|(_, r)| r.is_ok())
-            .map(|(bin, r)| (bin, r.unwrap().stderr))
+            .map(|(bin, r)| (bin, r.unwrap()))
             // begin with `Python 3.X.X :: additional info`
-            .find(|(_, r)| r.starts_with(b"Python 3"))
+            .find(|(_, r)| r.stdout.starts_with(b"Python 3") || r.stderr.starts_with(b"Python 3"))
             .map(|(bin, _)| bin)
             .expect("Python 3.x interpreter not found")
     };
