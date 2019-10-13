@@ -523,11 +523,14 @@ fn impl_arg_param(
         }
     } else if arg.optional.is_some() {
         let default = if let Some(d) = spec.default_value(name) {
-            quote! { Some(#d) }
+            if d.to_string() == "None" {
+                quote! { None }
+            } else {
+                quote! { Some(#d) }
+            }
         } else {
             quote! { None }
         };
-
         quote! {
             let #arg_name = match #arg_value.as_ref() {
                 Some(_obj) => {
