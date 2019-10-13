@@ -280,8 +280,9 @@ fn meth_args() {
     py_run!(py, inst, "assert inst.get_optional() == 10");
     py_run!(py, inst, "assert inst.get_optional(100) == 100");
     py_run!(py, inst, "assert inst.get_optional2() == None");
-    py_run!(py, inst, "assert inst.get_optional(100) == 100");
+    py_run!(py, inst, "assert inst.get_optional2(100) == 100");
     py_run!(py, inst, "assert inst.get_optional3() == None");
+    py_run!(py, inst, "assert inst.get_optional3(100) == 100");
     py_run!(
         py,
         inst,
