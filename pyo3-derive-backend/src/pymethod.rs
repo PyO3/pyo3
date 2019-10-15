@@ -394,10 +394,8 @@ pub(crate) fn impl_wrap_setter(
 
 /// This function abstracts away some copied code and can propably be simplified itself
 pub fn get_arg_names(spec: &FnSpec) -> Vec<syn::Ident> {
-    spec.args
-        .iter()
-        .enumerate()
-        .map(|(pos, _)| syn::Ident::new(&format!("arg{}", pos), Span::call_site()))
+    (0..spec.args.len())
+        .map(|pos| syn::Ident::new(&format!("arg{}", pos), Span::call_site()))
         .collect()
 }
 
@@ -448,10 +446,6 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
             }
         });
     }
-    let placeholders: Vec<syn::Ident> = params
-        .iter()
-        .map(|_| syn::Ident::new("None", Span::call_site()))
-        .collect();
 
     let mut param_conversion = Vec::new();
     let mut option_pos = 0;
@@ -461,7 +455,7 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
 
     let accept_args = bool_to_ident(spec.accept_args());
     let accept_kwargs = bool_to_ident(spec.accept_kwargs());
-
+    let num_normal_params = params.len();
     // create array of arguments, and then parse
     quote! {
         use pyo3::ObjectProtocol;
@@ -469,7 +463,7 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
             #(#params),*
         ];
 
-        let mut output = [#(#placeholders),*];
+        let mut output = [None; #num_normal_params];
         let mut _args = _args;
         let mut _kwargs = _kwargs;
 
@@ -507,21 +501,22 @@ fn impl_arg_param(
             let #arg_name = _py;
         };
     }
-    let arg_value = quote!(output[#option_pos]);
-    *option_pos += 1;
 
     let ty = arg.ty;
     let name = arg.name;
 
     if spec.is_args(&name) {
-        quote! {
+        return quote! {
             let #arg_name = <#ty as pyo3::FromPyObject>::extract(_args.as_ref())?;
-        }
+        };
     } else if spec.is_kwargs(&name) {
-        quote! {
+        return quote! {
             let #arg_name = _kwargs;
-        }
-    } else if arg.optional.is_some() {
+        };
+    }
+    let arg_value = quote!(output[#option_pos]);
+    *option_pos += 1;
+    if arg.optional.is_some() {
         let default = if let Some(d) = spec.default_value(name) {
             if d.to_string() == "None" {
                 quote! { None }
