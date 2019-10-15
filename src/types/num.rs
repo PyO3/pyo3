@@ -308,7 +308,7 @@ mod bigint_conversion {
                         } else if n_bits == 0 {
                             0
                         } else {
-                            (n_bits as usize - 1) / 8 + 1
+                            (n_bits as usize - 1 + $is_signed) / 8 + 1
                         };
                         if n_bytes <= 128 {
                             extract_small(ob, n_bytes, $is_signed)
@@ -335,6 +335,8 @@ mod bigint_conversion {
         use crate::types::{PyDict, PyModule};
         use indoc::indoc;
         use num_traits::{One, Zero};
+        use std::any::TypeId;
+        use std::fmt;
 
         fn python_fib(py: Python) -> &PyModule {
             let fib_code = indoc!(
@@ -419,6 +421,49 @@ mod bigint_conversion {
             let fib = python_fib(py);
             let zero: BigInt = FromPyObject::extract(fib.call1("fib", (0,)).unwrap()).unwrap();
             assert_eq!(zero, BigInt::from(0));
+        }
+
+        /// `OverflowError` on converting python int to BigInt
+        #[test]
+        fn issue_629() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            fn test<T>(value: T, py: Python)
+            where
+                T: 'static
+                    + Clone
+                    + ToPyObject
+                    + for<'a> FromPyObject<'a>
+                    + Eq
+                    + fmt::Display
+                    + fmt::Debug,
+            {
+                let type_id = TypeId::of::<T>();
+                let type_name = if type_id == TypeId::of::<BigInt>() {
+                    "BigInt"
+                } else {
+                    assert_eq!(type_id, TypeId::of::<BigUint>());
+                    "BigUint"
+                };
+                println!("{}: {}", type_name, value);
+                let python_value = value.clone().to_object(py);
+                let roundtrip_value = python_value.extract::<T>(py).unwrap();
+                assert_eq!(value, roundtrip_value);
+            }
+            for i in 0..=256usize {
+                test(BigInt::from(i), py);
+                test(BigUint::from(i), py);
+                test(-BigInt::from(i), py);
+                test(BigInt::one() << i, py);
+                test(BigUint::one() << i, py);
+                test(-BigInt::one() << i, py);
+                test((BigInt::one() << i) + 1u32, py);
+                test((BigUint::one() << i) + 1u32, py);
+                test((-BigInt::one() << i) + 1u32, py);
+                test((BigInt::one() << i) - 1u32, py);
+                test((BigUint::one() << i) - 1u32, py);
+                test((-BigInt::one() << i) - 1u32, py);
+            }
         }
     }
 }
