@@ -11,6 +11,7 @@ use crate::Python;
 use crate::{exceptions, IntoPy};
 use crate::{ffi, FromPy};
 use std::borrow::Cow;
+use std::ffi::CStr;
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
@@ -62,12 +63,21 @@ impl PyString {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe {
-            let mut size: ffi::Py_ssize_t = 0;
-            let data = ffi::PyUnicode_AsUTF8AndSize(self.0.as_ptr(), &mut size) as *const u8;
-            // PyUnicode_AsUTF8AndSize would return null if the pointer did not reference a valid
-            // unicode object, but because we have a valid PyString, assume success
-            debug_assert!(!data.is_null());
-            std::slice::from_raw_parts(data, size as usize)
+            let py_bytes = ffi::PyUnicode_AsEncodedString(
+                self.0.as_ptr(),
+                CStr::from_bytes_with_nul(b"utf-8\0").unwrap().as_ptr(),
+                CStr::from_bytes_with_nul(b"surrogatepass\0")
+                    .unwrap()
+                    .as_ptr(),
+            );
+            // Since we have a valid PyString and pass any surrogates, assume success.
+            debug_assert!(!py_bytes.is_null());
+            let buffer = ffi::PyBytes_AsString(py_bytes) as *const u8;
+            let length = ffi::PyBytes_Size(py_bytes) as usize;
+            debug_assert!(!buffer.is_null());
+            // TODO: We have to ensure that Py_DECREF will be called.
+            // ffi::Py_DECREF(py_bytes);
+            std::slice::from_raw_parts(buffer, length)
         }
     }
 
@@ -255,6 +265,15 @@ mod test {
     }
 
     #[test]
+    fn test_as_bytes_surrogate() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert_eq!(py_string.as_bytes(), [237, 160, 128]);
+    }
+
+    #[test]
     fn test_to_string_ascii() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -274,6 +293,30 @@ mod test {
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
+    }
+
+    #[test]
+    fn test_to_string_lossy() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj: PyObject = py
+            .eval(r#"'🐈 Hello \ud800World'"#, None, None)
+            .unwrap()
+            .into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
+    }
+
+    #[test]
+    fn test_to_string_unicode_decode_error() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj: PyObject = py
+            .eval(r#"'🐈 Hello \ud800World'"#, None, None)
+            .unwrap()
+            .into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert!(py_string.to_string().is_err());
     }
 
     #[test]
