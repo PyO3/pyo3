@@ -335,8 +335,6 @@ mod bigint_conversion {
         use crate::types::{PyDict, PyModule};
         use indoc::indoc;
         use num_traits::{One, Zero};
-        use std::any::TypeId;
-        use std::fmt;
 
         fn python_fib(py: Python) -> &PyModule {
             let fib_code = indoc!(
@@ -423,46 +421,34 @@ mod bigint_conversion {
             assert_eq!(zero, BigInt::from(0));
         }
 
-        /// `OverflowError` on converting python int to BigInt
+        /// `OverflowError` on converting python int to BigInt, see issue #629
         #[test]
-        fn issue_629() {
+        fn check_overflow() {
             let gil = Python::acquire_gil();
             let py = gil.python();
-            fn test<T>(value: T, py: Python)
-            where
-                T: 'static
-                    + Clone
-                    + ToPyObject
-                    + for<'a> FromPyObject<'a>
-                    + Eq
-                    + fmt::Display
-                    + fmt::Debug,
-            {
-                let type_id = TypeId::of::<T>();
-                let type_name = if type_id == TypeId::of::<BigInt>() {
-                    "BigInt"
-                } else {
-                    assert_eq!(type_id, TypeId::of::<BigUint>());
-                    "BigUint"
+            macro_rules! test {
+                ($T:ty, $value:expr, $py:expr) => {
+                    let value = $value;
+                    println!("{}: {}", stringify!($T), value);
+                    let python_value = value.clone().to_object(py);
+                    let roundtrip_value = python_value.extract::<$T>(py).unwrap();
+                    assert_eq!(value, roundtrip_value);
                 };
-                println!("{}: {}", type_name, value);
-                let python_value = value.clone().to_object(py);
-                let roundtrip_value = python_value.extract::<T>(py).unwrap();
-                assert_eq!(value, roundtrip_value);
             }
             for i in 0..=256usize {
-                test(BigInt::from(i), py);
-                test(BigUint::from(i), py);
-                test(-BigInt::from(i), py);
-                test(BigInt::one() << i, py);
-                test(BigUint::one() << i, py);
-                test(-BigInt::one() << i, py);
-                test((BigInt::one() << i) + 1u32, py);
-                test((BigUint::one() << i) + 1u32, py);
-                test((-BigInt::one() << i) + 1u32, py);
-                test((BigInt::one() << i) - 1u32, py);
-                test((BigUint::one() << i) - 1u32, py);
-                test((-BigInt::one() << i) - 1u32, py);
+                // test a lot of values to help catch other bugs too
+                test!(BigInt, BigInt::from(i), py);
+                test!(BigUint, BigUint::from(i), py);
+                test!(BigInt, -BigInt::from(i), py);
+                test!(BigInt, BigInt::one() << i, py);
+                test!(BigUint, BigUint::one() << i, py);
+                test!(BigInt, -BigInt::one() << i, py);
+                test!(BigInt, (BigInt::one() << i) + 1u32, py);
+                test!(BigUint, (BigUint::one() << i) + 1u32, py);
+                test!(BigInt, (-BigInt::one() << i) + 1u32, py);
+                test!(BigInt, (BigInt::one() << i) - 1u32, py);
+                test!(BigUint, (BigUint::one() << i) - 1u32, py);
+                test!(BigInt, (-BigInt::one() << i) - 1u32, py);
             }
         }
     }
