@@ -212,60 +212,6 @@ where
     }
 }
 
-trait PySequenceSetItemProtocolImpl {
-    fn sq_ass_item() -> Option<ffi::ssizeobjargproc>;
-}
-
-impl<'p, T> PySequenceSetItemProtocolImpl for T
-where
-    T: PySequenceProtocol<'p>,
-{
-    default fn sq_ass_item() -> Option<ffi::ssizeobjargproc> {
-        None
-    }
-}
-
-impl<T> PySequenceSetItemProtocolImpl for T
-where
-    T: for<'p> PySequenceSetItemProtocol<'p>,
-{
-    fn sq_ass_item() -> Option<ffi::ssizeobjargproc> {
-        unsafe extern "C" fn wrap<T>(
-            slf: *mut ffi::PyObject,
-            key: ffi::Py_ssize_t,
-            value: *mut ffi::PyObject,
-        ) -> c_int
-        where
-            T: for<'p> PySequenceSetItemProtocol<'p>,
-        {
-            let py = Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
-
-            let result = if value.is_null() {
-                Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
-                    "Item deletion not supported by {:?}",
-                    stringify!(T)
-                )))
-            } else {
-                let value = py.from_borrowed_ptr::<PyAny>(value);
-                match value.extract() {
-                    Ok(value) => slf.__setitem__(key.into(), value).into(),
-                    Err(e) => Err(e),
-                }
-            };
-            match result {
-                Ok(_) => 0,
-                Err(e) => {
-                    e.restore(py);
-                    -1
-                }
-            }
-        }
-        Some(wrap::<T>)
-    }
-}
-
 /// It can be possible to delete and set items (PySequenceSetItemProtocol and
 /// PySequenceDelItemProtocol implemented), only to delete (PySequenceDelItemProtocol implemented)
 /// or no deleting or setting is possible
@@ -286,8 +232,65 @@ mod sq_ass_item_impl {
             Some(del_set_item)
         } else if let Some(del_item) = T::del_item() {
             Some(del_item)
+        } else if let Some(set_item) = T::set_item() {
+            Some(set_item)
         } else {
             None
+        }
+    }
+
+    trait SetItem {
+        fn set_item() -> Option<ffi::ssizeobjargproc>;
+    }
+
+    impl<'p, T> SetItem for T
+    where
+        T: PySequenceProtocol<'p>,
+    {
+        default fn set_item() -> Option<ffi::ssizeobjargproc> {
+            None
+        }
+    }
+
+    impl<T> SetItem for T
+    where
+        T: for<'p> PySequenceSetItemProtocol<'p>,
+    {
+        fn set_item() -> Option<ffi::ssizeobjargproc> {
+            unsafe extern "C" fn wrap<T>(
+                slf: *mut ffi::PyObject,
+                key: ffi::Py_ssize_t,
+                value: *mut ffi::PyObject,
+            ) -> c_int
+            where
+                T: for<'p> PySequenceSetItemProtocol<'p>,
+            {
+                let py = Python::assume_gil_acquired();
+                let _pool = crate::GILPool::new(py);
+                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+
+                let result = if value.is_null() {
+                    Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
+                        "Item deletion is not supported by {:?}",
+                        stringify!(T)
+                    )))
+                } else {
+                    let value = py.from_borrowed_ptr::<PyAny>(value);
+                    match value.extract() {
+                        Ok(value) => slf.__setitem__(key.into(), value).into(),
+                        Err(e) => Err(e),
+                    }
+                };
+
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => {
+                        e.restore(py);
+                        -1
+                    }
+                }
+            }
+            Some(wrap::<T>)
         }
     }
 
