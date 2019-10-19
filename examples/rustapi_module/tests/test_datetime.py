@@ -40,8 +40,8 @@ MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
-MIN_DATETIME = pdt.datetime.min
-MAX_DATETIME = pdt.datetime.max
+MIN_DATETIME = pdt.datetime(1970, 1, 1)
+MAX_DATETIME = pdt.datetime(3000, 1, 1)
 
 PYPY = platform.python_implementation() == "PyPy"
 HAS_FOLD = getattr(pdt.datetime, "fold", False)
