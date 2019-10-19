@@ -308,7 +308,7 @@ mod bigint_conversion {
                         } else if n_bits == 0 {
                             0
                         } else {
-                            (n_bits as usize - 1) / 8 + 1
+                            (n_bits as usize - 1 + $is_signed) / 8 + 1
                         };
                         if n_bytes <= 128 {
                             extract_small(ob, n_bytes, $is_signed)
@@ -419,6 +419,37 @@ mod bigint_conversion {
             let fib = python_fib(py);
             let zero: BigInt = FromPyObject::extract(fib.call1("fib", (0,)).unwrap()).unwrap();
             assert_eq!(zero, BigInt::from(0));
+        }
+
+        /// `OverflowError` on converting python int to BigInt, see issue #629
+        #[test]
+        fn check_overflow() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            macro_rules! test {
+                ($T:ty, $value:expr, $py:expr) => {
+                    let value = $value;
+                    println!("{}: {}", stringify!($T), value);
+                    let python_value = value.clone().to_object(py);
+                    let roundtrip_value = python_value.extract::<$T>(py).unwrap();
+                    assert_eq!(value, roundtrip_value);
+                };
+            }
+            for i in 0..=256usize {
+                // test a lot of values to help catch other bugs too
+                test!(BigInt, BigInt::from(i), py);
+                test!(BigUint, BigUint::from(i), py);
+                test!(BigInt, -BigInt::from(i), py);
+                test!(BigInt, BigInt::one() << i, py);
+                test!(BigUint, BigUint::one() << i, py);
+                test!(BigInt, -BigInt::one() << i, py);
+                test!(BigInt, (BigInt::one() << i) + 1u32, py);
+                test!(BigUint, (BigUint::one() << i) + 1u32, py);
+                test!(BigInt, (-BigInt::one() << i) + 1u32, py);
+                test!(BigInt, (BigInt::one() << i) - 1u32, py);
+                test!(BigUint, (BigUint::one() << i) - 1u32, py);
+                test!(BigInt, (-BigInt::one() << i) - 1u32, py);
+            }
         }
     }
 }
