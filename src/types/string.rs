@@ -215,6 +215,18 @@ impl<'source> FromPyObject<'source> for String {
     }
 }
 
+impl<'a> FromPy<&'a [u8]> for PyObject {
+    fn from_py(other: &'a [u8], py: Python) -> Self {
+        PyBytes::new(py, other).to_object(py)
+    }
+}
+
+impl<'a> FromPyObject<'a> for &'a [u8] {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{PyBytes, PyString};
@@ -242,6 +254,16 @@ mod test {
 
         let s2: &str = FromPyObject::extract(py_string.as_ref(py).into()).unwrap();
         assert_eq!(s, s2);
+    }
+
+    #[test]
+    fn test_extract_bytes() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let py_bytes = py.eval("b'Hello Python'", None, None).unwrap();
+        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+        assert_eq!(bytes, b"Hello Python");
     }
 
     #[test]
