@@ -40,8 +40,22 @@ MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
-MIN_DATETIME = pdt.datetime(1970, 1, 1)
-MAX_DATETIME = pdt.datetime(3000, 1, 1)
+IS_X86 = platform.architecture()[0] == "32bit"
+IS_WINDOWS = sys.platform == "win32"
+if IS_WINDOWS:
+    MIN_DATETIME = pdt.datetime(1970, 1, 2, 0, 0)
+    if IS_X86:
+        MAX_DATETIME = pdt.datetime(3001, 1, 19, 4, 59, 59)
+    else:
+        MAX_DATETIME = pdt.datetime(3001, 1, 19, 7, 59, 59)
+else:
+    if IS_X86:
+        # TS ±2147483648 (2**31)
+        MIN_DATETIME = pdt.datetime(1901, 12, 13, 20, 45, 52)
+        MAX_DATETIME = pdt.datetime(2038, 1, 19, 3, 14, 8)
+    else:
+        MIN_DATETIME = pdt.datetime(1, 1, 2, 0, 0)
+        MAX_DATETIME = pdt.datetime(9999, 12, 31, 18, 59, 59)
 
 PYPY = platform.python_implementation() == "PyPy"
 HAS_FOLD = getattr(pdt.datetime, "fold", False)
