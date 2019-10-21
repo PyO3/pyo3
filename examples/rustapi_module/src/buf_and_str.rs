@@ -22,6 +22,11 @@ impl BytesExtractor {
         let rust_string: String = string.extract().unwrap();
         Ok(rust_string.len())
     }
+
+    pub fn from_str_lossy(&mut self, string: &PyString) -> PyResult<usize> {
+        let rust_string_lossy: String = string.to_string_lossy().to_string();
+        Ok(rust_string_lossy.len())
+    }
 }
 
 #[pymodule]
