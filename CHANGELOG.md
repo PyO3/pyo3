@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Fix handling of invalid utf-8 sequences in `PyString::as_bytes` [#639](https://github.com/PyO3/pyo3/pull/639)
 and `PyString::to_string_lossy` [#642](https://github.com/PyO3/pyo3/pull/642).
 * Remove `__contains__` and `__iter__` from PyMappingProtocol. [#644](https://github.com/PyO3/pyo3/pull/644)
+* Fix proc-macro definition of PySetAttrProtocol. [#645](https://github.com/PyO3/pyo3/pull/645)
+
 
 ## [0.8.1]
 
