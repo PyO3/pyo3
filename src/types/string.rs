@@ -3,6 +3,7 @@
 use crate::conversion::FromPyObject;
 use crate::conversion::{PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
+use crate::gil;
 use crate::instance::PyNativeType;
 use crate::object::PyObject;
 use crate::types::PyAny;
@@ -11,8 +12,10 @@ use crate::IntoPy;
 use crate::Python;
 use crate::{ffi, FromPy};
 use std::borrow::Cow;
+use std::ffi::CStr;
 use std::ops::Index;
 use std::os::raw::c_char;
+use std::ptr::NonNull;
 use std::slice::SliceIndex;
 use std::str;
 
@@ -87,10 +90,29 @@ impl PyString {
     /// Unpaired surrogates invalid UTF-8 sequences are
     /// replaced with U+FFFD REPLACEMENT CHARACTER.
     pub fn to_string_lossy(&self) -> Cow<str> {
-        // TODO: Handle error of `as_bytes`
-        // see https://github.com/PyO3/pyo3/pull/634
-        let bytes = self.as_bytes().unwrap();
-        String::from_utf8_lossy(bytes)
+        match self.to_string() {
+            Ok(s) => s,
+            Err(_) => {
+                unsafe {
+                    let py_bytes = ffi::PyUnicode_AsEncodedString(
+                        self.0.as_ptr(),
+                        CStr::from_bytes_with_nul(b"utf-8\0").unwrap().as_ptr(),
+                        CStr::from_bytes_with_nul(b"surrogatepass\0")
+                            .unwrap()
+                            .as_ptr(),
+                    );
+                    // Since we have a valid PyString and replace any surrogates, assume success.
+                    debug_assert!(!py_bytes.is_null());
+                    // ensure DECREF will be called
+                    gil::register_pointer(NonNull::new(py_bytes).unwrap());
+                    let buffer = ffi::PyBytes_AsString(py_bytes) as *const u8;
+                    debug_assert!(!buffer.is_null());
+                    let length = ffi::PyBytes_Size(py_bytes) as usize;
+                    let bytes = std::slice::from_raw_parts(buffer, length);
+                    String::from_utf8_lossy(bytes)
+                }
+            }
+        }
     }
 }
 
@@ -306,6 +328,18 @@ mod test {
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
+    }
+
+    #[test]
+    fn test_to_string_lossy() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj: PyObject = py
+            .eval(r#"'🐈 Hello \ud800World'"#, None, None)
+            .unwrap()
+            .into();
+        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
     }
 
     #[test]
