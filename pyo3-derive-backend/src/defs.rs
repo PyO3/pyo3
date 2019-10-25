@@ -277,37 +277,16 @@ pub const MAPPING: Proto = Proto {
             pyres: false,
             proto: "pyo3::class::mapping::PyMappingDelItemProtocol",
         },
-        MethodProto::Binary {
-            name: "__contains__",
-            arg: "Value",
-            pyres: false,
-            proto: "pyo3::class::mapping::PyMappingContainsProtocol",
-        },
         MethodProto::Unary {
             name: "__reversed__",
             pyres: true,
             proto: "pyo3::class::mapping::PyMappingReversedProtocol",
         },
-        MethodProto::Unary {
-            name: "__iter__",
-            pyres: true,
-            proto: "pyo3::class::mapping::PyMappingIterProtocol",
-        },
     ],
-    py_methods: &[
-        PyMethod {
-            name: "__iter__",
-            proto: "pyo3::class::mapping::PyMappingIterProtocolImpl",
-        },
-        PyMethod {
-            name: "__contains__",
-            proto: "pyo3::class::mapping::PyMappingContainsProtocolImpl",
-        },
-        PyMethod {
-            name: "__reversed__",
-            proto: "pyo3::class::mapping::PyMappingReversedProtocolImpl",
-        },
-    ],
+    py_methods: &[PyMethod {
+        name: "__reversed__",
+        proto: "pyo3::class::mapping::PyMappingReversedProtocolImpl",
+    }],
 };
 
 pub const SEQ: Proto = Proto {

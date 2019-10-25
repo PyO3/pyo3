@@ -43,20 +43,6 @@ pub trait PyMappingProtocol<'p>: PyTypeInfo {
         unimplemented!()
     }
 
-    fn __iter__(&'p self, py: Python<'p>) -> Self::Result
-    where
-        Self: PyMappingIterProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
-    fn __contains__(&'p self, value: Self::Value) -> Self::Result
-    where
-        Self: PyMappingContainsProtocol<'p>,
-    {
-        unimplemented!()
-    }
-
     fn __reversed__(&'p self) -> Self::Result
     where
         Self: PyMappingReversedProtocol<'p>,
@@ -87,16 +73,6 @@ pub trait PyMappingSetItemProtocol<'p>: PyMappingProtocol<'p> {
 pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
-}
-
-pub trait PyMappingIterProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: IntoPy<PyObject>;
-    type Result: Into<PyResult<Self::Success>>;
-}
-
-pub trait PyMappingContainsProtocol<'p>: PyMappingProtocol<'p> {
-    type Value: FromPyObject<'p>;
-    type Result: Into<PyResult<bool>>;
 }
 
 pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
@@ -142,12 +118,6 @@ where
     fn methods() -> Vec<PyMethodDef> {
         let mut methods = Vec::new();
 
-        if let Some(def) = <Self as PyMappingIterProtocolImpl>::__iter__() {
-            methods.push(def)
-        }
-        if let Some(def) = <Self as PyMappingContainsProtocolImpl>::__contains__() {
-            methods.push(def)
-        }
         if let Some(def) = <Self as PyMappingReversedProtocolImpl>::__reversed__() {
             methods.push(def)
         }
@@ -284,20 +254,6 @@ where
 }
 
 #[doc(hidden)]
-pub trait PyMappingContainsProtocolImpl {
-    fn __contains__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyMappingContainsProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn __contains__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-#[doc(hidden)]
 pub trait PyMappingReversedProtocolImpl {
     fn __reversed__() -> Option<PyMethodDef>;
 }
@@ -307,20 +263,6 @@ where
     T: PyMappingProtocol<'p>,
 {
     default fn __reversed__() -> Option<PyMethodDef> {
-        None
-    }
-}
-
-#[doc(hidden)]
-pub trait PyMappingIterProtocolImpl {
-    fn __iter__() -> Option<PyMethodDef>;
-}
-
-impl<'p, T> PyMappingIterProtocolImpl for T
-where
-    T: PyMappingProtocol<'p>,
-{
-    default fn __iter__() -> Option<PyMethodDef> {
         None
     }
 }
