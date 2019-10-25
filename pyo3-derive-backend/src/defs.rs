@@ -25,7 +25,7 @@ pub const OBJECT: Proto = Proto {
             name: "__setattr__",
             arg1: "Name",
             arg2: "Value",
-            pyres: true,
+            pyres: false,
             proto: "pyo3::class::basic::PyObjectSetAttrProtocol",
         },
         MethodProto::Binary {
