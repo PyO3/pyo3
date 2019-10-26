@@ -5,6 +5,7 @@
 pub use self::any::PyAny;
 pub use self::boolobject::PyBool;
 pub use self::bytearray::PyByteArray;
+pub use self::bytes::PyBytes;
 pub use self::complex::PyComplex;
 pub use self::datetime::PyDeltaAccess;
 pub use self::datetime::{
@@ -20,7 +21,7 @@ pub use self::num::PyLong as PyInt;
 pub use self::sequence::PySequence;
 pub use self::set::{PyFrozenSet, PySet};
 pub use self::slice::{PySlice, PySliceIndices};
-pub use self::string::{PyBytes, PyString, PyString as PyUnicode};
+pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
@@ -166,6 +167,7 @@ macro_rules! pyobject_native_type_convert(
 mod any;
 mod boolobject;
 mod bytearray;
+mod bytes;
 mod complex;
 mod datetime;
 mod dict;
