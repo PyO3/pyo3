@@ -226,7 +226,7 @@ fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> Toke
     let output = &spec.output;
     let result_empty: syn::Type = syn::parse_quote!(PyResult<()>);
     let empty: syn::Type = syn::parse_quote!(());
-    if output != &result_empty || output != &empty {
+    if output != &result_empty && output != &empty {
         panic!("Constructor must return PyResult<()> or a ()");
     }
 
