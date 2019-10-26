@@ -5,15 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.8.2]
 
 ### Added
 
-* FFI compatibility for PEP 590 Vectorcall.
+* FFI compatibility for PEP 590 Vectorcall. [#641](https://github.com/PyO3/pyo3/pull/641)
 
 ### Fixed
 
-* Fix handling of invalid utf-8 sequences in `PyString::as_bytes` [#639](https://github.com/PyO3/pyo3/pull/639)
+* Fix PySequenceProtocol::set_item. [#624](https://github.com/PyO3/pyo3/pull/624)
+* Fix a corner case of BigInt::FromPyObject. [#630](https://github.com/PyO3/pyo3/pull/630)
+* Fix index errors in parameter conversion. [#631](https://github.com/PyO3/pyo3/pull/631)
+* Fix handling of invalid utf-8 sequences in `PyString::as_bytes`. [#639](https://github.com/PyO3/pyo3/pull/639)
 and `PyString::to_string_lossy` [#642](https://github.com/PyO3/pyo3/pull/642).
 * Remove `__contains__` and `__iter__` from PyMappingProtocol. [#644](https://github.com/PyO3/pyo3/pull/644)
 * Fix proc-macro definition of PySetAttrProtocol. [#645](https://github.com/PyO3/pyo3/pull/645)
@@ -344,7 +347,8 @@ Yanked
 
 * Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/pyo3/pyo3/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/pyo3/pyo3/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/pyo3/pyo3/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pyo3/pyo3/compare/v0.6.0...v0.7.0
