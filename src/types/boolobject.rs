@@ -1,5 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::ffi;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::FromPyObject;
@@ -10,7 +11,7 @@ use crate::{PyTryFrom, ToPyObject};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
-pub struct PyBool(PyObject);
+pub struct PyBool(PyObject, Unsendable);
 
 pyobject_native_type!(PyBool, ffi::PyBool_Type, ffi::PyBool_Check);
 

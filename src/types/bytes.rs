@@ -1,6 +1,7 @@
 use crate::conversion::FromPyObject;
 use crate::conversion::{PyTryFrom, ToPyObject};
 use crate::err::PyResult;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
@@ -15,7 +16,7 @@ use std::str;
 ///
 /// This type is immutable
 #[repr(transparent)]
-pub struct PyBytes(PyObject);
+pub struct PyBytes(PyObject, Unsendable);
 
 pyobject_native_type!(
     PyBytes,

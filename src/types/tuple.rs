@@ -5,6 +5,7 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::{AsPyRef, Py, PyNativeType};
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
@@ -15,7 +16,7 @@ use std::slice;
 
 /// Represents a Python `tuple` object.
 #[repr(transparent)]
-pub struct PyTuple(PyObject);
+pub struct PyTuple(PyObject, Unsendable);
 
 pyobject_native_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 

@@ -6,6 +6,7 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
@@ -117,7 +118,7 @@ macro_rules! int_convert_128 {
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyObject);
+pub struct PyLong(PyObject, Unsendable);
 
 pyobject_native_type!(
     PyLong,

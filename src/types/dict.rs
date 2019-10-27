@@ -2,6 +2,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 use crate::AsPyPointer;
@@ -14,7 +15,7 @@ use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict(PyObject);
+pub struct PyDict(PyObject, Unsendable);
 
 pyobject_native_type!(PyDict, ffi::PyDict_Type, ffi::PyDict_Check);
 
