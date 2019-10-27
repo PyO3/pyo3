@@ -161,6 +161,7 @@ pub mod exceptions;
 pub mod freelist;
 mod gil;
 mod instance;
+mod internal_tricks;
 pub mod marshal;
 mod object;
 mod objectprotocol;
