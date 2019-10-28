@@ -72,6 +72,53 @@ impl<'p> Python<'p> {
     }
 
     /// Temporarily releases the `GIL`, thus allowing other Python threads to run.
+    ///
+    /// # Example
+    /// ```
+    /// # use pyo3::prelude::*; use pyo3::types::IntoPyDict; use pyo3::wrap_pyfunction;
+    /// use pyo3::exceptions::RuntimeError;
+    /// use std::sync::Arc;
+    /// use std::thread;
+    /// #[pyfunction]
+    /// fn parallel_count(py: Python<'_>, strings: Vec<String>, query: String) -> PyResult<usize> {
+    ///     let query = query.chars().next().unwrap();
+    ///     py.allow_threads(move || {
+    ///         let threads: Vec<_> = strings
+    ///             .into_iter()
+    ///             .map(|s| thread::spawn(move || s.chars().filter(|&c| c == query).count()))
+    ///             .collect();
+    ///         let mut sum = 0;
+    ///         for t in threads {
+    ///             sum += t.join().map_err(|_| PyErr::new::<RuntimeError, _>(()))?;
+    ///         }
+    ///         Ok(sum)
+    ///     })
+    /// }
+    /// let gil = Python::acquire_gil();
+    /// let py = gil.python();
+    /// let m = PyModule::new(py, "pcount").unwrap();
+    /// m.add_wrapped(wrap_pyfunction!(parallel_count)).unwrap();
+    /// let locals = [("pcount", m)].into_py_dict(py);
+    /// py.run(r#"
+    ///    s = ["Flow", "my", "tears", "the", "Policeman", "Said"]
+    ///    assert pcount.parallel_count(s, "a") == 3
+    /// "#, None, Some(locals));
+    /// ```
+    ///
+    /// **NOTE**
+    /// You cannot use all `&Py~` types in the closure that `allow_threads` takes.
+    /// # Example
+    /// ```compile_fail
+    /// # use pyo3::prelude::*;
+    /// # use pyo3::types::PyString;
+    /// fn parallel_print(py: Python<'_>) {
+    ///     let s = PyString::new(py, "This object should not be shared >_<");
+    ///     py.allow_threads(move || {
+    ///         println!("{:?}", s); // This causes compile error.
+    ///     });
+    /// }
+    /// # Example
+    /// ```
     pub fn allow_threads<T, F>(self, f: F) -> T
     where
         F: Send + FnOnce() -> T,
