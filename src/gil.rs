@@ -3,11 +3,12 @@
 //! Interaction with python's global interpreter lock
 
 use crate::ffi;
+use crate::internal_tricks::Unsendable;
 use crate::types::PyAny;
 use crate::Python;
 use spin;
 use std::ptr::NonNull;
-use std::{any, marker, rc, sync};
+use std::{any, sync};
 
 static START: sync::Once = sync::Once::new();
 static START_PYO3: sync::Once = sync::Once::new();
@@ -101,9 +102,8 @@ pub struct GILGuard {
     owned: usize,
     borrowed: usize,
     gstate: ffi::PyGILState_STATE,
-    // hack to opt out of Send on stable rust, which doesn't
-    // have negative impls
-    no_send: marker::PhantomData<rc::Rc<()>>,
+    // Stable solution for impl !Send
+    no_send: Unsendable,
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
@@ -181,7 +181,7 @@ pub struct GILPool<'p> {
     owned: usize,
     borrowed: usize,
     pointers: bool,
-    no_send: marker::PhantomData<rc::Rc<()>>,
+    no_send: Unsendable,
 }
 
 impl<'p> GILPool<'p> {
@@ -193,7 +193,7 @@ impl<'p> GILPool<'p> {
             owned: p.owned.len(),
             borrowed: p.borrowed.len(),
             pointers: true,
-            no_send: marker::PhantomData,
+            no_send: Unsendable::default(),
         }
     }
     #[inline]
@@ -204,7 +204,7 @@ impl<'p> GILPool<'p> {
             owned: p.owned.len(),
             borrowed: p.borrowed.len(),
             pointers: false,
-            no_send: marker::PhantomData,
+            no_send: Unsendable::default(),
         }
     }
 }
@@ -260,7 +260,7 @@ impl GILGuard {
                 owned: pool.owned.len(),
                 borrowed: pool.borrowed.len(),
                 gstate,
-                no_send: marker::PhantomData,
+                no_send: Unsendable::default(),
             }
         }
     }

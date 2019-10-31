@@ -1,8 +1,8 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::AsPyPointer;
 use crate::Python;
@@ -11,7 +11,7 @@ use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
-pub struct PyByteArray(PyObject);
+pub struct PyByteArray(PyObject, Unsendable);
 
 pyobject_native_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
 

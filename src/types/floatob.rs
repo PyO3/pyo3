@@ -5,6 +5,7 @@
 use crate::err::PyErr;
 use crate::ffi;
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::PyAny;
@@ -22,7 +23,7 @@ use std::os::raw::c_double;
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
-pub struct PyFloat(PyObject);
+pub struct PyFloat(PyObject, Unsendable);
 
 pyobject_native_type!(PyFloat, ffi::PyFloat_Type, ffi::PyFloat_Check);
 

@@ -5,6 +5,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::instance::{Py, PyNativeType};
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::AsPyPointer;
@@ -14,7 +15,7 @@ use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
-pub struct PyType(PyObject);
+pub struct PyType(PyObject, Unsendable);
 
 pyobject_native_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 

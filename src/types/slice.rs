@@ -3,6 +3,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::Python;
 use crate::{AsPyPointer, ToPyObject};
@@ -12,7 +13,7 @@ use std::os::raw::c_long;
 ///
 /// Only `c_long` indices supported at the moment by `PySlice` object.
 #[repr(transparent)]
-pub struct PySlice(PyObject);
+pub struct PySlice(PyObject, Unsendable);
 
 pyobject_native_type!(PySlice, ffi::PySlice_Type, ffi::PySlice_Check);
 

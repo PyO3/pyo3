@@ -1,6 +1,7 @@
 use crate::ffi;
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::AsPyPointer;
 use crate::PyObject;
 use crate::Python;
@@ -10,7 +11,7 @@ use std::os::raw::c_double;
 
 /// Represents a Python `complex`.
 #[repr(transparent)]
-pub struct PyComplex(PyObject);
+pub struct PyComplex(PyObject, Unsendable);
 
 pyobject_native_type!(PyComplex, ffi::PyComplex_Type, ffi::PyComplex_Check);
 

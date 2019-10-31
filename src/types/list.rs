@@ -5,6 +5,7 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::IntoPyPointer;
@@ -14,7 +15,7 @@ use crate::{ToBorrowedObject, ToPyObject};
 
 /// Represents a Python `list`.
 #[repr(transparent)]
-pub struct PyList(PyObject);
+pub struct PyList(PyObject, Unsendable);
 
 pyobject_native_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 

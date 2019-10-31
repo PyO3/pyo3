@@ -4,6 +4,7 @@ use crate::buffer;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::{PyAny, PyList, PyTuple};
@@ -12,7 +13,7 @@ use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a python object supporting the sequence protocol.
 #[repr(transparent)]
-pub struct PySequence(PyObject);
+pub struct PySequence(PyObject, Unsendable);
 pyobject_native_type_named!(PySequence);
 
 impl PySequence {

@@ -2,6 +2,7 @@
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::instance;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
@@ -13,7 +14,6 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
-use std::rc::Rc;
 
 /// Types that are built into the python interpreter.
 ///
@@ -55,7 +55,7 @@ pub unsafe trait PyNativeType: Sized {
 /// py.run("assert p.length() == 12", None, Some(d)).unwrap();
 /// ```
 #[derive(Debug)]
-pub struct PyRef<'a, T: PyTypeInfo>(&'a T, PhantomData<Rc<()>>);
+pub struct PyRef<'a, T: PyTypeInfo>(&'a T, Unsendable);
 
 #[allow(clippy::cast_ptr_alignment)]
 fn ref_to_ptr<T>(t: &T) -> *mut ffi::PyObject
@@ -67,7 +67,7 @@ where
 
 impl<'a, T: PyTypeInfo> PyRef<'a, T> {
     pub(crate) fn from_ref(r: &'a T) -> Self {
-        PyRef(r, PhantomData)
+        PyRef(r, Unsendable::default())
     }
 }
 
@@ -143,11 +143,11 @@ where
 /// py.run("assert p.length() == 100", None, Some(d)).unwrap();
 /// ```
 #[derive(Debug)]
-pub struct PyRefMut<'a, T: PyTypeInfo>(&'a mut T, PhantomData<Rc<()>>);
+pub struct PyRefMut<'a, T: PyTypeInfo>(&'a mut T, Unsendable);
 
 impl<'a, T: PyTypeInfo> PyRefMut<'a, T> {
     pub(crate) fn from_mut(t: &'a mut T) -> Self {
-        PyRefMut(t, PhantomData)
+        PyRefMut(t, Unsendable::default())
     }
 }
 
@@ -267,7 +267,7 @@ pub trait AsPyRef<T: PyTypeInfo>: Sized {
 /// `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct Py<T>(NonNull<ffi::PyObject>, std::marker::PhantomData<T>);
+pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
 unsafe impl<T> Send for Py<T> {}
 
@@ -295,7 +295,7 @@ impl<T> Py<T> {
             !ptr.is_null() && ffi::Py_REFCNT(ptr) > 0,
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
         );
-        Py(NonNull::new_unchecked(ptr), std::marker::PhantomData)
+        Py(NonNull::new_unchecked(ptr), PhantomData)
     }
 
     /// Creates a `Py<T>` instance for the given FFI pointer.
@@ -304,7 +304,7 @@ impl<T> Py<T> {
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Py(nonnull_ptr, std::marker::PhantomData),
+            Some(nonnull_ptr) => Py(nonnull_ptr, PhantomData),
             None => {
                 crate::err::panic_after_error();
             }
@@ -317,7 +317,7 @@ impl<T> Py<T> {
     /// Unsafe because the pointer might be invalid.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
         match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, std::marker::PhantomData)),
+            Some(nonnull_ptr) => Ok(Py(nonnull_ptr, PhantomData)),
             None => Err(PyErr::fetch(py)),
         }
     }
@@ -332,7 +332,7 @@ impl<T> Py<T> {
             format!("REFCNT: {:?} - {:?}", ptr, ffi::Py_REFCNT(ptr))
         );
         ffi::Py_INCREF(ptr);
-        Py(NonNull::new_unchecked(ptr), std::marker::PhantomData)
+        Py(NonNull::new_unchecked(ptr), PhantomData)
     }
 
     /// Gets the reference count of the ffi::PyObject pointer.

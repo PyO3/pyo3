@@ -6,6 +6,7 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
@@ -23,7 +24,7 @@ use std::str;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
-pub struct PyModule(PyObject);
+pub struct PyModule(PyObject, Unsendable);
 
 pyobject_native_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 

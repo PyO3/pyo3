@@ -1,5 +1,6 @@
 use crate::conversion::AsPyPointer;
 use crate::err::PyDowncastError;
+use crate::internal_tricks::Unsendable;
 use crate::{ffi, PyObject, PyRef, PyRefMut, PyTryFrom, PyTypeInfo};
 
 /// Represents a python's [Any](https://docs.python.org/3/library/typing.html#typing.Any) type.
@@ -21,7 +22,7 @@ use crate::{ffi, PyObject, PyRef, PyRefMut, PyTryFrom, PyTypeInfo};
 /// assert!(any.downcast_ref::<PyList>().is_err());
 /// ```
 #[repr(transparent)]
-pub struct PyAny(PyObject);
+pub struct PyAny(PyObject, Unsendable);
 pyobject_native_type_named!(PyAny);
 pyobject_native_type_convert!(PyAny, ffi::PyBaseObject_Type, ffi::PyObject_Check);
 

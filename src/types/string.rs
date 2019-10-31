@@ -5,6 +5,7 @@ use crate::conversion::{PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::instance::PyNativeType;
+use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::AsPyPointer;
@@ -21,7 +22,7 @@ use std::str;
 ///
 /// This type is immutable
 #[repr(transparent)]
-pub struct PyString(PyObject);
+pub struct PyString(PyObject, Unsendable);
 
 pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
