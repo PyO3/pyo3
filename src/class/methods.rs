@@ -10,8 +10,6 @@ use std::ffi::CString;
 pub enum PyMethodDefType {
     /// Represents class `__new__` method
     New(PyMethodDef),
-    /// Represents class `__init__` method
-    Init(PyMethodDef),
     /// Represents class `__call__` method
     Call(PyMethodDef),
     /// Represents class method
