@@ -486,7 +486,7 @@ print(json.dumps({
     serde_json::from_str(&json).map_err(|e| format!("Deserializing failed: {}", e))
 }
 
-fn configure(interpreter_config: &InterpreterConfig) -> Result<(String), String> {
+fn configure(interpreter_config: &InterpreterConfig) -> Result<String, String> {
     if let Some(minor) = interpreter_config.version.minor {
         if minor < PY3_MIN_MINOR {
             return Err(format!(
