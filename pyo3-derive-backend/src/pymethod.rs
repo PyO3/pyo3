@@ -24,7 +24,6 @@ pub fn gen_py_method(
             &impl_wrap_pyslf(cls, name, &spec, self_ty, true),
         ),
         FnType::FnNew => impl_py_method_def_new(name, doc, &impl_wrap_new(cls, name, &spec)),
-        FnType::FnInit => impl_py_method_def_init(name, doc, &impl_wrap_init(cls, name, &spec)),
         FnType::FnCall => impl_py_method_def_call(name, doc, &impl_wrap(cls, name, &spec, false)),
         FnType::FnClass => impl_py_method_def_class(name, doc, &impl_wrap_class(cls, name, &spec)),
         FnType::FnStatic => {
@@ -214,45 +213,6 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> T
                 Err(e) => {
                     e.restore(_py);
                     ::std::ptr::null_mut()
-                }
-            }
-        }
-    }
-}
-
-/// Generate function wrapper for ffi::initproc
-fn impl_wrap_init(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> TokenStream {
-    let cb = impl_call(cls, name, &spec);
-    let output = &spec.output;
-    let result_empty: syn::Type = syn::parse_quote!(PyResult<()>);
-    let empty: syn::Type = syn::parse_quote!(());
-    if output != &result_empty || output != &empty {
-        panic!("Constructor must return PyResult<()> or a ()");
-    }
-
-    let body = impl_arg_params(&spec, cb);
-
-    quote! {
-        #[allow(unused_mut)]
-        unsafe extern "C" fn __wrap(
-            _slf: *mut pyo3::ffi::PyObject,
-            _args: *mut pyo3::ffi::PyObject,
-            _kwargs: *mut pyo3::ffi::PyObject) -> pyo3::libc::c_int
-        {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
-            let _py = pyo3::Python::assume_gil_acquired();
-            let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
-            let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-            let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
-
-            #body
-
-            match _result {
-                Ok(_) => 0,
-                Err(e) => {
-                    e.restore(_py);
-                    -1
                 }
             }
         }
@@ -605,25 +565,6 @@ pub fn impl_py_method_def_new(
             pyo3::class::PyMethodDef {
                 ml_name: stringify!(#name),
                 ml_meth: pyo3::class::PyMethodType::PyNewFunc(__wrap),
-                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                ml_doc: #doc,
-            }
-        })
-    }
-}
-
-pub fn impl_py_method_def_init(
-    name: &syn::Ident,
-    doc: syn::Lit,
-    wrapper: &TokenStream,
-) -> TokenStream {
-    quote! {
-        pyo3::class::PyMethodDefType::Init({
-            #wrapper
-
-            pyo3::class::PyMethodDef {
-                ml_name: stringify!(#name),
-                ml_meth: pyo3::class::PyMethodType::PyInitFunc(__wrap),
                 ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                 ml_doc: #doc,
             }

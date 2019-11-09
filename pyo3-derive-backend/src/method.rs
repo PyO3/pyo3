@@ -24,7 +24,6 @@ pub enum FnType {
     Setter(Option<String>),
     Fn,
     FnNew,
-    FnInit,
     FnCall,
     FnClass,
     FnStatic,
@@ -291,7 +290,10 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
                 if name.is_ident("new") || name.is_ident("__new__") {
                     res = Some(FnType::FnNew)
                 } else if name.is_ident("init") || name.is_ident("__init__") {
-                    res = Some(FnType::FnInit)
+                    return Err(syn::Error::new_spanned(
+                        name,
+                        "#[init] is disabled from PyO3 0.9.0",
+                    ));
                 } else if name.is_ident("call") || name.is_ident("__call__") {
                     res = Some(FnType::FnCall)
                 } else if name.is_ident("classmethod") {
@@ -322,7 +324,10 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
                 if path.is_ident("new") {
                     res = Some(FnType::FnNew)
                 } else if path.is_ident("init") {
-                    res = Some(FnType::FnInit)
+                    return Err(syn::Error::new_spanned(
+                        path,
+                        "#[init] is disabled from PyO3 0.9.0",
+                    ));
                 } else if path.is_ident("call") {
                     res = Some(FnType::FnCall)
                 } else if path.is_ident("setter") || path.is_ident("getter") {

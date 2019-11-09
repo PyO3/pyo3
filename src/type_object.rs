@@ -372,23 +372,14 @@ where
     type_object.tp_as_buffer = to_ptr(<T as class::buffer::PyBufferProtocolImpl>::tp_as_buffer());
 
     // normal methods
-    let (new, init, call, mut methods) = py_class_method_defs::<T>();
+    let (new, call, mut methods) = py_class_method_defs::<T>();
     if !methods.is_empty() {
         methods.push(ffi::PyMethodDef_INIT);
         type_object.tp_methods = Box::into_raw(methods.into_boxed_slice()) as *mut _;
     }
 
-    if let (None, Some(_)) = (new, init) {
-        panic!(
-            "{}.__new__ method is required if __init__ method defined",
-            T::NAME
-        );
-    }
-
     // __new__ method
     type_object.tp_new = new;
-    // __init__ method
-    type_object.tp_init = init;
     // __call__ method
     type_object.tp_call = call;
 
@@ -440,14 +431,12 @@ fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
 
 fn py_class_method_defs<T: PyMethodsProtocol>() -> (
     Option<ffi::newfunc>,
-    Option<ffi::initproc>,
     Option<ffi::PyCFunctionWithKeywords>,
     Vec<ffi::PyMethodDef>,
 ) {
     let mut defs = Vec::new();
     let mut call = None;
     let mut new = None;
-    let mut init = None;
 
     for def in T::py_methods() {
         match *def {
@@ -461,13 +450,6 @@ fn py_class_method_defs<T: PyMethodsProtocol>() -> (
                     call = Some(meth)
                 } else {
                     panic!("Method type is not supoorted by tp_call slot")
-                }
-            }
-            PyMethodDefType::Init(ref def) => {
-                if let class::methods::PyMethodType::PyInitFunc(meth) = def.ml_meth {
-                    init = Some(meth)
-                } else {
-                    panic!("Method type is not supoorted by tp_init slot")
                 }
             }
             PyMethodDefType::Method(ref def)
@@ -497,7 +479,7 @@ fn py_class_method_defs<T: PyMethodsProtocol>() -> (
 
     py_class_async_methods::<T>(&mut defs);
 
-    (new, init, call, defs)
+    (new, call, defs)
 }
 
 fn py_class_async_methods<T>(defs: &mut Vec<ffi::PyMethodDef>) {
