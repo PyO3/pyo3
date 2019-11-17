@@ -17,9 +17,13 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Set Python PATH
+      run: ci/actions/setup
     - name: Install Rust
-      run: ci/appveyor/setup
-      shell: powershell
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
     - name: Build
       run: cargo build --verbose
     - name: Install test dependencies
@@ -27,5 +31,4 @@ jobs:
         python -m pip install -U pip setuptools
         pip install setuptools-rust pytest pytest-benchmark tox tox-venv
     - name: Test
-      run: ci/appveyor/test
-      shell: powershell
+      run: ci/actions/test
