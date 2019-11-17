@@ -7,9 +7,9 @@ jobs:
 
     runs-on: windows-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 3
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7]
 
     steps:
     - uses: actions/checkout@v1
@@ -23,7 +23,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
-        override: true
+        default: true
     - name: Build
       run: cargo build --verbose
     - name: Install test dependencies

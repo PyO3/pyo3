@@ -12,11 +12,8 @@ function Invoke-Call
 
 Invoke-Call { cargo test --verbose --features="num-bigint num-complex" }
 
-$examplesDirectory = "examples"
-
-foreach ($example in Get-ChildItem $examplesDirectory)
+foreach ($example in Get-ChildItem -dir "examples")
 {
-    Push-Location $( Join-Path $examplesDirectory $example )
+    Set-Location $example
     Invoke-Call { tox -c "tox.ini" -e py }
-    Pop-Location
 }
