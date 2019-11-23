@@ -490,11 +490,22 @@ impl<W: Send + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
     }
 }
 
+impl PyErrArguments for std::convert::Infallible {
+    fn arguments(&self, py: Python) -> PyObject {
+        "Infalliable!".to_object(py)
+    }
+}
+
+impl std::convert::From<std::convert::Infallible> for PyErr {
+    fn from(_: std::convert::Infallible) -> PyErr {
+        PyErr::new::<exceptions::ValueError, _>("Infalliable!")
+    }
+}
+
 impl_to_pyerr!(std::array::TryFromSliceError, exceptions::ValueError);
 impl_to_pyerr!(std::num::ParseIntError, exceptions::ValueError);
 impl_to_pyerr!(std::num::ParseFloatError, exceptions::ValueError);
 impl_to_pyerr!(std::num::TryFromIntError, exceptions::ValueError);
-impl_to_pyerr!(std::string::ParseError, exceptions::ValueError);
 impl_to_pyerr!(std::str::ParseBoolError, exceptions::ValueError);
 impl_to_pyerr!(std::ffi::IntoStringError, exceptions::UnicodeDecodeError);
 impl_to_pyerr!(std::ffi::NulError, exceptions::ValueError);
