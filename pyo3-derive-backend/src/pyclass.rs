@@ -157,7 +157,11 @@ impl PyClassArgs {
 }
 
 pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::Result<TokenStream> {
-    let doc = utils::get_doc(&class.attrs, true);
+    let text_signature = utils::parse_text_signature_attrs(
+        &mut class.attrs,
+        &get_class_python_name(&class.ident, attr),
+    )?;
+    let doc = utils::get_doc(&class.attrs, text_signature, true)?;
     let mut descriptors = Vec::new();
 
     check_generics(class)?;
@@ -245,16 +249,20 @@ fn impl_inventory(cls: &syn::Ident) -> TokenStream {
     }
 }
 
+fn get_class_python_name(cls: &syn::Ident, attr: &PyClassArgs) -> TokenStream {
+    match &attr.name {
+        Some(name) => quote! { #name },
+        None => quote! { #cls },
+    }
+}
+
 fn impl_class(
     cls: &syn::Ident,
     attr: &PyClassArgs,
     doc: syn::Lit,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> TokenStream {
-    let cls_name = match &attr.name {
-        Some(name) => quote! { #name }.to_string(),
-        None => cls.to_string(),
-    };
+    let cls_name = get_class_python_name(cls, attr);
 
     let extra = {
         if let Some(freelist) = &attr.freelist {

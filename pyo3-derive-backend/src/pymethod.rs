@@ -12,8 +12,38 @@ pub fn gen_py_method(
 ) -> syn::Result<TokenStream> {
     check_generic(name, sig)?;
 
-    let doc = utils::get_doc(&meth_attrs, true);
-    let spec = FnSpec::parse(name, sig, meth_attrs)?;
+    let spec = FnSpec::parse(name, sig, &mut *meth_attrs)?;
+
+    let text_signature = match &spec.tp {
+        FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
+            utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
+        }
+        FnType::FnNew => utils::parse_text_signature_attrs(
+            &mut *meth_attrs,
+            &syn::Ident::new("__new__", name.span()),
+        )?,
+        FnType::FnCall => utils::parse_text_signature_attrs(
+            &mut *meth_attrs,
+            &syn::Ident::new("__call__", name.span()),
+        )?,
+        FnType::Getter(get_set_name) | FnType::Setter(get_set_name) => {
+            // try to parse anyway to give better error messages
+            let get_set_name = match get_set_name {
+                None => name.clone(),
+                Some(get_set_name) => syn::Ident::new(get_set_name, name.span()),
+            };
+            if let Some(type_signature) =
+                utils::parse_text_signature_attrs(&mut *meth_attrs, &get_set_name)?
+            {
+                return Err(syn::Error::new_spanned(
+                    type_signature,
+                    "type_signature not allowed on getters/setters",
+                ));
+            }
+            None
+        }
+    };
+    let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
 
     Ok(match spec.tp {
         FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
