@@ -124,7 +124,7 @@ about this topic.
 
 ## Examples and tooling
 
- * [examples/word-count](examples/word-count) _Counting the occurrences of a word in a text file_
+ * [examples/word-count](https://github.com/PyO3/pyo3/tree/master/examples/word-count) _Counting the occurrences of a word in a text file_
  * [hyperjson](https://github.com/mre/hyperjson) _A hyper-fast Python module for reading/writing JSON data using Rust's serde-json_
  * [rust-numpy](https://github.com/PyO3/rust-numpy) _Rust binding of NumPy C-API_
  * [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/master/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
