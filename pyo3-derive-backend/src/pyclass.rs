@@ -262,7 +262,7 @@ fn impl_class(
     doc: syn::Lit,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> TokenStream {
-    let cls_name = get_class_python_name(cls, attr);
+    let cls_name = get_class_python_name(cls, attr).to_string();
 
     let extra = {
         if let Some(freelist) = &attr.freelist {
