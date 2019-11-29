@@ -74,14 +74,71 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 # fn main() {}
 ```
 
-### Making the function signature available to Python
+## Making the function signature available to Python
 
 In order to make the function signature available to Python to be retrieved via
-`inspect.signature`, simply make sure the first line of your docstring is
-formatted like in the example below. Please note that the newline after the
+`inspect.signature`, use the `#[text_signature]` annotation as in the example
+below. The `/` signifies the end of positional-only arguments.
+
+```rust
+use pyo3::prelude::*;
+
+/// This function adds two unsigned 64-bit integers.
+#[pyfunction]
+#[text_signature = "(a, b, /)"]
+fn add(a: u64, b: u64) -> u64 {
+    a + b
+}
+```
+
+This also works for classes and methods:
+
+```rust
+use pyo3::prelude::*;
+use pyo3::types::PyType;
+
+// it works even if the item is not documented:
+
+#[pyclass]
+#[text_signature = "(c, d, /)"]
+struct MyClass {}
+
+#[pymethods]
+impl MyClass {
+    // the signature for the constructor is attached
+    // to the struct definition instead.
+    #[new]
+    fn new(obj: &PyRawObject, c: i32, d: &str) {
+        obj.init(Self {});
+    }
+    // the self argument should be written $self
+    #[text_signature = "($self, e, f)"]
+    fn my_method(&self, e: i32, f: i32) -> i32 {
+        e + f
+    }
+    #[classmethod]
+    #[text_signature = "(cls, e, f)"]
+    fn my_class_method(cls: &PyType, e: i32, f: i32) -> i32 {
+        e + f
+    }
+    #[staticmethod]
+    #[text_signature = "(e, f)"]
+    fn my_static_method(e: i32, f: i32) -> i32 {
+        e + f
+    }
+}
+```
+
+### Making the function signature available to Python (old method)
+
+Alternatively, simply make sure the first line of your docstring is
+formatted like in the following example. Please note that the newline after the
 `--` is mandatory. The `/` signifies the end of positional-only arguments. This
 is not a feature of this library in particular, but the general format used by
 CPython for annotating signatures of built-in functions.
+
+`#[text_signature]` should be preferred, since it will override automatically
+generated signatures when those are added in a future version of PyO3.
 
 ```rust
 use pyo3::prelude::*;
@@ -93,6 +150,17 @@ use pyo3::prelude::*;
 #[pyfunction]
 fn add(a: u64, b: u64) -> u64 {
     a + b
+}
+
+// a function with a signature but without docs. Both blank lines after the `--` are mandatory.
+
+/// sub(a, b, /)
+/// --
+///
+///
+#[pyfunction]
+fn sub(a: u64, b: u64) -> u64 {
+    a - b
 }
 ```
 
