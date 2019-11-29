@@ -18,14 +18,32 @@ pub fn gen_py_method(
         FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
             utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
         }
-        FnType::FnNew => utils::parse_text_signature_attrs(
-            &mut *meth_attrs,
-            &syn::Ident::new("__new__", name.span()),
-        )?,
-        FnType::FnCall => utils::parse_text_signature_attrs(
-            &mut *meth_attrs,
-            &syn::Ident::new("__call__", name.span()),
-        )?,
+        FnType::FnNew => {
+            // try to parse anyway to give better error messages
+            if let Some(type_signature) = utils::parse_text_signature_attrs(
+                &mut *meth_attrs,
+                &syn::Ident::new("__new__", name.span()),
+            )? {
+                return Err(syn::Error::new_spanned(
+                    type_signature,
+                    "type_signature not allowed on __new__, put it on the struct definition instead",
+                ));
+            }
+            None
+        }
+        FnType::FnCall => {
+            // try to parse anyway to give better error messages
+            if let Some(type_signature) = utils::parse_text_signature_attrs(
+                &mut *meth_attrs,
+                &syn::Ident::new("__call__", name.span()),
+            )? {
+                return Err(syn::Error::new_spanned(
+                    type_signature,
+                    "type_signature not allowed on __call__, put it on the struct definition instead",
+                ));
+            }
+            None
+        }
         FnType::Getter(get_set_name) | FnType::Setter(get_set_name) => {
             // try to parse anyway to give better error messages
             let get_set_name = match get_set_name {

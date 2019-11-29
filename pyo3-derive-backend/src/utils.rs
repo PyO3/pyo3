@@ -28,33 +28,17 @@ pub fn is_text_signature_attr(attr: &syn::Attribute) -> bool {
 fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
     attr: &syn::Attribute,
     python_name: &T,
-    text_signature: &mut Option<syn::LitStr>,
+    text_signature_line: &mut Option<syn::LitStr>,
 ) -> syn::Result<Option<()>> {
     if !is_text_signature_attr(attr) {
         return Ok(None);
     }
-    if text_signature.is_some() {
+    if text_signature_line.is_some() {
         return Err(syn::Error::new_spanned(
             attr,
             "text_signature attribute already specified previously",
         ));
     }
-    let value: String;
-    match attr.parse_meta()? {
-        syn::Meta::NameValue(syn::MetaNameValue {
-            lit: syn::Lit::Str(lit),
-            ..
-        }) => {
-            value = lit.value();
-            *text_signature = Some(lit);
-        }
-        meta => {
-            return Err(syn::Error::new_spanned(
-                meta,
-                "text_signature must be of the form #[text_signature = \"\"]",
-            ));
-        }
-    };
     let python_name_str = python_name.to_string();
     let python_name_str = python_name_str
         .rsplit('.')
@@ -67,18 +51,36 @@ fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
                 format!("failed to parse python name: {}", python_name),
             )
         })?;
-    if !value.starts_with(&python_name_str) || !value[python_name_str.len()..].starts_with('(') {
-        return Err(syn::Error::new_spanned(
-            text_signature,
-            format!("text_signature must start with \"{}(\"", python_name_str),
-        ));
-    }
-    if !value.ends_with(')') {
-        return Err(syn::Error::new_spanned(
-            text_signature,
-            "text_signature must end with \")\"",
-        ));
-    }
+    match attr.parse_meta()? {
+        syn::Meta::NameValue(syn::MetaNameValue {
+            lit: syn::Lit::Str(lit),
+            ..
+        }) => {
+            let value = lit.value();
+            if !value.starts_with('(') {
+                return Err(syn::Error::new_spanned(
+                    lit,
+                    "text_signature must start with \"(\"",
+                ));
+            }
+            if !value.ends_with(')') {
+                return Err(syn::Error::new_spanned(
+                    lit,
+                    "text_signature must end with \")\"",
+                ));
+            }
+            *text_signature_line = Some(syn::LitStr::new(
+                &(python_name_str.to_owned() + &value),
+                lit.span(),
+            ));
+        }
+        meta => {
+            return Err(syn::Error::new_spanned(
+                meta,
+                "text_signature must be of the form #[text_signature = \"\"]",
+            ));
+        }
+    };
     Ok(Some(()))
 }
 
