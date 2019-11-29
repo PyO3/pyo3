@@ -47,10 +47,10 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 
 impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
-    pub fn parse<'b>(
+    pub fn parse(
         name: &'a syn::Ident,
         sig: &'a syn::Signature,
-        meth_attrs: &'b mut Vec<syn::Attribute>,
+        meth_attrs: &mut Vec<syn::Attribute>,
     ) -> syn::Result<FnSpec<'a>> {
         let (mut fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
 
