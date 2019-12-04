@@ -19,9 +19,9 @@ use std::os::raw::c_char;
 ///
 /// **CAUTION**
 ///
-/// When you construct an instance of `PyErrValue`, we highly recommend to use `from_err_args` method.
-/// If you want to to construct `PyErrValue::ToArgs` directly, please do not forget calling
-/// `Python::acquire_gil`.
+/// When you construct an instance of `PyErrValue`, we highly recommend to use `from_err_args`
+/// method.  If you want to to construct `PyErrValue::ToArgs` directly, please do not forget to
+/// call `Python::acquire_gil`.
 pub enum PyErrValue {
     None,
     Value(PyObject),
@@ -43,10 +43,9 @@ pub struct PyErr {
 
     /// The value of the exception.
     ///
-    /// This can be either an instance of `PyObject`,
-    /// a tuple of arguments to be passed to `ptype`'s constructor,
-    /// or a single argument to be passed to `ptype`'s constructor.
-    /// Call `PyErr::instance()` to get the exception instance in all cases.
+    /// This can be either an instance of `PyObject`, a tuple of arguments to be passed to
+    /// `ptype`'s constructor, or a single argument to be passed to `ptype`'s constructor.  Call
+    /// `PyErr::to_object()` to get the exception instance in all cases.
     pub pvalue: PyErrValue,
 
     /// The `PyTraceBack` object associated with the error.
