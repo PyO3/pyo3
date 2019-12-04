@@ -28,16 +28,9 @@ pub fn is_text_signature_attr(attr: &syn::Attribute) -> bool {
 fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
     attr: &syn::Attribute,
     python_name: &T,
-    text_signature_line: &mut Option<syn::LitStr>,
-) -> syn::Result<Option<()>> {
+) -> syn::Result<Option<syn::LitStr>> {
     if !is_text_signature_attr(attr) {
         return Ok(None);
-    }
-    if text_signature_line.is_some() {
-        return Err(syn::Error::new_spanned(
-            attr,
-            "text_signature attribute already specified previously",
-        ));
     }
     let python_name_str = python_name.to_string();
     let python_name_str = python_name_str
@@ -57,56 +50,46 @@ fn parse_text_signature_attr<T: Display + quote::ToTokens + ?Sized>(
             ..
         }) => {
             let value = lit.value();
-            if !value.starts_with('(') {
-                return Err(syn::Error::new_spanned(
+            if value.starts_with('(') && value.ends_with(')') {
+                Ok(Some(syn::LitStr::new(
+                    &(python_name_str.to_owned() + &value),
+                    lit.span(),
+                )))
+            } else {
+                Err(syn::Error::new_spanned(
                     lit,
-                    "text_signature must start with \"(\"",
-                ));
+                    "text_signature must start with \"(\" and end with \")\"",
+                ))
             }
-            if !value.ends_with(')') {
-                return Err(syn::Error::new_spanned(
-                    lit,
-                    "text_signature must end with \")\"",
-                ));
-            }
-            *text_signature_line = Some(syn::LitStr::new(
-                &(python_name_str.to_owned() + &value),
-                lit.span(),
-            ));
         }
-        meta => {
-            return Err(syn::Error::new_spanned(
-                meta,
-                "text_signature must be of the form #[text_signature = \"\"]",
-            ));
-        }
-    };
-    Ok(Some(()))
+        meta => Err(syn::Error::new_spanned(
+            meta,
+            "text_signature must be of the form #[text_signature = \"\"]",
+        )),
+    }
 }
 
 pub fn parse_text_signature_attrs<T: Display + quote::ToTokens + ?Sized>(
     attrs: &mut Vec<syn::Attribute>,
     python_name: &T,
 ) -> syn::Result<Option<syn::LitStr>> {
-    let mut parse_error: Option<syn::Error> = None;
     let mut text_signature = None;
-    attrs.retain(|attr| {
-        match parse_text_signature_attr(attr, python_name, &mut text_signature) {
-            Ok(None) => return true,
-            Ok(Some(_)) => {}
-            Err(err) => {
-                if let Some(parse_error) = &mut parse_error {
-                    parse_error.combine(err);
-                } else {
-                    parse_error = Some(err);
-                }
+    let mut attrs_out = Vec::with_capacity(attrs.len());
+    for attr in attrs.drain(..) {
+        if let Some(value) = parse_text_signature_attr(&attr, python_name)? {
+            if text_signature.is_some() {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "text_signature attribute already specified previously",
+                ));
+            } else {
+                text_signature = Some(value);
             }
+        } else {
+            attrs_out.push(attr);
         }
-        false
-    });
-    if let Some(parse_error) = parse_error {
-        return Err(parse_error);
     }
+    *attrs = attrs_out;
     Ok(text_signature)
 }
 
@@ -116,31 +99,35 @@ pub fn get_doc(
     text_signature: Option<syn::LitStr>,
     null_terminated: bool,
 ) -> syn::Result<syn::Lit> {
-    let mut doc = Vec::new();
-    let mut needs_terminating_newline = false;
+    let mut doc = String::new();
+    let mut span = Span::call_site();
 
     if let Some(text_signature) = text_signature {
-        doc.push(text_signature.value());
-        doc.push("--".to_string());
-        doc.push(String::new());
-        needs_terminating_newline = true;
+        // create special doc string lines to set `__text_signature__`
+        span = text_signature.span();
+        doc.push_str(&text_signature.value());
+        doc.push_str("\n--\n\n");
     }
 
-    // TODO(althonos): set span on produced doc str literal
-    // let mut span = None;
+    let mut separator = "";
+    let mut first = true;
 
     for attr in attrs.iter() {
         if let Ok(syn::Meta::NameValue(ref metanv)) = attr.parse_meta() {
             if metanv.path.is_ident("doc") {
-                // span = Some(metanv.span());
                 if let syn::Lit::Str(ref litstr) = metanv.lit {
+                    if first {
+                        first = false;
+                        span = litstr.span();
+                    }
                     let d = litstr.value();
-                    doc.push(if d.starts_with(' ') {
-                        d[1..d.len()].to_string()
+                    doc.push_str(separator);
+                    if d.starts_with(' ') {
+                        doc.push_str(&d[1..d.len()]);
                     } else {
-                        d
-                    });
-                    needs_terminating_newline = false;
+                        doc.push_str(&d);
+                    };
+                    separator = "\n";
                 } else {
                     return Err(syn::Error::new_spanned(metanv, "Invalid doc comment"));
                 }
@@ -148,14 +135,9 @@ pub fn get_doc(
         }
     }
 
-    if needs_terminating_newline {
-        doc.push(String::new());
-    }
-
-    let mut docstr = doc.join("\n");
     if null_terminated {
-        docstr.push('\0');
+        doc.push('\0');
     }
 
-    Ok(syn::Lit::Str(syn::LitStr::new(&docstr, Span::call_site())))
+    Ok(syn::Lit::Str(syn::LitStr::new(&doc, span)))
 }
