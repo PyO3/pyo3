@@ -14,52 +14,46 @@ pub fn gen_py_method(
 
     let spec = FnSpec::parse(name, sig, &mut *meth_attrs)?;
 
+    let mut parse_erroneous_text_signature = |alt_name: Option<&str>, error_msg: &str| {
+        let python_name;
+        let python_name = match alt_name {
+            None => name,
+            Some(alt_name) => {
+                python_name = syn::Ident::new(alt_name, name.span());
+                &python_name
+            }
+        };
+        // try to parse anyway to give better error messages
+        if let Some(text_signature) =
+            utils::parse_text_signature_attrs(&mut *meth_attrs, python_name)?
+        {
+            Err(syn::Error::new_spanned(text_signature, error_msg))
+        } else {
+            Ok(None)
+        }
+    };
+
     let text_signature = match &spec.tp {
         FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
             utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
         }
-        FnType::FnNew => {
-            // try to parse anyway to give better error messages
-            if let Some(type_signature) = utils::parse_text_signature_attrs(
-                &mut *meth_attrs,
-                &syn::Ident::new("__new__", name.span()),
-            )? {
-                return Err(syn::Error::new_spanned(
-                    type_signature,
-                    "type_signature not allowed on __new__, put it on the struct definition instead",
-                ));
-            }
-            None
-        }
-        FnType::FnCall => {
-            // try to parse anyway to give better error messages
-            if let Some(type_signature) = utils::parse_text_signature_attrs(
-                &mut *meth_attrs,
-                &syn::Ident::new("__call__", name.span()),
-            )? {
-                return Err(syn::Error::new_spanned(
-                    type_signature,
-                    "type_signature not allowed on __call__, put it on the struct definition instead",
-                ));
-            }
-            None
-        }
-        FnType::Getter(get_set_name) | FnType::Setter(get_set_name) => {
-            // try to parse anyway to give better error messages
-            let get_set_name = match get_set_name {
-                None => name.clone(),
-                Some(get_set_name) => syn::Ident::new(get_set_name, name.span()),
-            };
-            if let Some(type_signature) =
-                utils::parse_text_signature_attrs(&mut *meth_attrs, &get_set_name)?
-            {
-                return Err(syn::Error::new_spanned(
-                    type_signature,
-                    "type_signature not allowed on getters/setters",
-                ));
-            }
-            None
-        }
+        FnType::FnNew => parse_erroneous_text_signature(
+            Some("__new__"),
+            "text_signature not allowed on __new__; if you want to add a signature on \
+             __new__, put it on the struct definition instead",
+        )?,
+        FnType::FnCall => parse_erroneous_text_signature(
+            Some("__call__"),
+            "text_signature not allowed on __call__",
+        )?,
+        FnType::Getter(getter_name) => parse_erroneous_text_signature(
+            getter_name.as_ref().map(|v| &**v),
+            "text_signature not allowed on getter",
+        )?,
+        FnType::Setter(setter_name) => parse_erroneous_text_signature(
+            setter_name.as_ref().map(|v| &**v),
+            "text_signature not allowed on setter",
+        )?,
     };
     let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
 
