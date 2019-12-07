@@ -12,8 +12,50 @@ pub fn gen_py_method(
 ) -> syn::Result<TokenStream> {
     check_generic(name, sig)?;
 
-    let doc = utils::get_doc(&meth_attrs, true);
-    let spec = FnSpec::parse(name, sig, meth_attrs)?;
+    let spec = FnSpec::parse(name, sig, &mut *meth_attrs)?;
+
+    let mut parse_erroneous_text_signature = |alt_name: Option<&str>, error_msg: &str| {
+        let python_name;
+        let python_name = match alt_name {
+            None => name,
+            Some(alt_name) => {
+                python_name = syn::Ident::new(alt_name, name.span());
+                &python_name
+            }
+        };
+        // try to parse anyway to give better error messages
+        if let Some(text_signature) =
+            utils::parse_text_signature_attrs(&mut *meth_attrs, python_name)?
+        {
+            Err(syn::Error::new_spanned(text_signature, error_msg))
+        } else {
+            Ok(None)
+        }
+    };
+
+    let text_signature = match &spec.tp {
+        FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
+            utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
+        }
+        FnType::FnNew => parse_erroneous_text_signature(
+            Some("__new__"),
+            "text_signature not allowed on __new__; if you want to add a signature on \
+             __new__, put it on the struct definition instead",
+        )?,
+        FnType::FnCall => parse_erroneous_text_signature(
+            Some("__call__"),
+            "text_signature not allowed on __call__",
+        )?,
+        FnType::Getter(getter_name) => parse_erroneous_text_signature(
+            getter_name.as_ref().map(|v| &**v),
+            "text_signature not allowed on getter",
+        )?,
+        FnType::Setter(setter_name) => parse_erroneous_text_signature(
+            setter_name.as_ref().map(|v| &**v),
+            "text_signature not allowed on setter",
+        )?,
+    };
+    let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
 
     Ok(match spec.tp {
         FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),

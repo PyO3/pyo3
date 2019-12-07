@@ -27,7 +27,12 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     process_functions_in_module(&mut ast);
 
-    let expanded = py_init(&ast.sig.ident, &modname, get_doc(&ast.attrs, false));
+    let doc = match get_doc(&ast.attrs, None, false) {
+        Ok(doc) => doc,
+        Err(err) => return err.to_compile_error().into(),
+    };
+
+    let expanded = py_init(&ast.sig.ident, &modname, doc);
 
     quote!(
         #ast
@@ -75,11 +80,11 @@ pub fn pymethods(_: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as syn::ItemFn);
+    let mut ast = parse_macro_input!(input as syn::ItemFn);
     let args = parse_macro_input!(attr as PyFunctionAttr);
 
     let python_name = syn::Ident::new(&ast.sig.ident.unraw().to_string(), Span::call_site());
-    let expanded = add_fn_to_module(&ast, &python_name, args.arguments);
+    let expanded = add_fn_to_module(&mut ast, &python_name, args.arguments);
 
     quote!(
         #ast

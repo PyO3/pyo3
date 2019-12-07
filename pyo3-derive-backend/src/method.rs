@@ -50,7 +50,7 @@ impl<'a> FnSpec<'a> {
     pub fn parse(
         name: &'a syn::Ident,
         sig: &'a syn::Signature,
-        meth_attrs: &'a mut Vec<syn::Attribute>,
+        meth_attrs: &mut Vec<syn::Attribute>,
     ) -> syn::Result<FnSpec<'a>> {
         let (mut fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
 

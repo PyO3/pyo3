@@ -133,7 +133,7 @@ fn function_wrapper_ident(name: &Ident) -> Ident {
 /// Generates python wrapper over a function that allows adding it to a python module as a python
 /// function
 pub fn add_fn_to_module(
-    func: &syn::ItemFn,
+    func: &mut syn::ItemFn,
     python_name: &Ident,
     pyfn_attrs: Vec<pyfunction::Argument>,
 ) -> TokenStream {
@@ -157,7 +157,14 @@ pub fn add_fn_to_module(
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
     let wrapper = function_c_wrapper(&func.sig.ident, &spec);
-    let doc = utils::get_doc(&func.attrs, true);
+    let text_signature = match utils::parse_text_signature_attrs(&mut func.attrs, python_name) {
+        Ok(text_signature) => text_signature,
+        Err(err) => return err.to_compile_error(),
+    };
+    let doc = match utils::get_doc(&func.attrs, text_signature, true) {
+        Ok(doc) => doc,
+        Err(err) => return err.to_compile_error(),
+    };
 
     let tokens = quote! {
         fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::PyObject {
