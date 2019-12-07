@@ -272,23 +272,14 @@ impl<'p> Python<'p> {
 }
 
 impl<'p> Python<'p> {
+    // TODO(kngwyu): Now offset dies, so what should this functions do
     pub(crate) unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p T {
-        if T::OFFSET == 0 {
-            &*(ob as *const _ as *const T)
-        } else {
-            let ptr = (ob.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
-            &*ptr
-        }
+        &*(ob as *const _ as *const T)
     }
 
     #[allow(clippy::cast_ref_to_mut)] // FIXME
     pub(crate) unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p mut T {
-        if T::OFFSET == 0 {
-            &mut *(ob as *const _ as *mut T)
-        } else {
-            let ptr = (ob.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T;
-            &mut *ptr
-        }
+        &mut *(ob as *const _ as *mut T)
     }
 
     /// Register object in release pool, and try to downcast to specific type.

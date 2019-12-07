@@ -393,22 +393,14 @@ where
     #[inline]
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v T {
         let value = value.into();
-        let ptr = if T::OFFSET == 0 {
-            value as *const _ as *const u8 as *const T
-        } else {
-            (value.as_ptr() as *const u8).offset(T::OFFSET) as *const T
-        };
+        let ptr = value as *const _ as *const u8 as *const T;
         &*ptr
     }
 
     #[inline]
     unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut T {
         let value = value.into();
-        let ptr = if T::OFFSET == 0 {
-            value as *const _ as *mut u8 as *mut T
-        } else {
-            (value.as_ptr() as *mut u8).offset(T::OFFSET) as *mut T
-        };
+        let ptr = value as *const _ as *mut u8 as *mut T;
         &mut *ptr
     }
 }

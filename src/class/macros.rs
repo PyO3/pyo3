@@ -35,11 +35,11 @@ macro_rules! py_unary_pyref_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::instance::PyRefMut;
+            use $crate::{FromPyPointer, PyClassShell};
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
-            let res = $class::$f(PyRefMut::from_mut(slf)).into();
+            let slf: &mut PyClassShell<T> = FromPyPointer::from_borrowed_ptr_or_panic(py, slf);
+            let res = $class::$f(slf).into();
             $crate::callback::cb_convert($conv, py, res)
         }
         Some(wrap::<$class>)
