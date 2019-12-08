@@ -34,7 +34,7 @@ pub fn gen_py_method(
     };
 
     let text_signature = match &spec.tp {
-        FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
+        FnType::Fn | FnType::PySelfNew(_) | FnType::FnClass | FnType::FnStatic => {
             utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
         }
         FnType::FnNew => parse_erroneous_text_signature(
@@ -59,7 +59,7 @@ pub fn gen_py_method(
 
     Ok(match spec.tp {
         FnType::Fn => impl_py_method_def(name, doc, &spec, &impl_wrap(cls, name, &spec, true)),
-        FnType::PySelf(ref self_ty) => impl_py_method_def(
+        FnType::PySelfNew(ref self_ty) => impl_py_method_def(
             name,
             doc,
             &spec,
@@ -127,7 +127,7 @@ pub fn impl_wrap_pyslf(
     cls: &syn::Type,
     name: &syn::Ident,
     spec: &FnSpec<'_>,
-    self_ty: &syn::TypePath,
+    self_ty: &syn::TypeReference,
     noargs: bool,
 ) -> TokenStream {
     let names = get_arg_names(spec);
@@ -221,8 +221,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) ->
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> TokenStream {
     let names: Vec<syn::Ident> = get_arg_names(&spec);
-    let cb = quote! { #cls::#name(&_obj, #(#names),*) };
-
+    let cb = quote! { #cls::#name(#(#names),*) };
     let body = impl_arg_params(spec, cb);
 
     quote! {
@@ -240,11 +239,11 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> T
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-            #body
+            # body
 
-            match <<#cls as pyo3::PyTypeInfo>::ConcreteLayout as pyo3::pyclass::PyClassNew>::new(_py, _result) {
-                Ok(_slf) => _slf as _,
-                Err(e) => e.restore_and_null(),
+            match _result.and_then(|slf| pyo3::PyClassShell::new(_py, slf)) {
+                Ok(slf) => slf as _,
+                Err(e) => e.restore_and_null(_py),
             }
         }
     }

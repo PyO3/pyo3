@@ -27,7 +27,7 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
-    PySelf(syn::TypePath),
+    PySelfNew(syn::TypeReference),
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -103,13 +103,16 @@ impl<'a> FnSpec<'a> {
 
         if fn_type == FnType::Fn && !has_self {
             if arguments.is_empty() {
-                panic!("Static method needs #[staticmethod] attribute");
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "Static method needs #[staticmethod] attribute",
+                ));
             }
             let tp = match arguments.remove(0).ty {
-                syn::Type::Path(p) => replace_self(p),
-                _ => panic!("Invalid type as self"),
+                syn::Type::Reference(r) => replace_self(r)?,
+                x => return Err(syn::Error::new_spanned(x, "Invalid type as custom self")),
             };
-            fn_type = FnType::PySelf(tp);
+            fn_type = FnType::PySelfNew(tp);
         }
 
         Ok(FnSpec {
@@ -386,15 +389,19 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
     }
 }
 
-// Replace A<Self> with A<_>
-fn replace_self(path: &syn::TypePath) -> syn::TypePath {
+// Replace &A<Self> with &A<_>
+fn replace_self(refn: &syn::TypeReference) -> syn::Result<syn::TypeReference> {
     fn infer(span: proc_macro2::Span) -> syn::GenericArgument {
         syn::GenericArgument::Type(syn::Type::Infer(syn::TypeInfer {
             underscore_token: syn::token::Underscore { spans: [span] },
         }))
     }
-    let mut res = path.to_owned();
-    for seg in &mut res.path.segments {
+    let mut res = refn.to_owned();
+    let tp = match &mut *res.elem {
+        syn::Type::Path(p) => p,
+        _ => return Err(syn::Error::new_spanned(refn, "unsupported argument")),
+    };
+    for seg in &mut tp.path.segments {
         if let syn::PathArguments::AngleBracketed(ref mut g) = seg.arguments {
             let mut args = syn::punctuated::Punctuated::new();
             for arg in &g.args {
@@ -415,5 +422,6 @@ fn replace_self(path: &syn::TypePath) -> syn::TypePath {
             g.args = args;
         }
     }
-    res
+    res.lifetime = None;
+    Ok(res)
 }
