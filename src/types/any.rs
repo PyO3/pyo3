@@ -1,4 +1,3 @@
-use crate::conversion::AsPyPointer;
 use crate::conversion::PyTryFrom;
 use crate::err::PyDowncastError;
 use crate::internal_tricks::Unsendable;

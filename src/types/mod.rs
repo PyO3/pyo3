@@ -108,7 +108,6 @@ macro_rules! pyobject_native_type_convert(
 
             const NAME: &'static str = stringify!($name);
             const MODULE: Option<&'static str> = $module;
-            const OFFSET: isize = 0;
 
             #[inline]
             unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {

@@ -36,11 +36,16 @@ unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T> {
     /// Create new instance of T and move it under python management
+    ///
+    /// **NOTE**
+    /// This method's `where` bound is actually the same as `PyClass`.
+    /// However, since Rust still doesn't have higher order generics, we cannot represent
+    /// this bound by `PyClass`.
     pub fn new(py: Python, value: T) -> PyResult<Py<T>>
     where
         T: PyClass,
     {
-        let obj = unsafe { PyClassShell::<T>::new(py, value) };
+        let obj = unsafe { PyClassShell::new(py, value)? };
         let ob = unsafe { Py::from_owned_ptr(obj as _) };
         Ok(ob)
     }

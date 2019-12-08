@@ -12,7 +12,7 @@ use std::os::raw::c_void;
 /// Implementing this trait for custom class adds free allocation list to class.
 /// The performance improvement applies to types that are often created and deleted in a row,
 /// so that they can benefit from a freelist.
-pub trait PyObjectWithFreeList {
+pub trait PyClassWithFreeList {
     fn get_free_list() -> &'static mut FreeList<*mut ffi::PyObject>;
 }
 
@@ -70,10 +70,10 @@ impl<T> FreeList<T> {
 
 impl<T> PyClassAlloc for T
 where
-    T: PyTypeInfo + PyObjectWithFreeList,
+    T: PyTypeInfo + PyClassWithFreeList,
 {
     unsafe fn alloc(_py: Python) -> *mut Self::ConcreteLayout {
-        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().pop() {
+        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
             ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object());
             obj as _
         } else {
@@ -89,7 +89,7 @@ where
             return;
         }
 
-        if let Some(obj) = <Self as PyObjectWithFreeList>::get_free_list().insert(obj) {
+        if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj) {
             match Self::type_object().tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => tp_free_fallback(obj),

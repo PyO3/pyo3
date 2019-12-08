@@ -237,25 +237,14 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> T
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            match pyo3::type_object::PyRawObject::new(_py, #cls::type_object(), _cls) {
-                Ok(_obj) => {
-                    let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                    let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+            let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+            let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                    #body
+            #body
 
-                    match _result {
-                        Ok(_) => pyo3::IntoPyPointer::into_ptr(_obj),
-                        Err(e) => {
-                            e.restore(_py);
-                            ::std::ptr::null_mut()
-                        }
-                    }
-                }
-                Err(e) => {
-                    e.restore(_py);
-                    ::std::ptr::null_mut()
-                }
+            match <<#cls as pyo3::PyTypeInfo>::ConcreteLayout as pyo3::pyclass::PyClassNew>::new(_py, _result) {
+                Ok(_slf) => _slf as _,
+                Err(e) => e.restore_and_null(),
             }
         }
     }

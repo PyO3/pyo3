@@ -4,7 +4,7 @@
 
 use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
 use crate::err::PyResult;
-use crate::{ffi, IntoPy, PyClass, PyClassShell, PyObject};
+use crate::{ffi, pyclass::PyClassShell, IntoPy, PyClass, PyObject};
 use crate::{IntoPyPointer, Python};
 use std::ptr;
 

@@ -124,12 +124,12 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
 pub use crate::gil::{init_once, GILGuard, GILPool};
-pub use crate::instance::{ManagedPyRef, Py, PyNativeType};
+pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
-pub use crate::pyclass::{PyClass, PyClassAlloc, PyClassShell};
+pub use crate::pyclass::{PyClass, PyClassShell};
 pub use crate::python::{prepare_freethreaded_python, Python};
-pub use crate::type_object::{PyConcreteObject, PyTypeInfo};
+pub use crate::type_object::{type_flags, PyConcreteObject, PyTypeInfo};
 
 // Re-exported for wrap_function
 #[doc(hidden)]
@@ -161,12 +161,14 @@ pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
+#[macro_use]
 mod internal_tricks;
 pub mod marshal;
 mod object;
 mod objectprotocol;
 pub mod prelude;
 pub mod pyclass;
+pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;

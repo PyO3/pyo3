@@ -326,6 +326,13 @@ impl PyErr {
         unsafe { ffi::PyErr_Restore(ptype.into_ptr(), pvalue, ptraceback.into_ptr()) }
     }
 
+    #[doc(hidden)]
+    /// Utility method for proc-macro code
+    pub fn restore_and_null<T>(self, py: Python) -> *mut T {
+        self.restore(py);
+        std::ptr::null_mut()
+    }
+
     /// Issue a warning message.
     /// May return a PyErr if warnings-as-errors is enabled.
     pub fn warn(py: Python, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {

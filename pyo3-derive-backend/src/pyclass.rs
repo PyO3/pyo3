@@ -126,10 +126,10 @@ impl PyClassArgs {
         let flag = exp.path.segments.first().unwrap().ident.to_string();
         let path = match flag.as_str() {
             "gc" => {
-                parse_quote! {pyo3::type_object::PY_TYPE_FLAG_GC}
+                parse_quote! {pyo3::type_flags::GC}
             }
             "weakref" => {
-                parse_quote! {pyo3::type_object::PY_TYPE_FLAG_WEAKREF}
+                parse_quote! {pyo3::type_flags::WEAKREF}
             }
             "subclass" => {
                 if cfg!(not(feature = "unsound-subclass")) {
@@ -138,10 +138,10 @@ impl PyClassArgs {
                         "You need to activate the `unsound-subclass` feature if you want to use subclassing",
                     ));
                 }
-                parse_quote! {pyo3::type_object::PY_TYPE_FLAG_BASETYPE}
+                parse_quote! {pyo3::type_flags::BASETYPE}
             }
             "dict" => {
-                parse_quote! {pyo3::type_object::PY_TYPE_FLAG_DICT}
+                parse_quote! {pyo3::type_flags::DICT}
             }
             _ => {
                 return Err(syn::Error::new_spanned(
@@ -267,7 +267,7 @@ fn impl_class(
     let extra = {
         if let Some(freelist) = &attr.freelist {
             quote! {
-                impl pyo3::freelist::PyObjectWithFreeList for #cls {
+                impl pyo3::freelist::PyClassWithFreeList for #cls {
                     #[inline]
                     fn get_free_list() -> &'static mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> {
                         static mut FREELIST: *mut pyo3::freelist::FreeList<*mut pyo3::ffi::PyObject> = 0 as *mut _;
@@ -285,7 +285,7 @@ fn impl_class(
             }
         } else {
             quote! {
-                impl pyo3::type_object::PyObjectAlloc for #cls {}
+                impl pyo3::pyclass::PyClassAlloc for #cls {}
             }
         }
     };
@@ -308,24 +308,25 @@ fn impl_class(
     let mut has_gc = false;
     for f in attr.flags.iter() {
         if let syn::Expr::Path(ref epath) = f {
-            if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_WEAKREF} {
+            if epath.path == parse_quote! { pyo3::type_flags::WEAKREF } {
                 has_weakref = true;
-            } else if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_DICT} {
+            } else if epath.path == parse_quote! { pyo3::type_flags::DICT } {
                 has_dict = true;
-            } else if epath.path == parse_quote! {pyo3::type_object::PY_TYPE_FLAG_GC} {
+            } else if epath.path == parse_quote! { pyo3::type_flags::GC } {
                 has_gc = true;
             }
         }
     }
+    // TODO: implement dict and weakref
     let weakref = if has_weakref {
-        quote! {std::mem::size_of::<*const pyo3::ffi::PyObject>()}
+        quote! { type WeakRef = pyo3::pyclass_slots::PyClassWeakRefSlot; }
     } else {
-        quote! {0}
+        quote! { type WeakRef = pyo3::pyclass_slots::PyClassDummySlot; }
     };
     let dict = if has_dict {
-        quote! {std::mem::size_of::<*const pyo3::ffi::PyObject>()}
+        quote! { type Dict = pyo3::pyclass_slots::PyClassDictSlot; }
     } else {
-        quote! {0}
+        quote! { type Dict = pyo3::pyclass_slots::PyClassDummySlot; }
     };
     let module = if let Some(m) = &attr.module {
         quote! { Some(#m) }
@@ -358,30 +359,23 @@ fn impl_class(
         impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
+            type ConcreteLayout = pyo3::pyclass::PyClassShell<Self>;
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
             const DESCRIPTION: &'static str = #doc;
             const FLAGS: usize = #(#flags)|*;
 
-            const SIZE: usize = {
-                Self::OFFSET as usize +
-                ::std::mem::size_of::<#cls>() + #weakref + #dict
-            };
-            const OFFSET: isize = {
-                // round base_size up to next multiple of align
-                (
-                    (<#base as pyo3::type_object::PyTypeInfo>::SIZE +
-                     ::std::mem::align_of::<#cls>() - 1)  /
-                        ::std::mem::align_of::<#cls>() * ::std::mem::align_of::<#cls>()
-                ) as isize
-            };
-
             #[inline]
             unsafe fn type_object() -> &'static mut pyo3::ffi::PyTypeObject {
                 static mut TYPE_OBJECT: pyo3::ffi::PyTypeObject = pyo3::ffi::PyTypeObject_INIT;
                 &mut TYPE_OBJECT
             }
+        }
+
+        impl pyo3::PyClass for #cls {
+            #dict
+            #weakref
         }
 
         impl pyo3::IntoPy<PyObject> for #cls {

@@ -10,6 +10,7 @@ use crate::AsPyPointer;
 use crate::Python;
 use std::ptr::NonNull;
 
+/// TODO: write document
 pub trait PyConcreteObject: Sized {
     unsafe fn py_drop(&mut self, _py: Python) {}
 }
@@ -21,6 +22,21 @@ impl<T: PyConcreteObject> AsPyPointer for T {
 }
 
 impl PyConcreteObject for ffi::PyObject {}
+
+/// Our custom type flags
+pub mod type_flags {
+    /// type object supports python GC
+    pub const GC: usize = 1;
+
+    /// Type object supports python weak references
+    pub const WEAKREF: usize = 1 << 1;
+
+    /// Type object can be used as the base type of another type
+    pub const BASETYPE: usize = 1 << 2;
+
+    /// The instances of this type have a dictionary containing instance variables
+    pub const DICT: usize = 1 << 3;
+}
 
 /// Python type information.
 pub trait PyTypeInfo {
@@ -35,9 +51,6 @@ pub trait PyTypeInfo {
 
     /// Class doc string
     const DESCRIPTION: &'static str = "\0";
-
-    /// `Type` instance offset inside PyObject structure
-    const OFFSET: isize;
 
     /// Type flags (ie PY_TYPE_FLAG_GC, PY_TYPE_FLAG_WEAKREF)
     const FLAGS: usize = 0;

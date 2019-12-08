@@ -7,7 +7,6 @@ use crate::instance::{AsPyRef, PyNativeType};
 use crate::types::{PyAny, PyDict, PyTuple};
 use crate::{AsPyPointer, Py, Python};
 use crate::{FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject};
-use std::convert::AsRef;
 use std::ptr::NonNull;
 
 /// A python object

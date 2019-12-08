@@ -1,8 +1,9 @@
 //! An experiment module which has all codes related only to #[pyclass]
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
-use crate::conversion::FromPyPointer;
-use crate::type_object::{PyConcreteObject, PyTypeObject};
-use crate::{class, ffi, gil, PyErr, PyResult, PyTypeInfo, Python};
+use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
+use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
+use crate::type_object::{type_flags, PyConcreteObject, PyTypeObject};
+use crate::{class, ffi, gil, PyErr, PyObject, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::mem::ManuallyDrop;
 use std::os::raw::c_void;
@@ -46,7 +47,10 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
     }
 }
 
-pub trait PyClass: PyTypeInfo + Sized + PyClassAlloc + PyMethodsProtocol {}
+pub trait PyClass: PyTypeInfo + Sized + PyClassAlloc + PyMethodsProtocol {
+    type Dict: PyClassDict;
+    type WeakRef: PyClassWeakRef;
+}
 
 unsafe impl<T> PyTypeObject for T
 where
@@ -75,21 +79,44 @@ where
 pub struct PyClassShell<T: PyClass> {
     ob_base: <T::BaseType as PyTypeInfo>::ConcreteLayout,
     pyclass: ManuallyDrop<T>,
+    dict: T::Dict,
+    weakref: T::WeakRef,
 }
 
 impl<T: PyClass> PyClassShell<T> {
-    pub unsafe fn new(py: Python, value: T) -> *mut Self {
+    pub fn new_ref(py: Python, value: T) -> PyResult<&Self> {
+        unsafe {
+            let ptr = Self::new(py, value)?;
+            FromPyPointer::from_owned_ptr_or_err(py, ptr as _)
+        }
+    }
+
+    pub fn new_mut(py: Python, value: T) -> PyResult<&mut Self> {
+        unsafe {
+            let ptr = Self::new(py, value)?;
+            FromPyPointer::from_owned_ptr_or_err(py, ptr as _)
+        }
+    }
+
+    pub unsafe fn new(py: Python, value: T) -> PyResult<*mut Self> {
         T::init_type();
         let base = T::alloc(py);
+        if base.is_null() {
+            return Err(PyErr::fetch(py));
+        }
         let self_ = base as *mut Self;
         (*self_).pyclass = ManuallyDrop::new(value);
-        self_
+        (*self_).dict = T::Dict::new();
+        (*self_).weakref = T::WeakRef::new();
+        Ok(self_)
     }
 }
 
 impl<T: PyClass> PyConcreteObject for PyClassShell<T> {
     unsafe fn py_drop(&mut self, py: Python) {
         ManuallyDrop::drop(&mut self.pyclass);
+        self.dict.clear_dict(py);
+        self.weakref.clear_weakrefs(self.as_ptr(), py);
         self.ob_base.py_drop(py);
     }
 }
@@ -104,6 +131,12 @@ impl<T: PyClass> std::ops::Deref for PyClassShell<T> {
 impl<T: PyClass> std::ops::DerefMut for PyClassShell<T> {
     fn deref_mut(&mut self) -> &mut T {
         self.pyclass.deref_mut()
+    }
+}
+
+impl<T: PyClass> ToPyObject for PyClassShell<T> {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 }
 
@@ -130,18 +163,6 @@ where
         NonNull::new(ptr).map(|p| &mut **(gil::register_borrowed(py, p) as *const _ as *mut Self))
     }
 }
-
-/// type object supports python GC
-const PY_TYPE_FLAG_GC: usize = 1;
-
-/// Type object supports python weak references
-const PY_TYPE_FLAG_WEAKREF: usize = 1 << 1;
-
-/// Type object can be used as the base type of another type
-const PY_TYPE_FLAG_BASETYPE: usize = 1 << 2;
-
-/// The instances of this type have a dictionary containing instance variables
-const PY_TYPE_FLAG_DICT: usize = 1 << 3;
 
 /// Register new type in python object system.
 #[cfg(not(Py_LIMITED_API))]
@@ -182,19 +203,20 @@ where
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
 
     // type size
-    type_object.tp_basicsize = std::mem::size_of::<T::ConcreteLayout>() as isize;
+    type_object.tp_basicsize = std::mem::size_of::<T::ConcreteLayout>() as ffi::Py_ssize_t;
 
-    // weakref support (check py3cls::py_class::impl_class)
-    if T::FLAGS & PY_TYPE_FLAG_WEAKREF != 0 {
-        // STUB
-        type_object.tp_weaklistoffset = 0isize;
-    }
+    let mut offset = type_object.tp_basicsize;
 
     // __dict__ support
-    let has_dict = T::FLAGS & PY_TYPE_FLAG_DICT != 0;
-    if has_dict {
-        // STUB
-        type_object.tp_dictoffset = 0isize;
+    if let Some(dict_offset) = T::Dict::OFFSET {
+        offset += dict_offset as ffi::Py_ssize_t;
+        type_object.tp_dictoffset = offset;
+    }
+
+    // weakref support
+    if let Some(weakref_offset) = T::WeakRef::OFFSET {
+        offset += weakref_offset as ffi::Py_ssize_t;
+        type_object.tp_weaklistoffset = offset;
     }
 
     // GC support
@@ -243,7 +265,7 @@ where
     // properties
     let mut props = py_class_properties::<T>();
 
-    if has_dict {
+    if T::Dict::OFFSET.is_some() {
         props.push(ffi::PyGetSetDef_DICT);
     }
     if !props.is_empty() {
@@ -267,13 +289,13 @@ where
 fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
     if type_object.tp_traverse != None
         || type_object.tp_clear != None
-        || T::FLAGS & PY_TYPE_FLAG_GC != 0
+        || T::FLAGS & type_flags::GC != 0
     {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT | ffi::Py_TPFLAGS_HAVE_GC;
     } else {
         type_object.tp_flags = ffi::Py_TPFLAGS_DEFAULT;
     }
-    if T::FLAGS & PY_TYPE_FLAG_BASETYPE != 0 {
+    if T::FLAGS & type_flags::BASETYPE != 0 {
         type_object.tp_flags |= ffi::Py_TPFLAGS_BASETYPE;
     }
 }

@@ -35,7 +35,7 @@ macro_rules! py_unary_pyref_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::{FromPyPointer, PyClassShell};
+            use $crate::{pyclass::PyClassShell, FromPyPointer};
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
             let slf: &mut PyClassShell<T> = FromPyPointer::from_borrowed_ptr_or_panic(py, slf);
