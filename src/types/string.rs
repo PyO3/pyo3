@@ -225,6 +225,10 @@ mod test {
     fn test_as_bytes_surrogate() {
         let gil = Python::acquire_gil();
         let py = gil.python();
+        assert!(
+            !crate::PyErr::occurred(py),
+            "test must begin without exceptions"
+        );
         let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
         let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
         assert!(py_string.as_bytes().is_err());
@@ -256,6 +260,10 @@ mod test {
     fn test_to_string_lossy() {
         let gil = Python::acquire_gil();
         let py = gil.python();
+        assert!(
+            !crate::PyErr::occurred(py),
+            "test must begin without exceptions"
+        );
         let obj: PyObject = py
             .eval(r#"'🐈 Hello \ud800World'"#, None, None)
             .unwrap()

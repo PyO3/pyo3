@@ -299,12 +299,13 @@ impl PyErr {
     /// Retrieves the exception instance for this error.
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    fn instance(mut self, py: Python) -> PyObject {
+    fn instance(mut self, py: Python) -> Py<exceptions::BaseException> {
         self.normalize(py);
-        match self.pvalue {
-            PyErrValue::Value(ref instance) => instance.clone_ref(py),
-            _ => py.None(),
-        }
+        let r = match self.pvalue {
+            PyErrValue::Value(ref instance) => instance.clone_ref(py).extract(py),
+            _ => Err(PyDowncastError.into()),
+        };
+        r.expect("Normalized error instance should be a BaseException")
     }
 
     /// Writes the error back to the Python interpreter's global state.
@@ -371,6 +372,12 @@ impl std::fmt::Debug for PyErr {
 
 impl FromPy<PyErr> for PyObject {
     fn from_py(other: PyErr, py: Python) -> Self {
+        other.instance(py).into()
+    }
+}
+
+impl FromPy<PyErr> for Py<exceptions::BaseException> {
+    fn from_py(other: PyErr, py: Python) -> Self {
         other.instance(py)
     }
 }
@@ -378,14 +385,14 @@ impl FromPy<PyErr> for PyObject {
 impl ToPyObject for PyErr {
     fn to_object(&self, py: Python) -> PyObject {
         let err = self.clone_ref(py);
-        err.instance(py)
+        err.instance(py).into()
     }
 }
 
 impl<'a> IntoPy<PyObject> for &'a PyErr {
     fn into_py(self, py: Python) -> PyObject {
         let err = self.clone_ref(py);
-        err.instance(py)
+        err.instance(py).into()
     }
 }
 

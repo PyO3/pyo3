@@ -8,7 +8,7 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::PyTypeCreate;
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::PyAny;
-use crate::{ffi, IntoPy};
+use crate::{ffi, IntoPy, PyTryFrom};
 use crate::{AsPyPointer, FromPyObject, FromPyPointer, IntoPyPointer, Python, ToPyObject};
 use std::marker::PhantomData;
 use std::mem;
@@ -54,7 +54,6 @@ pub unsafe trait PyNativeType: Sized {
 /// let d = [("p", obj)].into_py_dict(py);
 /// py.run("assert p.length() == 12", None, Some(d)).unwrap();
 /// ```
-#[derive(Debug)]
 pub struct PyRef<'a, T: PyTypeInfo>(&'a T, Unsendable);
 
 #[allow(clippy::cast_ptr_alignment)]
@@ -79,6 +78,24 @@ where
         let obj = T::create(py)?;
         obj.init(value);
         unsafe { Self::from_owned_ptr_or_err(py, obj.into_ptr()) }
+    }
+}
+
+impl<'a, T: std::fmt::Display + PyTypeInfo> std::fmt::Display for PyRef<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unsafe {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let object = self.to_object(py);
+            let obj_ref: &T = PyTryFrom::try_from_unchecked(object.as_ref(py));
+            std::fmt::Display::fmt(&obj_ref, f)
+        }
+    }
+}
+
+impl<'a, T: PyTypeInfo> std::fmt::Debug for PyRef<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("PyRef").field(&(self.0 as *const _)).finish()
     }
 }
 
@@ -142,7 +159,6 @@ where
 /// obj.x = 5; obj.y = 20;
 /// py.run("assert p.length() == 100", None, Some(d)).unwrap();
 /// ```
-#[derive(Debug)]
 pub struct PyRefMut<'a, T: PyTypeInfo>(&'a mut T, Unsendable);
 
 impl<'a, T: PyTypeInfo> PyRefMut<'a, T> {
@@ -159,6 +175,26 @@ where
         let obj = T::create(py)?;
         obj.init(value);
         unsafe { Self::from_owned_ptr_or_err(py, obj.into_ptr()) }
+    }
+}
+
+impl<'a, T: std::fmt::Display + PyTypeInfo> std::fmt::Display for PyRefMut<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unsafe {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let object = self.to_object(py);
+            let obj_ref: &T = PyTryFrom::try_from_unchecked(object.as_ref(py));
+            std::fmt::Display::fmt(&obj_ref, f)
+        }
+    }
+}
+
+impl<'a, T: PyTypeInfo> std::fmt::Debug for PyRefMut<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("PyRefMut")
+            .field(&(self.0 as *const _))
+            .finish()
     }
 }
 
@@ -265,7 +301,6 @@ pub trait AsPyRef<T: PyTypeInfo>: Sized {
 /// Safe wrapper around unsafe `*mut ffi::PyObject` pointer with specified type information.
 ///
 /// `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
 
@@ -354,6 +389,24 @@ impl<T> Py<T> {
         let pointer = self.0;
         mem::forget(self);
         pointer
+    }
+}
+
+impl<T: std::fmt::Display + for<'a> PyTryFrom<'a>> std::fmt::Display for Py<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unsafe {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let object = self.to_object(py);
+            let obj_ref: &T = PyTryFrom::try_from_unchecked(object.as_ref(py));
+            std::fmt::Display::fmt(&obj_ref, f)
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for Py<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("Py").field(&self.0.as_ptr()).finish()
     }
 }
 
