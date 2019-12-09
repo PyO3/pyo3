@@ -8,6 +8,7 @@ use crate::type_object::PyTypeObject;
 use crate::types::{PyAny, PyTuple};
 use crate::Python;
 use crate::{AsPyPointer, ToPyObject};
+use crate::{AsPyRef, Py, PyDowncastError, PyTryFrom};
 use std::ffi::CStr;
 use std::ops;
 use std::os::raw::c_char;
@@ -206,11 +207,13 @@ macro_rules! impl_native_exception (
                 PyErr::new::<$name, _>(())
             }
         }
+
         impl<T> std::convert::Into<$crate::PyResult<T>> for $name {
             fn into(self) -> $crate::PyResult<T> {
                 PyErr::new::<$name, _>(()).into()
             }
         }
+
         impl $name {
             pub fn py_err<V: ToPyObject + 'static>(args: V) -> PyErr {
                 PyErr::new::<$name, V>(args)
@@ -219,9 +222,44 @@ macro_rules! impl_native_exception (
                 PyErr::new::<$name, V>(args).into()
             }
         }
+
         unsafe impl PyTypeObject for $name {
             fn type_object(py: $crate::Python) -> &$crate::types::PyType {
                 unsafe { py.from_borrowed_ptr(ffi::$exc_name) }
+            }
+        }
+
+        impl<'v> PyTryFrom<'v> for $name {
+            fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+                unsafe {
+                    let value = value.into();
+                    if ffi::PyObject_TypeCheck(value.as_ptr(), ffi::$exc_name as *mut _) != 0 {
+                        Ok(PyTryFrom::try_from_unchecked(value))
+                    } else {
+                        Err(PyDowncastError)
+                    }
+                }
+            }
+
+            fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+                unsafe {
+                    let value = value.into();
+                    if (*value.as_ptr()).ob_type == ffi::$exc_name as *mut _ {
+                        Ok(PyTryFrom::try_from_unchecked(value))
+                    } else {
+                        Err(PyDowncastError)
+                    }
+                }
+            }
+
+            unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+                &*(value.into().as_ptr() as *const _)
+            }
+        }
+
+        impl AsPyPointer for $name {
+            fn as_ptr(&self) -> *mut ffi::PyObject {
+                return self as *const _ as *const _ as *mut ffi::PyObject;
             }
         }
     );
@@ -338,6 +376,72 @@ impl StopIteration {
     }
 }
 
+impl std::fmt::Debug for BaseException {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // Sneaky: we don’t really need a GIL lock here as nothing should be able to just mutate
+        // the "type" of an object, right? RIGHT???
+        //
+        // let gil = Python::acquire_gil();
+        // let _py = gil.python();
+        let py_type_name = unsafe { CStr::from_ptr((*(*self.as_ptr()).ob_type).tp_name) };
+        let type_name = py_type_name.to_string_lossy();
+        f.debug_struct(&*type_name)
+            // TODO: print out actual fields!
+            .finish()
+    }
+}
+
+impl std::fmt::Display for BaseException {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let py_type_name = unsafe { CStr::from_ptr((*(*self.as_ptr()).ob_type).tp_name) };
+        let type_name = py_type_name.to_string_lossy();
+        write!(f, "{}", type_name)?;
+        let py_self: Py<PyAny> = unsafe { Py::from_borrowed_ptr(self.as_ptr()) };
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        if let Ok(s) = crate::ObjectProtocol::str(&*py_self.as_ref(py)) {
+            write!(f, ": {}", &s.to_string_lossy())
+        } else {
+            write!(f, ": <exception str() failed>")
+        }
+    }
+}
+
+impl std::error::Error for BaseException {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        unsafe {
+            // Returns either `None` or an instance of an exception.
+            let cause_object = ffi::PyException_GetCause(self.as_ptr());
+            if cause_object == ffi::Py_None() {
+                None
+            } else {
+                // FIXME: PyException_GetCause returns a new reference to the cause object.
+                //
+                // While we know that `self` is "immutable" (`&self`!) it is also true that between
+                // now and when the return value is actually read the GIL could be unlocked and
+                // then concurrent threads could modify `self` to change its `__cause__`.
+                //
+                // If this was not a possibility, we could just `DECREF` here, instead, now, we
+                // must return a `&Py<BaseException>` instead… but we cannot do that because
+                // nothing is storing such a thing anywhere and thus we cannot take a reference to
+                // that…
+                //
+                // The only way to make this function to work sanely, without leaking, is to ensure
+                // that between a call to `Error::source` and drop of the reference there’s no
+                // possible way for for the object to be modified. Even if we had a way to prevent
+                // GIL from unlocking, people could modify the object through a different
+                // reference to the Exception.
+                //
+                // Sounds unsound, doesn’t it?
+                //
+                // ffi::Py_DECREF(cause_object);
+                Some(&*(cause_object as *const _ as *const BaseException))
+            }
+        }
+    }
+}
+
 /// Exceptions defined in `asyncio` module
 pub mod asyncio {
     import_exception!(asyncio, CancelledError);
@@ -360,7 +464,9 @@ pub mod socket {
 mod test {
     use crate::exceptions::Exception;
     use crate::types::{IntoPyDict, PyDict};
-    use crate::{PyErr, Python};
+    use crate::{AsPyPointer, FromPy, Py, PyErr, Python};
+    use std::error::Error;
+    use std::fmt::Write;
 
     import_exception!(socket, gaierror);
     import_exception!(email.errors, MessageError);
@@ -437,5 +543,43 @@ mod test {
             Some(&ctx),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn native_exception_display() {
+        let mut out = String::new();
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let result = py
+            .run("raise Exception('banana')", None, None)
+            .expect_err("raising should have given us an error");
+        let convert = Py::<super::BaseException>::from_py(result, py);
+        write!(&mut out, "{}", convert).expect("successful format");
+        assert_eq!(out, "Exception: banana");
+    }
+
+    #[test]
+    fn native_exception_chain() {
+        let mut out = String::new();
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let result = py
+            .run(
+                "raise Exception('banana') from TypeError('peach')",
+                None,
+                None,
+            )
+            .expect_err("raising should have given us an error");
+        let convert = Py::<super::BaseException>::from_py(result, py);
+        write!(&mut out, "{}", convert).expect("successful format");
+        assert_eq!(out, "Exception: banana");
+        out.clear();
+        let convert_ref: &super::BaseException =
+            unsafe { &*(convert.as_ptr() as *const _ as *const _) };
+        let source = convert_ref.source().expect("cause should exist");
+        write!(&mut out, "{}", source).expect("successful format");
+        assert_eq!(out, "TypeError: peach");
+        let source_source = source.source();
+        assert!(source_source.is_none(), "source_source should be None");
     }
 }
