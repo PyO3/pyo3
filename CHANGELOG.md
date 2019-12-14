@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+## [0.8.4]
+
 ### Added
 
 * Support for `#[text_signature]` attribute. [#675](https://github.com/PyO3/pyo3/pull/675)
