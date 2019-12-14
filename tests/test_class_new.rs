@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::PyRawObject;
 
 #[pyclass]
 struct EmptyClassWithNew {}
@@ -7,8 +6,8 @@ struct EmptyClassWithNew {}
 #[pymethods]
 impl EmptyClassWithNew {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(EmptyClassWithNew {});
+    fn new() -> EmptyClassWithNew {
+        EmptyClassWithNew {}
     }
 }
 
@@ -25,6 +24,7 @@ fn empty_class_with_new() {
 }
 
 #[pyclass]
+#[derive(Debug)]
 struct NewWithOneArg {
     _data: i32,
 }
@@ -32,8 +32,8 @@ struct NewWithOneArg {
 #[pymethods]
 impl NewWithOneArg {
     #[new]
-    fn new(obj: &PyRawObject, arg: i32) {
-        obj.init(NewWithOneArg { _data: arg })
+    fn new(arg: i32) -> NewWithOneArg {
+        NewWithOneArg { _data: arg }
     }
 }
 
@@ -56,11 +56,11 @@ struct NewWithTwoArgs {
 #[pymethods]
 impl NewWithTwoArgs {
     #[new]
-    fn new(obj: &PyRawObject, arg1: i32, arg2: i32) {
-        obj.init(NewWithTwoArgs {
+    fn new(arg1: i32, arg2: i32) -> Self {
+        NewWithTwoArgs {
             _data1: arg1,
             _data2: arg2,
-        })
+        }
     }
 }
 

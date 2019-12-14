@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::{types::PyType, wrap_pyfunction, wrap_pymodule};
+use pyo3::{types::PyType, wrap_pyfunction, wrap_pymodule, PyClassShell};
 
 mod common;
 
@@ -44,9 +44,9 @@ fn class_with_docs_and_signature() {
     impl MyClass {
         #[new]
         #[args(a, b = "None", "*", c = 42)]
-        fn __new__(obj: &PyRawObject, a: i32, b: Option<i32>, c: i32) {
+        fn __new__(a: i32, b: Option<i32>, c: i32) -> Self {
             let _ = (a, b, c);
-            obj.init(Self {});
+            Self {}
         }
     }
 
@@ -76,9 +76,9 @@ fn class_with_signature() {
     impl MyClass {
         #[new]
         #[args(a, b = "None", "*", c = 42)]
-        fn __new__(obj: &PyRawObject, a: i32, b: Option<i32>, c: i32) {
+        fn __new__(a: i32, b: Option<i32>, c: i32) -> Self {
             let _ = (a, b, c);
-            obj.init(Self {});
+            Self {}
         }
     }
 
@@ -144,7 +144,7 @@ fn test_methods() {
             let _ = a;
         }
         #[text_signature = "($self, b)"]
-        fn pyself_method(_this: PyRef<Self>, b: i32) {
+        fn pyself_method(_this: &PyClassShell<Self>, b: i32) {
             let _ = b;
         }
         #[classmethod]

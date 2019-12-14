@@ -3,6 +3,7 @@ use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyConcreteObject, PyTypeObject};
+use crate::types::PyAny;
 use crate::{class, ffi, gil, PyErr, PyObject, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::mem::ManuallyDrop;
@@ -112,12 +113,26 @@ impl<T: PyClass> PyClassShell<T> {
     }
 }
 
-impl<T: PyClass> PyConcreteObject for PyClassShell<T> {
+impl<T: PyClass> PyConcreteObject<T> for PyClassShell<T> {
+    unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
+        let shell = obj.as_ptr() as *const PyClassShell<T>;
+        &*(*shell).pyclass
+    }
+    unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
+        let shell = obj.as_ptr() as *const PyClassShell<T> as *mut PyClassShell<T>;
+        &mut *(*shell).pyclass
+    }
     unsafe fn py_drop(&mut self, py: Python) {
         ManuallyDrop::drop(&mut self.pyclass);
         self.dict.clear_dict(py);
         self.weakref.clear_weakrefs(self.as_ptr(), py);
         self.ob_base.py_drop(py);
+    }
+}
+
+impl<T: PyClass> AsPyPointer for PyClassShell<T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        (self as *const _) as *mut _
     }
 }
 
@@ -134,7 +149,13 @@ impl<T: PyClass> std::ops::DerefMut for PyClassShell<T> {
     }
 }
 
-impl<T: PyClass> ToPyObject for PyClassShell<T> {
+impl<T: PyClass> ToPyObject for &PyClassShell<T> {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<T: PyClass> ToPyObject for &mut PyClassShell<T> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
@@ -145,10 +166,11 @@ where
     T: PyClass,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| &**(gil::register_owned(py, p) as *const _ as *const Self))
+        NonNull::new(ptr).map(|p| &*(gil::register_owned(py, p).as_ptr() as *const PyClassShell<T>))
     }
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| &**(gil::register_borrowed(py, p) as *const _ as *const Self))
+        NonNull::new(ptr)
+            .map(|p| &*(gil::register_borrowed(py, p).as_ptr() as *const PyClassShell<T>))
     }
 }
 
@@ -157,10 +179,14 @@ where
     T: PyClass,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| &mut **(gil::register_owned(py, p) as *const _ as *mut Self))
+        NonNull::new(ptr).map(|p| {
+            &mut *(gil::register_owned(py, p).as_ptr() as *const PyClassShell<T> as *mut _)
+        })
     }
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| &mut **(gil::register_borrowed(py, p) as *const _ as *mut Self))
+        NonNull::new(ptr).map(|p| {
+            &mut *(gil::register_borrowed(py, p).as_ptr() as *const PyClassShell<T> as *mut _)
+        })
     }
 }
 

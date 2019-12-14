@@ -15,20 +15,19 @@ struct Mapping {
 #[pymethods]
 impl Mapping {
     #[new]
-    fn new(obj: &PyRawObject, elements: Option<&PyList>) -> PyResult<()> {
+    fn new(elements: Option<&PyList>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = HashMap::with_capacity(pylist.len());
             for (i, pyelem) in pylist.into_iter().enumerate() {
                 let elem = String::extract(pyelem)?;
                 elems.insert(elem, i);
             }
-            obj.init(Self { index: elems });
+            Ok(Self { index: elems })
         } else {
-            obj.init(Self {
+            Ok(Self {
                 index: HashMap::new(),
-            });
+            })
         }
-        Ok(())
     }
 }
 

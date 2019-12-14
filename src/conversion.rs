@@ -3,7 +3,7 @@
 //! Conversions between various states of rust and python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
-use crate::type_object::PyTypeInfo;
+use crate::type_object::{PyConcreteObject, PyTypeInfo};
 use crate::types::PyAny;
 use crate::types::PyTuple;
 use crate::{ffi, gil, Py, Python};
@@ -393,15 +393,13 @@ where
     #[inline]
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v T {
         let value = value.into();
-        let ptr = value as *const _ as *const u8 as *const T;
-        &*ptr
+        T::ConcreteLayout::internal_ref_cast(value)
     }
 
     #[inline]
     unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut T {
         let value = value.into();
-        let ptr = value as *const _ as *mut u8 as *mut T;
-        &mut *ptr
+        T::ConcreteLayout::internal_mut_cast(value)
     }
 }
 
@@ -453,10 +451,11 @@ where
     T: PyTypeInfo,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| py.unchecked_downcast(gil::register_owned(py, p)))
+        NonNull::new(ptr).map(|p| T::ConcreteLayout::internal_ref_cast(gil::register_owned(py, p)))
     }
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| py.unchecked_downcast(gil::register_borrowed(py, p)))
+        NonNull::new(ptr)
+            .map(|p| T::ConcreteLayout::internal_ref_cast(gil::register_borrowed(py, p)))
     }
 }
 
@@ -465,10 +464,11 @@ where
     T: PyTypeInfo,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| py.unchecked_mut_downcast(gil::register_owned(py, p)))
+        NonNull::new(ptr).map(|p| T::ConcreteLayout::internal_mut_cast(gil::register_owned(py, p)))
     }
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| py.unchecked_mut_downcast(gil::register_borrowed(py, p)))
+        NonNull::new(ptr)
+            .map(|p| T::ConcreteLayout::internal_mut_cast(gil::register_borrowed(py, p)))
     }
 }
 

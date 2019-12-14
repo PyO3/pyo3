@@ -2,7 +2,7 @@
 use pyo3;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::PyIterProtocol;
+use pyo3::{AsPyRef, PyClassShell, PyIterProtocol};
 use std::collections::HashMap;
 
 mod common;
@@ -10,20 +10,23 @@ mod common;
 /// Assumes it's a file reader or so.
 /// Inspired by https://github.com/jothan/cordoba, thanks.
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Reader {
     inner: HashMap<u8, String>,
 }
 
 #[pymethods]
 impl Reader {
-    fn clone_ref(slf: PyRef<Self>) -> PyRef<Self> {
+    fn clone_ref(slf: &PyClassShell<Self>) -> &PyClassShell<Self> {
         slf
     }
-    fn clone_ref_with_py<'py>(slf: PyRef<'py, Self>, _py: Python<'py>) -> PyRef<'py, Self> {
+    fn clone_ref_with_py<'py>(
+        slf: &'py PyClassShell<Self>,
+        _py: Python<'py>,
+    ) -> &'py PyClassShell<Self> {
         slf
     }
-    fn get_iter(slf: PyRef<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
+    fn get_iter(slf: &PyClassShell<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
         Ok(Iter {
             reader: slf.into(),
             keys,
@@ -31,7 +34,7 @@ impl Reader {
         })
     }
     fn get_iter_and_reset(
-        mut slf: PyRefMut<Self>,
+        slf: &mut PyClassShell<Self>,
         keys: Py<PyBytes>,
         py: Python,
     ) -> PyResult<Iter> {
@@ -54,13 +57,15 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
+    fn __iter__(slf: &mut PyClassShell<Self>) -> PyResult<PyObject> {
         let py = unsafe { Python::assume_gil_acquired() };
         Ok(slf.to_object(py))
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+
+    fn __next__(slf: &mut PyClassShell<Self>) -> PyResult<Option<PyObject>> {
         let py = unsafe { Python::assume_gil_acquired() };
-        match slf.keys.as_ref(py).as_bytes().get(slf.idx) {
+        let bytes = slf.keys.as_ref(py).as_bytes();
+        match bytes.get(slf.idx) {
             Some(&b) => {
                 let res = slf
                     .reader
@@ -84,7 +89,7 @@ fn reader() -> Reader {
 }
 
 #[test]
-fn test_nested_iter() {
+fn test_nested_iter1() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let reader: PyObject = reader().into_py(py);
@@ -108,7 +113,7 @@ fn test_clone_ref() {
 fn test_nested_iter_reset() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = PyRef::new(py, reader()).unwrap();
+    let reader = PyClassShell::new_ref(py, reader()).unwrap();
     py_assert!(
         py,
         reader,

@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::gil::{self, GILGuard};
 use crate::instance::AsPyRef;
 use crate::object::PyObject;
-use crate::type_object::{PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyConcreteObject, PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::AsPyPointer;
 use crate::{FromPyPointer, IntoPyPointer, PyTryFrom};
@@ -272,16 +272,6 @@ impl<'p> Python<'p> {
 }
 
 impl<'p> Python<'p> {
-    // TODO(kngwyu): Now offset dies, so what should this functions do
-    pub(crate) unsafe fn unchecked_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p T {
-        &*(ob as *const _ as *const T)
-    }
-
-    #[allow(clippy::cast_ref_to_mut)] // FIXME
-    pub(crate) unsafe fn unchecked_mut_downcast<T: PyTypeInfo>(self, ob: &PyAny) -> &'p mut T {
-        &mut *(ob as *const _ as *mut T)
-    }
-
     /// Register object in release pool, and try to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError>
     where
@@ -297,7 +287,7 @@ impl<'p> Python<'p> {
         T: PyTypeInfo,
     {
         let p = gil::register_owned(self, obj.into_nonnull());
-        self.unchecked_downcast(p)
+        T::ConcreteLayout::internal_ref_cast(p)
     }
 
     /// Register `ffi::PyObject` pointer in release pool

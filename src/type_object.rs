@@ -4,6 +4,7 @@
 
 use crate::ffi;
 use crate::instance::Py;
+use crate::instance::PyNativeType;
 use crate::types::PyAny;
 use crate::types::PyType;
 use crate::AsPyPointer;
@@ -11,17 +12,17 @@ use crate::Python;
 use std::ptr::NonNull;
 
 /// TODO: write document
-pub trait PyConcreteObject: Sized {
+pub trait PyConcreteObject<T>: Sized {
+    unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
+        &*(obj as *const _ as *const T)
+    }
+    unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
+        &mut *(obj as *const _ as *const T as *mut T)
+    }
     unsafe fn py_drop(&mut self, _py: Python) {}
 }
 
-impl<T: PyConcreteObject> AsPyPointer for T {
-    fn as_ptr(&self) -> *mut ffi::PyObject {
-        (self as *const _) as _
-    }
-}
-
-impl PyConcreteObject for ffi::PyObject {}
+impl<T: PyNativeType> PyConcreteObject<T> for ffi::PyObject {}
 
 /// Our custom type flags
 pub mod type_flags {
@@ -39,7 +40,7 @@ pub mod type_flags {
 }
 
 /// Python type information.
-pub trait PyTypeInfo {
+pub trait PyTypeInfo: Sized {
     /// Type of objects to store in PyObject struct
     type Type;
 
@@ -59,7 +60,7 @@ pub trait PyTypeInfo {
     type BaseType: PyTypeInfo;
 
     /// Layout
-    type ConcreteLayout: PyConcreteObject;
+    type ConcreteLayout: PyConcreteObject<Self>;
 
     /// PyTypeObject instance for this type, which might still need to
     /// be initialized

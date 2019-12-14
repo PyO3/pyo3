@@ -1,9 +1,8 @@
 use pyo3::prelude::*;
-use pyo3::type_object::initialize_type;
+use pyo3::pyclass::initialize_type;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, wrap_pyfunction};
-use std::isize;
+use pyo3::{py_run, wrap_pyfunction, AsPyRef, PyClassShell};
 
 mod common;
 
@@ -83,8 +82,8 @@ fn intopytuple_pyclass() {
     let py = gil.python();
 
     let tup = (
-        PyRef::new(py, SimplePyClass {}).unwrap(),
-        PyRef::new(py, SimplePyClass {}).unwrap(),
+        PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
+        PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
     );
     py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
@@ -108,8 +107,8 @@ fn pytuple_pyclass_iter() {
     let tup = PyTuple::new(
         py,
         [
-            PyRef::new(py, SimplePyClass {}).unwrap(),
-            PyRef::new(py, SimplePyClass {}).unwrap(),
+            PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
+            PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
         ]
         .iter(),
     );
@@ -124,12 +123,12 @@ struct PickleSupport {}
 #[pymethods]
 impl PickleSupport {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init({ PickleSupport {} });
+    fn new() -> PickleSupport {
+        PickleSupport {}
     }
 
     pub fn __reduce__<'py>(
-        slf: PyRef<Self>,
+        slf: &'py PyClassShell<Self>,
         py: Python<'py>,
     ) -> PyResult<(PyObject, &'py PyTuple, PyObject)> {
         let cls = slf.to_object(py).getattr(py, "__class__")?;
@@ -155,7 +154,7 @@ fn test_pickle() {
     module.add_class::<PickleSupport>().unwrap();
     add_module(py, module).unwrap();
     initialize_type::<PickleSupport>(py, Some("test_module")).unwrap();
-    let inst = PyRef::new(py, PickleSupport {}).unwrap();
+    let inst = PyClassShell::new_ref(py, PickleSupport {}).unwrap();
     py_run!(
         py,
         inst,

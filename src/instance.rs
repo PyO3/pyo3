@@ -1,11 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::gil;
-use crate::instance;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::pyclass::{PyClass, PyClassShell};
-use crate::type_object::PyTypeInfo;
+use crate::type_object::{PyConcreteObject, PyTypeInfo};
 use crate::types::PyAny;
 use crate::{ffi, IntoPy};
 use crate::{AsPyPointer, FromPyObject, IntoPyPointer, Python, ToPyObject};
@@ -36,11 +35,6 @@ unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T> {
     /// Create new instance of T and move it under python management
-    ///
-    /// **NOTE**
-    /// This method's `where` bound is actually the same as `PyClass`.
-    /// However, since Rust still doesn't have higher order generics, we cannot represent
-    /// this bound by `PyClass`.
     pub fn new(py: Python, value: T) -> PyResult<Py<T>>
     where
         T: PyClass,
@@ -128,7 +122,8 @@ pub trait AsPyRef<T: PyTypeInfo>: Sized {
 
 impl<T: PyTypeInfo> AsPyRef<T> for Py<T> {
     fn as_ref(&self, _py: Python) -> &T {
-        unsafe { &*(self as *const instance::Py<T> as *const T) }
+        let any = self as *const Py<T> as *const PyAny;
+        unsafe { T::ConcreteLayout::internal_ref_cast(&*any) }
     }
 }
 
@@ -143,8 +138,8 @@ impl<T> IntoPy<PyObject> for Py<T> {
     /// Converts `Py` instance -> PyObject.
     /// Consumes `self` without calling `Py_DECREF()`
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        unsafe { PyObject::from_owned_ptr(py, self.into_ptr()) }
+    fn into_py(self, _py: Python) -> PyObject {
+        unsafe { PyObject::from_not_null(self.into_non_null()) }
     }
 }
 
@@ -161,9 +156,25 @@ impl<T> IntoPyPointer for Py<T> {
     #[inline]
     #[must_use]
     fn into_ptr(self) -> *mut ffi::PyObject {
-        let ptr = self.0.as_ptr();
-        std::mem::forget(self);
-        ptr
+        self.into_non_null().as_ptr()
+    }
+}
+
+impl<'a, T> std::convert::From<&PyClassShell<T>> for Py<T>
+where
+    T: PyClass,
+{
+    fn from(shell: &PyClassShell<T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(shell.as_ptr()) }
+    }
+}
+
+impl<'a, T> std::convert::From<&mut PyClassShell<T>> for Py<T>
+where
+    T: PyClass,
+{
+    fn from(shell: &mut PyClassShell<T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(shell.as_ptr()) }
     }
 }
 

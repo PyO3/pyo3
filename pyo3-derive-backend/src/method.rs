@@ -65,7 +65,7 @@ impl<'a> FnSpec<'a> {
                     ref pat, ref ty, ..
                 }) => {
                     // skip first argument (cls)
-                    if (fn_type == FnType::FnClass || fn_type == FnType::FnNew) && !has_self {
+                    if fn_type == FnType::FnClass && !has_self {
                         has_self = true;
                         continue;
                     }
