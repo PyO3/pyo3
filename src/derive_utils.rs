@@ -9,9 +9,7 @@ use crate::exceptions::TypeError;
 use crate::init_once;
 use crate::instance::PyNativeType;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
-use crate::GILPool;
-use crate::Python;
-use crate::{ffi, IntoPy, PyObject};
+use crate::{ffi, GILPool, IntoPy, PyObject, Python};
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.

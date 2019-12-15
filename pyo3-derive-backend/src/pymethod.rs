@@ -222,7 +222,11 @@ pub fn impl_proto_wrap(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) ->
 pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> TokenStream {
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
-    let body = impl_arg_params(spec, cb);
+    let body = impl_arg_params_(
+        spec,
+        cb,
+        quote! { pyo3::pyclass::IntoInitializer::into_initializer },
+    );
 
     quote! {
         #[allow(unused_mut)]
@@ -239,9 +243,9 @@ pub fn impl_wrap_new(cls: &syn::Type, name: &syn::Ident, spec: &FnSpec<'_>) -> T
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-            # body
+            #body
 
-            match _result.and_then(|slf| pyo3::PyClassShell::new(_py, slf)) {
+            match _result.and_then(|init| init.create_shell(_py)) {
                 Ok(slf) => slf as _,
                 Err(e) => e.restore_and_null(_py),
             }
@@ -409,11 +413,11 @@ fn bool_to_ident(condition: bool) -> syn::Ident {
     }
 }
 
-pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
+fn impl_arg_params_(spec: &FnSpec<'_>, body: TokenStream, into_result: TokenStream) -> TokenStream {
     if spec.args.is_empty() {
         return quote! {
             let _result = {
-                pyo3::derive_utils::IntoPyResult::into_py_result(#body)
+                #into_result (#body)
             };
         };
     }
@@ -471,9 +475,17 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
 
             #(#param_conversion)*
 
-            pyo3::derive_utils::IntoPyResult::into_py_result(#body)
+            #into_result(#body)
         })();
     }
+}
+
+pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
+    impl_arg_params_(
+        spec,
+        body,
+        quote! { pyo3::derive_utils::IntoPyResult::into_py_result },
+    )
 }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument

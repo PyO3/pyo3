@@ -1,6 +1,7 @@
 //! An experiment module which has all codes related only to #[pyclass]
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
+use crate::exceptions::RuntimeError;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyConcreteObject, PyTypeObject};
 use crate::types::PyAny;
@@ -75,7 +76,7 @@ where
     }
 }
 
-/// So this is a shell for our *sweet* pyclasses to survive in *harsh* Python world.
+/// `PyClassShell` represents the concrete layout of our `#[pyclass]` in the Python heap.
 #[repr(C)]
 pub struct PyClassShell<T: PyClass> {
     ob_base: <T::BaseType as PyTypeInfo>::ConcreteLayout,
@@ -85,28 +86,37 @@ pub struct PyClassShell<T: PyClass> {
 }
 
 impl<T: PyClass> PyClassShell<T> {
-    pub fn new_ref(py: Python, value: T) -> PyResult<&Self> {
+    pub fn new_ref(py: Python, value: impl IntoInitializer<T>) -> PyResult<&Self>
+    where
+        T: PyTypeInfo<ConcreteLayout = Self>,
+    {
         unsafe {
-            let ptr = Self::new(py, value)?;
-            FromPyPointer::from_owned_ptr_or_err(py, ptr as _)
+            let initializer = value.into_initializer()?;
+            let self_ = initializer.create_shell(py)?;
+            FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }
     }
 
-    pub fn new_mut(py: Python, value: T) -> PyResult<&mut Self> {
+    pub fn new_mut(py: Python, value: impl IntoInitializer<T>) -> PyResult<&mut Self>
+    where
+        T: PyTypeInfo<ConcreteLayout = Self>,
+    {
         unsafe {
-            let ptr = Self::new(py, value)?;
-            FromPyPointer::from_owned_ptr_or_err(py, ptr as _)
+            let initializer = value.into_initializer()?;
+            let self_ = initializer.create_shell(py)?;
+            FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }
     }
 
-    pub unsafe fn new(py: Python, value: T) -> PyResult<*mut Self> {
+    #[doc(hidden)]
+    unsafe fn new(py: Python) -> PyResult<*mut Self> {
+        <T::BaseType as PyTypeObject>::init_type();
         T::init_type();
         let base = T::alloc(py);
         if base.is_null() {
             return Err(PyErr::fetch(py));
         }
         let self_ = base as *mut Self;
-        (*self_).pyclass = ManuallyDrop::new(value);
         (*self_).dict = T::Dict::new();
         (*self_).weakref = T::WeakRef::new();
         Ok(self_)
@@ -114,19 +124,26 @@ impl<T: PyClass> PyClassShell<T> {
 }
 
 impl<T: PyClass> PyConcreteObject<T> for PyClassShell<T> {
+    const NEED_INIT: bool = std::mem::size_of::<T>() != 0;
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
         let shell = obj.as_ptr() as *const PyClassShell<T>;
-        &*(*shell).pyclass
+        &(*shell).pyclass
     }
     unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
         let shell = obj.as_ptr() as *const PyClassShell<T> as *mut PyClassShell<T>;
-        &mut *(*shell).pyclass
+        &mut (*shell).pyclass
     }
     unsafe fn py_drop(&mut self, py: Python) {
         ManuallyDrop::drop(&mut self.pyclass);
         self.dict.clear_dict(py);
         self.weakref.clear_weakrefs(self.as_ptr(), py);
         self.ob_base.py_drop(py);
+    }
+    unsafe fn py_init(&mut self, value: T) {
+        self.pyclass = ManuallyDrop::new(value);
+    }
+    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+        Some(&mut self.ob_base)
     }
 }
 
@@ -187,6 +204,108 @@ where
         NonNull::new(ptr).map(|p| {
             &mut *(gil::register_borrowed(py, p).as_ptr() as *const PyClassShell<T> as *mut _)
         })
+    }
+}
+
+/// An initializer for `PyClassShell<T>`.
+///
+/// **NOTE** If
+pub struct PyClassInitializer<T: PyTypeInfo> {
+    init: Option<T>,
+    super_init: Option<*mut PyClassInitializer<T::BaseType>>,
+}
+
+impl<T: PyTypeInfo> PyClassInitializer<T> {
+    pub fn from_value(value: T) -> Self {
+        PyClassInitializer {
+            init: Some(value),
+            super_init: None,
+        }
+    }
+
+    pub fn new() -> Self {
+        PyClassInitializer {
+            init: None,
+            super_init: None,
+        }
+    }
+
+    #[must_use]
+    #[doc(hiddden)]
+    pub fn init_class(self, shell: &mut T::ConcreteLayout) -> PyResult<()> {
+        macro_rules! raise_err {
+            ($name: path) => {
+                return Err(PyErr::new::<RuntimeError, _>(format!(
+                    "Base class '{}' is not initialized",
+                    $name
+                )));
+            };
+        }
+        let PyClassInitializer { init, super_init } = self;
+        if let Some(value) = init {
+            unsafe { shell.py_init(value) };
+        } else if !T::ConcreteLayout::NEED_INIT {
+            raise_err!(T::NAME);
+        }
+        if let Some(super_init) = super_init {
+            let super_init = unsafe { Box::from_raw(super_init) };
+            if let Some(super_obj) = shell.get_super() {
+                super_init.init_class(super_obj)?;
+            }
+        } else if <T::BaseType as PyTypeInfo>::ConcreteLayout::NEED_INIT {
+            raise_err!(T::BaseType::NAME)
+        }
+        Ok(())
+    }
+
+    pub fn init(&mut self, value: T) {
+        self.init = Some(value);
+    }
+
+    pub fn get_super(&mut self) -> &mut PyClassInitializer<T::BaseType> {
+        if let Some(super_init) = self.super_init {
+            return unsafe { &mut *super_init };
+        }
+        let super_init = Box::into_raw(Box::new(PyClassInitializer::new()));
+        self.super_init = Some(super_init);
+        return unsafe { &mut *super_init };
+    }
+
+    pub unsafe fn create_shell(self, py: Python) -> PyResult<*mut PyClassShell<T>>
+    where
+        T: PyClass + PyTypeInfo<ConcreteLayout = PyClassShell<T>>,
+    {
+        let shell = PyClassShell::new(py)?;
+        self.init_class(&mut *shell)?;
+        Ok(shell)
+    }
+}
+
+pub trait IntoInitializer<T: PyTypeInfo> {
+    fn into_initializer(self) -> PyResult<PyClassInitializer<T>>;
+}
+
+impl<T: PyTypeInfo> IntoInitializer<T> for T {
+    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
+        Ok(PyClassInitializer::from_value(self))
+    }
+}
+
+impl<T: PyTypeInfo> IntoInitializer<T> for PyResult<T> {
+    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
+        self.map(PyClassInitializer::from_value)
+    }
+}
+
+impl<T: PyTypeInfo> IntoInitializer<T> for PyClassInitializer<T> {
+    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
+        Ok(self)
+    }
+}
+
+impl<T: PyTypeInfo> IntoInitializer<T> for PyResult<PyClassInitializer<T>> {
+    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
+        self
     }
 }
 

@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
+
 #[cfg(feature = "unsound-subclass")]
 use pyo3::types::IntoPyDict;
 
@@ -48,19 +49,58 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
     #[new]
-    fn new() -> Self {
-        SubClass { val2: 5 }
+    fn new() -> PyClassInitializer<Self> {
+        let mut init = PyClassInitializer::from_value(SubClass { val2: 5 });
+        init.get_super().init(BaseClass { val1: 10 });
+        init
     }
 }
 
-// TODO(kngwyu): disable untill super().__init__ fixed
 #[test]
-#[ignore]
 fn inheritance_with_new_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let _typebase = py.get_type::<BaseClass>();
+    let _baseobj = py.get_type::<BaseClass>();
     let typeobj = py.get_type::<SubClass>();
     let inst = typeobj.call((), None).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
+}
+
+#[pyclass(extends=BaseClass)]
+struct InvalidSubClass {
+    #[pyo3(get)]
+    val2: usize,
+}
+
+#[pymethods]
+impl InvalidSubClass {
+    #[new]
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from_value(InvalidSubClass { val2: 5 })
+    }
+}
+
+#[test]
+fn uninit_baseclass_raise_exception() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let _baseclass = py.get_type::<BaseClass>();
+    let subclass = py.get_type::<InvalidSubClass>();
+    py_expect_exception!(py, subclass, "subclass()", RuntimeError);
+}
+
+#[test]
+fn uninit_baseclass_returns_err() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let subclass = pyo3::pyclass::PyClassShell::new_ref(py, InvalidSubClass { val2: 5 });
+    if let Err(err) = subclass {
+        py_run!(
+            py,
+            err,
+            r#"str(err) == "Base class 'BaseClass' is not initialized""#
+        )
+    } else {
+        panic!("Uninitialized class detection failed!!!")
+    }
 }

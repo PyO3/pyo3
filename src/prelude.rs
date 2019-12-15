@@ -18,6 +18,7 @@ pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::python::Python;
 pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject};
 // This is only part of the prelude because we need it for the pymodule function
+pub use crate::pyclass::PyClassInitializer;
 pub use crate::types::PyModule;
 pub use pyo3cls::pymodule;
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};

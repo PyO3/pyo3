@@ -3,7 +3,7 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::pyclass::{PyClass, PyClassShell};
+use crate::pyclass::{IntoInitializer, PyClass, PyClassShell};
 use crate::type_object::{PyConcreteObject, PyTypeInfo};
 use crate::types::PyAny;
 use crate::{ffi, IntoPy};
@@ -35,11 +35,12 @@ unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T> {
     /// Create new instance of T and move it under python management
-    pub fn new(py: Python, value: T) -> PyResult<Py<T>>
+    pub fn new(py: Python, value: impl IntoInitializer<T>) -> PyResult<Py<T>>
     where
-        T: PyClass,
+        T: PyClass + PyTypeInfo<ConcreteLayout = PyClassShell<T>>,
     {
-        let obj = unsafe { PyClassShell::new(py, value)? };
+        let initializer = value.into_initializer()?;
+        let obj = unsafe { initializer.create_shell(py)? };
         let ob = unsafe { Py::from_owned_ptr(obj as _) };
         Ok(ob)
     }

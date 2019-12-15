@@ -57,7 +57,7 @@ impl<'p> PyIterProtocol for Iterator {
         Ok(slf.into())
     }
 
-    fn __next__(mut slf: &mut PyClassShell<Self>) -> PyResult<Option<i32>> {
+    fn __next__(slf: &mut PyClassShell<Self>) -> PyResult<Option<i32>> {
         Ok(slf.iter.next())
     }
 }

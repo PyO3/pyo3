@@ -127,7 +127,7 @@ pub use crate::gil::{init_once, GILGuard, GILPool};
 pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
-pub use crate::pyclass::{PyClass, PyClassShell};
+pub use crate::pyclass::{PyClass, PyClassInitializer, PyClassShell};
 pub use crate::python::{prepare_freethreaded_python, Python};
 pub use crate::type_object::{type_flags, PyConcreteObject, PyTypeInfo};
 
@@ -217,7 +217,7 @@ macro_rules! wrap_pymodule {
 ///
 /// # Example
 /// ```
-/// use pyo3::{prelude::*, py_run};
+/// use pyo3::{prelude::*, py_run, PyClassShell};
 /// #[pyclass]
 /// #[derive(Debug)]
 /// struct Time {
@@ -240,7 +240,7 @@ macro_rules! wrap_pymodule {
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let time = PyRef::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+/// let time = PyClassShell::new_ref(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 /// let time_as_tuple = (8, 43, 16);
 /// py_run!(py, time time_as_tuple, r#"
 /// assert time.hour == 8

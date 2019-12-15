@@ -12,7 +12,8 @@ use crate::Python;
 use std::ptr::NonNull;
 
 /// TODO: write document
-pub trait PyConcreteObject<T>: Sized {
+pub trait PyConcreteObject<T: PyTypeInfo>: Sized {
+    const NEED_INIT: bool = false;
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
         &*(obj as *const _ as *const T)
     }
@@ -20,9 +21,13 @@ pub trait PyConcreteObject<T>: Sized {
         &mut *(obj as *const _ as *const T as *mut T)
     }
     unsafe fn py_drop(&mut self, _py: Python) {}
+    unsafe fn py_init(&mut self, _value: T) {}
+    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+        None
+    }
 }
 
-impl<T: PyNativeType> PyConcreteObject<T> for ffi::PyObject {}
+impl<T: PyNativeType + PyTypeInfo> PyConcreteObject<T> for ffi::PyObject {}
 
 /// Our custom type flags
 pub mod type_flags {
@@ -57,7 +62,7 @@ pub trait PyTypeInfo: Sized {
     const FLAGS: usize = 0;
 
     /// Base class
-    type BaseType: PyTypeInfo;
+    type BaseType: PyTypeInfo + PyTypeObject;
 
     /// Layout
     type ConcreteLayout: PyConcreteObject<Self>;
