@@ -69,6 +69,23 @@ fn custom_names() {
 }
 
 #[pyclass]
+struct RawIdents {}
+
+#[pymethods]
+impl RawIdents {
+    fn r#fn(&self) { }
+}
+
+#[test]
+fn test_raw_idents() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<RawIdents>();
+    py_assert!(py, typeobj, "not hasattr(typeobj, 'r#fn')");
+    py_assert!(py, typeobj, "hasattr(typeobj, 'fn')");
+}
+
+#[pyclass]
 struct EmptyClassInModule {}
 
 #[test]

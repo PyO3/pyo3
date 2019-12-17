@@ -161,7 +161,7 @@ pub fn add_fn_to_module(
     let spec = method::FnSpec {
         tp: method::FnType::Fn,
         name: &function_wrapper_ident,
-        python_name: Some(python_name),
+        python_name,
         attrs: pyfn_attrs,
         args: arguments,
         output: ty,
@@ -170,7 +170,7 @@ pub fn add_fn_to_module(
 
     let doc = &spec.doc;
 
-    let python_name = spec.py_name();
+    let python_name = &spec.python_name;
 
     let wrapper = function_c_wrapper(&func.sig.ident, &spec);
 

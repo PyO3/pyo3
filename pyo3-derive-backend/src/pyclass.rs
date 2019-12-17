@@ -5,6 +5,7 @@ use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, 
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
+use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, Expr, Token};
@@ -455,7 +456,7 @@ fn impl_descriptors(
                             let spec = FnSpec {
                                 tp: FnType::Getter,
                                 name: &name,
-                                python_name: None,
+                                python_name: name.unraw(),
                                 attrs: Vec::new(),
                                 args: Vec::new(),
                                 output: parse_quote!(PyResult<#field_ty>),
@@ -469,7 +470,7 @@ fn impl_descriptors(
                             let spec = FnSpec {
                                 tp: FnType::Setter,
                                 name: &setter_name,
-                                python_name: Some(name.clone()),
+                                python_name: name.unraw(),
                                 attrs: Vec::new(),
                                 args: vec![FnArg {
                                     name: &name,

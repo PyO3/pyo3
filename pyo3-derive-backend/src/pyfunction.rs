@@ -1,8 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+use syn::ext::IdentExt;
 use syn::parse::ParseBuffer;
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{NestedMeta, Path};
+use proc_macro2::TokenStream;
+use crate::module::add_fn_to_module;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {
@@ -191,6 +195,47 @@ impl PyFunctionAttr {
         };
         Ok(())
     }
+}
+
+pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Option<syn::Ident>> {
+    let mut name_attrs = Vec::new();
+
+    // Using retain will extract all name attributes from the attribute list
+    attrs.retain(|attr| {
+        match attr.parse_meta() {
+            Ok(syn::Meta::NameValue(ref nv)) if nv.path.is_ident("name") => {
+                name_attrs.push((nv.lit.clone(), attr.span()));
+                false
+            }
+            _ => true
+        }
+    });
+
+    let mut name = None;
+
+    for (lit, span) in name_attrs {
+        if name.is_some() {
+            return Err(syn::Error::new(span, "#[name] can not be specified multiple times"))
+        }
+
+        name = match lit {
+            syn::Lit::Str(s) => {
+                let mut ident: syn::Ident = s.parse()?;
+                // This span is the whole attribute span, which is nicer for reporting errors.
+                ident.set_span(span);
+                Some(ident)
+            },
+            _ => return Err(syn::Error::new(span, "Expected string literal for #[name] argument"))
+        };
+    }
+
+    Ok(name)
+}
+
+pub fn build_py_function(ast: &mut syn::ItemFn, args: PyFunctionAttr) -> syn::Result<TokenStream> {
+    let python_name =
+        parse_name_attribute(&mut ast.attrs)?.unwrap_or_else(|| ast.sig.ident.unraw());
+    Ok(add_fn_to_module(ast, python_name, args.arguments))
 }
 
 #[cfg(test)]

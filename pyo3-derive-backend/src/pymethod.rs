@@ -72,7 +72,7 @@ fn impl_wrap_common(
     slf: TokenStream,
     body: TokenStream,
 ) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     if spec.args.is_empty() && noargs {
         quote! {
             unsafe extern "C" fn __wrap(
@@ -80,7 +80,7 @@ fn impl_wrap_common(
             ) -> *mut pyo3::ffi::PyObject
             {
                 const _LOCATION: &'static str = concat!(
-                    stringify!(#cls), ".", stringify!(#py_name), "()");
+                    stringify!(#cls), ".", stringify!(#python_name), "()");
                 let _py = pyo3::Python::assume_gil_acquired();
                 let _pool = pyo3::GILPool::new(_py);
                 #slf
@@ -102,7 +102,7 @@ fn impl_wrap_common(
                 _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
             {
                 const _LOCATION: &'static str = concat!(
-                    stringify!(#cls), ".", stringify!(#py_name), "()");
+                    stringify!(#cls), ".", stringify!(#python_name), "()");
                 let _py = pyo3::Python::assume_gil_acquired();
                 let _pool = pyo3::GILPool::new(_py);
                 #slf
@@ -120,7 +120,7 @@ fn impl_wrap_common(
 
 /// Generate function wrapper for protocol method (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let cb = impl_call(cls, &spec);
     let body = impl_arg_params(&spec, cb);
 
@@ -131,7 +131,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#py_name),"()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
@@ -149,7 +149,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(&_obj, #(#names),*) };
 
@@ -164,7 +164,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
         {
             use pyo3::type_object::PyTypeInfo;
 
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#py_name),"()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
             match pyo3::type_object::PyRawObject::new(_py, #cls::type_object(), _cls) {
@@ -194,7 +194,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 /// Generate class method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(&_cls, #(#names),*) };
 
@@ -207,7 +207,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#py_name),"()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
             let _cls = pyo3::types::PyType::from_type_ptr(_py, _cls as *mut pyo3::ffi::PyTypeObject);
@@ -225,7 +225,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 /// Generate static method wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
     let cb = quote! { #cls::#name(#(#names),*) };
 
@@ -238,7 +238,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             _args: *mut pyo3::ffi::PyObject,
             _kwargs: *mut pyo3::ffi::PyObject) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#py_name),"()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
@@ -266,7 +266,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
     };
 
     let name = &spec.name;
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
 
     let fncall = if takes_py {
         quote! { _slf.#name(_py) }
@@ -278,7 +278,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
         {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#py_name),"()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
 
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
@@ -302,7 +302,7 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
     let name = &spec.name;
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
 
     let val_ty = match &*spec.args {
         [] => {
@@ -326,7 +326,7 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Resul
             _slf: *mut pyo3::ffi::PyObject,
             _value: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> pyo3::libc::c_int
         {
-            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#py_name),"()");
+            const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
@@ -517,7 +517,7 @@ fn impl_arg_param(
 }
 
 pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let doc = &spec.doc;
     if spec.args.is_empty() {
         quote! {
@@ -525,7 +525,7 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
                 #wrapper
 
                 pyo3::class::PyMethodDef {
-                    ml_name: stringify!(#py_name),
+                    ml_name: stringify!(#python_name),
                     ml_meth: pyo3::class::PyMethodType::PyNoArgsFunction(__wrap),
                     ml_flags: pyo3::ffi::METH_NOARGS,
                     ml_doc: #doc,
@@ -538,7 +538,7 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
                 #wrapper
 
                 pyo3::class::PyMethodDef {
-                    ml_name: stringify!(#py_name),
+                    ml_name: stringify!(#python_name),
                     ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                     ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                     ml_doc: #doc,
@@ -549,14 +549,14 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
 }
 
 pub fn impl_py_method_def_new(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let doc = &spec.doc;
     quote! {
         pyo3::class::PyMethodDefType::New({
             #wrapper
 
             pyo3::class::PyMethodDef {
-                ml_name: stringify!(#py_name),
+                ml_name: stringify!(#python_name),
                 ml_meth: pyo3::class::PyMethodType::PyNewFunc(__wrap),
                 ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                 ml_doc: #doc,
@@ -566,14 +566,14 @@ pub fn impl_py_method_def_new(spec: &FnSpec, wrapper: &TokenStream) -> TokenStre
 }
 
 pub fn impl_py_method_def_class(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let doc = &spec.doc;
     quote! {
         pyo3::class::PyMethodDefType::Class({
             #wrapper
 
             pyo3::class::PyMethodDef {
-                ml_name: stringify!(#py_name),
+                ml_name: stringify!(#python_name),
                 ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                 ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS |
                 pyo3::ffi::METH_CLASS,
@@ -584,14 +584,14 @@ pub fn impl_py_method_def_class(spec: &FnSpec, wrapper: &TokenStream) -> TokenSt
 }
 
 pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let doc = &spec.doc;
     quote! {
         pyo3::class::PyMethodDefType::Static({
             #wrapper
 
             pyo3::class::PyMethodDef {
-                ml_name: stringify!(#py_name),
+                ml_name: stringify!(#python_name),
                 ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                 ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | pyo3::ffi::METH_STATIC,
                 ml_doc: #doc,
@@ -601,14 +601,14 @@ pub fn impl_py_method_def_static(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
 }
 
 pub fn impl_py_method_def_call(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = spec.py_name();
+    let python_name = &spec.python_name;
     let doc = &spec.doc;
     quote! {
         pyo3::class::PyMethodDefType::Call({
             #wrapper
 
             pyo3::class::PyMethodDef {
-                ml_name: stringify!(#py_name),
+                ml_name: stringify!(#python_name),
                 ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
                 ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
                 ml_doc: #doc,
@@ -618,7 +618,7 @@ pub fn impl_py_method_def_call(spec: &FnSpec, wrapper: &TokenStream) -> TokenStr
 }
 
 pub(crate) fn impl_py_setter_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = &spec.py_name();
+    let python_name = &&spec.python_name;
     let doc = &spec.doc;
 
     quote! {
@@ -626,7 +626,7 @@ pub(crate) fn impl_py_setter_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
             #wrapper
 
             pyo3::class::PySetterDef {
-                name: stringify!(#py_name),
+                name: stringify!(#python_name),
                 meth: __wrap,
                 doc: #doc,
             }
@@ -635,7 +635,7 @@ pub(crate) fn impl_py_setter_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
 }
 
 pub(crate) fn impl_py_getter_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
-    let py_name = &spec.py_name();
+    let python_name = &&spec.python_name;
     let doc = &spec.doc;
 
     quote! {
@@ -643,7 +643,7 @@ pub(crate) fn impl_py_getter_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenS
             #wrapper
 
             pyo3::class::PyGetterDef {
-                name: stringify!(#py_name),
+                name: stringify!(#python_name),
                 meth: __wrap,
                 doc: #doc,
             }

@@ -1,29 +1,17 @@
 error: name can not be specified for getter
-  --> $DIR/invalid_pymethod_names.rs:10:7
+  --> $DIR/invalid_pymethod_names.rs:10:5
    |
 10 |     #[name = "num"]
-   |       ^^^^
+   |     ^^^^^^^^^^^^^^^
 
-error: name can not be specified multiple times
-  --> $DIR/invalid_pymethod_names.rs:18:7
+error: #[name] can not be specified multiple times
+  --> $DIR/invalid_pymethod_names.rs:18:5
    |
 18 |     #[name = "bar"]
-   |       ^^^^
+   |     ^^^^^^^^^^^^^^^
 
 error: name can not be specified with #[new]
-  --> $DIR/invalid_pymethod_names.rs:24:7
+  --> $DIR/invalid_pymethod_names.rs:24:5
    |
 24 |     #[name = "makenew"]
-   |       ^^^^
-
-error: cannot find attribute `name` in this scope
-  --> $DIR/invalid_pymethod_names.rs:17:7
-   |
-17 |     #[name = "foo"]
-   |       ^^^^
-
-error: cannot find attribute `name` in this scope
-  --> $DIR/invalid_pymethod_names.rs:18:7
-   |
-18 |     #[name = "bar"]
-   |       ^^^^
+   |     ^^^^^^^^^^^^^^^^^^^
