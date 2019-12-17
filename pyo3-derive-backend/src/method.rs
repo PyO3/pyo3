@@ -1,7 +1,7 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::pyfunction::Argument;
-use crate::pyfunction::{PyFunctionAttr, parse_name_attribute};
+use crate::pyfunction::{parse_name_attribute, PyFunctionAttr};
 use crate::utils;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -61,8 +61,11 @@ impl<'a> FnSpec<'a> {
         allow_custom_name: bool,
     ) -> syn::Result<FnSpec<'a>> {
         let name = &sig.ident;
-        let MethodAttributes { ty: mut fn_type, args: fn_attrs, mut python_name } =
-            parse_method_attributes(meth_attrs, allow_custom_name)?;
+        let MethodAttributes {
+            ty: mut fn_type,
+            args: fn_attrs,
+            mut python_name,
+        } = parse_method_attributes(meth_attrs, allow_custom_name)?;
 
         let mut has_self = false;
         let mut arguments = Vec::new();
@@ -346,7 +349,7 @@ pub fn check_arg_ty_and_optional<'a>(
 struct MethodAttributes {
     ty: FnType,
     args: Vec<Argument>,
-    python_name: Option<syn::Ident>
+    python_name: Option<syn::Ident>,
 }
 
 fn parse_method_attributes(
@@ -477,36 +480,47 @@ fn parse_method_attributes(
         property_name
     };
 
-    Ok(MethodAttributes { ty, args, python_name })
+    Ok(MethodAttributes {
+        ty,
+        args,
+        python_name,
+    })
 }
 
 fn parse_method_name_attribute(
     ty: &FnType,
     attrs: &mut Vec<syn::Attribute>,
-    property_name: Option<syn::Ident>
+    property_name: Option<syn::Ident>,
 ) -> syn::Result<Option<syn::Ident>> {
-
     let name = parse_name_attribute(attrs)?;
 
     // Reject some invalid combinations
     if let Some(name) = &name {
         match ty {
-            FnType::FnNew => return Err(syn::Error::new_spanned(
-                name,
-                "name can not be specified with #[new]",
-            )),
-            FnType::FnCall => return Err(syn::Error::new_spanned(
-                name,
-                "name can not be specified with #[call]",
-            )),
-            FnType::Getter => return Err(syn::Error::new_spanned(
-                name,
-                "name can not be specified for getter",
-            )),
-            FnType::Setter => return Err(syn::Error::new_spanned(
-                name,
-                "name can not be specified for setter",
-            )),
+            FnType::FnNew => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "name can not be specified with #[new]",
+                ))
+            }
+            FnType::FnCall => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "name can not be specified with #[call]",
+                ))
+            }
+            FnType::Getter => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "name can not be specified for getter",
+                ))
+            }
+            FnType::Setter => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "name can not be specified for setter",
+                ))
+            }
             _ => {}
         }
     }

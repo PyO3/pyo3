@@ -73,7 +73,7 @@ struct RawIdents {}
 
 #[pymethods]
 impl RawIdents {
-    fn r#fn(&self) { }
+    fn r#fn(&self) {}
 }
 
 #[test]
