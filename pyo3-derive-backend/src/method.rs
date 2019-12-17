@@ -459,19 +459,19 @@ fn parse_attributes(
                     new_attrs.push(attr.clone())
                 }
             }
-            syn::Meta::NameValue(nv) if allow_custom_name && nv.path.is_ident("name") => {
+            syn::Meta::NameValue(ref nv) if allow_custom_name && nv.path.is_ident("name") => {
                 if name_with_span.is_some() {
                     return Err(syn::Error::new_spanned(
-                        nv.path,
+                        &nv.path,
                         "name can not be specified multiple times",
                     ));
                 }
 
-                match nv.lit {
+                match &nv.lit {
                     syn::Lit::Str(s) => name_with_span = Some((s.parse()?, nv.path.span())),
                     _ => {
                         return Err(syn::Error::new_spanned(
-                            nv.lit,
+                            &nv.lit,
                             "Expected string literal for method name",
                         ))
                     }
