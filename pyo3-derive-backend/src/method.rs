@@ -2,6 +2,7 @@
 
 use crate::pyfunction::Argument;
 use crate::pyfunction::PyFunctionAttr;
+use crate::utils;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
@@ -20,8 +21,8 @@ pub struct FnArg<'a> {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum FnType {
-    Getter(Option<String>),
-    Setter(Option<String>),
+    Getter,
+    Setter,
     Fn,
     FnNew,
     FnCall,
@@ -33,9 +34,14 @@ pub enum FnType {
 #[derive(Clone, PartialEq, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
+    // Rust function name
+    pub name: &'a syn::Ident,
+    // Wrapped python name
+    pub python_name: Option<syn::Ident>,
     pub attrs: Vec<Argument>,
     pub args: Vec<FnArg<'a>>,
     pub output: syn::Type,
+    pub doc: syn::LitStr,
 }
 
 pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
@@ -48,11 +54,29 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 impl<'a> FnSpec<'a> {
     /// Parser function signature and function attributes
     pub fn parse(
-        name: &'a syn::Ident,
         sig: &'a syn::Signature,
         meth_attrs: &mut Vec<syn::Attribute>,
+        allow_custom_name: bool,
     ) -> syn::Result<FnSpec<'a>> {
-        let (mut fn_type, fn_attrs) = parse_attributes(meth_attrs)?;
+        let name = &sig.ident;
+        let (mut fn_type, fn_attrs, mut python_name) =
+            parse_attributes(meth_attrs, allow_custom_name)?;
+
+        // "Tweak" getter / setter names: strip off set_ and get_ if needed
+        if let FnType::Getter | FnType::Setter = &fn_type {
+            if python_name.is_none() {
+                let prefix = match &fn_type {
+                    FnType::Getter => "get_",
+                    FnType::Setter => "set_",
+                    _ => unreachable!(),
+                };
+
+                let ident = sig.ident.to_string();
+                if ident.starts_with(prefix) {
+                    python_name = Some(syn::Ident::new(&ident[prefix.len()..], ident.span()))
+                }
+            }
+        }
 
         let mut has_self = false;
         let mut arguments = Vec::new();
@@ -112,12 +136,53 @@ impl<'a> FnSpec<'a> {
             fn_type = FnType::PySelf(tp);
         }
 
+        let mut parse_erroneous_text_signature = |error_msg: &str| {
+            let py_name = python_name.as_ref().unwrap_or(name);
+
+            // try to parse anyway to give better error messages
+            if let Some(text_signature) =
+                utils::parse_text_signature_attrs(&mut *meth_attrs, py_name)?
+            {
+                Err(syn::Error::new_spanned(text_signature, error_msg))
+            } else {
+                Ok(None)
+            }
+        };
+
+        let text_signature = match &fn_type {
+            FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
+                utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
+            }
+            FnType::FnNew => parse_erroneous_text_signature(
+                "text_signature not allowed on __new__; if you want to add a signature on \
+                 __new__, put it on the struct definition instead",
+            )?,
+            FnType::FnCall => {
+                parse_erroneous_text_signature("text_signature not allowed on __call__")?
+            }
+            FnType::Getter => {
+                parse_erroneous_text_signature("text_signature not allowed on getter")?
+            }
+            FnType::Setter => {
+                parse_erroneous_text_signature("text_signature not allowed on setter")?
+            }
+        };
+
+        let doc = utils::get_doc(&meth_attrs, text_signature, true)?;
+
         Ok(FnSpec {
             tp: fn_type,
+            name,
+            python_name,
             attrs: fn_attrs,
             args: arguments,
             output: ty,
+            doc,
         })
+    }
+
+    pub fn py_name(&self) -> &syn::Ident {
+        self.python_name.as_ref().unwrap_or(self.name)
     }
 
     pub fn is_args(&self, name: &syn::Ident) -> bool {
@@ -279,10 +344,15 @@ pub fn check_arg_ty_and_optional<'a>(
     }
 }
 
-fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec<Argument>)> {
+fn parse_attributes(
+    attrs: &mut Vec<syn::Attribute>,
+    allow_custom_name: bool,
+) -> syn::Result<(FnType, Vec<Argument>, Option<syn::Ident>)> {
     let mut new_attrs = Vec::new();
     let mut spec = Vec::new();
     let mut res: Option<FnType> = None;
+    let mut name_with_span = None;
+    let mut property_name = None;
 
     for attr in attrs.iter() {
         match attr.parse_meta()? {
@@ -302,15 +372,21 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
                     res = Some(FnType::FnStatic)
                 } else if name.is_ident("setter") || name.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
-                        panic!("Inner style attribute is not supported for setter and getter");
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "Inner style attribute is not supported for setter and getter",
+                        ));
                     }
                     if res != None {
-                        panic!("setter/getter attribute can not be used mutiple times");
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "setter/getter attribute can not be used mutiple times",
+                        ));
                     }
                     if name.is_ident("setter") {
-                        res = Some(FnType::Setter(None))
+                        res = Some(FnType::Setter)
                     } else {
-                        res = Some(FnType::Getter(None))
+                        res = Some(FnType::Getter)
                     }
                 } else {
                     new_attrs.push(attr.clone())
@@ -332,46 +408,73 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
                     res = Some(FnType::FnCall)
                 } else if path.is_ident("setter") || path.is_ident("getter") {
                     if let syn::AttrStyle::Inner(_) = attr.style {
-                        panic!(
-                            "Inner style attribute is not
-                                    supported for setter and getter"
-                        );
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "Inner style attribute is not supported for setter and getter",
+                        ));
                     }
                     if res != None {
-                        panic!("setter/getter attribute can not be used mutiple times");
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "setter/getter attribute can not be used mutiple times",
+                        ));
                     }
                     if nested.len() != 1 {
-                        panic!("setter/getter requires one value");
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "setter/getter requires one value",
+                        ));
                     }
-                    match nested.first().unwrap() {
-                        syn::NestedMeta::Meta(syn::Meta::Path(ref w)) => {
-                            if path.is_ident("setter") {
-                                res = Some(FnType::Setter(Some(w.segments[0].ident.to_string())))
-                            } else {
-                                res = Some(FnType::Getter(Some(w.segments[0].ident.to_string())))
-                            }
+
+                    res = if path.is_ident("setter") {
+                        Some(FnType::Setter)
+                    } else {
+                        Some(FnType::Getter)
+                    };
+
+                    property_name = match nested.first().unwrap() {
+                        syn::NestedMeta::Meta(syn::Meta::Path(ref w)) if w.segments.len() == 1 => {
+                            Some(w.segments[0].ident.clone())
                         }
                         syn::NestedMeta::Lit(ref lit) => match *lit {
-                            syn::Lit::Str(ref s) => {
-                                if path.is_ident("setter") {
-                                    res = Some(FnType::Setter(Some(s.value())))
-                                } else {
-                                    res = Some(FnType::Getter(Some(s.value())))
-                                }
-                            }
+                            syn::Lit::Str(ref s) => Some(s.parse()?),
                             _ => {
-                                panic!("setter/getter attribute requires str value");
+                                return Err(syn::Error::new_spanned(
+                                    lit,
+                                    "setter/getter attribute requires str value",
+                                ))
                             }
                         },
                         _ => {
-                            println!("cannot parse {:?} attribute: {:?}", path, nested);
+                            return Err(syn::Error::new_spanned(
+                                nested.first().unwrap(),
+                                "expected ident or string literal for property name",
+                            ))
                         }
-                    }
+                    };
                 } else if path.is_ident("args") {
                     let attrs = PyFunctionAttr::from_meta(nested)?;
                     spec.extend(attrs.arguments)
                 } else {
                     new_attrs.push(attr.clone())
+                }
+            }
+            syn::Meta::NameValue(nv) if allow_custom_name && nv.path.is_ident("name") => {
+                if name_with_span.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        nv.path,
+                        "name can not be specified multiple times",
+                    ));
+                }
+
+                match nv.lit {
+                    syn::Lit::Str(s) => name_with_span = Some((s.parse()?, nv.path.span())),
+                    _ => {
+                        return Err(syn::Error::new_spanned(
+                            nv.lit,
+                            "Expected string literal for method name",
+                        ))
+                    }
                 }
             }
             syn::Meta::NameValue(_) => new_attrs.push(attr.clone()),
@@ -380,9 +483,47 @@ fn parse_attributes(attrs: &mut Vec<syn::Attribute>) -> syn::Result<(FnType, Vec
     attrs.clear();
     attrs.extend(new_attrs);
 
+    if let Some((_, span)) = &name_with_span {
+        match &res {
+            Some(FnType::FnNew) => {
+                return Err(syn::Error::new(
+                    *span,
+                    "name can not be specified with #[new]",
+                ))
+            }
+            Some(FnType::FnCall) => {
+                return Err(syn::Error::new(
+                    *span,
+                    "name can not be specified with #[call]",
+                ))
+            }
+            Some(FnType::Getter) => {
+                return Err(syn::Error::new(
+                    *span,
+                    "name can not be specified for getter",
+                ))
+            }
+            Some(FnType::Setter) => {
+                return Err(syn::Error::new(
+                    *span,
+                    "name can not be specified for setter",
+                ))
+            }
+            _ => {}
+        }
+    }
+
+    // Thanks to check above we can be sure that this generates the right python name
+    let python_name = match res {
+        Some(FnType::FnNew) => Some(syn::Ident::new("__new__", proc_macro2::Span::call_site())),
+        Some(FnType::FnCall) => Some(syn::Ident::new("__call__", proc_macro2::Span::call_site())),
+        Some(FnType::Getter) | Some(FnType::Setter) => property_name,
+        _ => name_with_span.map(|ns| ns.0),
+    };
+
     match res {
-        Some(tp) => Ok((tp, spec)),
-        None => Ok((FnType::Fn, spec)),
+        Some(tp) => Ok((tp, spec, python_name)),
+        None => Ok((FnType::Fn, spec, python_name)),
     }
 }
 

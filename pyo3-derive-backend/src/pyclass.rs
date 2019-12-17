@@ -179,7 +179,7 @@ pub fn build_py_class(class: &mut syn::ItemStruct, attr: &PyClassArgs) -> syn::R
         ));
     }
 
-    Ok(impl_class(&class.ident, &attr, doc, descriptors))
+    impl_class(&class.ident, &attr, doc, descriptors)
 }
 
 /// Parses `#[pyo3(get, set)]`
@@ -192,9 +192,9 @@ fn parse_descriptors(item: &mut syn::Field) -> syn::Result<Vec<FnType>> {
                 for meta in list.nested.iter() {
                     if let syn::NestedMeta::Meta(ref metaitem) = meta {
                         if metaitem.path().is_ident("get") {
-                            descs.push(FnType::Getter(None));
+                            descs.push(FnType::Getter);
                         } else if metaitem.path().is_ident("set") {
-                            descs.push(FnType::Setter(None));
+                            descs.push(FnType::Setter);
                         } else {
                             return Err(syn::Error::new_spanned(
                                 metaitem,
@@ -259,9 +259,9 @@ fn get_class_python_name(cls: &syn::Ident, attr: &PyClassArgs) -> TokenStream {
 fn impl_class(
     cls: &syn::Ident,
     attr: &PyClassArgs,
-    doc: syn::Lit,
+    doc: syn::LitStr,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
-) -> TokenStream {
+) -> syn::Result<TokenStream> {
     let cls_name = get_class_python_name(cls, attr).to_string();
 
     let extra = {
@@ -293,7 +293,7 @@ fn impl_class(
     let extra = if !descriptors.is_empty() {
         let path = syn::Path::from(syn::PathSegment::from(cls.clone()));
         let ty = syn::Type::from(syn::TypePath { path, qself: None });
-        let desc_impls = impl_descriptors(&ty, descriptors);
+        let desc_impls = impl_descriptors(&ty, descriptors)?;
         quote! {
             #desc_impls
             #extra
@@ -354,7 +354,7 @@ fn impl_class(
     let base = &attr.base;
     let flags = &attr.flags;
 
-    quote! {
+    Ok(quote! {
         impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
@@ -396,10 +396,13 @@ fn impl_class(
 
         #gc_impl
 
-    }
+    })
 }
 
-fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>) -> TokenStream {
+fn impl_descriptors(
+    cls: &syn::Type,
+    descriptors: Vec<(syn::Field, Vec<FnType>)>,
+) -> syn::Result<TokenStream> {
     let methods: Vec<TokenStream> = descriptors
         .iter()
         .flat_map(|&(ref field, ref fns)| {
@@ -408,7 +411,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                     let name = field.ident.clone().unwrap();
                     let field_ty = &field.ty;
                     match *desc {
-                        FnType::Getter(_) => {
+                        FnType::Getter => {
                             quote! {
                                 impl #cls {
                                     fn #name(&self) -> pyo3::PyResult<#field_ty> {
@@ -417,7 +420,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                                 }
                             }
                         }
-                        FnType::Setter(_) => {
+                        FnType::Setter => {
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());
                             quote! {
@@ -444,21 +447,29 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                     let name = field.ident.clone().unwrap();
 
                     // FIXME better doc?
-                    let doc = syn::Lit::from(syn::LitStr::new(&name.to_string(), name.span()));
+                    let doc = syn::LitStr::new(&name.to_string(), name.span());
 
                     let field_ty = &field.ty;
                     match *desc {
-                        FnType::Getter(ref getter) => impl_py_getter_def(
-                            &name,
-                            doc,
-                            getter,
-                            &impl_wrap_getter(&cls, &name, false),
-                        ),
-                        FnType::Setter(ref setter) => {
+                        FnType::Getter => {
+                            let spec = FnSpec {
+                                tp: FnType::Getter,
+                                name: &name,
+                                python_name: None,
+                                attrs: Vec::new(),
+                                args: Vec::new(),
+                                output: parse_quote!(PyResult<#field_ty>),
+                                doc,
+                            };
+                            Ok(impl_py_getter_def(&spec, &impl_wrap_getter(&cls, &spec)?))
+                        }
+                        FnType::Setter => {
                             let setter_name =
                                 syn::Ident::new(&format!("set_{}", name), Span::call_site());
                             let spec = FnSpec {
-                                tp: FnType::Setter(None),
+                                tp: FnType::Setter,
+                                name: &setter_name,
+                                python_name: Some(name.clone()),
                                 attrs: Vec::new(),
                                 args: vec![FnArg {
                                     name: &name,
@@ -470,22 +481,18 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                                     reference: false,
                                 }],
                                 output: parse_quote!(PyResult<()>),
-                            };
-                            impl_py_setter_def(
-                                &name,
                                 doc,
-                                setter,
-                                &impl_wrap_setter(&cls, &setter_name, &spec),
-                            )
+                            };
+                            Ok(impl_py_setter_def(&spec, &impl_wrap_setter(&cls, &spec)?))
                         }
                         _ => unreachable!(),
                     }
                 })
-                .collect::<Vec<TokenStream>>()
+                .collect::<Vec<syn::Result<TokenStream>>>()
         })
-        .collect();
+        .collect::<syn::Result<_>>()?;
 
-    quote! {
+    Ok(quote! {
         #(#methods)*
 
         pyo3::inventory::submit! {
@@ -494,7 +501,7 @@ fn impl_descriptors(cls: &syn::Type, descriptors: Vec<(syn::Field, Vec<FnType>)>
                 <ClsInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#py_methods),*])
             }
         }
-    }
+    })
 }
 
 fn check_generics(class: &mut syn::ItemStruct) -> syn::Result<()> {

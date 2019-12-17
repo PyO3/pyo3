@@ -83,8 +83,9 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as syn::ItemFn);
     let args = parse_macro_input!(attr as PyFunctionAttr);
 
+    // TODO: Support #[name = "..."] attribute?
     let python_name = syn::Ident::new(&ast.sig.ident.unraw().to_string(), Span::call_site());
-    let expanded = add_fn_to_module(&mut ast, &python_name, args.arguments);
+    let expanded = add_fn_to_module(&mut ast, python_name, args.arguments);
 
     quote!(
         #ast
