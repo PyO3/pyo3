@@ -25,7 +25,9 @@ pub fn pymodule(attr: TokenStream, input: TokenStream) -> TokenStream {
         parse_macro_input!(attr as syn::Ident)
     };
 
-    process_functions_in_module(&mut ast);
+    if let Err(err) = process_functions_in_module(&mut ast) {
+        return err.to_compile_error().into();
+    }
 
     let doc = match get_doc(&ast.attrs, None, false) {
         Ok(doc) => doc,

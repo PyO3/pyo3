@@ -148,6 +148,28 @@ fn test_raw_idents() {
     py_assert!(py, module, "module.move() == 42");
 }
 
+#[pymodule]
+fn pyfunction_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    #[pyfunction]
+    fn foobar() -> usize {
+        101
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_pyfunction_module() {
+    use pyo3::wrap_pymodule;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let module = wrap_pymodule!(pyfunction_module)(py);
+
+    py_assert!(py, module, "module.foobar() == 101");
+}
+
 #[pyfunction]
 fn subfunction() -> String {
     "Subfunction".to_string()

@@ -28,8 +28,10 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::Lit) -> TokenStream {
 }
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
-pub fn process_functions_in_module(func: &mut syn::ItemFn) {
+pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
     let mut stmts: Vec<syn::Stmt> = Vec::new();
+
+    let module_name = get_module_name(&func.sig)?;
 
     for stmt in func.block.stmts.iter_mut() {
         if let syn::Stmt::Item(syn::Item::Fn(ref mut func)) = stmt {
@@ -45,12 +47,32 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
                     }
                 };
                 stmts.extend(item.block.stmts.into_iter());
+            } else if is_pyfunction(&func.attrs) {
+                // This is done lazily so that empty #[pymodules] with an argument _: &PyModule
+                // don't raise an error.
+                let module_name = match module_name {
+                    ModuleName::Ident(i) => i,
+                    ModuleName::Wild(u) => {
+                        return Err(syn::Error::new_spanned(
+                            u,
+                            "module name is required for `#[pyfunction]`",
+                        ))
+                    }
+                };
+
+                let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
+                let stmt: syn::Stmt = syn::parse_quote! {
+                    #module_name.add_wrapped(&#function_wrapper_ident)?;
+                };
+                stmts.push(stmt);
             }
         };
         stmts.push(stmt.clone());
     }
 
     func.block.stmts = stmts;
+
+    Ok(())
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
@@ -122,6 +144,48 @@ fn extract_pyfn_attrs(
 
     *attrs = new_attrs;
     Some((modname?, fnname?, fn_attrs))
+}
+
+/// Check if the function has a #[pyfunction] attribute
+fn is_pyfunction(attrs: &Vec<syn::Attribute>) -> bool {
+    for attr in attrs.iter() {
+        match attr.parse_meta() {
+            Ok(syn::Meta::Path(ref path)) if path.is_ident("pyfunction") => return true,
+            _ => {}
+        }
+    }
+
+    return false;
+}
+
+enum ModuleName<'a> {
+    Ident(&'a syn::Ident),
+    Wild(&'a syn::token::Underscore),
+}
+
+fn get_module_name(sig: &syn::Signature) -> syn::Result<ModuleName> {
+    // module is second argument to #[pymodule]
+    if sig.inputs.len() != 2 {
+        return Err(syn::Error::new_spanned(
+            &sig,
+            "#[pymodule] expects two arguments",
+        ));
+    }
+
+    match &sig.inputs[1] {
+        syn::FnArg::Typed(syn::PatType { pat, .. }) => match &**pat {
+            syn::Pat::Ident(syn::PatIdent { ident, .. }) => Ok(ModuleName::Ident(ident)),
+            syn::Pat::Wild(syn::PatWild {
+                underscore_token: u,
+                ..
+            }) => Ok(ModuleName::Wild(u)),
+            _ => Err(syn::Error::new_spanned(pat, "expected #[pymodule] name")),
+        },
+        syn::FnArg::Receiver(_) => Err(syn::Error::new_spanned(
+            &sig.inputs[1],
+            "expected module argument",
+        )),
+    }
 }
 
 /// Coordinates the naming of a the add-function-to-python-module function
