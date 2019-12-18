@@ -209,33 +209,26 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
         _ => true,
     });
 
-    let mut name = None;
-
-    for (lit, span) in name_attrs {
-        if name.is_some() {
-            return Err(syn::Error::new(
-                span,
-                "#[name] can not be specified multiple times",
-            ));
+    match &*name_attrs {
+        [] => Ok(None),
+        [(syn::Lit::Str(s), span)] => {
+            let mut ident: syn::Ident = s.parse()?;
+            // This span is the whole attribute span, which is nicer for reporting errors.
+            ident.set_span(*span);
+            Ok(Some(ident))
         }
-
-        name = match lit {
-            syn::Lit::Str(s) => {
-                let mut ident: syn::Ident = s.parse()?;
-                // This span is the whole attribute span, which is nicer for reporting errors.
-                ident.set_span(span);
-                Some(ident)
-            }
-            _ => {
-                return Err(syn::Error::new(
-                    span,
-                    "Expected string literal for #[name] argument",
-                ))
-            }
-        };
+        [(_, span)] => Err(syn::Error::new(
+            *span,
+            "Expected string literal for #[name] argument",
+        )),
+        // TODO: The below pattern is unstable, so instead we match the wildcard.
+        // slice_patterns due to be stable soon: https://github.com/rust-lang/rust/issues/62254
+        // [(_, span), _, ..] => {
+        _ => Err(syn::Error::new(
+            name_attrs[0].1,
+            "#[name] can not be specified multiple times",
+        )),
     }
-
-    Ok(name)
 }
 
 pub fn build_py_function(ast: &mut syn::ItemFn, args: PyFunctionAttr) -> syn::Result<TokenStream> {

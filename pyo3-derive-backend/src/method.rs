@@ -37,8 +37,8 @@ pub struct FnSpec<'a> {
     pub tp: FnType,
     // Rust function name
     pub name: &'a syn::Ident,
-    // Wrapped python name. This should have been sent through syn::IdentExt::unraw()
-    // to ensure that any leading r# is removed.
+    // Wrapped python name. This should not have any leading r#.
+    // r# can be removed by syn::ext::IdentExt::unraw()
     pub python_name: syn::Ident,
     pub attrs: Vec<Argument>,
     pub args: Vec<FnArg<'a>>,
@@ -162,14 +162,8 @@ impl<'a> FnSpec<'a> {
                 "text_signature not allowed on __new__; if you want to add a signature on \
                  __new__, put it on the struct definition instead",
             )?,
-            FnType::FnCall => {
-                parse_erroneous_text_signature("text_signature not allowed on __call__")?
-            }
-            FnType::Getter => {
-                parse_erroneous_text_signature("text_signature not allowed on getter")?
-            }
-            FnType::Setter => {
-                parse_erroneous_text_signature("text_signature not allowed on setter")?
+            FnType::FnCall | FnType::Getter | FnType::Setter => {
+                parse_erroneous_text_signature("text_signature not allowed with this attribute")?
             }
         };
 
@@ -497,28 +491,10 @@ fn parse_method_name_attribute(
     // Reject some invalid combinations
     if let Some(name) = &name {
         match ty {
-            FnType::FnNew => {
+            FnType::FnNew | FnType::FnCall | FnType::Getter | FnType::Setter => {
                 return Err(syn::Error::new_spanned(
                     name,
-                    "name can not be specified with #[new]",
-                ))
-            }
-            FnType::FnCall => {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    "name can not be specified with #[call]",
-                ))
-            }
-            FnType::Getter => {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    "name can not be specified for getter",
-                ))
-            }
-            FnType::Setter => {
-                return Err(syn::Error::new_spanned(
-                    name,
-                    "name can not be specified for setter",
+                    "name not allowed with this attribute",
                 ))
             }
             _ => {}
