@@ -4,7 +4,6 @@ use crate::defs;
 use crate::func::impl_method_proto;
 use crate::method::FnSpec;
 use crate::pymethod;
-use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
@@ -65,21 +64,20 @@ fn impl_proto_impl(
     for iimpl in impls.iter_mut() {
         if let syn::ImplItem::Method(ref mut met) = iimpl {
             for m in proto.methods {
-                if m == met.sig.ident.to_string().as_str() {
+                if met.sig.ident == m.name() {
                     impl_method_proto(ty, &mut met.sig, m).to_tokens(&mut tokens);
                 }
             }
             for m in proto.py_methods {
-                let ident = met.sig.ident.clone();
-                if m.name == ident.to_string().as_str() {
-                    let name = syn::Ident::new(m.name, Span::call_site());
+                if met.sig.ident == m.name {
+                    let name = &met.sig.ident;
                     let proto: syn::Path = syn::parse_str(m.proto).unwrap();
 
-                    let fn_spec = match FnSpec::parse(&ident, &met.sig, &mut met.attrs) {
+                    let fn_spec = match FnSpec::parse(&met.sig, &mut met.attrs, false) {
                         Ok(fn_spec) => fn_spec,
                         Err(err) => return err.to_compile_error(),
                     };
-                    let meth = pymethod::impl_proto_wrap(ty, &ident, &fn_spec);
+                    let meth = pymethod::impl_proto_wrap(ty, &fn_spec);
 
                     py_methods.push(quote! {
                         impl #proto for #ty

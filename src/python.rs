@@ -42,7 +42,7 @@ pub use gil::prepare_freethreaded_python;
 ///  * Thread 1 locks a mutex
 ///  * Thread 1 makes a call into the python interpreter, which releases the GIL
 ///  * Thread 2 acquires the GIL
-///  * Thraed 2 tries to locks the mutex, blocks
+///  * Thread 2 tries to locks the mutex, blocks
 ///  * Thread 1's python interpreter call blocks trying to reacquire the GIL held by thread 2
 ///
 /// To avoid deadlocking, you should release the GIL before trying to lock a mutex, e.g. with

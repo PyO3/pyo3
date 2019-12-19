@@ -149,6 +149,32 @@ fn test_raw_idents() {
 }
 
 #[pyfunction]
+#[name = "foobar"]
+fn custom_named_fn() -> usize {
+    42
+}
+
+#[pymodule]
+fn foobar_module(_py: Python, module: &PyModule) -> PyResult<()> {
+    use pyo3::wrap_pyfunction;
+
+    module.add_wrapped(wrap_pyfunction!(custom_named_fn))
+}
+
+#[test]
+fn test_custom_names() {
+    use pyo3::wrap_pymodule;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let module = wrap_pymodule!(foobar_module)(py);
+
+    py_assert!(py, module, "not hasattr(module, 'custom_named_fn')");
+    py_assert!(py, module, "module.foobar() == 42");
+}
+
+#[pyfunction]
 fn subfunction() -> String {
     "Subfunction".to_string()
 }

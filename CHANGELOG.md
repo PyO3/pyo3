@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+* Support for `#[name = "foo"]` attribute for `#[pyfunction]` and in `#[pymethods]`. [#692](https://github.com/PyO3/pyo3/pull/692)
+
+## [0.8.4]
+
 ### Added
 
 * Support for `#[text_signature]` attribute. [#675](https://github.com/PyO3/pyo3/pull/675)
