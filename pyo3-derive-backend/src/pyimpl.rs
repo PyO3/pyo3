@@ -25,13 +25,7 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Resu
     let mut methods = Vec::new();
     for iimpl in impls.iter_mut() {
         if let syn::ImplItem::Method(ref mut meth) = iimpl {
-            let name = meth.sig.ident.clone();
-            methods.push(pymethod::gen_py_method(
-                ty,
-                &name,
-                &mut meth.sig,
-                &mut meth.attrs,
-            )?);
+            methods.push(pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs)?);
         }
     }
 

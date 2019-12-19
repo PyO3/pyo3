@@ -98,7 +98,7 @@ pub fn get_doc(
     attrs: &[syn::Attribute],
     text_signature: Option<syn::LitStr>,
     null_terminated: bool,
-) -> syn::Result<syn::Lit> {
+) -> syn::Result<syn::LitStr> {
     let mut doc = String::new();
     let mut span = Span::call_site();
 
@@ -139,5 +139,5 @@ pub fn get_doc(
         doc.push('\0');
     }
 
-    Ok(syn::Lit::Str(syn::LitStr::new(&doc, span)))
+    Ok(syn::LitStr::new(&doc, span))
 }

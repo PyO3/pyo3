@@ -55,16 +55,16 @@ pub enum MethodProto {
     },
 }
 
-impl PartialEq<str> for MethodProto {
-    fn eq(&self, name: &str) -> bool {
+impl MethodProto {
+    pub fn name(&self) -> &str {
         match *self {
-            MethodProto::Free { name: n, .. } => n == name,
-            MethodProto::Unary { name: n, .. } => n == name,
-            MethodProto::Binary { name: n, .. } => n == name,
-            MethodProto::BinaryS { name: n, .. } => n == name,
-            MethodProto::Ternary { name: n, .. } => n == name,
-            MethodProto::TernaryS { name: n, .. } => n == name,
-            MethodProto::Quaternary { name: n, .. } => n == name,
+            MethodProto::Free { ref name, .. } => name,
+            MethodProto::Unary { ref name, .. } => name,
+            MethodProto::Binary { ref name, .. } => name,
+            MethodProto::BinaryS { ref name, .. } => name,
+            MethodProto::Ternary { ref name, .. } => name,
+            MethodProto::TernaryS { ref name, .. } => name,
+            MethodProto::Quaternary { ref name, .. } => name,
         }
     }
 }
