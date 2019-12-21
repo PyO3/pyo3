@@ -1,7 +1,6 @@
 use crate::ffi::object::*;
 use std::os::raw::{c_double, c_int};
 
-#[cfg(not(Py_LIMITED_API))]
 #[repr(C)]
 pub struct PyFloatObject {
     pub ob_base: PyObject,

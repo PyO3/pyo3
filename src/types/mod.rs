@@ -79,10 +79,12 @@ macro_rules! pyobject_native_type_named (
 );
 
 #[macro_export]
-macro_rules! pyobject_native_type (
-    ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
+macro_rules! pyobject_native_type {
+    ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        impl $crate::type_object::PyObjectLayout<$name> for $layout {}
+        impl $crate::type_object::PyObjectSizedLayout<$name> for $layout {}
         pyobject_native_type_named!($name $(,$type_param)*);
-        pyobject_native_type_convert!($name, ffi::PyObject, $typeobject, $module, $checkfunction $(,$type_param)*);
+        pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
 
         impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
             fn from(ob: &'a $name) -> Self {
@@ -90,16 +92,36 @@ macro_rules! pyobject_native_type (
             }
         }
     };
-    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+    ($name: ty, $layout: path, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
         pyobject_native_type! {
+            $name, $layout, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! pyobject_native_var_type {
+    ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        impl $crate::type_object::PyObjectLayout<$name> for $crate::ffi::PyObject {}
+        pyobject_native_type_named!($name $(,$type_param)*);
+        pyobject_native_type_convert!($name, $crate::ffi::PyObject,
+                                      $typeobject, $module, $checkfunction $(,$type_param)*);
+        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
+            fn from(ob: &'a $name) -> Self {
+                unsafe{&*(ob as *const $name as *const $crate::types::PyAny)}
+            }
+        }
+    };
+    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        pyobject_native_var_type! {
             $name, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
         }
     };
-);
+}
 
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
-    ($name: ty, $layout: ty, $typeobject: expr,
+    ($name: ty, $layout: path, $typeobject: expr,
      $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
@@ -161,16 +183,6 @@ macro_rules! pyobject_native_type_convert(
             }
         }
     };
-    ($name: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        pyobject_native_type_convert! {
-            $name, ffi::PyObject, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
-        }
-    };
-    // ($name: ty, $layout: ty, $typeobject: expr, $checkfunction: path $(,$type_param: ident)*) => {
-    //     pyobject_native_type_convert! {
-    //         $name, $layout, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
-    //     }
-    // };
 );
 
 mod any;

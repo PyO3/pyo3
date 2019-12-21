@@ -120,12 +120,7 @@ macro_rules! int_convert_128 {
 #[repr(transparent)]
 pub struct PyLong(PyObject, Unsendable);
 
-pyobject_native_type!(
-    PyLong,
-    ffi::PyLong_Type,
-    Some("builtins"),
-    ffi::PyLong_Check
-);
+pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 
 macro_rules! int_fits_c_long {
     ($rust_type:ty) => {

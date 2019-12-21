@@ -1,5 +1,5 @@
 use crate::ffi::object::*;
-use crate::ffi::pyport::Py_ssize_t;
+use crate::ffi::pyport::{Py_hash_t, Py_ssize_t};
 use std::os::raw::c_int;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -9,6 +9,28 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyFrozenSet_Type")]
     pub static mut PyFrozenSet_Type: PyTypeObject;
     pub static mut PySetIter_Type: PyTypeObject;
+}
+
+pub const PySet_MINSIZE: usize = 8;
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct setentry {
+    pub key: *mut PyObject,
+    pub hash: Py_hash_t,
+}
+
+#[repr(C)]
+pub struct PySetObject {
+    pub ob_base: PyObject,
+    pub fill: Py_ssize_t,
+    pub used: Py_ssize_t,
+    pub mask: Py_ssize_t,
+    pub table: *mut setentry,
+    pub hash: Py_hash_t,
+    pub finger: Py_ssize_t,
+    pub smalltable: [setentry; PySet_MINSIZE],
+    pub weakreflist: *mut PyObject,
 }
 
 #[inline]

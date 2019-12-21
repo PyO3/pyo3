@@ -3,7 +3,7 @@
 //! Conversions between various states of rust and python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
-use crate::type_object::{PyConcreteObject, PyTypeInfo};
+use crate::type_object::{PyObjectLayout, PyTypeInfo};
 use crate::types::PyAny;
 use crate::types::PyTuple;
 use crate::{ffi, gil, Py, Python};

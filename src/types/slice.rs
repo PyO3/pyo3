@@ -15,7 +15,12 @@ use std::os::raw::c_long;
 #[repr(transparent)]
 pub struct PySlice(PyObject, Unsendable);
 
-pyobject_native_type!(PySlice, ffi::PySlice_Type, ffi::PySlice_Check);
+pyobject_native_type!(
+    PySlice,
+    ffi::PySliceObject,
+    ffi::PySlice_Type,
+    ffi::PySlice_Check
+);
 
 /// Represents a Python `slice` indices
 pub struct PySliceIndices {

@@ -5,13 +5,7 @@ use std::os::raw::c_int;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyListObject {
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    pub _ob_next: *mut PyObject,
-    #[cfg(py_sys_config = "Py_TRACE_REFS")]
-    pub _ob_prev: *mut PyObject,
-    pub ob_refcnt: Py_ssize_t,
-    pub ob_type: *mut PyTypeObject,
-    pub ob_size: Py_ssize_t,
+    pub ob_base: PyVarObject,
     pub ob_item: *mut *mut PyObject,
     pub allocated: Py_ssize_t,
 }

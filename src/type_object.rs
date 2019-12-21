@@ -2,32 +2,32 @@
 
 //! Python type object information
 
-use crate::ffi;
 use crate::instance::Py;
-use crate::instance::PyNativeType;
-use crate::types::PyAny;
-use crate::types::PyType;
-use crate::AsPyPointer;
-use crate::Python;
+use crate::types::{PyAny, PyType};
+use crate::{ffi, AsPyPointer, Python};
 use std::ptr::NonNull;
 
 /// TODO: write document
-pub trait PyConcreteObject<T: PyTypeInfo>: Sized {
+pub trait PyObjectLayout<T: PyTypeInfo> {
     const NEED_INIT: bool = false;
+    const IS_NATIVE_TYPE: bool = true;
+
+    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+        None
+    }
+
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
         &*(obj as *const _ as *const T)
     }
     unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
         &mut *(obj as *const _ as *const T as *mut T)
     }
-    unsafe fn py_drop(&mut self, _py: Python) {}
+
     unsafe fn py_init(&mut self, _value: T) {}
-    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
-        None
-    }
+    unsafe fn py_drop(&mut self, _py: Python) {}
 }
 
-impl<T: PyNativeType + PyTypeInfo> PyConcreteObject<T> for ffi::PyObject {}
+pub trait PyObjectSizedLayout<T: PyTypeInfo>: PyObjectLayout<T> + Sized {}
 
 /// Our custom type flags
 pub mod type_flags {
@@ -42,6 +42,9 @@ pub mod type_flags {
 
     /// The instances of this type have a dictionary containing instance variables
     pub const DICT: usize = 1 << 3;
+
+    /// The class declared by #[pyclass(extends=~)]
+    pub const EXTENDED: usize = 1 << 4;
 }
 
 /// Python type information.
@@ -65,7 +68,7 @@ pub trait PyTypeInfo: Sized {
     type BaseType: PyTypeInfo + PyTypeObject;
 
     /// Layout
-    type ConcreteLayout: PyConcreteObject<Self>;
+    type ConcreteLayout: PyObjectLayout<Self>;
 
     /// PyTypeObject instance for this type, which might still need to
     /// be initialized

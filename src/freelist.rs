@@ -4,7 +4,7 @@
 
 use crate::ffi;
 use crate::pyclass::{tp_free_fallback, PyClassAlloc};
-use crate::type_object::{PyConcreteObject, PyTypeInfo};
+use crate::type_object::{PyObjectLayout, PyTypeInfo};
 use crate::Python;
 use std::mem;
 use std::os::raw::c_void;
@@ -77,7 +77,7 @@ where
             ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object());
             obj as _
         } else {
-            ffi::PyType_GenericAlloc(<Self as PyTypeInfo>::type_object(), 0) as _
+            crate::pyclass::default_alloc::<Self>() as _
         }
     }
 

@@ -22,7 +22,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyObject, Unsendable);
 
-pyobject_native_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
+pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 
 impl PyModule {
     /// Create a new module object with the `__name__` attribute set to name.

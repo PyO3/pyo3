@@ -25,7 +25,12 @@ use std::os::raw::c_double;
 #[repr(transparent)]
 pub struct PyFloat(PyObject, Unsendable);
 
-pyobject_native_type!(PyFloat, ffi::PyFloat_Type, ffi::PyFloat_Check);
+pyobject_native_type!(
+    PyFloat,
+    ffi::PyFloatObject,
+    ffi::PyFloat_Type,
+    ffi::PyFloat_Check
+);
 
 impl PyFloat {
     /// Creates a new Python `float` object.

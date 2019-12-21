@@ -69,6 +69,7 @@ pub trait PyTimeAccess {
 pub struct PyDate(PyObject, Unsendable);
 pyobject_native_type!(
     PyDate,
+    crate::ffi::PyDateTime_Date,
     *PyDateTimeAPI.DateType,
     Some("datetime"),
     PyDate_Check
@@ -124,6 +125,7 @@ impl PyDateAccess for PyDate {
 pub struct PyDateTime(PyObject, Unsendable);
 pyobject_native_type!(
     PyDateTime,
+    crate::ffi::PyDateTime_DateTime,
     *PyDateTimeAPI.DateTimeType,
     Some("datetime"),
     PyDateTime_Check
@@ -233,6 +235,7 @@ impl PyTimeAccess for PyDateTime {
 pub struct PyTime(PyObject, Unsendable);
 pyobject_native_type!(
     PyTime,
+    crate::ffi::PyDateTime_Time,
     *PyDateTimeAPI.TimeType,
     Some("datetime"),
     PyTime_Check
@@ -315,7 +318,7 @@ impl PyTimeAccess for PyTime {
 ///
 /// This is an abstract base class and should not be constructed directly.
 pub struct PyTzInfo(PyObject, Unsendable);
-pyobject_native_type!(
+pyobject_native_var_type!(
     PyTzInfo,
     *PyDateTimeAPI.TZInfoType,
     Some("datetime"),
@@ -326,6 +329,7 @@ pyobject_native_type!(
 pub struct PyDelta(PyObject, Unsendable);
 pyobject_native_type!(
     PyDelta,
+    crate::ffi::PyDateTime_Delta,
     *PyDateTimeAPI.DeltaType,
     Some("datetime"),
     PyDelta_Check

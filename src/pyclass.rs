@@ -3,7 +3,7 @@ use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::exceptions::RuntimeError;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{type_flags, PyConcreteObject, PyTypeObject};
+use crate::type_object::{type_flags, PyObjectLayout, PyObjectSizedLayout, PyTypeObject};
 use crate::types::PyAny;
 use crate::{class, ffi, gil, PyErr, PyObject, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
@@ -11,12 +11,25 @@ use std::mem::ManuallyDrop;
 use std::os::raw::c_void;
 use std::ptr::{self, NonNull};
 
+#[inline]
+pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
+    let tp_ptr = T::type_object();
+    if T::FLAGS & type_flags::EXTENDED != 0
+        && <T::BaseType as PyTypeInfo>::ConcreteLayout::IS_NATIVE_TYPE
+    {
+        let base_tp_ptr = <T::BaseType as PyTypeInfo>::type_object();
+        if let Some(base_new) = (*base_tp_ptr).tp_new {
+            return base_new(tp_ptr, ptr::null_mut(), ptr::null_mut());
+        }
+    }
+    let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+    alloc(tp_ptr, 0)
+}
+
 /// A trait that enables custome alloc/dealloc implementations for pyclasses.
 pub trait PyClassAlloc: PyTypeInfo + Sized {
     unsafe fn alloc(_py: Python) -> *mut Self::ConcreteLayout {
-        let tp_ptr = Self::type_object();
-        let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
-        alloc(tp_ptr, 0) as _
+        default_alloc::<Self>() as _
     }
 
     unsafe fn dealloc(py: Python, self_: *mut Self::ConcreteLayout) {
@@ -49,7 +62,9 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
     }
 }
 
-pub trait PyClass: PyTypeInfo + Sized + PyClassAlloc + PyMethodsProtocol {
+pub trait PyClass:
+    PyTypeInfo<ConcreteLayout = PyClassShell<Self>> + Sized + PyClassAlloc + PyMethodsProtocol
+{
     type Dict: PyClassDict;
     type WeakRef: PyClassWeakRef;
 }
@@ -88,7 +103,8 @@ pub struct PyClassShell<T: PyClass> {
 impl<T: PyClass> PyClassShell<T> {
     pub fn new_ref(py: Python, value: impl IntoInitializer<T>) -> PyResult<&Self>
     where
-        T: PyTypeInfo<ConcreteLayout = Self>,
+        <T::BaseType as PyTypeInfo>::ConcreteLayout:
+            crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         unsafe {
             let initializer = value.into_initializer()?;
@@ -99,7 +115,8 @@ impl<T: PyClass> PyClassShell<T> {
 
     pub fn new_mut(py: Python, value: impl IntoInitializer<T>) -> PyResult<&mut Self>
     where
-        T: PyTypeInfo<ConcreteLayout = Self>,
+        <T::BaseType as PyTypeInfo>::ConcreteLayout:
+            crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         unsafe {
             let initializer = value.into_initializer()?;
@@ -109,7 +126,11 @@ impl<T: PyClass> PyClassShell<T> {
     }
 
     #[doc(hidden)]
-    unsafe fn new(py: Python) -> PyResult<*mut Self> {
+    unsafe fn new(py: Python) -> PyResult<*mut Self>
+    where
+        <T::BaseType as PyTypeInfo>::ConcreteLayout:
+            crate::type_object::PyObjectSizedLayout<T::BaseType>,
+    {
         <T::BaseType as PyTypeObject>::init_type();
         T::init_type();
         let base = T::alloc(py);
@@ -123,8 +144,12 @@ impl<T: PyClass> PyClassShell<T> {
     }
 }
 
-impl<T: PyClass> PyConcreteObject<T> for PyClassShell<T> {
+impl<T: PyClass> PyObjectLayout<T> for PyClassShell<T> {
     const NEED_INIT: bool = std::mem::size_of::<T>() != 0;
+    const IS_NATIVE_TYPE: bool = false;
+    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+        Some(&mut self.ob_base)
+    }
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
         let shell = obj.as_ptr() as *const PyClassShell<T>;
         &(*shell).pyclass
@@ -142,10 +167,9 @@ impl<T: PyClass> PyConcreteObject<T> for PyClassShell<T> {
     unsafe fn py_init(&mut self, value: T) {
         self.pyclass = ManuallyDrop::new(value);
     }
-    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
-        Some(&mut self.ob_base)
-    }
 }
+
+impl<T: PyClass> PyObjectSizedLayout<T> for PyClassShell<T> {}
 
 impl<T: PyClass> AsPyPointer for PyClassShell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
@@ -208,8 +232,6 @@ where
 }
 
 /// An initializer for `PyClassShell<T>`.
-///
-/// **NOTE** If
 pub struct PyClassInitializer<T: PyTypeInfo> {
     init: Option<T>,
     super_init: Option<*mut PyClassInitializer<T::BaseType>>,
@@ -273,7 +295,9 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
 
     pub unsafe fn create_shell(self, py: Python) -> PyResult<*mut PyClassShell<T>>
     where
-        T: PyClass + PyTypeInfo<ConcreteLayout = PyClassShell<T>>,
+        T: PyClass,
+        <T::BaseType as PyTypeInfo>::ConcreteLayout:
+            crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         let shell = PyClassShell::new(py)?;
         self.init_class(&mut *shell)?;

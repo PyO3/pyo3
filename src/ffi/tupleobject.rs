@@ -3,7 +3,6 @@ use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::c_int;
 
 #[repr(C)]
-#[cfg(not(Py_LIMITED_API))]
 pub struct PyTupleObject {
     pub ob_base: PyVarObject,
     pub ob_item: [*mut PyObject; 1],

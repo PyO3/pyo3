@@ -129,7 +129,7 @@ pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::pyclass::{PyClass, PyClassInitializer, PyClassShell};
 pub use crate::python::{prepare_freethreaded_python, Python};
-pub use crate::type_object::{type_flags, PyConcreteObject, PyTypeInfo};
+pub use crate::type_object::{type_flags, PyTypeInfo};
 
 // Re-exported for wrap_function
 #[doc(hidden)]

@@ -16,6 +16,7 @@ pub struct PyClassArgs {
     pub name: Option<syn::Expr>,
     pub flags: Vec<syn::Expr>,
     pub base: syn::TypePath,
+    pub has_extends: bool,
     pub module: Option<syn::LitStr>,
 }
 
@@ -39,8 +40,9 @@ impl Default for PyClassArgs {
             module: None,
             // We need the 0 as value for the constant we're later building using quote for when there
             // are no other flags
-            flags: vec![parse_quote! {0}],
-            base: parse_quote! {pyo3::types::PyAny},
+            flags: vec![parse_quote! { 0 }],
+            base: parse_quote! { pyo3::types::PyAny },
+            has_extends: false,
         }
     }
 }
@@ -89,6 +91,7 @@ impl PyClassArgs {
                         path: exp.path.clone(),
                         qself: None,
                     };
+                    self.has_extends = true;
                 }
                 _ => {
                     return Err(syn::Error::new_spanned(
@@ -318,7 +321,7 @@ fn impl_class(
             }
         }
     }
-    // TODO: implement dict and weakref
+
     let weakref = if has_weakref {
         quote! { type WeakRef = pyo3::pyclass_slots::PyClassWeakRefSlot; }
     } else {
@@ -355,6 +358,11 @@ fn impl_class(
 
     let base = &attr.base;
     let flags = &attr.flags;
+    let extended = if attr.has_extends {
+        quote! { pyo3::type_flags::EXTENDED }
+    } else {
+        quote! { 0 }
+    };
 
     Ok(quote! {
         impl pyo3::type_object::PyTypeInfo for #cls {
@@ -365,7 +373,7 @@ fn impl_class(
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
             const DESCRIPTION: &'static str = #doc;
-            const FLAGS: usize = #(#flags)|*;
+            const FLAGS: usize = #(#flags)|* | #extended;
 
             #[inline]
             unsafe fn type_object() -> &'static mut pyo3::ffi::PyTypeObject {

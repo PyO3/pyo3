@@ -24,7 +24,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyString(PyObject, Unsendable);
 
-pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
+pyobject_native_var_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
 impl PyString {
     /// Creates a new Python string object.

@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::gil::{self, GILGuard};
 use crate::instance::AsPyRef;
 use crate::object::PyObject;
-use crate::type_object::{PyConcreteObject, PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyObjectLayout, PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::AsPyPointer;
 use crate::{FromPyPointer, IntoPyPointer, PyTryFrom};
