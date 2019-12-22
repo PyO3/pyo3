@@ -37,7 +37,7 @@ impl PyClassWeakRef for PyClassDummySlot {
     }
 }
 
-/// actural dict field
+/// actual dict field
 #[repr(transparent)]
 pub struct PyClassDictSlot(*mut ffi::PyObject);
 
@@ -54,7 +54,7 @@ impl PyClassDict for PyClassDictSlot {
     }
 }
 
-/// actural weakref field
+/// actual weakref field
 #[repr(transparent)]
 pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 

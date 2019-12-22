@@ -371,7 +371,7 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         }
         let super_init = Box::into_raw(Box::new(PyClassInitializer::new()));
         self.super_init = Some(super_init);
-        return unsafe { &mut *super_init };
+        unsafe { &mut *super_init }
     }
 
     #[doc(hidden)]
