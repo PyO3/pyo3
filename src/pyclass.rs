@@ -62,6 +62,11 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
     }
 }
 
+/// If `PyClass` is implemented for `T`, then we can use `T` in the Python world,
+/// via `PyClassShell`.
+///
+/// `#[pyclass]` attribute automatically implement this trait for your Rust struct,
+/// so you don't have to use this trait directly.
 pub trait PyClass:
     PyTypeInfo<ConcreteLayout = PyClassShell<Self>> + Sized + PyClassAlloc + PyMethodsProtocol
 {
@@ -91,7 +96,28 @@ where
     }
 }
 
-/// `PyClassShell` represents the concrete layout of our `#[pyclass]` in the Python heap.
+/// `PyClassShell` represents the concrete layout of `PyClass` in the Python heap.
+///
+/// You can use it for testing your `#[pyclass]` correctly works.
+///
+/// ```
+/// # use pyo3::prelude::*;
+/// # use pyo3::{py_run, PyClassShell};
+/// #[pyclass]
+/// struct Book {
+///     #[pyo3(get)]
+///     name: &'static str,
+///     author: &'static str,
+/// }
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let book = Book {
+///     name: "The Man in the High Castle",
+///     author: "Philip Kindred Dick",
+/// };
+/// let book_shell = PyClassShell::new_ref(py, book).unwrap();
+/// py_run!(py, book_shell, "assert book_shell.name[-6:] == 'Castle'");
+/// ```
 #[repr(C)]
 pub struct PyClassShell<T: PyClass> {
     ob_base: <T::BaseType as PyTypeInfo>::ConcreteLayout,
@@ -101,6 +127,7 @@ pub struct PyClassShell<T: PyClass> {
 }
 
 impl<T: PyClass> PyClassShell<T> {
+    /// Make new `PyClassShell` on the Python heap and returns the reference of it.
     pub fn new_ref(py: Python, value: impl IntoInitializer<T>) -> PyResult<&Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
@@ -113,6 +140,7 @@ impl<T: PyClass> PyClassShell<T> {
         }
     }
 
+    /// Make new `PyClassShell` on the Python heap and returns the mutable reference of it.
     pub fn new_mut(py: Python, value: impl IntoInitializer<T>) -> PyResult<&mut Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
@@ -125,7 +153,16 @@ impl<T: PyClass> PyClassShell<T> {
         }
     }
 
-    #[doc(hidden)]
+    /// Get the reference of base object.
+    pub fn get_super(&self) -> &<T::BaseType as PyTypeInfo>::ConcreteLayout {
+        &self.ob_base
+    }
+
+    /// Get the mutable reference of base object.
+    pub fn get_super_mut(&mut self) -> &mut <T::BaseType as PyTypeInfo>::ConcreteLayout {
+        &mut self.ob_base
+    }
+
     unsafe fn new(py: Python) -> PyResult<*mut Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
@@ -147,7 +184,7 @@ impl<T: PyClass> PyClassShell<T> {
 impl<T: PyClass> PyObjectLayout<T> for PyClassShell<T> {
     const NEED_INIT: bool = std::mem::size_of::<T>() != 0;
     const IS_NATIVE_TYPE: bool = false;
-    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+    fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
         Some(&mut self.ob_base)
     }
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
@@ -231,13 +268,53 @@ where
     }
 }
 
-/// An initializer for `PyClassShell<T>`.
+/// A speciall initializer for `PyClassShell<T>`, which enables `super().__init__`
+/// in Rust code.
+///
+/// You have to use it only when your `#[pyclass]` extends another `#[pyclass]`.
+///
+/// ```
+/// # use pyo3::prelude::*;
+/// # use pyo3::py_run;
+/// #[pyclass]
+/// struct BaseClass {
+///     #[pyo3(get)]
+///     basename: &'static str,
+/// }
+/// #[pyclass(extends=BaseClass)]
+/// struct SubClass {
+///     #[pyo3(get)]
+///     subname: &'static str,
+/// }
+/// #[pymethods]
+/// impl SubClass {
+///     #[new]
+///     fn new() -> PyClassInitializer<Self> {
+///         let mut init = PyClassInitializer::from_value(SubClass{ subname: "sub"  });
+///         init.get_super().init(BaseClass { basename: "base" });
+///         init
+///     }
+/// }
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// let _basetype = py.get_type::<BaseClass>();
+/// let typeobj = py.get_type::<SubClass>();
+/// let inst = typeobj.call((), None).unwrap();
+/// py_run!(py, inst, "assert inst.basename == 'base'; assert inst.subname == 'sub'");
+/// ```
 pub struct PyClassInitializer<T: PyTypeInfo> {
     init: Option<T>,
     super_init: Option<*mut PyClassInitializer<T::BaseType>>,
 }
 
 impl<T: PyTypeInfo> PyClassInitializer<T> {
+    /// Construct `PyClassInitializer` for specified value `value`.
+    ///
+    /// Same as
+    /// ```ignore
+    /// let mut init = PyClassInitializer::<T>();
+    /// init.init(value);
+    /// ```
     pub fn from_value(value: T) -> Self {
         PyClassInitializer {
             init: Some(value),
@@ -245,6 +322,7 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         }
     }
 
+    /// Make new `PyClassInitializer` with empty values.
     pub fn new() -> Self {
         PyClassInitializer {
             init: None,
@@ -271,7 +349,7 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         }
         if let Some(super_init) = super_init {
             let super_init = unsafe { Box::from_raw(super_init) };
-            if let Some(super_obj) = shell.get_super() {
+            if let Some(super_obj) = shell.get_super_or() {
                 super_init.init_class(super_obj)?;
             }
         } else if <T::BaseType as PyTypeInfo>::ConcreteLayout::NEED_INIT {
@@ -280,10 +358,13 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         Ok(())
     }
 
+    /// Pass the value that you use in Python to the initializer.
     pub fn init(&mut self, value: T) {
         self.init = Some(value);
     }
 
+    /// Get the initializer for the base object.
+    /// Resembles `super().__init__()` in Python.
     pub fn get_super(&mut self) -> &mut PyClassInitializer<T::BaseType> {
         if let Some(super_init) = self.super_init {
             return unsafe { &mut *super_init };
@@ -293,6 +374,7 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         return unsafe { &mut *super_init };
     }
 
+    #[doc(hidden)]
     pub unsafe fn create_shell(self, py: Python) -> PyResult<*mut PyClassShell<T>>
     where
         T: PyClass,
@@ -305,29 +387,32 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
     }
 }
 
-pub trait IntoInitializer<T: PyTypeInfo> {
+/// Represets that we can convert the type to `PyClassInitializer`.
+///
+/// It is mainly used in our proc-macro code.
+pub trait IntoInitializer<T: PyClass> {
     fn into_initializer(self) -> PyResult<PyClassInitializer<T>>;
 }
 
-impl<T: PyTypeInfo> IntoInitializer<T> for T {
+impl<T: PyClass> IntoInitializer<T> for T {
     fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
         Ok(PyClassInitializer::from_value(self))
     }
 }
 
-impl<T: PyTypeInfo> IntoInitializer<T> for PyResult<T> {
+impl<T: PyClass> IntoInitializer<T> for PyResult<T> {
     fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
         self.map(PyClassInitializer::from_value)
     }
 }
 
-impl<T: PyTypeInfo> IntoInitializer<T> for PyClassInitializer<T> {
+impl<T: PyClass> IntoInitializer<T> for PyClassInitializer<T> {
     fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
         Ok(self)
     }
 }
 
-impl<T: PyTypeInfo> IntoInitializer<T> for PyResult<PyClassInitializer<T>> {
+impl<T: PyClass> IntoInitializer<T> for PyResult<PyClassInitializer<T>> {
     fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
         self
     }

@@ -12,7 +12,7 @@
 
 pub use crate::err::{PyErr, PyResult};
 pub use crate::gil::GILGuard;
-pub use crate::instance::Py;
+pub use crate::instance::{AsPyRef, Py};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::python::Python;

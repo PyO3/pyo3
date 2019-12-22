@@ -108,8 +108,8 @@ impl MyClass {
     // the signature for the constructor is attached
     // to the struct definition instead.
     #[new]
-    fn new(obj: &PyRawObject, c: i32, d: &str) {
-        obj.init(Self {});
+    fn new(c: i32, d: &str) -> Self {
+        Self {}
     }
     // the self argument should be written $self
     #[text_signature = "($self, e, f)"]

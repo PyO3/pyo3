@@ -12,7 +12,7 @@ pub trait PyObjectLayout<T: PyTypeInfo> {
     const NEED_INIT: bool = false;
     const IS_NATIVE_TYPE: bool = true;
 
-    fn get_super(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+    fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
         None
     }
 
