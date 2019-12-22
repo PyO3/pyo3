@@ -68,16 +68,30 @@ fn inheritance_with_new_methods() {
 }
 
 #[pyclass(extends=BaseClass)]
-struct InvalidSubClass {
+struct InvalidSubClass1 {
     #[pyo3(get)]
     val2: usize,
 }
 
 #[pymethods]
-impl InvalidSubClass {
+impl InvalidSubClass1 {
     #[new]
     fn new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from_value(InvalidSubClass { val2: 5 })
+        PyClassInitializer::from_value(InvalidSubClass1 { val2: 5 })
+    }
+}
+
+#[pyclass(extends=BaseClass)]
+struct InvalidSubClass2 {
+    #[pyo3(get)]
+    val2: usize,
+}
+
+#[pymethods]
+impl InvalidSubClass2 {
+    #[new]
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::new()
     }
 }
 
@@ -86,7 +100,9 @@ fn uninit_baseclass_raise_exception() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let _baseclass = py.get_type::<BaseClass>();
-    let subclass = py.get_type::<InvalidSubClass>();
+    let subclass = py.get_type::<InvalidSubClass1>();
+    py_expect_exception!(py, subclass, "subclass()", RuntimeError);
+    let subclass = py.get_type::<InvalidSubClass2>();
     py_expect_exception!(py, subclass, "subclass()", RuntimeError);
 }
 
@@ -94,7 +110,7 @@ fn uninit_baseclass_raise_exception() {
 fn uninit_baseclass_returns_err() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let subclass = pyo3::pyclass::PyClassShell::new_ref(py, InvalidSubClass { val2: 5 });
+    let subclass = pyo3::pyclass::PyClassShell::new_ref(py, InvalidSubClass1 { val2: 5 });
     if let Err(err) = subclass {
         py_run!(
             py,

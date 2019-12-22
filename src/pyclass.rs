@@ -344,7 +344,7 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         let PyClassInitializer { init, super_init } = self;
         if let Some(value) = init {
             unsafe { shell.py_init(value) };
-        } else if !T::ConcreteLayout::NEED_INIT {
+        } else if T::ConcreteLayout::NEED_INIT {
             raise_err!(T::NAME);
         }
         if let Some(super_init) = super_init {
