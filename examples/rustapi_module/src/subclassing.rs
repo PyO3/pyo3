@@ -8,8 +8,8 @@ pub struct Subclassable {}
 #[pymethods]
 impl Subclassable {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(Subclassable {});
+    fn new() -> Self {
+        Subclassable {}
     }
 }
 

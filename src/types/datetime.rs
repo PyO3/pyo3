@@ -318,8 +318,9 @@ impl PyTimeAccess for PyTime {
 ///
 /// This is an abstract base class and should not be constructed directly.
 pub struct PyTzInfo(PyObject, Unsendable);
-pyobject_native_var_type!(
+pyobject_native_type!(
     PyTzInfo,
+    crate::ffi::PyObject,
     *PyDateTimeAPI.TZInfoType,
     Some("datetime"),
     PyTZInfo_Check

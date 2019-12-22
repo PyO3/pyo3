@@ -13,10 +13,10 @@ pub struct ModClass {
 #[pymethods]
 impl ModClass {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(ModClass {
+    fn new() -> Self {
+        ModClass {
             _somefield: String::from("contents"),
-        })
+        }
     }
 
     fn noop(&self, x: usize) -> usize {

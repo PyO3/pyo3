@@ -9,8 +9,8 @@ struct BytesExtractor {}
 #[pymethods]
 impl BytesExtractor {
     #[new]
-    pub fn __new__(obj: &PyRawObject) {
-        obj.init({ BytesExtractor {} });
+    pub fn __new__() -> Self {
+        BytesExtractor {}
     }
 
     pub fn from_bytes(&mut self, bytes: &PyBytes) -> PyResult<usize> {
