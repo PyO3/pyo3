@@ -89,16 +89,15 @@ pyo3::inventory::collect!(MyClassGeneratedPyo3Inventory);
 ## Get Python objects from `pyclass`
 You sometimes need to convert your `pyclass` into a Python object in Rust code (e.g., for testing it).
 
-You can use `PyClassShell<T>` or `Py<T>` for this purpose.
+For getting *GIL-bounded*(i.e., with `'py` lifetime) references of `pyclass`,
+you can use `PyClassShell<T>`.
+Or you can use `Py<T>` directly, for *not-GIL-bounded* references.
 
 ### `PyClassShell`
+`PyClassShell` represents the actual layout of `pyclass` on the Python heap.
 
-`PyClassShell` is a special type made for `PyClass`.
-
-It represents the actual layout of `pyclass` on the Python heap and is used to extract it from
-the Python object pointer.
-
-To make pyclass in Python heap, you can use `PyClassShell::new_ref` or `PyClassShell::new_mut`.
+If you want to instantiate `pyclass` in Python and get the the reference,
+you can use `PyClassShell::new_ref` or `PyClassShell::new_mut`.
 
 ```rust
 # use pyo3::prelude::*;
