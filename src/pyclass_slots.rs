@@ -1,5 +1,4 @@
 //! This module contains additional fields pf pyclass
-// TODO(kngwyu): Add vectorcall support
 use crate::{ffi, Python};
 
 const POINTER_SIZE: isize = std::mem::size_of::<*mut ffi::PyObject>() as _;
@@ -8,7 +7,7 @@ const POINTER_SIZE: isize = std::mem::size_of::<*mut ffi::PyObject>() as _;
 pub trait PyClassDict {
     const OFFSET: Option<isize> = None;
     fn new() -> Self;
-    fn clear_dict(&mut self, _py: Python) {}
+    unsafe fn clear_dict(&mut self, _py: Python) {}
     private_decl! {}
 }
 
@@ -16,7 +15,7 @@ pub trait PyClassDict {
 pub trait PyClassWeakRef {
     const OFFSET: Option<isize> = None;
     fn new() -> Self;
-    fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python) {}
+    unsafe fn clear_weakrefs(&mut self, _obj: *mut ffi::PyObject, _py: Python) {}
     private_decl! {}
 }
 
@@ -47,9 +46,9 @@ impl PyClassDict for PyClassDictSlot {
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
-    fn clear_dict(&mut self, _py: Python) {
-        if self.0 != std::ptr::null_mut() {
-            unsafe { ffi::PyDict_Clear(self.0) }
+    unsafe fn clear_dict(&mut self, _py: Python) {
+        if !self.0.is_null() {
+            ffi::PyDict_Clear(self.0)
         }
     }
 }
@@ -64,9 +63,9 @@ impl PyClassWeakRef for PyClassWeakRefSlot {
     fn new() -> Self {
         Self(std::ptr::null_mut())
     }
-    fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python) {
-        if self.0 != std::ptr::null_mut() {
-            unsafe { ffi::PyObject_ClearWeakRefs(obj) }
+    unsafe fn clear_weakrefs(&mut self, obj: *mut ffi::PyObject, _py: Python) {
+        if !self.0.is_null() {
+            ffi::PyObject_ClearWeakRefs(obj)
         }
     }
 }

@@ -119,7 +119,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
         if self.index < self.slice.len() {
             let item = self.slice[self.index].as_ref(self.py);
             self.index += 1;
-            Some(item.into())
+            Some(item)
         } else {
             None
         }

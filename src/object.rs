@@ -162,7 +162,7 @@ impl PyObject {
     where
         D: FromPyObject<'p>,
     {
-        FromPyObject::extract(self.as_ref(py).into())
+        FromPyObject::extract(self.as_ref(py))
     }
 
     /// Retrieves an attribute value.

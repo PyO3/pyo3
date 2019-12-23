@@ -7,7 +7,11 @@ use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
 use std::ptr::NonNull;
 
-/// TODO: write document
+/// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
+/// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
+/// is of `PyAny`.
+///
+/// This trait is intended to be used internally.
 pub trait PyObjectLayout<T: PyTypeInfo> {
     const NEED_INIT: bool = false;
     const IS_NATIVE_TYPE: bool = true;
@@ -19,6 +23,8 @@ pub trait PyObjectLayout<T: PyTypeInfo> {
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
         &*(obj as *const _ as *const T)
     }
+
+    #[allow(clippy::mut_from_ref)]
     unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
         &mut *(obj as *const _ as *const T as *mut T)
     }
@@ -27,6 +33,11 @@ pub trait PyObjectLayout<T: PyTypeInfo> {
     unsafe fn py_drop(&mut self, _py: Python) {}
 }
 
+/// `T: PyObjectSizedLayout<U>` represents `T` is not a instance of
+/// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
+/// , in addition that `T` is a concrete representaion of `U`.
+///
+/// `pyclass`es need this trait for their base class.
 pub trait PyObjectSizedLayout<T: PyTypeInfo>: PyObjectLayout<T> + Sized {}
 
 /// Our custom type flags

@@ -91,7 +91,7 @@ struct InvalidSubClass2 {
 impl InvalidSubClass2 {
     #[new]
     fn new() -> PyClassInitializer<Self> {
-        PyClassInitializer::new()
+        PyClassInitializer::default()
     }
 }
 

@@ -307,12 +307,21 @@ pub struct PyClassInitializer<T: PyTypeInfo> {
     super_init: Option<*mut PyClassInitializer<T::BaseType>>,
 }
 
+impl<T: PyTypeInfo> Default for PyClassInitializer<T> {
+    fn default() -> Self {
+        Self {
+            init: None,
+            super_init: None,
+        }
+    }
+}
+
 impl<T: PyTypeInfo> PyClassInitializer<T> {
     /// Construct `PyClassInitializer` for specified value `value`.
     ///
     /// Same as
     /// ```ignore
-    /// let mut init = PyClassInitializer::<T>();
+    /// let mut init = PyClassInitializer::default::<T>();
     /// init.init(value);
     /// ```
     pub fn from_value(value: T) -> Self {
@@ -322,17 +331,8 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         }
     }
 
-    /// Make new `PyClassInitializer` with empty values.
-    pub fn new() -> Self {
-        PyClassInitializer {
-            init: None,
-            super_init: None,
-        }
-    }
-
     #[must_use]
-    #[doc(hiddden)]
-    pub fn init_class(self, shell: &mut T::ConcreteLayout) -> PyResult<()> {
+    fn init_class(self, shell: &mut T::ConcreteLayout) -> PyResult<()> {
         macro_rules! raise_err {
             ($name: path) => {
                 return Err(PyErr::new::<RuntimeError, _>(format!(
@@ -369,7 +369,7 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
         if let Some(super_init) = self.super_init {
             return unsafe { &mut *super_init };
         }
-        let super_init = Box::into_raw(Box::new(PyClassInitializer::new()));
+        let super_init = Box::into_raw(Box::new(PyClassInitializer::default()));
         self.super_init = Some(super_init);
         unsafe { &mut *super_init }
     }
