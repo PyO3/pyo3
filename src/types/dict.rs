@@ -12,7 +12,7 @@ use crate::Python;
 use crate::{ffi, IntoPy};
 use crate::{FromPyObject, PyTryFrom};
 use crate::{ToBorrowedObject, ToPyObject};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
@@ -321,6 +321,21 @@ where
     }
 }
 
+impl<'source, K, V> FromPyObject<'source> for BTreeMap<K, V>
+where
+    K: FromPyObject<'source> + cmp::Ord,
+    V: FromPyObject<'source>,
+{
+    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+        let dict = <PyDict as PyTryFrom>::try_from(ob)?;
+        let mut ret = BTreeMap::new();
+        for (k, v) in dict.iter() {
+            ret.insert(K::extract(k)?, V::extract(v)?);
+        }
+        Ok(ret)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::conversion::IntoPy;
@@ -341,6 +356,8 @@ mod test {
         assert_eq!(None, dict.get_item(8i32));
         let map: HashMap<i32, i32> = [(7, 32)].iter().cloned().collect();
         assert_eq!(map, dict.extract().unwrap());
+        let map: BTreeMap<i32, i32> = [(7, 32)].iter().cloned().collect();
+        assert_eq!(map, dict.extract().unwrap());
     }
 
     #[test]
@@ -352,6 +369,8 @@ mod test {
         assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
         assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
         let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
+        assert_eq!(map, dict.extract().unwrap());
+        let map: BTreeMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();
         assert_eq!(map, dict.extract().unwrap());
     }
 
@@ -615,6 +634,7 @@ mod test {
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
+        assert_eq!(map, py_map.extract().unwrap());
     }
 
     #[test]
