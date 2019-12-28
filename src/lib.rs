@@ -147,6 +147,8 @@ pub use libc;
 pub use unindent;
 
 /// Raw ffi declarations for the c interface of python
+#[allow(clippy::unknown_clippy_lints)]
+#[allow(clippy::missing_safety_doc)]
 pub mod ffi;
 
 pub mod buffer;
