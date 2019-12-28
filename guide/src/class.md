@@ -18,12 +18,13 @@ struct MyClass {
 The above example generates implementations for `PyTypeInfo`, `PyTypeObject`
 and `PyClass` for `MyClass`.
 
-Specifically, the following implementation is generated.
+Specifically, the following implementation is generated:
 
 ```rust
 use pyo3::prelude::*;
 use pyo3::{PyClassShell, PyTypeInfo};
 
+/// Class for demonstration
 struct MyClass {
     num: i32,
     debug: bool,
@@ -38,7 +39,7 @@ impl PyTypeInfo for MyClass {
 
     const NAME: &'static str = "MyClass";
     const MODULE: Option<&'static str> = None;
-    const DESCRIPTION: &'static str = "This is a demo class";
+    const DESCRIPTION: &'static str = "Class for demonstration";
     const FLAGS: usize = 0;
 
     #[inline]
@@ -89,14 +90,14 @@ pyo3::inventory::collect!(MyClassGeneratedPyo3Inventory);
 ## Get Python objects from `pyclass`
 You sometimes need to convert your `pyclass` into a Python object in Rust code (e.g., for testing it).
 
-For getting *GIL-bounded*(i.e., with `'py` lifetime) references of `pyclass`,
+For getting *GIL-bounded* (i.e., with `'py` lifetime) references of `pyclass`,
 you can use `PyClassShell<T>`.
 Or you can use `Py<T>` directly, for *not-GIL-bounded* references.
 
 ### `PyClassShell`
 `PyClassShell` represents the actual layout of `pyclass` on the Python heap.
 
-If you want to instantiate `pyclass` in Python and get the the reference,
+If you want to instantiate `pyclass` in Python and get the reference,
 you can use `PyClassShell::new_ref` or `PyClassShell::new_mut`.
 
 ```rust
@@ -182,21 +183,24 @@ impl MyClass {
 }
 ```
 
-Rules for the `new` method:
+If no method marked with `#[new]` is declared, object instances can only be
+created from Rust, but not from Python.
 
-* If no method marked with `#[new]` is declared, object instances can only be created
-  from Rust, but not from Python.
-* All parameters are from Python.
-* It can return one of these types:
-  - `T`
-  - `PyResult<T>`
-  - `PyClassInitializer<T>`
-  - `PyResult<PyClassInitializer<T>>`
-* If you pyclass declared with `#[pyclass(extends=BaseType)]` and `BaseType`
-is also `#[pyclass]`, you have to return `PyClassInitializer<T>` or
-`PyResult<PyClassInitializer<T>>` with the baseclass initialized. See the
-below Inheritance section for detail.
-* For details on the parameter list, see the `Method arguments` section below.
+For arguments, see the `Method arguments` section below.
+
+### Return type
+
+If your pyclass is declared with baseclass(i.e., you use `#[pyclass(extends=...)])`),
+you must return a `PyClassInitializer` with the base class initialized.
+
+For constructors that may fail, you should wrap the return type in a PyResult as well.
+Consult the table below to determine which type your constructor should return:
+
+
+|                    | **Cannot fail**         | **May fail**                      |
+|--------------------|-------------------------|-----------------------------------|
+| **No inheritance** | `T`                     | `PyResult<T>`                     |
+| **Inheritance**    | `PyClassInitializer<T>` | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
 

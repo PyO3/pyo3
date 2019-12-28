@@ -26,7 +26,7 @@ pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
     alloc(tp_ptr, 0)
 }
 
-/// A trait that enables custome alloc/dealloc implementations for pyclasses.
+/// A trait that enables custom alloc/dealloc implementations for pyclasses.
 pub trait PyClassAlloc: PyTypeInfo + Sized {
     unsafe fn alloc(_py: Python) -> *mut Self::ConcreteLayout {
         default_alloc::<Self>() as _
@@ -65,7 +65,7 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 /// If `PyClass` is implemented for `T`, then we can use `T` in the Python world,
 /// via `PyClassShell`.
 ///
-/// `#[pyclass]` attribute automatically implement this trait for your Rust struct,
+/// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass:
     PyTypeInfo<ConcreteLayout = PyClassShell<Self>> + Sized + PyClassAlloc + PyMethodsProtocol
@@ -96,9 +96,10 @@ where
     }
 }
 
-/// `PyClassShell` represents the concrete layout of `PyClass` in the Python heap.
+/// `PyClassShell` represents the concrete layout of `T: PyClass` when it is converted
+/// to a Python class.
 ///
-/// You can use it for testing your `#[pyclass]` correctly works.
+/// You can use it to test your `#[pyclass]` correctly works.
 ///
 /// ```
 /// # use pyo3::prelude::*;
@@ -268,7 +269,7 @@ where
     }
 }
 
-/// A speciall initializer for `PyClassShell<T>`, which enables `super().__init__`
+/// A special initializer for `PyClassShell<T>`, which enables `super().__init__`
 /// in Rust code.
 ///
 /// You have to use it only when your `#[pyclass]` extends another `#[pyclass]`.
@@ -387,9 +388,9 @@ impl<T: PyTypeInfo> PyClassInitializer<T> {
     }
 }
 
-/// Represets that we can convert the type to `PyClassInitializer`.
+/// Represents that we can convert the type to `PyClassInitializer`.
 ///
-/// It is mainly used in our proc-macro code.
+/// This is mainly used in our proc-macro code.
 pub trait IntoInitializer<T: PyClass> {
     fn into_initializer(self) -> PyResult<PyClassInitializer<T>>;
 }
@@ -418,7 +419,7 @@ impl<T: PyClass> IntoInitializer<T> for PyResult<PyClassInitializer<T>> {
     }
 }
 
-/// Register new type in python object system.
+/// Register new type in the python object system.
 #[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
 where
