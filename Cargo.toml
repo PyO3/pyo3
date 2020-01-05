@@ -1,6 +1,6 @@
 [package]
 name = "pyo3"
-version = "0.8.4"
+version = "0.8.5"
 description = "Bindings to Python interpreter"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
 readme = "README.md"
@@ -22,7 +22,7 @@ appveyor = { repository = "fafhrd91/pyo3" }
 libc = "0.2.62"
 spin = "0.5.1"
 num-traits = "0.2.8"
-pyo3cls = { path = "pyo3cls", version = "=0.8.4" }
+pyo3cls = { path = "pyo3cls", version = "=0.8.5" }
 num-complex = { version = ">= 0.2", optional = true }
 num-bigint = { version = ">= 0.2", optional = true }
 inventory = "0.1.4"
