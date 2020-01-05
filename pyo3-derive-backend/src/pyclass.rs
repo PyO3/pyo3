@@ -364,11 +364,25 @@ fn impl_class(
         quote! { 0 }
     };
 
+    // If #cls is not extended type, we allow Self->PyObject conversion
+    let into_pyobject = if !attr.has_extends {
+        quote! {
+            impl pyo3::IntoPy<PyObject> for #cls {
+                fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+                    pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     Ok(quote! {
         impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
             type ConcreteLayout = pyo3::pyclass::PyClassShell<Self>;
+            type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
@@ -387,11 +401,7 @@ fn impl_class(
             #weakref
         }
 
-        impl pyo3::IntoPy<PyObject> for #cls {
-            fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
-                pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
-            }
-        }
+        #into_pyobject
 
         #inventory_impl
 

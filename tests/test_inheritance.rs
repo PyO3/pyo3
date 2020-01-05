@@ -50,10 +50,8 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
     #[new]
-    fn new() -> PyClassInitializer<Self> {
-        let mut init = PyClassInitializer::from_value(SubClass { val2: 5 });
-        init.get_super().init(BaseClass { val1: 10 });
-        init
+    fn new() -> (Self, BaseClass) {
+        (SubClass { val2: 5 }, BaseClass { val1: 10 })
     }
 }
 
@@ -61,65 +59,9 @@ impl SubClass {
 fn inheritance_with_new_methods() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let _baseobj = py.get_type::<BaseClass>();
     let typeobj = py.get_type::<SubClass>();
     let inst = typeobj.call((), None).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
-}
-
-#[pyclass(extends=BaseClass)]
-struct InvalidSubClass1 {
-    #[pyo3(get)]
-    val2: usize,
-}
-
-#[pymethods]
-impl InvalidSubClass1 {
-    #[new]
-    fn new() -> PyClassInitializer<Self> {
-        PyClassInitializer::from_value(InvalidSubClass1 { val2: 5 })
-    }
-}
-
-#[pyclass(extends=BaseClass)]
-struct InvalidSubClass2 {
-    #[pyo3(get)]
-    val2: usize,
-}
-
-#[pymethods]
-impl InvalidSubClass2 {
-    #[new]
-    fn new() -> PyClassInitializer<Self> {
-        PyClassInitializer::default()
-    }
-}
-
-#[test]
-fn uninit_baseclass_raise_exception() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let _baseclass = py.get_type::<BaseClass>();
-    let subclass = py.get_type::<InvalidSubClass1>();
-    py_expect_exception!(py, subclass, "subclass()", RuntimeError);
-    let subclass = py.get_type::<InvalidSubClass2>();
-    py_expect_exception!(py, subclass, "subclass()", RuntimeError);
-}
-
-#[test]
-fn uninit_baseclass_returns_err() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let subclass = pyo3::pyclass::PyClassShell::new_ref(py, InvalidSubClass1 { val2: 5 });
-    if let Err(err) = subclass {
-        py_run!(
-            py,
-            err,
-            r#"str(err) == "Base class 'BaseClass' is not initialized""#
-        )
-    } else {
-        panic!("Uninitialized class detection failed!!!")
-    }
 }
 
 #[pyclass(extends=PySet)]

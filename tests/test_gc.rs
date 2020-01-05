@@ -3,7 +3,7 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyTuple};
-use pyo3::{ffi, py_run, AsPyPointer, PyClassInitializer, PyClassShell};
+use pyo3::{ffi, py_run, AsPyPointer, PyClassShell};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -236,10 +236,11 @@ struct SubClassWithDrop {
 #[pymethods]
 impl SubClassWithDrop {
     #[new]
-    fn new() -> PyClassInitializer<Self> {
-        let mut init = PyClassInitializer::from_value(SubClassWithDrop { data: None });
-        init.get_super().init(BaseClassWithDrop { data: None });
-        init
+    fn new() -> (Self, BaseClassWithDrop) {
+        (
+            SubClassWithDrop { data: None },
+            BaseClassWithDrop { data: None },
+        )
     }
 }
 

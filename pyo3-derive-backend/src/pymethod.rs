@@ -154,7 +154,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let body = impl_arg_params_(
         spec,
         cb,
-        quote! { pyo3::pyclass::IntoInitializer::into_initializer },
+        quote! { pyo3::pyclass_init::IntoInitializer::into_initializer },
     );
 
     quote! {

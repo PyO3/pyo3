@@ -127,6 +127,7 @@ macro_rules! pyobject_native_type_convert(
             type Type = ();
             type BaseType = $crate::types::PyAny;
             type ConcreteLayout = $layout;
+            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
 
             const NAME: &'static str = stringify!($name);
             const MODULE: Option<&'static str> = $module;

@@ -22,7 +22,6 @@ Specifically, the following implementation is generated:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyClassShell, PyTypeInfo};
 
 /// Class for demonstration
 struct MyClass {
@@ -32,10 +31,11 @@ struct MyClass {
 
 impl pyo3::pyclass::PyClassAlloc for MyClass {}
 
-impl PyTypeInfo for MyClass {
+impl pyo3::PyTypeInfo for MyClass {
     type Type = MyClass;
     type BaseType = pyo3::types::PyAny;
-    type ConcreteLayout = PyClassShell<Self>;
+    type ConcreteLayout = pyo3::PyClassShell<Self>;
+    type Initializer = pyo3::PyClassInitializer<Self>;
 
     const NAME: &'static str = "MyClass";
     const MODULE: Option<&'static str> = None;
@@ -189,25 +189,27 @@ created from Rust, but not from Python.
 For arguments, see the `Method arguments` section below.
 
 ### Return type
-
-If your pyclass is declared with baseclass(i.e., you use `#[pyclass(extends=...)])`),
-you must return a `PyClassInitializer` with the base class initialized.
+Generally, `#[new]` method have to return `T: IntoInitializer<Self>`, which can be
+converted from `Self` or `Result<Self>` for non-nested types.
 
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
 
-
-|                    | **Cannot fail**         | **May fail**                      |
-|--------------------|-------------------------|-----------------------------------|
-| **No inheritance** | `T`                     | `PyResult<T>`                     |
-| **Inheritance**    | `PyClassInitializer<T>` | `PyResult<PyClassInitializer<T>>` |
+|                             | **Cannot fail**         | **May fail**                      |
+|-----------------------------|-------------------------|-----------------------------------|
+|**No inheritance**           | `T`                     | `PyResult<T>`                     |
+|**Inheritance(T Inherits U)**| `(T, U)`                | `PyResult<(T, U)>`                |
+|**Inheritance(General Case)**| `PyClassInitializer<T>` | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
 
-By default, `PyObject` is used as the base class. To override this default,
+By default, `PyAny` is used as the base class. To override this default,
 use the `extends` parameter for `pyclass` with the full path to the base class.
-The `new` method of subclasses must call `initializer.get_super().init`,
-where `initializer` is `PyClassInitializer<Self>`.
+
+For convinience, `(T, U)` implements `IntoInitializer<T>` where `U` is the
+baseclass of `T`.
+But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
+explicitly.
 
 ```rust
 # use pyo3::prelude::*;
@@ -226,7 +228,7 @@ impl BaseClass {
    }
 
    pub fn method(&self) -> PyResult<usize> {
-      Ok(5)
+      Ok(self.val1)
    }
 }
 
@@ -238,22 +240,64 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
    #[new]
-   fn new() -> PyClassInitializer<Self> {
-       let mut init = PyClassInitializer::from_value(SubClass { val2: 10 });
-       init.get_super().init(BaseClass::new());
-       init
+   fn new() -> (Self, BaseClass) {
+       (SubClass{ val2: 15}, BaseClass::new())
    }
 
    fn method2(self_: &PyClassShell<Self>) -> PyResult<usize> {
-      self_.get_super().method().map(|x| x * 2)
+      self_.get_super().method().map(|x| x * self_.val2)
+   }
+}
+
+#[pyclass(extends=SubClass)]
+struct SubSubClass {
+   val3: usize,
+}
+
+#[pymethods]
+impl SubSubClass {
+   #[new]
+   fn new() -> impl IntoInitializer<Self> {
+       Ok(SubClass::new()
+           .into_initializer()?
+           .add_subclass(SubSubClass{val3: 20}))
+   }
+
+   fn method3(self_: &PyClassShell<Self>) -> PyResult<usize> {
+      let super_ = self_.get_super();
+      SubClass::method2(super_).map(|x| x * self_.val3)
    }
 }
 
 
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let sub = pyo3::PyClassShell::new_ref(py, SubClass::new()).unwrap();
-# pyo3::py_run!(py, sub, "assert sub.method2() == 10")
+# let subsub = pyo3::PyClassShell::new_ref(py, SubSubClass::new()).unwrap();
+# pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
+```
+
+If `SubClass` does not provide baseclass initialization, compile fails.
+```compile_fail
+# use pyo3::prelude::*;
+use pyo3::PyClassShell;
+
+#[pyclass]
+struct BaseClass {
+   val1: usize,
+}
+
+#[pyclass(extends=BaseClass)]
+struct SubClass {
+   val2: usize,
+}
+
+#[pymethods]
+impl SubClass {
+   #[new]
+   fn new() -> Self {
+       SubClass{ val2: 15}
+   }
+}
 ```
 
 The `ObjectProtocol` trait provides a `get_base()` method, which returns a reference

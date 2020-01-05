@@ -3,6 +3,7 @@
 //! Python type object information
 
 use crate::instance::Py;
+use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
 use std::ptr::NonNull;
@@ -13,7 +14,6 @@ use std::ptr::NonNull;
 ///
 /// This trait is intended to be used internally.
 pub trait PyObjectLayout<T: PyTypeInfo> {
-    const NEED_INIT: bool = false;
     const IS_NATIVE_TYPE: bool = true;
 
     fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
@@ -80,6 +80,9 @@ pub trait PyTypeInfo: Sized {
 
     /// Layout
     type ConcreteLayout: PyObjectLayout<Self>;
+
+    /// Initializer for layout
+    type Initializer: PyObjectInit<Self>;
 
     /// PyTypeObject instance for this type, which might still need to
     /// be initialized

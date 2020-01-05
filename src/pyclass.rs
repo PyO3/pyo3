@@ -1,7 +1,7 @@
 //! An experiment module which has all codes related only to #[pyclass]
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
-use crate::exceptions::RuntimeError;
+use crate::pyclass_init::IntoInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyObjectLayout, PyObjectSizedLayout, PyTypeObject};
 use crate::types::PyAny;
@@ -79,6 +79,7 @@ where
     T: PyClass,
 {
     fn init_type() -> NonNull<ffi::PyTypeObject> {
+        <T::BaseType as PyTypeObject>::init_type();
         let type_object = unsafe { <Self as PyTypeInfo>::type_object() };
 
         if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
@@ -164,12 +165,11 @@ impl<T: PyClass> PyClassShell<T> {
         &mut self.ob_base
     }
 
-    unsafe fn new(py: Python) -> PyResult<*mut Self>
+    pub(crate) unsafe fn new(py: Python) -> PyResult<*mut Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
-        <T::BaseType as PyTypeObject>::init_type();
         T::init_type();
         let base = T::alloc(py);
         if base.is_null() {
@@ -183,7 +183,6 @@ impl<T: PyClass> PyClassShell<T> {
 }
 
 impl<T: PyClass> PyObjectLayout<T> for PyClassShell<T> {
-    const NEED_INIT: bool = std::mem::size_of::<T>() != 0;
     const IS_NATIVE_TYPE: bool = false;
     fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
         Some(&mut self.ob_base)
@@ -266,156 +265,6 @@ where
         NonNull::new(ptr).map(|p| {
             &mut *(gil::register_borrowed(py, p).as_ptr() as *const PyClassShell<T> as *mut _)
         })
-    }
-}
-
-/// A special initializer for `PyClassShell<T>`, which enables `super().__init__`
-/// in Rust code.
-///
-/// You have to use it only when your `#[pyclass]` extends another `#[pyclass]`.
-///
-/// ```
-/// # use pyo3::prelude::*;
-/// # use pyo3::py_run;
-/// #[pyclass]
-/// struct BaseClass {
-///     #[pyo3(get)]
-///     basename: &'static str,
-/// }
-/// #[pyclass(extends=BaseClass)]
-/// struct SubClass {
-///     #[pyo3(get)]
-///     subname: &'static str,
-/// }
-/// #[pymethods]
-/// impl SubClass {
-///     #[new]
-///     fn new() -> PyClassInitializer<Self> {
-///         let mut init = PyClassInitializer::from_value(SubClass{ subname: "sub"  });
-///         init.get_super().init(BaseClass { basename: "base" });
-///         init
-///     }
-/// }
-/// let gil = Python::acquire_gil();
-/// let py = gil.python();
-/// let _basetype = py.get_type::<BaseClass>();
-/// let typeobj = py.get_type::<SubClass>();
-/// let inst = typeobj.call((), None).unwrap();
-/// py_run!(py, inst, "assert inst.basename == 'base'; assert inst.subname == 'sub'");
-/// ```
-pub struct PyClassInitializer<T: PyTypeInfo> {
-    init: Option<T>,
-    super_init: Option<*mut PyClassInitializer<T::BaseType>>,
-}
-
-impl<T: PyTypeInfo> Default for PyClassInitializer<T> {
-    fn default() -> Self {
-        Self {
-            init: None,
-            super_init: None,
-        }
-    }
-}
-
-impl<T: PyTypeInfo> PyClassInitializer<T> {
-    /// Construct `PyClassInitializer` for specified value `value`.
-    ///
-    /// Same as
-    /// ```ignore
-    /// let mut init = PyClassInitializer::default::<T>();
-    /// init.init(value);
-    /// ```
-    pub fn from_value(value: T) -> Self {
-        PyClassInitializer {
-            init: Some(value),
-            super_init: None,
-        }
-    }
-
-    #[must_use]
-    fn init_class(self, shell: &mut T::ConcreteLayout) -> PyResult<()> {
-        macro_rules! raise_err {
-            ($name: path) => {
-                return Err(PyErr::new::<RuntimeError, _>(format!(
-                    "Base class '{}' is not initialized",
-                    $name
-                )));
-            };
-        }
-        let PyClassInitializer { init, super_init } = self;
-        if let Some(value) = init {
-            unsafe { shell.py_init(value) };
-        } else if T::ConcreteLayout::NEED_INIT {
-            raise_err!(T::NAME);
-        }
-        if let Some(super_init) = super_init {
-            let super_init = unsafe { Box::from_raw(super_init) };
-            if let Some(super_obj) = shell.get_super_or() {
-                super_init.init_class(super_obj)?;
-            }
-        } else if <T::BaseType as PyTypeInfo>::ConcreteLayout::NEED_INIT {
-            raise_err!(T::BaseType::NAME)
-        }
-        Ok(())
-    }
-
-    /// Pass the value that you use in Python to the initializer.
-    pub fn init(&mut self, value: T) {
-        self.init = Some(value);
-    }
-
-    /// Get the initializer for the base object.
-    /// Resembles `super().__init__()` in Python.
-    pub fn get_super(&mut self) -> &mut PyClassInitializer<T::BaseType> {
-        if let Some(super_init) = self.super_init {
-            return unsafe { &mut *super_init };
-        }
-        let super_init = Box::into_raw(Box::new(PyClassInitializer::default()));
-        self.super_init = Some(super_init);
-        unsafe { &mut *super_init }
-    }
-
-    #[doc(hidden)]
-    pub unsafe fn create_shell(self, py: Python) -> PyResult<*mut PyClassShell<T>>
-    where
-        T: PyClass,
-        <T::BaseType as PyTypeInfo>::ConcreteLayout:
-            crate::type_object::PyObjectSizedLayout<T::BaseType>,
-    {
-        let shell = PyClassShell::new(py)?;
-        self.init_class(&mut *shell)?;
-        Ok(shell)
-    }
-}
-
-/// Represents that we can convert the type to `PyClassInitializer`.
-///
-/// This is mainly used in our proc-macro code.
-pub trait IntoInitializer<T: PyClass> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>>;
-}
-
-impl<T: PyClass> IntoInitializer<T> for T {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        Ok(PyClassInitializer::from_value(self))
-    }
-}
-
-impl<T: PyClass> IntoInitializer<T> for PyResult<T> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        self.map(PyClassInitializer::from_value)
-    }
-}
-
-impl<T: PyClass> IntoInitializer<T> for PyClassInitializer<T> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        Ok(self)
-    }
-}
-
-impl<T: PyClass> IntoInitializer<T> for PyResult<PyClassInitializer<T>> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        self
     }
 }
 

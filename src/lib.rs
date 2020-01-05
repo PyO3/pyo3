@@ -127,7 +127,8 @@ pub use crate::gil::{init_once, GILGuard, GILPool};
 pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
-pub use crate::pyclass::{PyClass, PyClassInitializer, PyClassShell};
+pub use crate::pyclass::{PyClass, PyClassShell};
+pub use crate::pyclass_init::{IntoInitializer, PyClassInitializer};
 pub use crate::python::{prepare_freethreaded_python, Python};
 pub use crate::type_object::{type_flags, PyTypeInfo};
 
@@ -170,6 +171,7 @@ mod object;
 mod objectprotocol;
 pub mod prelude;
 pub mod pyclass;
+pub mod pyclass_init;
 pub mod pyclass_slots;
 mod python;
 pub mod type_object;
