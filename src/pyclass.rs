@@ -136,7 +136,7 @@ impl<T: PyClass> PyClassShell<T> {
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         unsafe {
-            let initializer = value.into_initializer()?;
+            let initializer = value.into_initializer();
             let self_ = initializer.create_shell(py)?;
             FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }
@@ -149,7 +149,7 @@ impl<T: PyClass> PyClassShell<T> {
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         unsafe {
-            let initializer = value.into_initializer()?;
+            let initializer = value.into_initializer();
             let self_ = initializer.create_shell(py)?;
             FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }

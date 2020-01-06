@@ -154,7 +154,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let body = impl_arg_params_(
         spec,
         cb,
-        quote! { pyo3::pyclass_init::IntoInitializer::into_initializer },
+        quote! { pyo3::derive_utils::IntoPyNewResult::into_pynew_result },
     );
 
     quote! {
@@ -174,7 +174,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            match _result.and_then(|init| init.create_shell(_py)) {
+            match _result.and_then(|init| init.into_initializer().create_shell(_py)) {
                 Ok(slf) => slf as _,
                 Err(e) => e.restore_and_null(_py),
             }

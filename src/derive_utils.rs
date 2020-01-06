@@ -10,6 +10,7 @@ use crate::init_once;
 use crate::instance::PyNativeType;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyObject, Python};
+use crate::pyclass_init::IntoInitializer;
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -176,6 +177,26 @@ impl<T: IntoPy<PyObject>> IntoPyResult<T> for T {
 
 impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
     fn into_py_result(self) -> PyResult<T> {
+        self
+    }
+}
+
+use crate::pyclass::PyClass;
+
+/// Variant of IntoPyResult for the specific case of #[new]. In the case of returning (Sub, Base)
+/// from #[new], IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
+pub trait IntoPyNewResult<T: PyClass, I: IntoInitializer<T>> {
+    fn into_pynew_result(self) -> PyResult<I>;
+}
+
+impl<T: PyClass, I: IntoInitializer<T>> IntoPyNewResult<T, I> for I {
+    fn into_pynew_result(self) -> PyResult<I> {
+        Ok(self)
+    }
+}
+
+impl<T: PyClass, I: IntoInitializer<T>> IntoPyNewResult<T, I> for PyResult<I> {
+    fn into_pynew_result(self) -> PyResult<I> {
         self
     }
 }

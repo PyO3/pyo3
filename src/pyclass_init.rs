@@ -109,30 +109,33 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
     }
 }
 
-/// Represets that we can convert the type to `PyClassInitializer`.
-///
-/// It is mainly used in our proc-macro code.
-pub trait IntoInitializer<T: PyClass> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>>;
-}
-
-impl<T> IntoInitializer<T> for T
+impl<T> From<T> for PyClassInitializer<T>
 where
     T: PyClass,
     T::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<T::BaseType>>,
 {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        Ok(PyClassInitializer::from_value(self))
+    fn from(value: T) -> PyClassInitializer<T> {
+        PyClassInitializer::from_value(value)
     }
 }
 
-impl<T> IntoInitializer<T> for PyResult<T>
+/// An extension of Into which extends the range of possible types from `#[pyclass]`'s `#[new]`.
+///
+/// In particular it permits for the return type of `#[new]` to be a (SubType, BaseType) pair
+/// which will also be initialized.
+///
+/// It is mainly used in our proc-macro code.
+pub trait IntoInitializer<T: PyClass> {
+    fn into_initializer(self) -> PyClassInitializer<T>;
+}
+
+impl<T, U> IntoInitializer<T> for U
 where
     T: PyClass,
-    T::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<T::BaseType>>,
+    U: Into<PyClassInitializer<T>>
 {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        self.map(PyClassInitializer::from_value)
+    fn into_initializer(self) -> PyClassInitializer<T> {
+        self.into()
     }
 }
 
@@ -142,31 +145,8 @@ where
     B: PyClass + PyTypeInfo<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<S>> {
-        let (sub, base) = self;
-        Ok(PyClassInitializer::from_value(base).add_subclass(sub))
-    }
-}
-
-impl<S, B> IntoInitializer<S> for PyResult<(S, B)>
-where
-    S: PyClass + PyTypeInfo<BaseType = B>,
-    B: PyClass + PyTypeInfo<Initializer = PyClassInitializer<B>>,
-    B::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<B::BaseType>>,
-{
-    fn into_initializer(self) -> PyResult<PyClassInitializer<S>> {
-        self.map(|(sub, base)| PyClassInitializer::from_value(base).add_subclass(sub))
-    }
-}
-
-impl<T: PyClass> IntoInitializer<T> for PyClassInitializer<T> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        Ok(self)
-    }
-}
-
-impl<T: PyClass> IntoInitializer<T> for PyResult<PyClassInitializer<T>> {
-    fn into_initializer(self) -> PyResult<PyClassInitializer<T>> {
-        self
+    fn into_initializer(self) -> PyClassInitializer<S> {
+        let (sub, base_init) = self;
+        base_init.into_initializer().add_subclass(sub)
     }
 }

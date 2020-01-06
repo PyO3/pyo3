@@ -257,10 +257,10 @@ struct SubSubClass {
 #[pymethods]
 impl SubSubClass {
    #[new]
-   fn new() -> impl IntoInitializer<Self> {
-       Ok(SubClass::new()
-           .into_initializer()?
-           .add_subclass(SubSubClass{val3: 20}))
+   fn new() -> PyClassInitializer<Self> {
+       SubClass::new()
+           .into_initializer()
+           .add_subclass(SubSubClass{val3: 20})
    }
 
    fn method3(self_: &PyClassShell<Self>) -> PyResult<usize> {
