@@ -504,16 +504,16 @@ impl MyClass {
 }
 
 #[pymodule]
-fn rpi3d(_py: Python, m: &PyModule) -> PyResult<()> {
+fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MyClass>()?;
     Ok(())
 }
 ```
 N.B. the position of the `"*"` argument (if included) controls the system of handling positional and keyword arguments. In Python:
 ```python
-import rpi3d
+import mymodule
 
-mc = rpi3d.MyClass()
+mc = mymodule.MyClass()
 print(mc.method(44, False, "World", 666, x=44, y=55))
 print(mc.method(num=-1, name="World"))
 print(mc.make_change(44, False))
