@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Changed
+
+* The blanket implementations for `FromPyObject` for `&T` and `&mut T` are no longer specializable. Implement `PyTryFrom` for your type to control the behavior of `FromPyObject::extract()` for your types.
+
 ## [0.8.5]
 
 * Support for `#[name = "foo"]` attribute for `#[pyfunction]` and in `#[pymethods]`. [#692](https://github.com/PyO3/pyo3/pull/692)

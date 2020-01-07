@@ -250,7 +250,7 @@ where
     T: PyTryFrom<'a>,
 {
     #[inline]
-    default fn extract(ob: &'a PyAny) -> PyResult<&'a T> {
+    fn extract(ob: &'a PyAny) -> PyResult<&'a T> {
         Ok(T::try_from(ob)?)
     }
 }
@@ -261,7 +261,7 @@ where
     T: PyTryFrom<'a>,
 {
     #[inline]
-    default fn extract(ob: &'a PyAny) -> PyResult<&'a mut T> {
+    fn extract(ob: &'a PyAny) -> PyResult<&'a mut T> {
         Ok(T::try_from_mut(ob)?)
     }
 }
