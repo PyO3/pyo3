@@ -21,6 +21,12 @@ The above example generates implementations for `PyTypeInfo` and `PyTypeObject` 
 Custom Python classes can then be added to a module using `add_class`.
 
 ```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
 #[pymodule]
 fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MyClass>()?;
