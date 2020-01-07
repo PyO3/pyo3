@@ -189,12 +189,8 @@ created from Rust, but not from Python.
 For arguments, see the `Method arguments` section below.
 
 ### Return type
-Generally, `#[new]` method have to return `T: IntoInitializer<Self>` or
-`PyResult<T> where T: IntoInitializer<Self>`.
-
-If your `T: PyClass` inherits just `PyAny`, you can return just `Self` or `PyResult<Self>`.
-But if it inherits other `U: PyClass`, you have to return tuple `(T, U)` or
-`PyClassInitializer<T>`.
+Generally, `#[new]` method have to return `T: Into<PyClassInitializer<Self>>` or
+`PyResult<T> where T: Into<PyClassInitializer<Self>>`.
 
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
@@ -209,7 +205,7 @@ Consult the table below to determine which type your constructor should return:
 By default, `PyAny` is used as the base class. To override this default,
 use the `extends` parameter for `pyclass` with the full path to the base class.
 
-For convinience, `(T, U)` implements `IntoInitializer<T>` where `U` is the
+For convinience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
 baseclass of `T`.
 But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
@@ -261,8 +257,7 @@ struct SubSubClass {
 impl SubSubClass {
    #[new]
    fn new() -> PyClassInitializer<Self> {
-       SubClass::new()
-           .into_initializer()
+       PyClassInitializer::from(SubClass::new())
            .add_subclass(SubSubClass{val3: 20})
    }
 

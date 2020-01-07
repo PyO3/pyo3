@@ -109,34 +109,14 @@ where
     }
 }
 
-/// An extension of Into which extends the range of possible types from `#[pyclass]`'s `#[new]`.
-///
-/// In particular it permits for the return type of `#[new]` to be a (SubType, BaseType) pair
-/// which will also be initialized.
-///
-/// It is mainly used in our proc-macro code.
-pub trait IntoInitializer<T: PyClass> {
-    fn into_initializer(self) -> PyClassInitializer<T>;
-}
-
-impl<T, U> IntoInitializer<T> for U
-where
-    T: PyClass,
-    U: Into<PyClassInitializer<T>>,
-{
-    fn into_initializer(self) -> PyClassInitializer<T> {
-        self.into()
-    }
-}
-
-impl<S, B> IntoInitializer<S> for (S, B)
+impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass + PyTypeInfo<BaseType = B>,
     B: PyClass + PyTypeInfo<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {
-    fn into_initializer(self) -> PyClassInitializer<S> {
-        let (sub, base_init) = self;
-        base_init.into_initializer().add_subclass(sub)
+    fn from(sub_and_base: (S, B)) -> PyClassInitializer<S> {
+        let (sub, base) = sub_and_base;
+        PyClassInitializer::from(base).add_subclass(sub)
     }
 }

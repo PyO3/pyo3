@@ -128,7 +128,7 @@ pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
 pub use crate::pyclass::{PyClass, PyClassShell};
-pub use crate::pyclass_init::{IntoInitializer, PyClassInitializer};
+pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::{prepare_freethreaded_python, Python};
 pub use crate::type_object::{type_flags, PyTypeInfo};
 

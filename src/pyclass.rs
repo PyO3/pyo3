@@ -1,7 +1,7 @@
 //! An experiment module which has all codes related only to #[pyclass]
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
-use crate::pyclass_init::IntoInitializer;
+use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyObjectLayout, PyObjectSizedLayout, PyTypeObject};
 use crate::types::PyAny;
@@ -130,26 +130,26 @@ pub struct PyClassShell<T: PyClass> {
 
 impl<T: PyClass> PyClassShell<T> {
     /// Make new `PyClassShell` on the Python heap and returns the reference of it.
-    pub fn new_ref(py: Python, value: impl IntoInitializer<T>) -> PyResult<&Self>
+    pub fn new_ref(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         unsafe {
-            let initializer = value.into_initializer();
+            let initializer = value.into();
             let self_ = initializer.create_shell(py)?;
             FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }
     }
 
     /// Make new `PyClassShell` on the Python heap and returns the mutable reference of it.
-    pub fn new_mut(py: Python, value: impl IntoInitializer<T>) -> PyResult<&mut Self>
+    pub fn new_mut(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&mut Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         unsafe {
-            let initializer = value.into_initializer();
+            let initializer = value.into();
             let self_ = initializer.create_shell(py)?;
             FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
         }

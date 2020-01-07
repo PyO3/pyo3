@@ -9,7 +9,7 @@ use crate::exceptions::TypeError;
 use crate::init_once;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
-use crate::pyclass_init::IntoInitializer;
+use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyObject, Python};
 use std::ptr;
@@ -184,17 +184,17 @@ impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
 
 /// Variant of IntoPyResult for the specific case of #[new]. In the case of returning (Sub, Base)
 /// from #[new], IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
-pub trait IntoPyNewResult<T: PyClass, I: IntoInitializer<T>> {
+pub trait IntoPyNewResult<T: PyClass, I: Into<PyClassInitializer<T>>> {
     fn into_pynew_result(self) -> PyResult<I>;
 }
 
-impl<T: PyClass, I: IntoInitializer<T>> IntoPyNewResult<T, I> for I {
+impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for I {
     fn into_pynew_result(self) -> PyResult<I> {
         Ok(self)
     }
 }
 
-impl<T: PyClass, I: IntoInitializer<T>> IntoPyNewResult<T, I> for PyResult<I> {
+impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyResult<I> {
     fn into_pynew_result(self) -> PyResult<I> {
         self
     }

@@ -174,7 +174,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            match _result.and_then(|init| init.into_initializer().create_shell(_py)) {
+            match _result.and_then(|init| pyo3::PyClassInitializer::from(init).create_shell(_py)) {
                 Ok(slf) => slf as _,
                 Err(e) => e.restore_and_null(_py),
             }
