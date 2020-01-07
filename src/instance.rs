@@ -42,7 +42,7 @@ impl<T> Py<T> {
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
-        let initializer = value.into_initializer()?;
+        let initializer = value.into_initializer();
         let obj = unsafe { initializer.create_shell(py)? };
         let ob = unsafe { Py::from_owned_ptr(obj as _) };
         Ok(ob)
