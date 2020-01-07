@@ -13,16 +13,20 @@ struct MyClass {
    num: i32,
    debug: bool,
 }
+```
+The above example generates implementations for `PyTypeInfo` and `PyTypeObject` for `MyClass`.
 
+## Add class to module
+
+Custom Python classes can then be added to a module using `add_class`.
+
+```rust
 #[pymodule]
 fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MyClass>()?;
     Ok(())
 }
 ```
-Classes can be made available from within a module using `PyModule.add_class`
-
-The above example generates implementations for `PyTypeInfo` and `PyTypeObject` for `MyClass`.
 
 ## Get Python objects from `pyclass`
 
@@ -140,17 +144,6 @@ impl MyClass {
          });
      }
 }
-
-#[pymodule]
-fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<MyClass>()?;
-    Ok(())
-}
-```
-Then from python:
-```python
-import mymodule
-c = mymodule.MyClass(24)
 ```
 
 Rules for the `new` method:
@@ -488,9 +481,20 @@ impl MyClass {
             }
         });
     }
-    #[args(num="10", debug="true", py_args="*", name="\"Hello\"", py_kwargs="**")]
-    fn method(&mut self, num: i32, debug: bool, name: &str, py_args: &PyTuple,
-                py_kwargs: Option<&PyDict>) -> PyResult<String> {
+    #[args(
+        num="10",
+        debug="true",
+        py_args="*",
+        name="\"Hello\"",
+        py_kwargs="**"
+    )]
+    fn method(&mut self,
+        num: i32,
+        debug: bool,
+        name: &str,
+        py_args: &PyTuple,
+        py_kwargs: Option<&PyDict>,
+    ) -> PyResult<String> {
         self.debug = debug;
         self.num = num;
         Ok(format!("py_args={:?}, py_kwargs={:?}, name={}, num={}, debug={}",
@@ -501,12 +505,6 @@ impl MyClass {
         self.debug = debug;
         Ok(format!("num={}, debug={}", self.num, self.debug))
     }
-}
-
-#[pymodule]
-fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<MyClass>()?;
-    Ok(())
 }
 ```
 N.B. the position of the `"*"` argument (if included) controls the system of handling positional and keyword arguments. In Python:
