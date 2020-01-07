@@ -13,7 +13,14 @@ struct MyClass {
    num: i32,
    debug: bool,
 }
+
+#[pymodule]
+fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<MyClass>()?;
+    Ok(())
+}
 ```
+Classes can be made available from within a module using `PyModule.add_class`
 
 The above example generates implementations for `PyTypeInfo` and `PyTypeObject` for `MyClass`.
 
@@ -133,6 +140,17 @@ impl MyClass {
          });
      }
 }
+
+#[pymodule]
+fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<MyClass>()?;
+    Ok(())
+}
+```
+Then from python:
+```python
+import mymodule
+c = mymodule.MyClass(24)
 ```
 
 Rules for the `new` method:
@@ -460,13 +478,54 @@ use pyo3::types::{PyDict, PyTuple};
 #
 #[pymethods]
 impl MyClass {
-    #[args(arg1=true, args="*", arg2=10, args3="\"Hello\"", kwargs="**")]
-    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, arg3: &str, kwargs: Option<&PyDict>) -> PyResult<i32> {
-        Ok(1)
+    #[new]
+    #[args(num="-1", debug="true")]
+    fn new(obj: &PyRawObject, num: i32, debug: bool) {
+        obj.init({
+            MyClass {
+                num,
+                debug,
+            }
+        });
+    }
+    #[args(num="10", debug="true", py_args="*", name="\"Hello\"", py_kwargs="**")]
+    fn method(&mut self, num: i32, debug: bool, name: &str, py_args: &PyTuple,
+                py_kwargs: Option<&PyDict>) -> PyResult<String> {
+        self.debug = debug;
+        self.num = num;
+        Ok(format!("py_args={:?}, py_kwargs={:?}, name={}, num={}, debug={}",
+                    py_args, py_kwargs, name, self.num, self.debug))
+    }
+    fn make_change(&mut self, num: i32, debug: bool) -> PyResult<String> {
+        self.num = num;
+        self.debug = debug;
+        Ok(format!("num={}, debug={}", self.num, self.debug))
     }
 }
-```
 
+#[pymodule]
+fn rpi3d(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<MyClass>()?;
+    Ok(())
+}
+```
+N.B. the position of the `"*"` argument (if included) controls the system of handling positional and keyword arguments. In Python:
+```python
+import rpi3d
+
+mc = rpi3d.MyClass()
+print(mc.method(44, False, "World", 666, x=44, y=55))
+print(mc.method(num=-1, name="World"))
+print(mc.make_change(44, False))
+print(mc.make_change(debug=False, num=-1))
+```
+Produces output:
+```text
+py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44, debug=false
+py_args=(), py_kwargs=None, name=World, num=-1, debug=true
+num=44, debug=false
+num=-1, debug=false
+```
 
 ## Class customizations
 
