@@ -189,8 +189,12 @@ created from Rust, but not from Python.
 For arguments, see the `Method arguments` section below.
 
 ### Return type
-Generally, `#[new]` method have to return `T: IntoInitializer<Self>`, which can be
-converted from `Self` or `Result<Self>` for non-nested types.
+Generally, `#[new]` method have to return `T: IntoInitializer<Self>` or
+`PyResult<T> where T: IntoInitializer<Self>`.
+
+If your `T: PyClass` inherits just `PyAny`, you can return just `Self` or `PyResult<Self>`.
+But if it inherits other `U: PyClass`, you have to return tuple `(T, U)` or
+`PyClassInitializer<T>`.
 
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
@@ -202,7 +206,6 @@ Consult the table below to determine which type your constructor should return:
 |**Inheritance(General Case)**| `PyClassInitializer<T>` | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
-
 By default, `PyAny` is used as the base class. To override this default,
 use the `extends` parameter for `pyclass` with the full path to the base class.
 
@@ -276,6 +279,12 @@ impl SubSubClass {
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
 
+To aceess super class, you can use either of these two ways.
+- Use `self_: &PyClassShell<Self>` instead of `self`, and call `get_super()`
+- `ObjectProtocol::get_base`
+We recommend `PyClasShell` here, since it makes the context much clearer.
+
+
 If `SubClass` does not provide baseclass initialization, compile fails.
 ```compile_fail
 # use pyo3::prelude::*;
@@ -299,9 +308,6 @@ impl SubClass {
    }
 }
 ```
-
-The `ObjectProtocol` trait provides a `get_base()` method, which returns a reference
-to the instance of the base struct.
 
 
 ## Object properties

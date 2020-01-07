@@ -40,7 +40,7 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 /// impl SubSubClass {
 ///     #[new]
 ///     fn new() -> PyClassInitializer<Self> {
-///         let base_init = PyClassInitializer::from_value(BaseClass{basename: "base"});
+///         let base_init = PyClassInitializer::from(BaseClass{basename: "base"});
 ///         base_init.add_subclass(SubClass{subname: "sub"})
 ///                  .add_subclass(SubSubClass{subsubname: "subsub"})
 ///     }
@@ -87,16 +87,6 @@ impl<T: PyClass> PyClassInitializer<T> {
     }
 }
 
-impl<T> PyClassInitializer<T>
-where
-    T: PyClass,
-    T::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<T::BaseType>>,
-{
-    pub fn from_value(value: T) -> Self {
-        Self::new(value, PyNativeTypeInitializer(PhantomData))
-    }
-}
-
 impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
     fn init_class(self, obj: &mut T::ConcreteLayout) {
         let Self { init, super_init } = self;
@@ -115,7 +105,7 @@ where
     T::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<T::BaseType>>,
 {
     fn from(value: T) -> PyClassInitializer<T> {
-        PyClassInitializer::from_value(value)
+        Self::new(value, PyNativeTypeInitializer(PhantomData))
     }
 }
 
@@ -132,7 +122,7 @@ pub trait IntoInitializer<T: PyClass> {
 impl<T, U> IntoInitializer<T> for U
 where
     T: PyClass,
-    U: Into<PyClassInitializer<T>>
+    U: Into<PyClassInitializer<T>>,
 {
     fn into_initializer(self) -> PyClassInitializer<T> {
         self.into()

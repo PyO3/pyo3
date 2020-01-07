@@ -64,6 +64,55 @@ fn inheritance_with_new_methods() {
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
 }
 
+#[pyclass]
+struct BaseClassWithResult {
+    _val: usize,
+}
+
+#[pymethods]
+impl BaseClassWithResult {
+    #[new]
+    fn new(value: isize) -> PyResult<Self> {
+        if 0 <= value {
+            Ok(Self { _val: value as _ })
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(()))
+        }
+    }
+}
+
+#[pyclass(extends=BaseClassWithResult)]
+struct SubClass2 {}
+
+#[pymethods]
+impl SubClass2 {
+    #[new]
+    fn new(value: isize) -> PyResult<(Self, BaseClassWithResult)> {
+        let base = BaseClassWithResult::new(value)?;
+        Ok((Self {}, base))
+    }
+}
+
+#[test]
+fn handle_result_in_new() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let subclass = py.get_type::<SubClass2>();
+    py_run!(
+        py,
+        subclass,
+        r#"
+try:
+    subclass(-10)
+    assert Fals
+except RuntimeError as e:
+    pass
+except Exception as e:
+    raise e
+"#
+    );
+}
+
 #[pyclass(extends=PySet)]
 struct SetWithName {
     #[pyo3(get(name))]

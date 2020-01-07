@@ -8,9 +8,10 @@ use crate::err::PyResult;
 use crate::exceptions::TypeError;
 use crate::init_once;
 use crate::instance::PyNativeType;
+use crate::pyclass::PyClass;
+use crate::pyclass_init::IntoInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyObject, Python};
-use crate::pyclass_init::IntoInitializer;
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -180,8 +181,6 @@ impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
         self
     }
 }
-
-use crate::pyclass::PyClass;
 
 /// Variant of IntoPyResult for the specific case of #[new]. In the case of returning (Sub, Base)
 /// from #[new], IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
