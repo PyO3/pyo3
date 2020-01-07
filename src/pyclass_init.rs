@@ -56,14 +56,14 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
 /// ```
 pub struct PyClassInitializer<T: PyClass> {
     init: T,
-    super_init: Box<<T::BaseType as PyTypeInfo>::Initializer>,
+    super_init: <T::BaseType as PyTypeInfo>::Initializer,
 }
 
 impl<T: PyClass> PyClassInitializer<T> {
     pub fn new(init: T, super_init: <T::BaseType as PyTypeInfo>::Initializer) -> Self {
         Self {
             init,
-            super_init: Box::new(super_init),
+            super_init: super_init,
         }
     }
 
