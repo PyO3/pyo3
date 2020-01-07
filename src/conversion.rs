@@ -146,7 +146,7 @@ impl<T, U> IntoPy<U> for T
 where
     U: FromPy<T>,
 {
-    default fn into_py(self, py: Python) -> U {
+    fn into_py(self, py: Python) -> U {
         U::from_py(self, py)
     }
 }
