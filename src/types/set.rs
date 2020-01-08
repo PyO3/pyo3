@@ -6,6 +6,8 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
+use crate::objectprotocol::ObjectProtocol;
+use crate::types::{PyAny, PyIterator};
 use crate::AsPyPointer;
 use crate::Python;
 use crate::{ToBorrowedObject, ToPyObject};
@@ -96,6 +98,15 @@ impl PySet {
     }
 }
 
+impl<'a> std::iter::IntoIterator for &'a PySet {
+    type Item = PyResult<&'a PyAny>;
+    type IntoIter = PyIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter().expect("Failed to get set iterator")
+    }
+}
+
 impl<T> ToPyObject for collections::HashSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
@@ -165,6 +176,15 @@ impl PyFrozenSet {
                 _ => Err(PyErr::fetch(self.py())),
             }
         })
+    }
+}
+
+impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
+    type Item = PyResult<&'a PyAny>;
+    type IntoIter = PyIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter().expect("Failed to get frozen set iterator")
     }
 }
 
@@ -267,8 +287,14 @@ mod test {
         let py = gil.python();
 
         let set = PySet::new(py, &[1]).unwrap();
+        // objectprotocol iteration
         for el in set.iter().unwrap() {
             assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
+        }
+
+        // intoiterator iteration
+        for el in set {
+            assert_eq!(1i32, el.unwrap().extract().unwrap());
         }
     }
 
@@ -306,7 +332,14 @@ mod test {
         let py = gil.python();
 
         let set = PyFrozenSet::new(py, &[1]).unwrap();
+
+        // objectprotocol iteration
         for el in set.iter().unwrap() {
+            assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
+        }
+
+        // intoiterator iteration
+        for el in set {
             assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
         }
     }
