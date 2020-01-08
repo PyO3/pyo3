@@ -60,4 +60,13 @@ extern "C" {
     pub fn PySet_Add(set: *mut PyObject, key: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPySet_Pop")]
     pub fn PySet_Pop(set: *mut PyObject) -> *mut PyObject;
+
+    #[cfg(not(Py_LIMITED_API))]
+    #[cfg_attr(PyPy, link_name = "_PySet_NextEntry")]
+    pub fn _PySet_NextEntry(
+        set: *mut PyObject,
+        pos: *mut Py_ssize_t,
+        key: *mut *mut PyObject,
+        hash: *mut super::Py_hash_t,
+    ) -> c_int;
 }
