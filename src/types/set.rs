@@ -101,7 +101,10 @@ impl PySet {
     /// Note that it can be unsafe to use when the set might be changed by other code.
     #[cfg(not(Py_LIMITED_API))]
     pub fn iter(&self) -> PySetIterator {
-        self.into_iter()
+        PySetIterator {
+            set: self.as_ref(),
+            pos: 0,
+        }
     }
 }
 
@@ -135,10 +138,7 @@ impl<'a> std::iter::IntoIterator for &'a PySet {
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PySetIterator {
-            set: self.as_ref(),
-            pos: 0,
-        }
+        self.iter()
     }
 }
 
