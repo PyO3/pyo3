@@ -31,7 +31,7 @@ pub const OBJECT: Proto = Proto {
         MethodProto::Binary {
             name: "__delattr__",
             arg: "Name",
-            pyres: true,
+            pyres: false,
             proto: "pyo3::class::basic::PyObjectDelAttrProtocol",
         },
         MethodProto::Unary {

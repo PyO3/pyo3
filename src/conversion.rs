@@ -146,7 +146,7 @@ impl<T, U> IntoPy<U> for T
 where
     U: FromPy<T>,
 {
-    default fn into_py(self, py: Python) -> U {
+    fn into_py(self, py: Python) -> U {
         U::from_py(self, py)
     }
 }
@@ -250,7 +250,7 @@ where
     T: PyTryFrom<'a>,
 {
     #[inline]
-    default fn extract(ob: &'a PyAny) -> PyResult<&'a T> {
+    fn extract(ob: &'a PyAny) -> PyResult<&'a T> {
         Ok(T::try_from(ob)?)
     }
 }
@@ -261,7 +261,7 @@ where
     T: PyTryFrom<'a>,
 {
     #[inline]
-    default fn extract(ob: &'a PyAny) -> PyResult<&'a mut T> {
+    fn extract(ob: &'a PyAny) -> PyResult<&'a mut T> {
         Ok(T::try_from_mut(ob)?)
     }
 }

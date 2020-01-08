@@ -86,6 +86,23 @@ pyo3::inventory::collect!(MyClassGeneratedPyo3Inventory);
 # pyo3::py_run!(py, cls, "assert cls.__name__ == 'MyClass'")
 ```
 
+## Add class to module
+
+Custom Python classes can then be added to a module using `add_class`.
+
+```rust
+# use pyo3::prelude::*;
+# #[pyclass]
+# struct MyClass {
+#    num: i32,
+#    debug: bool,
+# }
+#[pymodule]
+fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<MyClass>()?;
+    Ok(())
+}
+```
 
 ## Get Python objects from `pyclass`
 You sometimes need to convert your `pyclass` into a Python object in Rust code (e.g., for testing it).
@@ -568,13 +585,59 @@ use pyo3::types::{PyDict, PyTuple};
 #
 #[pymethods]
 impl MyClass {
-    #[args(arg1=true, args="*", arg2=10, args3="\"Hello\"", kwargs="**")]
-    fn method(&self, arg1: bool, args: &PyTuple, arg2: i32, arg3: &str, kwargs: Option<&PyDict>) -> PyResult<i32> {
-        Ok(1)
+    #[new]
+    #[args(num = "-1", debug = "true")]
+    fn new(num: i32, debug: bool) -> Self {
+        MyClass { num, debug }
+    }
+
+    #[args(
+        num = "10",
+        debug = "true",
+        py_args = "*",
+        name = "\"Hello\"",
+        py_kwargs = "**"
+    )]
+    fn method(
+        &mut self,
+        num: i32,
+        debug: bool,
+        name: &str,
+        py_args: &PyTuple,
+        py_kwargs: Option<&PyDict>,
+    ) -> PyResult<String> {
+        self.debug = debug;
+        self.num = num;
+        Ok(format!(
+            "py_args={:?}, py_kwargs={:?}, name={}, num={}, debug={}",
+            py_args, py_kwargs, name, self.num, self.debug
+        ))
+    }
+
+    fn make_change(&mut self, num: i32, debug: bool) -> PyResult<String> {
+        self.num = num;
+        self.debug = debug;
+        Ok(format!("num={}, debug={}", self.num, self.debug))
     }
 }
 ```
+N.B. the position of the `"*"` argument (if included) controls the system of handling positional and keyword arguments. In Python:
+```python
+import mymodule
 
+mc = mymodule.MyClass()
+print(mc.method(44, False, "World", 666, x=44, y=55))
+print(mc.method(num=-1, name="World"))
+print(mc.make_change(44, False))
+print(mc.make_change(debug=False, num=-1))
+```
+Produces output:
+```text
+py_args=('World', 666), py_kwargs=Some({'x': 44, 'y': 55}), name=Hello, num=44, debug=false
+py_args=(), py_kwargs=None, name=World, num=-1, debug=true
+num=44, debug=false
+num=-1, debug=false
+```
 
 ## Class customizations
 
