@@ -1,9 +1,10 @@
-//! This module contains additional fields pf pyclass
+//! This module contains additional fields for `#[pyclass]`..
+//! Mainly used by our proc-macro codes.
 use crate::{ffi, Python};
 
 const POINTER_SIZE: isize = std::mem::size_of::<*mut ffi::PyObject>() as _;
 
-/// Represents `__dict__`.
+/// Represents `__dict__` field for `#[pyclass]`.
 pub trait PyClassDict {
     const OFFSET: Option<isize> = None;
     fn new() -> Self;
@@ -11,7 +12,7 @@ pub trait PyClassDict {
     private_decl! {}
 }
 
-/// Represents `__weakref__`.
+/// Represents `__weakref__` field for `#[pyclass]`.
 pub trait PyClassWeakRef {
     const OFFSET: Option<isize> = None;
     fn new() -> Self;
@@ -19,7 +20,7 @@ pub trait PyClassWeakRef {
     private_decl! {}
 }
 
-/// Dummy slot means the function doesn't has such a feature.
+/// Zero-sized dummy field.
 pub struct PyClassDummySlot;
 
 impl PyClassDict for PyClassDummySlot {
@@ -36,7 +37,9 @@ impl PyClassWeakRef for PyClassDummySlot {
     }
 }
 
-/// actual dict field
+/// Actual dict field, which holds the pointer to `__dict__`.
+///
+/// `#[pyclass(dict)]` automatically adds this.
 #[repr(transparent)]
 pub struct PyClassDictSlot(*mut ffi::PyObject);
 
@@ -53,7 +56,9 @@ impl PyClassDict for PyClassDictSlot {
     }
 }
 
-/// actual weakref field
+/// Actual weakref field, which holds the pointer to `__weakref__`.
+///
+/// `#[pyclass(weakref)]` automatically adds this.
 #[repr(transparent)]
 pub struct PyClassWeakRefSlot(*mut ffi::PyObject);
 

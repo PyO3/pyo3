@@ -1,4 +1,4 @@
-//! An experiment module which has all codes related only to #[pyclass]
+//! Traits and structs for `#[pyclass]`.
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
@@ -26,12 +26,20 @@ pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
     alloc(tp_ptr, 0)
 }
 
-/// A trait that enables custom alloc/dealloc implementations for pyclasses.
+/// This trait enables custom alloc/dealloc implementations for `T: PyClass`.
 pub trait PyClassAlloc: PyTypeInfo + Sized {
+    /// Allocate the actual field for `#[pyclass]`.
+    ///
+    /// # Safety
+    /// This function must return a valid pointer to the Python heap.
     unsafe fn alloc(_py: Python) -> *mut Self::ConcreteLayout {
         default_alloc::<Self>() as _
     }
 
+    /// Deallocate `#[pyclass]` on the Python heap.
+    ///
+    /// # Safety
+    /// `self_` must be a valid pointer to the Python heap.
     unsafe fn dealloc(py: Python, self_: *mut Self::ConcreteLayout) {
         (*self_).py_drop(py);
         let obj = self_ as _;
@@ -188,11 +196,11 @@ impl<T: PyClass> PyObjectLayout<T> for PyClassShell<T> {
         Some(&mut self.ob_base)
     }
     unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
-        let shell = obj.as_ptr() as *const PyClassShell<T>;
+        let shell = obj.as_ptr() as *const Self;
         &(*shell).pyclass
     }
     unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
-        let shell = obj.as_ptr() as *const PyClassShell<T> as *mut PyClassShell<T>;
+        let shell = obj.as_ptr() as *const _ as *mut Self;
         &mut (*shell).pyclass
     }
     unsafe fn py_drop(&mut self, py: Python) {
@@ -258,17 +266,17 @@ where
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|p| {
-            &mut *(gil::register_owned(py, p).as_ptr() as *const PyClassShell<T> as *mut _)
+            &mut *(gil::register_owned(py, p).as_ptr() as *const _ as *mut PyClassShell<T>)
         })
     }
     unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
         NonNull::new(ptr).map(|p| {
-            &mut *(gil::register_borrowed(py, p).as_ptr() as *const PyClassShell<T> as *mut _)
+            &mut *(gil::register_borrowed(py, p).as_ptr() as *const _ as *mut PyClassShell<T>)
         })
     }
 }
 
-/// Register new type in the python object system.
+/// Register `T: PyClass` to Python interpreter.
 #[cfg(not(Py_LIMITED_API))]
 pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
 where

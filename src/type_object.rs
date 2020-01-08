@@ -1,5 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 //! Python type object information
 
 use crate::instance::Py;
@@ -41,6 +40,7 @@ pub trait PyObjectLayout<T: PyTypeInfo> {
 pub trait PyObjectSizedLayout<T: PyTypeInfo>: PyObjectLayout<T> + Sized {}
 
 /// Our custom type flags
+#[doc(hidden)]
 pub mod type_flags {
     /// type object supports python GC
     pub const GC: usize = 1;
@@ -59,6 +59,7 @@ pub mod type_flags {
 }
 
 /// Python type information.
+/// All Python native types(e.g., `PyDict`) and `#[pyclass]` structs implement this trait.
 pub trait PyTypeInfo: Sized {
     /// Type of objects to store in PyObject struct
     type Type;

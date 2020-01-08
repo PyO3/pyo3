@@ -73,11 +73,9 @@ struct BaseClassWithResult {
 impl BaseClassWithResult {
     #[new]
     fn new(value: isize) -> PyResult<Self> {
-        if 0 <= value {
-            Ok(Self { _val: value as _ })
-        } else {
-            Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(()))
-        }
+        Ok(Self {
+            _val: std::convert::TryFrom::try_from(value)?,
+        })
     }
 }
 
@@ -105,7 +103,7 @@ fn handle_result_in_new() {
 try:
     subclass(-10)
     assert Fals
-except RuntimeError as e:
+except ValueError as e:
     pass
 except Exception as e:
     raise e
