@@ -150,9 +150,9 @@ impl PyDict {
         }
     }
 
-    /// Returns a iterator of (key, value) pairs in this dictionary
-    /// Note that it's unsafe to use when the dictionary might be changed
-    /// by other python code.
+    /// Returns a iterator of (key, value) pairs in this dictionary.
+    ///
+    /// Note that it's unsafe to use when the dictionary might be changed by other code.
     pub fn iter(&self) -> PyDictIterator {
         let py = self.py();
         PyDictIterator {
