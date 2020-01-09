@@ -95,6 +95,17 @@ impl PySet {
     pub fn pop(&self) -> Option<PyObject> {
         unsafe { PyObject::from_owned_ptr_or_opt(self.py(), ffi::PySet_Pop(self.as_ptr())) }
     }
+
+    /// Returns an iterator of values in this set.
+    ///
+    /// Note that it can be unsafe to use when the set might be changed by other code.
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn iter(&self) -> PySetIterator {
+        PySetIterator {
+            set: self.as_ref(),
+            pos: 0,
+        }
+    }
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -127,10 +138,7 @@ impl<'a> std::iter::IntoIterator for &'a PySet {
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PySetIterator {
-            set: self.as_ref(),
-            pos: 0,
-        }
+        self.iter()
     }
 }
 
@@ -204,7 +212,16 @@ impl PyFrozenSet {
             }
         })
     }
+
+    /// Returns an iterator of values in this frozen set.
+    ///
+    /// Note that it can be unsafe to use when the set might be changed by other code.
+    #[cfg(not(Py_LIMITED_API))]
+    pub fn iter(&self) -> PySetIterator {
+        self.into_iter()
+    }
 }
+
 #[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
     type Item = &'a PyAny;
@@ -222,9 +239,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 mod test {
     use super::{PyFrozenSet, PySet};
     use crate::instance::AsPyRef;
-    use crate::objectprotocol::ObjectProtocol;
-    use crate::Python;
-    use crate::{PyTryFrom, ToPyObject};
+    use crate::{ObjectProtocol, PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -317,9 +332,10 @@ mod test {
         let py = gil.python();
 
         let set = PySet::new(py, &[1]).unwrap();
-        // objectprotocol iteration
-        for el in set.iter().unwrap() {
-            assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
+
+        // iter method
+        for el in set.iter() {
+            assert_eq!(1i32, el.extract().unwrap());
         }
 
         // intoiterator iteration
@@ -363,9 +379,9 @@ mod test {
 
         let set = PyFrozenSet::new(py, &[1]).unwrap();
 
-        // objectprotocol iteration
-        for el in set.iter().unwrap() {
-            assert_eq!(1i32, el.unwrap().extract::<i32>().unwrap());
+        // iter method
+        for el in set.iter() {
+            assert_eq!(1i32, el.extract::<i32>().unwrap());
         }
 
         // intoiterator iteration
