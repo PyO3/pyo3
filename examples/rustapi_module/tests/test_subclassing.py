@@ -9,6 +9,7 @@ class SomeSubClass(Subclassable):
     pass
 
 
-if not PYPY:
-    a = SomeSubClass()
-    _b = str(a) + repr(a)
+def test_subclassing():
+    if not PYPY:
+        a = SomeSubClass()
+        _b = str(a) + repr(a)
