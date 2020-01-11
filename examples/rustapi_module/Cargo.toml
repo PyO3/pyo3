@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies.pyo3]
 path = "../../"
-features = ["extension-module", "unsound-subclass"]
+features = ["extension-module"]
 
 [lib]
 name = "rustapi_module"

@@ -18,6 +18,3 @@ quote = "1"
 proc-macro2 = "1"
 syn = { version = "1", features = ["full", "extra-traits"] }
 pyo3-derive-backend = { path = "../pyo3-derive-backend", version = "=0.8.5" }
-
-[features]
-unsound-subclass = ["pyo3-derive-backend/unsound-subclass"]
