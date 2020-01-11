@@ -155,23 +155,20 @@ impl PyDict {
         }
     }
 
-    /// Returns a iterator of (key, value) pairs in this dictionary
-    /// Note that it's unsafe to use when the dictionary might be changed
-    /// by other python code.
+    /// Returns a iterator of (key, value) pairs in this dictionary.
+    ///
+    /// Note that it's unsafe to use when the dictionary might be changed by other code.
     pub fn iter(&self) -> PyDictIterator {
-        let py = self.py();
         PyDictIterator {
-            dict: self.to_object(py),
+            dict: self.as_ref(),
             pos: 0,
-            py,
         }
     }
 }
 
 pub struct PyDictIterator<'py> {
-    dict: PyObject,
+    dict: &'py PyAny,
     pos: isize,
-    py: Python<'py>,
 }
 
 impl<'py> Iterator for PyDictIterator<'py> {
@@ -183,7 +180,7 @@ impl<'py> Iterator for PyDictIterator<'py> {
             let mut key: *mut ffi::PyObject = std::ptr::null_mut();
             let mut value: *mut ffi::PyObject = std::ptr::null_mut();
             if ffi::PyDict_Next(self.dict.as_ptr(), &mut self.pos, &mut key, &mut value) != 0 {
-                let py = self.py;
+                let py = self.dict.py();
                 Some((py.from_borrowed_ptr(key), py.from_borrowed_ptr(value)))
             } else {
                 None

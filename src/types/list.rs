@@ -113,7 +113,7 @@ impl PyList {
         })
     }
 
-    /// Returns an iterator over the tuple items.
+    /// Returns an iterator over this list items.
     pub fn iter(&self) -> PyListIterator {
         PyListIterator {
             list: self,

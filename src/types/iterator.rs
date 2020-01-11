@@ -42,6 +42,7 @@ impl<'p> PyIterator<'p> {
             let ptr = ffi::PyObject_GetIter(obj.as_ptr());
             // Returns NULL if an object cannot be iterated.
             if ptr.is_null() {
+                PyErr::fetch(py);
                 return Err(PyDowncastError);
             }
 

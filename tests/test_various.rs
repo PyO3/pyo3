@@ -178,4 +178,7 @@ fn incorrect_iter() {
     let int_ref = int.as_ref(py);
     // Should not segfault.
     assert!(int_ref.iter().is_err());
+    assert!(py
+        .eval("print('Exception state should not be set.')", None, None)
+        .is_ok());
 }
