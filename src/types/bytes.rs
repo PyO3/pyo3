@@ -18,12 +18,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyBytes(PyObject, Unsendable);
 
-pyobject_native_type!(
-    PyBytes,
-    ffi::PyBytes_Type,
-    Some("builtins"),
-    ffi::PyBytes_Check
-);
+pyobject_native_var_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
 
 impl PyBytes {
     /// Creates a new Python byte string object.

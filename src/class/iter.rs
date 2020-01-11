@@ -4,11 +4,8 @@
 
 use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
 use crate::err::PyResult;
-use crate::instance::PyRefMut;
-use crate::type_object::PyTypeInfo;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{ffi, IntoPy, PyObject};
+use crate::{ffi, pyclass::PyClassShell, IntoPy, PyClass, PyObject};
+use crate::{IntoPyPointer, Python};
 use std::ptr;
 
 /// Python Iterator Interface.
@@ -16,15 +13,15 @@ use std::ptr;
 /// more information
 /// `https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter`
 #[allow(unused_variables)]
-pub trait PyIterProtocol<'p>: PyTypeInfo + Sized {
-    fn __iter__(slf: PyRefMut<'p, Self>) -> Self::Result
+pub trait PyIterProtocol<'p>: PyClass {
+    fn __iter__(slf: &mut PyClassShell<Self>) -> Self::Result
     where
         Self: PyIterIterProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __next__(slf: PyRefMut<'p, Self>) -> Self::Result
+    fn __next__(slf: &mut PyClassShell<Self>) -> Self::Result
     where
         Self: PyIterNextProtocol<'p>,
     {

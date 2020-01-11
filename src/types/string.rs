@@ -24,7 +24,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyString(PyObject, Unsendable);
 
-pyobject_native_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
+pyobject_native_var_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
 impl PyString {
     /// Creates a new Python string object.
@@ -207,7 +207,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
 
-        let s2: &str = FromPyObject::extract(py_string.as_ref(py).into()).unwrap();
+        let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
         assert_eq!(s, s2);
     }
 

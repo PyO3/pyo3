@@ -31,13 +31,6 @@ pub struct PyCodeObject {
     pub co_extra: *mut c_void,
 }
 
-impl Default for PyCodeObject {
-    #[inline]
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-
 /* Masks for co_flags */
 pub const CO_OPTIMIZED: c_int = 0x0001;
 pub const CO_NEWLOCALS: c_int = 0x0002;

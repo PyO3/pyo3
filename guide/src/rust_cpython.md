@@ -26,7 +26,6 @@ py_class!(class MyClass |py| {
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::PyRawObject;
 
 #[pyclass]
 struct MyClass {
@@ -36,12 +35,8 @@ struct MyClass {
 #[pymethods]
 impl MyClass {
     #[new]
-    fn new(obj: &PyRawObject, num: u32) {
-        obj.init({
-            MyClass {
-                num,
-            }
-        });
+    fn new(num: u32) -> Self {
+        MyClass { num }
     }
 
     fn half(&self) -> PyResult<u32> {
@@ -74,7 +69,7 @@ impl PyList {
 
    fn new(py: Python) -> &PyList {...}
 
-   fn get_item(&self, index: isize) -> &PyObject {...}
+   fn get_item(&self, index: isize) -> &PyAny {...}
 }
 ```
 

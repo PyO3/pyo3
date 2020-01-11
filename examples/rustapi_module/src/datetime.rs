@@ -195,8 +195,8 @@ pub struct TzClass {}
 #[pymethods]
 impl TzClass {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(TzClass {})
+    fn new() -> Self {
+        TzClass {}
     }
 
     fn utcoffset<'p>(&self, py: Python<'p>, _dt: &PyDateTime) -> PyResult<&'p PyDelta> {

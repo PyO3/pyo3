@@ -6,8 +6,10 @@ use std::os::raw::{
 };
 
 /// This is an opaque type in the python c api
-#[repr(transparent)]
-pub struct PyLongObject(*mut c_void);
+#[repr(C)]
+pub struct PyLongObject {
+    _unused: [u8; 0],
+}
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

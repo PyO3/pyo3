@@ -124,11 +124,13 @@ pub use crate::conversion::{
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
 pub use crate::gil::{init_once, GILGuard, GILPool};
-pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType, PyRef, PyRefMut};
+pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
+pub use crate::pyclass::{PyClass, PyClassShell};
+pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::{prepare_freethreaded_python, Python};
-pub use crate::type_object::{PyObjectAlloc, PyRawObject, PyTypeInfo};
+pub use crate::type_object::{type_flags, PyTypeInfo};
 
 // Re-exported for wrap_function
 #[doc(hidden)]
@@ -146,11 +148,6 @@ pub use libc;
 #[doc(hidden)]
 pub use unindent;
 
-/// Raw ffi declarations for the c interface of python
-#[allow(clippy::unknown_clippy_lints)]
-#[allow(clippy::missing_safety_doc)]
-pub mod ffi;
-
 pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
@@ -160,14 +157,22 @@ mod conversion;
 pub mod derive_utils;
 mod err;
 pub mod exceptions;
+/// Raw ffi declarations for the c interface of python
+#[allow(clippy::unknown_clippy_lints)]
+#[allow(clippy::missing_safety_doc)]
+pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
+#[macro_use]
 mod internal_tricks;
 pub mod marshal;
 mod object;
 mod objectprotocol;
 pub mod prelude;
+pub mod pyclass;
+pub mod pyclass_init;
+pub mod pyclass_slots;
 mod python;
 pub mod type_object;
 pub mod types;
@@ -216,7 +221,7 @@ macro_rules! wrap_pymodule {
 ///
 /// # Example
 /// ```
-/// use pyo3::{prelude::*, py_run};
+/// use pyo3::{prelude::*, py_run, PyClassShell};
 /// #[pyclass]
 /// #[derive(Debug)]
 /// struct Time {
@@ -239,7 +244,7 @@ macro_rules! wrap_pymodule {
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let time = PyRef::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+/// let time = PyClassShell::new_ref(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 /// let time_as_tuple = (8, 43, 16);
 /// py_run!(py, time time_as_tuple, r#"
 /// assert time.hour == 8

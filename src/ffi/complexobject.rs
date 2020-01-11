@@ -27,7 +27,6 @@ extern "C" {
     pub fn PyComplex_ImagAsDouble(op: *mut PyObject) -> c_double;
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct Py_complex {
@@ -35,11 +34,10 @@ pub struct Py_complex {
     pub imag: c_double,
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyComplexObject {
-    _ob_base: PyObject,
+    pub ob_base: PyObject,
     pub cval: Py_complex,
 }
 

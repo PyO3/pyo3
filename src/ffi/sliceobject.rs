@@ -26,6 +26,14 @@ pub unsafe fn PySlice_Check(op: *mut PyObject) -> c_int {
     (Py_TYPE(op) == &mut PySlice_Type) as c_int
 }
 
+#[repr(C)]
+pub struct PySliceObject {
+    pub ob_base: PyObject,
+    pub start: *mut PyObject,
+    pub stop: *mut PyObject,
+    pub step: *mut PyObject,
+}
+
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPySlice_New")]

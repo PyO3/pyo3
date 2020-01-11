@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
-use pyo3::type_object::initialize_type;
+use pyo3::pyclass::initialize_type;
 
 mod common;
 

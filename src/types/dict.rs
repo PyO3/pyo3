@@ -19,7 +19,12 @@ use std::{cmp, collections, hash};
 #[repr(transparent)]
 pub struct PyDict(PyObject, Unsendable);
 
-pyobject_native_type!(PyDict, ffi::PyDict_Type, ffi::PyDict_Check);
+pyobject_native_type!(
+    PyDict,
+    ffi::PyDictObject,
+    ffi::PyDict_Type,
+    ffi::PyDict_Check
+);
 
 impl PyDict {
     /// Creates a new empty dictionary.

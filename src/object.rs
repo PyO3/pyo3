@@ -3,11 +3,9 @@
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::gil;
-use crate::instance::{AsPyRef, PyNativeType, PyRef, PyRefMut};
+use crate::instance::{AsPyRef, PyNativeType};
 use crate::types::{PyAny, PyDict, PyTuple};
-use crate::AsPyPointer;
-use crate::Py;
-use crate::Python;
+use crate::{AsPyPointer, Py, Python};
 use crate::{FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToBorrowedObject, ToPyObject};
 use std::ptr::NonNull;
 
@@ -164,7 +162,7 @@ impl PyObject {
     where
         D: FromPyObject<'p>,
     {
-        FromPyObject::extract(self.as_ref(py).into())
+        FromPyObject::extract(self.as_ref(py))
     }
 
     /// Retrieves an attribute value.
@@ -253,13 +251,8 @@ impl PyObject {
 }
 
 impl AsPyRef<PyAny> for PyObject {
-    #[inline]
-    fn as_ref(&self, _py: Python) -> PyRef<PyAny> {
-        unsafe { PyRef::from_ref(&*(self as *const _ as *const PyAny)) }
-    }
-    #[inline]
-    fn as_mut(&mut self, _py: Python) -> PyRefMut<PyAny> {
-        unsafe { PyRefMut::from_mut(&mut *(self as *mut _ as *mut PyAny)) }
+    fn as_ref(&self, _py: Python) -> &PyAny {
+        unsafe { &*(self as *const _ as *const PyAny) }
     }
 }
 

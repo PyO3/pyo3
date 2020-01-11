@@ -16,10 +16,10 @@ struct WordCounter {
 #[pymethods]
 impl WordCounter {
     #[new]
-    fn new(obj: &PyRawObject, path: String) {
-        obj.init(WordCounter {
+    fn new(path: String) -> Self {
+        WordCounter {
             path: PathBuf::from(path),
-        });
+        }
     }
 
     /// Searches for the word, parallelized by rayon

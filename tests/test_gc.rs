@@ -1,13 +1,9 @@
 use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
-use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::py_run;
-use pyo3::types::PyAny;
-use pyo3::types::PyTuple;
-use pyo3::AsPyPointer;
-use pyo3::PyRawObject;
+use pyo3::types::{PyAny, PyTuple};
+use pyo3::{ffi, py_run, AsPyPointer, PyClassShell};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -157,7 +153,7 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = PyRef::new(
+        let inst = PyClassShell::new_mut(
             py,
             GCIntegration {
                 self_ref: RefCell::new(py.None()),
@@ -192,7 +188,7 @@ impl PyGCProtocol for GCIntegration2 {
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyRef::new(py, GCIntegration2 {}).unwrap();
+    let inst = PyClassShell::new_ref(py, GCIntegration2 {}).unwrap();
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
@@ -203,7 +199,7 @@ struct WeakRefSupport {}
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyRef::new(py, WeakRefSupport {}).unwrap();
+    let inst = PyClassShell::new_ref(py, WeakRefSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -219,8 +215,8 @@ struct BaseClassWithDrop {
 #[pymethods]
 impl BaseClassWithDrop {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(BaseClassWithDrop { data: None })
+    fn new() -> BaseClassWithDrop {
+        BaseClassWithDrop { data: None }
     }
 }
 
@@ -240,9 +236,11 @@ struct SubClassWithDrop {
 #[pymethods]
 impl SubClassWithDrop {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(SubClassWithDrop { data: None });
-        BaseClassWithDrop::new(obj);
+    fn new() -> (Self, BaseClassWithDrop) {
+        (
+            SubClassWithDrop { data: None },
+            BaseClassWithDrop { data: None },
+        )
     }
 }
 

@@ -13,6 +13,22 @@ extern "C" {
     pub static mut PyDictValues_Type: PyTypeObject;
 }
 
+#[repr(C)]
+pub struct PyDictKeysObject {
+    _unused: [u8; 0],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct PyDictObject {
+    pub ob_base: PyObject,
+    pub ma_used: Py_ssize_t,
+    #[cfg(Py_3_6)]
+    pub ma_version_tag: u64,
+    pub ma_keys: *mut PyDictKeysObject,
+    pub ma_values: *mut *mut PyObject,
+}
+
 #[inline]
 pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DICT_SUBCLASS)

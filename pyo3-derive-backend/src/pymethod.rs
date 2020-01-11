@@ -10,7 +10,6 @@ pub fn gen_py_method(
     meth_attrs: &mut Vec<syn::Attribute>,
 ) -> syn::Result<TokenStream> {
     check_generic(sig)?;
-
     let spec = FnSpec::parse(sig, &mut *meth_attrs, true)?;
 
     Ok(match spec.tp {
@@ -53,7 +52,7 @@ pub fn impl_wrap(cls: &syn::Type, spec: &FnSpec<'_>, noargs: bool) -> TokenStrea
 pub fn impl_wrap_pyslf(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
-    self_ty: &syn::TypePath,
+    self_ty: &syn::TypeReference,
     noargs: bool,
 ) -> TokenStream {
     let names = get_arg_names(spec);
@@ -151,9 +150,12 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let name = &spec.name;
     let python_name = &spec.python_name;
     let names: Vec<syn::Ident> = get_arg_names(&spec);
-    let cb = quote! { #cls::#name(&_obj, #(#names),*) };
-
-    let body = impl_arg_params(spec, cb);
+    let cb = quote! { #cls::#name(#(#names),*) };
+    let body = impl_arg_params_(
+        spec,
+        cb,
+        quote! { pyo3::derive_utils::IntoPyNewResult::into_pynew_result },
+    );
 
     quote! {
         #[allow(unused_mut)]
@@ -167,25 +169,14 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            match pyo3::type_object::PyRawObject::new(_py, #cls::type_object(), _cls) {
-                Ok(_obj) => {
-                    let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-                    let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+            let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+            let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-                    #body
+            #body
 
-                    match _result {
-                        Ok(_) => pyo3::IntoPyPointer::into_ptr(_obj),
-                        Err(e) => {
-                            e.restore(_py);
-                            ::std::ptr::null_mut()
-                        }
-                    }
-                }
-                Err(e) => {
-                    e.restore(_py);
-                    ::std::ptr::null_mut()
-                }
+            match _result.and_then(|init| pyo3::PyClassInitializer::from(init).create_shell(_py)) {
+                Ok(slf) => slf as _,
+                Err(e) => e.restore_and_null(_py),
             }
         }
     }
@@ -377,11 +368,11 @@ fn bool_to_ident(condition: bool) -> syn::Ident {
     }
 }
 
-pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
+fn impl_arg_params_(spec: &FnSpec<'_>, body: TokenStream, into_result: TokenStream) -> TokenStream {
     if spec.args.is_empty() {
         return quote! {
             let _result = {
-                pyo3::derive_utils::IntoPyResult::into_py_result(#body)
+                #into_result (#body)
             };
         };
     }
@@ -439,9 +430,17 @@ pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
 
             #(#param_conversion)*
 
-            pyo3::derive_utils::IntoPyResult::into_py_result(#body)
+            #into_result(#body)
         })();
     }
+}
+
+pub fn impl_arg_params(spec: &FnSpec<'_>, body: TokenStream) -> TokenStream {
+    impl_arg_params_(
+        spec,
+        body,
+        quote! { pyo3::derive_utils::IntoPyResult::into_py_result },
+    )
 }
 
 /// Re option_pos: The option slice doesn't contain the py: Python argument, so the argument

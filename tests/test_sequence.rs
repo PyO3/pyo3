@@ -14,20 +14,19 @@ struct ByteSequence {
 #[pymethods]
 impl ByteSequence {
     #[new]
-    fn new(obj: &PyRawObject, elements: Option<&PyList>) -> PyResult<()> {
+    fn new(elements: Option<&PyList>) -> PyResult<Self> {
         if let Some(pylist) = elements {
             let mut elems = Vec::with_capacity(pylist.len());
             for pyelem in pylist.into_iter() {
                 let elem = u8::extract(pyelem)?;
                 elems.push(elem);
             }
-            obj.init(Self { elements: elems });
+            Ok(Self { elements: elems })
         } else {
-            obj.init(Self {
+            Ok(Self {
                 elements: Vec::new(),
-            });
+            })
         }
-        Ok(())
     }
 }
 

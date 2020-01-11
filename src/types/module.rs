@@ -9,15 +9,11 @@ use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::PyTypeCreate;
+use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
-use crate::AsPyPointer;
-use crate::IntoPy;
-use crate::Py;
-use crate::Python;
-use crate::ToPyObject;
+use crate::{AsPyPointer, IntoPy, Py, Python, ToPyObject};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -26,7 +22,7 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyObject, Unsendable);
 
-pyobject_native_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
+pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 
 impl PyModule {
     /// Create a new module object with the `__name__` attribute set to name.
@@ -173,7 +169,7 @@ impl PyModule {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()>
     where
-        T: PyTypeCreate,
+        T: PyClass,
     {
         self.add(T::NAME, <T as PyTypeObject>::type_object())
     }
