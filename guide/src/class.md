@@ -173,10 +173,10 @@ so that they can benefit from a freelist. `XXX` is a number of items for the fre
 If a custom class contains references to other Python objects that can be collected, the `PyGCProtocol` trait has to be implemented.
 * `weakref` - Adds support for Python weak references.
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
+* `subclass` - Allows Python classes to inherit from this class.
 * `dict` - Adds `__dict__` support, so that the instances of this type have a dictionary containing arbitrary instance variables.
 * `module="XXX"` - Set the name of the module the class will be shown as defined in. If not given, the class
   will be a virtual member of the `builtins` module.
-* `subclass` - Allows Python classes to inherit from this class. This feature is hidden behind a `unsound-subclass` feature because it is currently causing segmentation faults
 
 ## Constructor
 

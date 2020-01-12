@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 
-#[cfg(feature = "unsound-subclass")]
 use pyo3::types::IntoPyDict;
 
 use pyo3::types::{PyDict, PySet};
@@ -13,11 +12,9 @@ struct BaseClass {
     val1: usize,
 }
 
-#[cfg(feature = "unsound-subclass")]
 #[pyclass(subclass)]
 struct SubclassAble {}
 
-#[cfg(feature = "unsound-subclass")]
 #[test]
 fn subclass() {
     let gil = Python::acquire_gil();
