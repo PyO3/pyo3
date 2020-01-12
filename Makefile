@@ -1,8 +1,7 @@
 .PHONY: test test_py3 publish clippy lint fmt
 
-# Constants used in clippy target
+# Constant used in clippy target
 CLIPPY_LINTS_TO_DENY := warnings
-CLIPPY_LINTS_TO_ALLOW := clippy::new_ret_no_self
 
 test:
 	cargo test
@@ -21,8 +20,7 @@ fmt:
 clippy:
 	@touch src/lib.rs  # Touching file to ensure that cargo clippy will re-check the project
 	cargo clippy --all-features --all-targets -- \
-		$(addprefix -D ,${CLIPPY_LINTS_TO_DENY}) \
-		$(addprefix -A ,${CLIPPY_LINTS_TO_ALLOW})
+		$(addprefix -D ,${CLIPPY_LINTS_TO_DENY})
 
 lint: fmt clippy
 	@true
