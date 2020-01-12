@@ -31,3 +31,5 @@ jobs:
           pip install setuptools-rust pytest pytest-benchmark tox tox-venv
       - name: Test
         run: ci/actions/test
+    env:
+      RUST_BACKTRACE: 1
