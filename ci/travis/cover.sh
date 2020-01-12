@@ -11,6 +11,6 @@ fi
 ### Run grcov ##################################################################
 
 zip -0 ccov.zip `find . \( -name "pyo3*.gc*" \) -print`;
-./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "/*" -o lcov.info;
+./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
 bash <(curl -s https://codecov.io/bash) -f lcov.info;
 
