@@ -56,9 +56,6 @@ script:
   - if ! [[ $FEATURES == *"pypy"* ]]; then export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"; fi
   - ./ci/travis/test.sh
 
-after_success:
-  - ./ci/travis/cover.sh
-
 deploy:
   - provider: script
     skip_cleanup: true
