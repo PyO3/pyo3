@@ -222,7 +222,7 @@ Consult the table below to determine which type your constructor should return:
 By default, `PyAny` is used as the base class. To override this default,
 use the `extends` parameter for `pyclass` with the full path to the base class.
 
-For convinience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
+For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the
 baseclass of `T`.
 But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
@@ -291,13 +291,13 @@ impl SubSubClass {
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
 
-To aceess super class, you can use either of these two ways.
+To access the super class, you can use either of these two ways:
 - Use `self_: &PyClassShell<Self>` instead of `self`, and call `get_super()`
 - `ObjectProtocol::get_base`
-We recommend `PyClasShell` here, since it makes the context much clearer.
+We recommend `PyClassShell` here, since it makes the context much clearer.
 
 
-If `SubClass` does not provide baseclass initialization, compile fails.
+If `SubClass` does not provide a baseclass initialization, the compilation fails.
 ```compile_fail
 # use pyo3::prelude::*;
 use pyo3::PyClassShell;
