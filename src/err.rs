@@ -525,7 +525,7 @@ pub fn panic_after_error() -> ! {
     unsafe {
         ffi::PyErr_Print();
     }
-    panic!("Python API called failed");
+    panic!("Python API call failed");
 }
 
 /// Returns Ok if the error code is not -1.
