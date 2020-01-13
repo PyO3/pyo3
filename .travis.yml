@@ -56,13 +56,10 @@ script:
   - if ! [[ $FEATURES == *"pypy"* ]]; then export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"; fi
   - ./ci/travis/test.sh
 
-after_success:
-  - ./ci/travis/cover.sh || true
-
 deploy:
   - provider: script
     skip_cleanup: true
-    script: ./ci/travis/cover.sh || true
+    script: ./ci/travis/cover.sh
     on:
       branch: master
       condition: $TRAVIS_EVENT_TYPE != "cron"
