@@ -1,0 +1,8 @@
+error[E0277]: the trait bound `TestClass: std::clone::Clone` is not satisfied
+  --> $DIR/missing_clone.rs:15:32
+   |
+15 |     let t: TestClass = pyvalue.extract(py).unwrap();
+   |                                ^^^^^^^ the trait `std::clone::Clone` is not implemented for `TestClass`
+   |
+   = note: required because of the requirements on the impl of `pyo3::conversion::extract_impl::ExtractImpl<'_, TestClass>` for `pyo3::conversion::extract_impl::Cloned`
+   = note: required because of the requirements on the impl of `pyo3::conversion::FromPyObject<'_>` for `TestClass`

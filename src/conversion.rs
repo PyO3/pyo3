@@ -244,25 +244,80 @@ where
     }
 }
 
-/// Extract reference to instance from `PyObject`
-impl<'a, T> FromPyObject<'a> for &'a T
-where
-    T: PyTryFrom<'a>,
-{
-    #[inline]
-    fn extract(ob: &'a PyAny) -> PyResult<&'a T> {
-        Ok(T::try_from(ob)?)
+#[doc(hidden)]
+pub mod extract_impl {
+    use super::*;
+
+    pub trait ExtractImpl<'a, Target>: Sized {
+        fn extract(source: &'a PyAny) -> PyResult<Target>;
+    }
+
+    pub struct Cloned;
+    pub struct Reference;
+    pub struct MutReference;
+
+    impl<'a, T: 'a> ExtractImpl<'a, T> for Cloned
+    where
+        T: Clone,
+        Reference: ExtractImpl<'a, &'a T>,
+    {
+        fn extract(source: &'a PyAny) -> PyResult<T> {
+            Ok(Reference::extract(source)?.clone())
+        }
+    }
+
+    impl<'a, T> ExtractImpl<'a, &'a T> for Reference
+    where
+        T: PyTryFrom<'a>,
+    {
+        fn extract(source: &'a PyAny) -> PyResult<&'a T> {
+            Ok(T::try_from(source)?)
+        }
+    }
+
+    impl<'a, T> ExtractImpl<'a, &'a mut T> for MutReference
+    where
+        T: PyTryFrom<'a>,
+    {
+        fn extract(source: &'a PyAny) -> PyResult<&'a mut T> {
+            Ok(T::try_from_mut(source)?)
+        }
     }
 }
 
-/// Extract mutable reference to instance from `PyObject`
-impl<'a, T> FromPyObject<'a> for &'a mut T
+use extract_impl::ExtractImpl;
+
+/// This is an internal trait for re-using `FromPyObject` implementations for many pyo3 types.
+///
+/// Users should implement `FromPyObject` directly instead of via this trait.
+pub trait FromPyObjectImpl {
+    // Implement this trait with to specify the implementor of `extract_impl::ExtractImpl` to use for
+    // extracting this type from Python objects.
+    //
+    // Example valid implementations are `extract_impl::Cloned`, `extract_impl::Reference`, and
+    // `extract_impl::MutReference`, which are for extracting `T`, `&T` and `&mut T` respectively via
+    // PyTryFrom.
+    //
+    // We deliberately don't require Impl: ExtractImpl here because we allow #[pyclass]
+    // to specify an Impl which doesn't satisfy the ExtractImpl constraints.
+    //
+    // e.g. non-clone #[pyclass] can still have Impl: Cloned.
+    //
+    // We catch invalid Impls in the blanket impl for FromPyObject, which only
+    // complains when .extract() is actually used.
+
+    /// The type which implements `ExtractImpl`.
+    type Impl;
+}
+
+impl<'a, T> FromPyObject<'a> for T
 where
-    T: PyTryFrom<'a>,
+    T: FromPyObjectImpl,
+    <T as FromPyObjectImpl>::Impl: ExtractImpl<'a, Self>,
 {
     #[inline]
-    fn extract(ob: &'a PyAny) -> PyResult<&'a mut T> {
-        Ok(T::try_from_mut(ob)?)
+    fn extract(ob: &'a PyAny) -> PyResult<T> {
+        <T as FromPyObjectImpl>::Impl::extract(ob)
     }
 }
 
