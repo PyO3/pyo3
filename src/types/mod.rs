@@ -25,28 +25,6 @@ pub use self::string::{PyString, PyString as PyUnicode};
 pub use self::tuple::PyTuple;
 pub use self::typeobject::PyType;
 
-/// Implements a typesafe conversions throught [FromPyObject], given a typecheck function as second
-/// parameter
-#[macro_export]
-macro_rules! pyobject_downcast (
-    ($name: ty, $checkfunction: path $(,$type_param: ident)*) => (
-        impl<'a, $($type_param,)*> $crate::FromPyObject<'a> for &'a $name
-        {
-            /// Extracts `Self` from the source `PyObject`.
-            fn extract(ob: &'a $crate::types::PyAny) -> $crate::PyResult<Self>
-            {
-                unsafe {
-                    if $checkfunction(ob.as_ptr()) != 0 {
-                        Ok(&*(ob as *const $crate::types::PyAny as *const $name))
-                    } else {
-                        Err($crate::PyDowncastError.into())
-                    }
-                }
-            }
-        }
-    );
-);
-
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name: ty $(,$type_param: ident)*) => {
