@@ -62,6 +62,8 @@ deploy:
     script: ./ci/travis/cover.sh
     on:
       branch: master
+      repo: PyO3/pyo3
+      python: 3.6
       condition: $TRAVIS_EVENT_TYPE != "cron"
   - provider: script
     skip_cleanup: true
