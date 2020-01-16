@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * The blanket implementations for `FromPyObject` for `&T` and `&mut T` are no longer specializable. Implement `PyTryFrom` for your type to control the behavior of `FromPyObject::extract()` for your types.
 * The implementation for `IntoPy<U> for T` where `U: FromPy<T>` is no longer specializable. Control the behavior of this via the implementation of `FromPy`.
 * `#[new]` does not take `PyRawObject` and can reutrn `Self`  [#683](https://github.com/PyO3/pyo3/pull/683)
+* Use `parking_lot::Mutex` instead of `spin::Mutex` [#734](https://github.com/PyO3/pyo3/pull/734)
 
 ### Added
 

@@ -6,7 +6,6 @@ use crate::ffi;
 use crate::internal_tricks::Unsendable;
 use crate::types::PyAny;
 use crate::Python;
-use spin;
 use std::ptr::NonNull;
 use std::{any, sync};
 
@@ -124,7 +123,7 @@ struct ReleasePool {
     borrowed: ArrayList<NonNull<ffi::PyObject>>,
     pointers: *mut Vec<NonNull<ffi::PyObject>>,
     obj: Vec<Box<dyn any::Any>>,
-    p: spin::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
+    p: parking_lot::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
 impl ReleasePool {
@@ -134,7 +133,7 @@ impl ReleasePool {
             borrowed: ArrayList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
             obj: Vec::with_capacity(8),
-            p: spin::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
+            p: parking_lot::Mutex::new(Box::into_raw(Box::new(Vec::with_capacity(256)))),
         }
     }
 
