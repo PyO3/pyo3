@@ -20,4 +20,6 @@ impl Default for PyHash_FuncDef {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     pub fn PyHash_GetFuncDef() -> *mut PyHash_FuncDef;
+    #[cfg(not(PyPy))]
+    pub fn _Py_HashBytes(src: *const c_void, len: Py_ssize_t) -> Py_hash_t;
 }
