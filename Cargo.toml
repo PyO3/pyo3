@@ -19,16 +19,16 @@ travis-ci = { repository = "PyO3/pyo3", branch = "master" }
 appveyor = { repository = "fafhrd91/pyo3" }
 
 [dependencies]
-libc = "0.2.62"
-spin = "0.5.1"
-num-traits = "0.2.8"
-pyo3cls = { path = "pyo3cls", version = "=0.8.5" }
-num-complex = { version = ">= 0.2", optional = true }
-num-bigint = { version = ">= 0.2", optional = true }
-inventory = "0.1.4"
 indoc = "0.3.4"
-unindent = "0.1.4"
+inventory = "0.1.4"
+libc = "0.2.62"
+num-bigint = { version = ">= 0.2", optional = true }
+num-complex = { version = ">= 0.2", optional = true }
+num-traits = "0.2.8"
+parking_lot = { version = "0.10", features = ["nightly"] }
 paste = "0.1.6"
+pyo3cls = { path = "pyo3cls", version = "=0.8.5" }
+unindent = "0.1.4"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
