@@ -75,7 +75,8 @@ fn impl_wrap_common(
     if spec.args.is_empty() && noargs {
         quote! {
             unsafe extern "C" fn __wrap(
-                _slf: *mut pyo3::ffi::PyObject
+                _slf: *mut pyo3::ffi::PyObject,
+                _args: *mut pyo3::ffi::PyObject,
             ) -> *mut pyo3::ffi::PyObject
             {
                 const _LOCATION: &'static str = concat!(
@@ -525,7 +526,7 @@ pub fn impl_py_method_def(spec: &FnSpec, wrapper: &TokenStream) -> TokenStream {
 
                 pyo3::class::PyMethodDef {
                     ml_name: stringify!(#python_name),
-                    ml_meth: pyo3::class::PyMethodType::PyNoArgsFunction(__wrap),
+                    ml_meth: pyo3::class::PyMethodType::PyCFunction(__wrap),
                     ml_flags: pyo3::ffi::METH_NOARGS,
                     ml_doc: #doc,
                 }

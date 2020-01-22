@@ -61,8 +61,6 @@ pub type PyCFunctionWithKeywords = unsafe extern "C" fn(
     kwds: *mut PyObject,
 ) -> *mut PyObject;
 
-pub type PyNoArgsFunction = unsafe extern "C" fn(slf: *mut PyObject) -> *mut PyObject;
-
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCFunction_GetFunction")]

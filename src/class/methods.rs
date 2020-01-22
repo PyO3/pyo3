@@ -28,7 +28,6 @@ pub enum PyMethodDefType {
 pub enum PyMethodType {
     PyCFunction(ffi::PyCFunction),
     PyCFunctionWithKeywords(ffi::PyCFunctionWithKeywords),
-    PyNoArgsFunction(ffi::PyNoArgsFunction),
     PyNewFunc(ffi::newfunc),
     PyInitFunc(ffi::initproc),
 }
@@ -71,7 +70,6 @@ impl PyMethodDef {
         let meth = match self.ml_meth {
             PyMethodType::PyCFunction(meth) => meth,
             PyMethodType::PyCFunctionWithKeywords(meth) => unsafe { std::mem::transmute(meth) },
-            PyMethodType::PyNoArgsFunction(meth) => unsafe { std::mem::transmute(meth) },
             PyMethodType::PyNewFunc(meth) => unsafe { std::mem::transmute(meth) },
             PyMethodType::PyInitFunc(meth) => unsafe { std::mem::transmute(meth) },
         };
