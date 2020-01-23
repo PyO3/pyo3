@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
 * `PyRef`, `PyRefMut`, `PyRawObject` [#683](https://github.com/PyO3/pyo3/pull/683)
+* `PyNoArgsFunction` [#741](https://github.com/PyO3/pyo3/pull/741)
 
 ## [0.8.5]
 
