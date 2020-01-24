@@ -112,7 +112,7 @@ fn test_module_from_code() {
 
     let add_func = adder_mod
         .get("add")
-        .expect("Add fucntion should be in the module")
+        .expect("Add function should be in the module")
         .to_object(py);
 
     let ret_value: i32 = add_func
