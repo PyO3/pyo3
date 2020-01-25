@@ -142,6 +142,10 @@ macro_rules! pyobject_native_type_convert(
             }
         }
 
+        impl<$($type_param,)*> $crate::conversion::FromPyObjectImpl for &'_ $name {
+            type Impl = $crate::conversion::extract_impl::Reference;
+        }
+
         impl<$($type_param,)*> ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter)
                    -> Result<(), ::std::fmt::Error>

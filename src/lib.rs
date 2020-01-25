@@ -152,7 +152,7 @@ pub mod buffer;
 #[doc(hidden)]
 pub mod callback;
 pub mod class;
-mod conversion;
+pub mod conversion;
 #[doc(hidden)]
 pub mod derive_utils;
 mod err;
