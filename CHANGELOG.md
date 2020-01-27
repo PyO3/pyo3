@@ -11,26 +11,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-* The blanket implementations for `FromPyObject` for `&T` and `&mut T` are no longer specializable. Implement `PyTryFrom` for your type to control the behavior of `FromPyObject::extract()` for your types.
-* The implementation for `IntoPy<U> for T` where `U: FromPy<T>` is no longer specializable. Control the behavior of this via the implementation of `FromPy`.
-* `#[new]` does not take `PyRawObject` and can reutrn `Self`  [#683](https://github.com/PyO3/pyo3/pull/683)
-* Use `parking_lot::Mutex` instead of `spin::Mutex` [#734](https://github.com/PyO3/pyo3/pull/734)
+* `#[new]` does not take `PyRawObject` and can return `Self`. [#683](https://github.com/PyO3/pyo3/pull/683)
+* The blanket implementations for `FromPyObject` for `&T` and `&mut T` are no longer specializable. Implement `PyTryFrom` for your type to control the behavior of `FromPyObject::extract()` for your types. [#713](https://github.com/PyO3/pyo3/pull/713)
+* The implementation for `IntoPy<U> for T` where `U: FromPy<T>` is no longer specializable. Control the behavior of this via the implementation of `FromPy`. [#713](https://github.com/PyO3/pyo3/pull/713)
+* Use `parking_lot::Mutex` instead of `spin::Mutex`. [#734](https://github.com/PyO3/pyo3/pull/734)
 
 ### Added
 
-* `FromPyObject` is now automatically implemented for `T: Clone` pyclasses. [#730](https://github.com/PyO3/pyo3/pull/730)
+* `PyClass`, `PyClassShell`, `PyObjectLayout`, `PyClassInitializer`. [#683](https://github.com/PyO3/pyo3/pull/683)
 * Implemented `IntoIterator` for `PySet` and `PyFrozenSet`. [#716](https://github.com/PyO3/pyo3/pull/716)
-* `PyClass`, `PyClassShell`, `PyObjectLayout`, `PyClassInitializer` [#683](https://github.com/PyO3/pyo3/pull/683)
+* `FromPyObject` is now automatically implemented for `T: Clone` pyclasses. [#730](https://github.com/PyO3/pyo3/pull/730)
 
 ### Fixed
 
-* Clear error indicator when the exception is handled on the Rust side. [#719](https://github.com/PyO3/pyo3/pull/719)
 * Fixed unsoundness of subclassing. [#683](https://github.com/PyO3/pyo3/pull/683).
+* Clear error indicator when the exception is handled on the Rust side. [#719](https://github.com/PyO3/pyo3/pull/719)
 
 ### Removed
 
-* `PyRef`, `PyRefMut`, `PyRawObject` [#683](https://github.com/PyO3/pyo3/pull/683)
-* `PyNoArgsFunction` [#741](https://github.com/PyO3/pyo3/pull/741)
+* `PyRef`, `PyRefMut`, `PyRawObject`. [#683](https://github.com/PyO3/pyo3/pull/683)
+* `PyNoArgsFunction`. [#741](https://github.com/PyO3/pyo3/pull/741)
 
 ## [0.8.5]
 
