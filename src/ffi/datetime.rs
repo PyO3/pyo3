@@ -353,7 +353,7 @@ macro_rules! _access_field {
 pub unsafe fn PyDateTime_GET_YEAR(o: *mut PyObject) -> c_int {
     // This should work for Date or DateTime
     let d = *(o as *mut PyDateTime_Date);
-    (c_int::from(d.data[0]) << 8 | c_int::from(d.data[1]))
+    c_int::from(d.data[0]) << 8 | c_int::from(d.data[1])
 }
 
 #[inline]
