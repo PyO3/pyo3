@@ -69,7 +69,10 @@ fn custom_names() {
 }
 
 #[pyclass]
-struct RawIdents {}
+struct RawIdents {
+    #[pyo3(get, set)]
+    r#type: i64,
+}
 
 #[pymethods]
 impl RawIdents {
@@ -83,6 +86,7 @@ fn test_raw_idents() {
     let typeobj = py.get_type::<RawIdents>();
     py_assert!(py, typeobj, "not hasattr(typeobj, 'r#fn')");
     py_assert!(py, typeobj, "hasattr(typeobj, 'fn')");
+    py_assert!(py, typeobj, "hasattr(typeobj, 'type')");
 }
 
 #[pyclass]

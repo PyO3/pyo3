@@ -427,7 +427,7 @@ fn impl_descriptors(
         .flat_map(|&(ref field, ref fns)| {
             fns.iter()
                 .map(|desc| {
-                    let name = field.ident.clone().unwrap();
+                    let name = field.ident.as_ref().unwrap();
                     let field_ty = &field.ty;
                     match *desc {
                         FnType::Getter => {
@@ -441,7 +441,7 @@ fn impl_descriptors(
                         }
                         FnType::Setter => {
                             let setter_name =
-                                syn::Ident::new(&format!("set_{}", name), Span::call_site());
+                                syn::Ident::new(&format!("set_{}", name.unraw()), Span::call_site());
                             quote! {
                                 impl #cls {
                                     fn #setter_name(&mut self, value: #field_ty) -> pyo3::PyResult<()> {
@@ -463,7 +463,7 @@ fn impl_descriptors(
         .flat_map(|&(ref field, ref fns)| {
             fns.iter()
                 .map(|desc| {
-                    let name = field.ident.clone().unwrap();
+                    let name = field.ident.as_ref().unwrap();
 
                     // FIXME better doc?
                     let doc = syn::LitStr::new(&name.to_string(), name.span());
@@ -483,8 +483,10 @@ fn impl_descriptors(
                             Ok(impl_py_getter_def(&spec, &impl_wrap_getter(&cls, &spec)?))
                         }
                         FnType::Setter => {
-                            let setter_name =
-                                syn::Ident::new(&format!("set_{}", name), Span::call_site());
+                            let setter_name = syn::Ident::new(
+                                &format!("set_{}", name.unraw()),
+                                Span::call_site(),
+                            );
                             let spec = FnSpec {
                                 tp: FnType::Setter,
                                 name: &setter_name,
