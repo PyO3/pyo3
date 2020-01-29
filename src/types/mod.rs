@@ -63,6 +63,7 @@ macro_rules! pyobject_native_type {
         impl $crate::type_object::PyObjectSizedLayout<$name> for $layout {}
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
+        pyobject_native_type_extract!($name $(,$type_param)*);
 
         impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
             fn from(ob: &'a $name) -> Self {
@@ -84,6 +85,8 @@ macro_rules! pyobject_native_var_type {
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $crate::ffi::PyObject,
                                       $typeobject, $module, $checkfunction $(,$type_param)*);
+        pyobject_native_type_extract!($name $(,$type_param)*);
+
         impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::types::PyAny)}
@@ -95,6 +98,16 @@ macro_rules! pyobject_native_var_type {
             $name, $typeobject, Some("builtins"), $checkfunction $(,$type_param)*
         }
     };
+}
+
+// NOTE: This macro is not included in pyobject_native_type_convert!
+// because rust-numpy has a special implementation.
+macro_rules! pyobject_native_type_extract {
+    ($name: ty $(,$type_param: ident)*) => {
+        impl<$($type_param,)*> $crate::conversion::FromPyObjectImpl for &'_ $name {
+            type Impl = $crate::conversion::extract_impl::Reference;
+        }
+    }
 }
 
 #[macro_export]
@@ -140,10 +153,6 @@ macro_rules! pyobject_native_type_convert(
                 use $crate::AsPyPointer;
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
             }
-        }
-
-        impl<$($type_param,)*> $crate::conversion::FromPyObjectImpl for &'_ $name {
-            type Impl = $crate::conversion::extract_impl::Reference;
         }
 
         impl<$($type_param,)*> ::std::fmt::Debug for $name {
