@@ -33,6 +33,7 @@ pyobject_native_type_convert!(
     Some("builtins"),
     ffi::PyObject_Check
 );
+pyobject_native_type_extract!(PyAny);
 
 impl PyAny {
     pub fn downcast_ref<T>(&self) -> Result<&T, PyDowncastError>
