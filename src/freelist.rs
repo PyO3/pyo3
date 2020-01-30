@@ -90,7 +90,7 @@ where
         }
 
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj) {
-            match Self::type_object().tp_free {
+            match (*Self::type_object()).tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => tp_free_fallback(obj),
             }

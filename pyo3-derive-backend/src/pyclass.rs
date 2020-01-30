@@ -384,9 +384,10 @@ fn impl_class(
             const FLAGS: usize = #(#flags)|* | #extended;
 
             #[inline]
-            unsafe fn type_object() -> &'static mut pyo3::ffi::PyTypeObject {
-                static mut TYPE_OBJECT: pyo3::ffi::PyTypeObject = pyo3::ffi::PyTypeObject_INIT;
-                &mut TYPE_OBJECT
+            fn type_object() -> *mut pyo3::ffi::PyTypeObject {
+                static TYPE_OBJECT: pyo3::derive_utils::LazyTypeObject =
+                    pyo3::derive_utils::LazyTypeObject::new();
+                TYPE_OBJECT.get()
             }
         }
 

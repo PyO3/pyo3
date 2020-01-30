@@ -111,8 +111,8 @@ macro_rules! pyobject_native_type_convert(
             const MODULE: Option<&'static str> = $module;
 
             #[inline]
-            unsafe fn type_object() -> &'static mut $crate::ffi::PyTypeObject {
-                &mut $typeobject
+            fn type_object() -> *mut $crate::ffi::PyTypeObject {
+                unsafe { &mut $typeobject as *mut _ }
             }
 
             #[allow(unused_unsafe)]
@@ -127,7 +127,7 @@ macro_rules! pyobject_native_type_convert(
             fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
                 unsafe {
                     std::ptr::NonNull::new_unchecked(
-                        <Self as $crate::type_object::PyTypeInfo>::type_object() as *mut _
+                        <Self as $crate::type_object::PyTypeInfo>::type_object()
                     )
                 }
             }

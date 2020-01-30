@@ -87,7 +87,7 @@ pub trait PyTypeInfo: Sized {
 
     /// PyTypeObject instance for this type, which might still need to
     /// be initialized
-    unsafe fn type_object() -> &'static mut ffi::PyTypeObject;
+    fn type_object() -> *mut ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
     fn is_instance(object: &PyAny) -> bool {

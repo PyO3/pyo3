@@ -47,7 +47,7 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
             return;
         }
 
-        match Self::type_object().tp_free {
+        match (*Self::type_object()).tp_free {
             Some(free) => free(obj as *mut c_void),
             None => tp_free_fallback(obj),
         }
@@ -88,9 +88,10 @@ where
 {
     fn init_type() -> NonNull<ffi::PyTypeObject> {
         <T::BaseType as PyTypeObject>::init_type();
-        let type_object = unsafe { <Self as PyTypeInfo>::type_object() };
+        let type_object = <Self as PyTypeInfo>::type_object();
+        let type_flags = unsafe { (*type_object).tp_flags };
 
-        if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
+        if (type_flags & ffi::Py_TPFLAGS_READY) == 0 {
             // automatically initialize the class on-demand
             let gil = Python::acquire_gil();
             let py = gil.python();
@@ -282,9 +283,8 @@ pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mu
 where
     T: PyClass,
 {
-    let type_object: &mut ffi::PyTypeObject = unsafe { T::type_object() };
-    let base_type_object: &mut ffi::PyTypeObject =
-        unsafe { <T::BaseType as PyTypeInfo>::type_object() };
+    let type_object: &mut ffi::PyTypeObject = unsafe { &mut *T::type_object() };
+    let base_type_object = <T::BaseType as PyTypeInfo>::type_object();
 
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
