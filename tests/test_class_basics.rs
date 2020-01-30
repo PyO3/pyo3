@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
-use pyo3::pyclass::initialize_type;
 
 mod common;
 
@@ -111,9 +110,4 @@ fn empty_class_in_module() {
     // We currently have no way of determining a canonical module, so builtins is better
     // than using whatever calls init first.
     assert_eq!(module, "builtins");
-
-    // The module name can also be set manually by calling `initialize_type`.
-    initialize_type::<EmptyClassInModule>(py, Some("test_module.nested")).unwrap();
-    let module: String = ty.getattr("__module__").unwrap().extract().unwrap();
-    assert_eq!(module, "test_module.nested");
 }

@@ -31,7 +31,7 @@ struct MyClass {
 
 impl pyo3::pyclass::PyClassAlloc for MyClass {}
 
-impl pyo3::PyTypeInfo for MyClass {
+unsafe impl pyo3::PyTypeInfo for MyClass {
     type Type = MyClass;
     type BaseType = pyo3::types::PyAny;
     type ConcreteLayout = pyo3::PyClassShell<Self>;
@@ -43,10 +43,23 @@ impl pyo3::PyTypeInfo for MyClass {
     const FLAGS: usize = 0;
 
     #[inline]
-    fn type_object() -> *mut pyo3::ffi::PyTypeObject {
-        static TYPE_OBJECT: pyo3::derive_utils::LazyTypeObject =
-            pyo3::derive_utils::LazyTypeObject::new();
-        TYPE_OBJECT.get()
+    fn type_object() -> std::ptr::NonNull<pyo3::ffi::PyTypeObject> {
+        use std::ptr::NonNull;
+        use pyo3::type_object::LazyTypeObject;
+        static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
+        TYPE_OBJECT.get_or_init(|| {
+                // automatically initialize the class on-demand
+                let gil = pyo3::Python::acquire_gil();
+                let py = gil.python();
+                let boxed = pyo3::pyclass::create_type_object::<Self>(py, Self::MODULE)?;
+                Ok(unsafe { NonNull::new_unchecked(Box::into_raw(boxed)) })
+            })
+            .unwrap_or_else(|e| {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                e.print(py);
+                panic!("An error occurred while initializing class {}", Self::NAME)
+            })
     }
 }
 

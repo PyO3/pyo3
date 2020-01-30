@@ -12,8 +12,6 @@ use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyObject, Python};
-use once_cell::sync::OnceCell;
-use std::cell::UnsafeCell;
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -201,28 +199,3 @@ impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyRes
         self
     }
 }
-
-/// Type used to store type objects
-pub struct LazyTypeObject {
-    cell: OnceCell<UnsafeCell<ffi::PyTypeObject>>,
-}
-
-impl LazyTypeObject {
-    pub const fn new() -> Self {
-        Self {
-            cell: OnceCell::new(),
-        }
-    }
-
-    pub fn get(&self) -> *mut ffi::PyTypeObject {
-        self.cell
-            .get_or_init(|| UnsafeCell::new(ffi::PyTypeObject_INIT))
-            .get()
-    }
-}
-
-// This is necessary for making static `LazyTypeObject`s
-//
-// Type objects are shared between threads by the Python interpreter anyway, so it is no worse
-// to allow sharing on the Rust side too.
-unsafe impl Sync for LazyTypeObject {}

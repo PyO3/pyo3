@@ -14,6 +14,7 @@ use libc::c_int;
 use std::ffi::CString;
 use std::io;
 use std::os::raw::c_char;
+use std::ptr::NonNull;
 
 /// Represents a `PyErr` value
 ///
@@ -179,7 +180,7 @@ impl PyErr {
         name: &str,
         base: Option<&PyType>,
         dict: Option<PyObject>,
-    ) -> *mut ffi::PyTypeObject {
+    ) -> NonNull<ffi::PyTypeObject> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
@@ -193,8 +194,12 @@ impl PyErr {
         unsafe {
             let null_terminated_name =
                 CString::new(name).expect("Failed to initialize nul terminated exception name");
-            ffi::PyErr_NewException(null_terminated_name.as_ptr() as *mut c_char, base, dict)
-                as *mut ffi::PyTypeObject
+
+            NonNull::new_unchecked(ffi::PyErr_NewException(
+                null_terminated_name.as_ptr() as *mut c_char,
+                base,
+                dict,
+            ) as *mut ffi::PyTypeObject)
         }
     }
 

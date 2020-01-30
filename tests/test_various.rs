@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use pyo3::pyclass::initialize_type;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PyTuple};
 use pyo3::{py_run, wrap_pyfunction, AsPyRef, PyClassShell};
@@ -117,7 +116,7 @@ fn pytuple_pyclass_iter() {
     py_assert!(py, tup, "tup[0] != tup[1]");
 }
 
-#[pyclass(dict)]
+#[pyclass(dict, module = "test_module")]
 struct PickleSupport {}
 
 #[pymethods]
@@ -153,7 +152,6 @@ fn test_pickle() {
     let module = PyModule::new(py, "test_module").unwrap();
     module.add_class::<PickleSupport>().unwrap();
     add_module(py, module).unwrap();
-    initialize_type::<PickleSupport>(py, Some("test_module")).unwrap();
     let inst = PyClassShell::new_ref(py, PickleSupport {}).unwrap();
     py_run!(
         py,

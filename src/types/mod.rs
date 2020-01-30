@@ -101,7 +101,7 @@ macro_rules! pyobject_native_var_type {
 macro_rules! pyobject_native_type_convert(
     ($name: ty, $layout: path, $typeobject: expr,
      $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
+        unsafe impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::types::PyAny;
             type ConcreteLayout = $layout;
@@ -111,25 +111,14 @@ macro_rules! pyobject_native_type_convert(
             const MODULE: Option<&'static str> = $module;
 
             #[inline]
-            fn type_object() -> *mut $crate::ffi::PyTypeObject {
-                unsafe { &mut $typeobject as *mut _ }
+            fn type_object() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
+                unsafe { std::ptr::NonNull::new_unchecked(&mut $typeobject as *mut _) }
             }
 
             #[allow(unused_unsafe)]
             fn is_instance(ptr: &$crate::types::PyAny) -> bool {
                 use $crate::AsPyPointer;
-
                 unsafe { $checkfunction(ptr.as_ptr()) > 0 }
-            }
-        }
-
-        unsafe impl<$($type_param,)*> $crate::type_object::PyTypeObject for $name {
-            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
-                unsafe {
-                    std::ptr::NonNull::new_unchecked(
-                        <Self as $crate::type_object::PyTypeInfo>::type_object()
-                    )
-                }
             }
         }
 

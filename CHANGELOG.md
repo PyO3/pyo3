@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 * `PyRef`, `PyRefMut`, `PyRawObject`. [#683](https://github.com/PyO3/pyo3/pull/683)
 * `PyNoArgsFunction`. [#741](https://github.com/PyO3/pyo3/pull/741)
+* `initialize_type()`. To set the module name for a `#[pyclass]`, use the `module` argument to the macro. #[751](https://github.com/PyO3/pyo3/pull/751)
 
 ## [0.8.5]
 
