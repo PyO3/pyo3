@@ -164,6 +164,17 @@ impl<T> IntoPyPointer for Py<T> {
     }
 }
 
+// Native types `&T` can be converted to `Py<T>`
+impl<'a, T> std::convert::From<&'a T> for Py<T>
+where
+    T: AsPyPointer + PyNativeType,
+{
+    fn from(obj: &'a T) -> Self {
+        unsafe { Py::from_borrowed_ptr(obj.as_ptr()) }
+    }
+}
+
+// `&PyClassShell<T>` can be converted to `Py<T>`
 impl<'a, T> std::convert::From<&PyClassShell<T>> for Py<T>
 where
     T: PyClass,
@@ -338,9 +349,21 @@ impl<'p, T: ToPyObject + ?Sized> Drop for ManagedPyRef<'p, T> {
 
 #[cfg(test)]
 mod test {
+    use super::{ManagedPyRef, Py};
     use crate::ffi;
     use crate::types::PyDict;
-    use crate::{AsPyPointer, ManagedPyRef, Python};
+    use crate::{AsPyPointer, Python};
+
+    #[test]
+    fn py_from_dict() {
+        let dict = {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let native = PyDict::new(py);
+            Py::from(native)
+        };
+        assert_eq!(unsafe { ffi::Py_REFCNT(dict.as_ptr()) }, 1);
+    }
 
     #[test]
     fn borrowed_py_ref_with_to_pointer() {
