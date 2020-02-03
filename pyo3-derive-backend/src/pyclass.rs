@@ -465,8 +465,8 @@ fn impl_descriptors(
                 .map(|desc| {
                     let name = field.ident.as_ref().unwrap();
 
-                    // FIXME better doc?
-                    let doc = syn::LitStr::new(&name.to_string(), name.span());
+                    let doc = utils::get_doc(&field.attrs, None, true)
+                        .unwrap_or_else(|_| syn::LitStr::new(&name.to_string(), name.span()));
 
                     let field_ty = &field.ty;
                     match *desc {

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `PyClass`, `PyClassShell`, `PyObjectLayout`, `PyClassInitializer`. [#683](https://github.com/PyO3/pyo3/pull/683)
 * Implemented `IntoIterator` for `PySet` and `PyFrozenSet`. [#716](https://github.com/PyO3/pyo3/pull/716)
 * `FromPyObject` is now automatically implemented for `T: Clone` pyclasses. [#730](https://github.com/PyO3/pyo3/pull/730)
+* `#[pyo3(get)]` and `#[pyo3(set)]` will now use the Rust doc-comment from the field for the Python property. [#755](https://github.com/PyO3/pyo3/pull/755)
 
 ### Fixed
 
