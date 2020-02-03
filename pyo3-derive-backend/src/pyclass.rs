@@ -273,8 +273,6 @@ fn impl_class(
                             if FREELIST.is_null() {
                                 FREELIST = Box::into_raw(Box::new(
                                     pyo3::freelist::FreeList::with_capacity(#freelist)));
-
-                                <#cls as pyo3::type_object::PyTypeObject>::init_type();
                             }
                             &mut *FREELIST
                         }
@@ -372,7 +370,7 @@ fn impl_class(
     };
 
     Ok(quote! {
-        impl pyo3::type_object::PyTypeInfo for #cls {
+        unsafe impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
             type ConcreteLayout = pyo3::pyclass::PyClassShell<Self>;
@@ -384,9 +382,10 @@ fn impl_class(
             const FLAGS: usize = #(#flags)|* | #extended;
 
             #[inline]
-            unsafe fn type_object() -> &'static mut pyo3::ffi::PyTypeObject {
-                static mut TYPE_OBJECT: pyo3::ffi::PyTypeObject = pyo3::ffi::PyTypeObject_INIT;
-                &mut TYPE_OBJECT
+            fn type_object() -> std::ptr::NonNull<pyo3::ffi::PyTypeObject> {
+                use pyo3::type_object::LazyTypeObject;
+                static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
+                TYPE_OBJECT.get_pyclass_type::<Self>()
             }
         }
 

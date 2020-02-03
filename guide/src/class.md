@@ -31,7 +31,7 @@ struct MyClass {
 
 impl pyo3::pyclass::PyClassAlloc for MyClass {}
 
-impl pyo3::PyTypeInfo for MyClass {
+unsafe impl pyo3::PyTypeInfo for MyClass {
     type Type = MyClass;
     type BaseType = pyo3::types::PyAny;
     type ConcreteLayout = pyo3::PyClassShell<Self>;
@@ -43,9 +43,10 @@ impl pyo3::PyTypeInfo for MyClass {
     const FLAGS: usize = 0;
 
     #[inline]
-    unsafe fn type_object() -> &'static mut pyo3::ffi::PyTypeObject {
-        static mut TYPE_OBJECT: pyo3::ffi::PyTypeObject = pyo3::ffi::PyTypeObject_INIT;
-        &mut TYPE_OBJECT
+    fn type_object() -> std::ptr::NonNull<pyo3::ffi::PyTypeObject> {
+        use pyo3::type_object::LazyTypeObject;
+        static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
+        TYPE_OBJECT.get_pyclass_type::<Self>()
     }
 }
 

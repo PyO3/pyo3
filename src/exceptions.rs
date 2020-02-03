@@ -89,16 +89,15 @@ macro_rules! import_exception {
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
-            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
-                // We can't use lazy_static here because raw pointers aren't Send
-                static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
-                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
+            fn type_object() -> $crate::Py<$crate::types::PyType> {
+                use $crate::type_object::LazyTypeObject;
+                static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
 
-                TYPE_OBJECT_ONCE.call_once(|| {
-                    let gil = $crate::Python::acquire_gil();
-                    let py = gil.python();
+                let ptr = TYPE_OBJECT
+                    .get_or_init(|| {
+                        let gil = $crate::Python::acquire_gil();
+                        let py = gil.python();
 
-                    unsafe {
                         let imp = py
                             .import(stringify!($module))
                             .expect(concat!("Can not import module: ", stringify!($module)));
@@ -108,12 +107,16 @@ macro_rules! import_exception_type_object {
                             ".",
                             stringify!($name)
                         ));
-                        TYPE_OBJECT =
-                            $crate::IntoPyPointer::into_ptr(cls) as *mut $crate::ffi::PyTypeObject;
-                    }
-                });
 
-                unsafe { std::ptr::NonNull::new_unchecked(TYPE_OBJECT) }
+                        unsafe {
+                            Ok(std::ptr::NonNull::new_unchecked(
+                                $crate::IntoPyPointer::into_ptr(cls) as *mut _,
+                            ))
+                        }
+                    })
+                    .unwrap();
+
+                unsafe { $crate::Py::from_borrowed_ptr(ptr.as_ptr() as *mut $crate::ffi::PyObject) }
             }
         }
     };
@@ -174,26 +177,25 @@ macro_rules! create_exception {
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
-            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
-                // We can't use lazy_static here because raw pointers aren't Send
-                static TYPE_OBJECT_ONCE: ::std::sync::Once = ::std::sync::Once::new();
-                static mut TYPE_OBJECT: *mut $crate::ffi::PyTypeObject = ::std::ptr::null_mut();
+            fn type_object() -> $crate::Py<$crate::types::PyType> {
+                use $crate::type_object::LazyTypeObject;
+                static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
 
-                TYPE_OBJECT_ONCE.call_once(|| {
-                    let gil = $crate::Python::acquire_gil();
-                    let py = gil.python();
+                let ptr = TYPE_OBJECT
+                    .get_or_init(|| {
+                        let gil = $crate::Python::acquire_gil();
+                        let py = gil.python();
 
-                    unsafe {
-                        TYPE_OBJECT = $crate::PyErr::new_type(
+                        Ok($crate::PyErr::new_type(
                             py,
                             concat!(stringify!($module), ".", stringify!($name)),
                             Some(py.get_type::<$base>()),
                             None,
-                        );
-                    }
-                });
+                        ))
+                    })
+                    .unwrap();
 
-                unsafe { std::ptr::NonNull::new_unchecked(TYPE_OBJECT) }
+                unsafe { $crate::Py::from_borrowed_ptr(ptr.as_ptr() as *mut $crate::ffi::PyObject) }
             }
         }
     };
@@ -222,8 +224,8 @@ macro_rules! impl_native_exception (
             }
         }
         unsafe impl PyTypeObject for $name {
-            fn init_type() -> std::ptr::NonNull<$crate::ffi::PyTypeObject> {
-                unsafe { std::ptr::NonNull::new_unchecked(ffi::$exc_name as *mut _) }
+            fn type_object() -> $crate::Py<$crate::types::PyType> {
+                unsafe { $crate::Py::from_borrowed_ptr(ffi::$exc_name) }
             }
         }
     );

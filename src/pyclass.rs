@@ -3,7 +3,7 @@ use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{type_flags, PyObjectLayout, PyObjectSizedLayout, PyTypeObject};
+use crate::type_object::{type_flags, PyObjectLayout, PyObjectSizedLayout};
 use crate::types::PyAny;
 use crate::{class, ffi, gil, PyErr, PyObject, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
@@ -13,12 +13,12 @@ use std::ptr::{self, NonNull};
 
 #[inline]
 pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
-    let tp_ptr = T::type_object();
+    let tp_ptr = T::type_object().as_ptr();
     if T::FLAGS & type_flags::EXTENDED != 0
         && <T::BaseType as PyTypeInfo>::ConcreteLayout::IS_NATIVE_TYPE
     {
-        let base_tp_ptr = <T::BaseType as PyTypeInfo>::type_object();
-        if let Some(base_new) = (*base_tp_ptr).tp_new {
+        let base_tp = <T::BaseType as PyTypeInfo>::type_object();
+        if let Some(base_new) = base_tp.as_ref().tp_new {
             return base_new(tp_ptr, ptr::null_mut(), ptr::null_mut());
         }
     }
@@ -47,7 +47,7 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
             return;
         }
 
-        match Self::type_object().tp_free {
+        match Self::type_object().as_ref().tp_free {
             Some(free) => free(obj as *mut c_void),
             None => tp_free_fallback(obj),
         }
@@ -80,29 +80,6 @@ pub trait PyClass:
 {
     type Dict: PyClassDict;
     type WeakRef: PyClassWeakRef;
-}
-
-unsafe impl<T> PyTypeObject for T
-where
-    T: PyClass,
-{
-    fn init_type() -> NonNull<ffi::PyTypeObject> {
-        <T::BaseType as PyTypeObject>::init_type();
-        let type_object = unsafe { <Self as PyTypeInfo>::type_object() };
-
-        if (type_object.tp_flags & ffi::Py_TPFLAGS_READY) == 0 {
-            // automatically initialize the class on-demand
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-
-            initialize_type::<Self>(py, <Self as PyTypeInfo>::MODULE).unwrap_or_else(|e| {
-                e.print(py);
-                panic!("An error occurred while initializing class {}", Self::NAME)
-            });
-        }
-
-        unsafe { NonNull::new_unchecked(type_object) }
-    }
 }
 
 /// `PyClassShell` represents the concrete layout of `T: PyClass` when it is converted
@@ -178,7 +155,6 @@ impl<T: PyClass> PyClassShell<T> {
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
-        T::init_type();
         let base = T::alloc(py);
         if base.is_null() {
             return Err(PyErr::fetch(py));
@@ -276,15 +252,19 @@ where
     }
 }
 
-/// Register `T: PyClass` to Python interpreter.
 #[cfg(not(Py_LIMITED_API))]
-pub fn initialize_type<T>(py: Python, module_name: Option<&str>) -> PyResult<*mut ffi::PyTypeObject>
+pub(crate) fn create_type_object<T>(
+    py: Python,
+    module_name: Option<&str>,
+) -> PyResult<Box<ffi::PyTypeObject>>
 where
     T: PyClass,
 {
-    let type_object: &mut ffi::PyTypeObject = unsafe { T::type_object() };
-    let base_type_object: &mut ffi::PyTypeObject =
-        unsafe { <T::BaseType as PyTypeInfo>::type_object() };
+    // Box (or some other heap allocation) is needed because PyType_Ready expects the type object
+    // to have a permanent memory address.
+    let mut boxed = Box::new(ffi::PyTypeObject_INIT);
+    let mut type_object = boxed.as_mut();
+    let base_type_object = <T::BaseType as PyTypeInfo>::type_object().as_ptr();
 
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
@@ -391,7 +371,7 @@ where
     // register type object
     unsafe {
         if ffi::PyType_Ready(type_object) == 0 {
-            Ok(type_object as *mut ffi::PyTypeObject)
+            Ok(boxed)
         } else {
             PyErr::fetch(py).into()
         }

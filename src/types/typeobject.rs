@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
-use crate::type_object::{PyTypeInfo, PyTypeObject};
+use crate::type_object::PyTypeObject;
 use crate::AsPyPointer;
 use crate::Python;
 use std::borrow::Cow;
@@ -21,8 +21,8 @@ pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 
 impl PyType {
     #[inline]
-    pub fn new<T: PyTypeInfo>() -> Py<PyType> {
-        unsafe { Py::from_borrowed_ptr(T::type_object() as *const _ as *mut ffi::PyObject) }
+    pub fn new<T: PyTypeObject>() -> Py<PyType> {
+        T::type_object()
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
