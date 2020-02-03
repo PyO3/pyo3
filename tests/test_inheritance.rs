@@ -126,7 +126,7 @@ impl SetWithName {
 fn inherit_set() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let set_sub = pyo3::pyclass::PyClassShell::new_ref(py, SetWithName::new()).unwrap();
+    let set_sub = pyo3::pyclass::PyCell::new_ref(py, SetWithName::new()).unwrap();
     py_run!(
         py,
         set_sub,
@@ -152,7 +152,7 @@ impl DictWithName {
 fn inherit_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let dict_sub = pyo3::pyclass::PyClassShell::new_ref(py, DictWithName::new()).unwrap();
+    let dict_sub = pyo3::pyclass::PyCell::new_ref(py, DictWithName::new()).unwrap();
     py_run!(
         py,
         dict_sub,

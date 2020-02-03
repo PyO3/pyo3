@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::{types::PyType, wrap_pyfunction, wrap_pymodule, PyClassShell};
+use pyo3::{types::PyType, wrap_pyfunction, wrap_pymodule, PyCell};
 
 mod common;
 
@@ -144,7 +144,7 @@ fn test_methods() {
             let _ = a;
         }
         #[text_signature = "($self, b)"]
-        fn pyself_method(_this: &PyClassShell<Self>, b: i32) {
+        fn pyself_method(_this: &PyCell<Self>, b: i32) {
             let _ = b;
         }
         #[classmethod]

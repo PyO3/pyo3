@@ -1,7 +1,6 @@
 //! Initialization utilities for `#[pyclass]`.
-use crate::pyclass::{PyClass, PyClassShell};
 use crate::type_object::{PyObjectLayout, PyObjectSizedLayout, PyTypeInfo};
-use crate::{PyResult, Python};
+use crate::{PyCell, PyClass, PyResult, Python};
 use std::marker::PhantomData;
 
 /// Initializer for Python types.
@@ -9,7 +8,7 @@ use std::marker::PhantomData;
 /// This trait is intended to use internally for distinguishing `#[pyclass]` and
 /// Python native types.
 pub trait PyObjectInit<T: PyTypeInfo>: Sized {
-    fn init_class(self, shell: &mut T::ConcreteLayout);
+    fn init_class(self, layout: &mut T::ConcreteLayout);
     private_decl! {}
 }
 
@@ -17,7 +16,7 @@ pub trait PyObjectInit<T: PyTypeInfo>: Sized {
 pub struct PyNativeTypeInitializer<T: PyTypeInfo>(PhantomData<T>);
 
 impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
-    fn init_class(self, _shell: &mut T::ConcreteLayout) {}
+    fn init_class(self, _layout: &mut T::ConcreteLayout) {}
     private_impl! {}
 }
 
@@ -115,14 +114,14 @@ impl<T: PyClass> PyClassInitializer<T> {
     }
 
     #[doc(hidden)]
-    pub unsafe fn create_shell(self, py: Python) -> PyResult<*mut PyClassShell<T>>
+    pub unsafe fn create_cell(self, py: Python) -> PyResult<*mut PyCell<T>>
     where
         T: PyClass,
         <T::BaseType as PyTypeInfo>::ConcreteLayout: PyObjectSizedLayout<T::BaseType>,
     {
-        let shell = PyClassShell::new(py)?;
-        self.init_class(&mut *shell);
-        Ok(shell)
+        let cell = PyCell::internal_new(py)?;
+        self.init_class(&mut *cell);
+        Ok(cell)
     }
 }
 

@@ -4,8 +4,7 @@
 
 use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
 use crate::err::PyResult;
-use crate::{ffi, pyclass::PyClassShell, IntoPy, PyClass, PyObject};
-use crate::{IntoPyPointer, Python};
+use crate::{ffi, IntoPy, IntoPyPointer, PyCell, PyClass, PyObject, Python};
 use std::ptr;
 
 /// Python Iterator Interface.
@@ -14,14 +13,14 @@ use std::ptr;
 /// `https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter`
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p>: PyClass {
-    fn __iter__(slf: &mut PyClassShell<Self>) -> Self::Result
+    fn __iter__(slf: &mut PyCell<Self>) -> Self::Result
     where
         Self: PyIterIterProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __next__(slf: &mut PyClassShell<Self>) -> Self::Result
+    fn __next__(slf: &mut PyCell<Self>) -> Self::Result
     where
         Self: PyIterNextProtocol<'p>,
     {

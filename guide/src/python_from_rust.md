@@ -36,7 +36,7 @@ your Python extensions quickly.
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyClassShell, PyObjectProtocol, py_run};
+use pyo3::{PyCell, PyObjectProtocol, py_run};
 #  fn main() {
 #[pyclass]
 struct UserData {
@@ -61,7 +61,7 @@ let userdata = UserData {
     id: 34,
     name: "Yu".to_string(),
 };
-let userdata = PyClassShell::new_ref(py, userdata).unwrap();
+let userdata = PyCell::new_ref(py, userdata).unwrap();
 let userdata_as_tuple = (34, "Yu");
 py_run!(py, userdata userdata_as_tuple, r#"
 assert repr(userdata) == "User Yu(id: 34)"

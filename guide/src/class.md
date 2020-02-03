@@ -34,7 +34,7 @@ impl pyo3::pyclass::PyClassAlloc for MyClass {}
 unsafe impl pyo3::PyTypeInfo for MyClass {
     type Type = MyClass;
     type BaseType = pyo3::types::PyAny;
-    type ConcreteLayout = pyo3::PyClassShell<Self>;
+    type ConcreteLayout = pyo3::PyCell<Self>;
     type Initializer = pyo3::PyClassInitializer<Self>;
 
     const NAME: &'static str = "MyClass";
@@ -109,19 +109,19 @@ fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
 You sometimes need to convert your `pyclass` into a Python object in Rust code (e.g., for testing it).
 
 For getting *GIL-bounded* (i.e., with `'py` lifetime) references of `pyclass`,
-you can use `PyClassShell<T>`.
+you can use `PyCell<T>`.
 Or you can use `Py<T>` directly, for *not-GIL-bounded* references.
 
-### `PyClassShell`
-`PyClassShell` represents the actual layout of `pyclass` on the Python heap.
+### `PyCell`
+`PyCell` represents the actual layout of `pyclass` on the Python heap.
 
 If you want to instantiate `pyclass` in Python and get the reference,
-you can use `PyClassShell::new_ref` or `PyClassShell::new_mut`.
+you can use `PyCell::new_ref` or `PyCell::new_mut`.
 
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyDict;
-# use pyo3::PyClassShell;
+# use pyo3::PyCell;
 #[pyclass]
 struct MyClass {
    num: i32,
@@ -129,15 +129,15 @@ struct MyClass {
 }
 let gil = Python::acquire_gil();
 let py = gil.python();
-let obj = PyClassShell::new_ref(py, MyClass { num: 3, debug: true }).unwrap();
+let obj = PyCell::new_ref(py, MyClass { num: 3, debug: true }).unwrap();
 // You can use deref
 assert_eq!(obj.num, 3);
 let dict = PyDict::new(py);
-// You can treat a `&PyClassShell` as a normal Python object
+// You can treat a `&PyCell` as a normal Python object
 dict.set_item("obj", obj).unwrap();
 
-// return &mut PyClassShell<MyClass>
-let obj = PyClassShell::new_mut(py, MyClass { num: 3, debug: true }).unwrap();
+// return &mut PyCell<MyClass>
+let obj = PyCell::new_mut(py, MyClass { num: 3, debug: true }).unwrap();
 obj.num = 5;
 ```
 
@@ -230,7 +230,7 @@ explicitly.
 
 ```rust
 # use pyo3::prelude::*;
-use pyo3::PyClassShell;
+use pyo3::PyCell;
 
 #[pyclass]
 struct BaseClass {
@@ -261,7 +261,7 @@ impl SubClass {
        (SubClass{ val2: 15}, BaseClass::new())
    }
 
-   fn method2(self_: &PyClassShell<Self>) -> PyResult<usize> {
+   fn method2(self_: &PyCell<Self>) -> PyResult<usize> {
       self_.get_super().method().map(|x| x * self_.val2)
    }
 }
@@ -279,7 +279,7 @@ impl SubSubClass {
            .add_subclass(SubSubClass{val3: 20})
    }
 
-   fn method3(self_: &PyClassShell<Self>) -> PyResult<usize> {
+   fn method3(self_: &PyCell<Self>) -> PyResult<usize> {
       let super_ = self_.get_super();
       SubClass::method2(super_).map(|x| x * self_.val3)
    }
@@ -288,20 +288,20 @@ impl SubSubClass {
 
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let subsub = pyo3::PyClassShell::new_ref(py, SubSubClass::new()).unwrap();
+# let subsub = pyo3::PyCell::new_ref(py, SubSubClass::new()).unwrap();
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
 
 To access the super class, you can use either of these two ways:
-- Use `self_: &PyClassShell<Self>` instead of `self`, and call `get_super()`
+- Use `self_: &PyCell<Self>` instead of `self`, and call `get_super()`
 - `ObjectProtocol::get_base`
-We recommend `PyClassShell` here, since it makes the context much clearer.
+We recommend `PyCell` here, since it makes the context much clearer.
 
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
 ```compile_fail
 # use pyo3::prelude::*;
-use pyo3::PyClassShell;
+use pyo3::PyCell;
 
 #[pyclass]
 struct BaseClass {
@@ -761,8 +761,8 @@ struct GCTracked {} // Fails because it does not implement PyGCProtocol
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/latest/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(slf: &mut PyClassShell<Self>) -> PyResult<impl IntoPy<PyObject>>`
-  * `fn __next__(slf: &mut PyClassShell<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
+  * `fn __iter__(slf: &mut PyCell<Self>) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __next__(slf: &mut PyCell<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 
@@ -770,7 +770,7 @@ Example:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyIterProtocol, PyClassShell};
+use pyo3::{PyIterProtocol, PyCell};
 
 #[pyclass]
 struct MyIterator {
@@ -779,10 +779,10 @@ struct MyIterator {
 
 #[pyproto]
 impl PyIterProtocol for MyIterator {
-    fn __iter__(slf: &mut PyClassShell<Self>) -> PyResult<Py<MyIterator>> {
+    fn __iter__(slf: &mut PyCell<Self>) -> PyResult<Py<MyIterator>> {
         Ok(slf.into())
     }
-    fn __next__(slf: &mut PyClassShell<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(slf: &mut PyCell<Self>) -> PyResult<Option<PyObject>> {
         Ok(slf.iter.next())
     }
 }

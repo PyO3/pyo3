@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyDict, PyTuple};
-use pyo3::{py_run, wrap_pyfunction, AsPyRef, PyClassShell};
+use pyo3::{py_run, wrap_pyfunction, AsPyRef, PyCell};
 
 mod common;
 
@@ -81,8 +81,8 @@ fn intopytuple_pyclass() {
     let py = gil.python();
 
     let tup = (
-        PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
-        PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
+        PyCell::new_ref(py, SimplePyClass {}).unwrap(),
+        PyCell::new_ref(py, SimplePyClass {}).unwrap(),
     );
     py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
@@ -106,8 +106,8 @@ fn pytuple_pyclass_iter() {
     let tup = PyTuple::new(
         py,
         [
-            PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
-            PyClassShell::new_ref(py, SimplePyClass {}).unwrap(),
+            PyCell::new_ref(py, SimplePyClass {}).unwrap(),
+            PyCell::new_ref(py, SimplePyClass {}).unwrap(),
         ]
         .iter(),
     );
@@ -127,7 +127,7 @@ impl PickleSupport {
     }
 
     pub fn __reduce__<'py>(
-        slf: &'py PyClassShell<Self>,
+        slf: &'py PyCell<Self>,
         py: Python<'py>,
     ) -> PyResult<(PyObject, &'py PyTuple, PyObject)> {
         let cls = slf.to_object(py).getattr(py, "__class__")?;
@@ -152,7 +152,7 @@ fn test_pickle() {
     let module = PyModule::new(py, "test_module").unwrap();
     module.add_class::<PickleSupport>().unwrap();
     add_module(py, module).unwrap();
-    let inst = PyClassShell::new_ref(py, PickleSupport {}).unwrap();
+    let inst = PyCell::new_ref(py, PickleSupport {}).unwrap();
     py_run!(
         py,
         inst,

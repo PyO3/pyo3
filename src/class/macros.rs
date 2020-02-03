@@ -35,10 +35,10 @@ macro_rules! py_unary_pyref_func {
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::pyclass::PyClassShell;
+            use $crate::PyCell;
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf: &mut PyClassShell<T> = &mut *(slf as *mut PyClassShell<T>);
+            let slf: &mut PyCell<T> = &mut *(slf as *mut PyCell<T>);
             let res = $class::$f(slf).into();
             $crate::callback::cb_convert($conv, py, res)
         }

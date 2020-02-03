@@ -373,7 +373,7 @@ fn impl_class(
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
-            type ConcreteLayout = pyo3::pyclass::PyClassShell<Self>;
+            type ConcreteLayout = pyo3::pyclass::PyCell<Self>;
             type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
 
             const NAME: &'static str = #cls_name;

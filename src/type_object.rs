@@ -11,7 +11,7 @@ use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
-/// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
+/// E.g., `PyCell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.

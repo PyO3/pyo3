@@ -3,12 +3,12 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::pyclass::{PyClass, PyClassShell};
-use crate::pyclass_init::PyClassInitializer;
 use crate::type_object::{PyObjectLayout, PyTypeInfo};
 use crate::types::PyAny;
-use crate::{ffi, IntoPy};
-use crate::{AsPyPointer, FromPyObject, IntoPyPointer, Python, ToPyObject};
+use crate::{
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
+    Python, ToPyObject,
+};
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::NonNull;
@@ -43,7 +43,7 @@ impl<T> Py<T> {
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         let initializer = value.into();
-        let obj = unsafe { initializer.create_shell(py)? };
+        let obj = unsafe { initializer.create_cell(py)? };
         let ob = unsafe { Py::from_owned_ptr(obj as _) };
         Ok(ob)
     }
@@ -174,22 +174,22 @@ where
     }
 }
 
-// `&PyClassShell<T>` can be converted to `Py<T>`
-impl<'a, T> std::convert::From<&PyClassShell<T>> for Py<T>
+// `&PyCell<T>` can be converted to `Py<T>`
+impl<'a, T> std::convert::From<&PyCell<T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(shell: &PyClassShell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(shell.as_ptr()) }
+    fn from(cell: &PyCell<T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(cell.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<&mut PyClassShell<T>> for Py<T>
+impl<'a, T> std::convert::From<&mut PyCell<T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(shell: &mut PyClassShell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(shell.as_ptr()) }
+    fn from(cell: &mut PyCell<T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(cell.as_ptr()) }
     }
 }
 

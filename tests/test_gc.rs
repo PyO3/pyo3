@@ -3,7 +3,7 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyTuple};
-use pyo3::{ffi, py_run, AsPyPointer, PyClassShell};
+use pyo3::{ffi, py_run, AsPyPointer, PyCell};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -153,7 +153,7 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = PyClassShell::new_mut(
+        let inst = PyCell::new_mut(
             py,
             GCIntegration {
                 self_ref: RefCell::new(py.None()),
@@ -188,7 +188,7 @@ impl PyGCProtocol for GCIntegration2 {
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyClassShell::new_ref(py, GCIntegration2 {}).unwrap();
+    let inst = PyCell::new_ref(py, GCIntegration2 {}).unwrap();
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
@@ -199,7 +199,7 @@ struct WeakRefSupport {}
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyClassShell::new_ref(py, WeakRefSupport {}).unwrap();
+    let inst = PyCell::new_ref(py, WeakRefSupport {}).unwrap();
     py_run!(
         py,
         inst,
