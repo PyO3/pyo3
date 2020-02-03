@@ -22,7 +22,19 @@ fn empty_class() {
 ///  Line3
 // this is not doc string
 #[pyclass]
-struct ClassWithDocs {}
+struct ClassWithDocs {
+    /// Property field
+    #[pyo3(get, set)]
+    value: i32,
+
+    /// Read-only property field
+    #[pyo3(get)]
+    readonly: i32,
+
+    /// Write-only property field
+    #[pyo3(set)]
+    writeonly: i32,
+}
 
 #[test]
 fn class_with_docstr() {
@@ -34,6 +46,21 @@ fn class_with_docstr() {
             py,
             typeobj,
             "assert typeobj.__doc__ == 'Line1\\nLine2\\n Line3'"
+        );
+        py_run!(
+            py,
+            typeobj,
+            "assert typeobj.value.__doc__ == 'Property field'"
+        );
+        py_run!(
+            py,
+            typeobj,
+            "assert typeobj.readonly.__doc__ == 'Read-only property field'"
+        );
+        py_run!(
+            py,
+            typeobj,
+            "assert typeobj.writeonly.__doc__ == 'Write-only property field'"
         );
     }
 }
