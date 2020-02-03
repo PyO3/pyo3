@@ -3,6 +3,7 @@
 
 use crate::err::PyResult;
 use crate::instance::Py;
+use crate::pyclass::{create_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
@@ -127,7 +128,8 @@ where
     }
 }
 
-/// Type used to store type objects
+/// Type used to store static type objects
+#[doc(hidden)]
 pub struct LazyTypeObject {
     cell: OnceCell<NonNull<ffi::PyTypeObject>>,
 }
@@ -144,6 +146,22 @@ impl LazyTypeObject {
         F: Fn() -> PyResult<NonNull<ffi::PyTypeObject>>,
     {
         Ok(*self.cell.get_or_try_init(constructor)?)
+    }
+
+    pub fn get_pyclass_type<T: PyClass>(&self) -> NonNull<ffi::PyTypeObject> {
+        self.get_or_init(|| {
+            // automatically initialize the class on-demand
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let boxed = create_type_object::<T>(py, T::MODULE)?;
+            Ok(unsafe { NonNull::new_unchecked(Box::into_raw(boxed)) })
+        })
+        .unwrap_or_else(|e| {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            e.print(py);
+            panic!("An error occurred while initializing class {}", T::NAME)
+        })
     }
 }
 

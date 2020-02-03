@@ -253,13 +253,15 @@ where
 }
 
 #[cfg(not(Py_LIMITED_API))]
-pub fn create_type_object<T>(
+pub(crate) fn create_type_object<T>(
     py: Python,
     module_name: Option<&str>,
 ) -> PyResult<Box<ffi::PyTypeObject>>
 where
     T: PyClass,
 {
+    // Box (or some other heap allocation) is needed because PyType_Ready expects the type object
+    // to have a permanent memory address.
     let mut boxed = Box::new(ffi::PyTypeObject_INIT);
     let mut type_object = boxed.as_mut();
     let base_type_object = <T::BaseType as PyTypeInfo>::type_object().as_ptr();
