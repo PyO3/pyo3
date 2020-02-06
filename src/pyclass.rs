@@ -253,17 +253,14 @@ where
 }
 
 #[cfg(not(Py_LIMITED_API))]
-pub(crate) fn create_type_object<T>(
+pub(crate) fn initialize_type_object<T>(
     py: Python,
     module_name: Option<&str>,
-) -> PyResult<Box<ffi::PyTypeObject>>
+    type_object: &mut ffi::PyTypeObject,
+) -> PyResult<()>
 where
     T: PyClass,
 {
-    // Box (or some other heap allocation) is needed because PyType_Ready expects the type object
-    // to have a permanent memory address.
-    let mut type_object = Box::new(ffi::PyTypeObject_INIT);
-
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
     if T::DESCRIPTION == "\0" {
@@ -310,16 +307,16 @@ where
     }
 
     // GC support
-    <T as class::gc::PyGCProtocolImpl>::update_type_object(&mut type_object);
+    <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
 
     // descriptor protocol
-    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(&mut type_object);
+    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
 
     // iterator methods
-    <T as class::iter::PyIterProtocolImpl>::tp_as_iter(&mut type_object);
+    <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
 
     // basic methods
-    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(&mut type_object);
+    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
 
     fn to_ptr<T>(value: Option<T>) -> *mut T {
         value
@@ -364,12 +361,12 @@ where
     }
 
     // set type flags
-    py_class_flags::<T>(&mut type_object);
+    py_class_flags::<T>(type_object);
 
     // register type object
     unsafe {
-        if ffi::PyType_Ready(type_object.as_mut()) == 0 {
-            Ok(type_object)
+        if ffi::PyType_Ready(type_object) == 0 {
+            Ok(())
         } else {
             PyErr::fetch(py).into()
         }

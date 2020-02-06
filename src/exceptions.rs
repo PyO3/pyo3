@@ -91,30 +91,25 @@ macro_rules! import_exception_type_object {
         unsafe impl $crate::type_object::PyTypeObject for $name {
             fn type_object() -> $crate::Py<$crate::types::PyType> {
                 use $crate::type_object::LazyHeapType;
-                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new_heap();
+                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
 
-                let ptr = TYPE_OBJECT
-                    .get_or_init(|| {
-                        let gil = $crate::Python::acquire_gil();
-                        let py = gil.python();
+                let ptr = TYPE_OBJECT.get_or_init(|py| {
+                    let imp = py
+                        .import(stringify!($module))
+                        .expect(concat!("Can not import module: ", stringify!($module)));
+                    let cls = imp.get(stringify!($name)).expect(concat!(
+                        "Can not load exception class: {}.{}",
+                        stringify!($module),
+                        ".",
+                        stringify!($name)
+                    ));
 
-                        let imp = py
-                            .import(stringify!($module))
-                            .expect(concat!("Can not import module: ", stringify!($module)));
-                        let cls = imp.get(stringify!($name)).expect(concat!(
-                            "Can not load exception class: {}.{}",
-                            stringify!($module),
-                            ".",
-                            stringify!($name)
-                        ));
-
-                        unsafe {
-                            Ok(std::ptr::NonNull::new_unchecked(
-                                $crate::IntoPyPointer::into_ptr(cls) as *mut _,
-                            ))
-                        }
-                    })
-                    .unwrap();
+                    unsafe {
+                        std::ptr::NonNull::new_unchecked(
+                            $crate::IntoPyPointer::into_ptr(cls) as *mut _
+                        )
+                    }
+                });
 
                 unsafe { $crate::Py::from_borrowed_ptr(ptr.as_ptr() as *mut $crate::ffi::PyObject) }
             }
@@ -179,21 +174,16 @@ macro_rules! create_exception_type_object {
         unsafe impl $crate::type_object::PyTypeObject for $name {
             fn type_object() -> $crate::Py<$crate::types::PyType> {
                 use $crate::type_object::LazyHeapType;
-                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new_heap();
+                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new();
 
-                let ptr = TYPE_OBJECT
-                    .get_or_init(|| {
-                        let gil = $crate::Python::acquire_gil();
-                        let py = gil.python();
-
-                        Ok($crate::PyErr::new_type(
-                            py,
-                            concat!(stringify!($module), ".", stringify!($name)),
-                            Some(py.get_type::<$base>()),
-                            None,
-                        ))
-                    })
-                    .unwrap();
+                let ptr = TYPE_OBJECT.get_or_init(|py| {
+                    $crate::PyErr::new_type(
+                        py,
+                        concat!(stringify!($module), ".", stringify!($name)),
+                        Some(py.get_type::<$base>()),
+                        None,
+                    )
+                });
 
                 unsafe { $crate::Py::from_borrowed_ptr(ptr.as_ptr() as *mut $crate::ffi::PyObject) }
             }

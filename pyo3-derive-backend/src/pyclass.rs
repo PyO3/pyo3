@@ -384,8 +384,8 @@ fn impl_class(
             #[inline]
             fn type_object() -> &'static pyo3::ffi::PyTypeObject {
                 use pyo3::type_object::LazyStaticType;
-                static TYPE_OBJECT: LazyStaticType = LazyStaticType::new_static();
-                TYPE_OBJECT.get_pyclass_type::<Self>()
+                static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
+                TYPE_OBJECT.get::<Self>()
             }
         }
 

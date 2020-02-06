@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
-use crate::err::PyResult;
 use crate::instance::Py;
-use crate::pyclass::{create_type_object, PyClass};
+use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
-use once_cell::sync::OnceCell;
+use std::cell::{Cell, UnsafeCell};
+use std::ptr::NonNull;
 
 /// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
 /// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
@@ -127,61 +127,64 @@ where
     }
 }
 
-/// Type used to store static type objects
+/// Lazy type object for Exceptions
 #[doc(hidden)]
-pub struct LazyTypeObject<T: Copy> {
-    cell: OnceCell<T>,
-}
-
-/// For exceptions.
-#[doc(hidden)]
-pub type LazyHeapType = LazyTypeObject<std::ptr::NonNull<ffi::PyTypeObject>>;
-
-/// For pyclass.
-#[doc(hidden)]
-pub type LazyStaticType = LazyTypeObject<&'static ffi::PyTypeObject>;
-
-impl<T: Copy> LazyTypeObject<T> {
-    pub fn get_or_init<F>(&self, constructor: F) -> PyResult<T>
-    where
-        F: Fn() -> PyResult<T>,
-    {
-        Ok(*self.cell.get_or_try_init(constructor)?)
-    }
-}
+pub struct LazyHeapType(UnsafeCell<Option<NonNull<ffi::PyTypeObject>>>);
 
 impl LazyHeapType {
-    pub const fn new_heap() -> Self {
-        Self {
-            cell: OnceCell::new(),
+    pub const fn new() -> Self {
+        Self(UnsafeCell::new(None))
+    }
+    pub fn get_or_init<F>(&self, constructor: F) -> NonNull<ffi::PyTypeObject>
+    where
+        F: Fn(Python) -> NonNull<ffi::PyTypeObject>,
+    {
+        if let Some(value) = unsafe { &*self.0.get() } {
+            return value.clone();
+        }
+        // We have to get the GIL before setting the value to the global!!!
+        let gil = Python::acquire_gil();
+        unsafe {
+            *self.0.get() = Some(constructor(gil.python()));
+            (*self.0.get()).unwrap()
         }
     }
 }
 
-impl LazyStaticType {
-    pub const fn new_static() -> Self {
-        Self {
-            cell: OnceCell::new(),
-        }
-    }
-    pub fn get_pyclass_type<T: PyClass>(&self) -> &'static ffi::PyTypeObject {
-        self.get_or_init(|| {
-            // automatically initialize the class on-demand
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            let boxed = create_type_object::<T>(py, T::MODULE)?;
-            Ok(Box::leak(boxed))
-        })
-        .unwrap_or_else(|e| {
-            let gil = Python::acquire_gil();
-            e.print(gil.python());
-            panic!("An error occurred while initializing class {}", T::NAME)
-        })
-    }
-}
-
-// This is necessary for making static `LazyTypeObject`s
+// This is necessary for making static `LazyHeapType`s
 //
 // Type objects are shared between threads by the Python interpreter anyway, so it is no worse
 // to allow sharing on the Rust side too.
-unsafe impl<T: Copy> Sync for LazyTypeObject<T> {}
+unsafe impl Sync for LazyHeapType {}
+
+/// Lazy type object for PyClass
+#[doc(hidden)]
+pub struct LazyStaticType {
+    value: UnsafeCell<ffi::PyTypeObject>,
+    initialized: Cell<bool>,
+}
+
+impl LazyStaticType {
+    pub const fn new() -> Self {
+        LazyStaticType {
+            value: UnsafeCell::new(ffi::PyTypeObject_INIT),
+            initialized: Cell::new(false),
+        }
+    }
+    pub fn get<T: PyClass>(&self) -> &ffi::PyTypeObject {
+        if !self.initialized.get() {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            initialize_type_object::<T>(py, T::MODULE, unsafe { &mut *self.value.get() })
+                .unwrap_or_else(|e| {
+                    e.print(py);
+                    panic!("An error occurred while initializing class {}", T::NAME)
+                });
+            self.initialized.set(true);
+        }
+        unsafe { &*self.value.get() }
+    }
+}
+
+// This is necessary for making static `LazyStaticType`s
+unsafe impl Sync for LazyStaticType {}
