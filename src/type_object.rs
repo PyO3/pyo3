@@ -8,7 +8,6 @@ use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
 use once_cell::sync::OnceCell;
-use std::ptr::NonNull;
 
 /// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
 /// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
@@ -92,19 +91,19 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;
 
-    /// PyTypeObject instance for this type, guaranteed to be global and initialized.
-    fn type_object() -> NonNull<ffi::PyTypeObject>;
+    /// PyTypeObject instance for this type.
+    fn type_object() -> &'static ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
     fn is_instance(object: &PyAny) -> bool {
         unsafe {
-            ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object().as_ptr() as *mut _) != 0
+            ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object() as *const _ as _) != 0
         }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
     fn is_exact_instance(object: &PyAny) -> bool {
-        unsafe { (*object.as_ptr()).ob_type == Self::type_object().as_ptr() as *mut _ }
+        unsafe { (*object.as_ptr()).ob_type == Self::type_object() as *const _ as _ }
     }
 }
 
@@ -124,42 +123,58 @@ where
     T: PyTypeInfo,
 {
     fn type_object() -> Py<PyType> {
-        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object().as_ptr() as *mut _) }
+        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
     }
 }
 
 /// Type used to store static type objects
 #[doc(hidden)]
-pub struct LazyTypeObject {
-    cell: OnceCell<NonNull<ffi::PyTypeObject>>,
+pub struct LazyTypeObject<T: Copy> {
+    cell: OnceCell<T>,
 }
 
-impl LazyTypeObject {
-    pub const fn new() -> Self {
+/// For exceptions.
+#[doc(hidden)]
+pub type LazyHeapType = LazyTypeObject<std::ptr::NonNull<ffi::PyTypeObject>>;
+
+/// For pyclass.
+#[doc(hidden)]
+pub type LazyStaticType = LazyTypeObject<&'static ffi::PyTypeObject>;
+
+impl<T: Copy> LazyTypeObject<T> {
+    pub fn get_or_init<F>(&self, constructor: F) -> PyResult<T>
+    where
+        F: Fn() -> PyResult<T>,
+    {
+        Ok(*self.cell.get_or_try_init(constructor)?)
+    }
+}
+
+impl LazyHeapType {
+    pub const fn new_heap() -> Self {
         Self {
             cell: OnceCell::new(),
         }
     }
+}
 
-    pub fn get_or_init<F>(&self, constructor: F) -> PyResult<NonNull<ffi::PyTypeObject>>
-    where
-        F: Fn() -> PyResult<NonNull<ffi::PyTypeObject>>,
-    {
-        Ok(*self.cell.get_or_try_init(constructor)?)
+impl LazyStaticType {
+    pub const fn new_static() -> Self {
+        Self {
+            cell: OnceCell::new(),
+        }
     }
-
-    pub fn get_pyclass_type<T: PyClass>(&self) -> NonNull<ffi::PyTypeObject> {
+    pub fn get_pyclass_type<T: PyClass>(&self) -> &'static ffi::PyTypeObject {
         self.get_or_init(|| {
             // automatically initialize the class on-demand
             let gil = Python::acquire_gil();
             let py = gil.python();
             let boxed = create_type_object::<T>(py, T::MODULE)?;
-            Ok(unsafe { NonNull::new_unchecked(Box::into_raw(boxed)) })
+            Ok(Box::leak(boxed))
         })
         .unwrap_or_else(|e| {
             let gil = Python::acquire_gil();
-            let py = gil.python();
-            e.print(py);
+            e.print(gil.python());
             panic!("An error occurred while initializing class {}", T::NAME)
         })
     }
@@ -169,4 +184,4 @@ impl LazyTypeObject {
 //
 // Type objects are shared between threads by the Python interpreter anyway, so it is no worse
 // to allow sharing on the Rust side too.
-unsafe impl Sync for LazyTypeObject {}
+unsafe impl<T: Copy> Sync for LazyTypeObject<T> {}

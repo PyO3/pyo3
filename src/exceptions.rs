@@ -9,8 +9,8 @@ use crate::types::{PyAny, PyTuple};
 use crate::Python;
 use crate::{AsPyPointer, ToPyObject};
 use std::ffi::CStr;
+use std::ops;
 use std::os::raw::c_char;
-use std::{self, ops};
 
 /// The boilerplate to convert between a rust type and a python exception
 #[macro_export]
@@ -90,8 +90,8 @@ macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
             fn type_object() -> $crate::Py<$crate::types::PyType> {
-                use $crate::type_object::LazyTypeObject;
-                static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
+                use $crate::type_object::LazyHeapType;
+                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new_heap();
 
                 let ptr = TYPE_OBJECT
                     .get_or_init(|| {
@@ -178,8 +178,8 @@ macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {
         unsafe impl $crate::type_object::PyTypeObject for $name {
             fn type_object() -> $crate::Py<$crate::types::PyType> {
-                use $crate::type_object::LazyTypeObject;
-                static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
+                use $crate::type_object::LazyHeapType;
+                static TYPE_OBJECT: LazyHeapType = LazyHeapType::new_heap();
 
                 let ptr = TYPE_OBJECT
                     .get_or_init(|| {

@@ -74,7 +74,7 @@ where
 {
     unsafe fn alloc(_py: Python) -> *mut Self::ConcreteLayout {
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
-            ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object().as_ptr() as *mut _);
+            ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object() as *const _ as _);
             obj as _
         } else {
             crate::pyclass::default_alloc::<Self>() as _
@@ -90,7 +90,7 @@ where
         }
 
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().insert(obj) {
-            match Self::type_object().as_ref().tp_free {
+            match Self::type_object().tp_free {
                 Some(free) => free(obj as *mut c_void),
                 None => tp_free_fallback(obj),
             }
