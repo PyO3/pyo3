@@ -382,9 +382,9 @@ fn impl_class(
             const FLAGS: usize = #(#flags)|* | #extended;
 
             #[inline]
-            fn type_object() -> std::ptr::NonNull<pyo3::ffi::PyTypeObject> {
-                use pyo3::type_object::LazyTypeObject;
-                static TYPE_OBJECT: LazyTypeObject = LazyTypeObject::new();
+            fn type_object() -> &'static pyo3::ffi::PyTypeObject {
+                use pyo3::type_object::LazyStaticType;
+                static TYPE_OBJECT: LazyStaticType = LazyStaticType::new_static();
                 TYPE_OBJECT.get_pyclass_type::<Self>()
             }
         }

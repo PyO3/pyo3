@@ -13,17 +13,17 @@ use std::ptr::{self, NonNull};
 
 #[inline]
 pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
-    let tp_ptr = T::type_object().as_ptr();
+    let type_obj = T::type_object();
     if T::FLAGS & type_flags::EXTENDED != 0
         && <T::BaseType as PyTypeInfo>::ConcreteLayout::IS_NATIVE_TYPE
     {
         let base_tp = <T::BaseType as PyTypeInfo>::type_object();
-        if let Some(base_new) = base_tp.as_ref().tp_new {
-            return base_new(tp_ptr, ptr::null_mut(), ptr::null_mut());
+        if let Some(base_new) = base_tp.tp_new {
+            return base_new(type_obj as *const _ as _, ptr::null_mut(), ptr::null_mut());
         }
     }
-    let alloc = (*tp_ptr).tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
-    alloc(tp_ptr, 0)
+    let alloc = type_obj.tp_alloc.unwrap_or(ffi::PyType_GenericAlloc);
+    alloc(type_obj as *const _ as _, 0)
 }
 
 /// This trait enables custom alloc/dealloc implementations for `T: PyClass`.
@@ -47,7 +47,7 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
             return;
         }
 
-        match Self::type_object().as_ref().tp_free {
+        match Self::type_object().tp_free {
             Some(free) => free(obj as *mut c_void),
             None => tp_free_fallback(obj),
         }
@@ -262,9 +262,7 @@ where
 {
     // Box (or some other heap allocation) is needed because PyType_Ready expects the type object
     // to have a permanent memory address.
-    let mut boxed = Box::new(ffi::PyTypeObject_INIT);
-    let mut type_object = boxed.as_mut();
-    let base_type_object = <T::BaseType as PyTypeInfo>::type_object().as_ptr();
+    let mut type_object = Box::new(ffi::PyTypeObject_INIT);
 
     // PyPy will segfault if passed only a nul terminator as `tp_doc`.
     // ptr::null() is OK though.
@@ -274,7 +272,7 @@ where
         type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
     };
 
-    type_object.tp_base = base_type_object;
+    type_object.tp_base = <T::BaseType as PyTypeInfo>::type_object() as *const _ as _;
 
     let name = match module_name {
         Some(module_name) => format!("{}.{}", module_name, T::NAME),
@@ -312,16 +310,16 @@ where
     }
 
     // GC support
-    <T as class::gc::PyGCProtocolImpl>::update_type_object(type_object);
+    <T as class::gc::PyGCProtocolImpl>::update_type_object(&mut type_object);
 
     // descriptor protocol
-    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(type_object);
+    <T as class::descr::PyDescrProtocolImpl>::tp_as_descr(&mut type_object);
 
     // iterator methods
-    <T as class::iter::PyIterProtocolImpl>::tp_as_iter(type_object);
+    <T as class::iter::PyIterProtocolImpl>::tp_as_iter(&mut type_object);
 
     // basic methods
-    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(type_object);
+    <T as class::basic::PyObjectProtocolImpl>::tp_as_object(&mut type_object);
 
     fn to_ptr<T>(value: Option<T>) -> *mut T {
         value
@@ -366,12 +364,12 @@ where
     }
 
     // set type flags
-    py_class_flags::<T>(type_object);
+    py_class_flags::<T>(&mut type_object);
 
     // register type object
     unsafe {
-        if ffi::PyType_Ready(type_object) == 0 {
-            Ok(boxed)
+        if ffi::PyType_Ready(type_object.as_mut()) == 0 {
+            Ok(type_object)
         } else {
             PyErr::fetch(py).into()
         }
