@@ -421,42 +421,6 @@ fn impl_descriptors(
     cls: &syn::Type,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> syn::Result<TokenStream> {
-    let methods: Vec<TokenStream> = descriptors
-        .iter()
-        .flat_map(|&(ref field, ref fns)| {
-            fns.iter()
-                .map(|desc| {
-                    let name = field.ident.as_ref().unwrap();
-                    let field_ty = &field.ty;
-                    match *desc {
-                        FnType::Getter => {
-                            quote! {
-                                impl #cls {
-                                    fn #name(&self) -> pyo3::PyResult<#field_ty> {
-                                        Ok(self.#name.clone())
-                                    }
-                                }
-                            }
-                        }
-                        FnType::Setter => {
-                            let setter_name =
-                                syn::Ident::new(&format!("set_{}", name.unraw()), Span::call_site());
-                            quote! {
-                                impl #cls {
-                                    fn #setter_name(&mut self, value: #field_ty) -> pyo3::PyResult<()> {
-                                        self.#name = value;
-                                        Ok(())
-                                    }
-                                }
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                })
-                .collect::<Vec<TokenStream>>()
-        })
-        .collect();
-
     let py_methods: Vec<TokenStream> = descriptors
         .iter()
         .flat_map(|&(ref field, ref fns)| {
@@ -479,7 +443,17 @@ fn impl_descriptors(
                                 output: parse_quote!(PyResult<#field_ty>),
                                 doc,
                             };
-                            Ok(impl_py_getter_def(&spec, &impl_wrap_getter(&cls, &spec)?))
+                            Ok(impl_py_getter_def(
+                                &spec,
+                                &impl_wrap_getter(
+                                    &cls,
+                                    &spec,
+                                    quote!({
+                                        use pyo3::derive_utils::GetPropertyValue;
+                                        (&_slf.#name).get_property_value(_py)
+                                    }),
+                                ),
+                            ))
                         }
                         FnType::Setter => {
                             let setter_name = syn::Ident::new(
@@ -503,7 +477,14 @@ fn impl_descriptors(
                                 output: parse_quote!(PyResult<()>),
                                 doc,
                             };
-                            Ok(impl_py_setter_def(&spec, &impl_wrap_setter(&cls, &spec)?))
+                            Ok(impl_py_setter_def(
+                                &spec,
+                                &impl_wrap_setter(
+                                    &cls,
+                                    &spec,
+                                    quote!({ _slf.#name = _val; Ok(()) }),
+                                ),
+                            ))
                         }
                         _ => unreachable!(),
                     }
@@ -513,7 +494,6 @@ fn impl_descriptors(
         .collect::<syn::Result<_>>()?;
 
     Ok(quote! {
-        #(#methods)*
 
         pyo3::inventory::submit! {
             #![crate = pyo3] {

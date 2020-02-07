@@ -21,8 +21,14 @@ pub fn gen_py_method(
         FnType::FnCall => impl_py_method_def_call(&spec, &impl_wrap(cls, &spec, false)),
         FnType::FnClass => impl_py_method_def_class(&spec, &impl_wrap_class(cls, &spec)),
         FnType::FnStatic => impl_py_method_def_static(&spec, &impl_wrap_static(cls, &spec)),
-        FnType::Getter => impl_py_getter_def(&spec, &impl_wrap_getter(cls, &spec)?),
-        FnType::Setter => impl_py_setter_def(&spec, &impl_wrap_setter(cls, &spec)?),
+        FnType::Getter => impl_py_getter_def(
+            &spec,
+            &impl_wrap_getter(cls, &spec, impl_call_getter(&spec)?),
+        ),
+        FnType::Setter => impl_py_setter_def(
+            &spec,
+            &impl_wrap_setter(cls, &spec, impl_call_setter(&spec)?),
+        ),
     })
 }
 
@@ -244,8 +250,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     }
 }
 
-/// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<TokenStream> {
+fn impl_call_getter(spec: &FnSpec) -> syn::Result<TokenStream> {
     let takes_py = match &*spec.args {
         [] => false,
         [arg] if utils::if_type_is_python(arg.ty) => true,
@@ -258,7 +263,6 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
     };
 
     let name = &spec.name;
-    let python_name = &spec.python_name;
 
     let fncall = if takes_py {
         quote! { _slf.#name(_py) }
@@ -266,7 +270,13 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
         quote! { _slf.#name() }
     };
 
-    Ok(quote! {
+    Ok(fncall)
+}
+
+/// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
+pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec, fncall: TokenStream) -> TokenStream {
+    let python_name = &spec.python_name;
+    quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
         {
@@ -288,31 +298,41 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
                 }
             }
         }
-    })
+    }
+}
+
+fn impl_call_setter(spec: &FnSpec) -> syn::Result<TokenStream> {
+    let name = &spec.name;
+    // let python_name = &spec.python_name;
+
+    // let val_ty = match &*spec.args {
+    //     [] => {
+    //         return Err(syn::Error::new_spanned(
+    //             &spec.name,
+    //             "Not enough arguments for setter {}::{}",
+    //         ))
+    //     }
+    //     [arg] => &arg.ty,
+    //     _ => {
+    //         return Err(syn::Error::new_spanned(
+    //             spec.args[0].ty,
+    //             "Setter function must have exactly one argument",
+    //         ))
+    //     }
+    // };
+
+    Ok(quote!(pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name(_val))))
 }
 
 /// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
-pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Result<TokenStream> {
-    let name = &spec.name;
+pub(crate) fn impl_wrap_setter(
+    cls: &syn::Type,
+    spec: &FnSpec<'_>,
+    fncall: TokenStream,
+) -> TokenStream {
     let python_name = &spec.python_name;
 
-    let val_ty = match &*spec.args {
-        [] => {
-            return Err(syn::Error::new_spanned(
-                &spec.name,
-                "Not enough arguments for setter {}::{}",
-            ))
-        }
-        [arg] => &arg.ty,
-        _ => {
-            return Err(syn::Error::new_spanned(
-                spec.args[0].ty,
-                "Setter function must have exactly one argument",
-            ))
-        }
-    };
-
-    Ok(quote! {
+    quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject,
@@ -324,9 +344,9 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Resul
             let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
             let _value = _py.from_borrowed_ptr(_value);
 
-            let _result = match <#val_ty as pyo3::FromPyObject>::extract(_value) {
+            let _result = match pyo3::FromPyObject::extract(_value) {
                 Ok(_val) => {
-                    pyo3::derive_utils::IntoPyResult::into_py_result(_slf.#name(_val))
+                    #fncall
                 }
                 Err(e) => Err(e)
             };
@@ -338,7 +358,7 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Resul
                 }
             }
         }
-    })
+    }
 }
 
 /// This function abstracts away some copied code and can propably be simplified itself

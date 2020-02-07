@@ -11,7 +11,7 @@ use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
-use crate::{ffi, GILPool, IntoPy, PyObject, Python};
+use crate::{ffi, GILPool, IntoPy, PyObject, Python, ToPyObject};
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -197,5 +197,24 @@ impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for I {
 impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyResult<I> {
     fn into_pynew_result(self) -> PyResult<I> {
         self
+    }
+}
+
+pub trait GetPropertyValue {
+    fn get_property_value(&self, py: Python) -> PyObject;
+}
+
+impl<T> GetPropertyValue for &T
+where
+    T: IntoPy<PyObject> + Clone,
+{
+    fn get_property_value(&self, py: Python) -> PyObject {
+        (*self).clone().into_py(py)
+    }
+}
+
+impl GetPropertyValue for PyObject {
+    fn get_property_value(&self, py: Python) -> PyObject {
+        self.to_object(py)
     }
 }

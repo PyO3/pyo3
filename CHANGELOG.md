@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Fixed unsoundness of subclassing. [#683](https://github.com/PyO3/pyo3/pull/683).
 * Clear error indicator when the exception is handled on the Rust side. [#719](https://github.com/PyO3/pyo3/pull/719)
 * Usage of raw identifiers with `#[pyo3(set)]`. [#745](https://github.com/PyO3/pyo3/pull/745)
+* Usage of `PyObject` with `#[pyo3(get)]` [#XXX](https://github.com/PyO3/pyo3/pull/XXX)
 
 ### Removed
 
