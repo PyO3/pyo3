@@ -49,7 +49,7 @@ pub const T_NONE: c_int = 20; /* Value is always None */
 pub const READONLY: c_int = 1;
 pub const READ_RESTRICTED: c_int = 2;
 pub const PY_WRITE_RESTRICTED: c_int = 4;
-pub const RESTRICTED: c_int = (READ_RESTRICTED | PY_WRITE_RESTRICTED);
+pub const RESTRICTED: c_int = READ_RESTRICTED | PY_WRITE_RESTRICTED;
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {

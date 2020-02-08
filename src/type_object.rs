@@ -1,14 +1,14 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
-use crate::err::PyResult;
 use crate::instance::Py;
-use crate::pyclass::{create_type_object, PyClass};
+use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
-use once_cell::sync::OnceCell;
+use std::cell::UnsafeCell;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
 /// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
@@ -92,19 +92,19 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;
 
-    /// PyTypeObject instance for this type, guaranteed to be global and initialized.
-    fn type_object() -> NonNull<ffi::PyTypeObject>;
+    /// PyTypeObject instance for this type.
+    fn type_object() -> &'static ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
     fn is_instance(object: &PyAny) -> bool {
         unsafe {
-            ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object().as_ptr() as *mut _) != 0
+            ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object() as *const _ as _) != 0
         }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
     fn is_exact_instance(object: &PyAny) -> bool {
-        unsafe { (*object.as_ptr()).ob_type == Self::type_object().as_ptr() as *mut _ }
+        unsafe { (*object.as_ptr()).ob_type == Self::type_object() as *const _ as _ }
     }
 }
 
@@ -124,49 +124,80 @@ where
     T: PyTypeInfo,
 {
     fn type_object() -> Py<PyType> {
-        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object().as_ptr() as *mut _) }
+        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
     }
 }
 
-/// Type used to store static type objects
+/// Lazy type object for Exceptions
 #[doc(hidden)]
-pub struct LazyTypeObject {
-    cell: OnceCell<NonNull<ffi::PyTypeObject>>,
+pub struct LazyHeapType {
+    value: UnsafeCell<Option<NonNull<ffi::PyTypeObject>>>,
+    initialized: AtomicBool,
 }
 
-impl LazyTypeObject {
+impl LazyHeapType {
     pub const fn new() -> Self {
-        Self {
-            cell: OnceCell::new(),
+        LazyHeapType {
+            value: UnsafeCell::new(None),
+            initialized: AtomicBool::new(false),
         }
     }
 
-    pub fn get_or_init<F>(&self, constructor: F) -> PyResult<NonNull<ffi::PyTypeObject>>
+    pub fn get_or_init<F>(&self, constructor: F) -> NonNull<ffi::PyTypeObject>
     where
-        F: Fn() -> PyResult<NonNull<ffi::PyTypeObject>>,
+        F: Fn(Python) -> NonNull<ffi::PyTypeObject>,
     {
-        Ok(*self.cell.get_or_try_init(constructor)?)
-    }
-
-    pub fn get_pyclass_type<T: PyClass>(&self) -> NonNull<ffi::PyTypeObject> {
-        self.get_or_init(|| {
-            // automatically initialize the class on-demand
+        if !self
+            .initialized
+            .compare_and_swap(false, true, Ordering::Acquire)
+        {
+            // We have to get the GIL before setting the value to the global!!!
             let gil = Python::acquire_gil();
-            let py = gil.python();
-            let boxed = create_type_object::<T>(py, T::MODULE)?;
-            Ok(unsafe { NonNull::new_unchecked(Box::into_raw(boxed)) })
-        })
-        .unwrap_or_else(|e| {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            e.print(py);
-            panic!("An error occurred while initializing class {}", T::NAME)
-        })
+            unsafe {
+                *self.value.get() = Some(constructor(gil.python()));
+            }
+        }
+        unsafe { (*self.value.get()).unwrap() }
     }
 }
 
-// This is necessary for making static `LazyTypeObject`s
+// This is necessary for making static `LazyHeapType`s
 //
 // Type objects are shared between threads by the Python interpreter anyway, so it is no worse
 // to allow sharing on the Rust side too.
-unsafe impl Sync for LazyTypeObject {}
+unsafe impl Sync for LazyHeapType {}
+
+/// Lazy type object for PyClass
+#[doc(hidden)]
+pub struct LazyStaticType {
+    value: UnsafeCell<ffi::PyTypeObject>,
+    initialized: AtomicBool,
+}
+
+impl LazyStaticType {
+    pub const fn new() -> Self {
+        LazyStaticType {
+            value: UnsafeCell::new(ffi::PyTypeObject_INIT),
+            initialized: AtomicBool::new(false),
+        }
+    }
+
+    pub fn get_or_init<T: PyClass>(&self) -> &ffi::PyTypeObject {
+        if !self
+            .initialized
+            .compare_and_swap(false, true, Ordering::Acquire)
+        {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            initialize_type_object::<T>(py, T::MODULE, unsafe { &mut *self.value.get() })
+                .unwrap_or_else(|e| {
+                    e.print(py);
+                    panic!("An error occurred while initializing class {}", T::NAME)
+                });
+        }
+        unsafe { &*self.value.get() }
+    }
+}
+
+// This is necessary for making static `LazyStaticType`s
+unsafe impl Sync for LazyStaticType {}
