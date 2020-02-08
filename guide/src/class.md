@@ -46,7 +46,7 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     fn type_object() -> &'static pyo3::ffi::PyTypeObject {
         use pyo3::type_object::LazyStaticType;
         static TYPE_OBJECT: LazyStaticType = LazyStaticType::new();
-        TYPE_OBJECT.get::<Self>()
+        TYPE_OBJECT.get_or_init::<Self>()
     }
 }
 

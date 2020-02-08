@@ -6,8 +6,9 @@ use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
 use crate::{ffi, AsPyPointer, Python};
-use std::cell::{Cell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
 /// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
@@ -129,25 +130,34 @@ where
 
 /// Lazy type object for Exceptions
 #[doc(hidden)]
-pub struct LazyHeapType(UnsafeCell<Option<NonNull<ffi::PyTypeObject>>>);
+pub struct LazyHeapType {
+    value: UnsafeCell<Option<NonNull<ffi::PyTypeObject>>>,
+    initialized: AtomicBool,
+}
 
 impl LazyHeapType {
     pub const fn new() -> Self {
-        Self(UnsafeCell::new(None))
+        LazyHeapType {
+            value: UnsafeCell::new(None),
+            initialized: AtomicBool::new(false),
+        }
     }
+
     pub fn get_or_init<F>(&self, constructor: F) -> NonNull<ffi::PyTypeObject>
     where
         F: Fn(Python) -> NonNull<ffi::PyTypeObject>,
     {
-        if let Some(value) = unsafe { &*self.0.get() } {
-            return value.clone();
+        if !self
+            .initialized
+            .compare_and_swap(false, true, Ordering::Acquire)
+        {
+            // We have to get the GIL before setting the value to the global!!!
+            let gil = Python::acquire_gil();
+            unsafe {
+                *self.value.get() = Some(constructor(gil.python()));
+            }
         }
-        // We have to get the GIL before setting the value to the global!!!
-        let gil = Python::acquire_gil();
-        unsafe {
-            *self.0.get() = Some(constructor(gil.python()));
-            (*self.0.get()).unwrap()
-        }
+        unsafe { (*self.value.get()).unwrap() }
     }
 }
 
@@ -161,18 +171,22 @@ unsafe impl Sync for LazyHeapType {}
 #[doc(hidden)]
 pub struct LazyStaticType {
     value: UnsafeCell<ffi::PyTypeObject>,
-    initialized: Cell<bool>,
+    initialized: AtomicBool,
 }
 
 impl LazyStaticType {
     pub const fn new() -> Self {
         LazyStaticType {
             value: UnsafeCell::new(ffi::PyTypeObject_INIT),
-            initialized: Cell::new(false),
+            initialized: AtomicBool::new(false),
         }
     }
-    pub fn get<T: PyClass>(&self) -> &ffi::PyTypeObject {
-        if !self.initialized.get() {
+
+    pub fn get_or_init<T: PyClass>(&self) -> &ffi::PyTypeObject {
+        if !self
+            .initialized
+            .compare_and_swap(false, true, Ordering::Acquire)
+        {
             let gil = Python::acquire_gil();
             let py = gil.python();
             initialize_type_object::<T>(py, T::MODULE, unsafe { &mut *self.value.get() })
@@ -180,7 +194,6 @@ impl LazyStaticType {
                     e.print(py);
                     panic!("An error occurred while initializing class {}", T::NAME)
                 });
-            self.initialized.set(true);
         }
         unsafe { &*self.value.get() }
     }
