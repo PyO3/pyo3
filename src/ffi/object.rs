@@ -177,23 +177,23 @@ mod bufferinfo {
     pub const PyBUF_WRITEABLE: c_int = PyBUF_WRITABLE;
     pub const PyBUF_FORMAT: c_int = 0x0004;
     pub const PyBUF_ND: c_int = 0x0008;
-    pub const PyBUF_STRIDES: c_int = (0x0010 | PyBUF_ND);
-    pub const PyBUF_C_CONTIGUOUS: c_int = (0x0020 | PyBUF_STRIDES);
-    pub const PyBUF_F_CONTIGUOUS: c_int = (0x0040 | PyBUF_STRIDES);
-    pub const PyBUF_ANY_CONTIGUOUS: c_int = (0x0080 | PyBUF_STRIDES);
-    pub const PyBUF_INDIRECT: c_int = (0x0100 | PyBUF_STRIDES);
+    pub const PyBUF_STRIDES: c_int = 0x0010 | PyBUF_ND;
+    pub const PyBUF_C_CONTIGUOUS: c_int = 0x0020 | PyBUF_STRIDES;
+    pub const PyBUF_F_CONTIGUOUS: c_int = 0x0040 | PyBUF_STRIDES;
+    pub const PyBUF_ANY_CONTIGUOUS: c_int = 0x0080 | PyBUF_STRIDES;
+    pub const PyBUF_INDIRECT: c_int = 0x0100 | PyBUF_STRIDES;
 
-    pub const PyBUF_CONTIG: c_int = (PyBUF_ND | PyBUF_WRITABLE);
-    pub const PyBUF_CONTIG_RO: c_int = (PyBUF_ND);
+    pub const PyBUF_CONTIG: c_int = PyBUF_ND | PyBUF_WRITABLE;
+    pub const PyBUF_CONTIG_RO: c_int = PyBUF_ND;
 
-    pub const PyBUF_STRIDED: c_int = (PyBUF_STRIDES | PyBUF_WRITABLE);
-    pub const PyBUF_STRIDED_RO: c_int = (PyBUF_STRIDES);
+    pub const PyBUF_STRIDED: c_int = PyBUF_STRIDES | PyBUF_WRITABLE;
+    pub const PyBUF_STRIDED_RO: c_int = PyBUF_STRIDES;
 
-    pub const PyBUF_RECORDS: c_int = (PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT);
-    pub const PyBUF_RECORDS_RO: c_int = (PyBUF_STRIDES | PyBUF_FORMAT);
+    pub const PyBUF_RECORDS: c_int = PyBUF_STRIDES | PyBUF_WRITABLE | PyBUF_FORMAT;
+    pub const PyBUF_RECORDS_RO: c_int = PyBUF_STRIDES | PyBUF_FORMAT;
 
-    pub const PyBUF_FULL: c_int = (PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT);
-    pub const PyBUF_FULL_RO: c_int = (PyBUF_INDIRECT | PyBUF_FORMAT);
+    pub const PyBUF_FULL: c_int = PyBUF_INDIRECT | PyBUF_WRITABLE | PyBUF_FORMAT;
+    pub const PyBUF_FULL_RO: c_int = PyBUF_INDIRECT | PyBUF_FORMAT;
 
     pub const PyBUF_READ: c_int = 0x100;
     pub const PyBUF_WRITE: c_int = 0x200;
@@ -848,42 +848,42 @@ extern "C" {
 pub const Py_PRINT_RAW: c_int = 1; // No string quotes etc.
 
 /// Set if the type object is dynamically allocated
-pub const Py_TPFLAGS_HEAPTYPE: c_ulong = (1 << 9);
+pub const Py_TPFLAGS_HEAPTYPE: c_ulong = 1 << 9;
 
 /// Set if the type allows subclassing
-pub const Py_TPFLAGS_BASETYPE: c_ulong = (1 << 10);
+pub const Py_TPFLAGS_BASETYPE: c_ulong = 1 << 10;
 
 /// Set if the type implements the vectorcall protocol (PEP 590)
 #[cfg(all(Py_3_8, not(Py_LIMITED_API)))]
-pub const _Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = (1 << 11);
+pub const _Py_TPFLAGS_HAVE_VECTORCALL: c_ulong = 1 << 11;
 
 /// Set if the type is 'ready' -- fully initialized
-pub const Py_TPFLAGS_READY: c_ulong = (1 << 12);
+pub const Py_TPFLAGS_READY: c_ulong = 1 << 12;
 
 /// Set while the type is being 'readied', to prevent recursive ready calls
-pub const Py_TPFLAGS_READYING: c_ulong = (1 << 13);
+pub const Py_TPFLAGS_READYING: c_ulong = 1 << 13;
 
 /// Objects support garbage collection (see objimp.h)
-pub const Py_TPFLAGS_HAVE_GC: c_ulong = (1 << 14);
+pub const Py_TPFLAGS_HAVE_GC: c_ulong = 1 << 14;
 
 const Py_TPFLAGS_HAVE_STACKLESS_EXTENSION: c_ulong = 0;
 
 /// Objects support type attribute cache
-pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = (1 << 18);
-pub const Py_TPFLAGS_VALID_VERSION_TAG: c_ulong = (1 << 19);
+pub const Py_TPFLAGS_HAVE_VERSION_TAG: c_ulong = 1 << 18;
+pub const Py_TPFLAGS_VALID_VERSION_TAG: c_ulong = 1 << 19;
 
 /* Type is abstract and cannot be instantiated */
-pub const Py_TPFLAGS_IS_ABSTRACT: c_ulong = (1 << 20);
+pub const Py_TPFLAGS_IS_ABSTRACT: c_ulong = 1 << 20;
 
 /* These flags are used to determine if a type is a subclass. */
-pub const Py_TPFLAGS_LONG_SUBCLASS: c_ulong = (1 << 24);
-pub const Py_TPFLAGS_LIST_SUBCLASS: c_ulong = (1 << 25);
-pub const Py_TPFLAGS_TUPLE_SUBCLASS: c_ulong = (1 << 26);
-pub const Py_TPFLAGS_BYTES_SUBCLASS: c_ulong = (1 << 27);
-pub const Py_TPFLAGS_UNICODE_SUBCLASS: c_ulong = (1 << 28);
-pub const Py_TPFLAGS_DICT_SUBCLASS: c_ulong = (1 << 29);
-pub const Py_TPFLAGS_BASE_EXC_SUBCLASS: c_ulong = (1 << 30);
-pub const Py_TPFLAGS_TYPE_SUBCLASS: c_ulong = (1 << 31);
+pub const Py_TPFLAGS_LONG_SUBCLASS: c_ulong = 1 << 24;
+pub const Py_TPFLAGS_LIST_SUBCLASS: c_ulong = 1 << 25;
+pub const Py_TPFLAGS_TUPLE_SUBCLASS: c_ulong = 1 << 26;
+pub const Py_TPFLAGS_BYTES_SUBCLASS: c_ulong = 1 << 27;
+pub const Py_TPFLAGS_UNICODE_SUBCLASS: c_ulong = 1 << 28;
+pub const Py_TPFLAGS_DICT_SUBCLASS: c_ulong = 1 << 29;
+pub const Py_TPFLAGS_BASE_EXC_SUBCLASS: c_ulong = 1 << 30;
+pub const Py_TPFLAGS_TYPE_SUBCLASS: c_ulong = 1 << 31;
 
 pub const Py_TPFLAGS_DEFAULT: c_ulong =
     Py_TPFLAGS_HAVE_STACKLESS_EXTENSION | Py_TPFLAGS_HAVE_VERSION_TAG;
