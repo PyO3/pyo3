@@ -23,7 +23,6 @@ use crate::ffi;
 use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
-use libc;
 use std::ffi::CStr;
 use std::os::raw;
 use std::pin::Pin;
