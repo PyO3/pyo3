@@ -22,15 +22,6 @@ pub trait PyObjectLayout<T: PyTypeInfo> {
         None
     }
 
-    unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
-        &*(obj as *const _ as *const T)
-    }
-
-    #[allow(clippy::mut_from_ref)]
-    unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
-        &mut *(obj as *const _ as *const T as *mut T)
-    }
-
     unsafe fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
 }
@@ -59,6 +50,25 @@ pub mod type_flags {
 
     /// The class declared by #[pyclass(extends=~)]
     pub const EXTENDED: usize = 1 << 4;
+}
+
+/// Reference abstraction for `PyClass` and `PyNativeType`.
+// NOTE: This trait is separated from PyTypeInfo since make it PyTypeInfo<`py> is confusing...
+// When GAT and type Ref<'py> becomes stable, let's merge this trait to
+// PyConcreteLayout or Py
+pub unsafe trait PyDowncastImpl<'py> {
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self;
+    private_decl! {}
+}
+
+unsafe impl<'py, T> PyDowncastImpl<'py> for T
+where
+    T: 'py + crate::PyNativeType,
+{
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self {
+        &*(obj as *const _ as *const Self)
+    }
+    private_impl! {}
 }
 
 /// Python type information.

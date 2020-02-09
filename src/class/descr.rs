@@ -8,15 +8,13 @@
 use crate::callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyType};
-use crate::FromPyObject;
-use crate::{ffi, IntoPy, PyObject};
+use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
 use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
-pub trait PyDescrProtocol<'p>: PyTypeInfo {
+pub trait PyDescrProtocol<'p>: PyClass {
     fn __get__(&'p self, instance: &'p PyAny, owner: Option<&'p PyType>) -> Self::Result
     where
         Self: PyDescrGetProtocol<'p>,

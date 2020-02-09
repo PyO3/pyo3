@@ -3,16 +3,11 @@
 use crate::class::basic::CompareOp;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
-use crate::ffi;
-use crate::instance::PyNativeType;
-use crate::object::PyObject;
-use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyDict, PyIterator, PyString, PyTuple, PyType};
-use crate::AsPyPointer;
-use crate::IntoPyPointer;
-use crate::Py;
-use crate::Python;
-use crate::{FromPyObject, IntoPy, PyTryFrom, ToBorrowedObject, ToPyObject};
+use crate::{
+    ffi, AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType,
+    PyObject, PyTryFrom, PyTypeInfo, Python, ToBorrowedObject, ToPyObject,
+};
 use std::cmp::Ordering;
 use std::os::raw::c_int;
 
@@ -176,15 +171,10 @@ pub trait ObjectProtocol {
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
 
     /// Gets the Python base object for this object.
-    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
+    fn get_base<'py>(&'py self) -> &'py <Self as PyTypeInfo>::BaseType
     where
-        Self: PyTypeInfo;
-
-    /// Gets the Python base object for this object.
-
-    fn get_mut_base(&mut self) -> &mut <Self as PyTypeInfo>::BaseType
-    where
-        Self: PyTypeInfo;
+        Self: PyTypeInfo,
+        <Self as PyTypeInfo>::BaseType: FromPyPointer<'py>;
 
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
@@ -455,18 +445,12 @@ where
         unsafe { (*self.as_ptr()).ob_type }
     }
 
-    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
+    fn get_base<'py>(&'py self) -> &'py <Self as PyTypeInfo>::BaseType
     where
         Self: PyTypeInfo,
+        <Self as PyTypeInfo>::BaseType: FromPyPointer<'py>,
     {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
-    }
-
-    fn get_mut_base(&mut self) -> &mut <Self as PyTypeInfo>::BaseType
-    where
-        Self: PyTypeInfo,
-    {
-        unsafe { self.py().mut_from_borrowed_ptr(self.as_ptr()) }
     }
 
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>

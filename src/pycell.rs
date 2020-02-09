@@ -3,7 +3,7 @@ use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{PyObjectLayout, PyObjectSizedLayout};
+use crate::type_object::{PyDowncastImpl, PyObjectLayout, PyObjectSizedLayout};
 use crate::types::PyAny;
 use crate::{ffi, gil, PyErr, PyObject, PyResult, PyTypeInfo, Python};
 use std::mem::ManuallyDrop;
@@ -42,20 +42,7 @@ pub struct PyCell<T: PyClass> {
 
 impl<T: PyClass> PyCell<T> {
     /// Make new `PyCell` on the Python heap and returns the reference of it.
-    pub fn new_ref(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self>
-    where
-        <T::BaseType as PyTypeInfo>::ConcreteLayout:
-            crate::type_object::PyObjectSizedLayout<T::BaseType>,
-    {
-        unsafe {
-            let initializer = value.into();
-            let self_ = initializer.create_cell(py)?;
-            FromPyPointer::from_owned_ptr_or_err(py, self_ as _)
-        }
-    }
-
-    /// Make new `PyCell` on the Python heap and returns the mutable reference of it.
-    pub fn new_mut(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&mut Self>
+    pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self>
     where
         <T::BaseType as PyTypeInfo>::ConcreteLayout:
             crate::type_object::PyObjectSizedLayout<T::BaseType>,
@@ -98,14 +85,6 @@ impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
     fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
         Some(&mut self.ob_base)
     }
-    unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
-        let cell = obj.as_ptr() as *const Self;
-        &(*cell).pyclass
-    }
-    unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
-        let cell = obj.as_ptr() as *const _ as *mut Self;
-        &mut (*cell).pyclass
-    }
     unsafe fn py_drop(&mut self, py: Python) {
         ManuallyDrop::drop(&mut self.pyclass);
         self.dict.clear_dict(py);
@@ -115,6 +94,13 @@ impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
     unsafe fn py_init(&mut self, value: T) {
         self.pyclass = ManuallyDrop::new(value);
     }
+}
+
+unsafe impl<'py, T: 'py + PyClass> PyDowncastImpl<'py> for PyCell<T> {
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self {
+        &*(obj.as_ptr() as *const Self)
+    }
+    private_impl! {}
 }
 
 impl<T: PyClass> PyObjectSizedLayout<T> for PyCell<T> {}
@@ -150,28 +136,17 @@ impl<T: PyClass> ToPyObject for &mut PyCell<T> {
     }
 }
 
-unsafe impl<'p, T> FromPyPointer<'p> for &'p PyCell<T>
+unsafe impl<'p, T> FromPyPointer<'p> for PyCell<T>
 where
     T: PyClass,
 {
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
         NonNull::new(ptr).map(|p| &*(gil::register_owned(py, p).as_ptr() as *const PyCell<T>))
     }
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
+    unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'p>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<&'p Self> {
         NonNull::new(ptr).map(|p| &*(gil::register_borrowed(py, p).as_ptr() as *const PyCell<T>))
-    }
-}
-
-unsafe impl<'p, T> FromPyPointer<'p> for &'p mut PyCell<T>
-where
-    T: PyClass,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr)
-            .map(|p| &mut *(gil::register_owned(py, p).as_ptr() as *const _ as *mut PyCell<T>))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr)
-            .map(|p| &mut *(gil::register_borrowed(py, p).as_ptr() as *const _ as *mut PyCell<T>))
     }
 }

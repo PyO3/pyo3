@@ -298,33 +298,10 @@ impl<'v> PyTryFrom<'v> for PySequence {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
-    fn try_from_mut<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut PySequence, PyDowncastError> {
-        let value = value.into();
-        unsafe {
-            if ffi::PySequence_Check(value.as_ptr()) != 0 {
-                Ok(<PySequence as PyTryFrom>::try_from_mut_unchecked(value))
-            } else {
-                Err(PyDowncastError)
-            }
-        }
-    }
-
-    fn try_from_mut_exact<V: Into<&'v PyAny>>(
-        value: V,
-    ) -> Result<&'v mut PySequence, PyDowncastError> {
-        <PySequence as PyTryFrom>::try_from_mut(value)
-    }
-
     #[inline]
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
         let ptr = value.into() as *const _ as *const PySequence;
         &*ptr
-    }
-
-    #[inline]
-    unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut PySequence {
-        let ptr = value.into() as *const _ as *mut PySequence;
-        &mut *ptr
     }
 }
 

@@ -36,17 +36,10 @@ pyobject_native_type_convert!(
 pyobject_native_type_extract!(PyAny);
 
 impl PyAny {
-    pub fn downcast_ref<T>(&self) -> Result<&T, PyDowncastError>
+    pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>
     where
-        T: for<'gil> PyTryFrom<'gil>,
+        for<'py> T: PyTryFrom<'py>,
     {
-        T::try_from(self)
-    }
-
-    pub fn downcast_mut<T>(&self) -> Result<&mut T, PyDowncastError>
-    where
-        T: for<'gil> PyTryFrom<'gil>,
-    {
-        T::try_from_mut(self)
+        <T as PyTryFrom>::try_from(self)
     }
 }

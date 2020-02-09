@@ -19,7 +19,7 @@ macro_rules! py_unary_func {
         {
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let res = slf.$f().into();
             $crate::callback::cb_convert($conv, py, res.map(|x| x))
         }
@@ -56,7 +56,7 @@ macro_rules! py_len_func {
         {
             let py = Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
 
             let result = slf.$f().into();
             $crate::callback::cb_convert($conv, py, result)
@@ -86,7 +86,7 @@ macro_rules! py_binary_func {
             use $crate::ObjectProtocol;
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<$crate::types::PyAny>(arg);
 
             let result = match arg.extract() {
@@ -146,7 +146,7 @@ macro_rules! py_binary_self_func {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf1 = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf1 = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<$crate::types::PyAny>(arg);
 
             let result = match arg.extract() {
@@ -182,7 +182,7 @@ macro_rules! py_ssizearg_func {
         {
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let result = slf.$f(arg.into()).into();
             $crate::callback::cb_convert($conv, py, result)
         }
@@ -215,7 +215,7 @@ macro_rules! py_ternary_func {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
 
@@ -286,7 +286,7 @@ macro_rules! py_ternary_self_func {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf1 = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf1 = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
 
@@ -325,7 +325,7 @@ macro_rules! py_func_set {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<$generic>>(slf);
 
             let result = if value.is_null() {
                 Err($crate::PyErr::new::<exceptions::NotImplementedError, _>(
@@ -335,7 +335,7 @@ macro_rules! py_func_set {
                     ),
                 ))
             } else {
-                let name = py.mut_from_borrowed_ptr::<$crate::types::PyAny>(name);
+                let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
                 let value = py.from_borrowed_ptr::<$crate::types::PyAny>(value);
                 match name.extract() {
                     Ok(name) => match value.extract() {
@@ -375,7 +375,7 @@ macro_rules! py_func_del {
             let _pool = $crate::GILPool::new(py);
 
             let result = if value.is_null() {
-                let slf = py.mut_from_borrowed_ptr::<U>(slf);
+                let slf = py.from_borrowed_ptr::<$crate::PyCell<U>>(slf);
                 let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
 
                 match name.extract() {
@@ -415,7 +415,7 @@ macro_rules! py_func_set_del {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<$generic>(slf);
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<$generic>>(slf);
             let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
 
             let result = if value.is_null() {

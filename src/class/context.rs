@@ -6,12 +6,11 @@
 
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::type_object::PyTypeInfo;
-use crate::PyObject;
+use crate::{PyClass, PyObject};
 
 /// Context manager interface
 #[allow(unused_variables)]
-pub trait PyContextProtocol<'p>: PyTypeInfo {
+pub trait PyContextProtocol<'p>: PyClass {
     fn __enter__(&'p mut self) -> Self::Result
     where
         Self: PyContextEnterProtocol<'p>,

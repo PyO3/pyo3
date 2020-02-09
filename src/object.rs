@@ -149,9 +149,9 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    pub fn cast_as<D>(&self, py: Python) -> Result<&D, PyDowncastError>
+    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
     where
-        D: for<'v> PyTryFrom<'v>,
+        D: PyTryFrom<'p>,
     {
         D::try_from(self.as_ref(py))
     }

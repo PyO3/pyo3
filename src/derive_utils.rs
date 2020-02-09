@@ -11,7 +11,7 @@ use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
-use crate::{ffi, GILPool, IntoPy, PyObject, Python};
+use crate::{ffi, AsPyRef, GILPool, IntoPy, PyObject, Python};
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -100,8 +100,7 @@ pub fn parse_fn_args<'p>(
     // Adjust the remaining args
     let args = if accept_args {
         let py = args.py();
-        let slice = args.slice(used_args as isize, nargs as isize).into_py(py);
-        py.checked_cast_as(slice).unwrap()
+        args.slice(used_args as isize, nargs as isize).as_ref(py)
     } else {
         args
     };

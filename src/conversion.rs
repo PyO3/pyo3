@@ -3,7 +3,7 @@
 //! Conversions between various states of rust and python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
-use crate::type_object::{PyObjectLayout, PyTypeInfo};
+use crate::type_object::{PyDowncastImpl, PyTypeInfo};
 use crate::types::PyAny;
 use crate::types::PyTuple;
 use crate::{ffi, gil, Py, Python};
@@ -254,11 +254,10 @@ pub mod extract_impl {
 
     pub struct Cloned;
     pub struct Reference;
-    pub struct MutReference;
 
     impl<'a, T: 'a> ExtractImpl<'a, T> for Cloned
     where
-        T: Clone,
+        T: Clone + PyTryFrom<'a>,
         Reference: ExtractImpl<'a, &'a T>,
     {
         fn extract(source: &'a PyAny) -> PyResult<T> {
@@ -266,21 +265,12 @@ pub mod extract_impl {
         }
     }
 
-    impl<'a, T> ExtractImpl<'a, &'a T> for Reference
+    impl<'a, T: 'a> ExtractImpl<'a, &'a T> for Reference
     where
         T: PyTryFrom<'a>,
     {
         fn extract(source: &'a PyAny) -> PyResult<&'a T> {
             Ok(T::try_from(source)?)
-        }
-    }
-
-    impl<'a, T> ExtractImpl<'a, &'a mut T> for MutReference
-    where
-        T: PyTryFrom<'a>,
-    {
-        fn extract(source: &'a PyAny) -> PyResult<&'a mut T> {
-            Ok(T::try_from_mut(source)?)
         }
     }
 }
@@ -312,8 +302,8 @@ pub trait FromPyObjectImpl {
 
 impl<'a, T> FromPyObject<'a> for T
 where
-    T: FromPyObjectImpl,
-    <T as FromPyObjectImpl>::Impl: ExtractImpl<'a, Self>,
+    T: FromPyObjectImpl + 'a,
+    <T as FromPyObjectImpl>::Impl: ExtractImpl<'a, T>,
 {
     #[inline]
     fn extract(ob: &'a PyAny) -> PyResult<T> {
@@ -338,107 +328,49 @@ where
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
-/// This trait is similar to `std::convert::TryInto`
-pub trait PyTryInto<T>: Sized {
-    /// Cast from PyObject to a concrete Python object type.
-    fn try_into(&self) -> Result<&T, PyDowncastError>;
-
-    /// Cast from PyObject to a concrete Python object type. With exact type check.
-    fn try_into_exact(&self) -> Result<&T, PyDowncastError>;
-
-    /// Cast from PyObject to a concrete Python object type.
-    fn try_into_mut(&self) -> Result<&mut T, PyDowncastError>;
-
-    /// Cast from PyObject to a concrete Python object type. With exact type check.
-    fn try_into_mut_exact(&self) -> Result<&mut T, PyDowncastError>;
-}
-
-/// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom<'v>: Sized {
+pub trait PyTryFrom<'v>: Sized + PyDowncastImpl<'v> {
     /// Cast from a concrete Python object type to PyObject.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
-    /// Cast from a concrete Python object type to PyObject.
-    fn try_from_mut<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut Self, PyDowncastError>;
-
-    /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_mut_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut Self, PyDowncastError>;
-
     /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
-
-    /// Cast a PyAny to a specific type of PyObject. The caller must
-    /// have already verified the reference is for this type.
-    #[allow(clippy::mut_from_ref)]
-    unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut Self;
 }
 
-// TryFrom implies TryInto
-impl<U> PyTryInto<U> for PyAny
-where
-    U: for<'v> PyTryFrom<'v>,
-{
-    fn try_into(&self) -> Result<&U, PyDowncastError> {
-        U::try_from(self)
-    }
-    fn try_into_exact(&self) -> Result<&U, PyDowncastError> {
-        U::try_from_exact(self)
-    }
-    fn try_into_mut(&self) -> Result<&mut U, PyDowncastError> {
-        U::try_from_mut(self)
-    }
-    fn try_into_mut_exact(&self) -> Result<&mut U, PyDowncastError> {
-        U::try_from_mut_exact(self)
-    }
-}
+// /// Trait implemented by Python object types that allow a checked downcast.
+// /// This trait is similar to `std::convert::TryInto`
+// pub trait PyTryInto<'v, T: PyDowncastImpl<'v>>: Sized {
+//     /// Cast from PyObject to a concrete Python object type.
+//     fn try_into(&self) -> Result<&T, PyDowncastError>;
+
+//     /// Cast from PyObject to a concrete Python object type. With exact type check.
+//     fn try_into_exact(&self) -> Result<&T, PyDowncastError>;
+// }
 
 impl<'v, T> PyTryFrom<'v> for T
 where
-    T: PyTypeInfo,
+    T: PyDowncastImpl<'v> + PyTypeInfo,
 {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v T, PyDowncastError> {
+    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
-                Ok(PyTryFrom::try_from_unchecked(value))
+                Ok(Self::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v T, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
-                Ok(PyTryFrom::try_from_unchecked(value))
-            } else {
-                Err(PyDowncastError)
-            }
-        }
-    }
-
-    fn try_from_mut<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut T, PyDowncastError> {
-        let value = value.into();
-        unsafe {
-            if T::is_instance(value) {
-                Ok(PyTryFrom::try_from_mut_unchecked(value))
-            } else {
-                Err(PyDowncastError)
-            }
-        }
-    }
-
-    fn try_from_mut_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v mut T, PyDowncastError> {
-        let value = value.into();
-        unsafe {
-            if T::is_exact_instance(value) {
-                Ok(PyTryFrom::try_from_mut_unchecked(value))
+                Ok(Self::try_from_unchecked(value))
             } else {
                 Err(PyDowncastError)
             }
@@ -446,15 +378,8 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v T {
-        let value = value.into();
-        T::ConcreteLayout::internal_ref_cast(value)
-    }
-
-    #[inline]
-    unsafe fn try_from_mut_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v mut T {
-        let value = value.into();
-        T::ConcreteLayout::internal_mut_cast(value)
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+        Self::unchecked_downcast(value.into())
     }
 }
 
@@ -467,33 +392,37 @@ impl FromPy<()> for Py<PyTuple> {
 
 /// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
 pub unsafe trait FromPyPointer<'p>: Sized {
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self>;
-    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
+    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         match Self::from_owned_ptr_or_opt(py, ptr) {
             Some(s) => s,
             None => err::panic_after_error(),
         }
     }
-    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_owned_ptr_or_panic(py, ptr)
     }
-    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
         match Self::from_owned_ptr_or_opt(py, ptr) {
             Some(s) => Ok(s),
             None => Err(err::PyErr::fetch(py)),
         }
     }
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self>;
-    unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject)
+        -> Option<&'p Self>;
+    unsafe fn from_borrowed_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         match Self::from_borrowed_ptr_or_opt(py, ptr) {
             Some(s) => s,
             None => err::panic_after_error(),
         }
     }
-    unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
+    unsafe fn from_borrowed_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
         Self::from_borrowed_ptr_or_panic(py, ptr)
     }
-    unsafe fn from_borrowed_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
+    unsafe fn from_borrowed_ptr_or_err(
+        py: Python<'p>,
+        ptr: *mut ffi::PyObject,
+    ) -> PyResult<&'p Self> {
         match Self::from_borrowed_ptr_or_opt(py, ptr) {
             Some(s) => Ok(s),
             None => Err(err::PyErr::fetch(py)),
@@ -501,29 +430,18 @@ pub unsafe trait FromPyPointer<'p>: Sized {
     }
 }
 
-unsafe impl<'p, T> FromPyPointer<'p> for &'p T
+unsafe impl<'p, T> FromPyPointer<'p> for T
 where
-    T: PyTypeInfo,
+    T: 'p + crate::PyNativeType,
 {
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| T::ConcreteLayout::internal_ref_cast(gil::register_owned(py, p)))
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
+        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_owned(py, p)))
     }
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr)
-            .map(|p| T::ConcreteLayout::internal_ref_cast(gil::register_borrowed(py, p)))
-    }
-}
-
-unsafe impl<'p, T> FromPyPointer<'p> for &'p mut T
-where
-    T: PyTypeInfo,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| T::ConcreteLayout::internal_mut_cast(gil::register_owned(py, p)))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr)
-            .map(|p| T::ConcreteLayout::internal_mut_cast(gil::register_borrowed(py, p)))
+    unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'p>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<&'p Self> {
+        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_borrowed(py, p)))
     }
 }
 

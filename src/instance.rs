@@ -127,7 +127,7 @@ pub trait AsPyRef<T: PyTypeInfo>: Sized {
 impl<T: PyTypeInfo> AsPyRef<T> for Py<T> {
     fn as_ref(&self, _py: Python) -> &T {
         let any = self as *const Py<T> as *const PyAny;
-        unsafe { T::ConcreteLayout::internal_ref_cast(&*any) }
+        unimplemented!()
     }
 }
 

@@ -11,14 +11,9 @@
 use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
-use crate::FromPyObject;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{exceptions, IntoPy, PyObject};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 use std::os::raw::c_int;
 use std::ptr;
 
@@ -35,7 +30,7 @@ pub enum CompareOp {
 
 /// Basic python class customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'p>: PyTypeInfo {
+pub trait PyObjectProtocol<'p>: PyClass {
     fn __getattr__(&'p self, name: Self::Name) -> Self::Result
     where
         Self: PyObjectGetAttrProtocol<'p>,
@@ -237,7 +232,7 @@ where
                 return existing;
             }
 
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
 
             let result = match arg.extract() {
@@ -513,7 +508,7 @@ where
         {
             let py = Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = py.from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
             let res = match extract_op(op) {

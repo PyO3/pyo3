@@ -6,8 +6,7 @@
 //! c-api
 use crate::callback::UnitCallbackConverter;
 use crate::err::PyResult;
-use crate::ffi;
-use crate::type_object::PyTypeInfo;
+use crate::{ffi, PyClass};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -15,7 +14,7 @@ use std::os::raw::c_int;
 /// For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 /// c-api
 #[allow(unused_variables)]
-pub trait PyBufferProtocol<'p>: PyTypeInfo {
+pub trait PyBufferProtocol<'p>: PyClass {
     fn bf_getbuffer(&'p self, view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
     where
         Self: PyBufferGetBufferProtocol<'p>,
@@ -94,7 +93,7 @@ where
         {
             let py = crate::Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
             let result = slf.bf_getbuffer(arg1, arg2).into();
             crate::callback::cb_convert(UnitCallbackConverter, py, result)

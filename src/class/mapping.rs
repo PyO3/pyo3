@@ -6,15 +6,11 @@
 use crate::callback::{LenResultConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
-use crate::type_object::PyTypeInfo;
-use crate::FromPyObject;
-use crate::Python;
-use crate::{exceptions, IntoPy, PyObject};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject, Python};
 
 /// Mapping interface
 #[allow(unused_variables)]
-pub trait PyMappingProtocol<'p>: PyTypeInfo {
+pub trait PyMappingProtocol<'p>: PyClass {
     fn __len__(&'p self) -> Self::Result
     where
         Self: PyMappingLenProtocol<'p>,

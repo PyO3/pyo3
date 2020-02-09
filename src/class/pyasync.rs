@@ -11,15 +11,13 @@
 use crate::callback::PyObjectCallbackConverter;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::ffi;
-use crate::type_object::PyTypeInfo;
-use crate::PyObject;
+use crate::{ffi, PyClass, PyObject};
 
 /// Python Async/Await support interface.
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
-pub trait PyAsyncProtocol<'p>: PyTypeInfo {
+pub trait PyAsyncProtocol<'p>: PyClass {
     fn __await__(&'p self) -> Self::Result
     where
         Self: PyAsyncAwaitProtocol<'p>,

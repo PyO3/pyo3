@@ -7,13 +7,11 @@ use crate::callback::PyObjectCallbackConverter;
 use crate::class::basic::PyObjectProtocolImpl;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::type_object::PyTypeInfo;
-use crate::FromPyObject;
-use crate::{ffi, IntoPy, PyObject};
+use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
 /// Number interface
 #[allow(unused_variables)]
-pub trait PyNumberProtocol<'p>: PyTypeInfo {
+pub trait PyNumberProtocol<'p>: PyClass {
     fn __add__(lhs: Self::Left, rhs: Self::Right) -> Self::Result
     where
         Self: PyNumberAddProtocol<'p>,

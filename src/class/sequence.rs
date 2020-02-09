@@ -5,18 +5,14 @@
 
 use crate::callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
-use crate::FromPyObject;
-use crate::Python;
-use crate::{exceptions, IntoPy, PyObject};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject, Python};
 use std::os::raw::c_int;
 
 /// Sequence interface
 #[allow(unused_variables)]
-pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
+pub trait PySequenceProtocol<'p>: PyClass + Sized {
     fn __len__(&'p self) -> Self::Result
     where
         Self: PySequenceLenProtocol<'p>,
@@ -267,7 +263,7 @@ mod sq_ass_item_impl {
             {
                 let py = Python::assume_gil_acquired();
                 let _pool = crate::GILPool::new(py);
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
                     Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
@@ -322,7 +318,7 @@ mod sq_ass_item_impl {
             {
                 let py = Python::assume_gil_acquired();
                 let _pool = crate::GILPool::new(py);
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
                     slf.__delitem__(key.into()).into()
@@ -373,7 +369,7 @@ mod sq_ass_item_impl {
             {
                 let py = Python::assume_gil_acquired();
                 let _pool = crate::GILPool::new(py);
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
                     slf.__delitem__(key.into()).into()

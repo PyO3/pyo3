@@ -119,7 +119,7 @@
 
 pub use crate::class::*;
 pub use crate::conversion::{
-    AsPyPointer, FromPy, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,
+    AsPyPointer, FromPy, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom,
     ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
@@ -165,6 +165,7 @@ pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
+mod pyref;
 #[macro_use]
 mod internal_tricks;
 pub mod marshal;
