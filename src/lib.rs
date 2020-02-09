@@ -165,7 +165,6 @@ pub mod ffi;
 pub mod freelist;
 mod gil;
 mod instance;
-mod pyref;
 #[macro_use]
 mod internal_tricks;
 pub mod marshal;

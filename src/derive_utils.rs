@@ -100,7 +100,8 @@ pub fn parse_fn_args<'p>(
     // Adjust the remaining args
     let args = if accept_args {
         let py = args.py();
-        args.slice(used_args as isize, nargs as isize).as_ref(py)
+        // args.slice(used_args as isize, nargs as isize).as_ref(py)
+        unimplemented!()
     } else {
         args
     };

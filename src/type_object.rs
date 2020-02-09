@@ -53,9 +53,11 @@ pub mod type_flags {
 }
 
 /// Reference abstraction for `PyClass` and `PyNativeType`.
-// NOTE: This trait is separated from PyTypeInfo since make it PyTypeInfo<`py> is confusing...
-// When GAT and type Ref<'py> becomes stable, let's merge this trait to
-// PyConcreteLayout or Py
+// DEVELOPPER NOTE(kngwyu):
+// `&PyCell` is a pointer but `&PyAny` is a pointer of a pointer, so we need
+// two different abstraction for them.
+// This mismatch eventually should be fixed with https://github.com/PyO3/pyo3/issues/679,
+// but now it's not the time.
 pub unsafe trait PyDowncastImpl<'py> {
     unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self;
     private_decl! {}

@@ -234,11 +234,7 @@ where
 
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
-
-            let result = match arg.extract() {
-                Ok(arg) => slf.__getattr__(arg).into(),
-                Err(e) => Err(e),
-            };
+            let result = call_ref!(slf, __getattr__, arg);
             crate::callback::cb_convert(PyObjectCallbackConverter, py, result)
         }
         Some(wrap::<T>)
@@ -512,10 +508,7 @@ where
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
             let res = match extract_op(op) {
-                Ok(op) => match arg.extract() {
-                    Ok(arg) => slf.__richcmp__(arg, op).into(),
-                    Err(e) => Err(e),
-                },
+                Ok(op) => call_ref!(slf, __richcmp__, arg ; op),
                 Err(e) => Err(e),
             };
             match res {

@@ -273,7 +273,10 @@ mod sq_ass_item_impl {
                 } else {
                     let value = py.from_borrowed_ptr::<PyAny>(value);
                     match value.extract() {
-                        Ok(value) => slf.__setitem__(key.into(), value).into(),
+                        Ok(value) => match slf.try_borrow_mut_unguarded() {
+                            Ok(slf_) => slf_.__setitem__(key.into(), value).into(),
+                            Err(e) => e.into(),
+                        },
                         Err(e) => Err(e),
                     }
                 };
@@ -321,7 +324,7 @@ mod sq_ass_item_impl {
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
-                    slf.__delitem__(key.into()).into()
+                    slf.borrow_mut().__delitem__(key.into()).into()
                 } else {
                     Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
@@ -372,11 +375,14 @@ mod sq_ass_item_impl {
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
-                    slf.__delitem__(key.into()).into()
+                    call_refmut!(slf, __delitem__; key.into())
                 } else {
                     let value = py.from_borrowed_ptr::<PyAny>(value);
                     match value.extract() {
-                        Ok(value) => slf.__setitem__(key.into(), value).into(),
+                        Ok(value) => match slf.try_borrow_mut_unguarded() {
+                            Ok(slf_) => slf_.__setitem__(key.into(), value).into(),
+                            Err(e) => e.into(),
+                        },
                         Err(e) => Err(e),
                     }
                 };
@@ -497,7 +503,9 @@ where
             PySequenceInplaceConcatProtocol,
             T::__inplace_concat__,
             T,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter,
+            *mut crate::ffi::PyObject,
+            call_refmut
         )
     }
 }
@@ -524,7 +532,8 @@ where
             PySequenceInplaceRepeatProtocol,
             T::__inplace_repeat__,
             T,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter,
+            call_refmut
         )
     }
 }

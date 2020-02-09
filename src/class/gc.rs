@@ -98,7 +98,7 @@ where
                 arg,
                 _py: py,
             };
-            match slf.__traverse__(visit) {
+            match slf.borrow().__traverse__(visit) {
                 Ok(()) => 0,
                 Err(PyTraverseError(code)) => code,
             }
@@ -135,7 +135,7 @@ where
             let _pool = crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
-            slf.__clear__();
+            slf.borrow_mut().__clear__();
             0
         }
         Some(tp_clear::<T>)

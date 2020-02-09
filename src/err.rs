@@ -59,6 +59,9 @@ pub type PyResult<T> = Result<T, PyErr>;
 /// Marker type that indicates an error while downcasting
 pub struct PyDowncastError;
 
+/// Marker type for `PyCell`.
+pub struct PyBorrowError;
+
 /// Helper conversion trait that allows to use custom arguments for exception constructor.
 pub trait PyErrArguments {
     /// Arguments for exception
@@ -401,7 +404,7 @@ impl<'a> IntoPy<PyObject> for &'a PyErr {
     }
 }
 
-/// Converts `PyDowncastError` to Python `TypeError`.
+/// Convert `PyDowncastError` to Python `TypeError`.
 impl std::convert::From<PyDowncastError> for PyErr {
     fn from(_err: PyDowncastError) -> PyErr {
         exceptions::TypeError.into()

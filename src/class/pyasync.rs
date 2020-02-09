@@ -242,7 +242,9 @@ mod anext {
                 PyAsyncAnextProtocol,
                 T::__anext__,
                 Option<T::Success>,
-                IterANextResultConverter
+                IterANextResultConverter,
+                *mut crate::ffi::PyObject,
+                call_refmut
             )
         }
     }

@@ -95,7 +95,7 @@ where
             let _pool = crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
-            let result = slf.bf_getbuffer(arg1, arg2).into();
+            let result = slf.borrow().bf_getbuffer(arg1, arg2).into();
             crate::callback::cb_convert(UnitCallbackConverter, py, result)
         }
         Some(wrap::<T>)

@@ -12,7 +12,17 @@ macro_rules! py_unary_func {
             *mut $crate::ffi::PyObject
         );
     };
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $ret_type:ty) => {{
+    // Use call_ref! by default
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $ret_type:ty) => {
+        py_unary_func!($trait, $class::$f, $res_type, $conv, $ret_type, call_ref);
+    };
+    ($trait:ident,
+     $class:ident :: $f:ident,
+     $res_type:ty,
+     $conv:expr,
+     $ret_type:ty,
+     $call: ident
+    ) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> $ret_type
         where
             T: for<'p> $trait<'p>,
@@ -20,7 +30,7 @@ macro_rules! py_unary_func {
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-            let res = slf.$f().into();
+            let res = $call!(slf, $f);
             $crate::callback::cb_convert($conv, py, res.map(|x| x))
         }
         Some(wrap::<$class>)
@@ -57,8 +67,7 @@ macro_rules! py_len_func {
             let py = Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-
-            let result = slf.$f().into();
+            let result = call_ref!(slf, $f);
             $crate::callback::cb_convert($conv, py, result)
         }
         Some(wrap::<$class>)
@@ -77,8 +86,11 @@ macro_rules! py_binary_func {
             *mut $crate::ffi::PyObject
         )
     };
+    // Use call_ref! by default
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $return:ty) => {{
-        #[allow(unused_mut)]
+        py_binary_func!($trait, $class::$f, $res_type, $conv, $return, call_ref)
+    }};
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $return:ty, $call:ident) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg: *mut ffi::PyObject) -> $return
         where
             T: for<'p> $trait<'p>,
@@ -88,11 +100,7 @@ macro_rules! py_binary_func {
             let _pool = $crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<$crate::types::PyAny>(arg);
-
-            let result = match arg.extract() {
-                Ok(arg) => slf.$f(arg).into(),
-                Err(e) => Err(e.into()),
-            };
+            let result = $call!(slf, $f, arg);
             $crate::callback::cb_convert($conv, py, result)
         }
         Some(wrap::<$class>)
@@ -103,7 +111,6 @@ macro_rules! py_binary_func {
 #[doc(hidden)]
 macro_rules! py_binary_num_func {
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
-        #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(
             lhs: *mut ffi::PyObject,
             rhs: *mut ffi::PyObject,
@@ -130,11 +137,12 @@ macro_rules! py_binary_num_func {
     }};
 }
 
+// NOTE(kngwyu):
+// Now(2020 2/9) This macro is used only for inplace operation so I used call_refmut here.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_binary_self_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
-        #[allow(unused_mut)]
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
             arg: *mut ffi::PyObject,
@@ -146,13 +154,9 @@ macro_rules! py_binary_self_func {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf1 = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
+            let slf_ = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<$crate::types::PyAny>(arg);
-
-            let result = match arg.extract() {
-                Ok(arg) => slf1.$f(arg).into(),
-                Err(e) => Err(e.into()),
-            };
+            let result = call_refmut!(slf_, $f, arg);
             match result {
                 Ok(_) => {
                     ffi::Py_INCREF(slf);
@@ -171,8 +175,17 @@ macro_rules! py_binary_self_func {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_ssizearg_func {
-    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
-        #[allow(unused_mut)]
+    // Use call_ref! by default
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {
+        py_ssizearg_func!(
+            $trait,
+            $class::$f,
+            $res_type,
+            $conv,
+            call_ref
+        )
+    };
+    ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr, $call:ident) => {{
         unsafe extern "C" fn wrap<T>(
             slf: *mut ffi::PyObject,
             arg: $crate::ffi::Py_ssize_t,
@@ -183,7 +196,7 @@ macro_rules! py_ssizearg_func {
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
             let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-            let result = slf.$f(arg.into()).into();
+            let result = $call!(slf, $f ; arg.into());
             $crate::callback::cb_convert($conv, py, result)
         }
         Some(wrap::<$class>)
@@ -219,13 +232,7 @@ macro_rules! py_ternary_func {
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
 
-            let result = match arg1.extract() {
-                Ok(arg1) => match arg2.extract() {
-                    Ok(arg2) => slf.$f(arg1, arg2).into(),
-                    Err(e) => Err(e.into()),
-                },
-                Err(e) => Err(e.into()),
-            };
+            let result = call_ref!(slf, $f, arg1, arg2);
             $crate::callback::cb_convert($conv, py, result)
         }
 
@@ -286,18 +293,10 @@ macro_rules! py_ternary_self_func {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf1 = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
+            let slf_cell = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
             let arg1 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg1);
             let arg2 = py.from_borrowed_ptr::<$crate::types::PyAny>(arg2);
-
-            let result = match arg1.extract() {
-                Ok(arg1) => match arg2.extract() {
-                    Ok(arg2) => slf1.$f(arg1, arg2).into(),
-                    Err(e) => Err(e.into()),
-                },
-                Err(e) => Err(e.into()),
-            };
-
+            let result = call_refmut!(slf_cell, $f, arg1, arg2);
             match result {
                 Ok(_) => slf,
                 Err(e) => {
@@ -337,13 +336,7 @@ macro_rules! py_func_set {
             } else {
                 let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
                 let value = py.from_borrowed_ptr::<$crate::types::PyAny>(value);
-                match name.extract() {
-                    Ok(name) => match value.extract() {
-                        Ok(value) => slf.$fn_set(name, value).into(),
-                        Err(e) => Err(e.into()),
-                    },
-                    Err(e) => Err(e.into()),
-                }
+                call_refmut!(slf, $fn_set, name, value)
             };
             match result {
                 Ok(_) => 0,
@@ -378,10 +371,7 @@ macro_rules! py_func_del {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<U>>(slf);
                 let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
 
-                match name.extract() {
-                    Ok(name) => slf.$fn_del(name).into(),
-                    Err(e) => Err(e.into()),
-                }
+                call_refmut!(slf, $fn_del, name)
             } else {
                 Err(PyErr::new::<exceptions::NotImplementedError, _>(
                     "Subscript assignment not supported",
@@ -419,19 +409,10 @@ macro_rules! py_func_set_del {
             let name = py.from_borrowed_ptr::<$crate::types::PyAny>(name);
 
             let result = if value.is_null() {
-                match name.extract() {
-                    Ok(name) => slf.$fn_del(name).into(),
-                    Err(e) => Err(e.into()),
-                }
+                call_refmut!(slf, $fn_del, name)
             } else {
                 let value = py.from_borrowed_ptr::<$crate::types::PyAny>(value);
-                match name.extract() {
-                    Ok(name) => match value.extract() {
-                        Ok(value) => slf.$fn_set(name, value).into(),
-                        Err(e) => Err(e.into()),
-                    },
-                    Err(e) => Err(e.into()),
-                }
+                call_refmut!(slf, $fn_set, name, value)
             };
             match result {
                 Ok(_) => 0,
@@ -443,4 +424,35 @@ macro_rules! py_func_set_del {
         }
         Some(wrap::<$generic>)
     }};
+}
+
+// Utitlities for extract arguments + call method for PyCell<T>
+macro_rules! call_ref {
+    ($slf: expr, $fn: ident $(; $args: expr)*) => {
+        match $slf.try_borrow_unguarded() {
+            Ok(slf) => slf.$fn($($args,)*).into(),
+            Err(e) => Err(e.into()),
+        }
+    };
+    ($slf: expr, $fn: ident, $raw_arg: expr $(,$raw_args: expr)* $(; $args: expr)*) => {
+        match $raw_arg.extract() {
+            Ok(arg) => call_ref!($slf, $fn $(,$raw_args)* ;arg $(;$args)*),
+            Err(e) => Err(e.into()),
+        }
+    };
+}
+
+macro_rules! call_refmut {
+    ($slf: expr, $fn: ident $(; $args: expr)*) => {
+        match $slf.try_borrow_mut_unguarded() {
+            Ok(slf) => slf.$fn($($args,)*).into(),
+            Err(e) => Err(e.into()),
+        }
+    };
+    ($slf: expr, $fn: ident, $raw_arg: expr $(,$raw_args: expr)* $(; $args: expr)*) => {
+        match $raw_arg.extract() {
+            Ok(arg) => call_refmut!($slf, $fn $(,$raw_args)* ;arg $(;$args)*),
+            Err(e) => Err(e.into()),
+        }
+    };
 }
