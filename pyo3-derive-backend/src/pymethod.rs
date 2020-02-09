@@ -277,27 +277,23 @@ fn impl_call_getter(spec: &FnSpec) -> syn::Result<TokenStream> {
     Ok(fncall)
 }
 
-/// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
+/// Generate a function wrapper called `__wrap` for a property getter
 pub(crate) fn impl_wrap_getter(
     cls: &syn::Type,
     property_type: PropertyType,
 ) -> syn::Result<TokenStream> {
-    let python_name;
-    let getter_impl;
-
-    match property_type {
+    let (python_name, getter_impl) = match property_type {
         PropertyType::Descriptor(field) => {
             let name = field.ident.as_ref().unwrap();
-            python_name = name.unraw();
-            getter_impl = quote!({
-                use pyo3::derive_utils::GetPropertyValue;
-                (&_slf.#name).get_property_value(_py)
-            });
+            (
+                name.unraw(),
+                quote!({
+                    use pyo3::derive_utils::GetPropertyValue;
+                    (&_slf.#name).get_property_value(_py)
+                })
+            )
         }
-        PropertyType::Function(spec) => {
-            python_name = spec.python_name.clone();
-            getter_impl = impl_call_getter(&spec)?;
-        }
+        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_getter(&spec)?)
     };
 
     Ok(quote! {
@@ -350,24 +346,17 @@ fn impl_call_setter(spec: &FnSpec) -> syn::Result<TokenStream> {
     Ok(fncall)
 }
 
-/// Generate functiona wrapper (PyCFunction, PyCFunctionWithKeywords)
+/// Generate a function wrapper called `__wrap` for a property setter
 pub(crate) fn impl_wrap_setter(
     cls: &syn::Type,
     property_type: PropertyType,
 ) -> syn::Result<TokenStream> {
-    let python_name;
-    let setter_impl;
-
-    match property_type {
+    let (python_name, setter_impl) = match property_type {
         PropertyType::Descriptor(field) => {
             let name = field.ident.as_ref().unwrap();
-            python_name = name.unraw();
-            setter_impl = quote!({ _slf.#name = _val; Ok(()) });
+            (name.unraw(), quote!({ _slf.#name = _val; Ok(()) }))
         }
-        PropertyType::Function(spec) => {
-            python_name = spec.python_name.clone();
-            setter_impl = impl_call_setter(&spec)?;
-        }
+        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_setter(&spec)?)
     };
 
     Ok(quote! {
