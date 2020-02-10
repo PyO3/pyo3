@@ -290,10 +290,10 @@ pub(crate) fn impl_wrap_getter(
                 quote!({
                     use pyo3::derive_utils::GetPropertyValue;
                     (&_slf.#name).get_property_value(_py)
-                })
+                }),
             )
         }
-        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_getter(&spec)?)
+        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_getter(&spec)?),
     };
 
     Ok(quote! {
@@ -356,7 +356,7 @@ pub(crate) fn impl_wrap_setter(
             let name = field.ident.as_ref().unwrap();
             (name.unraw(), quote!({ _slf.#name = _val; Ok(()) }))
         }
-        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_setter(&spec)?)
+        PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_setter(&spec)?),
     };
 
     Ok(quote! {
