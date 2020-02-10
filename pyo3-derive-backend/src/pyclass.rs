@@ -332,7 +332,7 @@ fn impl_class(
 
     // Enforce at compile time that PyGCProtocol is implemented
     let gc_impl = if has_gc {
-        let closure_name = format!("__assertion_closure_{}", cls.to_string());
+        let closure_name = format!("__assertion_closure_{}", cls);
         let closure_token = syn::Ident::new(&closure_name, Span::call_site());
         quote! {
             fn #closure_token() {

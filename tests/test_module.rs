@@ -11,7 +11,7 @@ struct AnonClass {}
 struct LocatedClass {}
 
 fn sum_as_string(a: i64, b: i64) -> String {
-    format!("{}", a + b).to_string()
+    format!("{}", a + b)
 }
 
 #[pyfunction]
