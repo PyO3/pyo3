@@ -2,11 +2,13 @@ use pyo3::prelude::*;
 use pyo3::{exceptions, py_run, wrap_pyfunction, PyErr, PyResult};
 use std::error::Error;
 use std::fmt;
+#[cfg(not(target_os = "windows"))]
 use std::fs::File;
 
 mod common;
 
 #[pyfunction]
+#[cfg(not(target_os = "windows"))]
 fn fail_to_open_file() -> PyResult<()> {
     File::open("not_there.txt")?;
     Ok(())

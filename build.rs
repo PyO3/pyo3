@@ -19,9 +19,9 @@ use version_check::{Channel, Date, Version};
 /// Specifies the minimum nightly version needed to compile pyo3.
 /// Keep this synced up with the travis ci config,
 /// But note that this is the rustc version which can be lower than the nightly version
-const MIN_DATE: &'static str = "2020-01-20";
-const MIN_VERSION: &'static str = "1.42.0-nightly";
-//const PYTHON_INTERPRETER: &'static str = "python3";
+const MIN_DATE: &str = "2020-01-20";
+const MIN_VERSION: &str = "1.42.0-nightly";
+//const PYTHON_INTERPRETER: &str = "python3";
 
 lazy_static! {
     static ref PYTHON_INTERPRETER: &'static str = {
@@ -85,7 +85,7 @@ impl fmt::Display for PythonVersion {
 
 const PY3_MIN_MINOR: u8 = 5;
 
-const CFG_KEY: &'static str = "py_sys_config";
+const CFG_KEY: &str = "py_sys_config";
 
 /// A list of python interpreter compile-time preprocessor defines that
 /// we will pick up and pass to rustc via --cfg=py_sys_config={varname};
@@ -100,7 +100,7 @@ const CFG_KEY: &'static str = "py_sys_config";
 /// (hrm, this is sort of re-implementing what distutils does, except
 /// by passing command line args instead of referring to a python.h)
 #[cfg(not(target_os = "windows"))]
-static SYSCONFIG_FLAGS: [&'static str; 7] = [
+static SYSCONFIG_FLAGS: [&str; 7] = [
     "Py_USING_UNICODE",
     "Py_UNICODE_WIDE",
     "WITH_THREAD",
@@ -110,7 +110,7 @@ static SYSCONFIG_FLAGS: [&'static str; 7] = [
     "COUNT_ALLOCS",
 ];
 
-static SYSCONFIG_VALUES: [&'static str; 1] = [
+static SYSCONFIG_VALUES: [&str; 1] = [
     // cfg doesn't support flags with values, just bools - so flags
     // below are translated into bools as {varname}_{val}
     //
@@ -188,7 +188,7 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
     let shared = match config_map
         .get("Py_ENABLE_SHARED")
         .map(|x| x.as_str())
-        .ok_or("Py_ENABLE_SHARED is not defined".to_string())?
+        .ok_or_else(|| "Py_ENABLE_SHARED is not defined".to_string())?
     {
         "1" | "true" | "True" => true,
         "0" | "false" | "False" => false,
@@ -236,15 +236,14 @@ fn get_config_vars(python_path: &str) -> Result<HashMap<String, String>, String>
         ));
     }
     let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
-    let all_vars = all_vars.zip(split_stdout.iter()).fold(
-        HashMap::new(),
-        |mut memo: HashMap<String, String>, (&k, &v)| {
-            if !(v.to_owned() == "None" && is_value(k)) {
-                memo.insert(k.to_owned(), v.to_owned());
+    let all_vars = all_vars
+        .zip(split_stdout.iter())
+        .fold(HashMap::new(), |mut memo, (&k, &v)| {
+            if !(v == "None" && is_value(k)) {
+                memo.insert(k.to_string(), v.to_string());
             }
             memo
-        },
-    );
+        });
 
     Ok(fix_config_map(all_vars))
 }
@@ -279,7 +278,7 @@ fn get_config_vars(_: &str) -> Result<HashMap<String, String>, String> {
 }
 
 fn is_value(key: &str) -> bool {
-    SYSCONFIG_VALUES.iter().find(|x| **x == key).is_some()
+    SYSCONFIG_VALUES.iter().any(|x| *x == key)
 }
 
 fn cfg_line_for_var(key: &str, val: &str) -> Option<String> {
@@ -321,7 +320,7 @@ fn run_python_script(interpreter: &str, script: &str) -> Result<String, String> 
     };
 
     if !out.status.success() {
-        return Err(format!("python script failed"));
+        return Err("python script failed".to_string());
     }
 
     Ok(String::from_utf8(out.stdout).unwrap())
@@ -451,7 +450,7 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<Strin
         ));
     }
 
-    Err(format!("No python interpreter found"))
+    Err("No python interpreter found".to_string())
 }
 
 /// Extract compilation vars from the specified interpreter.
@@ -513,7 +512,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String, String> {
 
     if interpreter_config.version.implementation == PythonInterpreterKind::PyPy {
         println!("cargo:rustc-cfg=PyPy");
-        flags += format!("CFG_PyPy").as_ref();
+        flags += "CFG_PyPy";
     };
 
     if interpreter_config.version.major == 2 {
@@ -533,7 +532,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String, String> {
     }
     println!("cargo:rustc-cfg=Py_3");
 
-    return Ok(flags);
+    Ok(flags)
 }
 
 fn check_rustc_version() {
@@ -603,9 +602,8 @@ fn main() -> Result<(), String> {
     }
 
     for (key, val) in &config_map {
-        match cfg_line_for_var(key, val) {
-            Some(line) => println!("{}", line),
-            None => (),
+        if let Some(line) = cfg_line_for_var(key, val) {
+            println!("{}", line)
         }
     }
 
@@ -634,7 +632,7 @@ fn main() -> Result<(), String> {
 
     println!(
         "cargo:python_flags={}",
-        if flags.len() > 0 {
+        if !flags.is_empty() {
             &flags[..flags.len() - 1]
         } else {
             ""
