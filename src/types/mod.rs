@@ -56,10 +56,23 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+macro_rules! impl_layout {
+    ($name: ty, $layout: path) => {
+        unsafe impl $crate::type_object::PyObjectLayout<$name> for $layout {
+            unsafe fn unchecked_ref(&self) -> &$name {
+                &*((&self) as *const &Self as *const _)
+            }
+            unsafe fn unchecked_refmut(&mut self) -> &mut $name {
+                &mut *((&self) as *const &mut Self as *const _ as *mut _)
+            }
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl $crate::type_object::PyObjectLayout<$name> for $layout {}
+        impl_layout!($name, $layout);
         impl $crate::type_object::PyObjectSizedLayout<$name> for $layout {}
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
@@ -81,7 +94,7 @@ macro_rules! pyobject_native_type {
 #[macro_export]
 macro_rules! pyobject_native_var_type {
     ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl $crate::type_object::PyObjectLayout<$name> for $crate::ffi::PyObject {}
+        impl_layout!($name, $crate::ffi::PyObject);
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $crate::ffi::PyObject,
                                       $typeobject, $module, $checkfunction $(,$type_param)*);
@@ -118,6 +131,7 @@ macro_rules! pyobject_native_type_convert(
             type Type = ();
             type BaseType = $crate::types::PyAny;
             type ConcreteLayout = $layout;
+            type Reference = $name;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
 
             const NAME: &'static str = stringify!($name);

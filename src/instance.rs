@@ -3,7 +3,7 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::{PyObjectLayout, PyTypeInfo};
+use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
@@ -121,13 +121,13 @@ impl<T> Py<T> {
 
 pub trait AsPyRef<T: PyTypeInfo>: Sized {
     /// Return reference to object.
-    fn as_ref(&self, py: Python) -> &T;
+    fn as_ref(&self, py: Python) -> &T::Reference;
 }
 
 impl<T: PyTypeInfo> AsPyRef<T> for Py<T> {
-    fn as_ref(&self, _py: Python) -> &T {
-        let any = self as *const Py<T> as *const PyAny;
-        unimplemented!()
+    fn as_ref(&self, _py: Python) -> &T::Reference {
+        let ptr = self as *const Py<T> as *const T::Reference;
+        unsafe { &*ptr }
     }
 }
 

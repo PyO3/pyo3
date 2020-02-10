@@ -252,8 +252,12 @@ pub mod extract_impl {
         fn extract(source: &'a PyAny) -> PyResult<Target>;
     }
 
-    pub struct Cloned;
-    pub struct Reference;
+    pub struct Cloned {
+        _private: (),
+    }
+    pub struct Reference {
+        _private: (),
+    }
 
     impl<'a, T: 'a> ExtractImpl<'a, T> for Cloned
     where

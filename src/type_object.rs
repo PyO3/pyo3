@@ -15,15 +15,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub trait PyObjectLayout<T: PyTypeInfo> {
+pub unsafe trait PyObjectLayout<T: PyTypeInfo> {
     const IS_NATIVE_TYPE: bool = true;
 
     fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
         None
     }
-
     unsafe fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
+    unsafe fn unchecked_ref(&self) -> &T;
+    unsafe fn unchecked_refmut(&mut self) -> &mut T;
 }
 
 /// `T: PyObjectSizedLayout<U>` represents `T` is not a instance of
@@ -100,6 +101,9 @@ pub unsafe trait PyTypeInfo: Sized {
 
     /// Layout
     type ConcreteLayout: PyObjectLayout<Self>;
+
+    /// This type is an abstraction layer for `AsPyRef`.
+    type Reference;
 
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;

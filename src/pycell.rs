@@ -13,6 +13,9 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 /// Inner type of `PyCell` without dict slots and reference counter.
+/// This struct has two usages:
+/// 1. As an inner type of `PyRef` and `PyRefMut`.
+/// 2. As a base class when `#[pyclass(Base)]` is specified.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyCellBase<T: PyClass> {
@@ -20,19 +23,22 @@ pub struct PyCellBase<T: PyClass> {
     value: ManuallyDrop<UnsafeCell<T>>,
 }
 
-impl<T: PyClass> PyCellBase<T> {
-    fn get(&self) -> &T {
-        unsafe { &*self.value.get() }
-    }
-    fn get_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.value.get() }
+impl<T: PyClass> AsPyPointer for PyCellBase<T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        (self as *const _) as *mut _
     }
 }
 
-impl<T: PyClass> PyObjectLayout<T> for PyCellBase<T> {
+unsafe impl<T: PyClass> PyObjectLayout<T> for PyCellBase<T> {
     const IS_NATIVE_TYPE: bool = false;
     fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
         Some(&mut self.ob_base)
+    }
+    unsafe fn unchecked_ref(&self) -> &T {
+        &*self.value.get()
+    }
+    unsafe fn unchecked_refmut(&mut self) -> &mut T {
+        &mut *self.value.get()
     }
     unsafe fn py_init(&mut self, value: T) {
         self.value = ManuallyDrop::new(UnsafeCell::new(value));
@@ -43,7 +49,7 @@ impl<T: PyClass> PyObjectLayout<T> for PyCellBase<T> {
     }
 }
 
-/// `Pycell` represents the concrete layout of `T: PyClass` when it is converted
+/// `PyCell` represents the concrete layout of `T: PyClass` when it is converted
 /// to a Python class.
 ///
 /// You can use it to test your `#[pyclass]` correctly works.
@@ -68,9 +74,8 @@ impl<T: PyClass> PyObjectLayout<T> for PyCellBase<T> {
 /// ```
 #[repr(C)]
 pub struct PyCell<T: PyClass> {
-    ob_base: <T::BaseType as PyTypeInfo>::ConcreteLayout,
-    value: ManuallyDrop<UnsafeCell<T>>,
-    borrow_flag: BorrowFlag,
+    base: PyCellBase<T>,
+    borrow_flag: Cell<BorrowFlag>,
     dict: T::Dict,
     weakref: T::WeakRef,
 }
@@ -90,39 +95,52 @@ impl<T: PyClass> PyCell<T> {
     }
 
     pub fn borrow(&self) -> PyRef<'_, T> {
-        unsafe {
-            unimplemented!()
-            // if self.borrow.get() == usize::max_value() {
-            //     borrow_fail();
-            // }
-            // self.borrow.set(self.borrow.get() + 1);
-            // Ref {
-            //     value: &*self.value.get(),
-            //     borrow: &self.borrow,
-            // }
-        }
+        self.try_borrow().expect("Already mutably borrowed")
     }
 
     pub fn borrow_mut(&self) -> PyRefMut<'_, T> {
-        unsafe {
-            unimplemented!()
-            // if self.borrow.get() != 0 {
-            //     borrow_fail();
-            // }
-            // self.borrow.set(usize::max_value());
-            // RefMut {
-            //     value: &mut *self.value.get(),
-            //     borrow: &self.borrow,
-            // }
+        self.try_borrow_mut().expect("Already borrowed")
+    }
+
+    pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
+        let flag = self.borrow_flag.get();
+        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
+            Err(PyBorrowError { _private: () })
+        } else {
+            self.borrow_flag.set(flag.increment());
+            Ok(PyRef {
+                value: &self.base,
+                flag: &self.borrow_flag,
+            })
+        }
+    }
+
+    pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError> {
+        if self.borrow_flag.get() != BorrowFlag::UNUSED {
+            Err(PyBorrowMutError { _private: () })
+        } else {
+            self.borrow_flag.set(BorrowFlag::HAS_MUTABLE_BORROW);
+            Ok(PyRefMut {
+                value: unsafe { &mut *(self.base.as_ptr() as *mut _) },
+                flag: &self.borrow_flag,
+            })
         }
     }
 
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
-        unimplemented!()
+        if self.borrow_flag.get() != BorrowFlag::HAS_MUTABLE_BORROW {
+            Err(PyBorrowError { _private: () })
+        } else {
+            Ok(&*self.base.value.get())
+        }
     }
 
     pub unsafe fn try_borrow_mut_unguarded(&self) -> Result<&mut T, PyBorrowMutError> {
-        unimplemented!()
+        if self.borrow_flag.get() != BorrowFlag::UNUSED {
+            Err(PyBorrowMutError { _private: () })
+        } else {
+            Ok(&mut *self.base.value.get())
+        }
     }
 
     pub(crate) unsafe fn internal_new(py: Python) -> PyResult<*mut Self>
@@ -135,26 +153,32 @@ impl<T: PyClass> PyCell<T> {
             return Err(PyErr::fetch(py));
         }
         let self_ = base as *mut Self;
-        (*self_).borrow_flag = BorrowFlag::UNUSED;
+        (*self_).borrow_flag = Cell::new(BorrowFlag::UNUSED);
         (*self_).dict = T::Dict::new();
         (*self_).weakref = T::WeakRef::new();
         Ok(self_)
     }
 }
 
-impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
+unsafe impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
     const IS_NATIVE_TYPE: bool = false;
     fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
-        Some(&mut self.ob_base)
+        Some(&mut self.base.ob_base)
+    }
+    unsafe fn unchecked_ref(&self) -> &T {
+        self.base.unchecked_ref()
+    }
+    unsafe fn unchecked_refmut(&mut self) -> &mut T {
+        self.base.unchecked_refmut()
     }
     unsafe fn py_init(&mut self, value: T) {
-        self.value = ManuallyDrop::new(UnsafeCell::new(value));
+        self.base.value = ManuallyDrop::new(UnsafeCell::new(value));
     }
     unsafe fn py_drop(&mut self, py: Python) {
-        ManuallyDrop::drop(&mut self.value);
+        ManuallyDrop::drop(&mut self.base.value);
         self.dict.clear_dict(py);
         self.weakref.clear_weakrefs(self.as_ptr(), py);
-        self.ob_base.py_drop(py);
+        self.base.ob_base.py_drop(py);
     }
 }
 
@@ -206,8 +230,8 @@ pub struct PyRef<'p, T: PyClass> {
 }
 
 impl<'p, T: PyClass> PyRef<'p, T> {
-    fn get_super(&'p self) -> &'p T::BaseType {
-        unimplemented!()
+    pub fn get_super(&'p self) -> &'p T::BaseType {
+        unsafe { self.value.ob_base.unchecked_ref() }
     }
 }
 
@@ -216,13 +240,13 @@ impl<'p, T: PyClass> Deref for PyRef<'p, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        self.value.get()
+        unsafe { self.value.unchecked_ref() }
     }
 }
 
 impl<'p, T: PyClass> Drop for PyRef<'p, T> {
     fn drop(&mut self) {
-        self.flag.set(self.flag.get());
+        self.flag.set(self.flag.get().decrement());
     }
 }
 
@@ -231,19 +255,28 @@ pub struct PyRefMut<'p, T: PyClass> {
     flag: &'p Cell<BorrowFlag>,
 }
 
+impl<'p, T: PyClass> PyRefMut<'p, T> {
+    pub fn get_super(&'p self) -> &'p T::BaseType {
+        unsafe { self.value.ob_base.unchecked_ref() }
+    }
+    pub fn get_super_mut(&'p mut self) -> &'p mut T::BaseType {
+        unsafe { self.value.ob_base.unchecked_refmut() }
+    }
+}
+
 impl<'p, T: PyClass> Deref for PyRefMut<'p, T> {
     type Target = T;
 
     #[inline]
     fn deref(&self) -> &T {
-        self.value.get()
+        unsafe { self.value.unchecked_ref() }
     }
 }
 
 impl<'p, T: PyClass> DerefMut for PyRefMut<'p, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        self.value.get_mut()
+        unsafe { self.value.unchecked_refmut() }
     }
 }
 
@@ -259,7 +292,10 @@ struct BorrowFlag(usize);
 impl BorrowFlag {
     const UNUSED: BorrowFlag = BorrowFlag(0);
     const HAS_MUTABLE_BORROW: BorrowFlag = BorrowFlag(usize::max_value());
-    fn decrement(self) -> Self {
+    const fn increment(self) -> Self {
+        Self(self.0 + 1)
+    }
+    const fn decrement(self) -> Self {
         Self(self.0 - 1)
     }
 }
