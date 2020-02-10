@@ -25,7 +25,7 @@ fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
 // logic implemented as a normal rust function
 fn sum_as_string(a:i64, b:i64) -> String {
-    format!("{}", a + b).to_string()
+    format!("{}", a + b)
 }
 
 # fn main() {}

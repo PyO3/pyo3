@@ -236,15 +236,14 @@ fn get_config_vars(python_path: &str) -> Result<HashMap<String, String>, String>
         ));
     }
     let all_vars = SYSCONFIG_FLAGS.iter().chain(SYSCONFIG_VALUES.iter());
-    let all_vars = all_vars.zip(split_stdout.iter()).fold(
-        HashMap::new(),
-        |mut memo: HashMap<String, String>, (&k, &v)| {
-            if !(v.to_owned() == "None" && is_value(k)) {
-                memo.insert(k.to_owned(), v.to_owned());
+    let all_vars = all_vars
+        .zip(split_stdout.iter())
+        .fold(HashMap::new(), |mut memo, (&k, &v)| {
+            if !(v == "None" && is_value(k)) {
+                memo.insert(k.to_string(), v.to_string());
             }
             memo
-        },
-    );
+        });
 
     Ok(fix_config_map(all_vars))
 }
