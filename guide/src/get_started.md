@@ -2,6 +2,8 @@
 
 [Rust](http://www.rust-lang.org/) bindings for [Python](https://www.python.org/). This includes running and interacting with Python code from a Rust binary, as well as writing native Python modules.
 
+You can either write a native Python module in Rust, or use Python from a Rust binary.
+
 * User Guide: [stable](https://pyo3.rs) | [master](https://pyo3.rs/master)
 
 * API Documentation: [master](https://pyo3.rs/master/doc)
@@ -16,16 +18,29 @@ If you have never used nightly Rust, the official guide has
 [a great section](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html#rustup-and-the-role-of-rust-nightly)
 about installing it.
 
-PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
-Please refer to the [pypy section](https://pyo3.rs/master/pypy.html).
+### OS dependent packages
+Basically, `Python` is only what you need.
+However, on some OSs, you need to install some additional packages including Python header files.
 
-You can either write a native Python module in Rust, or use Python from a Rust binary.
-
-However, on some OSs, you need some additional packages. E.g. if you are on *Ubuntu 18.04*, please run
+E.g. if you are on *Ubuntu 18.04*, please run
 
 ```bash
-sudo apt install python3-dev python-dev
+sudo apt install python3-dev
 ```
+
+### pyenv
+[pyenv](https://github.com/pyenv/pyenv) is a major Python version manager.
+
+To use PyO3 with pyenv, please set `--enable--shared` when builiding CPython.
+```bash
+$ env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.5
+```
+You can also refer to [pyenv wiki](https://github.com/pyenv/pyenv/wiki#how-to-build-cpython-with---enable-shared).
+
+### PyPy
+
+PyPy is also supported (via cpyext) for Python 3.5 only, targeted PyPy version is 7.0.0.
+Please refer to the guide for installation instruction against PyPy.
 
 ## Using Rust from Python
 
