@@ -19,7 +19,7 @@ If you have never used nightly Rust, the official guide has
 about installing it.
 
 ### OS dependent packages
-Basically, `Python` is only what you need.
+Basically, you only need `Python`.
 However, on some OSs, you need to install some additional packages including Python header files.
 
 E.g. if you are on *Ubuntu 18.04*, please run
