@@ -145,6 +145,7 @@ about this topic.
  * [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library_
  * [python-ext-wasm](https://github.com/wasmerio/python-ext-wasm) _Python library to run WebAssembly binaries_
  * [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
+ * [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere_
 
 ## License
 
