@@ -30,7 +30,11 @@ impl Reader {
             idx: 0,
         })
     }
-    fn get_iter_and_reset(slf: &mut PyCell<Self>, keys: Py<PyBytes>, py: Python) -> PyResult<Iter> {
+    fn get_iter_and_reset(
+        mut slf: PyRefMut<Self>,
+        keys: Py<PyBytes>,
+        py: Python,
+    ) -> PyResult<Iter> {
         let reader = Py::new(py, slf.clone())?;
         slf.inner.clear();
         Ok(Iter {
@@ -42,6 +46,7 @@ impl Reader {
 }
 
 #[pyclass]
+#[derive(Debug)]
 struct Iter {
     reader: Py<Reader>,
     keys: Py<PyBytes>,
@@ -50,23 +55,23 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: &mut PyCell<Self>) -> PyResult<PyObject> {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
         let py = unsafe { Python::assume_gil_acquired() };
-        Ok(slf.to_object(py))
+        Ok(slf.into_py(py))
     }
 
-    fn __next__(slf: &mut PyCell<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
         let py = unsafe { Python::assume_gil_acquired() };
         let bytes = slf.keys.as_ref(py).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
-                let res = slf
-                    .reader
-                    .as_ref(py)
+                slf.idx += 1;
+                let reader = slf.reader.as_ref(py);
+                let reader_ref = reader.try_borrow()?;
+                let res = reader_ref
                     .inner
                     .get(&b)
                     .map(|s| PyString::new(py, s).into());
-                slf.idx += 1;
                 Ok(res)
             }
             None => Ok(None),
@@ -82,7 +87,7 @@ fn reader() -> Reader {
 }
 
 #[test]
-fn test_nested_iter1() {
+fn test_nested_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let reader: PyObject = reader().into_py(py);
@@ -106,11 +111,12 @@ fn test_clone_ref() {
 fn test_nested_iter_reset() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = PyCell::new_ref(py, reader()).unwrap();
+    let reader = PyCell::new(py, reader()).unwrap();
     py_assert!(
         py,
         reader,
         "list(reader.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
     );
-    assert!(reader.inner.is_empty());
+    let reader_ref = reader.borrow();
+    assert!(reader_ref.inner.is_empty());
 }

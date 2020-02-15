@@ -164,7 +164,7 @@ fn gc_integration() {
         )
         .unwrap();
 
-        let borrow = inst.borrow_mut();
+        let mut borrow = inst.borrow_mut();
         *borrow.self_ref.borrow_mut() = inst.to_object(py);
     }
 

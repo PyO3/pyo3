@@ -302,7 +302,7 @@ where
 
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom<'v>: Sized + PyDowncastImpl<'v> {
+pub trait PyTryFrom<'v>: Sized + PyDowncastImpl {
     /// Cast from a concrete Python object type to PyObject.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
@@ -339,7 +339,7 @@ where
 
 impl<'v, T> PyTryFrom<'v> for T
 where
-    T: PyDowncastImpl<'v> + PyTypeInfo + PyNativeType,
+    T: PyDowncastImpl + PyTypeInfo + PyNativeType,
 {
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();

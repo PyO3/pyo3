@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::gil::{self, GILGuard};
 use crate::instance::AsPyRef;
 use crate::object::PyObject;
-use crate::type_object::{PyDowncastImpl, PyObjectLayout, PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyDowncastImpl, PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::AsPyPointer;
 use crate::{FromPyPointer, IntoPyPointer, PyTryFrom};
@@ -177,7 +177,7 @@ impl<'p> Python<'p> {
     ///    Some(locals),
     /// ).unwrap();
     /// let ret = locals.get_item("ret").unwrap();
-    /// let b64: &PyBytes = ret.downcast_ref().unwrap();
+    /// let b64: &PyBytes = ret.downcast().unwrap();
     /// assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// ```
     pub fn run(
@@ -284,7 +284,7 @@ impl<'p> Python<'p> {
     /// Register object in release pool, and do unchecked downcast to specific type.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
-        T: PyDowncastImpl<'p> + PyTypeInfo,
+        T: PyDowncastImpl + PyTypeInfo,
     {
         let obj = gil::register_owned(self, obj.into_nonnull());
         T::unchecked_downcast(obj)

@@ -57,16 +57,16 @@ pub mod type_flags {
 // two different abstraction for them.
 // This mismatch eventually should be fixed with https://github.com/PyO3/pyo3/issues/679,
 // but now it's not the time.
-pub unsafe trait PyDowncastImpl<'py> {
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self;
+pub unsafe trait PyDowncastImpl {
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self;
     private_decl! {}
 }
 
-unsafe impl<'py, T> PyDowncastImpl<'py> for T
+unsafe impl<'py, T> PyDowncastImpl for T
 where
     T: 'py + crate::PyNativeType,
 {
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self {
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
         &*(obj as *const _ as *const Self)
     }
     private_impl! {}
@@ -100,13 +100,8 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Layout
     type Layout: PyObjectLayout<Self>;
 
-    /// Layout of Basetype
+    /// Layout of Basetype.
     type BaseLayout: PyObjectLayout<Self::BaseType>;
-
-    /// Abstraction layer for `AsPyRef`.
-    ///
-    /// Simply, it's `Self` for native types and `PyCell<Self>` for pyclasses.
-    type Reference;
 
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;

@@ -1,17 +1,14 @@
 //! Traits and structs for `#[pyclass]`.
-use crate::conversion::{AsPyPointer, FromPyPointer, PyTryFrom, ToPyObject};
-use crate::err::PyDowncastError;
-use crate::pyclass::PyClass;
+use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyDowncastImpl, PyObjectLayout, PyObjectSizedLayout, PyTypeInfo};
 use crate::types::PyAny;
-use crate::{ffi, gil, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::{ffi, FromPy, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
 
 #[doc(hidden)]
 #[repr(C)]
@@ -25,10 +22,7 @@ where
     T: PyTypeInfo + PyNativeType,
     T::Layout: PyObjectSizedLayout<T>,
 {
-    const IS_NATIVE_TYPE: bool = false;
-    fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
-        None
-    }
+    const IS_NATIVE_TYPE: bool = true;
     unsafe fn unchecked_ref(&self) -> &T {
         &*((&self) as *const &Self as *const _)
     }
@@ -96,6 +90,7 @@ impl<T: PyClass> PyCellInner<T> {
     }
 }
 
+// TODO(kngwyu): Mutability example
 /// `PyCell` represents the concrete layout of `T: PyClass` when it is converted
 /// to a Python class.
 ///
@@ -116,7 +111,7 @@ impl<T: PyClass> PyCellInner<T> {
 ///     name: "The Man in the High Castle",
 ///     author: "Philip Kindred Dick",
 /// };
-/// let book_cell = PyCell::new_ref(py, book).unwrap();
+/// let book_cell = PyCell::new(py, book).unwrap();
 /// py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
 /// ```
 #[repr(C)]
@@ -149,7 +144,7 @@ impl<T: PyClass> PyCell<T> {
 
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
         let flag = self.inner.get_borrow_flag();
-        if flag != BorrowFlag::HAS_MUTABLE_BORROW {
+        if flag == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
         } else {
             self.inner.set_borrow_flag(flag.increment());
@@ -167,7 +162,7 @@ impl<T: PyClass> PyCell<T> {
     }
 
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
-        if self.inner.get_borrow_flag() != BorrowFlag::HAS_MUTABLE_BORROW {
+        if self.inner.get_borrow_flag() == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
         } else {
             Ok(&*self.inner.value.get())
@@ -221,8 +216,8 @@ unsafe impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
     }
 }
 
-unsafe impl<'py, T: 'py + PyClass> PyDowncastImpl<'py> for PyCell<T> {
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &'py Self {
+unsafe impl<T: PyClass> PyDowncastImpl for PyCell<T> {
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
         &*(obj.as_ptr() as *const Self)
     }
     private_impl! {}
@@ -230,13 +225,32 @@ unsafe impl<'py, T: 'py + PyClass> PyDowncastImpl<'py> for PyCell<T> {
 
 impl<T: PyClass> AsPyPointer for PyCell<T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        (self as *const _) as *mut _
+        self.inner.as_ptr()
     }
 }
 
 impl<T: PyClass> ToPyObject for &PyCell<T> {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    }
+}
+
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.try_borrow() {
+            Ok(borrow) => f.debug_struct("RefCell").field("value", &borrow).finish(),
+            Err(_) => {
+                struct BorrowedPlaceholder;
+                impl fmt::Debug for BorrowedPlaceholder {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        f.write_str("<borrowed>")
+                    }
+                }
+                f.debug_struct("RefCell")
+                    .field("value", &BorrowedPlaceholder)
+                    .finish()
+            }
+        }
     }
 }
 
@@ -263,6 +277,31 @@ impl<'p, T: PyClass> Drop for PyRef<'p, T> {
     fn drop(&mut self) {
         let flag = self.inner.get_borrow_flag();
         self.inner.set_borrow_flag(flag.decrement())
+    }
+}
+
+impl<'p, T: PyClass> FromPy<PyRef<'p, T>> for PyObject {
+    fn from_py(pyref: PyRef<'p, T>, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, pyref.inner.as_ptr()) }
+    }
+}
+
+impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRef<'a, T> {
+    type Error = PyBorrowError;
+    fn try_from(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
+        cell.try_borrow()
+    }
+}
+
+impl<'a, T: PyClass> AsPyPointer for PyRef<'a, T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.inner.as_ptr()
+    }
+}
+
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
     }
 }
 
@@ -298,6 +337,31 @@ impl<'p, T: PyClass> DerefMut for PyRefMut<'p, T> {
 impl<'p, T: PyClass> Drop for PyRefMut<'p, T> {
     fn drop(&mut self) {
         self.inner.set_borrow_flag(BorrowFlag::UNUSED)
+    }
+}
+
+impl<'p, T: PyClass> FromPy<PyRefMut<'p, T>> for PyObject {
+    fn from_py(pyref: PyRefMut<'p, T>, py: Python<'_>) -> PyObject {
+        unsafe { PyObject::from_borrowed_ptr(py, pyref.inner.as_ptr()) }
+    }
+}
+
+impl<'a, T: PyClass> AsPyPointer for PyRefMut<'a, T> {
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        self.inner.as_ptr()
+    }
+}
+
+impl<'a, T: PyClass> std::convert::TryFrom<&'a PyCell<T>> for crate::PyRefMut<'a, T> {
+    type Error = PyBorrowMutError;
+    fn try_from(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
+        cell.try_borrow_mut()
+    }
+}
+
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&*(self.deref()), f)
     }
 }
 

@@ -57,7 +57,7 @@ impl<'p> PyIterProtocol for Iterator {
         Ok(slf.into())
     }
 
-    fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<i32>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<i32>> {
         Ok(slf.iter.next())
     }
 }
@@ -231,6 +231,7 @@ fn callable() {
 }
 
 #[pyclass]
+#[derive(Debug)]
 struct SetItem {
     key: i32,
     val: i32,
@@ -250,10 +251,13 @@ fn setitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new_ref(py, SetItem { key: 0, val: 0 }).unwrap();
+    let c = PyCell::new(py, SetItem { key: 0, val: 0 }).unwrap();
     py_run!(py, c, "c[1] = 2");
-    assert_eq!(c.key, 1);
-    assert_eq!(c.val, 2);
+    {
+        let c = c.borrow();
+        assert_eq!(c.key, 1);
+        assert_eq!(c.val, 2);
+    }
     py_expect_exception!(py, c, "del c[1]", NotImplementedError);
 }
 
@@ -275,9 +279,12 @@ fn delitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new_ref(py, DelItem { key: 0 }).unwrap();
+    let c = PyCell::new(py, DelItem { key: 0 }).unwrap();
     py_run!(py, c, "del c[1]");
-    assert_eq!(c.key, 1);
+    {
+        let c = c.borrow();
+        assert_eq!(c.key, 1);
+    }
     py_expect_exception!(py, c, "c[1] = 2", NotImplementedError);
 }
 
@@ -304,10 +311,14 @@ fn setdelitem() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new_ref(py, SetDelItem { val: None }).unwrap();
+    let c = PyCell::new(py, SetDelItem { val: None }).unwrap();
     py_run!(py, c, "c[1] = 2");
-    assert_eq!(c.val, Some(2));
+    {
+        let c = c.borrow();
+        assert_eq!(c.val, Some(2));
+    }
     py_run!(py, c, "del c[1]");
+    let c = c.borrow();
     assert_eq!(c.val, None);
 }
 
@@ -383,21 +394,26 @@ fn context_manager() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new_mut(py, ContextManager { exit_called: false }).unwrap();
+    let c = PyCell::new(py, ContextManager { exit_called: false }).unwrap();
     py_run!(py, c, "with c as x: assert x == 42");
-    assert!(c.exit_called);
-
-    c.exit_called = false;
+    {
+        let mut c = c.borrow_mut();
+        assert!(c.exit_called);
+        c.exit_called = false;
+    }
     py_run!(py, c, "with c as x: raise ValueError");
-    assert!(c.exit_called);
-
-    c.exit_called = false;
+    {
+        let mut c = c.borrow_mut();
+        assert!(c.exit_called);
+        c.exit_called = false;
+    }
     py_expect_exception!(
         py,
         c,
         "with c as x: raise NotImplementedError",
         NotImplementedError
     );
+    let c = c.borrow();
     assert!(c.exit_called);
 }
 
@@ -455,7 +471,7 @@ struct DunderDictSupport {}
 fn dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new_ref(py, DunderDictSupport {}).unwrap();
+    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -470,7 +486,7 @@ fn dunder_dict_support() {
 fn access_dunder_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new_ref(py, DunderDictSupport {}).unwrap();
+    let inst = PyCell::new(py, DunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -488,7 +504,7 @@ struct WeakRefDunderDictSupport {}
 fn weakref_dunder_dict_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new_ref(py, WeakRefDunderDictSupport {}).unwrap();
+    let inst = PyCell::new(py, WeakRefDunderDictSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -513,7 +529,7 @@ impl PyObjectProtocol for ClassWithGetAttr {
 fn getattr_doesnt_override_member() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new_ref(py, ClassWithGetAttr { data: 4 }).unwrap();
+    let inst = PyCell::new(py, ClassWithGetAttr { data: 4 }).unwrap();
     py_assert!(py, inst, "inst.data == 4");
     py_assert!(py, inst, "inst.a == 8");
 }

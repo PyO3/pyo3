@@ -214,25 +214,3 @@ impl<T: PyClass> PyBaseTypeUtils for T {
     type Layout = crate::pycell::PyCellInner<T>;
     type BaseNativeType = T::BaseNativeType;
 }
-
-pub trait PySelf<'a, T: PyClass>: Sized {
-    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self>;
-}
-
-impl<'a, T: PyClass> PySelf<'a, T> for &'a crate::PyCell<T> {
-    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self> {
-        Ok(cell)
-    }
-}
-
-impl<'a, T: PyClass> PySelf<'a, T> for crate::PyRef<'a, T> {
-    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self> {
-        cell.try_borrow().map_err(Into::into)
-    }
-}
-
-impl<'a, T: PyClass> PySelf<'a, T> for crate::PyRefMut<'a, T> {
-    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self> {
-        cell.try_borrow_mut().map_err(Into::into)
-    }
-}

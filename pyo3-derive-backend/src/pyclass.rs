@@ -390,7 +390,6 @@ fn impl_class(
             type Layout = pyo3::pycell::PyCell<Self>;
             type BaseLayout = #base_layout;
             type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
-            type Reference = pyo3::pycell::PyCell<Self>;
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;

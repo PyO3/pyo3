@@ -250,7 +250,8 @@ impl PyObject {
     }
 }
 
-impl AsPyRef<PyAny> for PyObject {
+impl AsPyRef for PyObject {
+    type Target = PyAny;
     fn as_ref(&self, _py: Python) -> &PyAny {
         unsafe { &*(self as *const _ as *const PyAny) }
     }

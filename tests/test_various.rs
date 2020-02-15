@@ -15,7 +15,7 @@ impl MutRefArg {
     fn get(&self) -> PyResult<i32> {
         Ok(self.n)
     }
-    fn set_other(&self, other: &mut MutRefArg) -> PyResult<()> {
+    fn set_other(&self, mut other: PyRefMut<MutRefArg>) -> PyResult<()> {
         other.n = 100;
         Ok(())
     }
@@ -31,7 +31,8 @@ fn mut_ref_arg() {
     let d = [("inst1", &inst1), ("inst2", &inst2)].into_py_dict(py);
 
     py.run("inst1.set_other(inst2)", None, Some(d)).unwrap();
-    assert_eq!(inst2.as_ref(py).n, 100);
+    let inst2 = inst2.as_ref(py).borrow();
+    assert_eq!(inst2.n, 100);
 }
 
 #[pyclass]
@@ -81,8 +82,8 @@ fn intopytuple_pyclass() {
     let py = gil.python();
 
     let tup = (
-        PyCell::new_ref(py, SimplePyClass {}).unwrap(),
-        PyCell::new_ref(py, SimplePyClass {}).unwrap(),
+        PyCell::new(py, SimplePyClass {}).unwrap(),
+        PyCell::new(py, SimplePyClass {}).unwrap(),
     );
     py_assert!(py, tup, "type(tup[0]).__name__ == 'SimplePyClass'");
     py_assert!(py, tup, "type(tup[0]).__name__ == type(tup[1]).__name__");
@@ -106,8 +107,8 @@ fn pytuple_pyclass_iter() {
     let tup = PyTuple::new(
         py,
         [
-            PyCell::new_ref(py, SimplePyClass {}).unwrap(),
-            PyCell::new_ref(py, SimplePyClass {}).unwrap(),
+            PyCell::new(py, SimplePyClass {}).unwrap(),
+            PyCell::new(py, SimplePyClass {}).unwrap(),
         ]
         .iter(),
     );
@@ -141,7 +142,7 @@ fn add_module(py: Python, module: &PyModule) -> PyResult<()> {
         .dict()
         .get_item("modules")
         .unwrap()
-        .downcast_mut::<PyDict>()?
+        .downcast::<PyDict>()?
         .set_item(module.name()?, module)
 }
 
@@ -152,7 +153,7 @@ fn test_pickle() {
     let module = PyModule::new(py, "test_module").unwrap();
     module.add_class::<PickleSupport>().unwrap();
     add_module(py, module).unwrap();
-    let inst = PyCell::new_ref(py, PickleSupport {}).unwrap();
+    let inst = PyCell::new(py, PickleSupport {}).unwrap();
     py_run!(
         py,
         inst,

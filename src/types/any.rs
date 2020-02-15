@@ -18,8 +18,8 @@ use crate::{ffi, PyObject};
 /// let dict = PyDict::new(gil.python());
 /// assert!(gil.python().is_instance::<PyAny, _>(dict).unwrap());
 /// let any = dict.as_ref();
-/// assert!(any.downcast_ref::<PyDict>().is_ok());
-/// assert!(any.downcast_ref::<PyList>().is_err());
+/// assert!(any.downcast::<PyDict>().is_ok());
+/// assert!(any.downcast::<PyList>().is_err());
 /// ```
 #[repr(transparent)]
 pub struct PyAny(PyObject, Unsendable);

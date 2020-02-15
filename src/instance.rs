@@ -3,11 +3,11 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::PyTypeInfo;
+use crate::type_object::PyDowncastImpl;
 use crate::types::PyAny;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
-    Python, ToPyObject,
+    PyRef, PyRefMut, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -118,15 +118,17 @@ impl<T> Py<T> {
     }
 }
 
-pub trait AsPyRef<T: PyTypeInfo>: Sized {
+pub trait AsPyRef: Sized {
+    type Target;
     /// Return reference to object.
-    fn as_ref(&self, py: Python) -> &T::Reference;
+    fn as_ref(&self, py: Python<'_>) -> &Self::Target;
 }
 
-impl<T: PyTypeInfo> AsPyRef<T> for Py<T> {
-    fn as_ref(&self, _py: Python) -> &T::Reference {
-        let ptr = self as *const Py<T> as *const T::Reference;
-        unsafe { &*ptr }
+impl<'p, T: PyClass> AsPyRef for Py<T> {
+    type Target = PyCell<T>;
+    fn as_ref(&self, _py: Python) -> &PyCell<T> {
+        let any = self as *const Py<T> as *const PyAny;
+        unsafe { PyDowncastImpl::unchecked_downcast(&*any) }
     }
 }
 
@@ -183,12 +185,21 @@ where
     }
 }
 
-impl<'a, T> std::convert::From<&mut PyCell<T>> for Py<T>
+impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(cell: &mut PyCell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(cell.as_ptr()) }
+    fn from(pyref: PyRef<'a, T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
+    }
+}
+
+impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
+where
+    T: PyClass,
+{
+    fn from(pyref: PyRefMut<'a, T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
     }
 }
 

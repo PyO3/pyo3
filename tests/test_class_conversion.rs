@@ -16,10 +16,12 @@ fn test_cloneable_pyclass() {
     let py_c = Py::new(py, c.clone()).unwrap().to_object(py);
 
     let c2: Cloneable = py_c.extract(py).unwrap();
-    let rc: &Cloneable = py_c.extract(py).unwrap();
-    let mrc: &mut Cloneable = py_c.extract(py).unwrap();
-
     assert_eq!(c, c2);
-    assert_eq!(&c, rc);
-    assert_eq!(&c, mrc);
+    {
+        let rc: PyRef<Cloneable> = py_c.extract(py).unwrap();
+        assert_eq!(&c, &*rc);
+        // Drops PyRef before taking PyRefMut
+    }
+    let mrc: PyRefMut<Cloneable> = py_c.extract(py).unwrap();
+    assert_eq!(&c, &*mrc);
 }

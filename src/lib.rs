@@ -246,7 +246,7 @@ macro_rules! wrap_pymodule {
 /// }
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
-/// let time = PyCell::new_ref(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
+/// let time = PyCell::new(py, Time {hour: 8, minute: 43, second: 16}).unwrap();
 /// let time_as_tuple = (8, 43, 16);
 /// py_run!(py, time time_as_tuple, r#"
 /// assert time.hour == 8

@@ -161,10 +161,7 @@ macro_rules! py_binary_self_func {
                     ffi::Py_INCREF(slf);
                     slf
                 }
-                Err(e) => {
-                    e.restore(py);
-                    std::ptr::null_mut()
-                }
+                Err(e) => e.restore_and_null(py),
             }
         }
         Some(wrap::<$class>)
@@ -298,17 +295,13 @@ macro_rules! py_ternary_self_func {
             let result = call_refmut!(slf_cell, $f, arg1, arg2);
             match result {
                 Ok(_) => slf,
-                Err(e) => {
-                    e.restore(py);
-                    std::ptr::null_mut()
-                }
+                Err(e) => e.restore_and_null(py),
             }
         }
         Some(wrap::<T>)
     }};
 }
 
-#[doc(hidden)]
 macro_rules! py_func_set {
     ($trait_name:ident, $generic:ident, $fn_set:ident) => {{
         unsafe extern "C" fn wrap<$generic>(
@@ -339,10 +332,7 @@ macro_rules! py_func_set {
             };
             match result {
                 Ok(_) => 0,
-                Err(e) => {
-                    e.restore(py);
-                    -1
-                }
+                Err(e) => e.restore_and_minus1(py),
             }
         }
 
@@ -350,7 +340,6 @@ macro_rules! py_func_set {
     }};
 }
 
-#[doc(hidden)]
 macro_rules! py_func_del {
     ($trait_name:ident, $generic:ident, $fn_del:ident) => {{
         unsafe extern "C" fn wrap<U>(
@@ -378,10 +367,7 @@ macro_rules! py_func_del {
             };
             match result {
                 Ok(_) => 0,
-                Err(e) => {
-                    e.restore(py);
-                    -1
-                }
+                Err(e) => e.restore_and_minus1(py),
             }
         }
 
@@ -389,7 +375,6 @@ macro_rules! py_func_del {
     }};
 }
 
-#[doc(hidden)]
 macro_rules! py_func_set_del {
     ($trait1:ident, $trait2:ident, $generic:ident, $fn_set:ident, $fn_del:ident) => {{
         unsafe extern "C" fn wrap<$generic>(
@@ -415,10 +400,7 @@ macro_rules! py_func_set_del {
             };
             match result {
                 Ok(_) => 0,
-                Err(e) => {
-                    e.restore(py);
-                    -1
-                }
+                Err(e) => e.restore_and_minus1(py),
             }
         }
         Some(wrap::<$generic>)
@@ -435,7 +417,7 @@ macro_rules! call_ref {
     };
     ($slf: expr, $fn: ident, $raw_arg: expr $(,$raw_args: expr)* $(; $args: expr)*) => {
         match $raw_arg.extract() {
-            Ok(arg) => call_ref!($slf, $fn $(,$raw_args)* ;arg $(;$args)*),
+            Ok(arg) => call_ref!($slf, $fn $(,$raw_args)* $(;$args)* ;arg),
             Err(e) => Err(e.into()),
         }
     };
@@ -450,7 +432,7 @@ macro_rules! call_refmut {
     };
     ($slf: expr, $fn: ident, $raw_arg: expr $(,$raw_args: expr)* $(; $args: expr)*) => {
         match $raw_arg.extract() {
-            Ok(arg) => call_refmut!($slf, $fn $(,$raw_args)* ;arg $(;$args)*),
+            Ok(arg) => call_refmut!($slf, $fn $(,$raw_args)* $(;$args)* ;arg),
             Err(e) => Err(e.into()),
         }
     };

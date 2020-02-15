@@ -15,7 +15,6 @@ use crate::objectprotocol::ObjectProtocol;
 use crate::types::PyAny;
 use crate::{exceptions, ffi, FromPyObject, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 use std::os::raw::c_int;
-use std::ptr;
 
 /// Operators for the __richcmp__ method
 #[derive(Debug)]
@@ -508,15 +507,18 @@ where
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
             let res = match extract_op(op) {
-                Ok(op) => call_ref!(slf, __richcmp__, arg ; op),
+                Ok(op) => match arg.extract() {
+                    Ok(arg) => match slf.try_borrow_unguarded() {
+                        Ok(borrow) => borrow.__richcmp__(arg, op).into(),
+                        Err(e) => Err(e.into()),
+                    },
+                    Err(e) => Err(e),
+                },
                 Err(e) => Err(e),
             };
             match res {
                 Ok(val) => val.into_py(py).into_ptr(),
-                Err(e) => {
-                    e.restore(py);
-                    ptr::null_mut()
-                }
+                Err(e) => e.restore_and_null(py),
             }
         }
         Some(wrap::<T>)

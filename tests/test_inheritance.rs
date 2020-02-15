@@ -109,6 +109,7 @@ except Exception as e:
 }
 
 #[pyclass(extends=PySet)]
+#[derive(Debug)]
 struct SetWithName {
     #[pyo3(get(name))]
     _name: &'static str,
@@ -126,7 +127,7 @@ impl SetWithName {
 fn inherit_set() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let set_sub = pyo3::pyclass::PyCell::new_ref(py, SetWithName::new()).unwrap();
+    let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
     py_run!(
         py,
         set_sub,
@@ -135,6 +136,7 @@ fn inherit_set() {
 }
 
 #[pyclass(extends=PyDict)]
+#[derive(Debug)]
 struct DictWithName {
     #[pyo3(get(name))]
     _name: &'static str,
@@ -152,7 +154,7 @@ impl DictWithName {
 fn inherit_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let dict_sub = pyo3::pyclass::PyCell::new_ref(py, DictWithName::new()).unwrap();
+    let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
     py_run!(
         py,
         dict_sub,
