@@ -21,11 +21,12 @@ pub fn build_py_methods(ast: &mut syn::ItemImpl) -> syn::Result<TokenStream> {
 }
 
 pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Result<TokenStream> {
-    // get method names in impl block
     let mut methods = Vec::new();
+    let mut cfg_attributes = Vec::new();
     for iimpl in impls.iter_mut() {
         if let syn::ImplItem::Method(ref mut meth) = iimpl {
             methods.push(pymethod::gen_py_method(ty, &mut meth.sig, &mut meth.attrs)?);
+            cfg_attributes.push(get_cfg_attributes(&meth.attrs));
         }
     }
 
@@ -33,8 +34,18 @@ pub fn impl_methods(ty: &syn::Type, impls: &mut Vec<syn::ImplItem>) -> syn::Resu
        pyo3::inventory::submit! {
             #![crate = pyo3] {
                 type TyInventory = <#ty as pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;
-                <TyInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(#methods),*])
+                <TyInventory as pyo3::class::methods::PyMethodsInventory>::new(&[#(
+                    #(#cfg_attributes)*
+                    #methods
+                ),*])
             }
         }
     })
+}
+
+fn get_cfg_attributes(attrs: &[syn::Attribute]) -> Vec<&syn::Attribute> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path.is_ident("cfg"))
+        .collect()
 }
