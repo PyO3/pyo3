@@ -62,8 +62,8 @@ macro_rules! impl_layout {
             unsafe fn unchecked_ref(&self) -> &$name {
                 &*((&self) as *const &Self as *const _)
             }
-            unsafe fn unchecked_refmut(&mut self) -> &mut $name {
-                &mut *((&self) as *const &mut Self as *const _ as *mut _)
+            unsafe fn unchecked_refmut(&self) -> &mut $name {
+                &mut *((&self) as *const &Self as *const _ as *mut _)
             }
         }
     };
@@ -74,6 +74,12 @@ macro_rules! pyobject_native_type {
     ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         impl_layout!($name, $layout);
         impl $crate::type_object::PyObjectSizedLayout<$name> for $layout {}
+        impl $crate::derive_utils::PyBaseTypeUtils for $name {
+            type Dict = $crate::pyclass_slots::PyClassDummySlot;
+            type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
+            type Layout = $crate::pycell::PyCellBase<$name>;
+            type BaseNativeType = $name;
+        }
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
         pyobject_native_type_extract!($name $(,$type_param)*);
@@ -117,8 +123,10 @@ macro_rules! pyobject_native_var_type {
 // because rust-numpy has a special implementation.
 macro_rules! pyobject_native_type_extract {
     ($name: ty $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> $crate::conversion::FromPyObjectImpl for &'_ $name {
-            type Impl = $crate::conversion::extract_impl::Reference;
+        impl<'py, $($type_param,)*> $crate::FromPyObject<'py> for &'py $name {
+            fn extract(obj: &'py crate::types::PyAny) -> $crate::PyResult<Self> {
+                $crate::PyTryFrom::try_from(obj).map_err(Into::into)
+            }
         }
     }
 }
@@ -130,7 +138,8 @@ macro_rules! pyobject_native_type_convert(
         unsafe impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::types::PyAny;
-            type ConcreteLayout = $layout;
+            type Layout = $layout;
+            type BaseLayout = ffi::PyObject;
             type Reference = $name;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
 

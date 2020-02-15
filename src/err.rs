@@ -59,9 +59,6 @@ pub type PyResult<T> = Result<T, PyErr>;
 /// Marker type that indicates an error while downcasting
 pub struct PyDowncastError;
 
-/// Marker type for `PyCell`.
-pub struct PyBorrowError;
-
 /// Helper conversion trait that allows to use custom arguments for exception constructor.
 pub trait PyErrArguments {
     /// Arguments for exception

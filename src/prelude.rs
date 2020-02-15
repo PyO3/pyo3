@@ -15,9 +15,10 @@ pub use crate::gil::GILGuard;
 pub use crate::instance::{AsPyRef, Py};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;
+pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::Python;
-pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, ToPyObject};
+pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject};
 // This is only part of the prelude because we need it for the pymodule function
 pub use crate::types::PyModule;
 pub use pyo3cls::pymodule;

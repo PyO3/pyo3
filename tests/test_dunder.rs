@@ -53,11 +53,11 @@ struct Iterator {
 
 #[pyproto]
 impl<'p> PyIterProtocol for Iterator {
-    fn __iter__(slf: &mut PyCell<Self>) -> PyResult<Py<Iterator>> {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iterator>> {
         Ok(slf.into())
     }
 
-    fn __next__(slf: &mut PyCell<Self>) -> PyResult<Option<i32>> {
+    fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<i32>> {
         Ok(slf.iter.next())
     }
 }

@@ -45,7 +45,11 @@ fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap(cls: &syn::Type, spec: &FnSpec<'_>, noargs: bool) -> TokenStream {
     let body = impl_call(cls, &spec);
-    let slf = impl_self(&quote! { &mut #cls });
+    let borrow_self = spec.borrow_self();
+    let slf = quote! {
+        let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+        let _slf = #borrow_self;
+    };
     impl_wrap_common(cls, spec, noargs, slf, body)
 }
 
@@ -60,7 +64,13 @@ pub fn impl_wrap_pyslf(
     let body = quote! {
         #cls::#name(_slf, #(#names),*)
     };
-    let slf = impl_self(self_ty);
+    let slf = quote! {
+        let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+        let _slf: #self_ty = match pyo3::derive_utils::PySelf::from_cell(_cell) {
+            Ok(_slf) => _slf,
+            Err(e) => return e.restore_and_null(py),
+        };
+    };
     impl_wrap_common(cls, spec, noargs, slf, body)
 }
 
@@ -123,6 +133,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let python_name = &spec.python_name;
     let cb = impl_call(cls, &spec);
     let body = impl_arg_params(&spec, cb);
+    let borrow_self = spec.borrow_self();
 
     quote! {
         #[allow(unused_mut)]
@@ -134,7 +145,8 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+            let _slf = #borrow_self;
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
@@ -266,6 +278,8 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
         quote! { _slf.#name() }
     };
 
+    let borrow_self = spec.borrow_self();
+
     Ok(quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
@@ -274,7 +288,8 @@ pub(crate) fn impl_wrap_getter(cls: &syn::Type, spec: &FnSpec) -> syn::Result<To
 
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+            let _slf = #borrow_self;
 
             let result = pyo3::derive_utils::IntoPyResult::into_py_result(#fncall);
 
@@ -312,6 +327,7 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Resul
         }
     };
 
+    let borrow_self = spec.borrow_self();
     Ok(quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
@@ -321,7 +337,8 @@ pub(crate) fn impl_wrap_setter(cls: &syn::Type, spec: &FnSpec<'_>) -> syn::Resul
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+            let _slf = #borrow_self;
             let _value = _py.from_borrowed_ptr(_value);
 
             let _result = match <#val_ty as pyo3::FromPyObject>::extract(_value) {
@@ -352,12 +369,6 @@ fn impl_call(_cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let fname = &spec.name;
     let names = get_arg_names(spec);
     quote! { _slf.#fname(#(#names),*) }
-}
-
-fn impl_self<T: quote::ToTokens>(self_ty: &T) -> TokenStream {
-    quote! {
-        let _slf: #self_ty = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
-    }
 }
 
 /// Converts a bool to "true" or "false"

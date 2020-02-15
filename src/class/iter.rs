@@ -4,7 +4,7 @@
 
 use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
 use crate::err::PyResult;
-use crate::{ffi, IntoPy, IntoPyPointer, PyCell, PyClass, PyObject, Python};
+use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, PyRefMut, Python};
 use std::ptr;
 
 /// Python Iterator Interface.
@@ -13,14 +13,14 @@ use std::ptr;
 /// `https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter`
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p>: PyClass {
-    fn __iter__(slf: &mut PyCell<Self>) -> Self::Result
+    fn __iter__(slf: PyRefMut<Self>) -> Self::Result
     where
         Self: PyIterIterProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __next__(slf: &mut PyCell<Self>) -> Self::Result
+    fn __next__(slf: PyRefMut<Self>) -> Self::Result
     where
         Self: PyIterNextProtocol<'p>,
     {
@@ -77,7 +77,7 @@ where
 {
     #[inline]
     fn tp_iter() -> Option<ffi::getiterfunc> {
-        py_unary_pyref_func!(
+        py_unary_refmut_func!(
             PyIterIterProtocol,
             T::__iter__,
             T::Success,
@@ -105,7 +105,7 @@ where
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unary_pyref_func!(
+        py_unary_refmut_func!(
             PyIterNextProtocol,
             T::__next__,
             Option<T::Success>,

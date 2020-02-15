@@ -72,7 +72,7 @@ impl<T> PyClassAlloc for T
 where
     T: PyTypeInfo + PyClassWithFreeList,
 {
-    unsafe fn alloc(_py: Python) -> *mut Self::ConcreteLayout {
+    unsafe fn alloc(_py: Python) -> *mut Self::Layout {
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {
             ffi::PyObject_Init(obj, <Self as PyTypeInfo>::type_object() as *const _ as _);
             obj as _
@@ -81,7 +81,7 @@ where
         }
     }
 
-    unsafe fn dealloc(py: Python, self_: *mut Self::ConcreteLayout) {
+    unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
 
         let obj = self_ as _;

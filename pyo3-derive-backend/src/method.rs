@@ -35,6 +35,7 @@ pub enum FnType {
 #[derive(Clone, PartialEq, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
+    pub self_: Option<bool>,
     // Rust function name
     pub name: &'a syn::Ident,
     // Wrapped python name. This should not have any leading r#.
@@ -54,6 +55,28 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 }
 
 impl<'a> FnSpec<'a> {
+    /// Generate the code for borrowing self
+    pub(crate) fn borrow_self(&self) -> TokenStream {
+        let is_mut = self
+            .self_
+            .expect("impl_borrow_self is called for non-self fn");
+        if is_mut {
+            quote! {
+                match _slf.try_borrow() {
+                    Ok(ref_) => ref_,
+                    Err(e) => return e.into::<pyo3::PyErr>.restore_and_null(_py),
+                }
+            }
+        } else {
+            quote! {
+                match _slf.try_borrow_mut() {
+                    Ok(ref_) => ref_,
+                    Err(e) => return e.into::<pyo3::PyErr>.restore_and_null(_py),
+                }
+            }
+        }
+    }
+
     /// Parser function signature and function attributes
     pub fn parse(
         sig: &'a syn::Signature,
@@ -67,19 +90,19 @@ impl<'a> FnSpec<'a> {
             mut python_name,
         } = parse_method_attributes(meth_attrs, allow_custom_name)?;
 
-        let mut has_self = false;
+        let mut self_ = None;
         let mut arguments = Vec::new();
         for input in sig.inputs.iter() {
             match input {
-                syn::FnArg::Receiver(_) => {
-                    has_self = true;
+                syn::FnArg::Receiver(recv) => {
+                    self_ = Some(recv.mutability.is_some());
                 }
                 syn::FnArg::Typed(syn::PatType {
                     ref pat, ref ty, ..
                 }) => {
                     // skip first argument (cls)
-                    if fn_type == FnType::FnClass && !has_self {
-                        has_self = true;
+                    if fn_type == FnType::FnClass && !self_.is_none() {
+                        self_ = Some(false);
                         continue;
                     }
 
@@ -114,7 +137,7 @@ impl<'a> FnSpec<'a> {
 
         let ty = get_return_info(&sig.output);
 
-        if fn_type == FnType::Fn && !has_self {
+        if fn_type == FnType::Fn && self_.is_none() {
             if arguments.is_empty() {
                 return Err(syn::Error::new_spanned(
                     name,
@@ -174,6 +197,7 @@ impl<'a> FnSpec<'a> {
 
         Ok(FnSpec {
             tp: fn_type,
+            self_,
             name,
             python_name,
             attrs: fn_attrs,

@@ -1,11 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
-use crate::instance::Py;
 use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, AsPyPointer, Python};
+use crate::{ffi, AsPyPointer, Py, Python};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,14 +16,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// This trait is intended to be used internally.
 pub unsafe trait PyObjectLayout<T: PyTypeInfo> {
     const IS_NATIVE_TYPE: bool = true;
-
-    fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+    fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
         None
     }
     unsafe fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
     unsafe fn unchecked_ref(&self) -> &T;
-    unsafe fn unchecked_refmut(&mut self) -> &mut T;
+    unsafe fn unchecked_refmut(&self) -> &mut T;
 }
 
 /// `T: PyObjectSizedLayout<U>` represents `T` is not a instance of
@@ -100,9 +98,14 @@ pub unsafe trait PyTypeInfo: Sized {
     type BaseType: PyTypeInfo + PyTypeObject;
 
     /// Layout
-    type ConcreteLayout: PyObjectLayout<Self>;
+    type Layout: PyObjectLayout<Self>;
 
-    /// This type is an abstraction layer for `AsPyRef`.
+    /// Layout of Basetype
+    type BaseLayout: PyObjectLayout<Self::BaseType>;
+
+    /// Abstraction layer for `AsPyRef`.
+    ///
+    /// Simply, it's `Self` for native types and `PyCell<Self>` for pyclasses.
     type Reference;
 
     /// Initializer for layout

@@ -3,7 +3,7 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyTuple};
-use pyo3::{ffi, py_run, AsPyPointer, PyCell};
+use pyo3::{ffi, py_run, AsPyPointer, PyCell, PyTryInto};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -153,7 +153,7 @@ fn gc_integration() {
     {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let inst = PyCell::new_mut(
+        let inst = PyCell::new(
             py,
             GCIntegration {
                 self_ref: RefCell::new(py.None()),
@@ -164,7 +164,8 @@ fn gc_integration() {
         )
         .unwrap();
 
-        *inst.self_ref.borrow_mut() = inst.to_object(py);
+        let borrow = inst.borrow_mut();
+        *borrow.self_ref.borrow_mut() = inst.to_object(py);
     }
 
     let gil = Python::acquire_gil();
@@ -188,7 +189,7 @@ impl PyGCProtocol for GCIntegration2 {
 fn gc_integration2() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new_ref(py, GCIntegration2 {}).unwrap();
+    let inst = PyCell::new(py, GCIntegration2 {}).unwrap();
     py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
 }
 
@@ -199,7 +200,7 @@ struct WeakRefSupport {}
 fn weakref_support() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let inst = PyCell::new_ref(py, WeakRefSupport {}).unwrap();
+    let inst = PyCell::new(py, WeakRefSupport {}).unwrap();
     py_run!(
         py,
         inst,
@@ -264,12 +265,11 @@ fn inheritance_with_new_methods_with_drop() {
         let typeobj = py.get_type::<SubClassWithDrop>();
         let inst = typeobj.call((), None).unwrap();
 
-        let obj = SubClassWithDrop::try_from_mut(inst).unwrap();
-        obj.data = Some(Arc::clone(&drop_called1));
-
-        let base: &mut <SubClassWithDrop as pyo3::PyTypeInfo>::BaseType =
-            unsafe { py.mut_from_borrowed_ptr(inst.as_ptr()) };
-        base.data = Some(Arc::clone(&drop_called2));
+        let obj: &PyCell<SubClassWithDrop> = inst.try_into().unwrap();
+        let mut obj_ref_mut = obj.borrow_mut();
+        obj_ref_mut.data = Some(Arc::clone(&drop_called1));
+        let super_ = obj_ref_mut.get_super_mut();
+        super_.data = Some(Arc::clone(&drop_called2));
     }
 
     assert!(drop_called1.load(Ordering::Relaxed));

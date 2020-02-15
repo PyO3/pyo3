@@ -39,8 +39,7 @@ impl<T> Py<T> {
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
     where
         T: PyClass,
-        <T::BaseType as PyTypeInfo>::ConcreteLayout:
-            crate::type_object::PyObjectSizedLayout<T::BaseType>,
+        T::BaseLayout: crate::type_object::PyObjectSizedLayout<T::BaseType>,
     {
         let initializer = value.into();
         let obj = unsafe { initializer.create_cell(py)? };

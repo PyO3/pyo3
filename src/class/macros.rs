@@ -39,17 +39,16 @@ macro_rules! py_unary_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_unary_pyref_func {
+macro_rules! py_unary_refmut_func {
     ($trait:ident, $class:ident :: $f:ident, $res_type:ty, $conv:expr) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
         {
-            use $crate::PyCell;
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf: &mut PyCell<T> = &mut *(slf as *mut PyCell<T>);
-            let res = $class::$f(slf).into();
+            let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
+            let res = $class::$f(slf.borrow_mut()).into();
             $crate::callback::cb_convert($conv, py, res)
         }
         Some(wrap::<$class>)

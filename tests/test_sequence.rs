@@ -64,7 +64,7 @@ impl PySequenceProtocol for ByteSequence {
         }
     }
 
-    fn __concat__(&self, other: &Self) -> PyResult<Self> {
+    fn __concat__(&self, other: PyRef<'p, Self>) -> PyResult<Self> {
         let mut elements = self.elements.clone();
         elements.extend_from_slice(&other.elements);
         Ok(Self { elements })

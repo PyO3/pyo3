@@ -54,27 +54,22 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument<'a>(input: &'a syn::FnArg, name: &'a Ident) -> Option<method::FnArg<'a>> {
-    match input {
-        syn::FnArg::Receiver(_) => None,
-        syn::FnArg::Typed(ref cap) => {
-            let (mutability, by_ref, ident) = match *cap.pat {
-                syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
-                _ => panic!("unsupported argument: {:?}", cap.pat),
-            };
+fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> method::FnArg<'a> {
+    let (mutability, by_ref, ident) = match *cap.pat {
+        syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
+        _ => panic!("unsupported argument: {:?}", cap.pat),
+    };
 
-            let py = crate::utils::if_type_is_python(&cap.ty);
-            let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
-            Some(method::FnArg {
-                name: ident,
-                mutability,
-                by_ref,
-                ty: &cap.ty,
-                optional: opt,
-                py,
-                reference: method::is_ref(&name, &cap.ty),
-            })
-        }
+    let py = crate::utils::if_type_is_python(&cap.ty);
+    let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
+    method::FnArg {
+        name: ident,
+        mutability,
+        by_ref,
+        ty: &cap.ty,
+        optional: opt,
+        py,
+        reference: method::is_ref(&name, &cap.ty),
     }
 }
 
@@ -138,10 +133,16 @@ pub fn add_fn_to_module(
     pyfn_attrs: Vec<pyfunction::Argument>,
 ) -> TokenStream {
     let mut arguments = Vec::new();
+    let mut self_ = None;
 
     for input in func.sig.inputs.iter() {
-        if let Some(fn_arg) = wrap_fn_argument(input, &func.sig.ident) {
-            arguments.push(fn_arg);
+        match input {
+            syn::FnArg::Receiver(recv) => {
+                self_ = Some(recv.mutability.is_some());
+            }
+            syn::FnArg::Typed(ref cap) => {
+                arguments.push(wrap_fn_argument(cap, &func.sig.ident));
+            }
         }
     }
 
@@ -160,6 +161,7 @@ pub fn add_fn_to_module(
 
     let spec = method::FnSpec {
         tp: method::FnType::Fn,
+        self_,
         name: &function_wrapper_ident,
         python_name,
         attrs: pyfn_attrs,

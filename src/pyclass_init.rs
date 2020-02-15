@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 /// This trait is intended to use internally for distinguishing `#[pyclass]` and
 /// Python native types.
 pub trait PyObjectInit<T: PyTypeInfo>: Sized {
-    fn init_class(self, layout: &mut T::ConcreteLayout);
+    fn init_class<L: PyObjectLayout<T>>(self, layout: &mut L);
     private_decl! {}
 }
 
@@ -16,7 +16,7 @@ pub trait PyObjectInit<T: PyTypeInfo>: Sized {
 pub struct PyNativeTypeInitializer<T: PyTypeInfo>(PhantomData<T>);
 
 impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
-    fn init_class(self, _layout: &mut T::ConcreteLayout) {}
+    fn init_class<L: PyObjectLayout<T>>(self, _layout: &mut L) {}
     private_impl! {}
 }
 
@@ -108,6 +108,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass + PyTypeInfo<BaseType = T>,
+        S::BaseLayout: PyObjectSizedLayout<T>,
         S::BaseType: PyTypeInfo<Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
@@ -117,7 +118,7 @@ impl<T: PyClass> PyClassInitializer<T> {
     pub unsafe fn create_cell(self, py: Python) -> PyResult<*mut PyCell<T>>
     where
         T: PyClass,
-        <T::BaseType as PyTypeInfo>::ConcreteLayout: PyObjectSizedLayout<T::BaseType>,
+        T::BaseLayout: PyObjectSizedLayout<T::BaseType>,
     {
         let cell = PyCell::internal_new(py)?;
         self.init_class(&mut *cell);
@@ -126,12 +127,12 @@ impl<T: PyClass> PyClassInitializer<T> {
 }
 
 impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
-    fn init_class(self, obj: &mut T::ConcreteLayout) {
+    fn init_class<L: PyObjectLayout<T>>(self, layout: &mut L) {
         let Self { init, super_init } = self;
         unsafe {
-            obj.py_init(init);
+            layout.py_init(init);
         }
-        if let Some(super_obj) = obj.get_super_or() {
+        if let Some(super_obj) = layout.get_super_or() {
             super_init.init_class(super_obj);
         }
     }
@@ -151,6 +152,7 @@ where
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass + PyTypeInfo<BaseType = B>,
+    S::BaseLayout: PyObjectSizedLayout<B>,
     B: PyClass + PyTypeInfo<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {

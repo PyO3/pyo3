@@ -11,7 +11,7 @@ use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
-use crate::{ffi, AsPyRef, GILPool, IntoPy, PyObject, Python};
+use crate::{ffi, GILPool, IntoPy, PyObject, Python};
 use std::ptr;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -100,8 +100,8 @@ pub fn parse_fn_args<'p>(
     // Adjust the remaining args
     let args = if accept_args {
         let py = args.py();
-        // args.slice(used_args as isize, nargs as isize).as_ref(py)
-        unimplemented!()
+        let slice = args.slice(used_args as isize, nargs as isize).into_py(py);
+        py.checked_cast_as(slice).unwrap()
     } else {
         args
     };
@@ -197,5 +197,42 @@ impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for I {
 impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyResult<I> {
     fn into_pynew_result(self) -> PyResult<I> {
         self
+    }
+}
+
+/// Utitlities for basetype
+pub trait PyBaseTypeUtils {
+    type Dict;
+    type WeakRef;
+    type Layout;
+    type BaseNativeType;
+}
+
+impl<T: PyClass> PyBaseTypeUtils for T {
+    type Dict = T::Dict;
+    type WeakRef = T::WeakRef;
+    type Layout = crate::pycell::PyCellInner<T>;
+    type BaseNativeType = T::BaseNativeType;
+}
+
+pub trait PySelf<'a, T: PyClass>: Sized {
+    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self>;
+}
+
+impl<'a, T: PyClass> PySelf<'a, T> for &'a crate::PyCell<T> {
+    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self> {
+        Ok(cell)
+    }
+}
+
+impl<'a, T: PyClass> PySelf<'a, T> for crate::PyRef<'a, T> {
+    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self> {
+        cell.try_borrow().map_err(Into::into)
+    }
+}
+
+impl<'a, T: PyClass> PySelf<'a, T> for crate::PyRefMut<'a, T> {
+    fn from_cell(cell: &'a crate::PyCell<T>) -> PyResult<Self> {
+        cell.try_borrow_mut().map_err(Into::into)
     }
 }
