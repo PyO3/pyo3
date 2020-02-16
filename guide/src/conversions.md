@@ -100,9 +100,11 @@ fn main() {
 }
 ```
 
-## `IntoPy<T>`
+## `FromPy<T>` and `IntoPy<T>`
 
-Many conversions in PyO3 can't use `std::convert::Into` because they need a GIL token. That's why the `IntoPy<T>` trait offers an `into_py` method that works just like `into`, except for taking a `Python<'_>` argument.
+Many conversions in PyO3 can't use `std::convert::From` because they need a GIL token. The `FromPy<T>` trait offers an `from_py` method that works just like `from`, except for taking a `Python<'_>` argument. I.e. FromPy<T> could be converting a rust object into a python object even though it says `FromPy` - it doesn't say anything about which side of the conversion is a python object.
+
+(Just like From<T>, if you implement FromPy<T> you gain a blanket implementation of IntoPy<T> for free.)
 
 Eventually, traits such as `ToPyObject` will be replaced by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`.
 

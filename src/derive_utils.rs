@@ -200,6 +200,25 @@ impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyRes
     }
 }
 
+pub trait GetPropertyValue {
+    fn get_property_value(&self, py: Python) -> PyObject;
+}
+
+impl<T> GetPropertyValue for &T
+where
+    T: IntoPy<PyObject> + Clone,
+{
+    fn get_property_value(&self, py: Python) -> PyObject {
+        (*self).clone().into_py(py)
+    }
+}
+
+impl GetPropertyValue for PyObject {
+    fn get_property_value(&self, py: Python) -> PyObject {
+        self.clone_ref(py)
+    }
+}
+
 /// Utitlities for basetype
 pub trait PyBaseTypeUtils {
     type Dict;

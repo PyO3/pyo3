@@ -404,3 +404,54 @@ fn method_with_lifetime() {
         "assert obj.set_to_list(set((1, 2, 3))) == [1, 2, 3]"
     );
 }
+
+#[pyclass]
+#[cfg(unix)]
+struct CfgStruct {}
+
+#[pyclass]
+#[cfg(not(unix))]
+struct CfgStruct {}
+
+#[pymethods]
+#[cfg(unix)]
+impl CfgStruct {
+    fn unix_method(&self) -> &str {
+        "unix"
+    }
+
+    #[cfg(not(unix))]
+    fn never_compiled_method(&self) {}
+}
+
+#[pymethods]
+#[cfg(not(unix))]
+impl CfgStruct {
+    fn not_unix_method(&self) -> &str {
+        "not unix"
+    }
+
+    #[cfg(unix)]
+    fn never_compiled_method(&self) {}
+}
+
+#[test]
+fn test_cfg_attrs() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = Py::new(py, CfgStruct {}).unwrap();
+
+    #[cfg(unix)]
+    {
+        py_assert!(py, inst, "inst.unix_method() == 'unix'");
+        py_assert!(py, inst, "not hasattr(inst, 'not_unix_method')");
+    }
+
+    #[cfg(not(unix))]
+    {
+        py_assert!(py, inst, "not hasattr(inst, 'unix_method')");
+        py_assert!(py, inst, "inst.not_unix_method() == 'not unix'");
+    }
+
+    py_assert!(py, inst, "not hasattr(inst, 'never_compiled_method')");
+}

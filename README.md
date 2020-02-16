@@ -16,7 +16,7 @@ A comparison with rust-cpython can be found [in the guide](https://pyo3.rs/maste
 
 ## Usage
 
-PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.37.0-nightly 2019-07-19.
+PyO3 supports Python 3.5 and up. The minimum required Rust version is 1.42.0-nightly 2020-01-21.
 
 If you have never used nightly Rust, the official guide has
 [a great section](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html#rustup-and-the-role-of-rust-nightly)
@@ -145,6 +145,8 @@ about this topic.
  * [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library_
  * [python-ext-wasm](https://github.com/wasmerio/python-ext-wasm) _Python library to run WebAssembly binaries_
  * [dict-derive](https://github.com/gperinazzo/dict-derive) _Derive FromPyObject to automatically transform Python dicts into Rust structs_
+ * [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere_
+ * [tokenizers](https://github.com/huggingface/tokenizers/tree/master/bindings/python) _Python bindings to the Hugging Face tokenizers (NLP) written in Rust_
 
 ## License
 

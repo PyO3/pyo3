@@ -1,8 +1,31 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
+use quote::quote;
 use std::fmt::Display;
+
+pub(crate) fn borrow_self(is_mut: bool, return_null: bool) -> TokenStream {
+    let ret = if return_null {
+        quote! { restore_and_null }
+    } else {
+        quote! { restore_and_minus1 }
+    };
+    if is_mut {
+        quote! {
+            let mut _slf = match _slf.try_borrow_mut() {
+                Ok(ref_) => ref_,
+                Err(e) => return pyo3::PyErr::from(e).#ret(_py),
+            };
+        }
+    } else {
+        quote! {
+            let _slf = match _slf.try_borrow() {
+                Ok(ref_) => ref_,
+                Err(e) => return pyo3::PyErr::from(e).#ret(_py),
+            };
+        }
+    }
+}
 
 pub fn print_err(msg: String, t: TokenStream) {
     println!("Error: {} in '{}'", msg, t.to_string());

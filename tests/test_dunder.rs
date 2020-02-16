@@ -154,7 +154,7 @@ struct Sequence {
 impl Default for Sequence {
     fn default() -> Sequence {
         let mut fields = vec![];
-        for s in &["A", "B", "C", "D", "E", "F", "G"] {
+        for &s in &["A", "B", "C", "D", "E", "F", "G"] {
             fields.push(s.to_string());
         }
         Sequence { fields }

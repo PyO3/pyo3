@@ -138,3 +138,28 @@ fn empty_class_in_module() {
     // than using whatever calls init first.
     assert_eq!(module, "builtins");
 }
+
+#[pyclass]
+struct ClassWithObjectField {
+    // PyObject has special case for derive_utils::GetPropertyValue,
+    // so this test is making sure it compiles!
+    #[pyo3(get, set)]
+    value: PyObject,
+}
+
+#[pymethods]
+impl ClassWithObjectField {
+    #[new]
+    fn new(value: PyObject) -> ClassWithObjectField {
+        Self { value }
+    }
+}
+
+#[test]
+fn class_with_object_field() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let ty = py.get_type::<ClassWithObjectField>();
+    py_assert!(py, ty, "ty(5).value == 5");
+    py_assert!(py, ty, "ty(None).value == None");
+}

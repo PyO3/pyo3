@@ -59,30 +59,11 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 
 impl<'a> FnSpec<'a> {
     /// Generate the code for borrowing self
-    pub(crate) fn borrow_self(&self, return_null: bool) -> TokenStream {
+    pub(crate) fn borrow_self(&self) -> TokenStream {
         let is_mut = self
             .self_
             .expect("impl_borrow_self is called for non-self fn");
-        let ret = if return_null {
-            quote! { restore_and_null }
-        } else {
-            quote! { restore_and_minus1 }
-        };
-        if is_mut {
-            quote! {
-                let mut _slf = match _slf.try_borrow_mut() {
-                    Ok(ref_) => ref_,
-                    Err(e) => return pyo3::PyErr::from(e).#ret(_py),
-                };
-            }
-        } else {
-            quote! {
-                let _slf = match _slf.try_borrow() {
-                    Ok(ref_) => ref_,
-                    Err(e) => return pyo3::PyErr::from(e).#ret(_py),
-                };
-            }
-        }
+        crate::utils::borrow_self(is_mut, true)
     }
 
     /// Parser function signature and function attributes

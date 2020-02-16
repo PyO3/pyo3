@@ -1,0 +1,17 @@
+error: Getter function can only have one argument of type pyo3::Python
+ --> $DIR/invalid_property_args.rs:9:50
+  |
+9 |     fn getter_with_arg(&self, py: Python, index: u32) {}
+  |                                                  ^^^
+
+error: Setter function expected to have one argument
+  --> $DIR/invalid_property_args.rs:18:8
+   |
+18 |     fn setter_with_no_arg(&mut self, py: Python) {}
+   |        ^^^^^^^^^^^^^^^^^^
+
+error: Setter function can have at most two arguments: one of pyo3::Python, and one other
+  --> $DIR/invalid_property_args.rs:24:72
+   |
+24 |     fn setter_with_too_many_args(&mut self, py: Python, foo: u32, bar: u32) {}
+   |                                                                        ^^^

@@ -1,7 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::method::{FnArg, FnSpec, FnType};
-use crate::pymethod::{impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter};
+use crate::method::FnType;
+use crate::pymethod::{
+    impl_py_getter_def, impl_py_setter_def, impl_wrap_getter, impl_wrap_setter, PropertyType,
+};
 use crate::utils;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -336,7 +338,7 @@ fn impl_class(
 
     // Enforce at compile time that PyGCProtocol is implemented
     let gc_impl = if has_gc {
-        let closure_name = format!("__assertion_closure_{}", cls.to_string());
+        let closure_name = format!("__assertion_closure_{}", cls);
         let closure_token = syn::Ident::new(&closure_name, Span::call_site());
         quote! {
             fn #closure_token() {
@@ -425,94 +427,26 @@ fn impl_descriptors(
     cls: &syn::Type,
     descriptors: Vec<(syn::Field, Vec<FnType>)>,
 ) -> syn::Result<TokenStream> {
-    let methods: Vec<TokenStream> = descriptors
-        .iter()
-        .flat_map(|&(ref field, ref fns)| {
-            fns.iter()
-                .map(|desc| {
-                    let name = field.ident.as_ref().unwrap();
-                    let field_ty = &field.ty;
-                    match *desc {
-                        FnType::Getter => {
-                            quote! {
-                                impl #cls {
-                                    fn #name(&self) -> pyo3::PyResult<#field_ty> {
-                                        Ok(self.#name.clone())
-                                    }
-                                }
-                            }
-                        }
-                        FnType::Setter => {
-                            let setter_name =
-                                syn::Ident::new(&format!("set_{}", name.unraw()), Span::call_site());
-                            quote! {
-                                impl #cls {
-                                    fn #setter_name(&mut self, value: #field_ty) -> pyo3::PyResult<()> {
-                                        self.#name = value;
-                                        Ok(())
-                                    }
-                                }
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                })
-                .collect::<Vec<TokenStream>>()
-        })
-        .collect();
-
     let py_methods: Vec<TokenStream> = descriptors
         .iter()
         .flat_map(|&(ref field, ref fns)| {
             fns.iter()
                 .map(|desc| {
-                    let name = field.ident.as_ref().unwrap();
-
+                    let name = field.ident.as_ref().unwrap().unraw();
                     let doc = utils::get_doc(&field.attrs, None, true)
                         .unwrap_or_else(|_| syn::LitStr::new(&name.to_string(), name.span()));
 
-                    let field_ty = &field.ty;
                     match *desc {
-                        FnType::Getter => {
-                            let spec = FnSpec {
-                                tp: FnType::Getter,
-                                // Assume that the getter has &self receiver
-                                self_: Some(false),
-                                name: &name,
-                                python_name: name.unraw(),
-                                attrs: Vec::new(),
-                                args: Vec::new(),
-                                output: parse_quote!(PyResult<#field_ty>),
-                                doc,
-                            };
-                            Ok(impl_py_getter_def(&spec, &impl_wrap_getter(&cls, &spec)?))
-                        }
-                        FnType::Setter => {
-                            let setter_name = syn::Ident::new(
-                                &format!("set_{}", name.unraw()),
-                                Span::call_site(),
-                            );
-                            let spec = FnSpec {
-                                tp: FnType::Setter,
-                                // Assume that the setter has &mut self receiver
-                                self_: Some(true),
-                                name: &setter_name,
-                                python_name: name.unraw(),
-                                attrs: Vec::new(),
-                                args: vec![FnArg {
-                                    name: &name,
-                                    mutability: &None,
-                                    by_ref: &None,
-                                    ty: field_ty,
-                                    optional: None,
-                                    py: true,
-                                    reference: false,
-                                }],
-                                output: parse_quote!(PyResult<()>),
-                                doc,
-                            };
-                            Ok(impl_py_setter_def(&spec, &impl_wrap_setter(&cls, &spec)?))
-                        }
+                        FnType::Getter => Ok(impl_py_getter_def(
+                            &name,
+                            &doc,
+                            &impl_wrap_getter(&cls, PropertyType::Descriptor(&field))?,
+                        )),
+                        FnType::Setter => Ok(impl_py_setter_def(
+                            &name,
+                            &doc,
+                            &impl_wrap_setter(&cls, PropertyType::Descriptor(&field))?,
+                        )),
                         _ => unreachable!(),
                     }
                 })
@@ -521,7 +455,6 @@ fn impl_descriptors(
         .collect::<syn::Result<_>>()?;
 
     Ok(quote! {
-        #(#methods)*
 
         pyo3::inventory::submit! {
             #![crate = pyo3] {
