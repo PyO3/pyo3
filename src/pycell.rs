@@ -258,9 +258,26 @@ pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-impl<'p, T: PyClass> PyRef<'p, T> {
-    pub fn get_super(&'p self) -> &'p T::BaseType {
+impl<'p, T> PyRef<'p, T>
+where
+    T: PyClass,
+{
+    pub fn as_super(&'p self) -> &'p T::BaseType {
         unsafe { self.inner.ob_base.unchecked_ref() }
+    }
+}
+
+impl<'p, T, U> PyRef<'p, T>
+where
+    T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
+    U: PyClass,
+{
+    pub fn into_super(self) -> PyRef<'p, U> {
+        let res = PyRef {
+            inner: &self.inner.ob_base,
+        };
+        std::mem::forget(self); // Avoid drop
+        res
     }
 }
 
@@ -310,11 +327,25 @@ pub struct PyRefMut<'p, T: PyClass> {
 }
 
 impl<'p, T: PyClass> PyRefMut<'p, T> {
-    pub fn get_super(&'p self) -> &'p T::BaseType {
+    pub fn as_super(&'p self) -> &'p T::BaseType {
         unsafe { self.inner.ob_base.unchecked_ref() }
     }
-    pub fn get_super_mut(&'p self) -> &'p mut T::BaseType {
+    pub fn as_super_mut(&'p mut self) -> &'p mut T::BaseType {
         unsafe { self.inner.ob_base.unchecked_refmut() }
+    }
+}
+
+impl<'p, T, U> PyRefMut<'p, T>
+where
+    T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
+    U: PyClass,
+{
+    pub fn into_super(self) -> PyRefMut<'p, U> {
+        let res = PyRefMut {
+            inner: &self.inner.ob_base,
+        };
+        std::mem::forget(self); // Avoid drop
+        res
     }
 }
 

@@ -22,6 +22,7 @@ Specifically, the following implementation is generated:
 
 ```rust
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
 
 /// Class for demonstration
 struct MyClass {
@@ -33,9 +34,10 @@ impl pyo3::pyclass::PyClassAlloc for MyClass {}
 
 unsafe impl pyo3::PyTypeInfo for MyClass {
     type Type = MyClass;
-    type BaseType = pyo3::types::PyAny;
-    type ConcreteLayout = pyo3::PyCell<Self>;
-    type Initializer = pyo3::PyClassInitializer<Self>;
+    type BaseType = PyAny;
+    type BaseLayout = pyo3::pycell::PyCellBase<PyAny>;
+    type Layout = PyCell<Self>;
+    type Initializer = PyClassInitializer<Self>;
 
     const NAME: &'static str = "MyClass";
     const MODULE: Option<&'static str> = None;
@@ -53,6 +55,7 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
 impl pyo3::pyclass::PyClass for MyClass {
     type Dict = pyo3::pyclass_slots::PyClassDummySlot;
     type WeakRef = pyo3::pyclass_slots::PyClassDummySlot;
+    type BaseNativeType = PyAny;
 }
 
 impl pyo3::IntoPy<PyObject> for MyClass {
@@ -105,18 +108,26 @@ fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 ```
 
-## Get Python objects from `pyclass`
-You sometimes need to convert your `pyclass` into a Python object in Rust code (e.g., for testing it).
+## PyCell and interior mutability
+You sometimes need to convert your `pyclass` into a Python object and access it
+from Rust code (e.g., for testing it).
+`PyCell` is our primary interface for that.
 
-For getting *GIL-bounded* (i.e., with `'py` lifetime) references of `pyclass`,
-you can use `PyCell<T>`.
-Or you can use `Py<T>` directly, for *not-GIL-bounded* references.
+`PyCell<T: PyClass>` is always allocated in the Python heap, so we don't have the ownership of it.
+We can get `&PyCell<T>`, not `PyCell<T>`.
 
-### `PyCell`
-`PyCell` represents the actual layout of `pyclass` on the Python heap.
+Thus, to mutate data behind `&PyCell` safely, we employs
+[Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
+like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
 
-If you want to instantiate `pyclass` in Python and get the reference,
-you can use `PyCell::new_ref` or `PyCell::new_mut`.
+Users who are familiar with `RefCell` can use `PyCell` just like `RefCell`.
+
+For users who doesn't know `RefCell` well, we repeat the Rust's borrowing rule here:
+- At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
+- References must always be valid.
+`PyCell` ensures these borrowing rules by managing a reference counter.
+
+TODO: link to the API document
 
 ```rust
 # use pyo3::prelude::*;
@@ -124,28 +135,31 @@ you can use `PyCell::new_ref` or `PyCell::new_mut`.
 # use pyo3::PyCell;
 #[pyclass]
 struct MyClass {
+   #[pyo3(get)]
    num: i32,
    debug: bool,
 }
 let gil = Python::acquire_gil();
 let py = gil.python();
-let obj = PyCell::new_ref(py, MyClass { num: 3, debug: true }).unwrap();
-// You can use deref
-assert_eq!(obj.num, 3);
-let dict = PyDict::new(py);
-// You can treat a `&PyCell` as a normal Python object
-dict.set_item("obj", obj).unwrap();
-
-// return &mut PyCell<MyClass>
-let obj = PyCell::new_mut(py, MyClass { num: 3, debug: true }).unwrap();
-obj.num = 5;
+let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
+{
+    let obj_ref = obj.borrow(); // Get PyRef
+    assert_eq!(obj_ref.num, 3);
+    // You cannot get PyRefMut unless all PyRef drop
+    assert!(obj.try_borrow_mut().is_err());
+}
+{
+    let mut obj_mut = obj.borrow_mut(); // Get PyRefMut
+    obj_mut.num = 5;
+    // You cannot get PyRef unless all PyRefMut drop
+    assert!(obj.try_borrow().is_err());
+}
+// You can convert `&PyCell` to Python object
+pyo3::py_run!(py, obj, "assert obj.num == 5")
 ```
 
-### `Py`
-
-`Py` is an object wrapper which stores an object longer than the GIL lifetime.
-
-You can use it to avoid lifetime problems.
+`&PyCell<T>` is bouded by the same lifetime as `GILGuard`.
+To avoid this you can use `Py<T>`, which stores an object longer than the GIL lifetime.
 ```rust
 # use pyo3::prelude::*;
 #[pyclass]
@@ -159,7 +173,9 @@ fn return_myclass() -> Py<MyClass> {
 }
 let gil = Python::acquire_gil();
 let obj = return_myclass();
-assert_eq!(obj.as_ref(gil.python()).num, 1);
+let cell = obj.as_ref(gil.python()); // AsPyRef::as_ref returns &PyCell
+let obj_ref = cell.borrow(); // Get PyRef<T>
+assert_eq!(obj_ref.num, 1);
 ```
 
 ## Customizing the class
@@ -228,6 +244,9 @@ baseclass of `T`.
 But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
 
+To get a parent class from child, use `PyRef<T>` instead of `&self`,
+or `PyRefMut<T>` instead of `&mut self`.
+
 ```rust
 # use pyo3::prelude::*;
 use pyo3::PyCell;
@@ -261,8 +280,9 @@ impl SubClass {
        (SubClass{ val2: 15}, BaseClass::new())
    }
 
-   fn method2(self_: &PyCell<Self>) -> PyResult<usize> {
-      self_.get_super().method().map(|x| x * self_.val2)
+   fn method2(self_: PyRef<Self>) -> PyResult<usize> {
+       let super_ = self_.as_super();  // Get &BaseClass
+       super_.method().map(|x| x * self_.val2)
    }
 }
 
@@ -279,16 +299,17 @@ impl SubSubClass {
            .add_subclass(SubSubClass{val3: 20})
    }
 
-   fn method3(self_: &PyCell<Self>) -> PyResult<usize> {
-      let super_ = self_.get_super();
-      SubClass::method2(super_).map(|x| x * self_.val3)
+   fn method3(self_: PyRef<Self>) -> PyResult<usize> {
+      let v = self_.val3;
+      let super_ = self_.into_super();  // Get PyRef<SubClass>
+      SubClass::method2(super_).map(|x| x * v)
    }
 }
 
 
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-# let subsub = pyo3::PyCell::new_ref(py, SubSubClass::new()).unwrap();
+# let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
 
@@ -761,8 +782,8 @@ struct GCTracked {} // Fails because it does not implement PyGCProtocol
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/latest/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(slf: &mut PyCell<Self>) -> PyResult<impl IntoPy<PyObject>>`
-  * `fn __next__(slf: &mut PyCell<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
+  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
   Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 
@@ -779,10 +800,10 @@ struct MyIterator {
 
 #[pyproto]
 impl PyIterProtocol for MyIterator {
-    fn __iter__(slf: &mut PyCell<Self>) -> PyResult<Py<MyIterator>> {
+    fn __iter__(mut slf: PyRefMut<Self>) -> PyResult<Py<MyIterator>> {
         Ok(slf.into())
     }
-    fn __next__(slf: &mut PyCell<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
         Ok(slf.iter.next())
     }
 }
