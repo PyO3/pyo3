@@ -26,7 +26,7 @@ where
     unsafe fn unchecked_ref(&self) -> &T {
         &*((&self) as *const &Self as *const _)
     }
-    unsafe fn unchecked_refmut(&self) -> &mut T {
+    unsafe fn unchecked_mut(&self) -> &mut T {
         &mut *((&self) as *const &Self as *const _ as *mut _)
     }
 }
@@ -64,7 +64,7 @@ unsafe impl<T: PyClass> PyObjectLayout<T> for PyCellInner<T> {
     unsafe fn unchecked_ref(&self) -> &T {
         &*self.value.get()
     }
-    unsafe fn unchecked_refmut(&self) -> &mut T {
+    unsafe fn unchecked_mut(&self) -> &mut T {
         &mut *self.value.get()
     }
     unsafe fn py_init(&mut self, value: T) {
@@ -202,8 +202,8 @@ unsafe impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
     unsafe fn unchecked_ref(&self) -> &T {
         self.inner.unchecked_ref()
     }
-    unsafe fn unchecked_refmut(&self) -> &mut T {
-        self.inner.unchecked_refmut()
+    unsafe fn unchecked_mut(&self) -> &mut T {
+        self.inner.unchecked_mut()
     }
     unsafe fn py_init(&mut self, value: T) {
         self.inner.value = ManuallyDrop::new(UnsafeCell::new(value));
@@ -262,7 +262,7 @@ impl<'p, T> PyRef<'p, T>
 where
     T: PyClass,
 {
-    pub fn as_super(&'p self) -> &'p T::BaseType {
+    pub fn as_super(&self) -> &T::BaseType {
         unsafe { self.inner.ob_base.unchecked_ref() }
     }
 }
@@ -273,11 +273,11 @@ where
     U: PyClass,
 {
     pub fn into_super(self) -> PyRef<'p, U> {
-        let res = PyRef {
-            inner: &self.inner.ob_base,
-        };
-        std::mem::forget(self); // Avoid drop
-        res
+        let PyRef { inner } = self;
+        std::mem::forget(self);
+        PyRef {
+            inner: &inner.ob_base,
+        }
     }
 }
 
@@ -327,11 +327,11 @@ pub struct PyRefMut<'p, T: PyClass> {
 }
 
 impl<'p, T: PyClass> PyRefMut<'p, T> {
-    pub fn as_super(&'p self) -> &'p T::BaseType {
+    pub fn as_super(&self) -> &T::BaseType {
         unsafe { self.inner.ob_base.unchecked_ref() }
     }
-    pub fn as_super_mut(&'p mut self) -> &'p mut T::BaseType {
-        unsafe { self.inner.ob_base.unchecked_refmut() }
+    pub fn as_super_mut(&mut self) -> &mut T::BaseType {
+        unsafe { self.inner.ob_base.unchecked_mut() }
     }
 }
 
@@ -341,11 +341,11 @@ where
     U: PyClass,
 {
     pub fn into_super(self) -> PyRefMut<'p, U> {
-        let res = PyRefMut {
-            inner: &self.inner.ob_base,
-        };
-        std::mem::forget(self); // Avoid drop
-        res
+        let PyRefMut { inner } = self;
+        std::mem::forget(self);
+        PyRefMut {
+            inner: &inner.ob_base,
+        }
     }
 }
 
@@ -361,7 +361,7 @@ impl<'p, T: PyClass> Deref for PyRefMut<'p, T> {
 impl<'p, T: PyClass> DerefMut for PyRefMut<'p, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { self.inner.unchecked_refmut() }
+        unsafe { self.inner.unchecked_mut() }
     }
 }
 

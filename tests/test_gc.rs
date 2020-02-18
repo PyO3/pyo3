@@ -268,8 +268,7 @@ fn inheritance_with_new_methods_with_drop() {
         let obj: &PyCell<SubClassWithDrop> = inst.try_into().unwrap();
         let mut obj_ref_mut = obj.borrow_mut();
         obj_ref_mut.data = Some(Arc::clone(&drop_called1));
-        let super_ = obj_ref_mut.get_super_mut();
-        super_.data = Some(Arc::clone(&drop_called2));
+        obj_ref_mut.as_super_mut().data = Some(Arc::clone(&drop_called2));
     }
 
     assert!(drop_called1.load(Ordering::Relaxed));

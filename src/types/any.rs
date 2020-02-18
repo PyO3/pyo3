@@ -27,7 +27,7 @@ unsafe impl crate::type_object::PyObjectLayout<PyAny> for ffi::PyObject {
     unsafe fn unchecked_ref(&self) -> &PyAny {
         &*((&self) as *const &Self as *const _)
     }
-    unsafe fn unchecked_refmut(&self) -> &mut PyAny {
+    unsafe fn unchecked_mut(&self) -> &mut PyAny {
         &mut *((&self) as *const &Self as *const _ as *mut _)
     }
 }

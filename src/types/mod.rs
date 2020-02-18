@@ -62,7 +62,7 @@ macro_rules! impl_layout {
             unsafe fn unchecked_ref(&self) -> &$name {
                 &*((&self) as *const &Self as *const _)
             }
-            unsafe fn unchecked_refmut(&self) -> &mut $name {
+            unsafe fn unchecked_mut(&self) -> &mut $name {
                 &mut *((&self) as *const &Self as *const _ as *mut _)
             }
         }
