@@ -234,7 +234,7 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
 pub fn build_py_function(ast: &mut syn::ItemFn, args: PyFunctionAttr) -> syn::Result<TokenStream> {
     let python_name =
         parse_name_attribute(&mut ast.attrs)?.unwrap_or_else(|| ast.sig.ident.unraw());
-    Ok(add_fn_to_module(ast, python_name, args.arguments))
+    add_fn_to_module(ast, python_name, args.arguments)
 }
 
 #[cfg(test)]

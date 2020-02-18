@@ -116,7 +116,7 @@ from Rust code (e.g., for testing it).
 `PyCell<T: PyClass>` is always allocated in the Python heap, so we don't have the ownership of it.
 We can get `&PyCell<T>`, not `PyCell<T>`.
 
-Thus, to mutate data behind `&PyCell` safely, we employs
+Thus, to mutate data behind `&PyCell` safely, we employ the
 [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
 like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
 
@@ -145,13 +145,13 @@ let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
 {
     let obj_ref = obj.borrow(); // Get PyRef
     assert_eq!(obj_ref.num, 3);
-    // You cannot get PyRefMut unless all PyRef drop
+    // You cannot get PyRefMut unless all PyRefs are dropped
     assert!(obj.try_borrow_mut().is_err());
 }
 {
     let mut obj_mut = obj.borrow_mut(); // Get PyRefMut
     obj_mut.num = 5;
-    // You cannot get PyRef unless all PyRefMut drop
+    // You cannot get any other refs until the PyRefMut is dropped
     assert!(obj.try_borrow().is_err());
 }
 // You can convert `&PyCell` to Python object

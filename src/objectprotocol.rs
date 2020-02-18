@@ -171,10 +171,10 @@ pub trait ObjectProtocol {
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
 
     /// Gets the Python base object for this object.
-    fn get_base<'py>(&'py self) -> &'py <Self as PyTypeInfo>::BaseType
+    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
     where
         Self: PyTypeInfo,
-        <Self as PyTypeInfo>::BaseType: FromPyPointer<'py>;
+        <Self as PyTypeInfo>::BaseType: for<'py> FromPyPointer<'py>;
 
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
@@ -445,10 +445,10 @@ where
         unsafe { (*self.as_ptr()).ob_type }
     }
 
-    fn get_base<'py>(&'py self) -> &'py <Self as PyTypeInfo>::BaseType
+    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
     where
         Self: PyTypeInfo,
-        <Self as PyTypeInfo>::BaseType: FromPyPointer<'py>,
+        <Self as PyTypeInfo>::BaseType: for<'py> FromPyPointer<'py>,
     {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }

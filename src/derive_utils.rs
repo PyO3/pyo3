@@ -219,7 +219,7 @@ impl GetPropertyValue for PyObject {
     }
 }
 
-/// Utitlities for basetype
+/// Utilities for basetype
 pub trait PyBaseTypeUtils {
     type Dict;
     type WeakRef;

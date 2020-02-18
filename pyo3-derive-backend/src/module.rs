@@ -28,7 +28,7 @@ pub fn py_init(fnname: &Ident, name: &Ident, doc: syn::LitStr) -> TokenStream {
 }
 
 /// Finds and takes care of the #[pyfn(...)] in `#[pymodule]`
-pub fn process_functions_in_module(func: &mut syn::ItemFn) {
+pub fn process_functions_in_module(func: &mut syn::ItemFn) -> syn::Result<()> {
     let mut stmts: Vec<syn::Stmt> = Vec::new();
 
     for stmt in func.block.stmts.iter_mut() {
@@ -36,7 +36,7 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
             if let Some((module_name, python_name, pyfn_attrs)) =
                 extract_pyfn_attrs(&mut func.attrs)
             {
-                let function_to_python = add_fn_to_module(func, python_name, pyfn_attrs);
+                let function_to_python = add_fn_to_module(func, python_name, pyfn_attrs)?;
                 let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
                 let item: syn::ItemFn = syn::parse_quote! {
                     fn block_wrapper() {
@@ -51,18 +51,19 @@ pub fn process_functions_in_module(func: &mut syn::ItemFn) {
     }
 
     func.block.stmts = stmts;
+    Ok(())
 }
 
 /// Transforms a rust fn arg parsed with syn into a method::FnArg
-fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> method::FnArg<'a> {
+fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> syn::Result<method::FnArg<'a>> {
     let (mutability, by_ref, ident) = match *cap.pat {
         syn::Pat::Ident(ref patid) => (&patid.mutability, &patid.by_ref, &patid.ident),
-        _ => panic!("unsupported argument: {:?}", cap.pat),
+        _ => return Err(syn::Error::new_spanned(&cap.pat, "Unsupported argument")),
     };
 
     let py = crate::utils::if_type_is_python(&cap.ty);
     let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
-    method::FnArg {
+    Ok(method::FnArg {
         name: ident,
         mutability,
         by_ref,
@@ -70,7 +71,7 @@ fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> method::FnArg
         optional: opt,
         py,
         reference: method::is_ref(&name, &cap.ty),
-    }
+    })
 }
 
 /// Extracts the data from the #[pyfn(...)] attribute of a function
@@ -131,7 +132,7 @@ pub fn add_fn_to_module(
     func: &mut syn::ItemFn,
     python_name: Ident,
     pyfn_attrs: Vec<pyfunction::Argument>,
-) -> TokenStream {
+) -> syn::Result<TokenStream> {
     let mut arguments = Vec::new();
     let mut self_ = None;
 
@@ -141,21 +142,15 @@ pub fn add_fn_to_module(
                 self_ = Some(recv.mutability.is_some());
             }
             syn::FnArg::Typed(ref cap) => {
-                arguments.push(wrap_fn_argument(cap, &func.sig.ident));
+                arguments.push(wrap_fn_argument(cap, &func.sig.ident)?);
             }
         }
     }
 
     let ty = method::get_return_info(&func.sig.output);
 
-    let text_signature = match utils::parse_text_signature_attrs(&mut func.attrs, &python_name) {
-        Ok(text_signature) => text_signature,
-        Err(err) => return err.to_compile_error(),
-    };
-    let doc = match utils::get_doc(&func.attrs, text_signature, true) {
-        Ok(doc) => doc,
-        Err(err) => return err.to_compile_error(),
-    };
+    let text_signature = utils::parse_text_signature_attrs(&mut func.attrs, &python_name)?;
+    let doc = utils::get_doc(&func.attrs, text_signature, true)?;
 
     let function_wrapper_ident = function_wrapper_ident(&func.sig.ident);
 
@@ -176,7 +171,7 @@ pub fn add_fn_to_module(
 
     let wrapper = function_c_wrapper(&func.sig.ident, &spec);
 
-    let tokens = quote! {
+    Ok(quote! {
         fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::PyObject {
             #wrapper
 
@@ -199,9 +194,7 @@ pub fn add_fn_to_module(
 
             function
         }
-    };
-
-    tokens
+    })
 }
 
 /// Generate static function wrapper (PyCFunction, PyCFunctionWithKeywords)
