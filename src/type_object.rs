@@ -22,6 +22,7 @@ pub unsafe trait PyObjectLayout<T: PyTypeInfo> {
     unsafe fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
     unsafe fn unchecked_ref(&self) -> &T;
+    #[allow(clippy::mut_from_ref)]
     unsafe fn unchecked_mut(&self) -> &mut T;
 }
 
