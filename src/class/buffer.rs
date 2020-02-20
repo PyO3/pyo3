@@ -126,7 +126,7 @@ where
 {
     #[inline]
     fn cb_bf_releasebuffer() -> Option<ffi::releasebufferproc> {
-        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer) -> ()
+        unsafe extern "C" fn wrap<T>(slf: *mut ffi::PyObject, arg1: *mut ffi::Py_buffer)
         where
             T: for<'p> PyBufferReleaseBufferProtocol<'p>,
         {
