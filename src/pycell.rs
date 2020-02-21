@@ -258,11 +258,8 @@ pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-impl<'p, T> PyRef<'p, T>
-where
-    T: PyClass,
-{
-    pub fn as_super(&self) -> &T::BaseType {
+impl<'p, T: PyClass> AsRef<T::BaseType> for PyRef<'p, T> {
+    fn as_ref(&self) -> &T::BaseType {
         unsafe { self.inner.ob_base.unchecked_ref() }
     }
 }
@@ -326,11 +323,14 @@ pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-impl<'p, T: PyClass> PyRefMut<'p, T> {
-    pub fn as_super(&self) -> &T::BaseType {
+impl<'p, T: PyClass> AsRef<T::BaseType> for PyRefMut<'p, T> {
+    fn as_ref(&self) -> &T::BaseType {
         unsafe { self.inner.ob_base.unchecked_ref() }
     }
-    pub fn as_super_mut(&mut self) -> &mut T::BaseType {
+}
+
+impl<'p, T: PyClass> AsMut<T::BaseType> for PyRefMut<'p, T> {
+    fn as_mut(&mut self) -> &mut T::BaseType {
         unsafe { self.inner.ob_base.unchecked_mut() }
     }
 }

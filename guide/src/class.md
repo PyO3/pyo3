@@ -281,7 +281,7 @@ impl SubClass {
    }
 
    fn method2(self_: PyRef<Self>) -> PyResult<usize> {
-       let super_ = self_.as_super();  // Get &BaseClass
+       let super_ = self_.as_ref();  // Get &BaseClass
        super_.method().map(|x| x * self_.val2)
    }
 }
