@@ -1,4 +1,4 @@
-//! Traits and structs for `#[pyclass]`.
+//! Includes `PyCell` implementation.
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
@@ -90,15 +90,21 @@ impl<T: PyClass> PyCellInner<T> {
     }
 }
 
-// TODO(kngwyu): Mutability example
-/// `PyCell` represents the concrete layout of `T: PyClass` when it is converted
-/// to a Python class.
+/// `PyCell` is the container type for [`PyClass`](../pyclass/trait.PyClass.html).
 ///
-/// You can use it to test your `#[pyclass]` correctly works.
+/// From Python side, `PyCell<T>` is the concrete layout of `T: PyClass` in the Python heap,
+/// which means we can convert `*const PyClass<T>` to `*mut ffi::PyObject`.
 ///
+/// From Rust side, `PyCell<T>` is the mutable container of `T`.
+/// Since `PyCell<T: PyClass>` is always on the Python heap, we don't have the ownership of it.
+/// Thus, to mutate the data behind `&PyCell<T>` safely, we employ the
+/// [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
+/// like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
+///
+/// In most cases, `PyCell` is hidden behind `#[pymethods]`.
+/// However, you can construct `&PyCell` directly to test your pyclass in Rust code.
 /// ```
 /// # use pyo3::prelude::*;
-/// # use pyo3::{py_run, PyCell};
 /// #[pyclass]
 /// struct Book {
 ///     #[pyo3(get)]
@@ -112,7 +118,34 @@ impl<T: PyClass> PyCellInner<T> {
 ///     author: "Philip Kindred Dick",
 /// };
 /// let book_cell = PyCell::new(py, book).unwrap();
-/// py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
+/// // you can expose PyCell to Python snippets
+/// pyo3::py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
+/// ```
+/// You can also use `slf: &PyCell<Self>` as an alternative `self` receiver of `#[pymethod]`.
+/// ```
+/// # use pyo3::prelude::*;
+/// use std::collections::HashMap;
+/// #[pyclass]
+/// #[derive(Default)]
+/// struct Counter {
+///     data: HashMap<String, usize>,
+/// }
+/// #[pymethods]
+/// impl Counter {
+///     fn increment(slf: &PyCell<Self>, name: String) -> PyResult<usize> {
+///         let mut slf_mut = slf.try_borrow_mut()?;
+///         // Now a mutable reference exists so we cannot another one
+///         assert!(slf.try_borrow().is_err());
+///         assert!(slf.try_borrow_mut().is_err());
+///         let counter = slf_mut.data.entry(name).or_insert(0);
+///         *counter += 1;
+///         Ok(*counter)
+///     }
+/// }
+/// # let gil = Python::acquire_gil();
+/// # let py = gil.python();
+/// # let counter = PyCell::new(py, Counter::default()).unwrap();
+/// # pyo3::py_run!(py, counter, "assert counter.increment('cat') == 1");
 /// ```
 #[repr(C)]
 pub struct PyCell<T: PyClass> {
@@ -254,6 +287,43 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
     }
 }
 
+/// Wraps a borrowed reference to a value in a `PyCell<T>`.
+///
+/// See the [`PyCell`](struct.PyCell.html) documentation for more.
+/// # Example
+/// You can use `PyRef` as an alternative of `&self` receiver when
+/// - You need to access the pointer of `PyCell`.
+/// - You want to get super class.
+/// ```
+/// # use pyo3::prelude::*;
+/// #[pyclass]
+/// struct Parent {
+///     basename: &'static str,
+/// }
+/// #[pyclass(extends=Parent)]
+/// struct Child {
+///     name: &'static str,
+///  }
+/// #[pymethods]
+/// impl Child {
+///     #[new]
+///     fn new() -> (Self, Parent) {
+///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
+///     }
+///     fn format(slf: PyRef<Self>) -> String {
+///         // We can get *mut ffi::PyObject from PyRef
+///         use pyo3::AsPyPointer;
+///         let refcnt = unsafe { pyo3::ffi::Py_REFCNT(slf.as_ptr()) };
+///         // We can get &Self::BaseType by as_ref
+///         let basename = slf.as_ref().basename;
+///         format!("{}(base: {}, cnt: {})", slf.name, basename, refcnt)
+///     }
+/// }
+/// # let gil = Python::acquire_gil();
+/// # let py = gil.python();
+/// # let sub = PyCell::new(py, Child::new()).unwrap();
+/// # pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)'");
+/// ```
 pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
@@ -319,6 +389,9 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
     }
 }
 
+/// Wraps a mutable borrowed reference to a value in a `PyCell<T>`.
+///
+/// See the [`PyCell`](struct.PyCell.html) and [`PyRef`](struct.PyRef.html) documentations for more.
 pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }

@@ -122,10 +122,10 @@ like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html
 
 Users who are familiar with `RefCell` can use `PyCell` just like `RefCell`.
 
-For users who doesn't know `RefCell` well, we repeat the Rust's borrowing rule here:
+For users who doesn't know `RefCell` well, here we repeat the Rust's borrowing rule:
 - At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
 - References must always be valid.
-`PyCell` ensures these borrowing rules by managing a reference counter.
+`PyCell` ensures these borrowing rules by tracking references at runtime.
 
 TODO: link to the API document
 
