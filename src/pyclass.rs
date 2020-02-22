@@ -1,7 +1,7 @@
 //! `PyClass` trait
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{type_flags, PyObjectLayout};
+use crate::type_object::{type_flags, PyLayout};
 use crate::{class, ffi, gil, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;

@@ -23,7 +23,7 @@ use crate::{ffi, PyObject};
 /// ```
 #[repr(transparent)]
 pub struct PyAny(PyObject, Unsendable);
-unsafe impl crate::type_object::PyObjectLayout<PyAny> for ffi::PyObject {
+unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {
     unsafe fn unchecked_ref(&self) -> &PyAny {
         &*((&self) as *const &Self as *const _)
     }
@@ -31,7 +31,7 @@ unsafe impl crate::type_object::PyObjectLayout<PyAny> for ffi::PyObject {
         &mut *((&self) as *const &Self as *const _ as *mut _)
     }
 }
-impl crate::type_object::PyObjectSizedLayout<PyAny> for ffi::PyObject {}
+impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}
 pyobject_native_type_named!(PyAny);
 pyobject_native_type_convert!(
     PyAny,

@@ -2,7 +2,7 @@
 use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
-use crate::type_object::{PyDowncastImpl, PyObjectLayout, PyObjectSizedLayout, PyTypeInfo};
+use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl, PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyAny;
 use crate::{ffi, FromPy, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
@@ -17,10 +17,10 @@ pub struct PyCellBase<T: PyTypeInfo> {
     borrow_flag: Cell<BorrowFlag>,
 }
 
-unsafe impl<T> PyObjectLayout<T> for PyCellBase<T>
+unsafe impl<T> PyLayout<T> for PyCellBase<T>
 where
     T: PyTypeInfo + PyNativeType,
-    T::Layout: PyObjectSizedLayout<T>,
+    T::Layout: PySizedLayout<T>,
 {
     const IS_NATIVE_TYPE: bool = true;
     unsafe fn unchecked_ref(&self) -> &T {
@@ -31,11 +31,18 @@ where
     }
 }
 
-// This impl ensures `PyCellBase` can be a base type.
-impl<T> PyObjectSizedLayout<T> for PyCellBase<T>
+// Thes impls ensures `PyCellBase` can be a base type.
+impl<T> PySizedLayout<T> for PyCellBase<T>
 where
     T: PyTypeInfo + PyNativeType,
-    T::Layout: PyObjectSizedLayout<T>,
+    T::Layout: PySizedLayout<T>,
+{
+}
+
+unsafe impl<T> PyBorrowFlagLayout<T> for PyCellBase<T>
+where
+    T: PyTypeInfo + PyNativeType,
+    T::Layout: PySizedLayout<T>,
 {
 }
 
@@ -56,7 +63,7 @@ impl<T: PyClass> AsPyPointer for PyCellInner<T> {
     }
 }
 
-unsafe impl<T: PyClass> PyObjectLayout<T> for PyCellInner<T> {
+unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
     const IS_NATIVE_TYPE: bool = false;
     fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.ob_base)
@@ -76,8 +83,9 @@ unsafe impl<T: PyClass> PyObjectLayout<T> for PyCellInner<T> {
     }
 }
 
-// This impl ensures `PyCellInner` can be a base type.
-impl<T: PyClass> PyObjectSizedLayout<T> for PyCellInner<T> {}
+// Thes impls ensures `PyCellInner` can be a base type.
+impl<T: PyClass> PySizedLayout<T> for PyCellInner<T> {}
+unsafe impl<T: PyClass> PyBorrowFlagLayout<T> for PyCellInner<T> {}
 
 impl<T: PyClass> PyCellInner<T> {
     fn get_borrow_flag(&self) -> BorrowFlag {
@@ -164,7 +172,7 @@ impl<T: PyClass> PyCell<T> {
     ///
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self>
     where
-        T::BaseLayout: crate::type_object::PyObjectSizedLayout<T::BaseType>,
+        T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
         unsafe {
             let initializer = value.into();
@@ -325,9 +333,12 @@ impl<T: PyClass> PyCell<T> {
         std::mem::swap(&mut *self.borrow_mut(), &mut *other.borrow_mut())
     }
 
+    /// Allocates new PyCell without initilizing value.
+    /// Requires `T::BaseLayout: PyBorrowFlagLayout<T::BaseType>` to ensure that
+    /// this layout has a borrow flag.
     pub(crate) unsafe fn internal_new(py: Python) -> PyResult<*mut Self>
     where
-        T::BaseLayout: crate::type_object::PyObjectSizedLayout<T::BaseType>,
+        T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
         let base = T::alloc(py);
         if base.is_null() {
@@ -342,7 +353,7 @@ impl<T: PyClass> PyCell<T> {
     }
 }
 
-unsafe impl<T: PyClass> PyObjectLayout<T> for PyCell<T> {
+unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
     const IS_NATIVE_TYPE: bool = false;
     fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.inner.ob_base)
@@ -598,6 +609,7 @@ impl BorrowFlag {
     }
 }
 
+/// An error returned by [`PyCell::try_borrow`](struct.PyCell.html#method.try_borrow).
 pub struct PyBorrowError {
     _private: (),
 }
@@ -614,6 +626,7 @@ impl fmt::Display for PyBorrowError {
     }
 }
 
+/// An error returned by [`PyCell::try_borrow_mut`](struct.PyCell.html#method.try_borrow_mut).
 pub struct PyBorrowMutError {
     _private: (),
 }

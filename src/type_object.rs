@@ -9,12 +9,12 @@ use std::cell::UnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
+/// `T: PyLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
 /// E.g., `PyCell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub unsafe trait PyObjectLayout<T: PyTypeInfo> {
+pub unsafe trait PyLayout<T: PyTypeInfo> {
     const IS_NATIVE_TYPE: bool = true;
     fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
         None
@@ -26,12 +26,14 @@ pub unsafe trait PyObjectLayout<T: PyTypeInfo> {
     unsafe fn unchecked_mut(&self) -> &mut T;
 }
 
-/// `T: PyObjectSizedLayout<U>` represents `T` is not a instance of
+/// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
 /// , in addition that `T` is a concrete representaion of `U`.
-///
-/// `pyclass`es need this trait for their base class.
-pub trait PyObjectSizedLayout<T: PyTypeInfo>: PyObjectLayout<T> + Sized {}
+pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
+
+/// Marker type indicates that `Self` can be a baselayout of PyClass.
+/// This trait assumes a certain layout and thus is unsafe.
+pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 
 /// Our custom type flags
 #[doc(hidden)]
@@ -99,10 +101,10 @@ pub unsafe trait PyTypeInfo: Sized {
     type BaseType: PyTypeInfo + PyTypeObject;
 
     /// Layout
-    type Layout: PyObjectLayout<Self>;
+    type Layout: PyLayout<Self>;
 
     /// Layout of Basetype.
-    type BaseLayout: PyObjectLayout<Self::BaseType>;
+    type BaseLayout: PySizedLayout<Self::BaseType>;
 
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;

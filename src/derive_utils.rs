@@ -223,13 +223,13 @@ impl GetPropertyValue for PyObject {
 pub trait PyBaseTypeUtils {
     type Dict;
     type WeakRef;
-    type Layout;
+    type LayoutAsBase;
     type BaseNativeType;
 }
 
 impl<T: PyClass> PyBaseTypeUtils for T {
     type Dict = T::Dict;
     type WeakRef = T::WeakRef;
-    type Layout = crate::pycell::PyCellInner<T>;
+    type LayoutAsBase = crate::pycell::PyCellInner<T>;
     type BaseNativeType = T::BaseNativeType;
 }

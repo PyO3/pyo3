@@ -58,7 +58,7 @@ macro_rules! pyobject_native_type_named (
 
 macro_rules! impl_layout {
     ($name: ty, $layout: path) => {
-        unsafe impl $crate::type_object::PyObjectLayout<$name> for $layout {
+        unsafe impl $crate::type_object::PyLayout<$name> for $layout {
             unsafe fn unchecked_ref(&self) -> &$name {
                 &*((&self) as *const &Self as *const _)
             }
@@ -73,11 +73,11 @@ macro_rules! impl_layout {
 macro_rules! pyobject_native_type {
     ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         impl_layout!($name, $layout);
-        impl $crate::type_object::PyObjectSizedLayout<$name> for $layout {}
+        impl $crate::type_object::PySizedLayout<$name> for $layout {}
         impl $crate::derive_utils::PyBaseTypeUtils for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type Layout = $crate::pycell::PyCellBase<$name>;
+            type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
             type BaseNativeType = $name;
         }
         pyobject_native_type_named!($name $(,$type_param)*);

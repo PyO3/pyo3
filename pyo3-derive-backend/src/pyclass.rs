@@ -362,7 +362,7 @@ fn impl_class(
         quote! { 0 }
     };
     let base_layout = if attr.has_extends {
-        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::Layout }
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
     } else {
         quote! { pyo3::pycell::PyCellBase<pyo3::types::PyAny> }
     };

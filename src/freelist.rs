@@ -4,7 +4,7 @@
 
 use crate::ffi;
 use crate::pyclass::{tp_free_fallback, PyClassAlloc};
-use crate::type_object::{PyObjectLayout, PyTypeInfo};
+use crate::type_object::{PyLayout, PyTypeInfo};
 use crate::Python;
 use std::mem;
 use std::os::raw::c_void;
