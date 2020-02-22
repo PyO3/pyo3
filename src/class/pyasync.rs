@@ -153,8 +153,7 @@ where
         py_unary_func!(
             PyAsyncAwaitProtocol,
             T::__await__,
-            <T as PyAsyncAwaitProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -181,8 +180,7 @@ where
         py_unary_func!(
             PyAsyncAiterProtocol,
             T::__aiter__,
-            <T as PyAsyncAiterProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -206,17 +204,20 @@ mod anext {
     use crate::IntoPyPointer;
     use crate::Python;
     use crate::{ffi, IntoPy, PyObject};
+    use std::marker::PhantomData;
     use std::ptr;
 
-    pub struct IterANextResultConverter;
+    struct IterANextResultConverter<T>(PhantomData<T>);
 
-    impl<T> CallbackConverter<Option<T>> for IterANextResultConverter
+    impl<T> CallbackConverter for IterANextResultConverter<T>
     where
         T: IntoPy<PyObject>,
     {
-        type R = *mut ffi::PyObject;
+        type Source = Option<T>;
+        type Result = *mut ffi::PyObject;
+        const ERR_VALUE: Self::Result = ptr::null_mut();
 
-        fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
+        fn convert(val: Self::Source, py: Python) -> Self::Result {
             match val {
                 Some(val) => val.into_py(py).into_ptr(),
                 None => unsafe {
@@ -224,11 +225,6 @@ mod anext {
                     ptr::null_mut()
                 },
             }
-        }
-
-        #[inline]
-        fn error_value() -> *mut ffi::PyObject {
-            ptr::null_mut()
         }
     }
 
@@ -241,10 +237,9 @@ mod anext {
             py_unary_func!(
                 PyAsyncAnextProtocol,
                 T::__anext__,
-                Option<T::Success>,
-                IterANextResultConverter,
+                IterANextResultConverter::<T::Success>(std::marker::PhantomData),
                 *mut crate::ffi::PyObject,
-                call_refmut
+                call_mut_with_converter
             )
         }
     }

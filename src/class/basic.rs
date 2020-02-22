@@ -233,8 +233,13 @@ where
 
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
-            let result = call_ref!(slf, __getattr__, arg);
-            crate::callback::cb_convert(PyObjectCallbackConverter, py, result)
+            call_ref_with_converter!(
+                slf,
+                PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData),
+                py,
+                __getattr__,
+                arg
+            )
         }
         Some(wrap::<T>)
     }
@@ -355,8 +360,7 @@ where
         py_unary_func!(
             PyObjectStrProtocol,
             T::__str__,
-            <T as PyObjectStrProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -380,8 +384,7 @@ where
         py_unary_func!(
             PyObjectReprProtocol,
             T::__repr__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -444,8 +447,7 @@ where
         py_unary_func!(
             PyObjectHashProtocol,
             T::__hash__,
-            isize,
-            HashConverter,
+            HashConverter::<isize>(std::marker::PhantomData),
             ffi::Py_hash_t
         )
     }
@@ -470,7 +472,6 @@ where
         py_unary_func!(
             PyObjectBoolProtocol,
             T::__bool__,
-            bool,
             BoolCallbackConverter,
             c_int
         )

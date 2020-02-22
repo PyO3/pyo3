@@ -80,8 +80,7 @@ where
         py_unary_refmut_func!(
             PyIterIterProtocol,
             T::__iter__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -108,21 +107,22 @@ where
         py_unary_refmut_func!(
             PyIterNextProtocol,
             T::__next__,
-            Option<T::Success>,
-            IterNextConverter
+            IterNextConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
 
-struct IterNextConverter;
+struct IterNextConverter<T>(std::marker::PhantomData<T>);
 
-impl<T> CallbackConverter<Option<T>> for IterNextConverter
+impl<T> CallbackConverter for IterNextConverter<T>
 where
     T: IntoPy<PyObject>,
 {
-    type R = *mut ffi::PyObject;
+    type Source = Option<T>;
+    type Result = *mut ffi::PyObject;
+    const ERR_VALUE: Self::Result = ptr::null_mut();
 
-    fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
+    fn convert(val: Self::Source, py: Python) -> Self::Result {
         match val {
             Some(val) => val.into_py(py).into_ptr(),
             None => unsafe {
@@ -130,10 +130,5 @@ where
                 ptr::null_mut()
             },
         }
-    }
-
-    #[inline]
-    fn error_value() -> *mut ffi::PyObject {
-        ptr::null_mut()
     }
 }

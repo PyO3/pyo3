@@ -87,8 +87,7 @@ where
         py_ternary_func!(
             PyDescrGetProtocol,
             T::__get__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -109,13 +108,7 @@ where
     T: for<'p> PyDescrSetProtocol<'p>,
 {
     fn tp_descr_set() -> Option<ffi::descrsetfunc> {
-        py_ternary_func!(
-            PyDescrSetProtocol,
-            T::__set__,
-            (),
-            UnitCallbackConverter,
-            c_int
-        )
+        py_ternary_func!(PyDescrSetProtocol, T::__set__, UnitCallbackConverter, c_int)
     }
 }
 

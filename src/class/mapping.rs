@@ -167,8 +167,7 @@ where
         py_binary_func!(
             PyMappingGetItemProtocol,
             T::__getitem__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }

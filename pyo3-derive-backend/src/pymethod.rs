@@ -115,8 +115,7 @@ fn impl_wrap_common(
                     pyo3::derive_utils::IntoPyResult::into_py_result(#body)
                 };
 
-                pyo3::callback::cb_convert(
-                    pyo3::callback::PyObjectCallbackConverter, _py, _result)
+                pyo3::callback::cb_obj_convert(_py, _result)
             }
         }
     } else {
@@ -138,8 +137,7 @@ fn impl_wrap_common(
 
                 #body
 
-                pyo3::callback::cb_convert(
-                    pyo3::callback::PyObjectCallbackConverter, _py, _result)
+                pyo3::callback::cb_obj_convert(_py, _result)
             }
         }
     }
@@ -169,8 +167,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }
@@ -237,8 +234,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }
@@ -267,8 +263,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }

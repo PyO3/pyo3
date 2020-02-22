@@ -221,8 +221,7 @@ fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }
