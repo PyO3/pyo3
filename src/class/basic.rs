@@ -507,19 +507,21 @@ where
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
-            let res = match extract_op(op) {
-                Ok(op) => match arg.extract() {
-                    Ok(arg) => match slf.try_borrow_unguarded() {
-                        Ok(borrow) => borrow.__richcmp__(arg, op).into(),
-                        Err(e) => Err(e.into()),
-                    },
-                    Err(e) => Err(e),
-                },
-                Err(e) => Err(e),
-            };
-            match res {
-                Ok(val) => val.into_py(py).into_ptr(),
-                Err(e) => e.restore_and_null(py),
+            match slf.try_borrow() {
+                Ok(borrowed_slf) => {
+                    let res = match extract_op(op) {
+                        Ok(op) => match arg.extract() {
+                            Ok(arg) => borrowed_slf.__richcmp__(arg, op).into(),
+                            Err(e) => Err(e),
+                        },
+                        Err(e) => Err(e),
+                    };
+                    match res {
+                        Ok(val) => val.into_py(py).into_ptr(),
+                        Err(e) => e.restore_and_null(py),
+                    }
+                }
+                Err(e) => PyErr::from(e).restore_and_null(py),
             }
         }
         Some(wrap::<T>)

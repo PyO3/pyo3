@@ -264,25 +264,27 @@ mod sq_ass_item_impl {
                 let _pool = crate::GILPool::new(py);
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
-                let result = if value.is_null() {
-                    Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
+                if value.is_null() {
+                    return PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item deletion is not supported by {:?}",
                         stringify!(T)
-                    )))
-                } else {
-                    let value = py.from_borrowed_ptr::<PyAny>(value);
-                    match value.extract() {
-                        Ok(value) => match slf.try_borrow_mut_unguarded() {
-                            Ok(slf_) => slf_.__setitem__(key.into(), value).into(),
-                            Err(e) => e.into(),
-                        },
-                        Err(e) => Err(e),
-                    }
-                };
+                    ))
+                    .restore_and_minus1(py);
+                }
 
-                match result {
-                    Ok(_) => 0,
-                    Err(e) => e.restore_and_minus1(py),
+                match slf.try_borrow_mut() {
+                    Ok(mut slf) => {
+                        let value = py.from_borrowed_ptr::<PyAny>(value);
+                        let result = match value.extract() {
+                            Ok(value) => slf.__setitem__(key.into(), value).into(),
+                            Err(e) => e.into(),
+                        };
+                        match result {
+                            Ok(_) => 0,
+                            Err(e) => e.restore_and_minus1(py),
+                        }
+                    }
+                    Err(e) => PyErr::from(e).restore_and_minus1(py),
                 }
             }
             Some(wrap::<T>)
@@ -371,12 +373,12 @@ mod sq_ass_item_impl {
                     call_mut!(slf, __delitem__; key.into())
                 } else {
                     let value = py.from_borrowed_ptr::<PyAny>(value);
-                    match value.extract() {
-                        Ok(value) => match slf.try_borrow_mut_unguarded() {
-                            Ok(slf_) => slf_.__setitem__(key.into(), value).into(),
-                            Err(e) => e.into(),
+                    match slf.try_borrow_mut() {
+                        Ok(mut slf_) => match value.extract() {
+                            Ok(value) => slf_.__setitem__(key.into(), value).into(),
+                            Err(e) => Err(e),
                         },
-                        Err(e) => Err(e),
+                        Err(e) => Err(e.into()),
                     }
                 };
                 match result {

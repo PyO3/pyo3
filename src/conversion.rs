@@ -259,8 +259,7 @@ where
 {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         let cell: &PyCell<Self> = PyTryFrom::try_from(obj)?;
-        let ref_ = unsafe { cell.try_borrow_unguarded()? };
-        Ok(ref_.clone())
+        Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
     }
 }
 
