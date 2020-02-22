@@ -101,8 +101,11 @@ impl<T: PyClass> PyCellInner<T> {
 /// [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
 /// like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
 ///
+/// # Examples
+///
 /// In most cases, `PyCell` is hidden behind `#[pymethods]`.
 /// However, you can construct `&PyCell` directly to test your pyclass in Rust code.
+///
 /// ```
 /// # use pyo3::prelude::*;
 /// #[pyclass]
@@ -121,23 +124,25 @@ impl<T: PyClass> PyCellInner<T> {
 /// // you can expose PyCell to Python snippets
 /// pyo3::py_run!(py, book_cell, "assert book_cell.name[-6:] == 'Castle'");
 /// ```
-/// You can also use `slf: &PyCell<Self>` as an alternative `self` receiver of `#[pymethod]`.
+/// You can use `slf: &PyCell<Self>` as an alternative `self` receiver of `#[pymethod]`,
+/// though you rarely need it.
 /// ```
 /// # use pyo3::prelude::*;
 /// use std::collections::HashMap;
 /// #[pyclass]
 /// #[derive(Default)]
 /// struct Counter {
-///     data: HashMap<String, usize>,
+///     counter: HashMap<String, usize>
 /// }
 /// #[pymethods]
 /// impl Counter {
+///     // You can use &mut self here, but now we use &PyCell for demonstration
 ///     fn increment(slf: &PyCell<Self>, name: String) -> PyResult<usize> {
 ///         let mut slf_mut = slf.try_borrow_mut()?;
-///         // Now a mutable reference exists so we cannot another one
+///         // Now a mutable reference exists so we cannot get another one
 ///         assert!(slf.try_borrow().is_err());
 ///         assert!(slf.try_borrow_mut().is_err());
-///         let counter = slf_mut.data.entry(name).or_insert(0);
+///         let counter = slf_mut.counter.entry(name).or_insert(0);
 ///         *counter += 1;
 ///         Ok(*counter)
 ///     }
@@ -156,6 +161,7 @@ pub struct PyCell<T: PyClass> {
 
 impl<T: PyClass> PyCell<T> {
     /// Make new `PyCell` on the Python heap and returns the reference of it.
+    ///
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<&Self>
     where
         T::BaseLayout: crate::type_object::PyObjectSizedLayout<T::BaseType>,
@@ -167,14 +173,50 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
+    /// Immutably borrows the value `T`. This borrow lasts untill the returned `PyRef` exists.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow`](#method.try_borrow).
     pub fn borrow(&self) -> PyRef<'_, T> {
         self.try_borrow().expect("Already mutably borrowed")
     }
 
+    /// Mutably borrows the value `T`. This borrow lasts untill the returned `PyRefMut` exists.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is currently mutably borrowed. For a non-panicking variant, use
+    /// [`try_borrow_mut`](#method.try_borrow_mut).
     pub fn borrow_mut(&self) -> PyRefMut<'_, T> {
         self.try_borrow_mut().expect("Already borrowed")
     }
 
+    /// Immutably borrows the value `T`, returning an error if the value is currently
+    /// mutably borrowed. This borrow lasts untill the returned `PyRef` exists.
+    ///
+    /// This is the non-panicking variant of [`borrow`](#method.borrow).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass]
+    /// struct Class {}
+    /// let gil = Python::acquire_gil();
+    /// let py = gil.python();
+    /// let c = PyCell::new(py, Class {}).unwrap();
+    /// {
+    ///     let m = c.borrow_mut();
+    ///     assert!(c.try_borrow().is_err());
+    /// }
+    ///
+    /// {
+    ///     let m = c.borrow();
+    ///     assert!(c.try_borrow().is_ok());
+    /// }
+    /// ```
     pub fn try_borrow(&self) -> Result<PyRef<'_, T>, PyBorrowError> {
         let flag = self.inner.get_borrow_flag();
         if flag == BorrowFlag::HAS_MUTABLE_BORROW {
@@ -185,6 +227,27 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
+    /// Mutably borrows the value `T`, returning an error if the value is currently borrowed.
+    /// This borrow lasts untill the returned `PyRefMut` exists.
+    ///
+    /// This is the non-panicking variant of [`borrow_mut`](#method.borrow_mut).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass]
+    /// struct Class {}
+    /// let gil = Python::acquire_gil();
+    /// let py = gil.python();
+    /// let c = PyCell::new(py, Class {}).unwrap();
+    /// {
+    ///     let m = c.borrow();
+    ///     assert!(c.try_borrow_mut().is_err());
+    /// }
+    ///
+    /// assert!(c.try_borrow_mut().is_ok());
+    /// ```
     pub fn try_borrow_mut(&self) -> Result<PyRefMut<'_, T>, PyBorrowMutError> {
         if self.inner.get_borrow_flag() != BorrowFlag::UNUSED {
             Err(PyBorrowMutError { _private: () })
@@ -194,6 +257,35 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
+    /// Immutably borrows the value `T`, returning an error if the value is
+    /// currently mutably borrowed.
+    ///
+    /// # Safety
+    ///
+    /// This method is unsafe because it does not return a `PyRef`,
+    /// thus leaving the borrow flag untouched. Mutably borrowing the `PyCell`
+    /// while the reference returned by this method is alive is undefined behaviour.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass]
+    /// struct Class {}
+    /// let gil = Python::acquire_gil();
+    /// let py = gil.python();
+    /// let c = PyCell::new(py, Class {}).unwrap();
+    ///
+    /// {
+    ///     let m = c.borrow_mut();
+    ///     assert!(unsafe { c.try_borrow_unguarded() }.is_err());
+    /// }
+    ///
+    /// {
+    ///     let m = c.borrow();
+    ///     assert!(unsafe { c.try_borrow_unguarded() }.is_ok());
+    /// }
+    /// ```
     pub unsafe fn try_borrow_unguarded(&self) -> Result<&T, PyBorrowError> {
         if self.inner.get_borrow_flag() == BorrowFlag::HAS_MUTABLE_BORROW {
             Err(PyBorrowError { _private: () })
@@ -202,12 +294,35 @@ impl<T: PyClass> PyCell<T> {
         }
     }
 
-    pub unsafe fn try_borrow_mut_unguarded(&self) -> Result<&mut T, PyBorrowMutError> {
-        if self.inner.get_borrow_flag() != BorrowFlag::UNUSED {
-            Err(PyBorrowMutError { _private: () })
-        } else {
-            Ok(&mut *self.inner.value.get())
-        }
+    /// Replaces the wrapped value with a new one, returning the old value,
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is currently borrowed.
+    #[inline]
+    pub fn replace(&self, t: T) -> T {
+        std::mem::replace(&mut *self.borrow_mut(), t)
+    }
+
+    /// Replaces the wrapped value with a new one computed from `f`, returning the old value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is currently borrowed.
+    pub fn replace_with<F: FnOnce(&mut T) -> T>(&self, f: F) -> T {
+        let mut_borrow = &mut *self.borrow_mut();
+        let replacement = f(mut_borrow);
+        std::mem::replace(mut_borrow, replacement)
+    }
+
+    /// Swaps the wrapped value of `self` with the wrapped value of `other`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value in either `PyCell` is currently borrowed.
+    #[inline]
+    pub fn swap(&self, other: &Self) {
+        std::mem::swap(&mut *self.borrow_mut(), &mut *other.borrow_mut())
     }
 
     pub(crate) unsafe fn internal_new(py: Python) -> PyResult<*mut Self>
