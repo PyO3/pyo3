@@ -272,19 +272,19 @@ mod sq_ass_item_impl {
                     .restore_and_minus1(py);
                 }
 
-                match slf.try_borrow_mut() {
+                let result = match slf.try_borrow_mut() {
                     Ok(mut slf) => {
                         let value = py.from_borrowed_ptr::<PyAny>(value);
-                        let result = match value.extract() {
+                        match value.extract() {
                             Ok(value) => slf.__setitem__(key.into(), value).into(),
                             Err(e) => e.into(),
-                        };
-                        match result {
-                            Ok(_) => 0,
-                            Err(e) => e.restore_and_minus1(py),
                         }
                     }
-                    Err(e) => PyErr::from(e).restore_and_minus1(py),
+                    Err(e) => Err(PyErr::from(e)),
+                };
+                match result {
+                    Ok(_) => 0,
+                    Err(e) => e.restore_and_minus1(py),
                 }
             }
             Some(wrap::<T>)
