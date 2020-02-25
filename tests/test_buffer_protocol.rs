@@ -1,33 +1,39 @@
+use pyo3::buffer::PyBuffer;
 use pyo3::class::PyBufferProtocol;
 use pyo3::exceptions::BufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use pyo3::AsPyPointer;
 use std::ffi::CStr;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[pyclass]
-struct TestClass {
+struct TestBufferClass {
     vec: Vec<u8>,
+    drop_called: Arc<AtomicBool>,
 }
 
 #[pyproto]
-impl PyBufferProtocol for TestClass {
-    fn bf_getbuffer(&self, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
+impl PyBufferProtocol for TestBufferClass {
+    fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
             return Err(BufferError::py_err("View is null"));
-        }
-
-        unsafe {
-            (*view).obj = ptr::null_mut();
         }
 
         if (flags & ffi::PyBUF_WRITABLE) == ffi::PyBUF_WRITABLE {
             return Err(BufferError::py_err("Object is not writable"));
         }
 
-        let bytes = &self.vec;
+        unsafe {
+            (*view).obj = slf.as_ptr();
+            ffi::Py_INCREF((*view).obj);
+        }
+
+        let bytes = &slf.vec;
 
         unsafe {
             (*view).buf = bytes.as_ptr() as *mut c_void;
@@ -58,21 +64,68 @@ impl PyBufferProtocol for TestClass {
 
         Ok(())
     }
+
+    fn bf_releasebuffer(_slf: PyRefMut<Self>, _view: *mut ffi::Py_buffer) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+impl Drop for TestBufferClass {
+    fn drop(&mut self) {
+        print!("dropped");
+        self.drop_called.store(true, Ordering::Relaxed);
+    }
 }
 
 #[test]
 fn test_buffer() {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+    let drop_called = Arc::new(AtomicBool::new(false));
 
-    let t = Py::new(
-        py,
-        TestClass {
-            vec: vec![b' ', b'2', b'3'],
-        },
-    )
-    .unwrap();
+    {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let instance = Py::new(
+            py,
+            TestBufferClass {
+                vec: vec![b' ', b'2', b'3'],
+                drop_called: drop_called.clone(),
+            },
+        )
+        .unwrap();
+        let env = [("ob", instance)].into_py_dict(py);
+        py.run("assert bytes(ob) == b' 23'", None, Some(env))
+            .unwrap();
+    }
 
-    let d = [("ob", t)].into_py_dict(py);
-    py.run("assert bytes(ob) == b' 23'", None, Some(d)).unwrap();
+    assert!(drop_called.load(Ordering::Relaxed));
+}
+
+#[test]
+fn test_buffer_referenced() {
+    let drop_called = Arc::new(AtomicBool::new(false));
+
+    let buf = {
+        let input = vec![b' ', b'2', b'3'];
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let instance: PyObject = TestBufferClass {
+            vec: input.clone(),
+            drop_called: drop_called.clone(),
+        }
+        .into_py(py);
+
+        let buf = PyBuffer::get(py, instance.as_ref(py)).unwrap();
+        assert_eq!(buf.to_vec::<u8>(py).unwrap(), input);
+        drop(instance);
+        buf
+    };
+
+    assert!(!drop_called.load(Ordering::Relaxed));
+
+    {
+        let _py = Python::acquire_gil().python();
+        drop(buf);
+    }
+
+    assert!(drop_called.load(Ordering::Relaxed));
 }
