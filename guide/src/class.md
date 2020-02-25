@@ -111,7 +111,7 @@ fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
 ## PyCell and interior mutability
 You sometimes need to convert your `pyclass` into a Python object and access it
 from Rust code (e.g., for testing it).
-`PyCell` is our primary interface for that.
+[`PyCell`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html) is our primary interface for that.
 
 `PyCell<T: PyClass>` is always allocated in the Python heap, so we don't have the ownership of it.
 We can get `&PyCell<T>`, not `PyCell<T>`.
@@ -127,12 +127,9 @@ For users who doesn't know `RefCell` well, here we repeat the Rust's borrowing r
 - References must always be valid.
 `PyCell` ensures these borrowing rules by tracking references at runtime.
 
-TODO: link to the API document
-
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::types::PyDict;
-# use pyo3::PyCell;
 #[pyclass]
 struct MyClass {
    #[pyo3(get)]
@@ -153,6 +150,7 @@ let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
     obj_mut.num = 5;
     // You cannot get any other refs until the PyRefMut is dropped
     assert!(obj.try_borrow().is_err());
+    assert!(obj.try_borrow_mut().is_err());
 }
 // You can convert `&PyCell` to Python object
 pyo3::py_run!(py, obj, "assert obj.num == 5")
@@ -808,10 +806,6 @@ impl PyIterProtocol for MyIterator {
     }
 }
 ```
-
-## Manually implementing pyclass
-
-TODO: Which traits to implement (basically `PyTypeCreate: PyObjectAlloc + PyTypeInfo + PyMethodsProtocol + Sized`) and what they mean.
 
 ## How methods are implemented
 
