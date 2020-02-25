@@ -465,6 +465,43 @@ where
     T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
     U: PyClass,
 {
+    /// Get `PyRef<T::BaseType>`.
+    /// You can use this method to get super class of super class.
+    ///
+    /// # Examples
+    /// ```
+    /// # use pyo3::prelude::*;
+    /// #[pyclass]
+    /// struct Base1 {
+    ///     name1: &'static str,
+    /// }
+    /// #[pyclass(extends=Base1)]
+    /// struct Base2 {
+    ///     name2: &'static str,
+    ///  }
+    /// #[pyclass(extends=Base2)]
+    /// struct Sub {
+    ///     name3: &'static str,
+    ///  }
+    /// #[pymethods]
+    /// impl Sub {
+    ///     #[new]
+    ///     fn new() -> PyClassInitializer<Self> {
+    ///         PyClassInitializer::from(Base1{ name1: "base1" })
+    ///             .add_subclass(Base2 { name2: "base2" })
+    ///             .add_subclass(Self { name3: "sub" })
+    ///     }
+    ///     fn name(slf: PyRef<Self>) -> String {
+    ///         let subname = slf.name3;
+    ///         let super_ = slf.into_super();
+    ///         format!("{} {} {}", super_.as_ref().name1, super_.name2, subname)
+    ///     }
+    /// }
+    /// # let gil = Python::acquire_gil();
+    /// # let py = gil.python();
+    /// # let sub = PyCell::new(py, Sub::new()).unwrap();
+    /// # pyo3::py_run!(py, sub, "assert sub.name() == 'base1 base2 sub'")
+    /// ```
     pub fn into_super(self) -> PyRef<'p, U> {
         let PyRef { inner } = self;
         std::mem::forget(self);
@@ -539,6 +576,8 @@ where
     T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
     U: PyClass,
 {
+    /// Get `PyRef<T::BaseType>`.
+    /// See  [`PyRef::into_super`](struct.PyRef.html#method.into_super) for more.
     pub fn into_super(self) -> PyRefMut<'p, U> {
         let PyRefMut { inner } = self;
         std::mem::forget(self);

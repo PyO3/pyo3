@@ -54,13 +54,14 @@ pub mod type_flags {
     pub const EXTENDED: usize = 1 << 4;
 }
 
-/// Reference abstraction for `PyClass` and `PyNativeType`.
+/// Reference abstraction for `PyClass` and `PyNativeType`. Used internaly.
 // DEVELOPPER NOTE(kngwyu):
 // `&PyCell` is a pointer but `&PyAny` is a pointer of a pointer, so we need
 // two different abstraction for them.
 // This mismatch eventually should be fixed with https://github.com/PyO3/pyo3/issues/679,
 // but now it's not the time.
 pub unsafe trait PyDowncastImpl {
+    /// Cast `&PyAny` to `&Self` without no type checking.
     unsafe fn unchecked_downcast(obj: &PyAny) -> &Self;
     private_decl! {}
 }

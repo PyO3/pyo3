@@ -35,7 +35,11 @@ unsafe impl<T> Send for Py<T> {}
 unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T> {
-    /// Create new instance of T and move it under python management
+    /// Create a new instance `Py<T>`.
+    ///
+    /// This method is **soft-duplicated** since PyO3 0.9.0.
+    /// Use [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and
+    /// `Py::from` instead.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
     where
         T: PyClass,
@@ -118,6 +122,36 @@ impl<T> Py<T> {
     }
 }
 
+/// Retrives `&'py` types from `Py<T>` or `PyObject`.
+///
+/// # Examples
+/// `PyObject::as_ref` returns `&PyAny`.
+/// ```
+/// # use pyo3::prelude::*;
+/// use pyo3::ObjectProtocol;
+/// let obj: PyObject = {
+///     let gil = Python::acquire_gil();
+///     let py = gil.python();
+///     py.eval("[]", None, None).unwrap().to_object(py)
+/// };
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
+/// ```
+/// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`
+/// for `#[pyclass]`.
+/// ```
+/// # use pyo3::prelude::*;
+/// use pyo3::ObjectProtocol;
+/// let obj: PyObject = {
+///     let gil = Python::acquire_gil();
+///     let py = gil.python();
+///     py.eval("[]", None, None).unwrap().to_object(py)
+/// };
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
+/// ```
 pub trait AsPyRef: Sized {
     type Target;
     /// Return reference to object.

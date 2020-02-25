@@ -300,6 +300,8 @@ where
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
+/// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
+///
 /// This trait is similar to `std::convert::TryFrom`
 pub trait PyTryFrom<'v>: Sized + PyDowncastImpl {
     /// Cast from a concrete Python object type to PyObject.
