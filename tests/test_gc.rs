@@ -208,6 +208,24 @@ fn weakref_support() {
     );
 }
 
+// If the base class has weakref support, child class also has weakref.
+#[pyclass(extends=WeakRefSupport)]
+struct InheritWeakRef {
+    _value: usize,
+}
+
+#[test]
+fn inherited_weakref() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, (InheritWeakRef { _value: 0 }, WeakRefSupport {})).unwrap();
+    py_run!(
+        py,
+        inst,
+        "import weakref; assert weakref.ref(inst)() is inst"
+    );
+}
+
 #[pyclass]
 struct BaseClassWithDrop {
     data: Option<Arc<AtomicBool>>,

@@ -497,6 +497,27 @@ fn access_dunder_dict() {
     );
 }
 
+// If the base class has dict support, child class also has dict
+#[pyclass(extends=DunderDictSupport)]
+struct InheritDict {
+    _value: usize,
+}
+
+#[test]
+fn inherited_dict() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let inst = PyCell::new(py, (InheritDict { _value: 0 }, DunderDictSupport {})).unwrap();
+    py_run!(
+        py,
+        inst,
+        r#"
+        inst.a = 1
+        assert inst.__dict__ == {'a': 1}
+    "#
+    );
+}
+
 #[pyclass(weakref, dict)]
 struct WeakRefDunderDictSupport {}
 
