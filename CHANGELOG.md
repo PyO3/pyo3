@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * The implementation for `IntoPy<U> for T` where `U: FromPy<T>` is no longer specializable. Control the behavior of this via the implementation of `FromPy`. [#713](https://github.com/PyO3/pyo3/pull/713)
 * Use `parking_lot::Mutex` instead of `spin::Mutex`. [#734](https://github.com/PyO3/pyo3/pull/734)
 * Bumped minimum Rust version to `1.42.0-nightly 2020-01-21`. [#761](https://github.com/PyO3/pyo3/pull/761)
+* `PyClassShell` is renamed `PyCell` and has RefCell-like features. [#770](https://github.com/PyO3/pyo3/pull/770)
 
 ### Added
 
@@ -24,6 +25,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `FromPyObject` is now automatically implemented for `T: Clone` pyclasses. [#730](https://github.com/PyO3/pyo3/pull/730)
 * `#[pyo3(get)]` and `#[pyo3(set)]` will now use the Rust doc-comment from the field for the Python property. [#755](https://github.com/PyO3/pyo3/pull/755)
 * `#[setter]` functions may now take an argument of `Pyo3::Python`. [#760](https://github.com/PyO3/pyo3/pull/760)
+* New `PyRef` and `PyRefMut`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* `PyTypeInfo::BaseLayout` and `PyClass::BaseNativeType`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* `PyDowncastImpl`. [#770](https://github.com/PyO3/pyo3/pull/770)
 
 ### Fixed
 
@@ -38,6 +42,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `PyRef`, `PyRefMut`, `PyRawObject`. [#683](https://github.com/PyO3/pyo3/pull/683)
 * `PyNoArgsFunction`. [#741](https://github.com/PyO3/pyo3/pull/741)
 * `initialize_type()`. To set the module name for a `#[pyclass]`, use the `module` argument to the macro. #[751](https://github.com/PyO3/pyo3/pull/751)
+* `AsPyRef::as_mut/with/with_mut/into_py/into_mut_py`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* `PyTryFrom::try_from_mut/try_from_mut_exact/try_from_mut_unchecked`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* `Python::mut_from_owned_ptr/mut_from_borrowed_ptr`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* `ObjectProtocol::get_mut_base`. [#770](https://github.com/PyO3/pyo3/pull/770)
 
 ## [0.8.5]
 
