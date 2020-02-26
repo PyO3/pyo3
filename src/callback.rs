@@ -13,7 +13,7 @@ use std::{isize, ptr};
 /// Convert the result of callback function into the appropriate return value.
 pub trait CallbackConverter {
     type Source;
-    type Result;
+    type Result: Copy;
     const ERR_VALUE: Self::Result;
 
     fn convert(s: Self::Source, py: Python) -> Self::Result;
@@ -143,6 +143,7 @@ where
     C::convert_result(py, value)
 }
 
+// Same as cb_convert(PyObjectCallbackConverter<T>, py, value)
 #[inline]
 pub fn cb_obj_convert<T: IntoPy<PyObject>>(
     py: Python,
