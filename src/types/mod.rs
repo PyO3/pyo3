@@ -59,11 +59,8 @@ macro_rules! pyobject_native_type_named (
 macro_rules! impl_layout {
     ($name: ty, $layout: path) => {
         unsafe impl $crate::type_object::PyLayout<$name> for $layout {
-            unsafe fn unchecked_ref(&self) -> &$name {
-                &*((&self) as *const &Self as *const _)
-            }
-            unsafe fn unchecked_mut(&self) -> &mut $name {
-                &mut *((&self) as *const &Self as *const _ as *mut _)
+            unsafe fn get_ptr(&self) -> *mut $name {
+                (&self) as *const &Self as *const _ as *mut _
             }
         }
     };

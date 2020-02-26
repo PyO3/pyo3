@@ -24,11 +24,8 @@ use crate::{ffi, PyObject};
 #[repr(transparent)]
 pub struct PyAny(PyObject, Unsendable);
 unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {
-    unsafe fn unchecked_ref(&self) -> &PyAny {
-        &*((&self) as *const &Self as *const _)
-    }
-    unsafe fn unchecked_mut(&self) -> &mut PyAny {
-        &mut *((&self) as *const &Self as *const _ as *mut _)
+    unsafe fn get_ptr(&self) -> *mut PyAny {
+        (&self) as *const &Self as *const _ as *mut _
     }
 }
 impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}

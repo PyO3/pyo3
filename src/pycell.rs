@@ -23,11 +23,8 @@ where
     T::Layout: PySizedLayout<T>,
 {
     const IS_NATIVE_TYPE: bool = true;
-    unsafe fn unchecked_ref(&self) -> &T {
-        &*((&self) as *const &Self as *const _)
-    }
-    unsafe fn unchecked_mut(&self) -> &mut T {
-        &mut *((&self) as *const &Self as *const _ as *mut _)
+    unsafe fn get_ptr(&self) -> *mut T {
+        (&self) as *const &Self as *const _ as *mut _
     }
 }
 
@@ -68,11 +65,8 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
     fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.ob_base)
     }
-    unsafe fn unchecked_ref(&self) -> &T {
-        &*self.value.get()
-    }
-    unsafe fn unchecked_mut(&self) -> &mut T {
-        &mut *self.value.get()
+    unsafe fn get_ptr(&self) -> *mut T {
+        self.value.get()
     }
     unsafe fn py_init(&mut self, value: T) {
         self.value = ManuallyDrop::new(UnsafeCell::new(value));
@@ -358,11 +352,8 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
     fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.inner.ob_base)
     }
-    unsafe fn unchecked_ref(&self) -> &T {
-        self.inner.unchecked_ref()
-    }
-    unsafe fn unchecked_mut(&self) -> &mut T {
-        self.inner.unchecked_mut()
+    unsafe fn get_ptr(&self) -> *mut T {
+        self.inner.get_ptr()
     }
     unsafe fn py_init(&mut self, value: T) {
         self.inner.value = ManuallyDrop::new(UnsafeCell::new(value));
@@ -456,7 +447,7 @@ pub struct PyRef<'p, T: PyClass> {
 
 impl<'p, T: PyClass> AsRef<T::BaseType> for PyRef<'p, T> {
     fn as_ref(&self) -> &T::BaseType {
-        unsafe { self.inner.ob_base.unchecked_ref() }
+        unsafe { &*self.inner.ob_base.get_ptr() }
     }
 }
 
@@ -516,7 +507,7 @@ impl<'p, T: PyClass> Deref for PyRef<'p, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { self.inner.unchecked_ref() }
+        unsafe { &*self.inner.get_ptr() }
     }
 }
 
@@ -561,13 +552,13 @@ pub struct PyRefMut<'p, T: PyClass> {
 
 impl<'p, T: PyClass> AsRef<T::BaseType> for PyRefMut<'p, T> {
     fn as_ref(&self) -> &T::BaseType {
-        unsafe { self.inner.ob_base.unchecked_ref() }
+        unsafe { &*self.inner.ob_base.get_ptr() }
     }
 }
 
 impl<'p, T: PyClass> AsMut<T::BaseType> for PyRefMut<'p, T> {
     fn as_mut(&mut self) -> &mut T::BaseType {
-        unsafe { self.inner.ob_base.unchecked_mut() }
+        unsafe { &mut *self.inner.ob_base.get_ptr() }
     }
 }
 
@@ -592,14 +583,14 @@ impl<'p, T: PyClass> Deref for PyRefMut<'p, T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        unsafe { self.inner.unchecked_ref() }
+        unsafe { &*self.inner.get_ptr() }
     }
 }
 
 impl<'p, T: PyClass> DerefMut for PyRefMut<'p, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { self.inner.unchecked_mut() }
+        unsafe { &mut *self.inner.get_ptr() }
     }
 }
 
