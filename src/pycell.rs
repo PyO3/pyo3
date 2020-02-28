@@ -10,6 +10,8 @@ use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
+/// Base layout of PyCell.
+/// This is necessary for sharing BorrowFlag between parents and children.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyCellBase<T: PyTypeInfo> {
@@ -46,7 +48,7 @@ where
 /// Inner type of `PyCell` without dict slots and reference counter.
 /// This struct has two usages:
 /// 1. As an inner type of `PyRef` and `PyRefMut`.
-/// 2. As a base class when `#[pyclass(Base)]` is specified.
+/// 2. When `#[pyclass(extends=Base)]` is specified, `PyCellInner<Base>` is used as a base layout.
 #[doc(hidden)]
 #[repr(C)]
 pub struct PyCellInner<T: PyClass> {
@@ -77,7 +79,7 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
     }
 }
 
-// Thes impls ensures `PyCellInner` can be a base type.
+// These impls ensures `PyCellInner` can be a base type.
 impl<T: PyClass> PySizedLayout<T> for PyCellInner<T> {}
 unsafe impl<T: PyClass> PyBorrowFlagLayout<T> for PyCellInner<T> {}
 
@@ -328,8 +330,7 @@ impl<T: PyClass> PyCell<T> {
     }
 
     /// Allocates new PyCell without initilizing value.
-    /// Requires `T::BaseLayout: PyBorrowFlagLayout<T::BaseType>` to ensure that
-    /// this layout has a borrow flag.
+    /// Requires `T::BaseLayout: PyBorrowFlagLayout<T::BaseType>` to ensure `self` has a borrow flag.
     pub(crate) unsafe fn internal_new(py: Python) -> PyResult<*mut Self>
     where
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,

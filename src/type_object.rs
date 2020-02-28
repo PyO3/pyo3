@@ -29,8 +29,20 @@ pub unsafe trait PyLayout<T: PyTypeInfo> {
 /// , in addition that `T` is a concrete representaion of `U`.
 pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 
-/// Marker type indicates that `Self` can be a baselayout of PyClass.
-/// This trait assumes a certain layout and thus is unsafe.
+/// Marker type indicates that `Self` can be a base layout of `PyClass`.
+///
+/// # Safety
+///
+/// Self should be layouted as follows:
+/// ```ignore
+/// #[repr(C)]
+/// struct Self {
+///     obj: ffi::PyObject,
+///     borrow_flag: u64,
+///     ...
+/// }
+/// ```
+/// Otherwise, implementing this trait is undefined behavior.
 pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 
 /// Our custom type flags
@@ -53,13 +65,17 @@ pub mod type_flags {
 }
 
 /// Reference abstraction for `PyClass` and `PyNativeType`. Used internaly.
-// DEVELOPPER NOTE(kngwyu):
-// `&PyCell` is a pointer but `&PyAny` is a pointer of a pointer, so we need
-// two different abstraction for them.
-// This mismatch eventually should be fixed with https://github.com/PyO3/pyo3/issues/679,
-// but now it's not the time.
+// NOTE(kngwyu):
+// `&PyCell` is a pointer of `ffi::PyObject` but `&PyAny` is a pointer of a pointer,
+// so we need abstraction.
+// This mismatch eventually should be fixed(e.g., https://github.com/PyO3/pyo3/issues/679).
 pub unsafe trait PyDowncastImpl {
     /// Cast `&PyAny` to `&Self` without no type checking.
+    ///
+    /// # Safety
+    ///
+    /// Unless obj is not an instance of a type corresponding to Self,
+    /// this method causes undefined behavior.
     unsafe fn unchecked_downcast(obj: &PyAny) -> &Self;
     private_decl! {}
 }

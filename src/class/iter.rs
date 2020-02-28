@@ -9,8 +9,8 @@ use std::ptr;
 
 /// Python Iterator Interface.
 ///
-/// more information
-/// `https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter`
+/// Check [CPython doc](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter)
+/// for more.
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p>: PyClass {
     fn __iter__(slf: PyRefMut<Self>) -> Self::Result

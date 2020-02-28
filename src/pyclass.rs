@@ -73,9 +73,12 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 pub trait PyClass:
     PyTypeInfo<Layout = PyCell<Self>> + Sized + PyClassAlloc + PyMethodsProtocol
 {
+    /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
+    /// Specify this class has `#[pyclass(weakref)]` or not.
     type WeakRef: PyClassWeakRef;
-    /// The closest native ancestor.
+    /// The closest native ancestor. This is `PyAny` by default, and when you declare
+    /// `#[pyclass(extends=PyList)]`, it's `PyList`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
 }
 

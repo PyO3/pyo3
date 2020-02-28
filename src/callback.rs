@@ -11,6 +11,8 @@ use std::os::raw::c_int;
 use std::{isize, ptr};
 
 /// Convert the result of callback function into the appropriate return value.
+///
+/// Used by PyO3 macros.
 pub trait CallbackConverter {
     type Source;
     type Result: Copy;

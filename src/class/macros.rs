@@ -127,8 +127,7 @@ macro_rules! py_binary_num_func {
     }};
 }
 
-// NOTE(kngwyu):
-// Now(2020 2/9) This macro is used only for inplace operation so I used call_mut here.
+// NOTE(kngwyu): This macro is used only for inplace operations, so I used call_mut here.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_binary_self_func {
@@ -399,6 +398,7 @@ macro_rules! _call_impl {
     };
 }
 
+/// Call `slf.try_borrow()?.$fn(...)`
 macro_rules! call_ref {
     ($slf: expr, $fn: ident $(,$raw_args: expr)* $(; $args: expr)*) => {
         match $slf.try_borrow() {
@@ -408,6 +408,7 @@ macro_rules! call_ref {
     };
 }
 
+/// Call `slf.try_borrow()?.$fn(...)` and returns the result using the given CallbackConverter
 macro_rules! call_ref_with_converter {
     ($slf: expr, $conv: expr, $py: ident, $fn: ident $(,$raw_args: expr)* $(; $args: expr)*) => {
         match $slf.try_borrow() {
@@ -417,6 +418,7 @@ macro_rules! call_ref_with_converter {
     };
 }
 
+/// Call `slf.try_borrow_mut()?.$fn(...)`
 macro_rules! call_mut {
     ($slf: expr, $fn: ident $(,$raw_args: expr)* $(; $args: expr)*) => {
         match $slf.try_borrow_mut() {
@@ -426,6 +428,7 @@ macro_rules! call_mut {
     };
 }
 
+/// Call `slf.try_borrow_mut()?.$fn(...)` and returns the result using the given CallbackConverter
 macro_rules! call_mut_with_converter {
     ($slf: expr, $conv: expr, $py: ident, $fn: ident $(,$raw_args: expr)* $(; $args: expr)*) => {
         match $slf.try_borrow_mut() {
