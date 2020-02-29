@@ -26,7 +26,7 @@ use crate::Python;
 use std::ffi::CStr;
 use std::os::raw;
 use std::pin::Pin;
-use std::{cell, mem, slice};
+use std::{cell, mem, ptr, slice};
 
 /// Allows access to the underlying buffer used by a python object such as `bytes`, `bytearray` or `array.array`.
 // use Pin<Box> because Python expects that the Py_buffer struct has a stable memory address
@@ -577,10 +577,19 @@ impl PyBuffer {
     }
 
     pub fn release(self, _py: Python) {
+        // First move self into a ManuallyDrop, so that PyBuffer::drop will
+        // never be called. (It would acquire the GIL and call PyBuffer_Release
+        // again.)
+        let mut mdself = mem::ManuallyDrop::new(self);
         unsafe {
-            let ptr = &*self.0 as *const ffi::Py_buffer as *mut ffi::Py_buffer;
-            ffi::PyBuffer_Release(ptr)
-        };
+            // Next, make the actual PyBuffer_Release call.
+            ffi::PyBuffer_Release(&mut *mdself.0);
+
+            // Finally, drop the contained Pin<Box<_>> in place, to free the
+            // Box memory.
+            let inner: *mut Pin<Box<ffi::Py_buffer>> = &mut mdself.0;
+            ptr::drop_in_place(inner);
+        }
     }
 }
 
