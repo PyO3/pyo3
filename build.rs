@@ -49,6 +49,7 @@ struct InterpreterConfig {
     /// Prefix used for determining the directory of libpython
     base_prefix: String,
     executable: String,
+    machine: String,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -202,6 +203,7 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
         ld_version: "".to_string(),
         base_prefix: "".to_string(),
         executable: "".to_string(),
+        machine: "".to_string(),
     };
 
     Ok((intepreter_config, fix_config_map(config_map)))
@@ -479,6 +481,7 @@ print(json.dumps({
     "base_prefix": base_prefix,
     "shared": PYPY or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')),
     "executable": sys.executable,
+    "machine": platform.machine()
 }))
 "#;
     let json = run_python_script(interpreter, script)?;
@@ -494,6 +497,8 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String, String> {
             ));
         }
     }
+
+    check_target_architecture(&interpreter_config.machine)?;
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os = "windows") {
@@ -533,6 +538,33 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String, String> {
     println!("cargo:rustc-cfg=Py_3");
 
     Ok(flags)
+}
+
+fn check_target_architecture(python_machine: &str) -> Result<(), String> {
+    // Try to check whether the target architecture matches the python library
+    let target_arch = match env::var("CARGO_CFG_TARGET_ARCH")
+        .as_ref()
+        .map(|e| e.as_str())
+    {
+        Ok("x86_64") => Some("64-bit"),
+        Ok("x86") => Some("32-bit"),
+        _ => None, // It might be possible to recognise other architectures, this will do for now.
+    };
+
+    let python_arch = match python_machine {
+        "AMD64" | "x86_64" => Some("64-bit"),
+        "i686" | "x86" => Some("32-bit"),
+        _ => None, // It might be possible to recognise other architectures, this will do for now.
+    };
+
+    match (target_arch, python_arch) {
+        // If we could recognise both, and they're different, fail.
+        (Some(t), Some(p)) if p != t => Err(format!(
+            "Your Rust target architecture ({}) does not match your python interpreter ({})",
+            t, p
+        )),
+        _ => Ok(()),
+    }
 }
 
 fn check_rustc_version() {
