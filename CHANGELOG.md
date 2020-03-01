@@ -16,10 +16,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * The implementation for `IntoPy<U> for T` where `U: FromPy<T>` is no longer specializable. Control the behavior of this via the implementation of `FromPy`. [#713](https://github.com/PyO3/pyo3/pull/713)
 * Use `parking_lot::Mutex` instead of `spin::Mutex`. [#734](https://github.com/PyO3/pyo3/pull/734)
 * Bumped minimum Rust version to `1.42.0-nightly 2020-01-21`. [#761](https://github.com/PyO3/pyo3/pull/761)
-* `PyClassShell` is renamed `PyCell` and has RefCell-like features. [#770](https://github.com/PyO3/pyo3/pull/770)
 
 ### Added
-
+* `PyCell`, which has RefCell-like features. [#770](https://github.com/PyO3/pyo3/pull/770)
 * `PyClass`, `PyClassShell`, `PyObjectLayout`, `PyClassInitializer`. [#683](https://github.com/PyO3/pyo3/pull/683)
 * Implemented `IntoIterator` for `PySet` and `PyFrozenSet`. [#716](https://github.com/PyO3/pyo3/pull/716)
 * `FromPyObject` is now automatically implemented for `T: Clone` pyclasses. [#730](https://github.com/PyO3/pyo3/pull/730)

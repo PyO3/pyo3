@@ -33,7 +33,7 @@ pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 ///
 /// # Safety
 ///
-/// Self should be layouted as follows:
+/// Self should be laid out as follows:
 /// ```ignore
 /// #[repr(C)]
 /// struct Self {

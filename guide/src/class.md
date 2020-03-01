@@ -122,7 +122,7 @@ like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html
 
 Users who are familiar with `RefCell` can use `PyCell` just like `RefCell`.
 
-For users who doesn't know `RefCell` well, here we repeat the Rust's borrowing rule:
+For users who are not very familiar with `RefCell`, here is a reminder of Rust's rules of borrowing:
 - At any given time, you can have either (but not both of) one mutable reference or any number of immutable references.
 - References must always be valid.
 `PyCell` ensures these borrowing rules by tracking references at runtime.
@@ -156,7 +156,7 @@ let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
 pyo3::py_run!(py, obj, "assert obj.num == 5")
 ```
 
-`&PyCell<T>` is bouded by the same lifetime as `GILGuard`.
+`&PyCell<T>` is bounded by the same lifetime as `GILGuard`.
 To avoid this you can use `Py<T>`, which stores an object longer than the GIL lifetime.
 ```rust
 # use pyo3::prelude::*;
