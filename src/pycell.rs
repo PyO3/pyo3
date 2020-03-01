@@ -64,7 +64,7 @@ impl<T: PyClass> AsPyPointer for PyCellInner<T> {
 
 unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
     const IS_NATIVE_TYPE: bool = false;
-    fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
+    fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.ob_base)
     }
     unsafe fn get_ptr(&self) -> *mut T {
@@ -350,7 +350,7 @@ impl<T: PyClass> PyCell<T> {
 
 unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
     const IS_NATIVE_TYPE: bool = false;
-    fn get_super_or(&mut self) -> Option<&mut T::BaseLayout> {
+    fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.inner.ob_base)
     }
     unsafe fn get_ptr(&self) -> *mut T {

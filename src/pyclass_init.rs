@@ -133,7 +133,7 @@ impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
         unsafe {
             layout.py_init(init);
         }
-        if let Some(super_obj) = layout.get_super_or() {
+        if let Some(super_obj) = layout.get_super() {
             super_init.init_class(super_obj);
         }
     }

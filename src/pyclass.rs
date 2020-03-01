@@ -78,7 +78,7 @@ pub trait PyClass:
     /// Specify this class has `#[pyclass(weakref)]` or not.
     type WeakRef: PyClassWeakRef;
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
-    /// `#[pyclass(extends=PyList)]`, it's `PyList`.
+    /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
     type BaseNativeType: PyTypeInfo + PyNativeType;
 }
 
