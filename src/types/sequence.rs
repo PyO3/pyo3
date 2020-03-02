@@ -2,6 +2,7 @@
 
 use crate::buffer;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
+use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
@@ -241,6 +242,48 @@ impl PySequence {
     }
 }
 
+macro_rules! array_impls {
+    ($($N:expr),+) => {
+        $(
+            impl<'a, T> FromPyObject<'a> for [T; $N]
+            where
+                T: Copy + Default + FromPyObject<'a>,
+            {
+                default fn extract(obj: &'a PyAny) -> PyResult<Self> {
+                    let mut array = [T::default(); $N];
+                    extract_sequence_into_slice(obj, &mut array)?;
+                    Ok(array)
+                }
+            }
+
+            impl<'source, T> FromPyObject<'source> for [T; $N]
+            where
+                for<'a> T: Copy + Default + FromPyObject<'a> + buffer::Element,
+            {
+                fn extract(obj: &'source PyAny) -> PyResult<Self> {
+                    let mut array = [T::default(); $N];
+                    // first try buffer protocol
+                    if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
+                        if buf.dimensions() == 1 && buf.copy_to_slice(obj.py(), &mut array).is_ok() {
+                            buf.release(obj.py());
+                            return Ok(array);
+                        }
+                        buf.release(obj.py());
+                    }
+                    // fall back to sequence protocol
+                    extract_sequence_into_slice(obj, &mut array)?;
+                    Ok(array)
+                }
+            }
+        )+
+    }
+}
+
+array_impls!(
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 32
+);
+
 impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
@@ -280,6 +323,22 @@ where
         v.push(item?.extract::<T>()?);
     }
     Ok(v)
+}
+
+fn extract_sequence_into_slice<'s, T>(obj: &'s PyAny, slice: &mut [T]) -> PyResult<()>
+where
+    T: FromPyObject<'s>,
+{
+    let seq = <PySequence as PyTryFrom>::try_from(obj)?;
+    if seq.len()? as usize != slice.len() {
+        return Err(exceptions::BufferError::py_err(
+            "Slice length does not match buffer length.",
+        ));
+    }
+    for (value, item) in slice.iter_mut().zip(seq.iter()?) {
+        *value = item?.extract::<T>()?;
+    }
+    Ok(())
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
@@ -638,6 +697,18 @@ mod test {
             .extract()
             .unwrap();
         assert!(v == [1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_extract_bytearray_to_array() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let v: [u8; 3] = py
+            .eval("bytearray(b'abc')", None, None)
+            .unwrap()
+            .extract()
+            .unwrap();
+        assert!(&v == b"abc");
     }
 
     #[test]

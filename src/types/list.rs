@@ -178,6 +178,26 @@ where
     }
 }
 
+macro_rules! array_impls {
+    ($($N:expr),+) => {
+        $(
+            impl<T> IntoPy<PyObject> for [T; $N]
+            where
+                T: ToPyObject
+            {
+                fn into_py(self, py: Python) -> PyObject {
+                    self.as_ref().to_object(py)
+                }
+            }
+        )+
+    }
+}
+
+array_impls!(
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 32
+);
+
 impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,
@@ -209,7 +229,7 @@ mod test {
     use crate::objectprotocol::ObjectProtocol;
     use crate::types::PyList;
     use crate::Python;
-    use crate::{PyTryFrom, ToPyObject};
+    use crate::{PyTryFrom, PyObject, IntoPy, ToPyObject};
 
     #[test]
     fn test_new() {
@@ -422,5 +442,15 @@ mod test {
         assert_eq!(5, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(2).extract::<i32>().unwrap());
         assert_eq!(2, list.get_item(3).extract::<i32>().unwrap());
+    }
+
+    #[test]
+    fn test_array_into_py() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let array: PyObject = [1, 2].into_py(py);
+        let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
+        assert_eq!(1, list.get_item(0).extract::<i32>().unwrap());
+        assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
     }
 }
