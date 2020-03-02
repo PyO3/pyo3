@@ -11,16 +11,10 @@
 use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
-use crate::FromPyObject;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{exceptions, IntoPy, PyObject};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 use std::os::raw::c_int;
-use std::ptr;
 
 /// Operators for the __richcmp__ method
 #[derive(Debug)]
@@ -35,7 +29,7 @@ pub enum CompareOp {
 
 /// Basic python class customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'p>: PyTypeInfo {
+pub trait PyObjectProtocol<'p>: PyClass {
     fn __getattr__(&'p self, name: Self::Name) -> Self::Result
     where
         Self: PyObjectGetAttrProtocol<'p>,
@@ -237,14 +231,15 @@ where
                 return existing;
             }
 
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
-
-            let result = match arg.extract() {
-                Ok(arg) => slf.__getattr__(arg).into(),
-                Err(e) => Err(e),
-            };
-            crate::callback::cb_convert(PyObjectCallbackConverter, py, result)
+            call_ref_with_converter!(
+                slf,
+                PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData),
+                py,
+                __getattr__,
+                arg
+            )
         }
         Some(wrap::<T>)
     }
@@ -365,8 +360,7 @@ where
         py_unary_func!(
             PyObjectStrProtocol,
             T::__str__,
-            <T as PyObjectStrProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -390,8 +384,7 @@ where
         py_unary_func!(
             PyObjectReprProtocol,
             T::__repr__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -454,8 +447,7 @@ where
         py_unary_func!(
             PyObjectHashProtocol,
             T::__hash__,
-            isize,
-            HashConverter,
+            HashConverter::<isize>(std::marker::PhantomData),
             ffi::Py_hash_t
         )
     }
@@ -480,7 +472,6 @@ where
         py_unary_func!(
             PyObjectBoolProtocol,
             T::__bool__,
-            bool,
             BoolCallbackConverter,
             c_int
         )
@@ -513,22 +504,24 @@ where
         {
             let py = Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = py.from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
             let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
-            let res = match extract_op(op) {
-                Ok(op) => match arg.extract() {
-                    Ok(arg) => slf.__richcmp__(arg, op).into(),
-                    Err(e) => Err(e),
-                },
-                Err(e) => Err(e),
-            };
-            match res {
-                Ok(val) => val.into_py(py).into_ptr(),
-                Err(e) => {
-                    e.restore(py);
-                    ptr::null_mut()
+            match slf.try_borrow() {
+                Ok(borrowed_slf) => {
+                    let res = match extract_op(op) {
+                        Ok(op) => match arg.extract() {
+                            Ok(arg) => borrowed_slf.__richcmp__(arg, op).into(),
+                            Err(e) => Err(e),
+                        },
+                        Err(e) => Err(e),
+                    };
+                    match res {
+                        Ok(val) => val.into_py(py).into_ptr(),
+                        Err(e) => e.restore_and_null(py),
+                    }
                 }
+                Err(e) => PyErr::from(e).restore_and_null(py),
             }
         }
         Some(wrap::<T>)

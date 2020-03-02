@@ -1,46 +1,49 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //! Python type object information
 
-use crate::instance::Py;
 use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, AsPyPointer, Python};
+use crate::{ffi, AsPyPointer, Py, Python};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// `T: PyObjectLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
-/// E.g., `PyClassShell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
+/// `T: PyLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
+/// E.g., `PyCell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub trait PyObjectLayout<T: PyTypeInfo> {
+pub unsafe trait PyLayout<T: PyTypeInfo> {
     const IS_NATIVE_TYPE: bool = true;
-
-    fn get_super_or(&mut self) -> Option<&mut <T::BaseType as PyTypeInfo>::ConcreteLayout> {
+    fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         None
     }
-
-    unsafe fn internal_ref_cast(obj: &PyAny) -> &T {
-        &*(obj as *const _ as *const T)
-    }
-
-    #[allow(clippy::mut_from_ref)]
-    unsafe fn internal_mut_cast(obj: &PyAny) -> &mut T {
-        &mut *(obj as *const _ as *const T as *mut T)
-    }
-
     unsafe fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
+    unsafe fn get_ptr(&self) -> *mut T;
 }
 
-/// `T: PyObjectSizedLayout<U>` represents `T` is not a instance of
+/// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
 /// , in addition that `T` is a concrete representaion of `U`.
+pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
+
+/// Marker type indicates that `Self` can be a base layout of `PyClass`.
 ///
-/// `pyclass`es need this trait for their base class.
-pub trait PyObjectSizedLayout<T: PyTypeInfo>: PyObjectLayout<T> + Sized {}
+/// # Safety
+///
+/// Self should be laid out as follows:
+/// ```ignore
+/// #[repr(C)]
+/// struct Self {
+///     obj: ffi::PyObject,
+///     borrow_flag: u64,
+///     ...
+/// }
+/// ```
+/// Otherwise, implementing this trait is undefined behavior.
+pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 
 /// Our custom type flags
 #[doc(hidden)]
@@ -59,6 +62,32 @@ pub mod type_flags {
 
     /// The class declared by #[pyclass(extends=~)]
     pub const EXTENDED: usize = 1 << 4;
+}
+
+/// Reference abstraction for `PyClass` and `PyNativeType`. Used internaly.
+// NOTE(kngwyu):
+// `&PyCell` is a pointer of `ffi::PyObject` but `&PyAny` is a pointer of a pointer,
+// so we need abstraction.
+// This mismatch eventually should be fixed(e.g., https://github.com/PyO3/pyo3/issues/679).
+pub unsafe trait PyDowncastImpl {
+    /// Cast `&PyAny` to `&Self` without no type checking.
+    ///
+    /// # Safety
+    ///
+    /// Unless obj is not an instance of a type corresponding to Self,
+    /// this method causes undefined behavior.
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self;
+    private_decl! {}
+}
+
+unsafe impl<'py, T> PyDowncastImpl for T
+where
+    T: 'py + crate::PyNativeType,
+{
+    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
+        &*(obj as *const _ as *const Self)
+    }
+    private_impl! {}
 }
 
 /// Python type information.
@@ -87,7 +116,10 @@ pub unsafe trait PyTypeInfo: Sized {
     type BaseType: PyTypeInfo + PyTypeObject;
 
     /// Layout
-    type ConcreteLayout: PyObjectLayout<Self>;
+    type Layout: PyLayout<Self>;
+
+    /// Layout of Basetype.
+    type BaseLayout: PySizedLayout<Self::BaseType>;
 
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;

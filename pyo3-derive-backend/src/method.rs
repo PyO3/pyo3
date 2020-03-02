@@ -29,12 +29,16 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
-    PySelf(syn::TypeReference),
+    /// For methods taht have `self_: &PyCell<Self>` instead of self receiver
+    PySelfRef(syn::TypeReference),
+    /// For methods taht have `self_: PyRef<Self>` or `PyRefMut<Self>` instead of self receiver
+    PySelfPath(syn::TypePath),
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FnSpec<'a> {
     pub tp: FnType,
+    pub self_: Option<bool>,
     // Rust function name
     pub name: &'a syn::Ident,
     // Wrapped python name. This should not have any leading r#.
@@ -54,6 +58,14 @@ pub fn get_return_info(output: &syn::ReturnType) -> syn::Type {
 }
 
 impl<'a> FnSpec<'a> {
+    /// Generate the code for borrowing self
+    pub(crate) fn borrow_self(&self) -> TokenStream {
+        let is_mut = self
+            .self_
+            .expect("impl_borrow_self is called for non-self fn");
+        crate::utils::borrow_self(is_mut, true)
+    }
+
     /// Parser function signature and function attributes
     pub fn parse(
         sig: &'a syn::Signature,
@@ -67,19 +79,19 @@ impl<'a> FnSpec<'a> {
             mut python_name,
         } = parse_method_attributes(meth_attrs, allow_custom_name)?;
 
-        let mut has_self = false;
+        let mut self_ = None;
         let mut arguments = Vec::new();
         for input in sig.inputs.iter() {
             match input {
-                syn::FnArg::Receiver(_) => {
-                    has_self = true;
+                syn::FnArg::Receiver(recv) => {
+                    self_ = Some(recv.mutability.is_some());
                 }
                 syn::FnArg::Typed(syn::PatType {
                     ref pat, ref ty, ..
                 }) => {
                     // skip first argument (cls)
-                    if fn_type == FnType::FnClass && !has_self {
-                        has_self = true;
+                    if fn_type == FnType::FnClass && self_.is_none() {
+                        self_ = Some(false);
                         continue;
                     }
 
@@ -114,18 +126,18 @@ impl<'a> FnSpec<'a> {
 
         let ty = get_return_info(&sig.output);
 
-        if fn_type == FnType::Fn && !has_self {
+        if fn_type == FnType::Fn && self_.is_none() {
             if arguments.is_empty() {
                 return Err(syn::Error::new_spanned(
                     name,
                     "Static method needs #[staticmethod] attribute",
                 ));
             }
-            let tp = match arguments.remove(0).ty {
-                syn::Type::Reference(r) => replace_self(r)?,
+            fn_type = match arguments.remove(0).ty {
+                syn::Type::Reference(r) => FnType::PySelfRef(replace_self_in_ref(r)?),
+                syn::Type::Path(p) => FnType::PySelfPath(replace_self_in_path(p)),
                 x => return Err(syn::Error::new_spanned(x, "Invalid type as custom self")),
             };
-            fn_type = FnType::PySelf(tp);
         }
 
         // "Tweak" getter / setter names: strip off set_ and get_ if needed
@@ -158,9 +170,11 @@ impl<'a> FnSpec<'a> {
         };
 
         let text_signature = match &fn_type {
-            FnType::Fn | FnType::PySelf(_) | FnType::FnClass | FnType::FnStatic => {
-                utils::parse_text_signature_attrs(&mut *meth_attrs, name)?
-            }
+            FnType::Fn
+            | FnType::PySelfRef(_)
+            | FnType::PySelfPath(_)
+            | FnType::FnClass
+            | FnType::FnStatic => utils::parse_text_signature_attrs(&mut *meth_attrs, name)?,
             FnType::FnNew => parse_erroneous_text_signature(
                 "text_signature not allowed on __new__; if you want to add a signature on \
                  __new__, put it on the struct definition instead",
@@ -174,6 +188,7 @@ impl<'a> FnSpec<'a> {
 
         Ok(FnSpec {
             tp: fn_type,
+            self_,
             name,
             python_name,
             attrs: fn_attrs,
@@ -514,17 +529,24 @@ fn parse_method_name_attribute(
 }
 
 // Replace &A<Self> with &A<_>
-fn replace_self(refn: &syn::TypeReference) -> syn::Result<syn::TypeReference> {
-    fn infer(span: proc_macro2::Span) -> syn::GenericArgument {
-        syn::GenericArgument::Type(syn::Type::Infer(syn::TypeInfer {
-            underscore_token: syn::token::Underscore { spans: [span] },
-        }))
-    }
+fn replace_self_in_ref(refn: &syn::TypeReference) -> syn::Result<syn::TypeReference> {
     let mut res = refn.to_owned();
     let tp = match &mut *res.elem {
         syn::Type::Path(p) => p,
         _ => return Err(syn::Error::new_spanned(refn, "unsupported argument")),
     };
+    replace_self_impl(tp);
+    res.lifetime = None;
+    Ok(res)
+}
+
+fn replace_self_in_path(tp: &syn::TypePath) -> syn::TypePath {
+    let mut res = tp.to_owned();
+    replace_self_impl(&mut res);
+    res
+}
+
+fn replace_self_impl(tp: &mut syn::TypePath) {
     for seg in &mut tp.path.segments {
         if let syn::PathArguments::AngleBracketed(ref mut g) = seg.arguments {
             let mut args = syn::punctuated::Punctuated::new();
@@ -546,6 +568,9 @@ fn replace_self(refn: &syn::TypeReference) -> syn::Result<syn::TypeReference> {
             g.args = args;
         }
     }
-    res.lifetime = None;
-    Ok(res)
+    fn infer(span: proc_macro2::Span) -> syn::GenericArgument {
+        syn::GenericArgument::Type(syn::Type::Infer(syn::TypeInfer {
+            underscore_token: syn::token::Underscore { spans: [span] },
+        }))
+    }
 }

@@ -3,12 +3,12 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
-use crate::pyclass::{PyClass, PyClassShell};
-use crate::pyclass_init::PyClassInitializer;
-use crate::type_object::{PyObjectLayout, PyTypeInfo};
+use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
 use crate::types::PyAny;
-use crate::{ffi, IntoPy};
-use crate::{AsPyPointer, FromPyObject, IntoPyPointer, Python, ToPyObject};
+use crate::{
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
+    PyRef, PyRefMut, Python, ToPyObject,
+};
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::NonNull;
@@ -35,15 +35,18 @@ unsafe impl<T> Send for Py<T> {}
 unsafe impl<T> Sync for Py<T> {}
 
 impl<T> Py<T> {
-    /// Create new instance of T and move it under python management
+    /// Create a new instance `Py<T>`.
+    ///
+    /// This method is **soft-duplicated** since PyO3 0.9.0.
+    /// Use [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and
+    /// `Py::from` instead.
     pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
     where
         T: PyClass,
-        <T::BaseType as PyTypeInfo>::ConcreteLayout:
-            crate::type_object::PyObjectSizedLayout<T::BaseType>,
+        T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
         let initializer = value.into();
-        let obj = unsafe { initializer.create_shell(py)? };
+        let obj = unsafe { initializer.create_cell(py)? };
         let ob = unsafe { Py::from_owned_ptr(obj as _) };
         Ok(ob)
     }
@@ -119,15 +122,47 @@ impl<T> Py<T> {
     }
 }
 
-pub trait AsPyRef<T: PyTypeInfo>: Sized {
+/// Retrives `&'py` types from `Py<T>` or `PyObject`.
+///
+/// # Examples
+/// `PyObject::as_ref` returns `&PyAny`.
+/// ```
+/// # use pyo3::prelude::*;
+/// use pyo3::ObjectProtocol;
+/// let obj: PyObject = {
+///     let gil = Python::acquire_gil();
+///     let py = gil.python();
+///     py.eval("[]", None, None).unwrap().to_object(py)
+/// };
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
+/// ```
+/// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`
+/// for `#[pyclass]`.
+/// ```
+/// # use pyo3::prelude::*;
+/// use pyo3::ObjectProtocol;
+/// let obj: PyObject = {
+///     let gil = Python::acquire_gil();
+///     let py = gil.python();
+///     py.eval("[]", None, None).unwrap().to_object(py)
+/// };
+/// let gil = Python::acquire_gil();
+/// let py = gil.python();
+/// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
+/// ```
+pub trait AsPyRef: Sized {
+    type Target;
     /// Return reference to object.
-    fn as_ref(&self, py: Python) -> &T;
+    fn as_ref(&self, py: Python<'_>) -> &Self::Target;
 }
 
-impl<T: PyTypeInfo> AsPyRef<T> for Py<T> {
-    fn as_ref(&self, _py: Python) -> &T {
+impl<'p, T: PyClass> AsPyRef for Py<T> {
+    type Target = PyCell<T>;
+    fn as_ref(&self, _py: Python) -> &PyCell<T> {
         let any = self as *const Py<T> as *const PyAny;
-        unsafe { T::ConcreteLayout::internal_ref_cast(&*any) }
+        unsafe { PyDowncastImpl::unchecked_downcast(&*any) }
     }
 }
 
@@ -174,22 +209,31 @@ where
     }
 }
 
-// `&PyClassShell<T>` can be converted to `Py<T>`
-impl<'a, T> std::convert::From<&PyClassShell<T>> for Py<T>
+// `&PyCell<T>` can be converted to `Py<T>`
+impl<'a, T> std::convert::From<&PyCell<T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(shell: &PyClassShell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(shell.as_ptr()) }
+    fn from(cell: &PyCell<T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(cell.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<&mut PyClassShell<T>> for Py<T>
+impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
 where
     T: PyClass,
 {
-    fn from(shell: &mut PyClassShell<T>) -> Self {
-        unsafe { Py::from_borrowed_ptr(shell.as_ptr()) }
+    fn from(pyref: PyRef<'a, T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
+    }
+}
+
+impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
+where
+    T: PyClass,
+{
+    fn from(pyref: PyRefMut<'a, T>) -> Self {
+        unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
     }
 }
 

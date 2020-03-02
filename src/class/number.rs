@@ -7,13 +7,11 @@ use crate::callback::PyObjectCallbackConverter;
 use crate::class::basic::PyObjectProtocolImpl;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::type_object::PyTypeInfo;
-use crate::FromPyObject;
-use crate::{ffi, IntoPy, PyObject};
+use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
 /// Number interface
 #[allow(unused_variables)]
-pub trait PyNumberProtocol<'p>: PyTypeInfo {
+pub trait PyNumberProtocol<'p>: PyClass {
     fn __add__(lhs: Self::Left, rhs: Self::Right) -> Self::Result
     where
         Self: PyNumberAddProtocol<'p>,
@@ -766,8 +764,7 @@ where
         py_binary_num_func!(
             PyNumberAddProtocol,
             T::__add__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -793,8 +790,7 @@ where
         py_binary_num_func!(
             PyNumberSubProtocol,
             T::__sub__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -820,8 +816,7 @@ where
         py_binary_num_func!(
             PyNumberMulProtocol,
             T::__mul__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -847,8 +842,7 @@ where
         py_binary_num_func!(
             PyNumberMatmulProtocol,
             T::__matmul__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -874,8 +868,7 @@ where
         py_binary_num_func!(
             PyNumberTruedivProtocol,
             T::__truediv__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -901,8 +894,7 @@ where
         py_binary_num_func!(
             PyNumberFloordivProtocol,
             T::__floordiv__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -928,8 +920,7 @@ where
         py_binary_num_func!(
             PyNumberModProtocol,
             T::__mod__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -955,8 +946,7 @@ where
         py_binary_num_func!(
             PyNumberDivmodProtocol,
             T::__divmod__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -982,8 +972,7 @@ where
         py_ternary_num_func!(
             PyNumberPowProtocol,
             T::__pow__,
-            <T as PyNumberPowProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1009,8 +998,7 @@ where
         py_binary_num_func!(
             PyNumberLShiftProtocol,
             T::__lshift__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1036,8 +1024,7 @@ where
         py_binary_num_func!(
             PyNumberRShiftProtocol,
             T::__rshift__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1063,8 +1050,7 @@ where
         py_binary_num_func!(
             PyNumberAndProtocol,
             T::__and__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1090,8 +1076,7 @@ where
         py_binary_num_func!(
             PyNumberXorProtocol,
             T::__xor__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1117,8 +1102,7 @@ where
         py_binary_num_func!(
             PyNumberOrProtocol,
             T::__or__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1622,8 +1606,7 @@ where
         py_unary_func!(
             PyNumberNegProtocol,
             T::__neg__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1649,8 +1632,7 @@ where
         py_unary_func!(
             PyNumberPosProtocol,
             T::__pos__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1676,8 +1658,7 @@ where
         py_unary_func!(
             PyNumberAbsProtocol,
             T::__abs__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1703,8 +1684,7 @@ where
         py_unary_func!(
             PyNumberInvertProtocol,
             T::__invert__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1730,8 +1710,7 @@ where
         py_unary_func!(
             PyNumberIntProtocol,
             T::__int__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1757,8 +1736,7 @@ where
         py_unary_func!(
             PyNumberFloatProtocol,
             T::__float__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -1784,8 +1762,7 @@ where
         py_unary_func!(
             PyNumberIndexProtocol,
             T::__index__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }

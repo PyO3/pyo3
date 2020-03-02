@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
-use pyo3::PyClassShell;
+use pyo3::PyCell;
 
 mod common;
 
@@ -23,8 +23,9 @@ fn instance_method() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = PyClassShell::new_mut(py, InstanceMethod { member: 42 }).unwrap();
-    assert_eq!(obj.method().unwrap(), 42);
+    let obj = PyCell::new(py, InstanceMethod { member: 42 }).unwrap();
+    let obj_ref = obj.borrow();
+    assert_eq!(obj_ref.method().unwrap(), 42);
     let d = [("obj", obj)].into_py_dict(py);
     py.run("assert obj.method() == 42", None, Some(d)).unwrap();
     py.run("assert obj.method.__doc__ == 'Test method'", None, Some(d))
@@ -49,8 +50,9 @@ fn instance_method_with_args() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let obj = PyClassShell::new_mut(py, InstanceMethodWithArgs { member: 7 }).unwrap();
-    assert_eq!(obj.method(6).unwrap(), 42);
+    let obj = PyCell::new(py, InstanceMethodWithArgs { member: 7 }).unwrap();
+    let obj_ref = obj.borrow();
+    assert_eq!(obj_ref.method(6).unwrap(), 42);
     let d = [("obj", obj)].into_py_dict(py);
     py.run("assert obj.method(3) == 21", None, Some(d)).unwrap();
     py.run("assert obj.method(multiplier=6) == 42", None, Some(d))
@@ -395,7 +397,7 @@ impl MethodWithLifeTime {
 fn method_with_lifetime() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let obj = PyClassShell::new_ref(py, MethodWithLifeTime {}).unwrap();
+    let obj = PyCell::new(py, MethodWithLifeTime {}).unwrap();
     py_run!(
         py,
         obj,

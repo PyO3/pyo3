@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::gil::{self, GILGuard};
 use crate::instance::AsPyRef;
 use crate::object::PyObject;
-use crate::type_object::{PyObjectLayout, PyTypeInfo, PyTypeObject};
+use crate::type_object::{PyDowncastImpl, PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
 use crate::AsPyPointer;
 use crate::{FromPyPointer, IntoPyPointer, PyTryFrom};
@@ -177,7 +177,7 @@ impl<'p> Python<'p> {
     ///    Some(locals),
     /// ).unwrap();
     /// let ret = locals.get_item("ret").unwrap();
-    /// let b64: &PyBytes = ret.downcast_ref().unwrap();
+    /// let b64: &PyBytes = ret.downcast().unwrap();
     /// assert_eq!(b64.as_bytes(), b"SGVsbG8gUnVzdCE=");
     /// ```
     pub fn run(
@@ -275,19 +275,19 @@ impl<'p> Python<'p> {
     /// Register object in release pool, and try to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError>
     where
-        T: PyTypeInfo,
+        T: PyTryFrom<'p>,
     {
-        let p = unsafe { gil::register_owned(self, obj.into_nonnull()) };
-        <T as PyTryFrom>::try_from(p)
+        let obj = unsafe { gil::register_owned(self, obj.into_nonnull()) };
+        <T as PyTryFrom>::try_from(obj)
     }
 
     /// Register object in release pool, and do unchecked downcast to specific type.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
-        T: PyTypeInfo,
+        T: PyDowncastImpl + PyTypeInfo,
     {
-        let p = gil::register_owned(self, obj.into_nonnull());
-        T::ConcreteLayout::internal_ref_cast(p)
+        let obj = gil::register_owned(self, obj.into_nonnull());
+        T::unchecked_downcast(obj)
     }
 
     /// Register `ffi::PyObject` pointer in release pool
@@ -304,16 +304,7 @@ impl<'p> Python<'p> {
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
-        T: PyTypeInfo,
-    {
-        FromPyPointer::from_owned_ptr(self, ptr)
-    }
-
-    /// Register `ffi::PyObject` pointer in release pool,
-    /// Do unchecked downcast to specific type. Returns mutable reference.
-    pub unsafe fn mut_from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p mut T
-    where
-        T: PyTypeInfo,
+        T: FromPyPointer<'p>,
     {
         FromPyPointer::from_owned_ptr(self, ptr)
     }
@@ -324,7 +315,7 @@ impl<'p> Python<'p> {
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
-        T: PyTypeInfo,
+        T: FromPyPointer<'p>,
     {
         FromPyPointer::from_owned_ptr_or_err(self, ptr)
     }
@@ -335,7 +326,7 @@ impl<'p> Python<'p> {
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
-        T: PyTypeInfo,
+        T: FromPyPointer<'p>,
     {
         FromPyPointer::from_owned_ptr_or_opt(self, ptr)
     }
@@ -346,17 +337,7 @@ impl<'p> Python<'p> {
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
-        T: PyTypeInfo,
-    {
-        FromPyPointer::from_borrowed_ptr(self, ptr)
-    }
-
-    /// Register borrowed `ffi::PyObject` pointer in release pool.
-    /// Panics if the pointer is `null`.
-    /// do unchecked downcast to specific type.
-    pub unsafe fn mut_from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p mut T
-    where
-        T: PyTypeInfo,
+        T: FromPyPointer<'p>,
     {
         FromPyPointer::from_borrowed_ptr(self, ptr)
     }
@@ -367,7 +348,7 @@ impl<'p> Python<'p> {
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
-        T: PyTypeInfo,
+        T: FromPyPointer<'p>,
     {
         FromPyPointer::from_borrowed_ptr_or_err(self, ptr)
     }
@@ -378,7 +359,7 @@ impl<'p> Python<'p> {
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
-        T: PyTypeInfo,
+        T: FromPyPointer<'p>,
     {
         FromPyPointer::from_borrowed_ptr_or_opt(self, ptr)
     }

@@ -11,15 +11,13 @@
 use crate::callback::PyObjectCallbackConverter;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::ffi;
-use crate::type_object::PyTypeInfo;
-use crate::PyObject;
+use crate::{ffi, PyClass, PyObject};
 
 /// Python Async/Await support interface.
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
-pub trait PyAsyncProtocol<'p>: PyTypeInfo {
+pub trait PyAsyncProtocol<'p>: PyClass {
     fn __await__(&'p self) -> Self::Result
     where
         Self: PyAsyncAwaitProtocol<'p>,
@@ -155,8 +153,7 @@ where
         py_unary_func!(
             PyAsyncAwaitProtocol,
             T::__await__,
-            <T as PyAsyncAwaitProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -183,8 +180,7 @@ where
         py_unary_func!(
             PyAsyncAiterProtocol,
             T::__aiter__,
-            <T as PyAsyncAiterProtocol>::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -208,17 +204,20 @@ mod anext {
     use crate::IntoPyPointer;
     use crate::Python;
     use crate::{ffi, IntoPy, PyObject};
+    use std::marker::PhantomData;
     use std::ptr;
 
-    pub struct IterANextResultConverter;
+    struct IterANextResultConverter<T>(PhantomData<T>);
 
-    impl<T> CallbackConverter<Option<T>> for IterANextResultConverter
+    impl<T> CallbackConverter for IterANextResultConverter<T>
     where
         T: IntoPy<PyObject>,
     {
-        type R = *mut ffi::PyObject;
+        type Source = Option<T>;
+        type Result = *mut ffi::PyObject;
+        const ERR_VALUE: Self::Result = ptr::null_mut();
 
-        fn convert(val: Option<T>, py: Python) -> *mut ffi::PyObject {
+        fn convert(val: Self::Source, py: Python) -> Self::Result {
             match val {
                 Some(val) => val.into_py(py).into_ptr(),
                 None => unsafe {
@@ -226,11 +225,6 @@ mod anext {
                     ptr::null_mut()
                 },
             }
-        }
-
-        #[inline]
-        fn error_value() -> *mut ffi::PyObject {
-            ptr::null_mut()
         }
     }
 
@@ -243,8 +237,9 @@ mod anext {
             py_unary_func!(
                 PyAsyncAnextProtocol,
                 T::__anext__,
-                Option<T::Success>,
-                IterANextResultConverter
+                IterANextResultConverter::<T::Success>(std::marker::PhantomData),
+                *mut crate::ffi::PyObject,
+                call_mut_with_converter
             )
         }
     }

@@ -36,6 +36,14 @@ impl BaseClass {
     fn new() -> Self {
         BaseClass { val1: 10 }
     }
+    fn base_method(&self, x: usize) -> usize {
+        x * self.val1
+    }
+    fn base_set(&mut self, fn_: &pyo3::types::PyAny) -> PyResult<()> {
+        let value: usize = fn_.call0()?.extract()?;
+        self.val1 = value;
+        Ok(())
+    }
 }
 
 #[pyclass(extends=BaseClass)]
@@ -50,6 +58,13 @@ impl SubClass {
     fn new() -> (Self, BaseClass) {
         (SubClass { val2: 5 }, BaseClass { val1: 10 })
     }
+    fn sub_method(&self, x: usize) -> usize {
+        x * self.val2
+    }
+    fn sub_set_and_ret(&mut self, x: usize) -> usize {
+        self.val2 = x;
+        x
+    }
 }
 
 #[test]
@@ -59,6 +74,33 @@ fn inheritance_with_new_methods() {
     let typeobj = py.get_type::<SubClass>();
     let inst = typeobj.call((), None).unwrap();
     py_run!(py, inst, "assert inst.val1 == 10; assert inst.val2 == 5");
+}
+
+#[test]
+fn call_base_and_sub_methods() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let obj = PyCell::new(py, SubClass::new()).unwrap();
+    py_run!(
+        py,
+        obj,
+        r#"
+    assert obj.base_method(10) == 100
+    assert obj.sub_method(10) == 50
+"#
+    );
+}
+
+#[test]
+fn mutation_fails() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let obj = PyCell::new(py, SubClass::new()).unwrap();
+    let global = Some([("obj", obj)].into_py_dict(py));
+    let e = py
+        .run("obj.base_set(lambda: obj.sub_set_and_ret(1))", global, None)
+        .unwrap_err();
+    assert!(e.is_instance::<pyo3::pycell::PyBorrowMutError>(py))
 }
 
 #[pyclass]
@@ -109,6 +151,7 @@ except Exception as e:
 }
 
 #[pyclass(extends=PySet)]
+#[derive(Debug)]
 struct SetWithName {
     #[pyo3(get(name))]
     _name: &'static str,
@@ -126,7 +169,7 @@ impl SetWithName {
 fn inherit_set() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let set_sub = pyo3::pyclass::PyClassShell::new_ref(py, SetWithName::new()).unwrap();
+    let set_sub = pyo3::PyCell::new(py, SetWithName::new()).unwrap();
     py_run!(
         py,
         set_sub,
@@ -135,6 +178,7 @@ fn inherit_set() {
 }
 
 #[pyclass(extends=PyDict)]
+#[derive(Debug)]
 struct DictWithName {
     #[pyo3(get(name))]
     _name: &'static str,
@@ -152,7 +196,7 @@ impl DictWithName {
 fn inherit_dict() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let dict_sub = pyo3::pyclass::PyClassShell::new_ref(py, DictWithName::new()).unwrap();
+    let dict_sub = pyo3::PyCell::new(py, DictWithName::new()).unwrap();
     py_run!(
         py,
         dict_sub,

@@ -5,18 +5,14 @@
 
 use crate::callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
 use crate::err::{PyErr, PyResult};
-use crate::ffi;
 use crate::objectprotocol::ObjectProtocol;
-use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
-use crate::FromPyObject;
-use crate::Python;
-use crate::{exceptions, IntoPy, PyObject};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject, Python};
 use std::os::raw::c_int;
 
 /// Sequence interface
 #[allow(unused_variables)]
-pub trait PySequenceProtocol<'p>: PyTypeInfo + Sized {
+pub trait PySequenceProtocol<'p>: PyClass + Sized {
     fn __len__(&'p self) -> Self::Result
     where
         Self: PySequenceLenProtocol<'p>,
@@ -206,8 +202,7 @@ where
         py_ssizearg_func!(
             PySequenceGetItemProtocol,
             T::__getitem__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -267,27 +262,29 @@ mod sq_ass_item_impl {
             {
                 let py = Python::assume_gil_acquired();
                 let _pool = crate::GILPool::new(py);
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
-                let result = if value.is_null() {
-                    Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
+                if value.is_null() {
+                    return PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item deletion is not supported by {:?}",
                         stringify!(T)
-                    )))
-                } else {
-                    let value = py.from_borrowed_ptr::<PyAny>(value);
-                    match value.extract() {
-                        Ok(value) => slf.__setitem__(key.into(), value).into(),
-                        Err(e) => Err(e),
-                    }
-                };
+                    ))
+                    .restore_and_minus1(py);
+                }
 
+                let result = match slf.try_borrow_mut() {
+                    Ok(mut slf) => {
+                        let value = py.from_borrowed_ptr::<PyAny>(value);
+                        match value.extract() {
+                            Ok(value) => slf.__setitem__(key.into(), value).into(),
+                            Err(e) => e.into(),
+                        }
+                    }
+                    Err(e) => Err(PyErr::from(e)),
+                };
                 match result {
                     Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+                    Err(e) => e.restore_and_minus1(py),
                 }
             }
             Some(wrap::<T>)
@@ -322,10 +319,10 @@ mod sq_ass_item_impl {
             {
                 let py = Python::assume_gil_acquired();
                 let _pool = crate::GILPool::new(py);
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
-                    slf.__delitem__(key.into()).into()
+                    slf.borrow_mut().__delitem__(key.into()).into()
                 } else {
                     Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                         "Item assignment not supported by {:?}",
@@ -335,10 +332,7 @@ mod sq_ass_item_impl {
 
                 match result {
                     Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+                    Err(e) => e.restore_and_minus1(py),
                 }
             }
             Some(wrap::<T>)
@@ -373,23 +367,23 @@ mod sq_ass_item_impl {
             {
                 let py = Python::assume_gil_acquired();
                 let _pool = crate::GILPool::new(py);
-                let slf = py.mut_from_borrowed_ptr::<T>(slf);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
 
                 let result = if value.is_null() {
-                    slf.__delitem__(key.into()).into()
+                    call_mut!(slf, __delitem__; key.into())
                 } else {
                     let value = py.from_borrowed_ptr::<PyAny>(value);
-                    match value.extract() {
-                        Ok(value) => slf.__setitem__(key.into(), value).into(),
-                        Err(e) => Err(e),
+                    match slf.try_borrow_mut() {
+                        Ok(mut slf_) => match value.extract() {
+                            Ok(value) => slf_.__setitem__(key.into(), value).into(),
+                            Err(e) => Err(e),
+                        },
+                        Err(e) => Err(e.into()),
                     }
                 };
                 match result {
                     Ok(_) => 0,
-                    Err(e) => {
-                        e.restore(py);
-                        -1
-                    }
+                    Err(e) => e.restore_and_minus1(py),
                 }
             }
             Some(wrap::<T>)
@@ -418,7 +412,6 @@ where
         py_binary_func!(
             PySequenceContainsProtocol,
             T::__contains__,
-            bool,
             BoolCallbackConverter,
             c_int
         )
@@ -446,8 +439,7 @@ where
         py_binary_func!(
             PySequenceConcatProtocol,
             T::__concat__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -473,8 +465,7 @@ where
         py_ssizearg_func!(
             PySequenceRepeatProtocol,
             T::__repeat__,
-            T::Success,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
         )
     }
 }
@@ -500,8 +491,9 @@ where
         py_binary_func!(
             PySequenceInplaceConcatProtocol,
             T::__inplace_concat__,
-            T,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T>(std::marker::PhantomData),
+            *mut crate::ffi::PyObject,
+            call_mut_with_converter
         )
     }
 }
@@ -527,8 +519,8 @@ where
         py_ssizearg_func!(
             PySequenceInplaceRepeatProtocol,
             T::__inplace_repeat__,
-            T,
-            PyObjectCallbackConverter
+            PyObjectCallbackConverter::<T>(std::marker::PhantomData),
+            call_mut_with_converter
         )
     }
 }

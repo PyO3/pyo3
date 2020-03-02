@@ -79,7 +79,7 @@ impl PyModule {
     /// Return the index (`__all__`) of the module, creating one if needed.
     pub fn index(&self) -> PyResult<&PyList> {
         match self.getattr("__all__") {
-            Ok(idx) => idx.downcast_ref().map_err(PyErr::from),
+            Ok(idx) => idx.downcast().map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance::<exceptions::AttributeError>(self.py()) {
                     let l = PyList::empty(self.py());

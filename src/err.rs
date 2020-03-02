@@ -331,11 +331,18 @@ impl PyErr {
         unsafe { ffi::PyErr_Restore(ptype.into_ptr(), pvalue, ptraceback.into_ptr()) }
     }
 
-    #[doc(hidden)]
     /// Utility method for proc-macro code
+    #[doc(hidden)]
     pub fn restore_and_null<T>(self, py: Python) -> *mut T {
         self.restore(py);
         std::ptr::null_mut()
+    }
+
+    /// Utility method for proc-macro code
+    #[doc(hidden)]
+    pub fn restore_and_minus1(self, py: Python) -> crate::libc::c_int {
+        self.restore(py);
+        -1
     }
 
     /// Issue a warning message.
@@ -401,7 +408,7 @@ impl<'a> IntoPy<PyObject> for &'a PyErr {
     }
 }
 
-/// Converts `PyDowncastError` to Python `TypeError`.
+/// Convert `PyDowncastError` to Python `TypeError`.
 impl std::convert::From<PyDowncastError> for PyErr {
     fn from(_err: PyDowncastError) -> PyErr {
         exceptions::TypeError.into()

@@ -19,7 +19,7 @@ fn empty_class_with_new() {
     assert!(typeobj
         .call((), None)
         .unwrap()
-        .cast_as::<EmptyClassWithNew>()
+        .cast_as::<PyCell<EmptyClassWithNew>>()
         .is_ok());
 }
 
@@ -43,8 +43,9 @@ fn new_with_one_arg() {
     let py = gil.python();
     let typeobj = py.get_type::<NewWithOneArg>();
     let wrp = typeobj.call((42,), None).unwrap();
-    let obj = wrp.cast_as::<NewWithOneArg>().unwrap();
-    assert_eq!(obj._data, 42);
+    let obj = wrp.cast_as::<PyCell<NewWithOneArg>>().unwrap();
+    let obj_ref = obj.borrow();
+    assert_eq!(obj_ref._data, 42);
 }
 
 #[pyclass]
@@ -73,7 +74,8 @@ fn new_with_two_args() {
         .call((10, 20), None)
         .map_err(|e| e.print(py))
         .unwrap();
-    let obj = wrp.cast_as::<NewWithTwoArgs>().unwrap();
-    assert_eq!(obj._data1, 10);
-    assert_eq!(obj._data2, 20);
+    let obj = wrp.cast_as::<PyCell<NewWithTwoArgs>>().unwrap();
+    let obj_ref = obj.borrow();
+    assert_eq!(obj_ref._data1, 10);
+    assert_eq!(obj_ref._data2, 20);
 }

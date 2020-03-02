@@ -21,6 +21,7 @@ pub struct setentry {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct PySetObject {
     pub ob_base: PyObject,
     pub fill: Py_ssize_t,

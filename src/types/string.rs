@@ -3,15 +3,11 @@
 use crate::conversion::FromPyObject;
 use crate::conversion::{PyTryFrom, ToPyObject};
 use crate::err::{PyErr, PyResult};
-use crate::gil;
 use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::IntoPy;
-use crate::Python;
-use crate::{ffi, FromPy};
+use crate::{ffi, gil, AsPyPointer, FromPy, IntoPy, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;
