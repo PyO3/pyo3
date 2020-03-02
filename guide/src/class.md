@@ -83,7 +83,6 @@ impl pyo3::class::methods::PyMethodsInventoryDispatch for MyClass {
 }
 
 pyo3::inventory::collect!(MyClassGeneratedPyo3Inventory);
-
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let cls = py.get_type::<MyClass>();
@@ -304,8 +303,6 @@ impl SubSubClass {
       SubClass::method2(super_).map(|x| x * v)
    }
 }
-
-
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
@@ -342,7 +339,6 @@ impl DictWithCounter {
        dict.set_item(key, value)
    }
 }
-
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
@@ -379,14 +375,13 @@ annotated with `#[getter]` and `#[setter]` attributes. For example:
 
 ```rust
 # use pyo3::prelude::*;
-# #[pyclass]
-# struct MyClass {
-#    num: i32,
-# }
-#
+#[pyclass]
+struct MyClass {
+   num: i32,
+}
+
 #[pymethods]
 impl MyClass {
-
      #[getter]
      fn num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -409,10 +404,8 @@ can be used since Rust 2018).
 # struct MyClass {
 #    num: i32,
 # }
-#
 #[pymethods]
 impl MyClass {
-
      #[getter]
      fn get_num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -437,10 +430,8 @@ If this parameter is specified, it is used as the property name, i.e.
 # struct MyClass {
 #    num: i32,
 # }
-#
 #[pymethods]
 impl MyClass {
-
      #[getter(number)]
      fn num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -482,10 +473,8 @@ block with some variations, like descriptors, class method static methods, etc.
 # struct MyClass {
 #    num: i32,
 # }
-#
 #[pymethods]
 impl MyClass {
-
      fn method1(&self) -> PyResult<i32> {
         Ok(10)
      }
@@ -511,7 +500,6 @@ gets injected by the method wrapper, e.g.
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      fn method2(&self, py: Python) -> PyResult<i32> {
@@ -535,7 +523,6 @@ with the `#[classmethod]` attribute.
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      #[classmethod]
@@ -566,7 +553,6 @@ To create a static method for a custom class, the method needs to be annotated w
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      #[staticmethod]
@@ -589,7 +575,6 @@ use pyo3::types::PyTuple;
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      #[call]
@@ -632,7 +617,6 @@ use pyo3::types::{PyDict, PyTuple};
 #    num: i32,
 #    debug: bool,
 # }
-#
 #[pymethods]
 impl MyClass {
     #[new]
