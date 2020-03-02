@@ -440,6 +440,8 @@ pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
+unsafe impl<'p, T: PyClass> crate::PyNativeType for PyRef<'p, T> {}
+
 impl<'p, T, U> AsRef<U> for PyRef<'p, T>
 where
     T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
@@ -548,6 +550,8 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRef<'_, T> {
 pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
+
+unsafe impl<'p, T: PyClass> crate::PyNativeType for PyRefMut<'p, T> {}
 
 impl<'p, T, U> AsRef<U> for PyRefMut<'p, T>
 where

@@ -249,7 +249,6 @@ or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
 
 ```rust
 # use pyo3::prelude::*;
-use pyo3::PyCell;
 
 #[pyclass]
 struct BaseClass {
@@ -312,11 +311,47 @@ impl SubSubClass {
 # let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
+You can also inherit native types such as `PyDict`, if it implements
+[`PySizedLayout`](https://pyo3.rs/master/doc/pyo3/type_object/trait.PySizedLayout.html).
+
+However, because of some technical problems, now we don't provide safe upcast methods for types
+that inherit native types. Even in such cases, you can get a base class by raw pointer conversion.
+
+```rust
+# use pyo3::prelude::*;
+use pyo3::types::{PyAny, PyDict};
+use pyo3::{AsPyPointer, PyNativeType};
+use std::collections::HashMap;
+
+#[pyclass(extends=PyDict)]
+#[derive(Default)]
+struct DictWithCounter {
+    counter: HashMap<String, usize>,
+}
+
+#[pymethods]
+impl DictWithCounter {
+   #[new]
+   fn new() -> Self {
+       Self::default()
+   }
+   fn set(mut self_: PyRefMut<Self>, key: String, value: &PyAny) -> PyResult<()> {
+       self_.counter.entry(key.clone()).or_insert(0);
+       let py = self_.py();
+       let dict: &PyDict = unsafe { py.from_borrowed_ptr_or_err(self_.as_ptr())? };
+       dict.set_item(key, value)
+   }
+}
+
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
+# pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
+```
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
 ```compile_fail
 # use pyo3::prelude::*;
-use pyo3::PyCell;
 
 #[pyclass]
 struct BaseClass {
@@ -336,7 +371,6 @@ impl SubClass {
    }
 }
 ```
-
 
 ## Object properties
 
@@ -785,7 +819,7 @@ Example:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyIterProtocol, PyCell};
+use pyo3::PyIterProtocol;
 
 #[pyclass]
 struct MyIterator {
