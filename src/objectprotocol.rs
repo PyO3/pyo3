@@ -5,8 +5,8 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions::TypeError;
 use crate::types::{PyAny, PyDict, PyIterator, PyString, PyTuple, PyType};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType,
-    PyObject, PyTryFrom, PyTypeInfo, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, PyTryFrom,
+    Python, ToBorrowedObject, ToPyObject,
 };
 use std::cmp::Ordering;
 use std::os::raw::c_int;
@@ -169,12 +169,6 @@ pub trait ObjectProtocol {
 
     /// Gets the Python type pointer for this object.
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
-
-    /// Gets the Python base object for this object.
-    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
-    where
-        Self: PyTypeInfo,
-        <Self as PyTypeInfo>::BaseType: for<'py> FromPyPointer<'py>;
 
     /// Casts the PyObject to a concrete Python object type.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
@@ -443,14 +437,6 @@ where
     #[inline]
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject {
         unsafe { (*self.as_ptr()).ob_type }
-    }
-
-    fn get_base(&self) -> &<Self as PyTypeInfo>::BaseType
-    where
-        Self: PyTypeInfo,
-        <Self as PyTypeInfo>::BaseType: for<'py> FromPyPointer<'py>,
-    {
-        unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>

@@ -29,9 +29,9 @@ pub enum FnType {
     FnCall,
     FnClass,
     FnStatic,
-    // self_: &PyCell<Self>,
+    /// For methods taht have `self_: &PyCell<Self>` instead of self receiver
     PySelfRef(syn::TypeReference),
-    // self_: PyRef<Self> or PyRefMut<Self>
+    /// For methods taht have `self_: PyRef<Self>` or `PyRefMut<Self>` instead of self receiver
     PySelfPath(syn::TypePath),
 }
 

@@ -114,7 +114,7 @@ from Rust code (e.g., for testing it).
 [`PyCell`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html) is our primary interface for that.
 
 `PyCell<T: PyClass>` is always allocated in the Python heap, so we don't have the ownership of it.
-We can get `&PyCell<T>`, not `PyCell<T>`.
+We can only get `&PyCell<T>`, not `PyCell<T>`.
 
 Thus, to mutate data behind `&PyCell` safely, we employ the
 [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
@@ -242,8 +242,10 @@ baseclass of `T`.
 But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
 
-To get a parent class from child, use `PyRef<T>` instead of `&self`,
+To get a parent class from a child, use `PyRef<T>` instead of `&self`,
 or `PyRefMut<T>` instead of `&mut self`.
+Then you can access a parent class by `self_.as_ref()` as `&Self::BaseClass`,
+or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -310,12 +312,6 @@ impl SubSubClass {
 # let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
-
-To access the super class, you can use either of these two ways:
-- Use `self_: &PyCell<Self>` instead of `self`, and call `get_super()`
-- `ObjectProtocol::get_base`
-We recommend `PyCell` here, since it makes the context much clearer.
-
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
 ```compile_fail
