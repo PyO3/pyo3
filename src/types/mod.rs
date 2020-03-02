@@ -56,20 +56,10 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
-macro_rules! impl_layout {
-    ($name: ty, $layout: path) => {
-        unsafe impl $crate::type_object::PyLayout<$name> for $layout {
-            unsafe fn get_ptr(&self) -> *mut $name {
-                (&self) as *const &Self as *const _ as *mut _
-            }
-        }
-    };
-}
-
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl_layout!($name, $layout);
+        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
         impl $crate::type_object::PySizedLayout<$name> for $layout {}
         impl $crate::derive_utils::PyBaseTypeUtils for $name {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
@@ -97,7 +87,7 @@ macro_rules! pyobject_native_type {
 #[macro_export]
 macro_rules! pyobject_native_var_type {
     ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl_layout!($name, $crate::ffi::PyObject);
+        unsafe impl $crate::type_object::PyLayout<$name> for $crate::ffi::PyObject {}
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $crate::ffi::PyObject,
                                       $typeobject, $module, $checkfunction $(,$type_param)*);

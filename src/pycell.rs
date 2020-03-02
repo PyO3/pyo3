@@ -25,9 +25,6 @@ where
     T::Layout: PySizedLayout<T>,
 {
     const IS_NATIVE_TYPE: bool = true;
-    unsafe fn get_ptr(&self) -> *mut T {
-        (&self) as *const &Self as *const _ as *mut _
-    }
 }
 
 // Thes impls ensures `PyCellBase` can be a base type.
@@ -67,9 +64,6 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCellInner<T> {
     fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.ob_base)
     }
-    unsafe fn get_ptr(&self) -> *mut T {
-        self.value.get()
-    }
     unsafe fn py_init(&mut self, value: T) {
         self.value = ManuallyDrop::new(UnsafeCell::new(value));
     }
@@ -84,6 +78,9 @@ impl<T: PyClass> PySizedLayout<T> for PyCellInner<T> {}
 unsafe impl<T: PyClass> PyBorrowFlagLayout<T> for PyCellInner<T> {}
 
 impl<T: PyClass> PyCellInner<T> {
+    unsafe fn get_ptr(&self) -> *mut T {
+        self.value.get()
+    }
     fn get_borrow_flag(&self) -> BorrowFlag {
         let base = (&self.ob_base) as *const _ as *const PyCellBase<T::BaseNativeType>;
         unsafe { (*base).borrow_flag.get() }
@@ -353,9 +350,6 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
     fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         Some(&mut self.inner.ob_base)
     }
-    unsafe fn get_ptr(&self) -> *mut T {
-        self.inner.get_ptr()
-    }
     unsafe fn py_init(&mut self, value: T) {
         self.inner.value = ManuallyDrop::new(UnsafeCell::new(value));
     }
@@ -446,7 +440,11 @@ pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-impl<'p, T: PyClass> AsRef<T::BaseType> for PyRef<'p, T> {
+impl<'p, T, U> AsRef<U> for PyRef<'p, T>
+where
+    T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
+    U: PyClass,
+{
     fn as_ref(&self) -> &T::BaseType {
         unsafe { &*self.inner.ob_base.get_ptr() }
     }
@@ -551,13 +549,21 @@ pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-impl<'p, T: PyClass> AsRef<T::BaseType> for PyRefMut<'p, T> {
+impl<'p, T, U> AsRef<U> for PyRefMut<'p, T>
+where
+    T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
+    U: PyClass,
+{
     fn as_ref(&self) -> &T::BaseType {
         unsafe { &*self.inner.ob_base.get_ptr() }
     }
 }
 
-impl<'p, T: PyClass> AsMut<T::BaseType> for PyRefMut<'p, T> {
+impl<'p, T, U> AsMut<U> for PyRefMut<'p, T>
+where
+    T: PyClass + PyTypeInfo<BaseType = U, BaseLayout = PyCellInner<U>>,
+    U: PyClass,
+{
     fn as_mut(&mut self) -> &mut T::BaseType {
         unsafe { &mut *self.inner.ob_base.get_ptr() }
     }
