@@ -241,6 +241,13 @@ pub type newfunc = unsafe extern "C" fn(
 ) -> *mut PyObject;
 pub type allocfunc =
     unsafe extern "C" fn(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyObject;
+#[cfg(Py_3_8)]
+pub type vectorcallfunc = unsafe extern "C" fn(
+    callable: *mut PyObject,
+    args: *const *mut PyObject,
+    nargsf: libc::size_t,
+    kwnames: *mut PyObject,
+) -> *mut PyObject;
 
 #[cfg(Py_LIMITED_API)]
 mod typeobject {
@@ -492,23 +499,25 @@ mod typeobject {
         pub tp_members: *mut ffi::structmember::PyMemberDef,
         pub tp_getset: *mut ffi::descrobject::PyGetSetDef,
         pub tp_base: *mut PyTypeObject,
-        pub tp_dict: *mut ffi::object::PyObject,
-        pub tp_descr_get: Option<ffi::object::descrgetfunc>,
-        pub tp_descr_set: Option<ffi::object::descrsetfunc>,
+        pub tp_dict: *mut object::PyObject,
+        pub tp_descr_get: Option<object::descrgetfunc>,
+        pub tp_descr_set: Option<object::descrsetfunc>,
         pub tp_dictoffset: Py_ssize_t,
-        pub tp_init: Option<ffi::object::initproc>,
-        pub tp_alloc: Option<ffi::object::allocfunc>,
-        pub tp_new: Option<ffi::object::newfunc>,
-        pub tp_free: Option<ffi::object::freefunc>,
-        pub tp_is_gc: Option<ffi::object::inquiry>,
-        pub tp_bases: *mut ffi::object::PyObject,
-        pub tp_mro: *mut ffi::object::PyObject,
-        pub tp_cache: *mut ffi::object::PyObject,
-        pub tp_subclasses: *mut ffi::object::PyObject,
-        pub tp_weaklist: *mut ffi::object::PyObject,
-        pub tp_del: Option<ffi::object::destructor>,
+        pub tp_init: Option<object::initproc>,
+        pub tp_alloc: Option<object::allocfunc>,
+        pub tp_new: Option<object::newfunc>,
+        pub tp_free: Option<object::freefunc>,
+        pub tp_is_gc: Option<object::inquiry>,
+        pub tp_bases: *mut object::PyObject,
+        pub tp_mro: *mut object::PyObject,
+        pub tp_cache: *mut object::PyObject,
+        pub tp_subclasses: *mut object::PyObject,
+        pub tp_weaklist: *mut object::PyObject,
+        pub tp_del: Option<object::destructor>,
         pub tp_version_tag: c_uint,
-        pub tp_finalize: Option<ffi::object::destructor>,
+        pub tp_finalize: Option<object::destructor>,
+        #[cfg(Py_3_8)]
+        pub tp_vectorcall: Option<object::vectorcallfunc>,
         #[cfg(PyPy)]
         pub tp_pypy_flags: ::std::os::raw::c_long,
         #[cfg(py_sys_config = "COUNT_ALLOCS")]
@@ -524,7 +533,7 @@ mod typeobject {
     }
 
     macro_rules! _type_object_init {
-        ({$($head:tt)*} $tp_as_async:ident, $($tail:tt)*) => {
+        ({$($head:tt)*}, $($tail:tt)*) => {
             as_expr! {
                 PyTypeObject {
                     $($head)*
@@ -538,7 +547,7 @@ mod typeobject {
                     tp_vectorcall_offset: 0,
                     tp_getattr: None,
                     tp_setattr: None,
-                    $tp_as_async: ptr::null_mut(),
+                    tp_as_async: ptr::null_mut(),
                     tp_repr: None,
                     tp_as_number: ptr::null_mut(),
                     tp_as_sequence: ptr::null_mut(),
@@ -549,7 +558,7 @@ mod typeobject {
                     tp_getattro: None,
                     tp_setattro: None,
                     tp_as_buffer: ptr::null_mut(),
-                    tp_flags: ffi::object::Py_TPFLAGS_DEFAULT,
+                    tp_flags: object::Py_TPFLAGS_DEFAULT,
                     tp_doc: ptr::null(),
                     tp_traverse: None,
                     tp_clear: None,
@@ -577,6 +586,9 @@ mod typeobject {
                     tp_weaklist: ptr::null_mut(),
                     tp_del: None,
                     tp_version_tag: 0,
+                    tp_finalize: None,
+                    #[cfg(Py_3_8)]
+                    tp_vectorcall: None,
                     $($tail)*
                 }
             }
@@ -584,15 +596,14 @@ mod typeobject {
     }
 
     #[cfg(PyPy)]
-    macro_rules! py_type_object_init {
-        ($tp_as_async:ident, $($tail:tt)*) => {
+    macro_rules! type_object_init {
+        ($($tail:tt)*) => {
             _type_object_init!({
                     ob_refcnt: 1,
                     ob_pypy_link: 0,
                     ob_type: ptr::null_mut(),
                     ob_size: 0,
-                }
-                $tp_as_async,
+                },
                 tp_pypy_flags: 0,
                 $($tail)*
             )
@@ -600,42 +611,29 @@ mod typeobject {
     }
 
     #[cfg(not(PyPy))]
-    macro_rules! py_type_object_init {
-        ($tp_as_async:ident, $($tail:tt)*) => {
+    macro_rules! type_object_init {
+        ($($tail:tt)*) => {
             _type_object_init!({
-                ob_base: ffi::object::PyVarObject {
-                    ob_base: ffi::object::PyObject_HEAD_INIT,
+                ob_base: object::PyVarObject {
+                    ob_base: object::PyObject_HEAD_INIT,
                     ob_size: 0
-                },}
-                $tp_as_async,
+                },},
                 $($tail)*
             )
         }
     }
 
     #[cfg(py_sys_config = "COUNT_ALLOCS")]
-    macro_rules! py_type_object_init_with_count_allocs {
-        ($tp_as_async:ident, $($tail:tt)*) => {
-            py_type_object_init!($tp_as_async,
-                $($tail)*
-                tp_allocs: 0,
-                tp_frees: 0,
-                tp_maxalloc: 0,
-                tp_prev: ptr::null_mut(),
-                tp_next: ptr::null_mut(),
-            )
-        }
-    }
+    pub const PyTypeObject_INIT: PyTypeObject = type_object_init! {
+        tp_allocs: 0,
+        tp_frees: 0,
+        tp_maxalloc: 0,
+        tp_prev: ptr::null_mut(),
+        tp_next: ptr::null_mut(),
+    };
 
     #[cfg(not(py_sys_config = "COUNT_ALLOCS"))]
-    macro_rules! py_type_object_init_with_count_allocs {
-        ($tp_as_async:ident, $($tail:tt)*) => {
-            py_type_object_init!($tp_as_async, $($tail)*)
-        }
-    }
-
-    pub const PyTypeObject_INIT: PyTypeObject =
-        py_type_object_init_with_count_allocs!(tp_as_async, tp_finalize: None,);
+    pub const PyTypeObject_INIT: PyTypeObject = type_object_init!();
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -646,9 +644,9 @@ mod typeobject {
         pub as_mapping: PyMappingMethods,
         pub as_sequence: PySequenceMethods,
         pub as_buffer: PyBufferProcs,
-        pub ht_name: *mut ffi::object::PyObject,
-        pub ht_slots: *mut ffi::object::PyObject,
-        pub ht_qualname: *mut ffi::object::PyObject,
+        pub ht_name: *mut object::PyObject,
+        pub ht_slots: *mut object::PyObject,
+        pub ht_qualname: *mut object::PyObject,
         pub ht_cached_keys: *mut c_void,
     }
 
@@ -663,7 +661,7 @@ mod typeobject {
     pub unsafe fn PyHeapType_GET_MEMBERS(
         etype: *mut PyHeapTypeObject,
     ) -> *mut ffi::structmember::PyMemberDef {
-        let py_type = ffi::object::Py_TYPE(etype as *mut ffi::object::PyObject);
+        let py_type = object::Py_TYPE(etype as *mut object::PyObject);
         let ptr = etype.offset((*py_type).tp_basicsize);
         ptr as *mut ffi::structmember::PyMemberDef
     }

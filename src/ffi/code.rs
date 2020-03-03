@@ -2,6 +2,9 @@ use crate::ffi::object::*;
 use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int, c_uchar, c_void};
 
+#[cfg(Py_3_8)]
+pub enum _PyOpcache {}
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PyCodeObject {
@@ -29,6 +32,14 @@ pub struct PyCodeObject {
     pub co_weakreflist: *mut PyObject,
     #[cfg(Py_3_6)]
     pub co_extra: *mut c_void,
+    #[cfg(Py_3_8)]
+    pub co_opcache_map: *mut c_uchar,
+    #[cfg(Py_3_8)]
+    pub co_opcache: *mut _PyOpcache,
+    #[cfg(Py_3_8)]
+    pub co_opcache_flag: c_int,
+    #[cfg(Py_3_8)]
+    pub co_opcache_size: c_uchar,
 }
 
 /* Masks for co_flags */
@@ -77,21 +88,40 @@ extern "C" {
 
     #[cfg_attr(PyPy, link_name = "PyPyCode_New")]
     pub fn PyCode_New(
-        arg1: c_int,
-        arg2: c_int,
-        arg3: c_int,
-        arg4: c_int,
-        arg5: c_int,
-        arg6: *mut PyObject,
-        arg7: *mut PyObject,
-        arg8: *mut PyObject,
-        arg9: *mut PyObject,
-        arg10: *mut PyObject,
-        arg11: *mut PyObject,
-        arg12: *mut PyObject,
-        arg13: *mut PyObject,
-        arg14: c_int,
-        arg15: *mut PyObject,
+        argcount: c_int,
+        kwonlyargcount: c_int,
+        nlocals: c_int,
+        stacksize: c_int,
+        flags: c_int,
+        code: *mut PyObject,
+        consts: *mut PyObject,
+        names: *mut PyObject,
+        varnames: *mut PyObject,
+        freevars: *mut PyObject,
+        cellvars: *mut PyObject,
+        filename: *mut PyObject,
+        name: *mut PyObject,
+        firstlineno: c_int,
+        lnotab: *mut PyObject,
+    ) -> *mut PyCodeObject;
+    #[cfg(Py_3_8)]
+    pub fn PyCode_NewWithPosOnlyArgs(
+        argcount: c_int,
+        posonlyargcount: c_int,
+        kwonlyargcount: c_int,
+        nlocals: c_int,
+        stacksize: c_int,
+        flags: c_int,
+        code: *mut PyObject,
+        consts: *mut PyObject,
+        names: *mut PyObject,
+        varnames: *mut PyObject,
+        freevars: *mut PyObject,
+        cellvars: *mut PyObject,
+        filename: *mut PyObject,
+        name: *mut PyObject,
+        firstlineno: c_int,
+        lnotab: *mut PyObject,
     ) -> *mut PyCodeObject;
     #[cfg_attr(PyPy, link_name = "PyPyCode_NewEmpty")]
     pub fn PyCode_NewEmpty(

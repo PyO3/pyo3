@@ -149,16 +149,16 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type.
-    pub fn cast_as<D>(&self, py: Python) -> Result<&D, PyDowncastError>
+    pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
     where
-        D: for<'v> PyTryFrom<'v>,
+        D: PyTryFrom<'p>,
     {
         D::try_from(self.as_ref(py))
     }
 
     /// Extracts some type from the Python object.
     /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'p, D>(&'p self, py: Python) -> PyResult<D>
+    pub fn extract<'p, D>(&'p self, py: Python<'p>) -> PyResult<D>
     where
         D: FromPyObject<'p>,
     {
@@ -250,7 +250,8 @@ impl PyObject {
     }
 }
 
-impl AsPyRef<PyAny> for PyObject {
+impl AsPyRef for PyObject {
+    type Target = PyAny;
     fn as_ref(&self, _py: Python) -> &PyAny {
         unsafe { &*(self as *const _ as *const PyAny) }
     }

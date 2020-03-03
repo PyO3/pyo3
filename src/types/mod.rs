@@ -56,11 +56,27 @@ macro_rules! pyobject_native_type_named (
     };
 );
 
+macro_rules! impl_layout {
+    ($name: ty, $layout: path) => {
+        unsafe impl $crate::type_object::PyLayout<$name> for $layout {
+            unsafe fn get_ptr(&self) -> *mut $name {
+                (&self) as *const &Self as *const _ as *mut _
+            }
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl $crate::type_object::PyObjectLayout<$name> for $layout {}
-        impl $crate::type_object::PyObjectSizedLayout<$name> for $layout {}
+        impl_layout!($name, $layout);
+        impl $crate::type_object::PySizedLayout<$name> for $layout {}
+        impl $crate::derive_utils::PyBaseTypeUtils for $name {
+            type Dict = $crate::pyclass_slots::PyClassDummySlot;
+            type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
+            type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
+            type BaseNativeType = $name;
+        }
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
         pyobject_native_type_extract!($name $(,$type_param)*);
@@ -81,7 +97,7 @@ macro_rules! pyobject_native_type {
 #[macro_export]
 macro_rules! pyobject_native_var_type {
     ($name: ty, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl $crate::type_object::PyObjectLayout<$name> for $crate::ffi::PyObject {}
+        impl_layout!($name, $crate::ffi::PyObject);
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $crate::ffi::PyObject,
                                       $typeobject, $module, $checkfunction $(,$type_param)*);
@@ -104,8 +120,10 @@ macro_rules! pyobject_native_var_type {
 // because rust-numpy has a special implementation.
 macro_rules! pyobject_native_type_extract {
     ($name: ty $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> $crate::conversion::FromPyObjectImpl for &'_ $name {
-            type Impl = $crate::conversion::extract_impl::Reference;
+        impl<'py, $($type_param,)*> $crate::FromPyObject<'py> for &'py $name {
+            fn extract(obj: &'py crate::types::PyAny) -> $crate::PyResult<Self> {
+                $crate::PyTryFrom::try_from(obj).map_err(Into::into)
+            }
         }
     }
 }
@@ -117,7 +135,8 @@ macro_rules! pyobject_native_type_convert(
         unsafe impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
             type BaseType = $crate::types::PyAny;
-            type ConcreteLayout = $layout;
+            type Layout = $layout;
+            type BaseLayout = ffi::PyObject;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
 
             const NAME: &'static str = stringify!($name);
@@ -141,6 +160,14 @@ macro_rules! pyobject_native_type_convert(
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 use $crate::AsPyPointer;
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
+            }
+        }
+
+        impl $crate::AsPyRef for $crate::Py<$name> {
+            type Target = $name;
+            fn as_ref(&self, _py: $crate::Python) -> &$name {
+                let any = self as *const $crate::Py<$name> as *const $crate::types::PyAny;
+                unsafe { $crate::type_object::PyDowncastImpl::unchecked_downcast(&*any) }
             }
         }
 

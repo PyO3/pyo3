@@ -23,3 +23,10 @@ macro_rules! private_impl {
         }
     }
 }
+
+macro_rules! pyo3_exception {
+    ($name: ident, $base: ty) => {
+        $crate::impl_exception_boilerplate!($name);
+        $crate::create_exception_type_object!(pyo3_runtime, $name, $base);
+    };
+}

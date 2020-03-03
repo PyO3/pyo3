@@ -182,8 +182,8 @@ impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
     }
 }
 
-/// Variant of IntoPyResult for the specific case of #[new]. In the case of returning (Sub, Base)
-/// from #[new], IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
+/// Variant of IntoPyResult for the specific case of `#[new]`. In the case of returning (Sub, Base)
+/// from `#[new]`, IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
 pub trait IntoPyNewResult<T: PyClass, I: Into<PyClassInitializer<T>>> {
     fn into_pynew_result(self) -> PyResult<I>;
 }
@@ -217,4 +217,19 @@ impl GetPropertyValue for PyObject {
     fn get_property_value(&self, py: Python) -> PyObject {
         self.clone_ref(py)
     }
+}
+
+/// Utilities for basetype
+pub trait PyBaseTypeUtils {
+    type Dict;
+    type WeakRef;
+    type LayoutAsBase;
+    type BaseNativeType;
+}
+
+impl<T: PyClass> PyBaseTypeUtils for T {
+    type Dict = T::Dict;
+    type WeakRef = T::WeakRef;
+    type LayoutAsBase = crate::pycell::PyCellInner<T>;
+    type BaseNativeType = T::BaseNativeType;
 }

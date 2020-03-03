@@ -1,7 +1,6 @@
 //! Initialization utilities for `#[pyclass]`.
-use crate::pyclass::{PyClass, PyClassShell};
-use crate::type_object::{PyObjectLayout, PyObjectSizedLayout, PyTypeInfo};
-use crate::{PyResult, Python};
+use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
+use crate::{PyCell, PyClass, PyResult, Python};
 use std::marker::PhantomData;
 
 /// Initializer for Python types.
@@ -9,7 +8,7 @@ use std::marker::PhantomData;
 /// This trait is intended to use internally for distinguishing `#[pyclass]` and
 /// Python native types.
 pub trait PyObjectInit<T: PyTypeInfo>: Sized {
-    fn init_class(self, shell: &mut T::ConcreteLayout);
+    fn init_class<L: PyLayout<T>>(self, layout: &mut L);
     private_decl! {}
 }
 
@@ -17,7 +16,7 @@ pub trait PyObjectInit<T: PyTypeInfo>: Sized {
 pub struct PyNativeTypeInitializer<T: PyTypeInfo>(PhantomData<T>);
 
 impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
-    fn init_class(self, _shell: &mut T::ConcreteLayout) {}
+    fn init_class<L: PyLayout<T>>(self, _layout: &mut L) {}
     private_impl! {}
 }
 
@@ -109,30 +108,32 @@ impl<T: PyClass> PyClassInitializer<T> {
     pub fn add_subclass<S>(self, subclass_value: S) -> PyClassInitializer<S>
     where
         S: PyClass + PyTypeInfo<BaseType = T>,
+        S::BaseLayout: PySizedLayout<T>,
         S::BaseType: PyTypeInfo<Initializer = Self>,
     {
         PyClassInitializer::new(subclass_value, self)
     }
 
+    // Create a new PyCell + initialize it
     #[doc(hidden)]
-    pub unsafe fn create_shell(self, py: Python) -> PyResult<*mut PyClassShell<T>>
+    pub unsafe fn create_cell(self, py: Python) -> PyResult<*mut PyCell<T>>
     where
         T: PyClass,
-        <T::BaseType as PyTypeInfo>::ConcreteLayout: PyObjectSizedLayout<T::BaseType>,
+        T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
-        let shell = PyClassShell::new(py)?;
-        self.init_class(&mut *shell);
-        Ok(shell)
+        let cell = PyCell::internal_new(py)?;
+        self.init_class(&mut *cell);
+        Ok(cell)
     }
 }
 
 impl<T: PyClass> PyObjectInit<T> for PyClassInitializer<T> {
-    fn init_class(self, obj: &mut T::ConcreteLayout) {
+    fn init_class<L: PyLayout<T>>(self, layout: &mut L) {
         let Self { init, super_init } = self;
         unsafe {
-            obj.py_init(init);
+            layout.py_init(init);
         }
-        if let Some(super_obj) = obj.get_super_or() {
+        if let Some(super_obj) = layout.get_super() {
             super_init.init_class(super_obj);
         }
     }
@@ -152,6 +153,7 @@ where
 impl<S, B> From<(S, B)> for PyClassInitializer<S>
 where
     S: PyClass + PyTypeInfo<BaseType = B>,
+    S::BaseLayout: PySizedLayout<B>,
     B: PyClass + PyTypeInfo<Initializer = PyClassInitializer<B>>,
     B::BaseType: PyTypeInfo<Initializer = PyNativeTypeInitializer<B::BaseType>>,
 {

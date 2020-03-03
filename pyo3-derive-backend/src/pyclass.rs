@@ -317,14 +317,18 @@ fn impl_class(
     }
 
     let weakref = if has_weakref {
-        quote! { type WeakRef = pyo3::pyclass_slots::PyClassWeakRefSlot; }
+        quote! { pyo3::pyclass_slots::PyClassWeakRefSlot }
+    } else if attr.has_extends {
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::WeakRef }
     } else {
-        quote! { type WeakRef = pyo3::pyclass_slots::PyClassDummySlot; }
+        quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
     let dict = if has_dict {
-        quote! { type Dict = pyo3::pyclass_slots::PyClassDictSlot; }
+        quote! { pyo3::pyclass_slots::PyClassDictSlot }
+    } else if attr.has_extends {
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::Dict }
     } else {
-        quote! { type Dict = pyo3::pyclass_slots::PyClassDummySlot; }
+        quote! { pyo3::pyclass_slots::PyClassDummySlot }
     };
     let module = if let Some(m) = &attr.module {
         quote! { Some(#m) }
@@ -357,6 +361,16 @@ fn impl_class(
     } else {
         quote! { 0 }
     };
+    let base_layout = if attr.has_extends {
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
+    } else {
+        quote! { pyo3::pycell::PyCellBase<pyo3::types::PyAny> }
+    };
+    let base_nativetype = if attr.has_extends {
+        quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::BaseNativeType }
+    } else {
+        quote! { pyo3::types::PyAny }
+    };
 
     // If #cls is not extended type, we allow Self->PyObject conversion
     let into_pyobject = if !attr.has_extends {
@@ -375,7 +389,8 @@ fn impl_class(
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
-            type ConcreteLayout = pyo3::pyclass::PyClassShell<Self>;
+            type Layout = pyo3::pycell::PyCell<Self>;
+            type BaseLayout = #base_layout;
             type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
 
             const NAME: &'static str = #cls_name;
@@ -392,20 +407,9 @@ fn impl_class(
         }
 
         impl pyo3::PyClass for #cls {
-            #dict
-            #weakref
-        }
-
-        impl pyo3::conversion::FromPyObjectImpl for #cls {
-            type Impl = pyo3::conversion::extract_impl::Cloned;
-        }
-
-        impl pyo3::conversion::FromPyObjectImpl for &'_ #cls {
-            type Impl = pyo3::conversion::extract_impl::Reference;
-        }
-
-        impl pyo3::conversion::FromPyObjectImpl for &'_ mut #cls {
-            type Impl = pyo3::conversion::extract_impl::MutReference;
+            type Dict = #dict;
+            type WeakRef = #weakref;
+            type BaseNativeType = #base_nativetype;
         }
 
         #into_pyobject

@@ -20,7 +20,10 @@ pub fn gen_py_method(
 
     Ok(match spec.tp {
         FnType::Fn => impl_py_method_def(&spec, &impl_wrap(cls, &spec, true)),
-        FnType::PySelf(ref self_ty) => {
+        FnType::PySelfRef(ref self_ty) => {
+            impl_py_method_def(&spec, &impl_wrap_pyslf(cls, &spec, self_ty, true))
+        }
+        FnType::PySelfPath(ref self_ty) => {
             impl_py_method_def(&spec, &impl_wrap_pyslf(cls, &spec, self_ty, true))
         }
         FnType::FnNew => impl_py_method_def_new(&spec, &impl_wrap_new(cls, &spec)),
@@ -59,14 +62,18 @@ fn check_generic(sig: &syn::Signature) -> syn::Result<()> {
 /// Generate function wrapper (PyCFunction, PyCFunctionWithKeywords)
 pub fn impl_wrap(cls: &syn::Type, spec: &FnSpec<'_>, noargs: bool) -> TokenStream {
     let body = impl_call(cls, &spec);
-    let slf = impl_self(&quote! { &mut #cls });
+    let borrow_self = spec.borrow_self();
+    let slf = quote! {
+        let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+        #borrow_self
+    };
     impl_wrap_common(cls, spec, noargs, slf, body)
 }
 
 pub fn impl_wrap_pyslf(
     cls: &syn::Type,
     spec: &FnSpec<'_>,
-    self_ty: &syn::TypeReference,
+    self_ty: impl quote::ToTokens,
     noargs: bool,
 ) -> TokenStream {
     let names = get_arg_names(spec);
@@ -74,7 +81,13 @@ pub fn impl_wrap_pyslf(
     let body = quote! {
         #cls::#name(_slf, #(#names),*)
     };
-    let slf = impl_self(self_ty);
+    let slf = quote! {
+        let _cell = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+        let _slf: #self_ty = match std::convert::TryFrom::try_from(_cell) {
+            Ok(_slf) => _slf,
+            Err(e) => return pyo3::PyErr::from(e).restore_and_null(_py),
+        };
+    };
     impl_wrap_common(cls, spec, noargs, slf, body)
 }
 
@@ -102,8 +115,7 @@ fn impl_wrap_common(
                     pyo3::derive_utils::IntoPyResult::into_py_result(#body)
                 };
 
-                pyo3::callback::cb_convert(
-                    pyo3::callback::PyObjectCallbackConverter, _py, _result)
+                pyo3::callback::cb_obj_convert(_py, _result)
             }
         }
     } else {
@@ -125,8 +137,7 @@ fn impl_wrap_common(
 
                 #body
 
-                pyo3::callback::cb_convert(
-                    pyo3::callback::PyObjectCallbackConverter, _py, _result)
+                pyo3::callback::cb_obj_convert(_py, _result)
             }
         }
     }
@@ -137,6 +148,7 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let python_name = &spec.python_name;
     let cb = impl_call(cls, &spec);
     let body = impl_arg_params(&spec, cb);
+    let borrow_self = spec.borrow_self();
 
     quote! {
         #[allow(unused_mut)]
@@ -148,14 +160,14 @@ pub fn impl_proto_wrap(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+            #borrow_self
             let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
             let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }
@@ -189,7 +201,7 @@ pub fn impl_wrap_new(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            match _result.and_then(|init| pyo3::PyClassInitializer::from(init).create_shell(_py)) {
+            match _result.and_then(|init| pyo3::PyClassInitializer::from(init).create_cell(_py)) {
                 Ok(slf) => slf as _,
                 Err(e) => e.restore_and_null(_py),
             }
@@ -222,8 +234,7 @@ pub fn impl_wrap_class(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }
@@ -252,8 +263,7 @@ pub fn impl_wrap_static(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
 
             #body
 
-            pyo3::callback::cb_convert(
-                pyo3::callback::PyObjectCallbackConverter, _py, _result)
+            pyo3::callback::cb_obj_convert(_py, _result)
         }
     }
 }
@@ -273,7 +283,6 @@ fn impl_call_getter(spec: &FnSpec) -> syn::Result<TokenStream> {
     } else {
         quote! { _slf.#name() }
     };
-
     Ok(fncall)
 }
 
@@ -296,6 +305,7 @@ pub(crate) fn impl_wrap_getter(
         PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_getter(&spec)?),
     };
 
+    let borrow_self = crate::utils::borrow_self(false, true);
     Ok(quote! {
         unsafe extern "C" fn __wrap(
             _slf: *mut pyo3::ffi::PyObject, _: *mut ::std::os::raw::c_void) -> *mut pyo3::ffi::PyObject
@@ -304,18 +314,14 @@ pub(crate) fn impl_wrap_getter(
 
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+            #borrow_self
 
             let result = pyo3::derive_utils::IntoPyResult::into_py_result(#getter_impl);
 
             match result {
-                Ok(val) => {
-                    pyo3::IntoPyPointer::into_ptr(pyo3::IntoPy::<PyObject>::into_py(val, _py))
-                }
-                Err(e) => {
-                    e.restore(_py);
-                    ::std::ptr::null_mut()
-                }
+                Ok(val) => pyo3::IntoPyPointer::into_ptr(pyo3::IntoPy::<PyObject>::into_py(val, _py)),
+                Err(e) => e.restore_and_null(_py),
             }
         }
     })
@@ -359,6 +365,7 @@ pub(crate) fn impl_wrap_setter(
         PropertyType::Function(spec) => (spec.python_name.clone(), impl_call_setter(&spec)?),
     };
 
+    let borrow_self = crate::utils::borrow_self(true, false);
     Ok(quote! {
         #[allow(unused_mut)]
         unsafe extern "C" fn __wrap(
@@ -368,7 +375,8 @@ pub(crate) fn impl_wrap_setter(
             const _LOCATION: &'static str = concat!(stringify!(#cls),".",stringify!(#python_name),"()");
             let _py = pyo3::Python::assume_gil_acquired();
             let _pool = pyo3::GILPool::new(_py);
-            let _slf = _py.mut_from_borrowed_ptr::<#cls>(_slf);
+            let _slf = _py.from_borrowed_ptr::<pyo3::PyCell<#cls>>(_slf);
+            #borrow_self
             let _value = _py.from_borrowed_ptr(_value);
 
             let _result = match pyo3::FromPyObject::extract(_value) {
@@ -399,12 +407,6 @@ fn impl_call(_cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     let fname = &spec.name;
     let names = get_arg_names(spec);
     quote! { _slf.#fname(#(#names),*) }
-}
-
-fn impl_self<T: quote::ToTokens>(self_ty: &T) -> TokenStream {
-    quote! {
-        let _slf: #self_ty = pyo3::FromPyPointer::from_borrowed_ptr(_py, _slf);
-    }
 }
 
 /// Converts a bool to "true" or "false"

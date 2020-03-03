@@ -2,7 +2,7 @@
 use pyo3;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
-use pyo3::{AsPyRef, PyClassShell, PyIterProtocol};
+use pyo3::{AsPyRef, PyCell, PyIterProtocol};
 use std::collections::HashMap;
 
 mod common;
@@ -17,16 +17,13 @@ struct Reader {
 
 #[pymethods]
 impl Reader {
-    fn clone_ref(slf: &PyClassShell<Self>) -> &PyClassShell<Self> {
+    fn clone_ref(slf: &PyCell<Self>) -> &PyCell<Self> {
         slf
     }
-    fn clone_ref_with_py<'py>(
-        slf: &'py PyClassShell<Self>,
-        _py: Python<'py>,
-    ) -> &'py PyClassShell<Self> {
+    fn clone_ref_with_py<'py>(slf: &'py PyCell<Self>, _py: Python<'py>) -> &'py PyCell<Self> {
         slf
     }
-    fn get_iter(slf: &PyClassShell<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
+    fn get_iter(slf: &PyCell<Self>, keys: Py<PyBytes>) -> PyResult<Iter> {
         Ok(Iter {
             reader: slf.into(),
             keys,
@@ -34,7 +31,7 @@ impl Reader {
         })
     }
     fn get_iter_and_reset(
-        slf: &mut PyClassShell<Self>,
+        mut slf: PyRefMut<Self>,
         keys: Py<PyBytes>,
         py: Python,
     ) -> PyResult<Iter> {
@@ -49,6 +46,7 @@ impl Reader {
 }
 
 #[pyclass]
+#[derive(Debug)]
 struct Iter {
     reader: Py<Reader>,
     keys: Py<PyBytes>,
@@ -57,23 +55,23 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: &mut PyClassShell<Self>) -> PyResult<PyObject> {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
         let py = unsafe { Python::assume_gil_acquired() };
-        Ok(slf.to_object(py))
+        Ok(slf.into_py(py))
     }
 
-    fn __next__(slf: &mut PyClassShell<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
         let py = unsafe { Python::assume_gil_acquired() };
         let bytes = slf.keys.as_ref(py).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
-                let res = slf
-                    .reader
-                    .as_ref(py)
+                slf.idx += 1;
+                let reader = slf.reader.as_ref(py);
+                let reader_ref = reader.try_borrow()?;
+                let res = reader_ref
                     .inner
                     .get(&b)
                     .map(|s| PyString::new(py, s).into());
-                slf.idx += 1;
                 Ok(res)
             }
             None => Ok(None),
@@ -89,7 +87,7 @@ fn reader() -> Reader {
 }
 
 #[test]
-fn test_nested_iter1() {
+fn test_nested_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let reader: PyObject = reader().into_py(py);
@@ -113,11 +111,12 @@ fn test_clone_ref() {
 fn test_nested_iter_reset() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader = PyClassShell::new_ref(py, reader()).unwrap();
+    let reader = PyCell::new(py, reader()).unwrap();
     py_assert!(
         py,
         reader,
         "list(reader.get_iter_and_reset(bytes([3, 5, 2]))) == ['c', 'e', 'b']"
     );
-    assert!(reader.inner.is_empty());
+    let reader_ref = reader.borrow();
+    assert!(reader_ref.inner.is_empty());
 }

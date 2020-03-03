@@ -4,7 +4,7 @@ use pyo3::exceptions::BufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::{AsPyPointer, PyClassShell};
+use pyo3::AsPyPointer;
 use std::ffi::CStr;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
@@ -19,11 +19,7 @@ struct TestBufferClass {
 
 #[pyproto]
 impl PyBufferProtocol for TestBufferClass {
-    fn bf_getbuffer(
-        slf: &mut PyClassShell<Self>,
-        view: *mut ffi::Py_buffer,
-        flags: c_int,
-    ) -> PyResult<()> {
+    fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> PyResult<()> {
         if view.is_null() {
             return Err(BufferError::py_err("View is null"));
         }
@@ -69,7 +65,7 @@ impl PyBufferProtocol for TestBufferClass {
         Ok(())
     }
 
-    fn bf_releasebuffer(_slf: &mut PyClassShell<Self>, _view: *mut ffi::Py_buffer) -> PyResult<()> {
+    fn bf_releasebuffer(_slf: PyRefMut<Self>, _view: *mut ffi::Py_buffer) -> PyResult<()> {
         Ok(())
     }
 }

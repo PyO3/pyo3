@@ -3,17 +3,14 @@
 //! Python GC support
 //!
 
-use crate::ffi;
-use crate::type_object::PyTypeInfo;
-use crate::AsPyPointer;
-use crate::Python;
+use crate::{ffi, AsPyPointer, PyCell, PyClass, Python};
 use std::os::raw::{c_int, c_void};
 
 #[repr(transparent)]
 pub struct PyTraverseError(c_int);
 
 /// GC support
-pub trait PyGCProtocol<'p>: PyTypeInfo {
+pub trait PyGCProtocol<'p>: PyClass {
     fn __traverse__(&'p self, visit: PyVisit) -> Result<(), PyTraverseError>;
     fn __clear__(&'p mut self);
 }
@@ -94,14 +91,14 @@ where
         {
             let py = Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
             let visit = PyVisit {
                 visit,
                 arg,
                 _py: py,
             };
-            match slf.__traverse__(visit) {
+            match slf.borrow().__traverse__(visit) {
                 Ok(()) => 0,
                 Err(PyTraverseError(code)) => code,
             }
@@ -136,9 +133,9 @@ where
         {
             let py = Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = py.mut_from_borrowed_ptr::<T>(slf);
+            let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
-            slf.__clear__();
+            slf.borrow_mut().__clear__();
             0
         }
         Some(tp_clear::<T>)

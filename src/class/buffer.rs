@@ -6,8 +6,7 @@
 //! c-api
 use crate::callback::UnitCallbackConverter;
 use crate::err::PyResult;
-use crate::ffi;
-use crate::{PyClass, PyClassShell};
+use crate::{ffi, PyClass, PyRefMut};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -16,18 +15,14 @@ use std::os::raw::c_int;
 /// c-api
 #[allow(unused_variables)]
 pub trait PyBufferProtocol<'p>: PyClass {
-    fn bf_getbuffer(
-        slf: &mut PyClassShell<Self>,
-        view: *mut ffi::Py_buffer,
-        flags: c_int,
-    ) -> Self::Result
+    fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
     where
         Self: PyBufferGetBufferProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn bf_releasebuffer(slf: &mut PyClassShell<Self>, view: *mut ffi::Py_buffer) -> Self::Result
+    fn bf_releasebuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer) -> Self::Result
     where
         Self: PyBufferReleaseBufferProtocol<'p>,
     {
@@ -98,9 +93,11 @@ where
         {
             let py = crate::Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = &mut *(slf as *mut PyClassShell<T>);
-
-            let result = T::bf_getbuffer(slf, arg1, arg2).into();
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+            let result = slf
+                .try_borrow_mut()
+                .map_err(crate::PyErr::from)
+                .and_then(|slf_mut| T::bf_getbuffer(slf_mut, arg1, arg2).into());
             crate::callback::cb_convert(UnitCallbackConverter, py, result)
         }
         Some(wrap::<T>)
@@ -132,9 +129,11 @@ where
         {
             let py = crate::Python::assume_gil_acquired();
             let _pool = crate::GILPool::new(py);
-            let slf = &mut *(slf as *mut PyClassShell<T>);
-
-            let result = T::bf_releasebuffer(slf, arg1).into();
+            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+            let result = slf
+                .try_borrow_mut()
+                .map_err(crate::PyErr::from)
+                .and_then(|slf_mut| T::bf_releasebuffer(slf_mut, arg1).into());
             crate::callback::cb_convert(UnitCallbackConverter, py, result);
         }
         Some(wrap::<T>)
