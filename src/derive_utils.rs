@@ -198,6 +198,7 @@ impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyRes
     }
 }
 
+#[doc(hidden)]
 pub trait GetPropertyValue {
     fn get_property_value(&self, py: Python) -> PyObject;
 }
@@ -218,6 +219,7 @@ impl GetPropertyValue for PyObject {
 }
 
 /// Utilities for basetype
+#[doc(hidden)]
 pub trait PyBaseTypeUtils {
     type Dict;
     type WeakRef;
@@ -230,4 +232,17 @@ impl<T: PyClass> PyBaseTypeUtils for T {
     type WeakRef = T::WeakRef;
     type LayoutAsBase = crate::pycell::PyCellInner<T>;
     type BaseNativeType = T::BaseNativeType;
+}
+
+/// Utility trait to enable &PyClass as a pymethod/function argument
+#[doc(hidden)]
+pub trait ExtractExt<'a> {
+    type Target: crate::FromPyObject<'a>;
+}
+
+impl<'a, T> ExtractExt<'a> for T
+where
+    T: crate::FromPyObject<'a>,
+{
+    type Target = T;
 }

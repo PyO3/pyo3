@@ -7,6 +7,19 @@ mod common;
 #[pyclass]
 struct AnonClass {}
 
+#[pyclass]
+struct ValueClass {
+    value: usize,
+}
+
+#[pymethods]
+impl ValueClass {
+    #[new]
+    fn new(value: usize) -> ValueClass {
+        ValueClass { value }
+    }
+}
+
 #[pyclass(module = "module")]
 struct LocatedClass {}
 
@@ -36,7 +49,13 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
         Ok(42)
     }
 
+    #[pyfn(m, "double_value")]
+    fn double_value(v: &ValueClass) -> usize {
+        v.value * 2
+    }
+
     m.add_class::<AnonClass>().unwrap();
+    m.add_class::<ValueClass>().unwrap();
     m.add_class::<LocatedClass>().unwrap();
 
     m.add("foo", "bar").unwrap();
@@ -60,7 +79,11 @@ fn test_module_with_functions() {
     )]
     .into_py_dict(py);
 
-    let run = |code| py.run(code, None, Some(d)).unwrap();
+    let run = |code| {
+        py.run(code, None, Some(d))
+            .map_err(|e| e.print(py))
+            .unwrap()
+    };
 
     run("assert module_with_functions.__doc__ == 'This module is implemented in Rust.'");
     run("assert module_with_functions.sum_as_string(1, 2) == '3'");
@@ -73,6 +96,7 @@ fn test_module_with_functions() {
     run("assert module_with_functions.double.__doc__ == 'Doubles the given value'");
     run("assert module_with_functions.also_double(3) == 6");
     run("assert module_with_functions.also_double.__doc__ == 'Doubles the given value'");
+    run("assert module_with_functions.double_value(module_with_functions.ValueClass(1)) == 2");
 }
 
 #[pymodule(other_name)]

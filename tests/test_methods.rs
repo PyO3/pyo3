@@ -406,6 +406,62 @@ fn method_with_lifetime() {
 }
 
 #[pyclass]
+struct MethodWithPyClassArg {
+    #[pyo3(get)]
+    value: i64,
+}
+
+#[pymethods]
+impl MethodWithPyClassArg {
+    fn add(&self, other: &MethodWithPyClassArg) -> MethodWithPyClassArg {
+        MethodWithPyClassArg {
+            value: self.value + other.value,
+        }
+    }
+    fn add_pyref(&self, other: PyRef<MethodWithPyClassArg>) -> MethodWithPyClassArg {
+        MethodWithPyClassArg {
+            value: self.value + other.value,
+        }
+    }
+    fn inplace_add(&self, other: &mut MethodWithPyClassArg) {
+        other.value += self.value;
+    }
+    fn optional_add(&self, other: Option<&MethodWithPyClassArg>) -> MethodWithPyClassArg {
+        MethodWithPyClassArg {
+            value: self.value + other.map(|o| o.value).unwrap_or(10),
+        }
+    }
+}
+
+#[test]
+fn method_with_pyclassarg() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+    let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
+    py_run!(
+        py,
+        obj1 obj2,
+        "obj = obj1.add(obj2); assert obj.value == 20"
+    );
+    py_run!(
+        py,
+        obj1 obj2,
+        "obj = obj1.add_pyref(obj2); assert obj.value == 20"
+    );
+    py_run!(
+        py,
+        obj1 obj2,
+        "obj = obj1.optional_add(); assert obj.value == 20"
+    );
+    py_run!(
+        py,
+        obj1 obj2,
+        "obj1.inplace_add(obj2); assert obj2.value == 20"
+    );
+}
+
+#[pyclass]
 #[cfg(unix)]
 struct CfgStruct {}
 
