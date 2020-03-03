@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Use `parking_lot::Mutex` instead of `spin::Mutex`. [#734](https://github.com/PyO3/pyo3/pull/734)
 * Bumped minimum Rust version to `1.42.0-nightly 2020-01-21`. [#761](https://github.com/PyO3/pyo3/pull/761)
 * `PyRef` and `PyRefMut` are renewed for `PyCell`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* Some new FFI functions for Python 3.8. [#784](https://github.com/PyO3/pyo3/pull/784)
 
 ### Added
 * `PyCell`, which has RefCell-like features. [#770](https://github.com/PyO3/pyo3/pull/770)

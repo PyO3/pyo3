@@ -1,5 +1,5 @@
 use crate::ffi::object::*;
-use crate::ffi::pyport::{Py_hash_t, Py_ssize_t};
+use crate::ffi::pyport::Py_ssize_t;
 use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -11,6 +11,12 @@ extern "C" {
     pub static mut PyDictKeys_Type: PyTypeObject;
     pub static mut PyDictItems_Type: PyTypeObject;
     pub static mut PyDictValues_Type: PyTypeObject;
+    #[cfg(Py_3_8)]
+    pub static mut PyDictRevIterKey_Type: PyTypeObject;
+    #[cfg(Py_3_8)]
+    pub static mut PyDictRevIterValue_Type: PyTypeObject;
+    #[cfg(Py_3_8)]
+    pub static mut PyDictRevIterItem_Type: PyTypeObject;
 }
 
 #[repr(C)]
@@ -73,7 +79,7 @@ extern "C" {
         mp: *mut PyObject,
         key: *mut PyObject,
         item: *mut PyObject,
-        hash: Py_hash_t,
+        hash: crate::ffi::pyport::Py_hash_t,
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItem")]
     pub fn PyDict_DelItem(mp: *mut PyObject, key: *mut PyObject) -> c_int;
