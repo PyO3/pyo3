@@ -12,7 +12,7 @@ use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
 use crate::{ffi, GILPool, IntoPy, PyObject, Python};
-use std::ptr;
+use std::cell::UnsafeCell;
 
 /// Description of a python parameter; used for `parse_args()`.
 #[derive(Debug)]
@@ -113,51 +113,49 @@ pub fn parse_fn_args<'p>(
     Ok((args, kwargs))
 }
 
-/// Builds a module (or null) from a user given initializer. Used for `#[pymodule]`.
-pub unsafe fn make_module(
-    name: &str,
-    doc: &str,
-    initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
-) -> *mut ffi::PyObject {
-    use crate::IntoPyPointer;
+/// `Sync` wrapper of `ffi::PyModuleDef`.
+#[doc(hidden)]
+pub struct ModuleDef(UnsafeCell<ffi::PyModuleDef>);
 
-    init_once();
+unsafe impl Sync for ModuleDef {}
 
-    #[cfg(py_sys_config = "WITH_THREAD")]
-    // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
-    // > to call it yourself anymore.
-    #[cfg(not(Py_3_7))]
-    ffi::PyEval_InitThreads();
-
-    static mut MODULE_DEF: ffi::PyModuleDef = ffi::PyModuleDef_INIT;
-    // We can't convert &'static str to *const c_char within a static initializer,
-    // so we'll do it here in the module initialization:
-    MODULE_DEF.m_name = name.as_ptr() as *const _;
-
-    let module = ffi::PyModule_Create(&mut MODULE_DEF);
-    if module.is_null() {
-        return module;
+impl ModuleDef {
+    /// Make new module defenition with given module name.
+    ///
+    /// # Safety
+    /// `name` must be a null-terminated string.
+    pub const unsafe fn new(name: &'static str) -> Self {
+        let mut init = ffi::PyModuleDef_INIT;
+        init.m_name = name.as_ptr() as *const _;
+        ModuleDef(UnsafeCell::new(init))
     }
+    /// Builds a module using user given initializer. Used for `#[pymodule]`.
+    ///
+    /// # Safety
+    /// The caller must have GIL.
+    pub unsafe fn make_module(
+        &'static self,
+        doc: &str,
+        initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
+    ) -> PyResult<*mut ffi::PyObject> {
+        init_once();
 
-    let py = Python::assume_gil_acquired();
-    let _pool = GILPool::new(py);
-    let module = match py.from_owned_ptr_or_err::<PyModule>(module) {
-        Ok(m) => m,
-        Err(e) => {
-            e.restore(py);
-            return ptr::null_mut();
-        }
-    };
+        #[cfg(py_sys_config = "WITH_THREAD")]
+        // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
+        // > to call it yourself anymore.
+        #[cfg(not(Py_3_7))]
+        ffi::PyEval_InitThreads();
 
-    module
-        .add("__doc__", doc)
-        .expect("Failed to add doc for module");
-    match initializer(py, module) {
-        Ok(_) => module.into_ptr(),
-        Err(e) => {
-            e.restore(py);
-            ptr::null_mut()
+        let module = ffi::PyModule_Create(self.0.get());
+        let py = Python::assume_gil_acquired();
+        if module.is_null() {
+            return Err(crate::PyErr::fetch(py));
         }
+        let _pool = GILPool::new(py);
+        let module = py.from_owned_ptr_or_err::<PyModule>(module)?;
+        module.add("__doc__", doc)?;
+        initializer(py, module)?;
+        Ok(crate::IntoPyPointer::into_ptr(module))
     }
 }
 
