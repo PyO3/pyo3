@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `#[setter]` functions may now take an argument of `Pyo3::Python`. [#760](https://github.com/PyO3/pyo3/pull/760)
 * `PyTypeInfo::BaseLayout` and `PyClass::BaseNativeType`. [#770](https://github.com/PyO3/pyo3/pull/770)
 * `PyDowncastImpl`. [#770](https://github.com/PyO3/pyo3/pull/770)
+* Implement `FromPyObject` and `IntoPy<PyObject>` traits for arrays (up to 32). [#778](https://github.com/PyO3/pyo3/pull/778)
 
 ### Fixed
 
