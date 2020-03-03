@@ -83,7 +83,6 @@ impl pyo3::class::methods::PyMethodsInventoryDispatch for MyClass {
 }
 
 pyo3::inventory::collect!(MyClassGeneratedPyo3Inventory);
-
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let cls = py.get_type::<MyClass>();
@@ -249,7 +248,6 @@ or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
 
 ```rust
 # use pyo3::prelude::*;
-use pyo3::PyCell;
 
 #[pyclass]
 struct BaseClass {
@@ -305,18 +303,51 @@ impl SubSubClass {
       SubClass::method2(super_).map(|x| x * v)
    }
 }
-
-
 # let gil = Python::acquire_gil();
 # let py = gil.python();
 # let subsub = pyo3::PyCell::new(py, SubSubClass::new()).unwrap();
 # pyo3::py_run!(py, subsub, "assert subsub.method3() == 3000")
 ```
+You can also inherit native types such as `PyDict`, if it implements
+[`PySizedLayout`](https://pyo3.rs/master/doc/pyo3/type_object/trait.PySizedLayout.html).
+
+However, because of some technical problems, now we don't provide safe upcast methods for types
+that inherit native types. Even in such cases, you can get a base class by raw pointer conversion.
+
+```rust
+# use pyo3::prelude::*;
+use pyo3::types::{PyAny, PyDict};
+use pyo3::{AsPyPointer, PyNativeType};
+use std::collections::HashMap;
+
+#[pyclass(extends=PyDict)]
+#[derive(Default)]
+struct DictWithCounter {
+    counter: HashMap<String, usize>,
+}
+
+#[pymethods]
+impl DictWithCounter {
+   #[new]
+   fn new() -> Self {
+       Self::default()
+   }
+   fn set(mut self_: PyRefMut<Self>, key: String, value: &PyAny) -> PyResult<()> {
+       self_.counter.entry(key.clone()).or_insert(0);
+       let py = self_.py();
+       let dict: &PyDict = unsafe { py.from_borrowed_ptr_or_err(self_.as_ptr())? };
+       dict.set_item(key, value)
+   }
+}
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let cnt = pyo3::PyCell::new(py, DictWithCounter::new()).unwrap();
+# pyo3::py_run!(py, cnt, "cnt.set('abc', 10); assert cnt['abc'] == 10")
+```
 
 If `SubClass` does not provide a baseclass initialization, the compilation fails.
 ```compile_fail
 # use pyo3::prelude::*;
-use pyo3::PyCell;
 
 #[pyclass]
 struct BaseClass {
@@ -337,7 +368,6 @@ impl SubClass {
 }
 ```
 
-
 ## Object properties
 
 Property descriptor methods can be defined in a `#[pymethods]` `impl` block only and have to be
@@ -345,14 +375,13 @@ annotated with `#[getter]` and `#[setter]` attributes. For example:
 
 ```rust
 # use pyo3::prelude::*;
-# #[pyclass]
-# struct MyClass {
-#    num: i32,
-# }
-#
+#[pyclass]
+struct MyClass {
+   num: i32,
+}
+
 #[pymethods]
 impl MyClass {
-
      #[getter]
      fn num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -375,10 +404,8 @@ can be used since Rust 2018).
 # struct MyClass {
 #    num: i32,
 # }
-#
 #[pymethods]
 impl MyClass {
-
      #[getter]
      fn get_num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -403,10 +430,8 @@ If this parameter is specified, it is used as the property name, i.e.
 # struct MyClass {
 #    num: i32,
 # }
-#
 #[pymethods]
 impl MyClass {
-
      #[getter(number)]
      fn num(&self) -> PyResult<i32> {
         Ok(self.num)
@@ -448,10 +473,8 @@ block with some variations, like descriptors, class method static methods, etc.
 # struct MyClass {
 #    num: i32,
 # }
-#
 #[pymethods]
 impl MyClass {
-
      fn method1(&self) -> PyResult<i32> {
         Ok(10)
      }
@@ -477,7 +500,6 @@ gets injected by the method wrapper, e.g.
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      fn method2(&self, py: Python) -> PyResult<i32> {
@@ -501,7 +523,6 @@ with the `#[classmethod]` attribute.
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      #[classmethod]
@@ -532,7 +553,6 @@ To create a static method for a custom class, the method needs to be annotated w
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      #[staticmethod]
@@ -555,7 +575,6 @@ use pyo3::types::PyTuple;
 #    num: i32,
 #    debug: bool,
 # }
-
 #[pymethods]
 impl MyClass {
      #[call]
@@ -598,7 +617,6 @@ use pyo3::types::{PyDict, PyTuple};
 #    num: i32,
 #    debug: bool,
 # }
-#
 #[pymethods]
 impl MyClass {
     #[new]
@@ -785,7 +803,7 @@ Example:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::{PyIterProtocol, PyCell};
+use pyo3::PyIterProtocol;
 
 #[pyclass]
 struct MyIterator {

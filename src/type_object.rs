@@ -21,7 +21,6 @@ pub unsafe trait PyLayout<T: PyTypeInfo> {
     }
     unsafe fn py_init(&mut self, _value: T) {}
     unsafe fn py_drop(&mut self, _py: Python) {}
-    unsafe fn get_ptr(&self) -> *mut T;
 }
 
 /// `T: PySizedLayout<U>` represents `T` is not a instance of
