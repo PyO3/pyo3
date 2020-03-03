@@ -229,7 +229,7 @@ mod test {
     use crate::objectprotocol::ObjectProtocol;
     use crate::types::PyList;
     use crate::Python;
-    use crate::{PyTryFrom, PyObject, IntoPy, ToPyObject};
+    use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};
 
     #[test]
     fn test_new() {
