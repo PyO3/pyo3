@@ -82,30 +82,15 @@ fn class_method() {
     let py = gil.python();
 
     let d = [("C", py.get_type::<ClassMethod>())].into_py_dict(py);
-    py.run(
-        "assert C.method() == 'ClassMethod.method()!'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C().method() == 'ClassMethod.method()!'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C.method.__doc__ == 'Test class method.'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C().method.__doc__ == 'Test class method.'",
-        None,
-        Some(d),
-    )
-    .unwrap();
+    let run = |code| {
+        py.run(code, None, Some(d))
+            .map_err(|e| e.print(py))
+            .unwrap()
+    };
+    run("assert C.method() == 'ClassMethod.method()!'");
+    run("assert C().method() == 'ClassMethod.method()!'");
+    run("assert C.method.__doc__ == 'Test class method.'");
+    run("assert C().method.__doc__ == 'Test class method.'");
 }
 
 #[pyclass]
@@ -158,30 +143,15 @@ fn static_method() {
     assert_eq!(StaticMethod::method(py).unwrap(), "StaticMethod.method()!");
 
     let d = [("C", py.get_type::<StaticMethod>())].into_py_dict(py);
-    py.run(
-        "assert C.method() == 'StaticMethod.method()!'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C().method() == 'StaticMethod.method()!'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C.method.__doc__ == 'Test static method.'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C().method.__doc__ == 'Test static method.'",
-        None,
-        Some(d),
-    )
-    .unwrap();
+    let run = |code| {
+        py.run(code, None, Some(d))
+            .map_err(|e| e.print(py))
+            .unwrap()
+    };
+    run("assert C.method() == 'StaticMethod.method()!'");
+    run("assert C().method() == 'StaticMethod.method()!'");
+    run("assert C.method.__doc__ == 'Test static method.'");
+    run("assert C().method.__doc__ == 'Test static method.'");
 }
 
 #[pyclass]
@@ -356,25 +326,15 @@ fn meth_doc() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let d = [("C", py.get_type::<MethDocs>())].into_py_dict(py);
+    let run = |code| {
+        py.run(code, None, Some(d))
+            .map_err(|e| e.print(py))
+            .unwrap()
+    };
 
-    py.run(
-        "assert C.__doc__ == 'A class with \"documentation\".'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C.method.__doc__ == 'A method with \"documentation\" as well.'",
-        None,
-        Some(d),
-    )
-    .unwrap();
-    py.run(
-        "assert C.x.__doc__ == '`int`: a very \"important\" member of \\'this\\' instance.'",
-        None,
-        Some(d),
-    )
-    .unwrap();
+    run("assert C.__doc__ == 'A class with \"documentation\".'");
+    run("assert C.method.__doc__ == 'A method with \"documentation\" as well.'");
+    run("assert C.x.__doc__ == '`int`: a very \"important\" member of \\'this\\' instance.'");
 }
 
 #[pyclass]
@@ -458,9 +418,9 @@ fn method_with_pyclassarg() {
     run("obj = obj1.optional_add(); assert obj.value == 20");
     run("obj = obj1.optional_add(obj2); assert obj.value == 20");
     run("obj1.inplace_add(obj2); assert obj.value == 20");
-    run("obj1.inplace_add_pyref(obj2); assert obj.value == 30");
-    run("obj1.optional_inplace_add(obj2); assert obj.value == 40");
-    run("obj1.optional_inplace_add(); assert obj.value == 40");
+    run("obj1.inplace_add_pyref(obj2); assert obj2.value == 30");
+    run("obj1.optional_inplace_add(); assert obj2.value == 30");
+    run("obj1.optional_inplace_add(obj2); assert obj2.value == 40");
 }
 
 #[pyclass]
