@@ -387,10 +387,7 @@ pub(crate) fn impl_wrap_setter(
             };
             match _result {
                 Ok(_) => 0,
-                Err(e) => {
-                    e.restore(_py);
-                    -1
-                }
+                Err(e) => e.restore_and_minus1(_py),
             }
         }
     })
@@ -523,45 +520,65 @@ fn impl_arg_param(
     }
     let arg_value = quote!(output[#option_pos]);
     *option_pos += 1;
-    if arg.optional.is_some() {
-        let default = if let Some(d) = spec.default_value(name) {
-            if d.to_string() == "None" {
-                quote! { None }
-            } else {
-                quote! { Some(#d) }
-            }
+
+    return if let Some(ty) = arg.optional.as_ref() {
+        let default = if let Some(d) = spec.default_value(name).filter(|d| d.to_string() != "None")
+        {
+            quote! { Some(#d) }
         } else {
             quote! { None }
         };
-        quote! {
-            let #arg_name = match #arg_value.as_ref() {
-                Some(_obj) => {
-                    if _obj.is_none() {
-                        #default
-                    } else {
-                        Some(_obj.extract()?)
-                    }
-                },
-                None => #default
+        if let syn::Type::Reference(tref) = ty {
+            let (tref, mut_) = tref_preprocess(tref);
+            let as_deref = if mut_.is_some() {
+                quote! { as_deref_mut }
+            } else {
+                quote! { as_deref }
             };
+            // Get Option<&T> from Option<PyRef<T>>
+            quote! {
+                let #mut_ _tmp = match #arg_value.as_ref().filter(|obj| !obj.is_none()) {
+                    Some(_obj) => {
+                        Some(_obj.extract::<<#tref as pyo3::derive_utils::ExtractExt>::Target>()?)
+                    },
+                    None => #default,
+                };
+                let #arg_name = _tmp.#as_deref();
+            }
+        } else {
+            quote! {
+                let #arg_name = match #arg_value.as_ref().filter(|obj| !obj.is_none()) {
+                    Some(_obj) => Some(_obj.extract()?),
+                    None => #default,
+                };
+            }
         }
     } else if let Some(default) = spec.default_value(name) {
         quote! {
-            let #arg_name = match #arg_value.as_ref() {
-                Some(_obj) => {
-                    if _obj.is_none() {
-                        #default
-                    } else {
-                        _obj.extract()?
-                    }
-                },
-                None => #default
+            let #arg_name = match #arg_value.as_ref().filter(|obj| !obj.is_none()) {
+                Some(_obj) => _obj.extract()?,
+                None => #default,
             };
+        }
+    } else if let syn::Type::Reference(tref) = arg.ty {
+        let (tref, mut_) = tref_preprocess(tref);
+        // Get &T from PyRef<T>
+        quote! {
+            let #mut_ _tmp: <#tref as pyo3::derive_utils::ExtractExt>::Target
+                = #arg_value.unwrap().extract()?;
+            let #arg_name = &#mut_ *_tmp;
         }
     } else {
         quote! {
             let #arg_name = #arg_value.unwrap().extract()?;
         }
+    };
+
+    fn tref_preprocess(tref: &syn::TypeReference) -> (syn::TypeReference, Option<syn::token::Mut>) {
+        let mut tref = tref.to_owned();
+        tref.lifetime = None;
+        let mut_ = tref.mutability;
+        (tref, mut_)
     }
 }
 

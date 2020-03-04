@@ -68,7 +68,7 @@ fn wrap_fn_argument<'a>(cap: &'a syn::PatType, name: &'a Ident) -> syn::Result<m
     };
 
     let py = crate::utils::if_type_is_python(&cap.ty);
-    let opt = method::check_arg_ty_and_optional(&name, &cap.ty);
+    let opt = method::check_ty_optional(&cap.ty);
     Ok(method::FnArg {
         name: ident,
         mutability,

@@ -412,6 +412,15 @@ fn impl_class(
             type BaseNativeType = #base_nativetype;
         }
 
+        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a #cls
+        {
+            type Target = pyo3::PyRef<'a, #cls>;
+        }
+        impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
+        {
+            type Target = pyo3::PyRefMut<'a, #cls>;
+        }
+
         #into_pyobject
 
         #inventory_impl
