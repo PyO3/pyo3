@@ -406,15 +406,6 @@ fn impl_call(_cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStream {
     quote! { _slf.#fname(#(#names),*) }
 }
 
-/// Converts a bool to "true" or "false"
-fn bool_to_ident(condition: bool) -> syn::Ident {
-    if condition {
-        syn::Ident::new("true", Span::call_site())
-    } else {
-        syn::Ident::new("false", Span::call_site())
-    }
-}
-
 fn impl_arg_params_(spec: &FnSpec<'_>, body: TokenStream, into_result: TokenStream) -> TokenStream {
     if spec.args.is_empty() {
         return quote! {
@@ -431,8 +422,8 @@ fn impl_arg_params_(spec: &FnSpec<'_>, body: TokenStream, into_result: TokenStre
             continue;
         }
         let name = arg.name;
-        let kwonly = bool_to_ident(spec.is_kw_only(&arg.name));
-        let opt = bool_to_ident(arg.optional.is_some() || spec.default_value(&arg.name).is_some());
+        let kwonly = spec.is_kw_only(&arg.name);
+        let opt = arg.optional.is_some() || spec.default_value(&arg.name).is_some();
 
         params.push(quote! {
             pyo3::derive_utils::ParamDescription {
@@ -449,8 +440,16 @@ fn impl_arg_params_(spec: &FnSpec<'_>, body: TokenStream, into_result: TokenStre
         param_conversion.push(impl_arg_param(&arg, &spec, idx, &mut option_pos));
     }
 
-    let accept_args = bool_to_ident(spec.accept_args());
-    let accept_kwargs = bool_to_ident(spec.accept_kwargs());
+    let (mut accept_args, mut accept_kwargs) = (false, false);
+
+    for s in spec.attrs.iter() {
+        use crate::pyfunction::Argument;
+        match s {
+            Argument::VarArgs(_) => accept_args = true,
+            Argument::KeywordArgs(_) => accept_kwargs = true,
+            _ => continue,
+        }
+    }
     let num_normal_params = params.len();
     // create array of arguments, and then parse
     quote! {
