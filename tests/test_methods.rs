@@ -426,9 +426,17 @@ impl MethodWithPyClassArg {
     fn inplace_add(&self, other: &mut MethodWithPyClassArg) {
         other.value += self.value;
     }
+    fn inplace_add_pyref(&self, mut other: PyRefMut<MethodWithPyClassArg>) {
+        other.value += self.value;
+    }
     fn optional_add(&self, other: Option<&MethodWithPyClassArg>) -> MethodWithPyClassArg {
         MethodWithPyClassArg {
             value: self.value + other.map(|o| o.value).unwrap_or(10),
+        }
+    }
+    fn optional_inplace_add(&self, other: Option<&mut MethodWithPyClassArg>) {
+        if let Some(other) = other {
+            other.value += self.value;
         }
     }
 }
@@ -439,26 +447,20 @@ fn method_with_pyclassarg() {
     let py = gil.python();
     let obj1 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
     let obj2 = PyCell::new(py, MethodWithPyClassArg { value: 10 }).unwrap();
-    py_run!(
-        py,
-        obj1 obj2,
-        "obj = obj1.add(obj2); assert obj.value == 20"
-    );
-    py_run!(
-        py,
-        obj1 obj2,
-        "obj = obj1.add_pyref(obj2); assert obj.value == 20"
-    );
-    py_run!(
-        py,
-        obj1 obj2,
-        "obj = obj1.optional_add(); assert obj.value == 20"
-    );
-    py_run!(
-        py,
-        obj1 obj2,
-        "obj1.inplace_add(obj2); assert obj2.value == 20"
-    );
+    let objs = [("obj1", obj1), ("obj2", obj2)].into_py_dict(py);
+    let run = |code| {
+        py.run(code, None, Some(objs))
+            .map_err(|e| e.print(py))
+            .unwrap()
+    };
+    run("obj = obj1.add(obj2); assert obj.value == 20");
+    run("obj = obj1.add_pyref(obj2); assert obj.value == 20");
+    run("obj = obj1.optional_add(); assert obj.value == 20");
+    run("obj = obj1.optional_add(obj2); assert obj.value == 20");
+    run("obj1.inplace_add(obj2); assert obj.value == 20");
+    run("obj1.inplace_add_pyref(obj2); assert obj.value == 30");
+    run("obj1.optional_inplace_add(obj2); assert obj.value == 40");
+    run("obj1.optional_inplace_add(); assert obj.value == 40");
 }
 
 #[pyclass]
