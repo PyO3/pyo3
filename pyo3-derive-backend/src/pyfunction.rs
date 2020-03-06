@@ -52,34 +52,30 @@ impl PyFunctionAttr {
             NestedMeta::Lit(ref lit) => {
                 self.add_literal(item, lit)?;
             }
-            _ => {
-                return Err(syn::Error::new_spanned(item, "Unknown argument"));
+            NestedMeta::Meta(syn::Meta::List(ref list)) => {
+                return Err(syn::Error::new_spanned(
+                    list,
+                    "List is not supported as argument",
+                ));
             }
         }
-
         Ok(())
     }
 
     fn add_literal(&mut self, item: &NestedMeta, lit: &syn::Lit) -> syn::Result<()> {
         match lit {
-            syn::Lit::Str(ref lits) => {
+            syn::Lit::Str(ref lits) if lits.value() == "*" => {
                 // "*"
-                if lits.value() == "*" {
-                    self.vararg_is_ok(item)?;
-                    self.has_varargs = true;
-                    self.arguments.push(Argument::VarArgsSeparator);
-                } else {
-                    return Err(syn::Error::new_spanned(lits, "Unknown string literal"));
-                }
+                self.vararg_is_ok(item)?;
+                self.has_varargs = true;
+                self.arguments.push(Argument::VarArgsSeparator);
+                Ok(())
             }
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    item,
-                    format!("Only string literal is supported, got: {:?}", lit),
-                ));
-            }
-        };
-        Ok(())
+            _ => Err(syn::Error::new_spanned(
+                item,
+                format!("Only \"*\" is supported here, got: {:?}", lit),
+            )),
+        }
     }
 
     fn add_work(&mut self, item: &NestedMeta, path: &Path) -> syn::Result<()> {
@@ -195,11 +191,8 @@ pub fn parse_name_attribute(attrs: &mut Vec<syn::Attribute>) -> syn::Result<Opti
             *span,
             "Expected string literal for #[name] argument",
         )),
-        // TODO: The below pattern is unstable, so instead we match the wildcard.
-        // slice_patterns due to be stable soon: https://github.com/rust-lang/rust/issues/62254
-        // [(_, span), _, ..] => {
-        _ => Err(syn::Error::new(
-            name_attrs[0].1,
+        [(_, span), ..] => Err(syn::Error::new(
+            *span,
             "#[name] can not be specified multiple times",
         )),
     }
