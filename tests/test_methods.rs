@@ -231,8 +231,13 @@ impl MethArgs {
         [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
     }
 
-    #[args("*", c = 10)]
-    fn get_pos_arg_kw_sep(&self, a: i32, b: i32, c: i32) -> PyResult<i32> {
+    #[args(a, b = 2, "*", c = 3)]
+    fn get_pos_arg_kw_sep1(&self, a: i32, b: i32, c: i32) -> PyResult<i32> {
+        Ok(a + b + c)
+    }
+
+    #[args(a, "*", b = 2, c = 3)]
+    fn get_pos_arg_kw_sep2(&self, a: i32, b: i32, c: i32) -> PyResult<i32> {
         Ok(a + b + c)
     }
 
@@ -299,15 +304,22 @@ fn meth_args() {
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw(1, a=1)", TypeError);
     py_expect_exception!(py, inst, "inst.get_pos_arg_kw(b=2)", TypeError);
 
-    py_run!(py, inst, "assert inst.get_pos_arg_kw_sep(1, 2, c=3) == 6");
-    py_run!(py, inst, "assert inst.get_pos_arg_kw_sep(1, 2) == 13");
-    py_expect_exception!(py, inst, "assert inst.get_pos_arg_kw_sep(1)", TypeError);
-    py_expect_exception!(
+    py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1) == 6");
+    py_run!(py, inst, "assert inst.get_pos_arg_kw_sep1(1, 2) == 6");
+    py_run!(
         py,
         inst,
-        "assert inst.get_pos_arg_kw_sep(1, 2, 3)",
-        TypeError
+        "assert inst.get_pos_arg_kw_sep1(1, 2, c=13) == 16"
     );
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep1(1, 2, 3)", TypeError);
+
+    py_run!(py, inst, "assert inst.get_pos_arg_kw_sep2(1) == 6");
+    py_run!(
+        py,
+        inst,
+        "assert inst.get_pos_arg_kw_sep2(1, b=12, c=13) == 26"
+    );
+    py_expect_exception!(py, inst, "inst.get_pos_arg_kw_sep2(1, 2)", TypeError);
 
     py_run!(py, inst, "assert inst.get_pos_kw(1, b=2) == [1, {'b': 2}]");
     py_expect_exception!(py, inst, "inst.get_pos_kw(1,2)", TypeError);

@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Usage of raw identifiers with `#[pyo3(set)]`. [#745](https://github.com/PyO3/pyo3/pull/745)
 * Usage of `PyObject` with `#[pyo3(get)]`. [#760](https://github.com/PyO3/pyo3/pull/760)
 * `#[pymethods]` used in conjunction with `#[cfg]`. #[769](https://github.com/PyO3/pyo3/pull/769)
-* Interpretation of `*`. #[792](https://github.com/PyO3/pyo3/pull/792)
+* Interpretation of `*` and some unreasonable behaviors of `#[args]`. #[792](https://github.com/PyO3/pyo3/pull/792)
 
 ### Removed
 

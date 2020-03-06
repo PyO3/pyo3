@@ -65,18 +65,7 @@ impl PyFunctionAttr {
             syn::Lit::Str(ref lits) => {
                 // "*"
                 if lits.value() == "*" {
-                    if self.has_kwargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "syntax error, keyword self.arguments is defined",
-                        ));
-                    }
-                    if self.has_varargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "self.arguments already define * (var args)",
-                        ));
-                    }
+                    self.vararg_is_ok(item)?;
                     self.has_varargs = true;
                     self.arguments.push(Argument::VarArgsSeparator);
                 } else {
@@ -94,20 +83,57 @@ impl PyFunctionAttr {
     }
 
     fn add_work(&mut self, item: &NestedMeta, path: &Path) -> syn::Result<()> {
-        // self.arguments in form somename
-        if self.has_kwargs {
+        if self.has_kw || self.has_kwargs {
             return Err(syn::Error::new_spanned(
                 item,
-                "syntax error, keyword self.arguments is defined",
+                "Positional argument or varargs(*) is not allowed after keyword arguments",
             ));
         }
-        if self.has_kw {
+        if self.has_varargs {
             return Err(syn::Error::new_spanned(
                 item,
-                "syntax error, argument is not allowed after keyword argument",
+                "Positional argument or varargs(*) is not allowed after *",
             ));
         }
         self.arguments.push(Argument::Arg(path.clone(), None));
+        Ok(())
+    }
+
+    fn vararg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
+        if self.has_kwargs || self.has_varargs {
+            return Err(syn::Error::new_spanned(
+                item,
+                "* is not allowed after varargs(*) or kwargs(**)",
+            ));
+        }
+        Ok(())
+    }
+
+    fn kw_arg_is_ok(&self, item: &NestedMeta) -> syn::Result<()> {
+        if self.has_kwargs {
+            return Err(syn::Error::new_spanned(
+                item,
+                "Keyword argument or kwargs(**) is not allowed after kwargs(**)",
+            ));
+        }
+        Ok(())
+    }
+
+    fn add_nv_common(
+        &mut self,
+        item: &NestedMeta,
+        name: &syn::Path,
+        value: String,
+    ) -> syn::Result<()> {
+        self.kw_arg_is_ok(item)?;
+        if self.has_varargs {
+            // kw only
+            self.arguments.push(Argument::Kwarg(name.clone(), value));
+        } else {
+            self.has_kw = true;
+            self.arguments
+                .push(Argument::Arg(name.clone(), Some(value)));
+        }
         Ok(())
     }
 
@@ -116,75 +142,23 @@ impl PyFunctionAttr {
             syn::Lit::Str(ref litstr) => {
                 if litstr.value() == "*" {
                     // args="*"
-                    if self.has_kwargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "* - syntax error, keyword self.arguments is defined",
-                        ));
-                    }
-                    if self.has_varargs {
-                        return Err(syn::Error::new_spanned(item, "*(var args) is defined"));
-                    }
+                    self.vararg_is_ok(item)?;
                     self.has_varargs = true;
                     self.arguments.push(Argument::VarArgs(nv.path.clone()));
                 } else if litstr.value() == "**" {
                     // kwargs="**"
-                    if self.has_kwargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "self.arguments already define ** (kw args)",
-                        ));
-                    }
+                    self.kw_arg_is_ok(item)?;
                     self.has_kwargs = true;
                     self.arguments.push(Argument::KeywordArgs(nv.path.clone()));
-                } else if self.has_varargs {
-                    self.arguments
-                        .push(Argument::Kwarg(nv.path.clone(), litstr.value()))
                 } else {
-                    if self.has_kwargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "syntax error, keyword self.arguments is defined",
-                        ));
-                    }
-                    self.has_kw = true;
-                    self.arguments
-                        .push(Argument::Arg(nv.path.clone(), Some(litstr.value())))
+                    self.add_nv_common(item, &nv.path, litstr.value())?;
                 }
             }
             syn::Lit::Int(ref litint) => {
-                if self.has_varargs {
-                    self.arguments
-                        .push(Argument::Kwarg(nv.path.clone(), format!("{}", litint)));
-                } else {
-                    if self.has_kwargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "syntax error, keyword self.arguments is defined",
-                        ));
-                    }
-                    self.has_kw = true;
-                    self.arguments
-                        .push(Argument::Arg(nv.path.clone(), Some(format!("{}", litint))));
-                }
+                self.add_nv_common(item, &nv.path, format!("{}", litint))?;
             }
             syn::Lit::Bool(ref litb) => {
-                if self.has_varargs {
-                    self.arguments
-                        .push(Argument::Kwarg(nv.path.clone(), format!("{}", litb.value)));
-                } else {
-                    if self.has_kwargs {
-                        return Err(syn::Error::new_spanned(
-                            item,
-                            "syntax error, keyword self.arguments is defined",
-                        ));
-                    }
-                    self.has_kw = true;
-                    self.arguments.push(Argument::Arg(
-                        nv.path.clone(),
-                        Some(format!("{}", litb.value)),
-                    ));
-                }
+                self.add_nv_common(item, &nv.path, format!("{}", litb.value))?;
             }
             _ => {
                 return Err(syn::Error::new_spanned(

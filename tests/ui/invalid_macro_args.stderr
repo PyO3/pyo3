@@ -1,0 +1,17 @@
+error: Positional argument or varargs(*) is not allowed after keyword arguments
+ --> $DIR/invalid_macro_args.rs:3:21
+  |
+3 | #[pyfunction(a = 5, b)]
+  |                     ^
+
+error: Positional argument or varargs(*) is not allowed after *
+ --> $DIR/invalid_macro_args.rs:8:22
+  |
+8 | #[pyfunction(a, "*", b)]
+  |                      ^
+
+error: Keyword argument or kwargs(**) is not allowed after kwargs(**)
+  --> $DIR/invalid_macro_args.rs:13:29
+   |
+13 | #[pyfunction(kwargs = "**", a = 5)]
+   |                             ^^^^^
