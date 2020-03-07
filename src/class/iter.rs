@@ -2,10 +2,9 @@
 //! Python Iterator Interface.
 //! Trait and support implementation for implementing iterators
 
-use crate::callback::{CallbackConverter, PyObjectCallbackConverter};
+use crate::callback::IntoPyCallbackOutput;
 use crate::err::PyResult;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, PyRefMut, Python};
-use std::ptr;
 
 /// Python Iterator Interface.
 ///
@@ -77,11 +76,7 @@ where
 {
     #[inline]
     fn tp_iter() -> Option<ffi::getiterfunc> {
-        py_unary_refmut_func!(
-            PyIterIterProtocol,
-            T::__iter__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_refmut_func!(PyIterIterProtocol, T::__iter__)
     }
 }
 
@@ -104,31 +99,20 @@ where
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unary_refmut_func!(
-            PyIterNextProtocol,
-            T::__next__,
-            IterNextConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_refmut_func!(PyIterNextProtocol, T::__next__, IterNextConverter)
     }
 }
 
-struct IterNextConverter<T>(std::marker::PhantomData<T>);
+struct IterNextConverter<T>(Option<T>);
 
-impl<T> CallbackConverter for IterNextConverter<T>
+impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for IterNextConverter<T>
 where
     T: IntoPy<PyObject>,
 {
-    type Source = Option<T>;
-    type Result = *mut ffi::PyObject;
-    const ERR_VALUE: Self::Result = ptr::null_mut();
-
-    fn convert(val: Self::Source, py: Python) -> Self::Result {
-        match val {
-            Some(val) => val.into_py(py).into_ptr(),
-            None => unsafe {
-                ffi::PyErr_SetNone(ffi::PyExc_StopIteration);
-                ptr::null_mut()
-            },
+    fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
+        match self.0 {
+            Some(val) => Ok(val.into_py(py).into_ptr()),
+            None => Err(crate::exceptions::StopIteration::py_err(())),
         }
     }
 }

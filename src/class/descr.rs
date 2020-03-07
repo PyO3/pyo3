@@ -5,7 +5,6 @@
 //! [Python information](
 //! https://docs.python.org/3/reference/datamodel.html#implementing-descriptors)
 
-use crate::callback::{PyObjectCallbackConverter, UnitCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::types::{PyAny, PyType};
@@ -84,11 +83,7 @@ where
     T: for<'p> PyDescrGetProtocol<'p>,
 {
     fn tp_descr_get() -> Option<ffi::descrgetfunc> {
-        py_ternary_func!(
-            PyDescrGetProtocol,
-            T::__get__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_ternary_func!(PyDescrGetProtocol, T::__get__)
     }
 }
 
@@ -108,7 +103,7 @@ where
     T: for<'p> PyDescrSetProtocol<'p>,
 {
     fn tp_descr_set() -> Option<ffi::descrsetfunc> {
-        py_ternary_func!(PyDescrSetProtocol, T::__set__, UnitCallbackConverter, c_int)
+        py_ternary_func!(PyDescrSetProtocol, T::__set__, c_int)
     }
 }
 

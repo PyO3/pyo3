@@ -221,13 +221,15 @@ fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
             let _py = pyo3::Python::assume_gil_acquired();
-            let _pool = pyo3::GILPool::new(_py);
-            let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
-            let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
+            pyo3::run_callback(_py, || {
+                let _pool = pyo3::GILPool::new(_py);
+                let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
+                let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 
-            #body
+                #body
 
-            pyo3::callback::cb_obj_convert(_py, _result)
+                pyo3::callback::convert(_py, _result)
+            })
         }
     }
 }

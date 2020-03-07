@@ -4,25 +4,14 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use std::fmt::Display;
 
-pub(crate) fn borrow_self(is_mut: bool, return_null: bool) -> TokenStream {
-    let ret = if return_null {
-        quote! { restore_and_null }
-    } else {
-        quote! { restore_and_minus1 }
-    };
+pub(crate) fn borrow_self(is_mut: bool) -> TokenStream {
     if is_mut {
         quote! {
-            let mut _slf = match _slf.try_borrow_mut() {
-                Ok(ref_) => ref_,
-                Err(e) => return pyo3::PyErr::from(e).#ret(_py),
-            };
+            let mut _slf = _slf.try_borrow_mut()?;
         }
     } else {
         quote! {
-            let _slf = match _slf.try_borrow() {
-                Ok(ref_) => ref_,
-                Err(e) => return pyo3::PyErr::from(e).#ret(_py),
-            };
+            let _slf = _slf.try_borrow()?;
         }
     }
 }

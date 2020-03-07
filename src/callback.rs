@@ -7,86 +7,88 @@ use crate::exceptions::OverflowError;
 use crate::ffi::{self, Py_hash_t};
 use crate::IntoPyPointer;
 use crate::{IntoPy, PyObject, Python};
+use std::isize;
 use std::os::raw::c_int;
-use std::{isize, ptr};
+
+/// A type which can be the return type of a python C-API callback
+pub trait PyCallbackOutput: Copy {
+    /// The error value to return to python if the callback raised an exception
+    const ERR_VALUE: Self;
+}
+
+impl PyCallbackOutput for *mut ffi::PyObject {
+    const ERR_VALUE: Self = std::ptr::null_mut();
+}
+
+impl PyCallbackOutput for libc::c_int {
+    const ERR_VALUE: Self = -1;
+}
+
+impl PyCallbackOutput for ffi::Py_ssize_t {
+    const ERR_VALUE: Self = -1;
+}
+
+impl PyCallbackOutput for () {
+    const ERR_VALUE: Self = ();
+}
 
 /// Convert the result of callback function into the appropriate return value.
-///
-/// Used by PyO3 macros.
-pub trait CallbackConverter {
-    type Source;
-    type Result: Copy;
-    const ERR_VALUE: Self::Result;
+pub trait IntoPyCallbackOutput<Target> {
+    fn convert(self, py: Python) -> PyResult<Target>;
+}
 
-    fn convert(s: Self::Source, py: Python) -> Self::Result;
-
-    #[inline]
-    fn convert_result(py: Python, value: PyResult<Self::Source>) -> Self::Result {
-        match value {
-            Ok(val) => Self::convert(val, py),
-            Err(e) => {
-                e.restore(py);
-                Self::ERR_VALUE
-            }
-        }
+impl<T, U> IntoPyCallbackOutput<U> for PyResult<T>
+where
+    T: IntoPyCallbackOutput<U>,
+{
+    fn convert(self, py: Python) -> PyResult<U> {
+        self.and_then(|t| t.convert(py))
     }
 }
 
-pub struct PyObjectCallbackConverter<T>(pub std::marker::PhantomData<T>);
-
-impl<T> CallbackConverter for PyObjectCallbackConverter<T>
+impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for T
 where
     T: IntoPy<PyObject>,
 {
-    type Source = T;
-    type Result = *mut ffi::PyObject;
-    const ERR_VALUE: Self::Result = ptr::null_mut();
-
-    fn convert(s: Self::Source, py: Python) -> Self::Result {
-        s.into_py(py).into_ptr()
+    fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
+        Ok(self.into_py(py).into_ptr())
     }
 }
 
-pub struct BoolCallbackConverter;
+impl IntoPyCallbackOutput<Self> for *mut ffi::PyObject {
+    fn convert(self, _: Python) -> PyResult<Self> {
+        Ok(self)
+    }
+}
 
-impl CallbackConverter for BoolCallbackConverter {
-    type Source = bool;
-    type Result = c_int;
-    const ERR_VALUE: Self::Result = -1;
+impl IntoPyCallbackOutput<libc::c_int> for () {
+    fn convert(self, _: Python) -> PyResult<libc::c_int> {
+        Ok(0)
+    }
+}
 
+impl IntoPyCallbackOutput<libc::c_int> for bool {
+    fn convert(self, _: Python) -> PyResult<libc::c_int> {
+        Ok(self as c_int)
+    }
+}
+
+impl IntoPyCallbackOutput<()> for () {
+    fn convert(self, _: Python) -> PyResult<()> {
+        Ok(())
+    }
+}
+
+pub struct LenCallbackOutput(pub usize);
+
+impl IntoPyCallbackOutput<ffi::Py_ssize_t> for LenCallbackOutput {
     #[inline]
-    fn convert(s: Self::Source, _py: Python) -> Self::Result {
-        s as c_int
-    }
-}
-
-pub struct LenResultConverter;
-
-impl CallbackConverter for LenResultConverter {
-    type Source = usize;
-    type Result = isize;
-    const ERR_VALUE: Self::Result = -1;
-
-    fn convert(val: Self::Source, py: Python) -> Self::Result {
-        if val <= (isize::MAX as usize) {
-            val as isize
+    fn convert(self, _py: Python) -> PyResult<ffi::Py_ssize_t> {
+        if self.0 <= (isize::MAX as usize) {
+            Ok(self.0 as isize)
         } else {
-            OverflowError::py_err(()).restore(py);
-            -1
+            Err(OverflowError::py_err(()))
         }
-    }
-}
-
-pub struct UnitCallbackConverter;
-
-impl CallbackConverter for UnitCallbackConverter {
-    type Source = ();
-    type Result = c_int;
-    const ERR_VALUE: Self::Result = -1;
-
-    #[inline]
-    fn convert(_s: Self::Source, _py: Python) -> Self::Result {
-        0
     }
 }
 
@@ -115,50 +117,49 @@ wrapping_cast!(i32, Py_hash_t);
 wrapping_cast!(isize, Py_hash_t);
 wrapping_cast!(i64, Py_hash_t);
 
-pub struct HashConverter<T>(pub std::marker::PhantomData<T>);
+pub struct HashCallbackOutput<T>(pub T);
 
-impl<T> CallbackConverter for HashConverter<T>
+impl<T> IntoPyCallbackOutput<Py_hash_t> for HashCallbackOutput<T>
 where
     T: WrappingCastTo<Py_hash_t>,
 {
-    type Source = T;
-    type Result = Py_hash_t;
-    const ERR_VALUE: Self::Result = -1;
-
     #[inline]
-    fn convert(val: T, _py: Python) -> Py_hash_t {
-        let hash = val.wrapping_cast();
+    fn convert(self, _py: Python) -> PyResult<Py_hash_t> {
+        let hash = self.0.wrapping_cast();
         if hash == -1 {
-            -2
+            Ok(-2)
         } else {
-            hash
+            Ok(hash)
         }
     }
 }
 
-// Short hands methods for macros
+#[doc(hidden)]
 #[inline]
-pub fn cb_convert<C, T>(_c: C, py: Python, value: PyResult<T>) -> C::Result
+pub fn convert<T, U>(py: Python, value: T) -> PyResult<U>
 where
-    C: CallbackConverter<Source = T>,
+    T: IntoPyCallbackOutput<U>,
 {
-    C::convert_result(py, value)
+    value.convert(py)
 }
 
-// Same as cb_convert(PyObjectCallbackConverter<T>, py, value)
+#[doc(hidden)]
 #[inline]
-pub fn cb_obj_convert<T: IntoPy<PyObject>>(
-    py: Python,
-    value: PyResult<T>,
-) -> <PyObjectCallbackConverter<T> as CallbackConverter>::Result {
-    PyObjectCallbackConverter::<T>::convert_result(py, value)
+pub fn callback_error<T>() -> T
+where
+    T: PyCallbackOutput,
+{
+    T::ERR_VALUE
 }
 
-#[inline]
-pub unsafe fn cb_err<C>(_c: C, py: Python, err: impl Into<crate::PyErr>) -> C::Result
+#[doc(hidden)]
+pub fn run_callback<T, F>(py: Python, callback: F) -> T
 where
-    C: CallbackConverter,
+    F: FnOnce() -> PyResult<T>,
+    T: PyCallbackOutput,
 {
-    err.into().restore(py);
-    C::ERR_VALUE
+    callback().unwrap_or_else(|e| {
+        e.restore(py);
+        T::ERR_VALUE
+    })
 }
