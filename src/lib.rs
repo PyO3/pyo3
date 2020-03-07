@@ -133,7 +133,6 @@
 //! }
 //! ```
 
-pub use crate::callback::run_callback;
 pub use crate::class::*;
 pub use crate::conversion::{
     AsPyPointer, FromPy, FromPyObject, FromPyPointer, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto,

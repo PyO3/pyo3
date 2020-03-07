@@ -5,9 +5,8 @@
 
 use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::{PyErr, PyResult};
-use crate::gil::GILPool;
 use crate::objectprotocol::ObjectProtocol;
-use crate::{callback, exceptions, ffi, run_callback, PyAny, PyCell, PyClass, PyObject};
+use crate::{exceptions, ffi, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
 /// Sequence interface
@@ -256,9 +255,7 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceSetItemProtocol<'p>,
             {
-                let pool = GILPool::new();
-                let py = pool.python();
-                run_callback(py, || {
+                crate::callback_body!(py, {
                     let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                     if value.is_null() {
@@ -271,8 +268,7 @@ mod sq_ass_item_impl {
                     let mut slf = slf.try_borrow_mut()?;
                     let value = py.from_borrowed_ptr::<PyAny>(value);
                     let value = value.extract()?;
-                    let result = slf.__setitem__(key.into(), value).into();
-                    callback::convert(py, result)
+                    slf.__setitem__(key.into(), value).into()
                 })
             }
             Some(wrap::<T>)
@@ -305,21 +301,17 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let pool = GILPool::new();
-                let py = pool.python();
-                run_callback(py, || {
+                crate::callback_body!(py, {
                     let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
-                    let result = if value.is_null() {
+                    if value.is_null() {
                         slf.borrow_mut().__delitem__(key.into()).into()
                     } else {
                         Err(PyErr::new::<exceptions::NotImplementedError, _>(format!(
                             "Item assignment not supported by {:?}",
                             stringify!(T)
                         )))
-                    };
-
-                    callback::convert(py, result)
+                    }
                 })
             }
             Some(wrap::<T>)
@@ -352,20 +344,17 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let pool = GILPool::new();
-                let py = pool.python();
-                run_callback(py, || {
+                crate::callback_body!(py, {
                     let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
-                    let result = if value.is_null() {
+                    if value.is_null() {
                         call_mut!(slf, __delitem__; key.into())
                     } else {
                         let value = py.from_borrowed_ptr::<PyAny>(value);
                         let mut slf_ = slf.try_borrow_mut()?;
                         let value = value.extract()?;
                         slf_.__setitem__(key.into(), value).into()
-                    };
-                    callback::convert(py, result)
+                    }
                 })
             }
             Some(wrap::<T>)
