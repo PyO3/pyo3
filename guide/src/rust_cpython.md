@@ -1,4 +1,4 @@
-# Appendix: PyO3 and rust-cpython
+# Appendix A: PyO3 and rust-cpython
 
 PyO3 began as fork of [rust-cpython](https://github.com/dgrunwald/rust-cpython) when rust-cpython wasn't maintained. Over the time PyO3 has become fundamentally different from rust-cpython.
 
