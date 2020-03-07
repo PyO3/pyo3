@@ -188,6 +188,7 @@ mod internal_tricks;
 pub mod marshal;
 mod object;
 mod objectprotocol;
+pub mod panic;
 pub mod prelude;
 pub mod pycell;
 pub mod pyclass;

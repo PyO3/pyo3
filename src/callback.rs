@@ -157,6 +157,8 @@ where
 /// It sets up the GILPool and converts the output into a Python object. It also restores
 /// any python error returned as an Err variant from the body.
 ///
+/// Finally, any panics inside the callback body will be caught and translated into PanicExceptions.
+///
 /// # Safety
 /// This macro assumes the GIL is held. (It makes use of unsafe code, so usage of it is only
 /// possible inside unsafe blocks.)
@@ -204,11 +206,27 @@ macro_rules! callback_body {
 macro_rules! callback_body_without_convert {
     ($py:ident, $body:expr) => {{
         let pool = $crate::GILPool::new();
+        let unwind_safe_py = std::panic::AssertUnwindSafe(pool.python());
+        let result = match std::panic::catch_unwind(move || -> $crate::PyResult<_> {
+            let $py = *unwind_safe_py;
+            $body
+        }) {
+            Ok(result) => result,
+            Err(e) => {
+                // Try to format the error in the same way panic does
+                if let Some(string) = e.downcast_ref::<String>() {
+                    Err($crate::panic::PanicException::py_err((string.clone(),)))
+                } else if let Some(s) = e.downcast_ref::<&str>() {
+                    Err($crate::panic::PanicException::py_err((s.to_string(),)))
+                } else {
+                    Err($crate::panic::PanicException::py_err((
+                        "panic from Rust code",
+                    )))
+                }
+            }
+        };
 
-        let $py = pool.python();
-        let callback = move || -> $crate::PyResult<_> { $body };
-
-        callback().unwrap_or_else(|e| {
+        result.unwrap_or_else(|e| {
             e.restore(pool.python());
             $crate::callback::callback_error()
         })
