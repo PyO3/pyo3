@@ -61,7 +61,7 @@ pub fn parse_fn_args<'p>(
                 if i < nargs {
                     raise_error!("got multiple values for argument: {}", p.name)
                 }
-                kwargs.as_ref().unwrap().del_item(p.name).unwrap();
+                kwargs.as_ref().unwrap().del_item(p.name)?;
                 Some(kwarg)
             }
             None => {

@@ -206,30 +206,10 @@ impl<'a> FnSpec<'a> {
         false
     }
 
-    pub fn accept_args(&self) -> bool {
-        for s in self.attrs.iter() {
-            match *s {
-                Argument::VarArgs(_) => return true,
-                Argument::VarArgsSeparator => return true,
-                _ => (),
-            }
-        }
-        false
-    }
-
     pub fn is_kwargs(&self, name: &syn::Ident) -> bool {
         for s in self.attrs.iter() {
             if let Argument::KeywordArgs(ref path) = s {
                 return path.is_ident(name);
-            }
-        }
-        false
-    }
-
-    pub fn accept_kwargs(&self) -> bool {
-        for s in self.attrs.iter() {
-            if let Argument::KeywordArgs(_) = s {
-                return true;
             }
         }
         false
