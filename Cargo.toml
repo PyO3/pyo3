@@ -35,11 +35,10 @@ assert_approx_eq = "1.1.0"
 trybuild = "1.0.14"
 
 [build-dependencies]
-regex = "1.2.1"
+regex = "1"
 version_check = "0.9.1"
-serde = { version = "1.0.99", features = ["derive"] }
-serde_json = "1.0.40"
-lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [features]
 default = []
