@@ -42,7 +42,7 @@ For more, see [the constructor section](https://pyo3.rs/master/class.html#constr
 PyO3 0.9 introduces [`PyCell`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html), which is
 a [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html) like object wrapper
 for dynamically ensuring
-[Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references).
+[The Rules of References](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references).
 
 For `#[pymethods]` or `#[pyfunction]`s, your existing code should continue to work without any change.
 Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's
@@ -58,13 +58,13 @@ struct Names {
 
 #[pymethods]
 impl Names {
-   #[new]
-   fn new() -> Self {
-       Names { names: vec![] }
-   }
-   fn merge(&mut self, other: &mut Names) {
-       self.names.append(&mut other.names)
-   }
+    #[new]
+    fn new() -> Self {
+        Names { names: vec![] }
+    }
+    fn merge(&mut self, other: &mut Names) {
+        self.names.append(&mut other.names)
+    }
 }
 # let gil = Python::acquire_gil();
 # let py = gil.python();
@@ -78,16 +78,18 @@ impl Names {
 #    isinstance(e, borrow_mut_err)
 # ");
 ```
-`Names` has `merge` method, which takes `&mut self` and `&mut Self`.
+`Names` has a `merge` method, which takes `&mut self` and another argument of type `&mut Self`.
 Given this `#[pyclass]`, calling `names.merge(names)` in Python raises a `PyBorrowMutError` exception,
 since it requires two mutable borrows of `names`.
 
-However, for `#[pyproto]` and some functions, you need to manually fix codes.
+However, for `#[pyproto]` and some functions, you need to manually fix the code.
 
 #### Object creation
-We could use the older `PyRef` and `PyRefMut` for object creation, but now they are just
-reference wrappers for `PyCell`.
-Use `PyCell::new` instead.
+In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
+In 0.9 these have both been removed.
+To upgrade code, please use `PyCell::new` instead.
+If a `PyRef` or `PyRefMut` is needed, just call `.borrow()` or `.borrow_mut()`
+on the newly-created `PyCell`.
 
 Before:
 ```compile_fail
@@ -111,8 +113,8 @@ let obj_ref = obj.borrow();
 ```
 
 #### Object extraction
-`T: PyClass`, `&T` and `&mut T` no longer have `FromPyObject` implementations.
-Instead you should extract `&PyCell`, `PyRef`, and `PyRefMut` respectively.
+For `PyClass` types `T`, `&T` and `&mut T` no longer have `FromPyObject` implementations.
+Instead you should extract `PyRef<T>` or `PyRefMut<T>`, respectively.  You can also extract `&PyCell<T>`.
 
 Before:
 ```ignore
@@ -125,7 +127,7 @@ After:
 ```
 # use pyo3::prelude::*;
 # use pyo3::types::{PyAny, IntoPyDict};
-# #[pyclass] struct MyClass {}
+# #[pyclass] #[derive(Clone)] struct MyClass {}
 # #[pymethods] impl MyClass { #[new]fn new() -> Self { MyClass {} }}
 # let gil = Python::acquire_gil();
 # let py = gil.python();
@@ -134,6 +136,7 @@ After:
 # let create_obj = || py.eval("c()", None, Some(d)).unwrap();
 let obj: &PyAny = create_obj();
 let obj_cell: &PyCell<MyClass> = obj.extract().unwrap();
+let obj_cloned: MyClass = obj.extract().unwrap(); // extracted via Clone
 {
     let obj_ref: PyRef<MyClass> = obj.extract().unwrap();
     // we need to drop obj_ref before we can extract a PyRefMut due to Rust's rules of references
@@ -143,8 +146,8 @@ let obj_ref_mut: PyRefMut<MyClass> = obj.extract().unwrap();
 
 
 #### `#[pyproto]`
-Most of `#[pyproto]` arguments requires [`FromPyObject`] implementation.
-So if your protocol methods take `&T` or `&mut T`(where `T: PyClass`),
+Most of the arguments to methods in `#[pyproto]` impls require a [`FromPyObject`] implementation.
+So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`),
 please use `PyRef` or `PyRefMut` instead.
 
 Before:
