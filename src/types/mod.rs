@@ -128,6 +128,7 @@ macro_rules! pyobject_native_type_convert(
             type Layout = $layout;
             type BaseLayout = ffi::PyObject;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
+            type AsRefTarget = Self;
 
             const NAME: &'static str = stringify!($name);
             const MODULE: Option<&'static str> = $module;
@@ -150,14 +151,6 @@ macro_rules! pyobject_native_type_convert(
             fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
                 use $crate::AsPyPointer;
                 unsafe {$crate::PyObject::from_borrowed_ptr(py, self.0.as_ptr())}
-            }
-        }
-
-        impl $crate::AsPyRef for $crate::Py<$name> {
-            type Target = $name;
-            fn as_ref(&self, _py: $crate::Python) -> &$name {
-                let any = self as *const $crate::Py<$name> as *const $crate::types::PyAny;
-                unsafe { $crate::type_object::PyDowncastImpl::unchecked_downcast(&*any) }
             }
         }
 

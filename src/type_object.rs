@@ -123,6 +123,9 @@ pub unsafe trait PyTypeInfo: Sized {
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;
 
+    /// Utility type to make AsPyRef work
+    type AsRefTarget: PyDowncastImpl;
+
     /// PyTypeObject instance for this type.
     fn type_object() -> &'static ffi::PyTypeObject;
 
