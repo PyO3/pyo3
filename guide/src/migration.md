@@ -114,7 +114,9 @@ let obj_ref = obj.borrow();
 
 #### Object extraction
 For `PyClass` types `T`, `&T` and `&mut T` no longer have `FromPyObject` implementations.
-Instead you should extract `PyRef<T>` or `PyRefMut<T>`, respectively.  You can also extract `&PyCell<T>`.
+Instead you should extract `PyRef<T>` or `PyRefMut<T>`, respectively.
+If `T` implements `Clone`, you can extract `T` itself.
+In addition, you can also extract `&PyCell<T>`, though you rarely need it.
 
 Before:
 ```ignore
@@ -136,7 +138,7 @@ After:
 # let create_obj = || py.eval("c()", None, Some(d)).unwrap();
 let obj: &PyAny = create_obj();
 let obj_cell: &PyCell<MyClass> = obj.extract().unwrap();
-let obj_cloned: MyClass = obj.extract().unwrap(); // extracted via Clone
+let obj_cloned: MyClass = obj.extract().unwrap(); // extracted by cloning the object
 {
     let obj_ref: PyRef<MyClass> = obj.extract().unwrap();
     // we need to drop obj_ref before we can extract a PyRefMut due to Rust's rules of references
