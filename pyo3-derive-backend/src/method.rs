@@ -284,7 +284,7 @@ pub fn is_ref(name: &syn::Ident, ty: &syn::Type) -> bool {
     false
 }
 
-pub(crate) fn check_ty_optional<'a>(ty: &'a syn::Type) -> Option<&'a syn::Type> {
+pub(crate) fn check_ty_optional(ty: &syn::Type) -> Option<&syn::Type> {
     let path = match ty {
         syn::Type::Path(syn::TypePath { ref path, .. }) => path,
         _ => return None,
