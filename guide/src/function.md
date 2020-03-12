@@ -3,7 +3,7 @@
 PyO3 supports two ways to define a free function in Python. Both require registering
 the function to a [module](./module.md).
 
-One way is defining the function in the module definition.
+One way is defining the function in the module definition, annotated with `#[pyfn]`.
 
 ```rust
 use pyo3::prelude::*;
@@ -11,11 +11,9 @@ use pyo3::prelude::*;
 #[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
 
-    // Note that the `#[pyfn()]` annotation automatically converts the arguments from
-    // Python objects to Rust values; and the Rust return value back into a Python object.
     #[pyfn(m, "sum_as_string")]
     fn sum_as_string_py(_py: Python, a:i64, b:i64) -> PyResult<String> {
-       Ok(format!("{}", a + b))
+        Ok(format!("{}", a + b))
     }
 
     Ok(())
@@ -78,7 +76,9 @@ fn module_with_functions(py: Python, m: &PyModule) -> PyResult<()> {
 
 In order to make the function signature available to Python to be retrieved via
 `inspect.signature`, use the `#[text_signature]` annotation as in the example
-below. The `/` signifies the end of positional-only arguments.
+below. The `/` signifies the end of positional-only arguments. (This
+is not a feature of this library in particular, but the general format used by
+CPython for annotating signatures of built-in functions.)
 
 ```rust
 use pyo3::prelude::*;
@@ -133,9 +133,7 @@ impl MyClass {
 
 Alternatively, simply make sure the first line of your docstring is
 formatted like in the following example. Please note that the newline after the
-`--` is mandatory. The `/` signifies the end of positional-only arguments. This
-is not a feature of this library in particular, but the general format used by
-CPython for annotating signatures of built-in functions.
+`--` is mandatory. The `/` signifies the end of positional-only arguments.
 
 `#[text_signature]` should be preferred, since it will override automatically
 generated signatures when those are added in a future version of PyO3.
@@ -165,6 +163,7 @@ fn sub(a: u64, b: u64) -> u64 {
 ```
 
 When annotated like this, signatures are also correctly displayed in IPython.
+
 ```ignore
 >>> pyo3_test.add?
 Signature: pyo3_test.add(a, b, /)
@@ -178,8 +177,8 @@ Currently, there are no conversions between `Fn`s in Rust and callables in Pytho
 
 ### Calling a Python function in Rust
 
-You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only the positional args.
+You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only positional args.
 
 ### Calling Rust `Fn`s in Python
 
-If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_pyfunction!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambda and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.
+If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_pyfunction!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambdas and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.

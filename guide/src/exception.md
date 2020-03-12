@@ -1,6 +1,6 @@
 # Python Exceptions
 
-## Define a new exception
+## Defining a new exception
 
 You can use the `create_exception!` macro to define a new exception type:
 
@@ -33,7 +33,7 @@ fn main() {
 }
 ```
 
-## Raise an exception
+## Raising an exception
 
 To raise an exception, first you need to obtain an exception type and construct a new [`PyErr`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html), then call the [`PyErr::restore()`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.restore) method to write the exception back to the Python interpreter's global state.
 
@@ -50,13 +50,17 @@ fn main() {
 }
 ```
 
-If you already have a Python exception instance, you can simply call [`PyErr::from_instance()`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.from_instance).
+From `pyfunction`s and `pyclass` methods, returning a `Err(PyErr)` is enough;
+PyO3 will handle restoring the exception on the Python interpreter side.
+
+If you already have a Python exception instance, you can simply call
+[`PyErr::from_instance()`](https://docs.rs/pyo3/latest/pyo3/struct.PyErr.html#method.from_instance).
 
 ```rust,ignore
 PyErr::from_instance(py, err).restore(py);
 ```
 
-If a Rust type exists for the exception, then it is possible to use the `new` method.
+If a Rust type exists for the exception, then it is possible to use the `py_err` method.
 For example, each standard exception defined in the `pyo3::exceptions` module
 has a corresponding Rust type, exceptions defined by `create_exception!` and `import_exception!` macro
 have Rust types as well.
@@ -74,7 +78,7 @@ fn my_func(arg: PyObject) -> PyResult<()> {
 }
 ```
 
-## Check exception type
+## Checking exception types
 
 Python has an [`isinstance`](https://docs.python.org/3/library/functions.html#isinstance) method to check an object's type,
 in PyO3 there is a [`Python::is_instance()`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.is_instance) method which does the same thing.
@@ -108,7 +112,7 @@ err.is_instance::<exceptions::TypeError>(py);
 # }
 ```
 
-## Handle Rust Errors
+## Handling Rust Errors
 
 The vast majority of operations in this library will return [`PyResult<T>`](https://docs.rs/pyo3/latest/pyo3/prelude/type.PyResult.html).
 This is an alias for the type `Result<T, PyErr>`.
@@ -163,7 +167,7 @@ fn connect(s: String) -> PyResult<bool> {
 The code snippet above will raise an `OSError` in Python if `bind()` returns a `CustomIOError`.
 
 The `std::convert::From<T>` trait is implemented for most of the Rust standard library's error
-types so the `try!` macro or the `?` operator can be used.
+types so the `?` operator can be used.
 
 ```rust
 use pyo3::prelude::*;
@@ -176,7 +180,7 @@ fn parse_int(s: String) -> PyResult<usize> {
 The code snippet above will raise a `ValueError` in Python if `String::parse()` returns an error.
 
 
-## Using exceptions defined in python code
+## Using exceptions defined in Python code
 
 It is possible to use an exception defined in Python code as a native Rust type.
 The `import_exception!` macro allows importing a specific exception class and defines a zero-sized Rust type

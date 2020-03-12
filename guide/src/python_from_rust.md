@@ -1,10 +1,13 @@
-# Call Python functions from Rust
+# Calling Python in Rust code
 
-## Want to run just an expression? Then use eval.
+These APIs work from Rust whenever you have a `Python` object handy, whether
+PyO3 is built for an extension module or not.
+
+## Want to run just an expression? Then use `eval`.
 
 [`Python::eval`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
-and returns the evaluated value as `PyAny`.
+and return the evaluated value as a `&PyAny` object.
 
 ```rust
 use pyo3::prelude::*;
@@ -22,17 +25,18 @@ fn main() -> Result<(), ()> {
 }
 ```
 
-## Want to run statements? Then use run.
+## Want to run statements? Then use `run`.
 
 [`Python::run`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run)
 is a method to execute one or more
 [Python statements](https://docs.python.org/3.7/reference/simple_stmts.html).
-This method returns nothing, but you can get objects via `locals` dict.
+This method returns nothing (like any Python statement), but you can get
+access to manipulated objects via the `locals` dict.
 
 You can also use the [`py_run!`](https://pyo3.rs/master/doc/pyo3/macro.py_run.html)
 macro, which is a shorthand for `Python::run`.
-Since `py_run!` can cause panic, we recommend you to use this macro only for testing
-your Python extensions quickly.
+Since `py_run!` panics on exceptions, we recommend you use this macro only for
+quickly testing your Python extensions.
 
 ```rust
 use pyo3::prelude::*;
@@ -70,9 +74,10 @@ assert userdata.as_tuple() == userdata_as_tuple
 # }
 ```
 
-## You have a python file or Python function? Then use PyModule.
+## You have a Python file or Python function? Then use `PyModule`.
+
 [PyModule](https://pyo3.rs/master/doc/pyo3/types/struct.PyModule.html) also can
-execute Python codes by calling a function.
+execute Python code by calling its methods.
 
 ```rust
 use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
@@ -80,14 +85,18 @@ use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
 let gil = Python::acquire_gil();
 let py = gil.python();
 let activators = PyModule::from_code(py, "
+# some neural net rectifier functions
+
 def relu(x):
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
 ", "activators.py", "activators")?;
+
 let relu_result: f64 = activators.call1("relu", (-1.0,))?.extract()?;
 assert_eq!(relu_result, 0.0);
+
 let kwargs = [("slope", 0.2)].into_py_dict(py);
 let lrelu_result: f64 = activators
     .call("leaky_relu", (-1.0,), Some(kwargs))?
