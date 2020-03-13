@@ -182,9 +182,10 @@ pub mod types;
 
 /// The proc macros, which are also part of the prelude
 pub mod proc_macro {
-    pub use pyo3cls::pymodule;
-    /// The proc macro attributes
-    pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
+    /// Function like macros
+    pub use pyo3cls::export_exceptions;
+    /// Attribute macros
+    pub use pyo3cls::{pyclass, pyfunction, pymethods, pymodule, pyproto};
 }
 
 /// Returns a function that takes a [Python] instance and returns a python function.

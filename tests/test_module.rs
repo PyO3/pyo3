@@ -276,3 +276,38 @@ fn test_vararg_module() {
     py_assert!(py, m, "m.int_vararg_fn() == [5, ()]");
     py_assert!(py, m, "m.int_vararg_fn(1, 2) == [1, (2,)]");
 }
+
+pyo3::proc_macro::export_exceptions!();
+
+#[pyfunction]
+fn invalid_mutation(_a: &mut ValueClass, _b: &mut ValueClass) {}
+
+#[pymodule]
+fn module_with_exceptions(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<ValueClass>()?;
+    m.add_wrapped(pyo3::wrap_pyfunction!(invalid_mutation))?;
+    m.add_wrapped(pyo3::wrap_pymodule!(_pyo3_exceptions))?;
+    Ok(())
+}
+
+#[test]
+fn catch_custom_exceptions() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let m = pyo3::wrap_pymodule!(module_with_exceptions)(py);
+    pyo3::py_run!(
+        py,
+        m,
+        r"
+v = m.ValueClass(0)
+is_pyborrow_mut = False
+try:
+    m.invalid_mutation(v, v)
+    assert False
+except m._pyo3_exceptions.PyBorrowMutError:
+    is_pyborrow_mut = True
+
+assert is_pyborrow_mut
+"
+    );
+}

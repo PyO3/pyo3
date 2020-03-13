@@ -91,3 +91,37 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
     )
     .into()
 }
+
+#[proc_macro]
+pub fn export_exceptions(_item: TokenStream) -> TokenStream {
+    let modname = syn::Ident::new("_pyo3_exceptions", proc_macro2::Span::call_site());
+
+    let mut ast = syn::parse_quote! {
+        fn _pyo3_exceptions(_py: pyo3::Python, m: &pyo3::types::PyModule) -> pyo3::PyResult<()> {
+            use pyo3::type_object::PyTypeObject;
+            m.add("PyBorrowError", pyo3::pycell::PyBorrowError::type_object())?;
+            m.add(
+                "PyBorrowMutError",
+                pyo3::pycell::PyBorrowMutError::type_object(),
+            )?;
+            Ok(())
+        }
+    };
+
+    if let Err(err) = process_functions_in_module(&mut ast) {
+        return err.to_compile_error().into();
+    }
+
+    let doc = match get_doc(&ast.attrs, None, false) {
+        Ok(doc) => doc,
+        Err(err) => return err.to_compile_error().into(),
+    };
+
+    let expanded = py_init(&ast.sig.ident, &modname, doc);
+
+    quote!(
+        #ast
+        #expanded
+    )
+    .into()
+}
