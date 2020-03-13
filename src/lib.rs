@@ -328,4 +328,5 @@ pub mod doc_test {
     doctest!("../guide/src/parallelism.md", guide_parallelism_md);
     doctest!("../guide/src/pypy.md", guide_pypy_md);
     doctest!("../guide/src/rust_cpython.md", guide_rust_cpython_md);
+    doctest!("../guide/src/migration.md", guide_migration_md);
 }

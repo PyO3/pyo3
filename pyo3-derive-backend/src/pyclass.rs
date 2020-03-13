@@ -389,9 +389,10 @@ fn impl_class(
         unsafe impl pyo3::type_object::PyTypeInfo for #cls {
             type Type = #cls;
             type BaseType = #base;
-            type Layout = pyo3::pycell::PyCell<Self>;
+            type Layout = pyo3::PyCell<Self>;
             type BaseLayout = #base_layout;
             type Initializer = pyo3::pyclass_init::PyClassInitializer<Self>;
+            type AsRefTarget = pyo3::PyCell<Self>;
 
             const NAME: &'static str = #cls_name;
             const MODULE: Option<&'static str> = #module;
@@ -416,6 +417,7 @@ fn impl_class(
         {
             type Target = pyo3::PyRef<'a, #cls>;
         }
+
         impl<'a> pyo3::derive_utils::ExtractExt<'a> for &'a mut #cls
         {
             type Target = pyo3::PyRefMut<'a, #cls>;
