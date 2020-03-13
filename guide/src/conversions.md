@@ -2,19 +2,36 @@
 
 PyO3 provides some handy traits to convert between Python types and Rust types.
 
-## `.extract()`
+## `.extract()` and the `FromPyObject` trait
 
-The easiest way to convert a Python object to a Rust value is using `.extract()?`.
+The easiest way to convert a Python object to a Rust value is using
+`.extract()`.  It returns a `PyResult` with a type error if the conversion
+fails, so usually you will use something like
 
-## `ToPyObject` trait
+```ignore
+let v: Vec<i32> = obj.extract()?;
+```
 
-[`ToPyObject`] trait is a conversion trait that allows various objects to be
+This method is available for many Python object types, and can produce a wide
+variety of Rust types, which you can check out in the implementor list of
+[`FromPyObject`][FromPyObject].
+
+`FromPyObject` is also implemented for your own Rust types wrapped as Python
+objects (see [the chapter about classes](class.md)).  There, in order to both be
+able to operate on mutable references *and* satisfy Rust's rules of non-aliasing
+mutable references, you have to extract the PyO3 reference wrappers `PyRef<T>`
+and `PyRefMut<T>`.  They work like the reference wrappers of
+`std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
+
+
+## The `ToPyObject` trait
+
+[`ToPyObject`] is a conversion trait that allows various objects to be
 converted into [`PyObject`][PyObject]. `IntoPy<PyObject>` serves the
 same purpose, except that it consumes `self`.
 
-## `FromPyObject` and `RefFromPyObject` trait
 
-## `*args` and `**kwargs` for python object call
+## `*args` and `**kwargs` for Python object calls
 
 There are several ways how to pass positional and keyword arguments to a Python object call.
 The [`ObjectProtocol`][ObjectProtocol] trait provides two methods:
@@ -22,7 +39,8 @@ The [`ObjectProtocol`][ObjectProtocol] trait provides two methods:
 * `call` - call any callable Python object.
 * `call_method` - call a specific method on the object, shorthand for `get_attr` then `call`.
 
-Both methods accept `args` and `kwargs` arguments.
+Both methods need `args` and `kwargs` arguments, but there are variants for less
+complex calls, such as `call1` for only `args` and `call0` for no arguments at all.
 
 ```rust
 use pyo3::prelude::*;
@@ -59,7 +77,9 @@ fn main() {
 ```
 
 `kwargs` can be `None` or `Some(&PyDict)`. You can use the
-[`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers, e.g. `HashMap`, `BTreeMap` as well as tuples with up to 10 elements and `Vec`s where each element is a two-element tuple.
+[`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers,
+e.g. `HashMap` or `BTreeMap`, as well as tuples with up to 10 elements and
+`Vec`s where each element is a two-element tuple.
 
 ```rust
 use pyo3::prelude::*;
@@ -102,9 +122,9 @@ fn main() {
 
 ## `FromPy<T>` and `IntoPy<T>`
 
-Many conversions in PyO3 can't use `std::convert::From` because they need a GIL token. The `FromPy<T>` trait offers an `from_py` method that works just like `from`, except for taking a `Python<'_>` argument. I.e. FromPy<T> could be converting a rust object into a python object even though it says `FromPy` - it doesn't say anything about which side of the conversion is a python object.
+Many conversions in PyO3 can't use `std::convert::From` because they need a GIL token. The `FromPy<T>` trait offers an `from_py` method that works just like `from`, except for taking a `Python<'_>` argument. I.e. `FromPy<T>` could be converting a Rust object into a Python object even though it is called `FromPy` - it doesn't say anything about which side of the conversion is a Python object.
 
-(Just like From<T>, if you implement FromPy<T> you gain a blanket implementation of IntoPy<T> for free.)
+Just like From<T>, if you implement FromPy<T> you gain a blanket implementation of IntoPy<T> for free.
 
 Eventually, traits such as `ToPyObject` will be replaced by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`.
 

@@ -1,12 +1,12 @@
 # Summary
 
-- [Get Started](get_started.md)
+- [Getting Started](get_started.md)
+- [Python Modules](module.md)
+- [Python Functions](function.md)
+- [Python Classes](class.md)
 - [Type Conversions](conversions.md)
-- [Python Exception](exception.md)
-- [Python Module](module.md)
-- [Python Function](function.md)
-- [Python Class](class.md)
-- [Call Python from Rust](python_from_rust.md)
+- [Python Exceptions](exception.md)
+- [Calling Python from Rust](python_from_rust.md)
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
 - [Advanced Topics](advanced.md)

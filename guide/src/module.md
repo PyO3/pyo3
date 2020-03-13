@@ -5,26 +5,27 @@ As shown in the Getting Started chapter, you can create a module as follows:
 ```rust
 use pyo3::prelude::*;
 
-// add bindings to the generated python module
-// N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
+// add bindings to the generated Python module
+// N.B: "rust2py" must be the name of the `.so` or `.pyd` file.
+
 /// This module is implemented in Rust.
 #[pymodule]
 fn rust2py(py: Python, m: &PyModule) -> PyResult<()> {
-
-    // PyO3 aware function. All of our python interfaces could be declared in a separate module.
+    // PyO3 aware function. All of our Python interfaces could be declared in a separate module.
     // Note that the `#[pyfn()]` annotation automatically converts the arguments from
-    // Python objects to Rust values; and the Rust return value back into a Python object.
+    // Python objects to Rust values, and the Rust return value back into a Python object.
+    // The `_py` argument represents that we're holding the GIL.
     #[pyfn(m, "sum_as_string")]
-    fn sum_as_string_py(_py: Python, a:i64, b:i64) -> PyResult<String> {
-       let out = sum_as_string(a, b);
-       Ok(out)
+    fn sum_as_string_py(_py: Python, a: i64, b: i64) -> PyResult<String> {
+        let out = sum_as_string(a, b);
+        Ok(out)
     }
 
     Ok(())
 }
 
-// logic implemented as a normal rust function
-fn sum_as_string(a:i64, b:i64) -> String {
+// logic implemented as a normal Rust function
+fn sum_as_string(a: i64, b: i64) -> String {
     format!("{}", a + b)
 }
 
@@ -37,7 +38,7 @@ To import the module, either copy the shared library as described in [Get Starte
 
 ## Documentation
 
-The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module initialization function will be applied automatically as the Python doc string of your module.
+The [Rust doc comments](https://doc.rust-lang.org/stable/book/first-edition/comments.html) of the module initialization function will be applied automatically as the Python docstring of your module.
 
 ```python
 import rust2py

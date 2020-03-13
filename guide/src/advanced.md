@@ -1,6 +1,6 @@
 # Advanced topics
 
-## ffi
+## FFI
 
 PyO3 exposes much of Python's C API through the `ffi` module.
 
