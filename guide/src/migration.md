@@ -40,9 +40,10 @@ For more, see [the constructor section](https://pyo3.rs/master/class.html#constr
 
 ### PyCell
 PyO3 0.9 introduces [`PyCell`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html), which is
-a [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html) like object wrapper
-for dynamically ensuring
-[The Rules of References](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references).
+a [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)-like object wrapper
+for ensuring Rust's rules regarding aliasing of references are upheld.
+For more detail, see the
+[Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
 
 For `#[pymethods]` or `#[pyfunction]`s, your existing code should continue to work without any change.
 Python exceptions will automatically be raised when your functions are used in a way which breaks Rust's
