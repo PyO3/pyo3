@@ -22,8 +22,8 @@ appveyor = { repository = "fafhrd91/pyo3" }
 indoc = "0.3.4"
 inventory = "0.1.4"
 libc = "0.2.62"
-num-bigint = { version = ">= 0.2", optional = true }
-num-complex = { version = ">= 0.2", optional = true }
+num-bigint = { version = "0.2", optional = true }
+num-complex = { version = "0.2", optional = true }
 num-traits = "0.2.8"
 parking_lot = { version = "0.10", features = ["nightly"] }
 paste = "0.1.6"
@@ -32,7 +32,7 @@ unindent = "0.1.4"
 
 [dev-dependencies]
 assert_approx_eq = "1.1.0"
-trybuild = "1.0.14"
+trybuild = "1.0.23"
 
 [build-dependencies]
 regex = "1"

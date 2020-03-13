@@ -7,7 +7,7 @@ use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
 use crate::types::PyAny;
 use crate::{
     ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, Python, ToPyObject,
+    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -158,9 +158,12 @@ pub trait AsPyRef: Sized {
     fn as_ref(&self, py: Python<'_>) -> &Self::Target;
 }
 
-impl<'p, T: PyClass> AsPyRef for Py<T> {
-    type Target = PyCell<T>;
-    fn as_ref(&self, _py: Python) -> &PyCell<T> {
+impl<T> AsPyRef for Py<T>
+where
+    T: PyTypeInfo,
+{
+    type Target = T::AsRefTarget;
+    fn as_ref(&self, _py: Python) -> &Self::Target {
         let any = self as *const Py<T> as *const PyAny;
         unsafe { PyDowncastImpl::unchecked_downcast(&*any) }
     }

@@ -38,6 +38,7 @@ unsafe impl pyo3::PyTypeInfo for MyClass {
     type BaseLayout = pyo3::pycell::PyCellBase<PyAny>;
     type Layout = PyCell<Self>;
     type Initializer = PyClassInitializer<Self>;
+    type AsRefTarget = PyCell<Self>;
 
     const NAME: &'static str = "MyClass";
     const MODULE: Option<&'static str> = None;

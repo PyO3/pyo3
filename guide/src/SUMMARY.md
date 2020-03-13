@@ -11,5 +11,6 @@
 - [Debugging](debugging.md)
 - [Advanced Topics](advanced.md)
 - [Building and Distribution](building_and_distribution.md)
-- [PyPy Support](pypy.md)
-- [Appendix: PyO3 and rust-cpython](rust_cpython.md)
+- [PyPy support](pypy.md)
+- [Appendix A: PyO3 and rust-cpython](rust_cpython.md)
+- [Appendix B: Migration Guide](migration.md)

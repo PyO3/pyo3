@@ -440,7 +440,13 @@ pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-unsafe impl<'p, T: PyClass> crate::PyNativeType for PyRef<'p, T> {}
+impl<'p, T: PyClass> PyRef<'p, T> {
+    /// Returns `Python` token.
+    /// This function is safe since PyRef has the same lifetime as a `GILGuard`.
+    pub fn py(&self) -> Python {
+        unsafe { Python::assume_gil_acquired() }
+    }
+}
 
 impl<'p, T, U> AsRef<U> for PyRef<'p, T>
 where
@@ -551,7 +557,13 @@ pub struct PyRefMut<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
 }
 
-unsafe impl<'p, T: PyClass> crate::PyNativeType for PyRefMut<'p, T> {}
+impl<'p, T: PyClass> PyRefMut<'p, T> {
+    /// Returns `Python` token.
+    /// This function is safe since PyRefMut has the same lifetime as a `GILGuard`.
+    pub fn py(&self) -> Python {
+        unsafe { Python::assume_gil_acquired() }
+    }
+}
 
 impl<'p, T, U> AsRef<U> for PyRefMut<'p, T>
 where
