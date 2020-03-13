@@ -50,7 +50,7 @@ fn main() {
 }
 ```
 
-From `pyfunction`s and `pyclass` methods, returning a `Err(PyErr)` is enough;
+From `pyfunction`s and `pyclass` methods, returning an `Err(PyErr)` is enough;
 PyO3 will handle restoring the exception on the Python interpreter side.
 
 If you already have a Python exception instance, you can simply call
@@ -112,7 +112,7 @@ err.is_instance::<exceptions::TypeError>(py);
 # }
 ```
 
-## Handling Rust Errors
+## Handling Rust errors
 
 The vast majority of operations in this library will return [`PyResult<T>`](https://docs.rs/pyo3/latest/pyo3/prelude/type.PyResult.html).
 This is an alias for the type `Result<T, PyErr>`.

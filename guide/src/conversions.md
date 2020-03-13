@@ -8,7 +8,7 @@ The easiest way to convert a Python object to a Rust value is using
 `.extract()`.  It returns a `PyResult` with a type error if the conversion
 fails, so usually you will use something like
 
-```
+```ignore
 let v: Vec<i32> = obj.extract()?;
 ```
 

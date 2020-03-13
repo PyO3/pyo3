@@ -175,10 +175,10 @@ Type:      builtin_function_or_method
 
 Currently, there are no conversions between `Fn`s in Rust and callables in Python. This would definitely be possible and very useful, so contributions are welcome. In the meantime, you can do the following:
 
-### Calling a Python function in Rust
+### Calling Python functions in Rust
 
-You can use `ObjectProtocol::is_callable` to check if you got a callable, which is true for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only positional args.
+You can use `ObjectProtocol::is_callable` to check if you have a callable object. `is_callable` will return `true` for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with `ObjectProtocol::call` with the args as first parameter and the kwargs (or `None`) as second parameter. There are also `ObjectProtocol::call0` with no args and `ObjectProtocol::call1` with only positional args.
 
-### Calling Rust `Fn`s in Python
+### Calling Rust functions in Python
 
-If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_pyfunction!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambdas and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a box. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.
+If you have a static function, you can expose it with `#[pyfunction]` and use `wrap_pyfunction!` to get the corresponding `PyObject`. For dynamic functions, e.g. lambdas and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a `Box`. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.

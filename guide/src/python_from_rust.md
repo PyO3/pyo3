@@ -84,15 +84,14 @@ use pyo3::{prelude::*, types::{IntoPyDict, PyModule}};
 #  fn main() -> PyResult<()> {
 let gil = Python::acquire_gil();
 let py = gil.python();
-let activators = PyModule::from_code(py, "
-# some neural net rectifier functions
-
+let activators = PyModule::from_code(py, r#"
 def relu(x):
+    """see https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"""
     return max(0.0, x)
 
 def leaky_relu(x, slope=0.01):
     return x if x >= 0 else x * slope
-", "activators.py", "activators")?;
+"#, "activators.py", "activators")?;
 
 let relu_result: f64 = activators.call1("relu", (-1.0,))?.extract()?;
 assert_eq!(relu_result, 0.0);
@@ -104,5 +103,3 @@ let lrelu_result: f64 = activators
 assert_eq!(lrelu_result, -0.2);
 # Ok(()) }
 ```
-
-

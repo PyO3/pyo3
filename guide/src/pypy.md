@@ -11,7 +11,7 @@ Compilation against PyPy is done by exporting the `PYTHON_SYS_EXECUTABLE` to poi
 For example, `PYTHON_SYS_EXECUTABLE="/path/to/pypy3" /path/to/pypy3 setup.py install`
 
 
-## Unsupported Features
+## Unsupported features
 
 These are features currently supported by PyO3, but not yet implemented in cpyext.
 
