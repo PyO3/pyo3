@@ -44,7 +44,7 @@ references is done at runtime using `PyCell`, a scheme very similar to
 `std::cell::RefCell`.
 
 
-## Smart pointers
+## Object types
 
 ### `PyObject`
 
@@ -90,23 +90,37 @@ lifetime.  Currently, `PyAny` can only ever occur as a reference, e.g. `&PyAny`
 or `PyRef<PyAny>`.
 
 **Used:** Whenever you want to refer to some Python object only as long as
-holding the GIL.  For example, arguments to `pyfunction`s or `pymethod`s
-implemented in Rust where any type is allowed.
+holding the GIL.  For example, intermediate values and arguments to
+`pyfunction`s or `pymethod`s implemented in Rust where any type is allowed.
 
 **Conversions:**
 
 - To `PyObject`: `obj.to_object(py)`
 
 
+### `PyTuple`, `PyDict`, and many more
+
+**Represents:** a native Python object of known type, restricted to a GIL
+lifetime just like `PyAny`.
+
+**Used:** Whenever you want to operate with native Python types while holding
+the GIL.  Like `PyAny`, this is the most convenient form to use for function
+arguments and intermediate values.
+
+**Conversions:**
+
+- To `PyAny`: `obj.as_ref()`
+
+
 ### `PyCell<SomeType>`
 
-**Represents:** a reference to a `PyClass` instance which is wrapped in a Python
-object.  The cell part is an analog to stdlib's [`RefCell`][RefCell] to allow access to
-`&mut` references.
+**Represents:** a reference to a Rust object (instance of `PyClass`) which is
+wrapped in a Python object.  The cell part is an analog to stdlib's
+[`RefCell`][RefCell] to allow access to `&mut` references.
 
 **Used:** for accessing pure-Rust API of the instance (members and functions
-taking `&SomeType` or `&mut SomeType`) while maintaining the aliasing rules
-of Rust references.
+taking `&SomeType` or `&mut SomeType`) while maintaining the aliasing rules of
+Rust references.
 
 **Conversions:**
 
