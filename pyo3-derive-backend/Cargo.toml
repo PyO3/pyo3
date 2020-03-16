@@ -10,7 +10,14 @@ categories = ["api-bindings", "development-tools::ffi"]
 license = "Apache-2.0"
 edition = "2018"
 
+# Note: we use default-features = false for proc-macro related crates
+# not to depend on proc-macro itself.
+# See https://github.com/PyO3/pyo3/pull/810 for more.
 [dependencies]
-quote = "1"
-proc-macro2 = "1"
-syn = { version = "1", features = ["full", "extra-traits"] }
+quote = { version = "1", default-features = false }
+proc-macro2 = { version = "1", default-features = false }
+
+[dependencies.syn]
+version = "1"
+default-features = false
+features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits"]
