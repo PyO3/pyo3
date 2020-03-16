@@ -86,8 +86,8 @@ merged with it in the future.
 ### `PyAny`
 
 **Represents:** a Python object of unspecified type, restricted to a GIL
-lifetime.  Currently, `PyAny` can only ever occur as a reference, e.g. `&PyAny`
-or `PyRef<PyAny>`.
+lifetime.  Currently, `PyAny` can only ever occur as a reference, usually
+`&PyAny`.
 
 **Used:** Whenever you want to refer to some Python object only as long as
 holding the GIL.  For example, intermediate values and arguments to
@@ -110,6 +110,7 @@ arguments and intermediate values.
 **Conversions:**
 
 - To `PyAny`: `obj.as_ref()`
+- To `Py<T>`: `Py::from(obj)`
 
 
 ### `PyCell<SomeType>`
