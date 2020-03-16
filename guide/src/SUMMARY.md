@@ -7,6 +7,7 @@
 - [Type Conversions](conversions.md)
 - [Python Exceptions](exception.md)
 - [Calling Python from Rust](python_from_rust.md)
+- [GIL, mutability and object types](types.md)
 - [Parallelism](parallelism.md)
 - [Debugging](debugging.md)
 - [Advanced Topics](advanced.md)
