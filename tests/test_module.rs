@@ -179,23 +179,32 @@ fn custom_named_fn() -> usize {
 }
 
 #[pymodule]
-fn foobar_module(_py: Python, module: &PyModule) -> PyResult<()> {
+fn foobar_module(_py: Python, m: &PyModule) -> PyResult<()> {
     use pyo3::wrap_pyfunction;
 
-    module.add_wrapped(wrap_pyfunction!(custom_named_fn))
+    m.add_wrapped(wrap_pyfunction!(custom_named_fn))?;
+    m.dict().set_item("yay", "me")?;
+    Ok(())
 }
 
 #[test]
 fn test_custom_names() {
-    use pyo3::wrap_pymodule;
-
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let module = wrap_pymodule!(foobar_module)(py);
+    let module = pyo3::wrap_pymodule!(foobar_module)(py);
 
     py_assert!(py, module, "not hasattr(module, 'custom_named_fn')");
     py_assert!(py, module, "module.foobar() == 42");
+}
+
+#[test]
+fn test_module_dict() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let module = pyo3::wrap_pymodule!(foobar_module)(py);
+
+    py_assert!(py, module, "module.yay == 'me'");
 }
 
 #[pyfunction]

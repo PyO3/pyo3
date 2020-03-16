@@ -72,7 +72,7 @@ impl PyModule {
     pub fn dict(&self) -> &PyDict {
         unsafe {
             self.py()
-                .from_owned_ptr::<PyDict>(ffi::PyModule_GetDict(self.as_ptr()))
+                .from_borrowed_ptr::<PyDict>(ffi::PyModule_GetDict(self.as_ptr()))
         }
     }
 
