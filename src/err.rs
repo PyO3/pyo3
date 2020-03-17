@@ -16,9 +16,9 @@ use std::io;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 
-/// Represents a `PyErr` value
+/// Represents a `PyErr` value.
 ///
-/// **CAUTION**
+/// **Caution:**
 ///
 /// When you construct an instance of `PyErrValue`, we highly recommend to use `from_err_args`
 /// method.  If you want to to construct `PyErrValue::ToArgs` directly, please do not forget to
@@ -69,13 +69,22 @@ impl PyErr {
     /// Creates a new PyErr of type `T`.
     ///
     /// `value` can be:
-    /// * a tuple: the exception instance will be created using python `T(*tuple)`
-    /// * any other value: the exception instance will be created using python `T(value)`
+    /// * a tuple: the exception instance will be created using Python `T(*tuple)`
+    /// * any other value: the exception instance will be created using Python `T(value)`
     ///
-    /// Panics if `T` is not a python class derived from `BaseException`.
+    /// Panics if `T` is not a Python class derived from `BaseException`.
     ///
     /// Example:
-    ///  `return Err(PyErr::new::<exceptions::TypeError, _>("Error message"));`
+    /// ```
+    /// return Err(PyErr::new::<exceptions::TypeError, _>("Error message"));
+    /// ```
+    ///
+    /// In most cases, you can use a concrete exception's constructors instead:
+    /// the example is equivalent to
+    /// ```
+    /// return Err(exceptions::TypeError::py_err("Error message"));
+    /// return exceptions::TypeError::into("Error message");
+    /// ```
     pub fn new<T, V>(value: V) -> PyErr
     where
         T: PyTypeObject,
@@ -91,7 +100,8 @@ impl PyErr {
         }
     }
 
-    /// Construct a new error, with the usual lazy initialization of Python exceptions.
+    /// Constructs a new error, with the usual lazy initialization of Python exceptions.
+    ///
     /// `exc` is the exception type; usually one of the standard exceptions
     /// like `exceptions::RuntimeError`.
     /// `args` is the a tuple of arguments to pass to the exception constructor.
@@ -158,6 +168,7 @@ impl PyErr {
     }
 
     /// Retrieves the current error from the Python interpreter's global state.
+    ///
     /// The error is cleared from the Python interpreter.
     /// If no error is set, returns a `SystemError`.
     pub fn fetch(_: Python) -> PyErr {
@@ -232,19 +243,21 @@ impl PyErr {
         }
     }
 
-    /// Print a standard traceback to sys.stderr.
+    /// Prints a standard traceback to `sys.stderr`.
     pub fn print(self, py: Python) {
         self.restore(py);
         unsafe { ffi::PyErr_PrintEx(0) }
     }
 
-    /// Print a standard traceback to sys.stderr.
+    /// Prints a standard traceback to `sys.stderr`, and sets
+    /// `sys.last_{type,value,traceback}` attributes to this exception's data.
     pub fn print_and_set_sys_last_vars(self, py: Python) {
         self.restore(py);
         unsafe { ffi::PyErr_PrintEx(1) }
     }
 
-    /// Return true if the current exception matches the exception in `exc`.
+    /// Returns true if the current exception matches the exception in `exc`.
+    ///
     /// If `exc` is a class object, this also returns `true` when `self` is an instance of a subclass.
     /// If `exc` is a tuple, all exceptions in the tuple (and recursively in subtuples) are searched for a match.
     pub fn matches<T>(&self, py: Python, exc: T) -> bool
@@ -256,7 +269,7 @@ impl PyErr {
         })
     }
 
-    /// Return true if the current exception is instance of `T`
+    /// Returns true if the current exception is instance of `T`.
     pub fn is_instance<T>(&self, _py: Python) -> bool
     where
         T: PyTypeObject,
@@ -277,8 +290,8 @@ impl PyErr {
         // This is safe as long as normalized() doesn't unwind due to a panic.
     }
 
-    /// Helper function for normalizing the error by deconstructing and reconstructing the PyErr.
-    /// Must not panic for safety in normalize()
+    /// Helper function for normalizing the error by deconstructing and reconstructing the `PyErr`.
+    /// Must not panic for safety in `normalize()`.
     fn into_normalized(self, py: Python) -> PyErr {
         let PyErr {
             ptype,
@@ -302,6 +315,7 @@ impl PyErr {
     }
 
     /// Retrieves the exception instance for this error.
+    ///
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
     fn instance(mut self, py: Python) -> PyObject {
@@ -345,8 +359,8 @@ impl PyErr {
         -1
     }
 
-    /// Issue a warning message.
-    /// May return a PyErr if warnings-as-errors is enabled.
+    /// Issues a warning message.
+    /// May return a `PyErr` if warnings-as-errors is enabled.
     pub fn warn(py: Python, category: &PyAny, message: &str, stacklevel: i32) -> PyResult<()> {
         let message = CString::new(message)?;
         unsafe {

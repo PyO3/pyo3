@@ -25,23 +25,24 @@ pub struct PyModule(PyObject, Unsendable);
 pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 
 impl PyModule {
-    /// Create a new module object with the `__name__` attribute set to name.
+    /// Creates a new module object with the `__name__` attribute set to name.
     pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name)?;
         unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
     }
 
-    /// Import the Python module with the specified name.
+    /// Imports the Python module with the specified name.
     pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
         let name = CString::new(name)?;
         unsafe { py.from_owned_ptr_or_err(ffi::PyImport_ImportModule(name.as_ptr())) }
     }
 
-    /// Loads the python code specified into a new module
-    /// 'code' is the raw Python you want to load into the module
-    /// 'file_name' is the file name to associate with the module
-    ///     (this is used when Python reports errors, for example)
-    /// 'module_name' is the name to give the module
+    /// Loads the Python code specified into a new module.
+    ///
+    /// `code` is the raw Python you want to load into the module.
+    /// `file_name` is the file name to associate with the module
+    /// (this is used when Python reports errors, for example).
+    /// `module_name` is the name to give the module.
     pub fn from_code<'p>(
         py: Python<'p>,
         code: &str,
@@ -106,14 +107,14 @@ impl PyModule {
         }
     }
 
-    /// Gets the module name.
+    /// Returns the module's name.
     ///
     /// May fail if the module does not have a `__name__` attribute.
     pub fn name(&self) -> PyResult<&str> {
         unsafe { self.str_from_ptr(ffi::PyModule_GetName(self.as_ptr())) }
     }
 
-    /// Gets the module filename.
+    /// Returns the module's filename.
     ///
     /// May fail if the module does not have a `__file__` attribute.
     pub fn filename(&self) -> PyResult<&str> {
@@ -121,7 +122,8 @@ impl PyModule {
     }
 
     /// Calls a function in the module.
-    /// This is equivalent to the Python expression: `getattr(module, name)(*args, **kwargs)`
+    ///
+    /// This is equivalent to the Python expression `module.name(*args, **kwargs)`.
     pub fn call(
         &self,
         name: &str,
@@ -131,20 +133,23 @@ impl PyModule {
         self.getattr(name)?.call(args, kwargs)
     }
 
-    /// Calls a function in the module.
-    /// This is equivalent to the Python expression: `getattr(module, name)()`
-    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
-        self.getattr(name)?.call0()
-    }
-
-    /// Calls a function in the module.
-    /// This is equivalent to the Python expression: `getattr(module, name)(*args)`
+    /// Calls a function in the module with only positional arguments.
+    ///
+    /// This is equivalent to the Python expression `module.name(*args)`.
     pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
         self.getattr(name)?.call1(args)
     }
 
+    /// Calls a function in the module without arguments.
+    ///
+    /// This is equivalent to the Python expression `module.name()`.
+    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
+        self.getattr(name)?.call0()
+    }
+
     /// Gets a member from the module.
-    /// This is equivalent to the Python expression: `getattr(module, name)`
+    ///
+    /// This is equivalent to the Python expression `module.name`.
     pub fn get(&self, name: &str) -> PyResult<&PyAny> {
         self.getattr(name)
     }

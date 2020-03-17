@@ -17,6 +17,7 @@ pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_C
 
 impl PyByteArray {
     /// Creates a new Python bytearray object.
+    ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
     pub fn new<'p>(py: Python<'p>, src: &[u8]) -> &'p PyByteArray {
         let ptr = src.as_ptr() as *const c_char;
@@ -24,8 +25,8 @@ impl PyByteArray {
         unsafe { py.from_owned_ptr::<PyByteArray>(ffi::PyByteArray_FromStringAndSize(ptr, len)) }
     }
 
-    /// Creates a new Python bytearray object
-    /// from other PyObject, that implements the buffer protocol.
+    /// Creates a new Python bytearray object from another PyObject that
+    /// implements the buffer protocol.
     pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
     where
         I: AsPyPointer,
@@ -40,12 +41,12 @@ impl PyByteArray {
         unsafe { ffi::PyByteArray_Size(self.0.as_ptr()) as usize }
     }
 
-    /// Check if bytearray is empty.
+    /// Checks if the bytearray is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Copies the contents of the bytearray to a rust vector
+    /// Copies the contents of the bytearray to a Rust vector.
     ///
     /// # Example
     ///
@@ -75,7 +76,7 @@ impl PyByteArray {
         slice.to_vec()
     }
 
-    /// Resize bytearray object to `len`.
+    /// Resizes the bytearray object to the new length `len`.
     pub fn resize(&self, len: usize) -> PyResult<()> {
         unsafe {
             let result = ffi::PyByteArray_Resize(self.0.as_ptr(), len as ffi::Py_ssize_t);

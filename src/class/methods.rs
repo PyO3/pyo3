@@ -4,8 +4,8 @@ use crate::ffi;
 use libc::c_int;
 use std::ffi::CString;
 
-/// `PyMethodDefType` represents different types of python callable objects.
-/// It is used by `#[pymethods]` and `#[pyproto]` annotations.
+/// `PyMethodDefType` represents different types of Python callable objects.
+/// It is used by the `#[pymethods]` and `#[pyproto]` annotations.
 #[derive(Debug)]
 pub enum PyMethodDefType {
     /// Represents class `__new__` method
@@ -133,7 +133,7 @@ pub trait PyMethodsInventory: inventory::Collect {
     fn get_methods(&self) -> &'static [PyMethodDefType];
 }
 
-/// The implementation of tis trait defines which methods a python type has.
+/// The implementation of tis trait defines which methods a Python type has.
 ///
 /// For pyclass derived structs this is implemented by collecting all impl blocks through inventory
 pub trait PyMethodsProtocol {

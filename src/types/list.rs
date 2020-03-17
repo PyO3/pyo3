@@ -20,7 +20,7 @@ pub struct PyList(PyObject, Unsendable);
 pyobject_native_var_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
 impl PyList {
-    /// Construct a new list with the given elements.
+    /// Constructs a new list with the given elements.
     pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
     where
         T: ToPyObject,
@@ -38,18 +38,18 @@ impl PyList {
         }
     }
 
-    /// Construct a new empty list.
+    /// Constructs a new empty list.
     pub fn empty(py: Python) -> &PyList {
         unsafe { py.from_owned_ptr::<PyList>(ffi::PyList_New(0)) }
     }
 
-    /// Gets the length of the list.
+    /// Returns the length of the list.
     pub fn len(&self) -> usize {
         // non-negative Py_ssize_t should always fit into Rust usize
         unsafe { ffi::PyList_Size(self.as_ptr()) as usize }
     }
 
-    /// Check if list is empty.
+    /// Checks if the list is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -91,7 +91,7 @@ impl PyList {
         }
     }
 
-    /// Appends an item at the list.
+    /// Appends an item to the list.
     pub fn append<I>(&self, item: I) -> PyResult<()>
     where
         I: ToBorrowedObject,
@@ -113,7 +113,7 @@ impl PyList {
         })
     }
 
-    /// Returns an iterator over this list items.
+    /// Returns an iterator over this list's items.
     pub fn iter(&self) -> PyListIterator {
         PyListIterator {
             list: self,
@@ -121,12 +121,12 @@ impl PyList {
         }
     }
 
-    /// Sorts the list in-place. Equivalent to python `l.sort()`
+    /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
     pub fn sort(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Sort(self.as_ptr())) }
     }
 
-    /// Reverses the list in-place. Equivalent to python `l.reverse()`
+    /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
     pub fn reverse(&self) -> PyResult<()> {
         unsafe { err::error_on_minusone(self.py(), ffi::PyList_Reverse(self.as_ptr())) }
     }

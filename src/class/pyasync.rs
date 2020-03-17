@@ -2,7 +2,7 @@
 
 //! Python Async/Await Interface.
 //!
-//! Check [python c-api information](
+//! Check [the Python C API information](
 //! https://docs.python.org/3/c-api/typeobj.html#async-object-structures)
 //!
 //! [PEP-0492](https://www.python.org/dev/peps/pep-0492/)

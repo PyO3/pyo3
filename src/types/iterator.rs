@@ -9,10 +9,10 @@ use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
 
-/// A python iterator object.
+/// A Python iterator object.
 ///
-/// Unlike other python objects, this class includes a `Python<'p>` token
-/// so that `PyIterator` can implement the rust `Iterator` trait.
+/// Unlike other Python objects, this class includes a `Python<'p>` token
+/// so that `PyIterator` can implement the Rust `Iterator` trait.
 ///
 /// # Example
 ///
@@ -60,6 +60,7 @@ impl<'p> Iterator for PyIterator<'p> {
     type Item = PyResult<&'p PyAny>;
 
     /// Retrieves the next item from an iterator.
+    ///
     /// Returns `None` when the iterator is exhausted.
     /// If an exception occurs, returns `Some(Err(..))`.
     /// Further `next()` calls after an exception occurs are likely

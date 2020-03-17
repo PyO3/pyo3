@@ -195,14 +195,14 @@ mod python;
 pub mod type_object;
 pub mod types;
 
-/// The proc macros, which are also part of the prelude
+/// The proc macros, which are also part of the prelude.
 pub mod proc_macro {
     pub use pyo3cls::pymodule;
     /// The proc macro attributes
     pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};
 }
 
-/// Returns a function that takes a [Python] instance and returns a python function.
+/// Returns a function that takes a [Python] instance and returns a Python function.
 ///
 /// Use this together with `#[pyfunction]` and [types::PyModule::add_wrapped].
 #[macro_export]
@@ -212,7 +212,7 @@ macro_rules! wrap_pyfunction {
     }};
 }
 
-/// Returns a function that takes a [Python] instance and returns a python module.
+/// Returns a function that takes a [Python] instance and returns a Python module.
 ///
 /// Use this together with `#[pymodule]` and [types::PyModule::add_wrapped].
 #[macro_export]

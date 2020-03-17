@@ -60,6 +60,7 @@ impl<T> Py<T> {
     }
 
     /// Creates a `Py<T>` instance for the given FFI pointer.
+    ///
     /// This moves ownership over the pointer into the `Py<T>`.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
@@ -72,7 +73,8 @@ impl<T> Py<T> {
     }
 
     /// Creates a `Py<T>` instance for the given FFI pointer.
-    /// Panics if the pointer is `null`.
+    ///
+    /// Panics if the pointer is NULL.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(ptr: *mut ffi::PyObject) -> Py<T> {
@@ -85,8 +87,9 @@ impl<T> Py<T> {
     }
 
     /// Construct `Py<T>` from the result of a Python FFI call that
-    /// returns a new reference (owned pointer).
-    /// Returns `Err(PyErr)` if the pointer is `null`.
+    ///
+    /// Returns a new reference (owned pointer).
+    /// Returns `Err(PyErr)` if the pointer is NULL.
     /// Unsafe because the pointer might be invalid.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<Py<T>> {
         match NonNull::new(ptr) {
@@ -96,7 +99,8 @@ impl<T> Py<T> {
     }
 
     /// Creates a `Py<T>` instance for the given Python FFI pointer.
-    /// Calls Py_INCREF() on the ptr.
+    ///
+    /// Calls `Py_INCREF()` on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(ptr: *mut ffi::PyObject) -> Py<T> {
@@ -108,21 +112,21 @@ impl<T> Py<T> {
         Py(NonNull::new_unchecked(ptr), PhantomData)
     }
 
-    /// Gets the reference count of the ffi::PyObject pointer.
+    /// Gets the reference count of the `ffi::PyObject` pointer.
     #[inline]
     pub fn get_refcnt(&self) -> isize {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
-    /// Clone self, Calls Py_INCREF() on the ptr.
+    /// Clones self by calling `Py_INCREF()` on the ptr.
     #[inline]
     pub fn clone_ref(&self, _py: Python) -> Py<T> {
         unsafe { Py::from_borrowed_ptr(self.0.as_ptr()) }
     }
 
-    /// Returns the inner pointer without decreasing the refcount
+    /// Returns the inner pointer without decreasing the refcount.
     ///
-    /// This will eventually move into its own trait
+    /// This will eventually move into its own trait.
     pub(crate) fn into_non_null(self) -> NonNull<ffi::PyObject> {
         let pointer = self.0;
         mem::forget(self);
@@ -146,6 +150,7 @@ impl<T> Py<T> {
 /// let py = gil.python();
 /// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
 /// ```
+///
 /// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`
 /// for `#[pyclass]`.
 /// ```
@@ -185,8 +190,8 @@ impl<T> ToPyObject for Py<T> {
 }
 
 impl<T> IntoPy<PyObject> for Py<T> {
-    /// Converts `Py` instance -> PyObject.
-    /// Consumes `self` without calling `Py_DECREF()`
+    /// Converts a `Py` instance to `PyObject`.
+    /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python) -> PyObject {
         unsafe { PyObject::from_not_null(self.into_non_null()) }
@@ -305,12 +310,12 @@ where
 
 /// Reference to a converted [ToPyObject].
 ///
-/// Many methods want to take anything that can be converted into a python object. This type
-/// takes care of both types types that are already python object (i.e. implement
+/// Many methods want to take anything that can be converted into a Python object. This type
+/// takes care of both types types that are already Python object (i.e. implement
 /// [AsPyPointer]) and those that don't (i.e. [ToPyObject] types).
 /// For the [AsPyPointer] types, we just use the borrowed pointer, which is a lot faster
 /// and simpler than creating a new extra object. The remaning [ToPyObject] types are
-/// converted to python objects, the owned pointer is stored and decref'd on drop.
+/// converted to Python objects, the owned pointer is stored and decref'd on drop.
 ///
 /// # Example
 ///
@@ -334,7 +339,7 @@ pub struct ManagedPyRef<'p, T: ToPyObject + ?Sized> {
 }
 
 /// This should eventually be replaced with a generic `IntoPy` trait impl by figuring
-/// out the correct lifetime annotation to make the compiler happy
+/// out the correct lifetime annotation to make the compiler happy.
 impl<'p, T: ToPyObject> ManagedPyRef<'p, T> {
     pub fn from_to_pyobject(py: Python<'p>, to_pyobject: &T) -> Self {
         to_pyobject.to_managed_py_ref(py)
@@ -347,16 +352,16 @@ impl<'p, T: ToPyObject> AsPyPointer for ManagedPyRef<'p, T> {
     }
 }
 
-/// Helper trait to choose the right implementation for [ManagedPyRef]
+/// Helper trait to choose the right implementation for [ManagedPyRef].
 pub trait ManagedPyRefDispatch: ToPyObject {
-    /// Optionally converts into a python object and stores the pointer to the python heap.
+    /// Optionally converts into a Python object and stores the pointer to the python heap.
     fn to_managed_py_ref<'p>(&self, py: Python<'p>) -> ManagedPyRef<'p, Self>;
 
     /// Dispatch over a xdecref and a noop drop impl
     fn drop_impl(borrowed: &mut ManagedPyRef<Self>);
 }
 
-/// Case 1: It's a rust object which still needs to be converted to a python object.
+/// Case 1: It's a Rust object which still needs to be converted to a Python object.
 /// This means we're storing the owned pointer that into_ptr() has given us
 /// and therefore need to xdecref when we're done.
 ///
@@ -378,7 +383,7 @@ impl<T: ToPyObject + ?Sized> ManagedPyRefDispatch for T {
     }
 }
 
-/// Case 2: It's an object on the python heap, we're just storing a borrowed pointer.
+/// Case 2: It's an object on the Python heap, we're just storing a borrowed pointer.
 /// The object we're getting is an owned pointer, it might have it's own drop impl.
 impl<T: ToPyObject + AsPyPointer + ?Sized> ManagedPyRefDispatch for T {
     /// Use AsPyPointer to copy the pointer and store it as borrowed pointer

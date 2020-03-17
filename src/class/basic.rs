@@ -2,7 +2,7 @@
 
 //! Basic Python Object customization
 //!
-//! Check [python c-api information](https://docs.python.org/3/reference/datamodel.html#basic-customization)
+//! Check [the Python C API information](https://docs.python.org/3/reference/datamodel.html#basic-customization)
 //! for more information.
 //!
 //! Parts of the documentation are copied from the respective methods from the
@@ -27,7 +27,7 @@ pub enum CompareOp {
     Ge = ffi::Py_GE as isize,
 }
 
-/// Basic python class customization
+/// Basic Python class customization
 #[allow(unused_variables)]
 pub trait PyObjectProtocol<'p>: PyClass {
     fn __getattr__(&'p self, name: Self::Name) -> Self::Result
@@ -246,8 +246,8 @@ where
 }
 
 /// An object may support setting attributes (by implementing PyObjectSetAttrProtocol)
-/// and may support deleting attributes (by implementing PyObjectDelAttrProtocol)
-/// and we need to generate a single extern c function that supports only setting, only deleting
+/// and may support deleting attributes (by implementing PyObjectDelAttrProtocol).
+/// We need to generate a single "extern C" function that supports only setting, only deleting
 /// or both, and return None in case none of the two is supported.
 mod tp_setattro_impl {
     use super::*;

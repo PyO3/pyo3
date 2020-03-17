@@ -22,7 +22,7 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyObject(NonNull<ffi::PyObject>);
 
-// `PyObject` is thread-safe, any python related operations require a Python<'p> token.
+// `PyObject` is thread-safe, any Python related operations require a Python<'p> token.
 unsafe impl Send for PyObject {}
 unsafe impl Sync for PyObject {}
 
@@ -51,7 +51,7 @@ impl PyObject {
     }
 
     /// Creates a `PyObject` instance for the given FFI pointer.
-    /// Panics if the pointer is `null`.
+    /// Panics if the pointer is NULL.
     /// Undefined behavior if the pointer is invalid.
     #[inline]
     pub unsafe fn from_owned_ptr_or_panic(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
@@ -63,9 +63,9 @@ impl PyObject {
         }
     }
 
-    /// Construct `PyObject` from the result of a Python FFI call that
+    /// Constructs a `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
-    /// Returns `Err(PyErr)` if the pointer is `null`.
+    /// Returns `Err(PyErr)` if the pointer is NULL.
     pub unsafe fn from_owned_ptr_or_err(py: Python, ptr: *mut ffi::PyObject) -> PyResult<PyObject> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Ok(PyObject(nonnull_ptr)),
@@ -73,9 +73,9 @@ impl PyObject {
         }
     }
 
-    /// Construct `PyObject` from the result of a Python FFI call that
+    /// Constructs a `PyObject` from the result of a Python FFI call that
     /// returns a new reference (owned pointer).
-    /// Returns `None` if the pointer is `null`.
+    /// Returns `None` if the pointer is NULL.
     pub unsafe fn from_owned_ptr_or_opt(_py: Python, ptr: *mut ffi::PyObject) -> Option<PyObject> {
         match NonNull::new(ptr) {
             Some(nonnull_ptr) => Some(PyObject(nonnull_ptr)),
@@ -84,7 +84,7 @@ impl PyObject {
     }
 
     /// Creates a `PyObject` instance for the given Python FFI pointer.
-    /// Calls Py_INCREF() on the ptr.
+    /// Calls `Py_INCREF()` on the ptr.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
     pub unsafe fn from_borrowed_ptr(_py: Python, ptr: *mut ffi::PyObject) -> PyObject {
@@ -97,8 +97,8 @@ impl PyObject {
     }
 
     /// Creates a `PyObject` instance for the given Python FFI pointer.
-    /// Calls Py_INCREF() on the ptr.
-    /// Returns `Err(PyErr)` if the pointer is `null`.
+    /// Calls `Py_INCREF()` on the ptr.
+    /// Returns `Err(PyErr)` if the pointer is NULL.
     pub unsafe fn from_borrowed_ptr_or_err(
         py: Python,
         ptr: *mut ffi::PyObject,
@@ -111,8 +111,8 @@ impl PyObject {
     }
 
     /// Creates a `PyObject` instance for the given Python FFI pointer.
-    /// Calls Py_INCREF() on the ptr.
-    /// Returns `None` if the pointer is `null`.
+    /// Calls `Py_INCREF()` on the ptr.
+    /// Returns `None` if the pointer is NULL.
     pub unsafe fn from_borrowed_ptr_or_opt(
         py: Python,
         ptr: *mut ffi::PyObject,
@@ -129,19 +129,21 @@ impl PyObject {
         unsafe { ffi::Py_REFCNT(self.0.as_ptr()) }
     }
 
-    /// Clone self, Calls Py_INCREF() on the ptr.
+    /// Clones self by calling `Py_INCREF()` on the ptr.
     pub fn clone_ref(&self, py: Python) -> Self {
         unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
     }
 
     /// Returns whether the object is considered to be None.
-    /// This is equivalent to the Python expression: 'is None'
+    ///
+    /// This is equivalent to the Python expression `self is None`.
     pub fn is_none(&self) -> bool {
         unsafe { ffi::Py_None() == self.as_ptr() }
     }
 
     /// Returns whether the object is considered to be true.
-    /// This is equivalent to the Python expression: 'not not self'
+    ///
+    /// This is equivalent to the Python expression `bool(self)`.
     pub fn is_true(&self, py: Python) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
         if v == -1 {
@@ -152,6 +154,8 @@ impl PyObject {
     }
 
     /// Casts the PyObject to a concrete Python object type.
+    ///
+    /// This can cast only to native Python types, not types implemented in Rust.
     pub fn cast_as<'p, D>(&'p self, py: Python<'p>) -> Result<&'p D, PyDowncastError>
     where
         D: PyTryFrom<'p>,
@@ -160,6 +164,7 @@ impl PyObject {
     }
 
     /// Extracts some type from the Python object.
+    ///
     /// This is a wrapper function around `FromPyObject::extract()`.
     pub fn extract<'p, D>(&'p self, py: Python<'p>) -> PyResult<D>
     where
@@ -169,7 +174,8 @@ impl PyObject {
     }
 
     /// Retrieves an attribute value.
-    /// This is equivalent to the Python expression 'self.attr_name'.
+    ///
+    /// This is equivalent to the Python expression `self.attr_name`.
     pub fn getattr<N>(&self, py: Python, attr_name: N) -> PyResult<PyObject>
     where
         N: ToPyObject,
@@ -180,7 +186,8 @@ impl PyObject {
     }
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: 'self(*args, **kwargs)'
+    ///
+    /// This is equivalent to the Python expression `self(*args, **kwargs)`.
     pub fn call(
         &self,
         py: Python,
@@ -199,20 +206,23 @@ impl PyObject {
         result
     }
 
-    /// Calls the object without arguments.
-    /// This is equivalent to the Python expression: 'self()'
-    pub fn call0(&self, py: Python) -> PyResult<PyObject> {
-        self.call(py, (), None)
-    }
-
-    /// Calls the object.
-    /// This is equivalent to the Python expression: 'self(*args)'
+    /// Calls the object with only positional arguments.
+    ///
+    /// This is equivalent to the Python expression `self(*args)`.
     pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
+    /// Calls the object without arguments.
+    ///
+    /// This is equivalent to the Python expression `self()`.
+    pub fn call0(&self, py: Python) -> PyResult<PyObject> {
+        self.call(py, (), None)
+    }
+
     /// Calls a method on the object.
-    /// This is equivalent to the Python expression: 'self.name(*args, **kwargs)'
+    ///
+    /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     pub fn call_method(
         &self,
         py: Python,
@@ -235,14 +245,9 @@ impl PyObject {
         })
     }
 
-    /// Calls a method on the object.
-    /// This is equivalent to the Python expression: 'self.name()'
-    pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
-        self.call_method(py, name, (), None)
-    }
-
-    /// Calls a method on the object.
-    /// This is equivalent to the Python expression: 'self.name(*args)'
+    /// Calls a method on the object with only positional arguments.
+    ///
+    /// This is equivalent to the Python expression `self.name(*args)`.
     pub fn call_method1(
         &self,
         py: Python,
@@ -250,6 +255,13 @@ impl PyObject {
         args: impl IntoPy<Py<PyTuple>>,
     ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
+    }
+
+    /// Calls a method on the object with no arguments.
+    ///
+    /// This is equivalent to the Python expression `self.name()`.
+    pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
+        self.call_method(py, name, (), None)
     }
 }
 
@@ -287,7 +299,7 @@ impl IntoPyPointer for PyObject {
 }
 
 impl PartialEq for PyObject {
-    /// Checks for identity, not python's `__eq__`
+    /// Checks for pointer identity, not equivalent to Python's `__eq__`.
     #[inline]
     fn eq(&self, o: &PyObject) -> bool {
         self.0 == o.0

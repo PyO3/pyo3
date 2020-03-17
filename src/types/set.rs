@@ -30,18 +30,20 @@ pyobject_native_type!(
 );
 
 impl PySet {
-    /// Creates a new set.
+    /// Creates a new set with elements from the given slice.
+    ///
+    /// Returns an error if some element is not hashable.
     pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PySet> {
         let list = elements.to_object(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(list.as_ptr())) }
     }
 
-    /// Creates a new empty set
+    /// Creates a new empty set.
     pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
     }
 
-    /// Remove all elements from the set.
+    /// Removes all elements from the set.
     #[inline]
     pub fn clear(&self) {
         unsafe {
@@ -49,19 +51,21 @@ impl PySet {
         }
     }
 
-    /// Return the number of items in the set.
-    /// This is equivalent to len(p) on a set.
+    /// Returns the number of items in the set.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> usize {
         unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
     }
 
-    /// Check if set is empty.
+    /// Checks if set is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Determine if the set contains the specified key.
+    /// Determines if the set contains the specified key.
+    ///
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool>
     where
@@ -76,7 +80,7 @@ impl PySet {
         })
     }
 
-    /// Remove element from the set if it is present.
+    /// Removes the element from the set if it is present.
     pub fn discard<K>(&self, key: K)
     where
         K: ToPyObject,
@@ -86,7 +90,7 @@ impl PySet {
         })
     }
 
-    /// Add element to the set.
+    /// Adds an element to the set.
     pub fn add<K>(&self, key: K) -> PyResult<()>
     where
         K: ToPyObject,
@@ -96,7 +100,7 @@ impl PySet {
         })
     }
 
-    /// Remove and return an arbitrary element from the set
+    /// Removes and returns an arbitrary element from the set.
     pub fn pop(&self) -> Option<PyObject> {
         let element =
             unsafe { PyObject::from_owned_ptr_or_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };

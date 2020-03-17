@@ -21,18 +21,18 @@ pyobject_native_type!(
 );
 
 impl PyComplex {
-    /// Creates a new Python `PyComplex` object, from its real and imaginary values.
+    /// Creates a new Python `complex` object, from its real and imaginary values.
     pub fn from_doubles(py: Python, real: c_double, imag: c_double) -> &PyComplex {
         unsafe {
             let ptr = ffi::PyComplex_FromDoubles(real, imag);
             py.from_owned_ptr(ptr)
         }
     }
-    /// Returns the real value of `PyComplex`.
+    /// Returns the real part of the complex number.
     pub fn real(&self) -> c_double {
         unsafe { ffi::PyComplex_RealAsDouble(self.as_ptr()) }
     }
-    /// Returns the imaginary value of `PyComplex`.
+    /// Returns the imaginary part the complex number.
     pub fn imag(&self) -> c_double {
         unsafe { ffi::PyComplex_ImagAsDouble(self.as_ptr()) }
     }
