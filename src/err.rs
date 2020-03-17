@@ -75,13 +75,13 @@ impl PyErr {
     /// Panics if `T` is not a Python class derived from `BaseException`.
     ///
     /// Example:
-    /// ```
+    /// ```ignore
     /// return Err(PyErr::new::<exceptions::TypeError, _>("Error message"));
     /// ```
     ///
     /// In most cases, you can use a concrete exception's constructors instead:
     /// the example is equivalent to
-    /// ```
+    /// ```ignore
     /// return Err(exceptions::TypeError::py_err("Error message"));
     /// return exceptions::TypeError::into("Error message");
     /// ```
