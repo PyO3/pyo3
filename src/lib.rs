@@ -18,7 +18,7 @@
 //! a function can assume that the GIL is held.  In Rust, we use different types
 //! to represent a reference to a Python object, depending on whether we know
 //! the GIL is held, and depending on whether we know the underlying type.  See
-//! [the guide](https://pyo3.rs/v0.9.0-alpha.1/types.html) for an explanation of
+//! [the guide](https://pyo3.rs/master/types.html) for an explanation of
 //! the different Python object types.
 //!
 //! A `Python` instance is either obtained explicitly by acquiring the GIL,
