@@ -14,7 +14,7 @@
 //!
 //! In Python, all objects are implicitly reference counted.  The Python
 //! interpreter uses a global interpreter lock (GIL) to ensure thread-safety.
-//! This API uses a zero-sized `struct Python<'py>` as a token to indicate that
+//! Thus, we use `struct Python<'py>` as a token to indicate that
 //! a function can assume that the GIL is held.  In Rust, we use different types
 //! to represent a reference to a Python object, depending on whether we know
 //! the GIL is held, and depending on whether we know the underlying type.  See

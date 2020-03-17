@@ -14,7 +14,7 @@ use std::ptr::NonNull;
 /// The Python object's lifetime is managed by Python's garbage collector,
 /// so to access the object API, a `Python<'py>` GIL token is required.
 ///
-/// See [the guide](https://pyo3.rs/v0.9.0-alpha.1/types.html) for an explanation
+/// See [the guide](https://pyo3.rs/master/types.html) for an explanation
 /// of the different Python object types.
 ///
 /// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>`.

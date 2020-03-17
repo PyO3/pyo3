@@ -29,7 +29,7 @@ pub unsafe trait PyNativeType: Sized {
 /// Accessing this object is thread-safe, since any access to its API requires a
 /// `Python<'py>` GIL token.
 ///
-/// See [the guide](https://pyo3.rs/v0.9.0-alpha.1/types.html) for an explanation
+/// See [the guide](https://pyo3.rs/master/types.html) for an explanation
 /// of the different Python object types.
 ///
 /// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>` with
