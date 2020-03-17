@@ -1,6 +1,6 @@
 language: python
 
-dist: xenial
+dist: bionic
 
 cache:
   pip: true
@@ -28,7 +28,7 @@ matrix:
       env: FEATURES="pypy" PATH="$PATH:/opt/anaconda/envs/pypy3/bin"
   allow_failures:
     - python: 3.9-dev
-   
+
 env:
   global:
     - TRAVIS_RUST_VERSION=nightly
