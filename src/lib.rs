@@ -7,23 +7,26 @@
 //!
 //! # Ownership and Lifetimes
 //!
-//! In Python, all objects are implicitly reference counted.
-//! In rust, we will use the `PyObject` type to represent a reference to a Python object.
+//! Because all Python objects potentially have multiple owners, the concept of
+//! Rust mutability does not apply to Python objects.  As a result, PyO3 allows
+//! mutating Python objects even if they are not stored in a mutable Rust
+//! variable.
 //!
-//! Because all Python objects potentially have multiple owners, the
-//! concept of Rust mutability does not apply to Python objects.
-//! As a result, this API will allow mutating Python objects even if they are not stored
-//! in a mutable Rust variable.
+//! In Python, all objects are implicitly reference counted.  The Python
+//! interpreter uses a global interpreter lock (GIL) to ensure thread-safety.
+//! This API uses a zero-sized `struct Python<'py>` as a token to indicate that
+//! a function can assume that the GIL is held.  In Rust, we use different types
+//! to represent a reference to a Python object, depending on whether we know
+//! the GIL is held, and depending on whether we know the underlying type.  See
+//! [the guide](https://pyo3.rs/v0.9.0-alpha.1/types.html) for an explanation of
+//! the different Python object types.
 //!
-//! The Python interpreter uses a global interpreter lock (GIL)
-//! to ensure thread-safety.
-//! This API uses a zero-sized `struct Python<'p>` as a token to indicate
-//! that a function can assume that the GIL is held.
-//!
-//! You obtain a `Python` instance by acquiring the GIL,
-//! and have to pass it into all operations that call into the Python runtime.
+//! A `Python` instance is either obtained explicitly by acquiring the GIL,
+//! or implicitly by PyO3 when it generates the wrapper code for Rust functions
+//! and structs wrapped as Python functions and objects.
 //!
 //! # Error Handling
+//!
 //! The vast majority of operations in this library will return `PyResult<...>`.
 //! This is an alias for the type `Result<..., PyErr>`.
 //!
@@ -32,9 +35,9 @@
 //!
 //! # Example
 //!
-//! ## Using rust from python
+//! ## Using Rust from Python
 //!
-//! Pyo3 can be used to generate a native python module.
+//! PyO3 can be used to generate a native Python module.
 //!
 //! **`Cargo.toml`**
 //!
@@ -60,13 +63,13 @@
 //! use pyo3::wrap_pyfunction;
 //!
 //! #[pyfunction]
-//! /// Formats the sum of two numbers as string
+//! /// Formats the sum of two numbers as string.
 //! fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 //!     Ok((a + b).to_string())
 //! }
 //!
-//! /// This module is a python module implemented in Rust.
 //! #[pymodule]
+//! /// A Python module implemented in Rust.
 //! fn string_sum(py: Python, m: &PyModule) -> PyResult<()> {
 //!     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
 //!
@@ -74,7 +77,11 @@
 //! }
 //! ```
 //!
-//! On windows and linux, you can build normally with `cargo build --release`. On macOS, you need to set additional linker arguments. One option is to compile with `cargo rustc --release -- -C link-arg=-undefined -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with the following content:
+//! On Windows and linux, you can build normally with `cargo build
+//! --release`. On macOS, you need to set additional linker arguments. One
+//! option is to compile with `cargo rustc --release -- -C link-arg=-undefined
+//! -C link-arg=dynamic_lookup`, the other is to create a `.cargo/config` with
+//! the following content:
 //!
 //! ```toml
 //! [target.x86_64-apple-darwin]
@@ -84,13 +91,21 @@
 //! ]
 //! ```
 //!
-//! For developing, you can copy and rename the shared library from the target folder: On macOS, rename `libstring_sum.dylib` to `string_sum.so`, on windows `libstring_sum.dll` to `string_sum.pyd` and on linux `libstring_sum.so` to `string_sum.so`. Then open a python shell in the same folder and you'll be able to `import string_sum`.
+//! While developing, you symlink (or copy) and rename the shared library from
+//! the target folder: On macOS, rename `libstring_sum.dylib` to
+//! `string_sum.so`, on Windows `libstring_sum.dll` to `string_sum.pyd` and on
+//! Linux `libstring_sum.so` to `string_sum.so`. Then open a Python shell in the
+//! same folder and you'll be able to `import string_sum`.
 //!
-//! To build, test and publish your crate as python module, you can use [maturin](https://github.com/PyO3/maturin) or [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an example for setuptools-rust in [examples/word-count](examples/word-count), while maturin should work on your crate without any configuration.
+//! To build, test and publish your crate as a Python module, you can use
+//! [maturin](https://github.com/PyO3/maturin) or
+//! [setuptools-rust](https://github.com/PyO3/setuptools-rust). You can find an
+//! example for setuptools-rust in [examples/word-count](examples/word-count),
+//! while maturin should work on your crate without any configuration.
 //!
-//! ## Using python from rust
+//! ## Using Python from Rust
 //!
-//! Add `pyo3` this to your `Cargo.toml`:
+//! Add `pyo3` to your `Cargo.toml`:
 //!
 //! ```toml
 //! [dependencies]

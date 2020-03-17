@@ -13,19 +13,27 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ptr::NonNull;
 
-/// Types that are built into the python interpreter.
+/// Types that are built into the Python interpreter.
 ///
-/// pyo3 is designed in a way that that all references to those types are bound to the GIL,
-/// which is why you can get a token from all references of those types.
+/// PyO3 is designed in a way that that all references to those types are bound
+/// to the GIL, which is why you can get a token from all references of those
+/// types.
 pub unsafe trait PyNativeType: Sized {
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
 }
 
-/// Safe wrapper around unsafe `*mut ffi::PyObject` pointer with specified type information.
+/// A Python object of known type.
 ///
-/// `Py<T>` is thread-safe, because any python related operations require a Python<'p> token.
+/// Accessing this object is thread-safe, since any access to its API requires a
+/// `Python<'py>` GIL token.
+///
+/// See [the guide](https://pyo3.rs/v0.9.0-alpha.1/types.html) for an explanation
+/// of the different Python object types.
+///
+/// Technically, it is a safe wrapper around `NonNull<ffi::PyObject>` with
+/// specified type information.
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
@@ -122,7 +130,7 @@ impl<T> Py<T> {
     }
 }
 
-/// Retrives `&'py` types from `Py<T>` or `PyObject`.
+/// Retrieves `&'py` types from `Py<T>` or `PyObject`.
 ///
 /// # Examples
 /// `PyObject::as_ref` returns `&PyAny`.
