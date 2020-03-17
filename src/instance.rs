@@ -15,7 +15,7 @@ use std::ptr::NonNull;
 
 /// Types that are built into the Python interpreter.
 ///
-/// PyO3 is designed in a way that that all references to those types are bound
+/// PyO3 is designed in a way that all references to those types are bound
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
 pub unsafe trait PyNativeType: Sized {

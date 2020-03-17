@@ -133,7 +133,7 @@ pub trait PyMethodsInventory: inventory::Collect {
     fn get_methods(&self) -> &'static [PyMethodDefType];
 }
 
-/// The implementation of tis trait defines which methods a Python type has.
+/// The implementation of this trait defines which methods a Python type has.
 ///
 /// For pyclass derived structs this is implemented by collecting all impl blocks through inventory
 pub trait PyMethodsProtocol {
