@@ -5,10 +5,10 @@ set -ex
 ### Setup latest mdbook version ################################################
 
 INSTALLED=$(echo $(mdbook --version 2>/dev/null || echo "mdbook none") | cut -d' ' -f1)
-PINNED=0.2.1
+PINNED=0.3.5
 
 if [ "$PINNED" != "$INSTALLED" ]; then
-    URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${PINNED}/mdbook-v${PINNED}-x86_64-unknown-linux-musl.tar.gz
+    URL=https://github.com/rust-lang-nursery/mdBook/releases/download/v${PINNED}/mdbook-v${PINNED}-x86_64-unknown-linux-gnu.tar.gz
     curl -SsL $URL | tar xvz -C $HOME/.cargo/bin
 fi
 
@@ -25,9 +25,8 @@ cargo doc --all-features --no-deps
 echo "<meta http-equiv=refresh content=0;url=pyo3/index.html>" > target/doc/index.html
 
 # Get the lastest tag across all branches
-# https://stackoverflow.com/a/7261049/3549270
 git fetch --tags
-LASTEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1 -l v*))
+LASTEST_TAG=$(git tag -l --points-at $(git rev-list --tags --max-count=1))
 
 git clone -b gh-pages https://$GH_TOKEN@github.com/$TRAVIS_REPO_SLUG.git gh_pages
 cd gh_pages
