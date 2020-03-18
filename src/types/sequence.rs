@@ -12,13 +12,15 @@ use crate::types::{PyAny, PyList, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
-/// Represents a reference to a python object supporting the sequence protocol.
+/// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
 pub struct PySequence(PyObject, Unsendable);
 pyobject_native_type_named!(PySequence);
 
 impl PySequence {
-    /// Returns the number of objects in sequence. This is equivalent to Python `len()`.
+    /// Returns the number of objects in sequence.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
     #[inline]
     pub fn len(&self) -> PyResult<isize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
@@ -34,7 +36,9 @@ impl PySequence {
         self.len().map(|l| l == 0)
     }
 
-    /// Return the concatenation of o1 and o2. Equivalent to python `o1 + o2`
+    /// Returns the concatenation of `self` and `other`.
+    ///
+    /// This is equivalent to the Python expression `self + other`.
     #[inline]
     pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
         unsafe {
@@ -48,8 +52,9 @@ impl PySequence {
         }
     }
 
-    /// Return the result of repeating sequence object o count times.
-    /// Equivalent to python `o * count`
+    /// Returns the result of repeating a sequence object `count` times.
+    ///
+    /// This is equivalent to the Python expression `self * count`.
     /// NB: Python accepts negative counts; it returns an empty Sequence.
     #[inline]
     pub fn repeat(&self, count: isize) -> PyResult<&PySequence> {
@@ -64,7 +69,9 @@ impl PySequence {
         }
     }
 
-    /// Concatenate of o1 and o2 on success. Equivalent to python `o1 += o2`
+    /// Concatenates `self` and `other` in place.
+    ///
+    /// This is equivalent to the Python statement `self += other`.
     #[inline]
     pub fn in_place_concat(&self, other: &PySequence) -> PyResult<()> {
         unsafe {
@@ -77,8 +84,9 @@ impl PySequence {
         }
     }
 
-    /// Repeate sequence object o count times and store in self.
-    /// Equivalent to python `o *= count`
+    /// Repeats the sequence object `count` times and updates `self`.
+    ///
+    /// This is equivalent to the Python statement `self *= count`.
     /// NB: Python accepts negative counts; it empties the Sequence.
     #[inline]
     pub fn in_place_repeat(&self, count: isize) -> PyResult<()> {
@@ -92,7 +100,9 @@ impl PySequence {
         }
     }
 
-    /// Return the ith element of the Sequence. Equivalent to python `o[index]`
+    /// Returns the `index`th element of the Sequence.
+    ///
+    /// This is equivalent to the Python expression `self[index]`.
     #[inline]
     pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
         unsafe {
@@ -101,8 +111,9 @@ impl PySequence {
         }
     }
 
-    /// Return the slice of sequence object o between begin and end.
-    /// This is the equivalent of the Python expression `o[begin:end]`
+    /// Returns the slice of sequence object between `begin` and `end`.
+    ///
+    /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
     pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyAny> {
         unsafe {
@@ -114,8 +125,9 @@ impl PySequence {
         }
     }
 
-    /// Assign object v to the ith element of o.
-    /// Equivalent to Python statement `o[i] = v`
+    /// Assigns object `item` to the `i`th element of self.
+    ///
+    /// This is equivalent to the Python statement `self[i] = v`.
     #[inline]
     pub fn set_item<I>(&self, i: isize, item: I) -> PyResult<()>
     where
@@ -131,8 +143,9 @@ impl PySequence {
         }
     }
 
-    /// Delete the ith element of object o.
-    /// Python statement `del o[i]`
+    /// Deletes the `i`th element of self.
+    ///
+    /// This is equivalent to the Python statement `del self[i]`.
     #[inline]
     pub fn del_item(&self, i: isize) -> PyResult<()> {
         unsafe {
@@ -143,8 +156,9 @@ impl PySequence {
         }
     }
 
-    /// Assign the sequence object v to the slice in sequence object o from i1 to i2.
-    /// This is the equivalent of the Python statement `o[i1:i2] = v`
+    /// Assigns the sequence `v` to the slice of `self` from `i1` to `i2`.
+    ///
+    /// This is equivalent to the Python statement `self[i1:i2] = v`.
     #[inline]
     pub fn set_slice(&self, i1: isize, i2: isize, v: &PyAny) -> PyResult<()> {
         unsafe {
@@ -160,8 +174,9 @@ impl PySequence {
         }
     }
 
-    /// Delete the slice in sequence object o from i1 to i2.
-    /// equivalent of the Python statement `del o[i1:i2]`
+    /// Deletes the slice from `i1` to `i2` from `self`.
+    ///
+    /// This is equivalent to the Python statement `del self[i1:i2]`.
     #[inline]
     pub fn del_slice(&self, i1: isize, i2: isize) -> PyResult<()> {
         unsafe {
@@ -172,8 +187,8 @@ impl PySequence {
         }
     }
 
-    /// Return the number of occurrences of value in o, that is, return the number of keys for
-    /// which `o[key] == value`
+    /// Returns the number of occurrences of `value` in self, that is, return the
+    /// number of keys for which `self[key] == value`.
     #[inline]
     #[cfg(not(PyPy))]
     pub fn count<V>(&self, value: V) -> PyResult<usize>
@@ -190,7 +205,9 @@ impl PySequence {
         }
     }
 
-    /// Determine if o contains value. this is equivalent to the Python expression `value in o`
+    /// Determines if self contains `value`.
+    ///
+    /// This is equivalent to the Python expression `value in self`.
     #[inline]
     pub fn contains<V>(&self, value: V) -> PyResult<bool>
     where
@@ -206,8 +223,9 @@ impl PySequence {
         }
     }
 
-    /// Return the first index `i` for which `o[i] == value`.
-    /// This is equivalent to the Python expression `o.index(value)`
+    /// Returns the first index `i` for which `self[i] == value`.
+    ///
+    /// This is equivalent to the Python expression `self.index(value)`.
     #[inline]
     pub fn index<V>(&self, value: V) -> PyResult<usize>
     where
@@ -223,7 +241,7 @@ impl PySequence {
         }
     }
 
-    /// Return a fresh list based on the Sequence.
+    /// Returns a fresh list based on the Sequence.
     #[inline]
     pub fn list(&self) -> PyResult<&PyList> {
         unsafe {
@@ -232,7 +250,7 @@ impl PySequence {
         }
     }
 
-    /// Return a fresh tuple based on the Sequence.
+    /// Returns a fresh tuple based on the Sequence.
     #[inline]
     pub fn tuple(&self) -> PyResult<&PyTuple> {
         unsafe {

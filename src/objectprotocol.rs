@@ -14,18 +14,21 @@ use std::os::raw::c_int;
 /// Python object model helper methods
 pub trait ObjectProtocol {
     /// Determines whether this object has the given attribute.
+    ///
     /// This is equivalent to the Python expression `hasattr(self, attr_name)`.
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
         N: ToPyObject;
 
     /// Retrieves an attribute value.
+    ///
     /// This is equivalent to the Python expression `self.attr_name`.
     fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
     where
         N: ToPyObject;
 
     /// Sets an attribute value.
+    ///
     /// This is equivalent to the Python expression `self.attr_name = value`.
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
@@ -33,6 +36,7 @@ pub trait ObjectProtocol {
         V: ToBorrowedObject;
 
     /// Deletes an attribute.
+    ///
     /// This is equivalent to the Python expression `del self.attr_name`.
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
@@ -57,7 +61,8 @@ pub trait ObjectProtocol {
 
     /// Compares two Python objects.
     ///
-    /// Depending on the value of `compare_op`, equivalent to one of the following Python expressions:
+    /// Depending on the value of `compare_op`, this is equivalent to one of the
+    /// following Python expressions:
     ///   * CompareOp::Eq: `self == other`
     ///   * CompareOp::Ne: `self != other`
     ///   * CompareOp::Lt: `self < other`
@@ -68,11 +73,13 @@ pub trait ObjectProtocol {
     where
         O: ToPyObject;
 
-    /// Compute the string representation of self.
+    /// Computes the "repr" representation of self.
+    ///
     /// This is equivalent to the Python expression `repr(self)`.
     fn repr(&self) -> PyResult<&PyString>;
 
-    /// Compute the string representation of self.
+    /// Computes the "str" representation of self.
+    ///
     /// This is equivalent to the Python expression `str(self)`.
     fn str(&self) -> PyResult<&PyString>;
 
@@ -80,19 +87,23 @@ pub trait ObjectProtocol {
     fn is_callable(&self) -> bool;
 
     /// Calls the object.
-    /// This is equivalent to the Python expression: `self(*args, **kwargs)`.
+    ///
+    /// This is equivalent to the Python expression `self(*args, **kwargs)`.
     fn call(&self, args: impl IntoPy<Py<PyTuple>>, kwargs: Option<&PyDict>) -> PyResult<&PyAny>;
 
-    /// Calls the object.
-    /// This is equivalent to the Python expression: `self()`.
-    fn call0(&self) -> PyResult<&PyAny>;
-
-    /// Calls the object.
-    /// This is equivalent to the Python expression: `self(*args)`.
+    /// Calls the object with only positional arguments.
+    ///
+    /// This is equivalent to the Python expression `self(*args)`.
     fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
 
+    /// Calls the object without arguments.
+    ///
+    /// This is equivalent to the Python expression `self()`.
+    fn call0(&self) -> PyResult<&PyAny>;
+
     /// Calls a method on the object.
-    /// This is equivalent to the Python expression: `self.name(*args, **kwargs)`.
+    ///
+    /// This is equivalent to the Python expression `self.name(*args, **kwargs)`.
     ///
     /// # Example
     /// ```rust
@@ -113,77 +124,92 @@ pub trait ObjectProtocol {
         kwargs: Option<&PyDict>,
     ) -> PyResult<&PyAny>;
 
-    /// Calls a method on the object.
-    /// This is equivalent to the Python expression: `self.name()`.
-    fn call_method0(&self, name: &str) -> PyResult<&PyAny>;
-
-    /// Calls a method on the object with positional arguments only.
-    /// This is equivalent to the Python expression: `self.name(*args)`.
+    /// Calls a method on the object with only positional arguments.
+    ///
+    /// This is equivalent to the Python expression `self.name(*args)`.
     fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
 
+    /// Calls a method on the object without arguments.
+    ///
+    /// This is equivalent to the Python expression `self.name()`.
+    fn call_method0(&self, name: &str) -> PyResult<&PyAny>;
+
     /// Retrieves the hash code of the object.
-    /// This is equivalent to the Python expression: `hash(self)`.
+    ///
+    /// This is equivalent to the Python expression `hash(self)`.
     fn hash(&self) -> PyResult<isize>;
 
     /// Returns whether the object is considered to be true.
-    /// This is equivalent to the Python expression: `not not self`.
+    ///
+    /// This is equivalent to the Python expression `bool(self)`.
     fn is_true(&self) -> PyResult<bool>;
 
     /// Returns whether the object is considered to be None.
-    /// This is equivalent to the Python expression: `is None`.
+    ///
+    /// This is equivalent to the Python expression `self is None`.
     fn is_none(&self) -> bool;
 
     /// Returns the length of the sequence or mapping.
-    /// This is equivalent to the Python expression: `len(self)`.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
     fn len(&self) -> PyResult<usize>;
 
     /// Returns true if the sequence or mapping has a length of 0.
-    /// This is equivalent to the Python expression: `len(self) == 0`.
+    ///
+    /// This is equivalent to the Python expression `len(self) == 0`.
     fn is_empty(&self) -> PyResult<bool>;
 
-    /// This is equivalent to the Python expression: `self[key]`.
+    /// Gets an item from the collections.
+    ///
+    /// This is equivalent to the Python expression `self[key]`.
     fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
     where
         K: ToBorrowedObject;
 
-    /// Sets an item value.
+    /// Sets a collection item value.
+    ///
     /// This is equivalent to the Python expression `self[key] = value`.
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
         K: ToBorrowedObject,
         V: ToBorrowedObject;
 
-    /// Deletes an item.
+    /// Deletes an item from the collection.
+    ///
     /// This is equivalent to the Python expression `del self[key]`.
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: ToBorrowedObject;
 
     /// Takes an object and returns an iterator for it.
-    /// This is typically a new iterator but if the argument
-    /// is an iterator, this returns itself.
+    ///
+    /// This is typically a new iterator but if the argument is an iterator,
+    /// this returns itself.
     fn iter(&self) -> PyResult<PyIterator>;
 
-    /// Gets the Python type object for this object's type.
+    /// Returns the Python type object for this object's type.
     fn get_type(&self) -> &PyType;
 
-    /// Gets the Python type pointer for this object.
+    /// Returns the Python type pointer for this object.
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
 
     /// Casts the PyObject to a concrete Python object type.
+    ///
+    /// This can cast only to native Python types, not types implemented in Rust.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
         D: PyTryFrom<'a>,
         &'a PyAny: std::convert::From<&'a Self>;
 
     /// Extracts some type from the Python object.
+    ///
     /// This is a wrapper function around `FromPyObject::extract()`.
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
         &'a PyAny: std::convert::From<&'a Self>;
 
-    /// Returns reference count for python object.
+    /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
 
     /// Gets the Python builtin value `None`.

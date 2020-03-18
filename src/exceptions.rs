@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Exception types defined by python.
+//! Exception types defined by Python.
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
@@ -12,7 +12,7 @@ use std::ffi::CStr;
 use std::ops;
 use std::os::raw::c_char;
 
-/// The boilerplate to convert between a rust type and a python exception
+/// The boilerplate to convert between a Rust type and a Python exception.
 #[macro_export]
 macro_rules! impl_exception_boilerplate {
     ($name: ident) => {
@@ -40,11 +40,11 @@ macro_rules! impl_exception_boilerplate {
     };
 }
 
-/// Defines rust type for exception defined in Python code.
+/// Defines a Rust type for an exception defined in Python code.
 ///
 /// # Syntax
 ///
-/// `import_exception!(module, MyError)`
+/// ```import_exception!(module, MyError)```
 ///
 /// * `module` is the name of the containing module.
 /// * `MyError` is the name of the new exception type.
@@ -83,8 +83,8 @@ macro_rules! import_exception {
     };
 }
 
-/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an exception defined in python
-/// code.
+/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an
+/// exception defined in Python code.
 #[macro_export]
 macro_rules! import_exception_type_object {
     ($module: expr, $name: ident) => {
@@ -120,11 +120,12 @@ macro_rules! import_exception_type_object {
 /// Defines a new exception type.
 ///
 /// # Syntax
-/// `create_exception!(module, MyError, BaseException)`
+///
+/// ```create_exception!(module, MyError, BaseException)```
 ///
 /// * `module` is the name of the containing module.
 /// * `MyError` is the name of the new exception type.
-/// * `BaseException` is the superclass of MyError, usually `pyo3::exceptions::Exception`
+/// * `BaseException` is the superclass of `MyError`, usually `pyo3::exceptions::Exception`.
 ///
 /// # Example
 /// ```
@@ -166,8 +167,8 @@ macro_rules! create_exception {
     };
 }
 
-/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an exception newly defined in
-/// rust code.
+/// `impl $crate::type_object::PyTypeObject for $name` where `$name` is an
+/// exception newly defined in Rust code.
 #[macro_export]
 macro_rules! create_exception_type_object {
     ($module: ident, $name: ident, $base: ty) => {

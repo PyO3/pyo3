@@ -20,30 +20,31 @@ pub use gil::prepare_freethreaded_python;
 
 /// Marker type that indicates that the GIL is currently held.
 ///
-/// The 'Python' struct is a zero-size marker struct that is required for most Python operations.
+/// The `Python` struct is a zero-sized marker struct that is required for most Python operations.
 /// This is used to indicate that the operation accesses/modifies the Python interpreter state,
 /// and thus can only be called if the Python interpreter is initialized and the
 /// Python global interpreter lock (GIL) is acquired. The lifetime `'p` represents the lifetime of
-/// the Python interpreter.
+/// holding the lock.
 ///
-/// Note that the GIL can be temporarily released by the python interpreter during a function call
+/// Note that the GIL can be temporarily released by the Python interpreter during a function call
 /// (e.g. importing a module), even when you're holding a GILGuard. In general, you don't need to
-/// worry about this becauseas the GIL is reaquired before returning to the rust code:
+/// worry about this because the GIL is reacquired before returning to the Rust code:
 ///
 /// ```text
-/// GILGuard          |=====================================|
+/// `Python` exists   |=====================================|
 /// GIL actually held |==========|         |================|
 /// Rust code running |=======|                |==|  |======|
 /// ```
 ///
-/// This behaviour can cause deadlocks when trying to lock while holding a GILGuard:
+/// This behaviour can cause deadlocks when trying to lock a Rust mutex while
+/// holding the GIL:
 ///
 ///  * Thread 1 acquires the GIL
 ///  * Thread 1 locks a mutex
-///  * Thread 1 makes a call into the python interpreter, which releases the GIL
+///  * Thread 1 makes a call into the Python interpreter which releases the GIL
 ///  * Thread 2 acquires the GIL
 ///  * Thread 2 tries to locks the mutex, blocks
-///  * Thread 1's python interpreter call blocks trying to reacquire the GIL held by thread 2
+///  * Thread 1's Python interpreter call blocks trying to reacquire the GIL held by thread 2
 ///
 /// To avoid deadlocking, you should release the GIL before trying to lock a mutex, e.g. with
 /// [Python::allow_threads].
@@ -51,8 +52,8 @@ pub use gil::prepare_freethreaded_python;
 pub struct Python<'p>(PhantomData<&'p GILGuard>);
 
 impl<'p> Python<'p> {
-    /// Retrieve Python instance under the assumption that the GIL is already acquired at this point,
-    /// and stays acquired for the lifetime `'p`.
+    /// Retrieves a Python instance under the assumption that the GIL is already
+    /// acquired at this point, and stays acquired for the lifetime `'p`.
     ///
     /// Because the output lifetime `'p` is not connected to any input parameter,
     /// care must be taken that the compiler infers an appropriate lifetime for `'p`
@@ -105,8 +106,16 @@ impl<'p> Python<'p> {
     /// "#, None, Some(locals));
     /// ```
     ///
-    /// **NOTE**
-    /// You cannot use all `&Py~` types in the closure that `allow_threads` takes.
+    /// **Note:**
+    /// PyO3 types that represent objects with a lifetime tied to holding the GIL
+    /// cannot be used in the closure.  This includes `&PyAny` and all the
+    /// concrete-typed siblings, like `&PyString`.
+    ///
+    /// You can convert such references to e.g. `PyObject` or `Py<PyString>`,
+    /// which makes them independent of the GIL lifetime.  However, you cannot
+    /// do much with those without a `Python<'p>` token, for which you'd need to
+    /// reacquire the GIL.
+    ///
     /// # Example
     /// ```compile_fail
     /// # use pyo3::prelude::*;
@@ -114,10 +123,9 @@ impl<'p> Python<'p> {
     /// fn parallel_print(py: Python<'_>) {
     ///     let s = PyString::new(py, "This object should not be shared >_<");
     ///     py.allow_threads(move || {
-    ///         println!("{:?}", s); // This causes compile error.
+    ///         println!("{:?}", s); // This causes a compile error.
     ///     });
     /// }
-    /// # Example
     /// ```
     pub fn allow_threads<T, F>(self, f: F) -> T
     where
@@ -193,8 +201,9 @@ impl<'p> Python<'p> {
     }
 
     /// Runs code in the given context.
-    /// `start` indicates the type of input expected:
-    /// one of `Py_single_input`, `Py_file_input`, or `Py_eval_input`.
+    ///
+    /// `start` indicates the type of input expected: one of `Py_single_input`,
+    /// `Py_file_input`, or `Py_eval_input`.
     ///
     /// If `globals` is `None`, it defaults to Python module `__main__`.
     /// If `locals` is `None`, it defaults to the value of `globals`.
@@ -237,17 +246,21 @@ impl<'p> Python<'p> {
         unsafe { self.from_borrowed_ptr(T::type_object().into_ptr()) }
     }
 
-    /// Import the Python module with the specified name.
+    /// Imports the Python module with the specified name.
     pub fn import(self, name: &str) -> PyResult<&'p PyModule> {
         PyModule::import(self, name)
     }
 
-    /// Check whether `obj` is an instance of type `T` like Python `isinstance` function
+    /// Checks whether `obj` is an instance of type `T`.
+    ///
+    /// This is equivalent to the Python `isinstance` function.
     pub fn is_instance<T: PyTypeObject, V: AsPyPointer>(self, obj: &V) -> PyResult<bool> {
         T::type_object().as_ref(self).is_instance(obj)
     }
 
-    /// Check whether type `T` is subclass of type `U` like Python `issubclass` function
+    /// Checks whether type `T` is subclass of type `U`.
+    ///
+    /// This is equivalent to the Python `issubclass` function.
     pub fn is_subclass<T, U>(self) -> PyResult<bool>
     where
         T: PyTypeObject,
@@ -272,7 +285,7 @@ impl<'p> Python<'p> {
 }
 
 impl<'p> Python<'p> {
-    /// Register object in release pool, and try to downcast to specific type.
+    /// Registers the object in the release pool, and tries to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError>
     where
         T: PyTryFrom<'p>,
@@ -281,7 +294,8 @@ impl<'p> Python<'p> {
         <T as PyTryFrom>::try_from(obj)
     }
 
-    /// Register object in release pool, and do unchecked downcast to specific type.
+    /// Registers the object in the release pool, and does an unchecked downcast
+    /// to the specific type.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
         T: PyDowncastImpl + PyTypeInfo,
@@ -290,7 +304,7 @@ impl<'p> Python<'p> {
         T::unchecked_downcast(obj)
     }
 
-    /// Register `ffi::PyObject` pointer in release pool
+    /// Registers the object pointer in the release pool.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyAny {
         match NonNull::new(ptr) {
@@ -299,8 +313,8 @@ impl<'p> Python<'p> {
         }
     }
 
-    /// Register `ffi::PyObject` pointer in release pool,
-    /// and do unchecked downcast to specific type.
+    /// Registers the object pointer in the release pool,
+    /// and does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
@@ -309,9 +323,10 @@ impl<'p> Python<'p> {
         FromPyPointer::from_owned_ptr(self, ptr)
     }
 
-    /// Register owned `ffi::PyObject` pointer in release pool.
-    /// Returns `Err(PyErr)` if the pointer is `null`.
-    /// do unchecked downcast to specific type.
+    /// Registers the owned object pointer in the release pool.
+    ///
+    /// Returns `Err(PyErr)` if the pointer is NULL.
+    /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
@@ -320,9 +335,10 @@ impl<'p> Python<'p> {
         FromPyPointer::from_owned_ptr_or_err(self, ptr)
     }
 
-    /// Register owned `ffi::PyObject` pointer in release pool.
-    /// Returns `None` if the pointer is `null`.
-    /// do unchecked downcast to specific type.
+    /// Registers the owned object pointer in release pool.
+    ///
+    /// Returns `None` if the pointer is NULL.
+    /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
@@ -331,9 +347,10 @@ impl<'p> Python<'p> {
         FromPyPointer::from_owned_ptr_or_opt(self, ptr)
     }
 
-    /// Register borrowed `ffi::PyObject` pointer in release pool.
-    /// Panics if the pointer is `null`.
-    /// do unchecked downcast to specific type.
+    /// Registers the borrowed object pointer in the release pool.
+    ///
+    /// Panics if the pointer is NULL.
+    /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
     where
@@ -342,9 +359,10 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr(self, ptr)
     }
 
-    /// Register borrowed `ffi::PyObject` pointer in release pool.
-    /// Returns `Err(PyErr)` if the pointer is `null`.
-    /// do unchecked downcast to specific type.
+    /// Registers the borrowed object pointer in the release pool.
+    ///
+    /// Returns `Err(PyErr)` if the pointer is NULL.
+    /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
     where
@@ -353,9 +371,10 @@ impl<'p> Python<'p> {
         FromPyPointer::from_borrowed_ptr_or_err(self, ptr)
     }
 
-    /// Register borrowed `ffi::PyObject` pointer in release pool.
-    /// Returns `None` if the pointer is `null`.
-    /// do unchecked downcast to specific `T`.
+    /// Registers the borrowed object pointer in the release pool.
+    ///
+    /// Returns `None` if the pointer is NULL.
+    /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
     pub unsafe fn from_borrowed_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
     where
@@ -365,13 +384,13 @@ impl<'p> Python<'p> {
     }
 
     #[doc(hidden)]
-    /// Pass value ownership to `Python` object and get reference back.
+    /// Passes value ownership to `Python` object and get reference back.
     /// Value get cleaned up on the GIL release.
     pub fn register_any<T: 'static>(self, ob: T) -> &'p T {
         unsafe { gil::register_any(ob) }
     }
 
-    /// Release PyObject reference.
+    /// Releases a PyObject reference.
     #[inline]
     pub fn release<T>(self, ob: T)
     where
@@ -385,7 +404,7 @@ impl<'p> Python<'p> {
         }
     }
 
-    /// Release `ffi::PyObject` pointer.
+    /// Releases a `ffi::PyObject` pointer.
     #[inline]
     pub fn xdecref<T: IntoPyPointer>(self, ptr: T) {
         unsafe { ffi::Py_XDECREF(ptr.into_ptr()) };

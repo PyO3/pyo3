@@ -51,8 +51,9 @@ impl PyDict {
         }
     }
 
-    /// Return a new dictionary that contains the same key-value pairs as self.
-    /// Corresponds to `dict(self)` in Python.
+    /// Returns a new dictionary that contains the same key-value pairs as self.
+    ///
+    /// This is equivalent to the Python expression `dict(self)`.
     pub fn copy(&self) -> PyResult<&PyDict> {
         unsafe {
             self.py()
@@ -60,23 +61,25 @@ impl PyDict {
         }
     }
 
-    /// Empty an existing dictionary of all key-value pairs.
+    /// Empties an existing dictionary of all key-value pairs.
     pub fn clear(&self) {
         unsafe { ffi::PyDict_Clear(self.as_ptr()) }
     }
 
     /// Return the number of items in the dictionary.
-    /// This is equivalent to len(p) on a dictionary.
+    ///
+    /// This is equivalent to the Python expression `len(self)`.
     pub fn len(&self) -> usize {
         unsafe { ffi::PyDict_Size(self.as_ptr()) as usize }
     }
 
-    /// Check if dict is empty.
+    /// Checks if the dict is empty, i.e. `len(self) == 0`.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Determine if the dictionary contains the specified key.
+    /// Determines if the dictionary contains the specified key.
+    ///
     /// This is equivalent to the Python expression `key in self`.
     pub fn contains<K>(&self, key: K) -> PyResult<bool>
     where
@@ -92,7 +95,10 @@ impl PyDict {
     }
 
     /// Gets an item from the dictionary.
-    /// Returns None if the item is not present, or if an error occurs.
+    ///
+    /// Returns `None` if the item is not present, or if an error occurs.
+    ///
+    /// To get a `KeyError` for non-existing keys, use `ObjectProtocol::get_item`.
     pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
     where
         K: ToBorrowedObject,
@@ -104,7 +110,8 @@ impl PyDict {
     }
 
     /// Sets an item value.
-    /// This is equivalent to the Python expression `self[key] = value`.
+    ///
+    /// This is equivalent to the Python statement `self[key] = value`.
     pub fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
         K: ToPyObject,
@@ -118,7 +125,8 @@ impl PyDict {
     }
 
     /// Deletes an item.
-    /// This is equivalent to the Python expression `del self[key]`.
+    ///
+    /// This is equivalent to the Python statement `del self[key]`.
     pub fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: ToBorrowedObject,
@@ -128,8 +136,9 @@ impl PyDict {
         })
     }
 
-    /// List of dict keys.
-    /// This is equivalent to the python expression `list(dict.keys())`.
+    /// Returns a list of dict keys.
+    ///
+    /// This is equivalent to the Python expression `list(dict.keys())`.
     pub fn keys(&self) -> &PyList {
         unsafe {
             self.py()
@@ -137,8 +146,9 @@ impl PyDict {
         }
     }
 
-    /// List of dict values.
-    /// This is equivalent to the python expression `list(dict.values())`.
+    /// Returns a list of dict values.
+    ///
+    /// This is equivalent to the Python expression `list(dict.values())`.
     pub fn values(&self) -> &PyList {
         unsafe {
             self.py()
@@ -146,8 +156,9 @@ impl PyDict {
         }
     }
 
-    /// List of dict items.
-    /// This is equivalent to the python expression `list(dict.items())`.
+    /// Returns a list of dict items.
+    ///
+    /// This is equivalent to the Python expression `list(dict.items())`.
     pub fn items(&self) -> &PyList {
         unsafe {
             self.py()
@@ -155,9 +166,10 @@ impl PyDict {
         }
     }
 
-    /// Returns a iterator of (key, value) pairs in this dictionary.
+    /// Returns an iterator of `(key, value)` pairs in this dictionary.
     ///
-    /// Note that it's unsafe to use when the dictionary might be changed by other code.
+    /// Note that it's unsafe to use when the dictionary might be changed by
+    /// other code.
     pub fn iter(&self) -> PyDictIterator {
         PyDictIterator {
             dict: self.as_ref(),

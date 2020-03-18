@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Various types defined by the python interpreter such as `int`, `str` and `tuple`
+//! Various types defined by the Python interpreter such as `int`, `str` and `tuple`.
 
 pub use self::any::PyAny;
 pub use self::boolobject::PyBool;

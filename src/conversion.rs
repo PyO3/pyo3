@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-//! Conversions between various states of rust and python types and their wrappers.
+//! Conversions between various states of Rust and Python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
 use crate::type_object::{PyDowncastImpl, PyTypeInfo};
@@ -9,9 +9,10 @@ use crate::types::PyTuple;
 use crate::{ffi, gil, Py, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
 use std::ptr::NonNull;
 
-/// This trait represents that, **we can do zero-cost conversion from the object to FFI pointer**.
+/// This trait represents that **we can do zero-cost conversion from the object
+/// to a FFI pointer**.
 ///
-/// This trait is implemented for types that internally wrap a pointer to a python object.
+/// This trait is implemented for types that internally wrap a pointer to a Python object.
 ///
 /// # Example
 ///
@@ -77,7 +78,7 @@ where
     }
 }
 
-/// Conversion trait that allows various objects to be converted into `PyObject`
+/// Conversion trait that allows various objects to be converted into `PyObject`.
 pub trait ToPyObject {
     /// Converts self into a Python object.
     fn to_object(&self, py: Python) -> PyObject;
@@ -161,23 +162,31 @@ impl<T> FromPy<T> for T {
 /// `FromPyObject` is implemented by various types that can be extracted from
 /// a Python object reference.
 ///
-/// Normal usage is through the `PyObject::extract` helper method:
+/// Normal usage is through the helper methods `PyObject::extract` or
+/// `PyAny::extract`:
+///
 /// ```let obj: PyObject = ...;
 /// let value: &TargetType = obj.extract(py)?;
+///
+/// let any: &PyAny = ...;
+/// let value: &TargetType = any.extract()?;
 /// ```
 ///
 /// Note: depending on the implementation, the lifetime of the extracted result may
 /// depend on the lifetime of the `obj` or the `prepared` variable.
 ///
-/// For example, when extracting `&str` from a python byte string, the resulting string slice will
+/// For example, when extracting `&str` from a Python byte string, the resulting string slice will
 /// point to the existing string data (lifetime: `'source`).
-/// On the other hand, when extracting `&str` from a python unicode string, the preparation step
+/// On the other hand, when extracting `&str` from a Python Unicode string, the preparation step
 /// will convert the string to UTF-8, and the resulting string slice will have lifetime `'prepared`.
-/// Since only which of these cases applies depends on the runtime type of the python object,
+/// Since which case applies depends on the runtime type of the Python object,
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
 /// In cases where the result does not depend on the `'prepared` lifetime,
 /// the inherent method `PyObject::extract()` can be used.
+///
+/// The trait's conversion method takes a `&PyAny` argument but is called
+/// `FromPyObject` for historical reasons.
 pub trait FromPyObject<'source>: Sized {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'source PyAny) -> PyResult<Self>;

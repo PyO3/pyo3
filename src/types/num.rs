@@ -417,7 +417,7 @@ mod bigint_conversion {
             assert_eq!(zero, BigInt::from(0));
         }
 
-        /// `OverflowError` on converting python int to BigInt, see issue #629
+        /// `OverflowError` on converting Python int to BigInt, see issue #629
         #[test]
         fn check_overflow() {
             let gil = Python::acquire_gil();

@@ -14,9 +14,9 @@ use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::str;
 
-/// Represents a Python `string`.
+/// Represents a Python `string` (a Unicode string object).
 ///
-/// This type is immutable
+/// This type is immutable.
 #[repr(transparent)]
 pub struct PyString(PyObject, Unsendable);
 
@@ -43,7 +43,7 @@ impl PyString {
         }
     }
 
-    /// Get the Python string as a byte slice.
+    /// Gets the Python string as a byte slice.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
     /// (containing unpaired surrogates).
@@ -60,17 +60,17 @@ impl PyString {
         }
     }
 
-    /// Convert the `PyString` into a Rust string.
+    /// Converts the `PyString` into a Rust string.
     pub fn to_string(&self) -> PyResult<Cow<str>> {
         let bytes = self.as_bytes()?;
         let string = std::str::from_utf8(bytes)?;
         Ok(Cow::Borrowed(string))
     }
 
-    /// Convert the `PyString` into a Rust string.
+    /// Converts the `PyString` into a Rust string.
     ///
     /// Unpaired surrogates invalid UTF-8 sequences are
-    /// replaced with U+FFFD REPLACEMENT CHARACTER.
+    /// replaced with `U+FFFD REPLACEMENT CHARACTER`.
     pub fn to_string_lossy(&self) -> Cow<str> {
         match self.to_string() {
             Ok(s) => s,
@@ -98,7 +98,7 @@ impl PyString {
     }
 }
 
-/// Converts Rust `str` to Python object.
+/// Converts a Rust `str` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
@@ -114,7 +114,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
     }
 }
 
-/// Converts Rust `Cow<str>` to Python object.
+/// Converts a Rust `Cow<str>` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl<'a> ToPyObject for Cow<'a, str> {
     #[inline]
@@ -123,7 +123,7 @@ impl<'a> ToPyObject for Cow<'a, str> {
     }
 }
 
-/// Converts Rust `String` to Python object.
+/// Converts a Rust `String` to a Python object.
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]

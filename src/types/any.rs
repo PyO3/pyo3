@@ -3,11 +3,17 @@ use crate::err::PyDowncastError;
 use crate::internal_tricks::Unsendable;
 use crate::{ffi, PyObject};
 
-/// Represents a python's [Any](https://docs.python.org/3/library/typing.html#typing.Any) type.
-/// We can convert all python objects as `PyAny`.
+/// A Python object with GIL lifetime
 ///
+/// Represents any Python object.  All Python objects can be cast to `PyAny`.
 /// In addition, if the inner object is an instance of type `T`, we can downcast
 /// `PyAny` into `T`.
+///
+/// `PyAny` is used as a reference with a lifetime that represents that the GIL
+/// is held, therefore its API does not require a `Python<'py>` token.
+///
+/// See [the guide](https://pyo3.rs/master/types.html) for an explanation
+/// of the different Python object types.
 ///
 /// # Example
 ///

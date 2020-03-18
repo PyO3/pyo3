@@ -15,13 +15,15 @@ use crate::{FromPyObject, IntoPy, PyTryFrom, ToPyObject};
 use std::slice;
 
 /// Represents a Python `tuple` object.
+///
+/// This type is immutable.
 #[repr(transparent)]
 pub struct PyTuple(PyObject, Unsendable);
 
 pyobject_native_var_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
 impl PyTuple {
-    /// Construct a new tuple with the given elements.
+    /// Constructs a new tuple with the given elements.
     pub fn new<T, U>(py: Python, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyTuple
     where
         T: ToPyObject,
@@ -38,7 +40,7 @@ impl PyTuple {
         }
     }
 
-    /// Retrieves the empty tuple.
+    /// Constructs an empty tuple (on the Python side, a singleton object).
     pub fn empty(py: Python) -> &PyTuple {
         unsafe { py.from_owned_ptr(ffi::PyTuple_New(0)) }
     }
@@ -51,17 +53,17 @@ impl PyTuple {
         }
     }
 
-    /// Check if tuple is empty.
+    /// Checks if the tuple is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
+    /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
     pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
         unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_GetSlice(self.as_ptr(), low, high)) }
     }
 
-    /// Take a slice of the tuple pointed to by p from low and return it as a new tuple.
+    /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
     pub fn split_from(&self, low: isize) -> Py<PyTuple> {
         unsafe {
             let ptr =
@@ -70,7 +72,7 @@ impl PyTuple {
         }
     }
 
-    /// Gets the item at the specified index.
+    /// Gets the tuple item at the specified index.
     ///
     /// Panics if the index is out of range.
     pub fn get_item(&self, index: usize) -> &PyAny {
@@ -83,6 +85,7 @@ impl PyTuple {
         }
     }
 
+    /// Returns `self` as a slice of objects.
     pub fn as_slice(&self) -> &[PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.

@@ -47,10 +47,10 @@ pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 /// Our custom type flags
 #[doc(hidden)]
 pub mod type_flags {
-    /// type object supports python GC
+    /// Type object supports Python GC
     pub const GC: usize = 1;
 
-    /// Type object supports python weak references
+    /// Type object supports Python weak references
     pub const WEAKREF: usize = 1 << 1;
 
     /// Type object can be used as the base type of another type

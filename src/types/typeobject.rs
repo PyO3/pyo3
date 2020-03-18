@@ -20,6 +20,7 @@ pub struct PyType(PyObject, Unsendable);
 pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 
 impl PyType {
+    /// Creates a new type object.
     #[inline]
     pub fn new<T: PyTypeObject>() -> Py<PyType> {
         T::type_object()
@@ -31,7 +32,7 @@ impl PyType {
         self.as_ptr() as *mut ffi::PyTypeObject
     }
 
-    /// Retrieves the PyType instance for the given FFI pointer.
+    /// Retrieves the `PyType` instance for the given FFI pointer.
     /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
@@ -39,12 +40,14 @@ impl PyType {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
-    /// Gets the name of the PyType.
+    /// Gets the name of the `PyType`.
     pub fn name(&self) -> Cow<str> {
         unsafe { CStr::from_ptr((*self.as_type_ptr()).tp_name).to_string_lossy() }
     }
 
-    /// Check whether `self` is subclass of type `T` like Python `issubclass` function
+    /// Checks whether `self` is subclass of type `T`.
+    ///
+    /// Equivalent to Python's `issubclass` function.
     pub fn is_subclass<T>(&self) -> PyResult<bool>
     where
         T: PyTypeObject,
@@ -59,7 +62,9 @@ impl PyType {
         }
     }
 
-    // Check whether `obj` is an instance of `self`
+    /// Check whether `obj` is an instance of `self`.
+    ///
+    /// Equivalent to Python's `isinstance` function.
     pub fn is_instance<T: AsPyPointer>(&self, obj: &T) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(obj.as_ptr(), self.as_ptr()) };
         if result == -1 {

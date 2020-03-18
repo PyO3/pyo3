@@ -8,11 +8,11 @@ pub const VERSION: i32 = 4;
 
 /// Serialize an object to bytes using the Python built-in marshal module.
 ///
-/// The built-in marshalling only supports a limited range of object.
+/// The built-in marshalling only supports a limited range of objects.
 /// The exact types supported depend on the version argument.
 /// The [`VERSION`] constant holds the highest version currently supported.
 ///
-/// See the [python documentation](https://docs.python.org/3/library/marshal.html) for more details.
+/// See the [Python documentation](https://docs.python.org/3/library/marshal.html) for more details.
 ///
 /// # Example:
 /// ```
