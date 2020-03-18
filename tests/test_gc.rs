@@ -2,7 +2,7 @@ use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyTuple};
+use pyo3::types::PyTuple;
 use pyo3::{ffi, py_run, AsPyPointer, PyCell, PyTryInto};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};

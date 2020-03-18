@@ -2,12 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::err::{PyDowncastError, PyErr, PyResult};
-use crate::ffi;
-use crate::instance::PyNativeType;
-use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::Python;
+use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, Python};
 
 /// A Python iterator object.
 ///

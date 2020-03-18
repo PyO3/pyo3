@@ -28,10 +28,10 @@ pub use self::typeobject::PyType;
 #[macro_export]
 macro_rules! pyobject_native_type_named (
     ($name: ty $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> ::std::convert::AsRef<$crate::types::PyAny> for $name {
+        impl<$($type_param,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
             #[inline]
-            fn as_ref(&self) -> &$crate::types::PyAny {
-                unsafe{&*(self as *const $name as *const $crate::types::PyAny)}
+            fn as_ref(&self) -> &$crate::PyAny {
+                unsafe{&*(self as *const $name as *const $crate::PyAny)}
             }
         }
 
@@ -71,9 +71,9 @@ macro_rules! pyobject_native_type {
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
         pyobject_native_type_extract!($name $(,$type_param)*);
 
-        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
+        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::types::PyAny)}
+                unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
     };
@@ -93,9 +93,9 @@ macro_rules! pyobject_native_var_type {
                                       $typeobject, $module, $checkfunction $(,$type_param)*);
         pyobject_native_type_extract!($name $(,$type_param)*);
 
-        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::types::PyAny {
+        impl<'a, $($type_param,)*> ::std::convert::From<&'a $name> for &'a $crate::PyAny {
             fn from(ob: &'a $name) -> Self {
-                unsafe{&*(ob as *const $name as *const $crate::types::PyAny)}
+                unsafe{&*(ob as *const $name as *const $crate::PyAny)}
             }
         }
     };
@@ -111,7 +111,7 @@ macro_rules! pyobject_native_var_type {
 macro_rules! pyobject_native_type_extract {
     ($name: ty $(,$type_param: ident)*) => {
         impl<'py, $($type_param,)*> $crate::FromPyObject<'py> for &'py $name {
-            fn extract(obj: &'py crate::types::PyAny) -> $crate::PyResult<Self> {
+            fn extract(obj: &'py $crate::PyAny) -> $crate::PyResult<Self> {
                 $crate::PyTryFrom::try_from(obj).map_err(Into::into)
             }
         }
@@ -124,7 +124,7 @@ macro_rules! pyobject_native_type_convert(
      $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         unsafe impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
             type Type = ();
-            type BaseType = $crate::types::PyAny;
+            type BaseType = $crate::PyAny;
             type Layout = $layout;
             type BaseLayout = ffi::PyObject;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
@@ -139,7 +139,7 @@ macro_rules! pyobject_native_type_convert(
             }
 
             #[allow(unused_unsafe)]
-            fn is_instance(ptr: &$crate::types::PyAny) -> bool {
+            fn is_instance(ptr: &$crate::PyAny) -> bool {
                 use $crate::AsPyPointer;
                 unsafe { $checkfunction(ptr.as_ptr()) > 0 }
             }

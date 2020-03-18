@@ -129,7 +129,7 @@ let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
 After:
 ```
 # use pyo3::prelude::*;
-# use pyo3::types::{PyAny, IntoPyDict};
+# use pyo3::types::IntoPyDict;
 # #[pyclass] #[derive(Clone)] struct MyClass {}
 # #[pymethods] impl MyClass { #[new]fn new() -> Self { MyClass {} }}
 # let gil = Python::acquire_gil();

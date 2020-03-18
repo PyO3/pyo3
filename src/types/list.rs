@@ -4,14 +4,11 @@
 
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::types::PyAny;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{AsPyPointer, IntoPy};
-use crate::{ToBorrowedObject, ToPyObject};
+use crate::{
+    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
+    ToPyObject,
+};
 
 /// Represents a Python `list`.
 #[repr(transparent)]

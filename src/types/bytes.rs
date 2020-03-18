@@ -1,12 +1,8 @@
-use crate::conversion::FromPyObject;
-use crate::conversion::{PyTryFrom, ToPyObject};
-use crate::err::PyResult;
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::Python;
-use crate::{ffi, FromPy};
+use crate::{
+    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ToPyObject,
+};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;

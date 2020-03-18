@@ -133,10 +133,7 @@ impl<'py> Neg for &'py PyComplex {
 #[cfg(feature = "num-complex")]
 mod complex_conversion {
     use super::*;
-    use crate::err::PyErr;
-    use crate::types::PyAny;
-    use crate::PyResult;
-    use crate::{FromPyObject, ToPyObject};
+    use crate::{FromPyObject, PyAny, PyErr, PyResult, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {

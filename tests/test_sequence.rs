@@ -2,9 +2,7 @@ use pyo3::class::PySequenceProtocol;
 use pyo3::exceptions::IndexError;
 use pyo3::exceptions::ValueError;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-use pyo3::types::PyAny;
-use pyo3::types::PyList;
+use pyo3::types::{IntoPyDict, PyList};
 
 #[pyclass]
 struct ByteSequence {

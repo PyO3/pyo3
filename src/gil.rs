@@ -2,10 +2,7 @@
 
 //! Interaction with python's global interpreter lock
 
-use crate::ffi;
-use crate::internal_tricks::Unsendable;
-use crate::types::PyAny;
-use crate::Python;
+use crate::{ffi, internal_tricks::Unsendable, PyAny, Python};
 use std::ptr::NonNull;
 use std::{any, sync};
 
