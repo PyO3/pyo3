@@ -53,7 +53,8 @@ type.
 
 **Used:** Whenever you want to carry around references to "some" Python object,
 without caring about a GIL lifetime.  For example, storing Python object
-references in a Rust struct that outlives the Python-Rust FFI boundary.
+references in a Rust struct that outlives the Python-Rust FFI boundary,
+or returning objects from functions implemented in Rust back to Python.
 
 Can be cloned using Python reference counts with `.clone_ref()`.
 
