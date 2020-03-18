@@ -74,7 +74,8 @@ deploy:
       branch: master
       repo: PyO3/pyo3
       python: 3.6
-      condition: $TRAVIS_EVENT_TYPE != "cron"
+      # Should be reverted after debugging
+      condition: $TRAVIS_EVENT_TYPE == "pull_request"
   - provider: script
     skip_cleanup: true
     script: ./ci/travis/guide.sh
