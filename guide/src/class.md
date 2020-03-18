@@ -7,7 +7,6 @@ To define a custom Python class, a Rust struct needs to be annotated with the
 
 ```rust
 # use pyo3::prelude::*;
-
 #[pyclass]
 struct MyClass {
     num: i32,
@@ -15,8 +14,8 @@ struct MyClass {
 }
 ```
 
-The above example generates implementations for `PyTypeInfo`, `PyTypeObject`,
-and `PyClass` for `MyClass`.
+The above example generates implementations for [`PyTypeInfo`], [`PyTypeObject`],
+and [`PyClass`] for `MyClass`.
 
 Specifically, the following implementation is generated:
 
@@ -111,14 +110,14 @@ fn mymodule(_py: Python, m: &PyModule) -> PyResult<()> {
 
 You sometimes need to convert your `pyclass` into a Python object and access it
 from Rust code (e.g., for testing it).
-[`PyCell`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html) is the primary interface for that.
+[`PyCell`] is the primary interface for that.
 
 `PyCell<T: PyClass>` is always allocated in the Python heap, so Rust doesn't have ownership of it.
 In other words, Rust code can only extract a `&PyCell<T>`, not a `PyCell<T>`.
 
 Thus, to mutate data behind `&PyCell` safely, PyO3 employs the
 [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
-like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
+like [`RefCell`].
 
 Users who are familiar with `RefCell` can use `PyCell` just like `RefCell`.
 
@@ -158,7 +157,7 @@ let obj = PyCell::new(py, MyClass { num: 3, debug: true }).unwrap();
 pyo3::py_run!(py, obj, "assert obj.num == 5")
 ```
 
-`&PyCell<T>` is bounded by the same lifetime as a `GILGuard`.
+`&PyCell<T>` is bounded by the same lifetime as a [`GILGuard`].
 To make the object longer lived (for example, to store it in a struct on the
 Rust side), you can use `Py<T>`, which stores an object longer than the GIL
 lifetime, and therefore needs a `Python<'_>` token to access.
@@ -190,7 +189,7 @@ The `#[pyclass]` macro accepts the following parameters:
 The performance improvement applies to types that are often created and deleted in a row,
 so that they can benefit from a freelist. `XXX` is a number of items for the free list.
 * `gc` - Classes with the `gc` parameter participate in Python garbage collection.
-If a custom class contains references to other Python objects that can be collected, the `PyGCProtocol` trait has to be implemented.
+If a custom class contains references to other Python objects that can be collected, the [`PyGCProtocol`] trait has to be implemented.
 * `weakref` - Adds support for Python weak references.
 * `extends=BaseType` - Use a custom base class. The base `BaseType` must implement `PyTypeInfo`.
 * `subclass` - Allows Python classes to inherit from this class.
@@ -233,11 +232,11 @@ Generally, `#[new]` method have to return `T: Into<PyClassInitializer<Self>>` or
 For constructors that may fail, you should wrap the return type in a PyResult as well.
 Consult the table below to determine which type your constructor should return:
 
-|                             | **Cannot fail**         | **May fail**                      |
-|-----------------------------|-------------------------|-----------------------------------|
-|**No inheritance**           | `T`                     | `PyResult<T>`                     |
-|**Inheritance(T Inherits U)**| `(T, U)`                | `PyResult<(T, U)>`                |
-|**Inheritance(General Case)**| `PyClassInitializer<T>` | `PyResult<PyClassInitializer<T>>` |
+|                             | **Cannot fail**           | **May fail**                      |
+|-----------------------------|---------------------------|-----------------------------------|
+|**No inheritance**           | `T`                       | `PyResult<T>`                     |
+|**Inheritance(T Inherits U)**| `(T, U)`                  | `PyResult<(T, U)>`                |
+|**Inheritance(General Case)**| [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
 
@@ -249,8 +248,8 @@ baseclass of `T`.
 But for more deeply nested inheritance, you have to return `PyClassInitializer<T>`
 explicitly.
 
-To get a parent class from a child, use `PyRef<T>` instead of `&self` for methods,
-or `PyRefMut<T>` instead of `&mut self`.
+To get a parent class from a child, use [`PyRef`] instead of `&self` for methods,
+or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_ref()` as `&Self::BaseClass`,
 or by `self_.into_super()` as `PyRef<Self::BaseClass>`.
 
@@ -694,7 +693,7 @@ each protocol implementation block has to be annotated with the `#[pyproto]` att
 
 ### Basic object customization
 
-The [`PyObjectProtocol`](https://docs.rs/pyo3/latest/pyo3/class/basic/trait.PyObjectProtocol.html) trait provides several basic customizations.
+The [`PyObjectProtocol`] trait provides several basic customizations.
 
 #### Attribute access
 
@@ -748,7 +747,7 @@ Each method corresponds to Python's `self.attr`, `self.attr = value` and `del se
 If your type owns references to other Python objects, you will need to
 integrate with Python's garbage collector so that the GC is aware of
 those references.
-To do this, implement the [`PyGCProtocol`](https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html) trait for your struct.
+To do this, implement the [`PyGCProtocol`] trait for your struct.
 It includes two methods `__traverse__` and `__clear__`.
 These correspond to the slots `tp_traverse` and `tp_clear` in the Python C API.
 `__traverse__` must call `visit.call()` for each reference to another Python object.
@@ -842,3 +841,17 @@ pyclass dependent on whether there is an impl block, we'd need to implement the 
 only possible with the specialization feature, which can't be used on stable.
 
 To escape this we use [inventory](https://github.com/dtolnay/inventory), which allows us to collect `impl`s from arbitrary source code by exploiting some binary trick. See [inventory: how it works](https://github.com/dtolnay/inventory#how-it-works) and `pyo3_derive_backend::py_class::impl_inventory` for more details.
+
+[`GILGuard`]: https://docs.rs/pyo3/latest/pyo3/struct.GILGuard.html
+[`PyGCProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/gc/trait.PyGCProtocol.html
+[`PyObjectProtocol`]: https://docs.rs/pyo3/latest/pyo3/class/basic/trait.PyObjectProtocol.html
+[`PyTypeInfo`]: https://docs.rs/pyo3/latest/pyo3/type_object/trait.PyTypeInfo.html
+[`PyTypeObject`]: https://docs.rs/pyo3/latest/pyo3/type_object/trait.PyTypeObject.html
+
+[`PyCell`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html
+[`PyClass`]: https://pyo3.rs/master/doc/pyo3/pyclass/trait.PyClass.html
+[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html
+[`PyClassInitializer<T>`]: https://pyo3.rs/master/doc/pyo3/pyclass_init/struct.PyClassInitializer.html
+
+[`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html

@@ -6,8 +6,7 @@ hold the GIL by default when called from Python, in order to allow manipulation
 of Python objects, you can release the GIL when executing Rust-only code to
 achieve true parallelism.
 
-The [`Python::allow_threads`](https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.allow_threads)
-method temporarily releases the GIL, thus allowing other Python threads to run.
+The [`Python::allow_threads`] method temporarily releases the GIL, thus allowing other Python threads to run.
 
 ```rust,ignore
 impl Python {
@@ -26,7 +25,8 @@ fn wc_parallel(lines: &str, search: &str) -> i32 {
 }
 ```
 
-Then in the Python bridge, we have a function `search` exposed to the Python runtime which calls `wc_parallel` inside a closure passed to `Python::allow_threads` to enable true parallelism:
+Then in the Python bridge, we have a function `search` exposed to the Python runtime which calls
+`wc_parallel` inside a closure passed to [`Python::allow_threads`] to enable true parallelism:
 
 ```rust,ignore
 #[pymodule]
@@ -61,3 +61,6 @@ then we can run `pytest tests` to benchmark them.
 On MacBook Pro (Retina, 15-inch, Mid 2015) the benchmark gives:
 
 ![Benchmark Result](https://user-images.githubusercontent.com/1556054/28604608-81bd6d22-71fe-11e7-8a2c-c3cf3bd0f622.png)
+
+
+[`Python::allow_threads`]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.allow_threads

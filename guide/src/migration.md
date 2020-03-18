@@ -7,7 +7,7 @@ This guide can help you upgrade code through breaking changes from one PyO3 vers
 is now removed and our syntax for constructors has changed.
 
 Before:
-```compile_fail
+```rust,compile_fail
 #[pyclass]
 struct MyClass {}
 
@@ -21,7 +21,7 @@ impl MyClass {
 ```
 
 After:
-```
+```rust
 # use pyo3::prelude::*;
 #[pyclass]
 struct MyClass {}
@@ -39,8 +39,7 @@ Basically you can return `Self` or `Result<Self>` directly.
 For more, see [the constructor section](https://pyo3.rs/master/class.html#constructor) of this guide.
 
 ### PyCell
-PyO3 0.9 introduces [`PyCell`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html), which is
-a [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)-like object wrapper
+PyO3 0.9 introduces [`PyCell`], which is a [`RefCell`]-like object wrapper
 for ensuring Rust's rules regarding aliasing of references are upheld.
 For more detail, see the
 [Rust Book's section on Rust's rules of references](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references)
@@ -50,7 +49,7 @@ Python exceptions will automatically be raised when your functions are used in a
 rules of references.
 
 Here is an example.
-```
+```rust
 # use pyo3::prelude::*;
 #[pyclass]
 struct Names {
@@ -75,25 +74,26 @@ impl Names {
 # try:
 #    names.merge(names)
 #    assert False, 'Unreachable'
-# except Exception as e:
+# except RuntimeError as e:
 #    isinstance(e, borrow_mut_err)
 # ");
 ```
 `Names` has a `merge` method, which takes `&mut self` and another argument of type `&mut Self`.
-Given this `#[pyclass]`, calling `names.merge(names)` in Python raises a `PyBorrowMutError` exception,
-since it requires two mutable borrows of `names`.
+Given this `#[pyclass]`, calling `names.merge(names)` in Python raises
+a [`PyBorrowMutError`] exception, since it requires two mutable borrows of `names`.
 
 However, for `#[pyproto]` and some functions, you need to manually fix the code.
 
 #### Object creation
 In 0.8 object creation was done with `PyRef::new` and `PyRefMut::new`.
 In 0.9 these have both been removed.
-To upgrade code, please use `PyCell::new` instead.
-If a `PyRef` or `PyRefMut` is needed, just call `.borrow()` or `.borrow_mut()`
+To upgrade code, please use
+[`PyCell::new`](https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html#method.new) instead.
+If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()`
 on the newly-created `PyCell`.
 
 Before:
-```compile_fail
+```rust,compile_fail
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -103,7 +103,7 @@ let obj_ref = PyRef::new(py, MyClass {}).unwrap();
 ```
 
 After:
-```
+```rust
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -114,7 +114,7 @@ let obj_ref = obj.borrow();
 ```
 
 #### Object extraction
-For `PyClass` types `T`, `&T` and `&mut T` no longer have `FromPyObject` implementations.
+For `PyClass` types `T`, `&T` and `&mut T` no longer have [`FromPyObject`] implementations.
 Instead you should extract `PyRef<T>` or `PyRefMut<T>`, respectively.
 If `T` implements `Clone`, you can extract `T` itself.
 In addition, you can also extract `&PyCell<T>`, though you rarely need it.
@@ -127,7 +127,7 @@ let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
 ```
 
 After:
-```
+```rust
 # use pyo3::prelude::*;
 # use pyo3::types::IntoPyDict;
 # #[pyclass] #[derive(Clone)] struct MyClass {}
@@ -149,12 +149,13 @@ let obj_ref_mut: PyRefMut<MyClass> = obj.extract().unwrap();
 
 
 #### `#[pyproto]`
-Most of the arguments to methods in `#[pyproto]` impls require a [`FromPyObject`] implementation.
+Most of the arguments to methods in `#[pyproto]` impls require a
+[`FromPyObject`] implementation.
 So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`),
-please use `PyRef` or `PyRefMut` instead.
+please use [`PyRef`] or [`PyRefMut`] instead.
 
 Before:
-```compile_fail
+```rust,compile_fail
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
@@ -172,7 +173,7 @@ impl PySequenceProtocol for ByteSequence {
 ```
 
 After:
-```
+```rust
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
@@ -188,3 +189,12 @@ impl PySequenceProtocol for ByteSequence {
     }
 }
 ```
+
+[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
+
+[`PyCell`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyCell.html
+[`PyBorrowMutError`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyBorrowMutError.html
+[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html
+
+[`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
