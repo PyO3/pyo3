@@ -4,10 +4,9 @@ use crate::gil;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
-use crate::types::PyAny;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
-    PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
+    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;

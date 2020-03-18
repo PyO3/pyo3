@@ -148,6 +148,8 @@ pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::{prepare_freethreaded_python, Python};
 pub use crate::type_object::{type_flags, PyTypeInfo};
+// Since PyAny is as important as PyObject, we expose it to the top level.
+pub use crate::types::PyAny;
 
 // Re-exported for wrap_function
 #[doc(hidden)]

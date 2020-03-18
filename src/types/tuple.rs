@@ -1,17 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::FromPy;
-use crate::err::{PyErr, PyResult};
-use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
-use crate::instance::{AsPyRef, Py, PyNativeType};
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{FromPyObject, IntoPy, PyTryFrom, ToPyObject};
+use crate::{
+    exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
+    PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+};
 use std::slice;
 
 /// Represents a Python `tuple` object.
@@ -256,12 +250,8 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::instance::AsPyRef;
-    use crate::objectprotocol::ObjectProtocol;
-    use crate::types::PyAny;
-    use crate::types::PyTuple;
-    use crate::Python;
-    use crate::{PyTryFrom, ToPyObject};
+    use crate::types::{PyAny, PyTuple};
+    use crate::{AsPyRef, ObjectProtocol, PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]

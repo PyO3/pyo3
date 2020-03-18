@@ -1,19 +1,11 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-
-use crate::err::PyErr;
-use crate::ffi;
-use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::objectprotocol::ObjectProtocol;
-use crate::types::PyAny;
-use crate::FromPyObject;
-use crate::PyResult;
-use crate::Python;
-use crate::ToPyObject;
-use crate::{AsPyPointer, FromPy};
+use crate::{
+    ffi, AsPyPointer, FromPy, FromPyObject, ObjectProtocol, PyAny, PyErr, PyNativeType, PyObject,
+    PyResult, Python, ToPyObject,
+};
 use std::os::raw::c_double;
 
 /// Represents a Python `float` object.

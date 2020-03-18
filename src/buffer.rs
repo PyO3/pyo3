@@ -18,11 +18,7 @@
 
 //! `PyBuffer` implementation
 use crate::err::{self, PyResult};
-use crate::exceptions;
-use crate::ffi;
-use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::Python;
+use crate::{exceptions, ffi, AsPyPointer, PyAny, Python};
 use std::ffi::CStr;
 use std::os::raw;
 use std::pin::Pin;

@@ -4,9 +4,8 @@
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
 use crate::type_object::{PyDowncastImpl, PyTypeInfo};
-use crate::types::PyAny;
 use crate::types::PyTuple;
-use crate::{ffi, gil, Py, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
+use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
 use std::ptr::NonNull;
 
 /// This trait represents that **we can do zero-cost conversion from the object

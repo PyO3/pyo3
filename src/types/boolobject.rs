@@ -1,13 +1,9 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::ffi;
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::types::PyAny;
-use crate::FromPyObject;
-use crate::PyResult;
-use crate::Python;
-use crate::{AsPyPointer, FromPy};
-use crate::{PyTryFrom, ToPyObject};
+use crate::{
+    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ToPyObject,
+};
 
 /// Represents a Python `bool`.
 #[repr(transparent)]

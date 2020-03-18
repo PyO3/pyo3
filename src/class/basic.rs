@@ -10,10 +10,10 @@
 
 use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
-use crate::err::{PyErr, PyResult};
-use crate::objectprotocol::ObjectProtocol;
-use crate::types::PyAny;
-use crate::{exceptions, ffi, FromPyObject, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
+use crate::{
+    exceptions, ffi, FromPyObject, IntoPy, IntoPyPointer, ObjectProtocol, PyAny, PyClass, PyErr,
+    PyObject, PyResult, Python,
+};
 use std::os::raw::c_int;
 
 /// Operators for the __richcmp__ method
@@ -232,7 +232,7 @@ where
             }
 
             let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let arg = py.from_borrowed_ptr::<crate::types::PyAny>(arg);
+            let arg = py.from_borrowed_ptr::<crate::PyAny>(arg);
             call_ref_with_converter!(
                 slf,
                 PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData),

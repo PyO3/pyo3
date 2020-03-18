@@ -6,8 +6,7 @@
 use crate::callback::{BoolCallbackConverter, LenResultConverter, PyObjectCallbackConverter};
 use crate::err::{PyErr, PyResult};
 use crate::objectprotocol::ObjectProtocol;
-use crate::types::PyAny;
-use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject, Python};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, PyAny, PyClass, PyObject, Python};
 use std::os::raw::c_int;
 
 /// Sequence interface

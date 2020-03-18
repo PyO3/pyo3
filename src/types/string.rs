@@ -1,13 +1,10 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::conversion::FromPyObject;
-use crate::conversion::{PyTryFrom, ToPyObject};
-use crate::err::{PyErr, PyResult};
-use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::types::PyAny;
-use crate::{ffi, gil, AsPyPointer, FromPy, IntoPy, Python};
+use crate::{
+    ffi, gil, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
+    PyResult, PyTryFrom, Python, ToPyObject,
+};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;

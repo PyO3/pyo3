@@ -22,7 +22,6 @@ Specifically, the following implementation is generated:
 
 ```rust
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 
 /// Class for demonstration
 struct MyClass {
@@ -326,7 +325,7 @@ that inherit native types. Even in such cases, you can unsafely get a base class
 
 ```rust
 # use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::PyDict;
 use pyo3::{AsPyPointer, PyNativeType};
 use std::collections::HashMap;
 

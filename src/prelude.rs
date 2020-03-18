@@ -19,7 +19,7 @@ pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::Python;
 pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject};
-// This is only part of the prelude because we need it for the pymodule function
-pub use crate::types::PyModule;
+// PyModule is only part of the prelude because we need it for the pymodule function
+pub use crate::types::{PyAny, PyModule};
 pub use pyo3cls::pymodule;
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pyproto};

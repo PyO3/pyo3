@@ -2,16 +2,11 @@
 //
 
 use crate::err::{self, PyErr, PyResult};
-use crate::ffi;
-use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
-use crate::types::PyAny;
-use crate::AsPyPointer;
-use crate::Python;
-use crate::{ToBorrowedObject, ToPyObject};
-use std::ptr;
-use std::{collections, hash};
+use crate::{
+    ffi, AsPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject, ToPyObject,
+};
+use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
 #[repr(transparent)]

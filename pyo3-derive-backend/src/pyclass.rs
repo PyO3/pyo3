@@ -43,7 +43,7 @@ impl Default for PyClassArgs {
             // We need the 0 as value for the constant we're later building using quote for when there
             // are no other flags
             flags: vec![parse_quote! { 0 }],
-            base: parse_quote! { pyo3::types::PyAny },
+            base: parse_quote! { pyo3::PyAny },
             has_extends: false,
         }
     }
@@ -364,12 +364,12 @@ fn impl_class(
     let base_layout = if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::LayoutAsBase }
     } else {
-        quote! { pyo3::pycell::PyCellBase<pyo3::types::PyAny> }
+        quote! { pyo3::pycell::PyCellBase<pyo3::PyAny> }
     };
     let base_nativetype = if attr.has_extends {
         quote! { <Self::BaseType as pyo3::derive_utils::PyBaseTypeUtils>::BaseNativeType }
     } else {
-        quote! { pyo3::types::PyAny }
+        quote! { pyo3::PyAny }
     };
 
     // If #cls is not extended type, we allow Self->PyObject conversion
