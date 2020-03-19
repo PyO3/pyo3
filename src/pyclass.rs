@@ -91,22 +91,20 @@ pub(crate) fn initialize_type_object<T>(
 where
     T: PyClass,
 {
-    // PyPy will segfault if passed only a nul terminator as `tp_doc`.
-    // ptr::null() is OK though.
-    if T::DESCRIPTION == "\0" {
-        type_object.tp_doc = ptr::null();
-    } else {
-        type_object.tp_doc = T::DESCRIPTION.as_ptr() as *const _;
+    type_object.tp_doc = match T::DESCRIPTION {
+        // PyPy will segfault if passed only a nul terminator as `tp_doc`, ptr::null() is OK though.
+        "\0" => ptr::null(),
+        s if s.as_bytes().ends_with(b"\0") => s.as_ptr() as _,
+        // If the description is not null-terminated, create CString and leak it
+        s => CString::new(s)?.into_raw(),
     };
 
     type_object.tp_base = <T::BaseType as PyTypeInfo>::type_object() as *const _ as _;
 
-    let name = match module_name {
-        Some(module_name) => format!("{}.{}", module_name, T::NAME),
-        None => T::NAME.to_string(),
+    type_object.tp_name = match module_name {
+        Some(module_name) => CString::new(format!("{}.{}", module_name, T::NAME))?.into_raw(),
+        None => CString::new(T::NAME)?.into_raw(),
     };
-    let name = CString::new(name).expect("Module name/type name must not contain NUL byte");
-    type_object.tp_name = name.into_raw();
 
     // dealloc
     unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
