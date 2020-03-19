@@ -14,27 +14,27 @@ let v: Vec<i32> = obj.extract()?;
 
 This method is available for many Python object types, and can produce a wide
 variety of Rust types, which you can check out in the implementor list of
-[`FromPyObject`][FromPyObject].
+[`FromPyObject`].
 
-`FromPyObject` is also implemented for your own Rust types wrapped as Python
+[`FromPyObject`] is also implemented for your own Rust types wrapped as Python
 objects (see [the chapter about classes](class.md)).  There, in order to both be
 able to operate on mutable references *and* satisfy Rust's rules of non-aliasing
-mutable references, you have to extract the PyO3 reference wrappers `PyRef<T>`
-and `PyRefMut<T>`.  They work like the reference wrappers of
+mutable references, you have to extract the PyO3 reference wrappers [`PyRef`]
+and [`PyRefMut`].  They work like the reference wrappers of
 `std::cell::RefCell` and ensure (at runtime) that Rust borrows are allowed.
 
 
 ## The `ToPyObject` trait
 
 [`ToPyObject`] is a conversion trait that allows various objects to be
-converted into [`PyObject`][PyObject]. `IntoPy<PyObject>` serves the
+converted into [`PyObject`]. `IntoPy<PyObject>` serves the
 same purpose, except that it consumes `self`.
 
 
 ## `*args` and `**kwargs` for Python object calls
 
 There are several ways how to pass positional and keyword arguments to a Python object call.
-The [`ObjectProtocol`][ObjectProtocol] trait provides two methods:
+The [`ObjectProtocol`] trait provides two methods:
 
 * `call` - call any callable Python object.
 * `call_method` - call a specific method on the object, shorthand for `get_attr` then `call`.
@@ -77,7 +77,7 @@ fn main() {
 ```
 
 `kwargs` can be `None` or `Some(&PyDict)`. You can use the
-[`IntoPyDict`][IntoPyDict] trait to convert other dict-like containers,
+[`IntoPyDict`] trait to convert other dict-like containers,
 e.g. `HashMap` or `BTreeMap`, as well as tuples with up to 10 elements and
 `Vec`s where each element is a two-element tuple.
 
@@ -122,14 +122,23 @@ fn main() {
 
 ## `FromPy<T>` and `IntoPy<T>`
 
-Many conversions in PyO3 can't use `std::convert::From` because they need a GIL token. The `FromPy<T>` trait offers an `from_py` method that works just like `from`, except for taking a `Python<'_>` argument. I.e. `FromPy<T>` could be converting a Rust object into a Python object even though it is called `FromPy` - it doesn't say anything about which side of the conversion is a Python object.
+Many conversions in PyO3 can't use `std::convert::From` because they need a GIL token.
+The [`FromPy`] trait offers an `from_py` method that works just like `from`, except for taking a `Python<'_>` argument.
+I.e. `FromPy<T>` could be converting a Rust object into a Python object even though it is called [`FromPy`] - it doesn't say anything about which side of the conversion is a Python object.
 
-Just like From<T>, if you implement FromPy<T> you gain a blanket implementation of IntoPy<T> for free.
+Just like `From<T>`, if you implement `FromPy<T>` you gain a blanket implementation of [`IntoPy`] for free.
 
-Eventually, traits such as `ToPyObject` will be replaced by this trait and a `FromPy` trait will be added that will implement `IntoPy`, just like with `From` and `Into`.
+Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [`FromPy`] trait will be added that will implement
+[`IntoPy`], just like with `From` and `Into`.
 
+[`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/trait.IntoPy.html
+[`FromPy`]: https://docs.rs/pyo3/latest/pyo3/trait.FromPy.html
+[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/types/trait.FromPyObject.html
 [`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/trait.ToPyObject.html
-[PyObject]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
-[PyTuple]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
-[ObjectProtocol]: https://docs.rs/pyo3/latest/pyo3/trait.ObjectProtocol.html
-[IntoPyDict]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
+[`PyTuple`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
+[`ObjectProtocol`]: https://docs.rs/pyo3/latest/pyo3/trait.ObjectProtocol.html
+[`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
+
+[`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html
+[`PyRefMut`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRefMut.html

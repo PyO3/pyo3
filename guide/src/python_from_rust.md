@@ -27,15 +27,13 @@ fn main() -> Result<(), ()> {
 
 ## Want to run statements? Then use `run`.
 
-[`Python::run`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run)
-is a method to execute one or more
+[`Python::run`] is a method to execute one or more
 [Python statements](https://docs.python.org/3.7/reference/simple_stmts.html).
 This method returns nothing (like any Python statement), but you can get
 access to manipulated objects via the `locals` dict.
 
-You can also use the [`py_run!`](https://pyo3.rs/master/doc/pyo3/macro.py_run.html)
-macro, which is a shorthand for `Python::run`.
-Since `py_run!` panics on exceptions, we recommend you use this macro only for
+You can also use the [`py_run!`] macro, which is a shorthand for [`Python::run`].
+Since [`py_run!`] panics on exceptions, we recommend you use this macro only for
 quickly testing your Python extensions.
 
 ```rust
@@ -103,3 +101,6 @@ let lrelu_result: f64 = activators
 assert_eq!(lrelu_result, -0.2);
 # Ok(()) }
 ```
+
+[`Python::run`]: https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.run
+[`py_run!`]: https://pyo3.rs/master/doc/pyo3/macro.py_run.html

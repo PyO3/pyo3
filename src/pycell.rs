@@ -662,6 +662,8 @@ impl BorrowFlag {
 }
 
 /// An error returned by [`PyCell::try_borrow`](struct.PyCell.html#method.try_borrow).
+///
+/// In Python, you can catch this error by `except RuntimeError`.
 pub struct PyBorrowError {
     _private: (),
 }
@@ -679,6 +681,8 @@ impl fmt::Display for PyBorrowError {
 }
 
 /// An error returned by [`PyCell::try_borrow_mut`](struct.PyCell.html#method.try_borrow_mut).
+///
+/// In Python, you can catch this error by `except RuntimeError`.
 pub struct PyBorrowMutError {
     _private: (),
 }
@@ -695,5 +699,5 @@ impl fmt::Display for PyBorrowMutError {
     }
 }
 
-pyo3_exception!(PyBorrowError, crate::exceptions::Exception);
-pyo3_exception!(PyBorrowMutError, crate::exceptions::Exception);
+pyo3_exception!(PyBorrowError, crate::exceptions::RuntimeError);
+pyo3_exception!(PyBorrowMutError, crate::exceptions::RuntimeError);
