@@ -1,5 +1,5 @@
 use crate::ffi::object::*;
-use crate::ffi::pyport::Py_ssize_t;
+use crate::ffi::pyport::{Py_hash_t, Py_ssize_t};
 use std::os::raw::{c_char, c_int};
 
 #[cfg_attr(windows, link(name = "pythonXY"))]
@@ -79,7 +79,7 @@ extern "C" {
         mp: *mut PyObject,
         key: *mut PyObject,
         item: *mut PyObject,
-        hash: crate::ffi::pyport::Py_hash_t,
+        hash: Py_hash_t,
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItem")]
     pub fn PyDict_DelItem(mp: *mut PyObject, key: *mut PyObject) -> c_int;
@@ -91,6 +91,14 @@ extern "C" {
         pos: *mut Py_ssize_t,
         key: *mut *mut PyObject,
         value: *mut *mut PyObject,
+    ) -> c_int;
+    #[cfg(not(PyPy))]
+    pub fn _PyDict_Next(
+        mp: *mut PyObject,
+        pos: *mut Py_ssize_t,
+        key: *mut *mut PyObject,
+        value: *mut *mut PyObject,
+        hash: *mut Py_hash_t,
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_Keys")]
     pub fn PyDict_Keys(mp: *mut PyObject) -> *mut PyObject;
@@ -104,6 +112,8 @@ extern "C" {
     pub fn PyDict_Copy(mp: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_Contains")]
     pub fn PyDict_Contains(mp: *mut PyObject, key: *mut PyObject) -> c_int;
+    #[cfg(not(PyPy))]
+    pub fn _PyDict_Contains(mp: *mut PyObject, key: *mut PyObject, hash: Py_ssize_t) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_Update")]
     pub fn PyDict_Update(mp: *mut PyObject, other: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_Merge")]
@@ -119,4 +129,6 @@ extern "C" {
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItemString")]
     pub fn PyDict_DelItemString(dp: *mut PyObject, key: *const c_char) -> c_int;
+    #[cfg(not(PyPy))]
+    pub fn _PyObject_GetDictPtr(obj: *mut PyObject) -> *mut *mut PyObject;
 }

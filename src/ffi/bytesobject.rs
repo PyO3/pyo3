@@ -53,4 +53,6 @@ extern "C" {
         s: *mut *mut c_char,
         len: *mut Py_ssize_t,
     ) -> c_int;
+    #[cfg(not(PyPy))]
+    pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }
