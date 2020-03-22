@@ -1,0 +1,23 @@
+error: Expected one of freelist/name/extends/module, but got extend
+ --> $DIR/invalid_pyclass_args.rs:3:11
+  |
+3 | #[pyclass(extend=pyo3::types::PyDict)]
+  |           ^^^^^^
+
+error: Expected type path(e.g., my_mod::MyClass), but got "PyDict"
+ --> $DIR/invalid_pyclass_args.rs:6:21
+  |
+6 | #[pyclass(extends = "PyDict")]
+  |                     ^^^^^^^^
+
+error: Expected single type path(e.g., Name), but got m :: MyClass
+ --> $DIR/invalid_pyclass_args.rs:9:18
+  |
+9 | #[pyclass(name = m::MyClass)]
+  |                  ^^^^^^^^^^
+
+error: Expected string literal(e.g., "mymod"), but got my_module
+  --> $DIR/invalid_pyclass_args.rs:12:20
+   |
+12 | #[pyclass(module = my_module)]
+   |                    ^^^^^^^^^
