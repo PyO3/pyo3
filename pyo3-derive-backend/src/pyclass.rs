@@ -74,12 +74,12 @@ impl PyClassArgs {
 
         macro_rules! expected {
             ($expected: literal) => {
+                expected!($expected, right)
+            };
+            ($expected: literal, $span: ident) => {
                 return Err(syn::Error::new_spanned(
-                    right,
-                    format!(
-                        concat!("Expected ", $expected, ", but got {}"),
-                        quote! { #right }
-                    ),
+                    $span,
+                    concat!("Expected ", $expected),
                 ));
             };
         }
@@ -93,7 +93,7 @@ impl PyClassArgs {
                 syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
                     self.name = Some(exp.clone().into());
                 }
-                _ => expected!("single type path(e.g., Name)"),
+                _ => expected!("type name (e.g., Name)"),
             },
             "extends" => match &**right {
                 syn::Expr::Path(exp) => {
@@ -103,7 +103,7 @@ impl PyClassArgs {
                     };
                     self.has_extends = true;
                 }
-                _ => expected!("type path(e.g., my_mod::MyClass)"),
+                _ => expected!("type path (e.g., my_mod::BaseClass)"),
             },
             "module" => match &**right {
                 syn::Expr::Lit(syn::ExprLit {
@@ -112,17 +112,9 @@ impl PyClassArgs {
                 }) => {
                     self.module = Some(lit.clone());
                 }
-                _ => expected!(r#"string literal(e.g., "mymod")"#),
+                _ => expected!(r#"string literal (e.g., "my_mod")"#),
             },
-            x => {
-                return Err(syn::Error::new_spanned(
-                    left,
-                    format!(
-                        "Expected one of freelist/name/extends/module, but got {}",
-                        x
-                    ),
-                ));
-            }
+            _ => expected!("one of freelist/name/extends/module", left),
         };
 
         Ok(())
@@ -144,10 +136,10 @@ impl PyClassArgs {
             "dict" => {
                 parse_quote! {pyo3::type_flags::DICT}
             }
-            x => {
+            _ => {
                 return Err(syn::Error::new_spanned(
-                    exp.path.clone(),
-                    format!("Expected one of gc/weakref/subclass/dict, but got {}", x),
+                    &exp.path,
+                    "Expected one of gc/weakref/subclass/dict",
                 ))
             }
         };

@@ -12,4 +12,7 @@ struct InvalidName {}
 #[pyclass(module = my_module)]
 struct InvalidModule {}
 
+#[pyclass(weakrev)]
+struct InvalidArg {}
+
 fn main() {}
