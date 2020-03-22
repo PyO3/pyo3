@@ -16,6 +16,7 @@ use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 #[repr(transparent)]
 pub struct PySequence(PyObject, Unsendable);
 pyobject_native_type_named!(PySequence);
+pyobject_native_type_extract!(PySequence);
 
 impl PySequence {
     /// Returns the number of objects in sequence.

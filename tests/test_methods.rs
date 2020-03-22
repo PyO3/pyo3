@@ -499,3 +499,32 @@ fn test_cfg_attrs() {
 
     py_assert!(py, inst, "not hasattr(inst, 'never_compiled_method')");
 }
+
+#[pyclass]
+#[derive(Default)]
+struct FromSequence {
+    #[pyo3(get)]
+    numbers: Vec<i64>,
+}
+
+#[pymethods]
+impl FromSequence {
+    #[new]
+    fn new(seq: Option<&pyo3::types::PySequence>) -> PyResult<Self> {
+        if let Some(seq) = seq {
+            Ok(FromSequence {
+                numbers: seq.as_ref().extract::<Vec<_>>()?,
+            })
+        } else {
+            Ok(FromSequence::default())
+        }
+    }
+}
+
+#[test]
+fn test_from_sequence() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let typeobj = py.get_type::<FromSequence>();
+    py_assert!(py, typeobj, "typeobj(range(0, 4)).numbers == [0, 1, 2, 3]")
+}
