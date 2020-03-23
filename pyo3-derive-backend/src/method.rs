@@ -323,7 +323,7 @@ fn parse_method_attributes(
                 } else if name.is_ident("init") || name.is_ident("__init__") {
                     return Err(syn::Error::new_spanned(
                         name,
-                        "#[init] is disabled from PyO3 0.9.0",
+                        "#[init] is disabled since PyO3 0.9.0",
                     ));
                 } else if name.is_ident("call") || name.is_ident("__call__") {
                     res = Some(FnType::FnCall)
@@ -363,7 +363,7 @@ fn parse_method_attributes(
                 } else if path.is_ident("init") {
                     return Err(syn::Error::new_spanned(
                         path,
-                        "#[init] is disabled from PyO3 0.9.0",
+                        "#[init] is disabled since PyO3 0.9.0",
                     ));
                 } else if path.is_ident("call") {
                     res = Some(FnType::FnCall)
