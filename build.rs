@@ -32,7 +32,7 @@ struct InterpreterConfig {
     /// Prefix used for determining the directory of libpython
     base_prefix: String,
     executable: String,
-    machine: String,
+    calcsize_pointer: Option<u32>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -180,7 +180,7 @@ fn load_cross_compile_info() -> Result<(InterpreterConfig, HashMap<String, Strin
         ld_version: "".to_string(),
         base_prefix: "".to_string(),
         executable: "".to_string(),
-        machine: "".to_string(),
+        calcsize_pointer: None,
     };
 
     Ok((interpreter_config, fix_config_map(config_map)))
@@ -433,10 +433,11 @@ fn find_interpreter_and_get_config() -> Result<(InterpreterConfig, HashMap<Strin
 /// Extract compilation vars from the specified interpreter.
 fn get_config_from_interpreter(interpreter: &str) -> Result<InterpreterConfig> {
     let script = r#"
+import json
+import platform
+import struct
 import sys
 import sysconfig
-import platform
-import json
 
 PYPY = platform.python_implementation() == "PyPy"
 
@@ -456,7 +457,7 @@ print(json.dumps({
     "base_prefix": base_prefix,
     "shared": PYPY or bool(sysconfig.get_config_var('Py_ENABLE_SHARED')),
     "executable": sys.executable,
-    "machine": platform.machine()
+    "calcsize_pointer": struct.calcsize("P"),
 }))
 "#;
     let json = run_python_script(interpreter, script)?;
@@ -475,7 +476,7 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
         }
     }
 
-    check_target_architecture(&interpreter_config.machine)?;
+    check_target_architecture(interpreter_config)?;
 
     let is_extension_module = env::var_os("CARGO_FEATURE_EXTENSION_MODULE").is_some();
     if !is_extension_module || cfg!(target_os = "windows") {
@@ -517,32 +518,39 @@ fn configure(interpreter_config: &InterpreterConfig) -> Result<String> {
     Ok(flags)
 }
 
-fn check_target_architecture(python_machine: &str) -> Result<()> {
+fn check_target_architecture(interpreter_config: &InterpreterConfig) -> Result<()> {
     // Try to check whether the target architecture matches the python library
-    let target_arch = match env::var("CARGO_CFG_TARGET_ARCH")
-        .as_ref()
-        .map(|e| e.as_str())
-    {
-        Ok("x86_64") => Some("64-bit"),
-        Ok("x86") => Some("32-bit"),
-        _ => None, // It might be possible to recognise other architectures, this will do for now.
+    let rust_target = match env::var("CARGO_CFG_TARGET_POINTER_WIDTH")?.as_str() {
+        "64" => "64-bit",
+        "32" => "32-bit",
+        x => bail!("unexpected Rust target pointer width: {}", x),
     };
 
-    let python_arch = match python_machine {
-        "AMD64" | "x86_64" => Some("64-bit"),
-        "i686" | "x86" => Some("32-bit"),
-        _ => None, // It might be possible to recognise other architectures, this will do for now.
+    // The reason we don't use platform.architecture() here is that it's not
+    // reliable on macOS. See https://stackoverflow.com/a/1405971/823869.
+    // Similarly, sys.maxsize is not reliable on Windows. See
+    // https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
+    // and https://stackoverflow.com/a/3411134/823869.
+    let python_target = match interpreter_config.calcsize_pointer {
+        Some(8) => "64-bit",
+        Some(4) => "32-bit",
+        None => {
+            // Unset, e.g. because we're cross-compiling. Don't check anything
+            // in this case.
+            return Ok(());
+        }
+        Some(n) => bail!("unexpected Python calcsize_pointer value: {}", n),
     };
 
-    match (target_arch, python_arch) {
-        // If we could recognise both, and they're different, fail.
-        (Some(t), Some(p)) if p != t => bail!(
+    if rust_target != python_target {
+        bail!(
             "Your Rust target architecture ({}) does not match your python interpreter ({})",
-            t,
-            p
-        ),
-        _ => Ok(()),
+            rust_target,
+            python_target
+        );
     }
+
+    Ok(())
 }
 
 fn check_rustc_version() -> Result<()> {
