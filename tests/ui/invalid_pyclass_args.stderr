@@ -1,0 +1,29 @@
+error: Expected one of freelist/name/extends/module
+ --> $DIR/invalid_pyclass_args.rs:3:11
+  |
+3 | #[pyclass(extend=pyo3::types::PyDict)]
+  |           ^^^^^^
+
+error: Expected type path (e.g., my_mod::BaseClass)
+ --> $DIR/invalid_pyclass_args.rs:6:21
+  |
+6 | #[pyclass(extends = "PyDict")]
+  |                     ^^^^^^^^
+
+error: Expected type name (e.g., Name)
+ --> $DIR/invalid_pyclass_args.rs:9:18
+  |
+9 | #[pyclass(name = m::MyClass)]
+  |                  ^^^^^^^^^^
+
+error: Expected string literal (e.g., "my_mod")
+  --> $DIR/invalid_pyclass_args.rs:12:20
+   |
+12 | #[pyclass(module = my_module)]
+   |                    ^^^^^^^^^
+
+error: Expected one of gc/weakref/subclass/dict
+  --> $DIR/invalid_pyclass_args.rs:15:11
+   |
+15 | #[pyclass(weakrev)]
+   |           ^^^^^^^

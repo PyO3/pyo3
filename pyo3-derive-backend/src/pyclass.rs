@@ -56,72 +56,65 @@ impl PyClassArgs {
         match expr {
             syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => self.add_path(exp),
             syn::Expr::Assign(ref assign) => self.add_assign(assign),
-            _ => Err(syn::Error::new_spanned(expr, "Could not parse arguments")),
+            _ => Err(syn::Error::new_spanned(expr, "Failed to parse arguments")),
         }
     }
 
     /// Match a single flag
     fn add_assign(&mut self, assign: &syn::ExprAssign) -> syn::Result<()> {
-        let key = match *assign.left {
-            syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+        let syn::ExprAssign { left, right, .. } = assign;
+        let key = match &**left {
+            syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
                 exp.path.segments.first().unwrap().ident.to_string()
             }
             _ => {
-                return Err(syn::Error::new_spanned(assign, "could not parse argument"));
+                return Err(syn::Error::new_spanned(assign, "Failed to parse arguments"));
             }
         };
+
+        macro_rules! expected {
+            ($expected: literal) => {
+                expected!($expected, right)
+            };
+            ($expected: literal, $span: ident) => {
+                return Err(syn::Error::new_spanned(
+                    $span,
+                    concat!("Expected ", $expected),
+                ));
+            };
+        }
 
         match key.as_str() {
             "freelist" => {
                 // We allow arbitrary expressions here so you can e.g. use `8*64`
-                self.freelist = Some(*assign.right.clone());
+                self.freelist = Some(syn::Expr::clone(right));
             }
-            "name" => match *assign.right {
-                syn::Expr::Path(ref exp) if exp.path.segments.len() == 1 => {
+            "name" => match &**right {
+                syn::Expr::Path(exp) if exp.path.segments.len() == 1 => {
                     self.name = Some(exp.clone().into());
                 }
-                _ => {
-                    return Err(syn::Error::new_spanned(
-                        *assign.right.clone(),
-                        "Wrong 'name' format",
-                    ));
-                }
+                _ => expected!("type name (e.g., Name)"),
             },
-            "extends" => match *assign.right {
-                syn::Expr::Path(ref exp) => {
+            "extends" => match &**right {
+                syn::Expr::Path(exp) => {
                     self.base = syn::TypePath {
                         path: exp.path.clone(),
                         qself: None,
                     };
                     self.has_extends = true;
                 }
-                _ => {
-                    return Err(syn::Error::new_spanned(
-                        *assign.right.clone(),
-                        "Wrong format for extends",
-                    ));
-                }
+                _ => expected!("type path (e.g., my_mod::BaseClass)"),
             },
-            "module" => match *assign.right {
+            "module" => match &**right {
                 syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Str(ref lit),
+                    lit: syn::Lit::Str(lit),
                     ..
                 }) => {
                     self.module = Some(lit.clone());
                 }
-                _ => {
-                    return Err(syn::Error::new_spanned(
-                        *assign.right.clone(),
-                        "Wrong format for module",
-                    ));
-                }
+                _ => expected!(r#"string literal (e.g., "my_mod")"#),
             },
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    *assign.left.clone(),
-                    "Unsupported parameter",
-                ));
-            }
+            _ => expected!("one of freelist/name/extends/module", left),
         };
 
         Ok(())
@@ -145,9 +138,9 @@ impl PyClassArgs {
             }
             _ => {
                 return Err(syn::Error::new_spanned(
-                    exp.path.clone(),
-                    "Unsupported parameter",
-                ));
+                    &exp.path,
+                    "Expected one of gc/weakref/subclass/dict",
+                ))
             }
         };
 
