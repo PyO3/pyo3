@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+## [0.9.1]
+
 ### Fixed
 
+* Error messages for `#[pyclass]`. [#826](https://github.com/PyO3/pyo3/pull/826)
 * `FromPyObject` implementation for `PySequence`. [#827](https://github.com/PyO3/pyo3/pull/827)
 
 ## [0.9.0]
