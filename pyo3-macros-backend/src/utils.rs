@@ -117,3 +117,10 @@ pub fn ensure_not_async_fn(sig: &syn::Signature) -> syn::Result<()> {
     };
     Ok(())
 }
+
+pub fn unwrap_group(expr: &syn::Expr) -> &syn::Expr {
+    match expr {
+        syn::Expr::Group(syn::ExprGroup { expr, .. }) => &*expr,
+        other => other,
+    }
+}
