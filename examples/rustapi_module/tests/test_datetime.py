@@ -1,6 +1,7 @@
 import datetime as pdt
-import sys
 import platform
+import struct
+import sys
 
 import pytest
 import rustapi_module.datetime as rdt
@@ -40,16 +41,27 @@ MIN_DAYS = pdt.timedelta.min // pdt.timedelta(days=1)
 MAX_MICROSECONDS = int(pdt.timedelta.max.total_seconds() * 1e6)
 MIN_MICROSECONDS = int(pdt.timedelta.min.total_seconds() * 1e6)
 
-IS_X86 = platform.architecture()[0] == "32bit"
+# The reason we don't use platform.architecture() here is that it's not
+# reliable on macOS. See https://stackoverflow.com/a/1405971/823869. Similarly,
+# sys.maxsize is not reliable on Windows. See
+# https://stackoverflow.com/questions/1405913/how-do-i-determine-if-my-python-shell-is-executing-in-32bit-or-64bit-mode-on-os/1405971#comment6209952_1405971
+# and https://stackoverflow.com/a/3411134/823869.
+_pointer_size = struct.calcsize("P")
+if _pointer_size == 8:
+    IS_32_BIT = False
+elif _pointer_size == 4:
+    IS_32_BIT = True
+else:
+    raise RuntimeError("unexpected pointer size: " + repr(_pointer_size))
 IS_WINDOWS = sys.platform == "win32"
 if IS_WINDOWS:
     MIN_DATETIME = pdt.datetime(1970, 1, 2, 0, 0)
-    if IS_X86:
+    if IS_32_BIT:
         MAX_DATETIME = pdt.datetime(3001, 1, 19, 4, 59, 59)
     else:
         MAX_DATETIME = pdt.datetime(3001, 1, 19, 7, 59, 59)
 else:
-    if IS_X86:
+    if IS_32_BIT:
         # TS ±2147483648 (2**31)
         MIN_DATETIME = pdt.datetime(1901, 12, 13, 20, 45, 52)
         MAX_DATETIME = pdt.datetime(2038, 1, 19, 3, 14, 8)
