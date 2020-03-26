@@ -112,7 +112,7 @@ where
         T: PyClassAlloc,
     {
         let py = Python::assume_gil_acquired();
-        let _pool = gil::GILPool::new_no_pointers(py);
+        let _pool = gil::GILPool::new(py);
         <T as PyClassAlloc>::dealloc(py, (obj as *mut T::Layout) as _)
     }
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);
