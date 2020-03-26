@@ -107,7 +107,7 @@ impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.drain(self.python(), self.owned, self.borrowed, true);
+            pool.drain(self.python(), self.owned, self.borrowed);
 
             ffi::PyGILState_Release(self.gstate);
         }
@@ -152,7 +152,7 @@ impl ReleasePool {
         vec.set_len(0);
     }
 
-    pub unsafe fn drain(&mut self, _py: Python, owned: usize, borrowed: usize, pointers: bool) {
+    pub unsafe fn drain(&mut self, _py: Python, owned: usize, borrowed: usize) {
         // Release owned objects(call decref)
         while owned < self.owned.len() {
             let last = self.owned.pop_back().unwrap();
@@ -160,11 +160,7 @@ impl ReleasePool {
         }
         // Release borrowed objects(don't call decref)
         self.borrowed.truncate(borrowed);
-
-        if pointers {
-            self.release_pointers();
-        }
-
+        self.release_pointers();
         self.obj.clear();
     }
 }
@@ -176,7 +172,6 @@ pub struct GILPool<'p> {
     py: Python<'p>,
     owned: usize,
     borrowed: usize,
-    pointers: bool,
     no_send: Unsendable,
 }
 
@@ -188,18 +183,6 @@ impl<'p> GILPool<'p> {
             py,
             owned: p.owned.len(),
             borrowed: p.borrowed.len(),
-            pointers: true,
-            no_send: Unsendable::default(),
-        }
-    }
-    #[inline]
-    pub fn new_no_pointers(py: Python) -> GILPool {
-        let p: &'static mut ReleasePool = unsafe { &mut *POOL };
-        GILPool {
-            py,
-            owned: p.owned.len(),
-            borrowed: p.borrowed.len(),
-            pointers: false,
             no_send: Unsendable::default(),
         }
     }
@@ -209,7 +192,7 @@ impl<'p> Drop for GILPool<'p> {
     fn drop(&mut self) {
         unsafe {
             let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.drain(self.py, self.owned, self.borrowed, self.pointers);
+            pool.drain(self.py, self.owned, self.borrowed);
         }
     }
 }

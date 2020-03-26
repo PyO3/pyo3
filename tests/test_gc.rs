@@ -2,8 +2,7 @@ use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
-use pyo3::{ffi, py_run, AsPyPointer, PyCell, PyTryInto};
+use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -79,52 +78,6 @@ fn data_is_dropped() {
 
     assert!(drop_called1.load(Ordering::Relaxed));
     assert!(drop_called2.load(Ordering::Relaxed));
-}
-
-#[pyclass]
-struct ClassWithDrop {}
-
-impl Drop for ClassWithDrop {
-    fn drop(&mut self) {
-        unsafe {
-            let py = Python::assume_gil_acquired();
-
-            let _empty1: Py<PyTuple> = FromPy::from_py(PyTuple::empty(py), py);
-            let _empty2: PyObject = PyTuple::empty(py).into_py(py);
-            let _empty3: &PyAny = py.from_owned_ptr(ffi::PyTuple_New(0));
-        }
-    }
-}
-
-// Test behavior of pythonrun::register_pointers + type_object::dealloc
-#[test]
-fn create_pointers_in_drop() {
-    let _gil = Python::acquire_gil();
-
-    let ptr;
-    let cnt;
-    {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let empty: PyObject = PyTuple::empty(py).into_py(py);
-        ptr = empty.as_ptr();
-        // substract 2, because `PyTuple::empty(py).into_py(py)` increases the refcnt by 2
-        cnt = empty.get_refcnt() - 2;
-        let inst = Py::new(py, ClassWithDrop {}).unwrap();
-        drop(inst);
-    }
-
-    // empty1 and empty2 are still alive (stored in pointers list)
-    {
-        let _gil = Python::acquire_gil();
-        assert_eq!(cnt + 2, unsafe { ffi::Py_REFCNT(ptr) });
-    }
-
-    // empty1 and empty2 should be released
-    {
-        let _gil = Python::acquire_gil();
-        assert_eq!(cnt, unsafe { ffi::Py_REFCNT(ptr) });
-    }
 }
 
 #[allow(dead_code)]
