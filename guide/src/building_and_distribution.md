@@ -36,7 +36,7 @@ On Linux/macOS you might have to change `LD_LIBRARY_PATH` to include libpython, 
 
 ## Distribution
 
-There are two ways to distribute your module as a Python package: the old, [setuptools-rust](https://github.com/PyO3/setuptools-rust), and the new, [maturin](https://github.com/pyo3/maturin). setuptools-rust needs some configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.) and external tools (docker, twine). maturin doesn't need any configuration files. It can not yet build sdist though ([pyo3/maturin#2](https://github.com/PyO3/maturin/issues/2)).
+There are two ways to distribute your module as a Python package: the old, [setuptools-rust](https://github.com/PyO3/setuptools-rust), and the new, [maturin](https://github.com/pyo3/maturin). setuptools-rust needs some configuration files (`setup.py`, `MANIFEST.in`, `build-wheels.sh`, etc.) and external tools (docker, twine). maturin doesn't need any configuration files, however it does not support some functionality of setuptools such as package data ([pyo3/maturin#258](https://github.com/PyO3/maturin/issues/258)).
 
 ## Cross Compiling
 
