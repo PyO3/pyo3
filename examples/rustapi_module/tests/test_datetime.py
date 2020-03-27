@@ -7,7 +7,6 @@ import pytest
 import rustapi_module.datetime as rdt
 from hypothesis import given, example
 from hypothesis import strategies as st
-from hypothesis.strategies import dates, datetimes
 
 
 # Constants
@@ -78,6 +77,11 @@ xfail_date_bounds = pytest.mark.xfail(
     reason="Date bounds were not checked in the C constructor prior to version 3.6",
 )
 
+xfail_macos_datetime_bounds = pytest.mark.xfail(
+    sys.version_info < (3, 6) and platform.system() == "Darwin",
+    reason="Unclearly failing. See https://github.com/PyO3/pyo3/pull/830 for more.",
+)
+
 
 # Tests
 def test_date():
@@ -98,6 +102,7 @@ def test_invalid_date_fails():
         rdt.make_date(2017, 2, 30)
 
 
+@xfail_macos_datetime_bounds
 @given(d=st.dates(MIN_DATETIME.date(), MAX_DATETIME.date()))
 def test_date_from_timestamp(d):
     if PYPY and d < pdt.date(1900, 1, 1):
@@ -237,6 +242,7 @@ def test_datetime_typeerror():
         rdt.make_datetime("2011", 1, 1, 0, 0, 0, 0)
 
 
+@xfail_macos_datetime_bounds
 @given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
 @example(dt=pdt.datetime(1970, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
