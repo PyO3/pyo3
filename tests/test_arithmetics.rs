@@ -168,6 +168,7 @@ fn binary_arithmetic() {
 
     let c = Py::new(py, BinaryArithmetic {}).unwrap();
     py_run!(py, c, "assert c + c == 'BA + BA'");
+    py_run!(py, c, "assert c.__add__(c) == 'BA + BA'");
     py_run!(py, c, "assert c + 1 == 'BA + 1'");
     py_run!(py, c, "assert 1 + c == '1 + BA'");
     py_run!(py, c, "assert c - 1 == 'BA - 1'");
@@ -195,6 +196,38 @@ impl PyNumberProtocol for RhsArithmetic {
     fn __radd__(&self, other: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} + RA", other))
     }
+
+    fn __rsub__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} - RA", other))
+    }
+
+    fn __rmul__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} * RA", other))
+    }
+
+    fn __rlshift__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} << RA", other))
+    }
+
+    fn __rrshift__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} >> RA", other))
+    }
+
+    fn __rand__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} & RA", other))
+    }
+
+    fn __rxor__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} ^ RA", other))
+    }
+
+    fn __ror__(&self, other: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} | RA", other))
+    }
+
+    fn __rpow__(&self, other: &PyAny, _module: &PyAny) -> PyResult<String> {
+        Ok(format!("{:?} ** RA", other))
+    }
 }
 
 #[test]
@@ -204,9 +237,23 @@ fn rhs_arithmetic() {
 
     let c = Py::new(py, RhsArithmetic {}).unwrap();
     py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
-    // TODO: commented out for now until reflected arithemtics gets fixed.
-    // see discussion here: https://github.com/PyO3/pyo3/pull/550
-    // py_run!(py, c, "assert 1 + c == '1 + RA'");
+    py_run!(py, c, "assert 1 + c == '1 + RA'");
+    py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
+    py_run!(py, c, "assert 1 - c == '1 - RA'");
+    py_run!(py, c, "assert c.__rmul__(1) == '1 * RA'");
+    py_run!(py, c, "assert 1 * c == '1 * RA'");
+    py_run!(py, c, "assert c.__rlshift__(1) == '1 << RA'");
+    py_run!(py, c, "assert 1 << c == '1 << RA'");
+    py_run!(py, c, "assert c.__rrshift__(1) == '1 >> RA'");
+    py_run!(py, c, "assert 1 >> c == '1 >> RA'");
+    py_run!(py, c, "assert c.__rand__(1) == '1 & RA'");
+    py_run!(py, c, "assert 1 & c == '1 & RA'");
+    py_run!(py, c, "assert c.__rxor__(1) == '1 ^ RA'");
+    py_run!(py, c, "assert 1 ^ c == '1 ^ RA'");
+    py_run!(py, c, "assert c.__ror__(1) == '1 | RA'");
+    py_run!(py, c, "assert 1 | c == '1 | RA'");
+    py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
+    py_run!(py, c, "assert 1 ** c == '1 ** RA'");
 }
 
 #[pyclass]
