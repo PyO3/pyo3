@@ -459,7 +459,6 @@ fn impl_descriptors(
         .collect::<syn::Result<_>>()?;
 
     Ok(quote! {
-
         pyo3::inventory::submit! {
             #![crate = pyo3] {
                 type ClsInventory = <#cls as pyo3::class::methods::PyMethodsInventoryDispatch>::InventoryType;

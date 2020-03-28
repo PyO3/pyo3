@@ -7,6 +7,21 @@ pub struct Proto {
     pub py_methods: &'static [PyMethod],
 }
 
+impl Proto {
+    pub(crate) fn get_proto<Q>(&self, query: Q) -> Option<&'static MethodProto>
+    where
+        Q: PartialEq<&'static str>,
+    {
+        self.methods.iter().find(|m| query == m.name())
+    }
+    pub(crate) fn get_method<Q>(&self, query: Q) -> Option<&'static PyMethod>
+    where
+        Q: PartialEq<&'static str>,
+    {
+        self.py_methods.iter().find(|m| query == m.name)
+    }
+}
+
 pub struct PyMethod {
     pub name: &'static str,
     pub proto: &'static str,
