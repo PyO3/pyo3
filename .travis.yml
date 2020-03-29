@@ -37,13 +37,7 @@ env:
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
-      - binutils-dev
-      - libiberty-dev
+      - libgoogle-perftools-dev
 
 before_install:
   - source ./ci/travis/setup.sh
