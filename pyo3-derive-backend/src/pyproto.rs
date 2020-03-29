@@ -75,7 +75,11 @@ fn impl_proto_impl(
                     Err(err) => return err.to_compile_error(),
                 };
                 let meth = pymethod::impl_proto_wrap(ty, &fn_spec);
-
+                let coexist = if m.can_coexist {
+                    quote!(pyo3::ffi::METH_COEXIST)
+                } else {
+                    quote!(0)
+                };
                 py_methods.push(quote! {
                     impl #proto for #ty
                     {
@@ -86,7 +90,8 @@ fn impl_proto_impl(
                             Some(pyo3::class::PyMethodDef {
                                 ml_name: stringify!(#name),
                                 ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
+                                // We need METH_COEXIST here to prevent __add__  from overriding __radd__
+                                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | #coexist,
                                 ml_doc: ""
                             })
                         }

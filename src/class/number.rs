@@ -60,7 +60,7 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __pow__(lhs: Self::Left, rhs: Self::Right, modulo: Self::Modulo) -> Self::Result
+    fn __pow__(lhs: Self::Left, rhs: Self::Right, modulo: Option<Self::Modulo>) -> Self::Result
     where
         Self: PyNumberPowProtocol<'p>,
     {
@@ -145,7 +145,7 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __rpow__(&'p self, other: Self::Other, module: Self::Modulo) -> Self::Result
+    fn __rpow__(&'p self, other: Self::Other, modulo: Option<Self::Modulo>) -> Self::Result
     where
         Self: PyNumberRPowProtocol<'p>,
     {
@@ -224,7 +224,7 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __ipow__(&'p mut self, other: Self::Other, modulo: Self::Modulo) -> Self::Result
+    fn __ipow__(&'p mut self, other: Self::Other, modulo: Option<Self::Modulo>) -> Self::Result
     where
         Self: PyNumberIPowProtocol<'p>,
     {
@@ -304,15 +304,15 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __round__(&'p self) -> Self::Result
-    where
-        Self: PyNumberRoundProtocol<'p>,
-    {
-        unimplemented!()
-    }
     fn __index__(&'p self) -> Self::Result
     where
         Self: PyNumberIndexProtocol<'p>,
+    {
+        unimplemented!()
+    }
+    fn __round__(&'p self, ndigits: Option<Self::NDigits>) -> Self::Result
+    where
+        Self: PyNumberRoundProtocol<'p>,
     {
         unimplemented!()
     }
@@ -610,6 +610,7 @@ pub trait PyNumberFloatProtocol<'p>: PyNumberProtocol<'p> {
 
 pub trait PyNumberRoundProtocol<'p>: PyNumberProtocol<'p> {
     type Success: IntoPy<PyObject>;
+    type NDigits: FromPyObject<'p>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -2137,7 +2138,7 @@ where
     }
 }
 
-trait PyNumberComplexProtocolImpl {
+pub trait PyNumberComplexProtocolImpl {
     fn __complex__() -> Option<PyMethodDef>;
 }
 
@@ -2150,7 +2151,7 @@ where
     }
 }
 
-trait PyNumberRoundProtocolImpl {
+pub trait PyNumberRoundProtocolImpl {
     fn __round__() -> Option<PyMethodDef>;
 }
 

@@ -323,7 +323,11 @@ macro_rules! py_ternary_self_func {
             let arg2 = py.from_borrowed_ptr::<$crate::PyAny>(arg2);
             let result = call_mut!(slf_cell, $f, arg1, arg2);
             match result {
-                Ok(_) => slf,
+                Ok(_) => {
+                    // Without this INCREF, SIGSEGV happens...
+                    ffi::Py_INCREF(slf);
+                    slf
+                }
                 Err(e) => e.restore_and_null(py),
             }
         }

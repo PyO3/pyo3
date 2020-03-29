@@ -8,24 +8,39 @@ use pyo3::py_run;
 mod common;
 
 #[pyclass]
-struct UnaryArithmetic {}
+struct UnaryArithmetic {
+    inner: f64,
+}
+
+impl UnaryArithmetic {
+    fn new(value: f64) -> Self {
+        UnaryArithmetic { inner: value }
+    }
+}
+
+#[pyproto]
+impl PyObjectProtocol for UnaryArithmetic {
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("UA({})", self.inner))
+    }
+}
 
 #[pyproto]
 impl PyNumberProtocol for UnaryArithmetic {
-    fn __neg__(&self) -> PyResult<&'static str> {
-        Ok("neg")
+    fn __neg__(&self) -> PyResult<Self> {
+        Ok(Self::new(-self.inner))
     }
 
-    fn __pos__(&self) -> PyResult<&'static str> {
-        Ok("pos")
+    fn __pos__(&self) -> PyResult<Self> {
+        Ok(Self::new(self.inner))
     }
 
-    fn __abs__(&self) -> PyResult<&'static str> {
-        Ok("abs")
+    fn __abs__(&self) -> PyResult<Self> {
+        Ok(Self::new(self.inner.abs()))
     }
 
-    fn __invert__(&self) -> PyResult<&'static str> {
-        Ok("invert")
+    fn __round__(&self, _ndigits: Option<u32>) -> PyResult<Self> {
+        Ok(Self::new(self.inner.round()))
     }
 }
 
@@ -34,11 +49,12 @@ fn unary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new(py, UnaryArithmetic {}).unwrap();
-    py_run!(py, c, "assert -c == 'neg'");
-    py_run!(py, c, "assert +c == 'pos'");
-    py_run!(py, c, "assert abs(c) == 'abs'");
-    py_run!(py, c, "assert ~c == 'invert'");
+    let c = PyCell::new(py, UnaryArithmetic::new(2.718281)).unwrap();
+    py_run!(py, c, "assert repr(-c) == 'UA(-2.718281)'");
+    py_run!(py, c, "assert repr(+c) == 'UA(2.718281)'");
+    py_run!(py, c, "assert repr(abs(c)) == 'UA(2.718281)'");
+    py_run!(py, c, "assert repr(round(c)) == 'UA(3)'");
+    py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
 }
 
 #[pyclass]
@@ -104,13 +120,17 @@ impl PyNumberProtocol for InPlaceOperations {
         self.value |= other;
         Ok(())
     }
+
+    fn __ipow__(&mut self, other: u32, _mod: Option<u32>) -> PyResult<()> {
+        self.value = self.value.pow(other);
+        Ok(())
+    }
 }
 
 #[test]
 fn inplace_operations() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-
     let init = |value, code| {
         let c = PyCell::new(py, InPlaceOperations { value }).unwrap();
         py_run!(py, c, code);
@@ -124,6 +144,11 @@ fn inplace_operations() {
     init(12, "d = c; c &= 10; assert repr(c) == repr(d) == 'IPO(8)'");
     init(12, "d = c; c |= 3; assert repr(c) == repr(d) == 'IPO(15)'");
     init(12, "d = c; c ^= 5; assert repr(c) == repr(d) == 'IPO(9)'");
+    init(3, "d = c; c **= 4; assert repr(c) == repr(d) == 'IPO(81)'");
+    init(
+        3,
+        "d = c; c.__ipow__(4); assert repr(c) == repr(d) == 'IPO(81)'",
+    );
 }
 
 #[pyproto]
@@ -159,6 +184,10 @@ impl PyNumberProtocol for BinaryArithmetic {
     fn __or__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} | {:?}", lhs, rhs))
     }
+
+    fn __pow__(lhs: &PyAny, rhs: &PyAny, mod_: Option<u32>) -> PyResult<String> {
+        Ok(format!("{:?} ** {:?} (mod: {:?})", lhs, rhs, mod_))
+    }
 }
 
 #[test]
@@ -186,6 +215,10 @@ fn binary_arithmetic() {
     py_run!(py, c, "assert 1 ^ c == '1 ^ BA'");
     py_run!(py, c, "assert c | 1 == 'BA | 1'");
     py_run!(py, c, "assert 1 | c == '1 | BA'");
+    py_run!(py, c, "assert c ** 1 == 'BA ** 1 (mod: None)'");
+    py_run!(py, c, "assert 1 ** c == '1 ** BA (mod: None)'");
+
+    py_run!(py, c, "assert pow(c, 1, 100) == 'BA ** 1 (mod: Some(100))'");
 }
 
 #[pyclass]
@@ -225,7 +258,7 @@ impl PyNumberProtocol for RhsArithmetic {
         Ok(format!("{:?} | RA", other))
     }
 
-    fn __rpow__(&self, other: &PyAny, _module: &PyAny) -> PyResult<String> {
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> PyResult<String> {
         Ok(format!("{:?} ** RA", other))
     }
 }
@@ -269,12 +302,20 @@ impl PyNumberProtocol for LhsAndRhsArithmetic {
         Ok(format!("{:?} - RA", other))
     }
 
+    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> PyResult<String> {
+        Ok(format!("{:?} ** RA", other))
+    }
+
     fn __add__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
     }
 
     fn __sub__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
         Ok(format!("{:?} - {:?}", lhs, rhs))
+    }
+
+    fn __pow__(lhs: &PyAny, rhs: &PyAny, _mod: Option<u32>) -> PyResult<String> {
+        Ok(format!("{:?} ** {:?}", lhs, rhs))
     }
 }
 
@@ -291,10 +332,14 @@ fn lhs_override_rhs() {
     let py = gil.python();
 
     let c = PyCell::new(py, LhsAndRhsArithmetic {}).unwrap();
-    py_run!(py, c, "assert c.__radd__(1) == '1 + BA'");
+    // Not overrided
+    py_run!(py, c, "assert c.__radd__(1) == '1 + RA'");
+    py_run!(py, c, "assert c.__rsub__(1) == '1 - RA'");
+    py_run!(py, c, "assert c.__rpow__(1) == '1 ** RA'");
+    // Overrided
     py_run!(py, c, "assert 1 + c == '1 + BA'");
-    py_run!(py, c, "assert c.__rsub__(1) == '1 - BA'");
     py_run!(py, c, "assert 1 - c == '1 - BA'");
+    py_run!(py, c, "assert 1 ** c == '1 ** BA'");
 }
 
 #[pyclass]
