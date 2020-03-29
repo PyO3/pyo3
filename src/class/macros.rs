@@ -302,14 +302,16 @@ macro_rules! py_ternary_reverse_num_func {
     }};
 }
 
+// NOTE(kngwyu): Somehow __ipow__ causes SIGSEGV in Python < 3.8 when we extract arg2,
+// so we ignore it. It's the same as what CPython does.
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_ternary_self_func {
+macro_rules! py_dummy_ternary_self_func {
     ($trait:ident, $class:ident :: $f:ident) => {{
         unsafe extern "C" fn wrap<T>(
             slf: *mut $crate::ffi::PyObject,
             arg1: *mut $crate::ffi::PyObject,
-            arg2: *mut $crate::ffi::PyObject,
+            _arg2: *mut $crate::ffi::PyObject,
         ) -> *mut $crate::ffi::PyObject
         where
             T: for<'p> $trait<'p>,
@@ -318,20 +320,18 @@ macro_rules! py_ternary_self_func {
 
             let py = $crate::Python::assume_gil_acquired();
             let _pool = $crate::GILPool::new(py);
-            let slf_cell = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-            let arg1 = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
-            let arg2 = py.from_borrowed_ptr::<$crate::PyAny>(arg2);
-            let result = call_mut!(slf_cell, $f, arg1, arg2);
+            let slf_ = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
+            let arg = py.from_borrowed_ptr::<$crate::PyAny>(arg1);
+            let result = call_mut!(slf_, $f, arg);
             match result {
                 Ok(_) => {
-                    // Without this INCREF, SIGSEGV happens...
                     ffi::Py_INCREF(slf);
                     slf
                 }
                 Err(e) => e.restore_and_null(py),
             }
         }
-        Some(wrap::<T>)
+        Some(wrap::<$class>)
     }};
 }
 

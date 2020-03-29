@@ -121,7 +121,7 @@ impl PyNumberProtocol for InPlaceOperations {
         Ok(())
     }
 
-    fn __ipow__(&mut self, other: u32, _mod: Option<u32>) -> PyResult<()> {
+    fn __ipow__(&mut self, other: u32) -> PyResult<()> {
         self.value = self.value.pow(other);
         Ok(())
     }

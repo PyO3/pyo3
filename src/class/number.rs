@@ -224,7 +224,7 @@ pub trait PyNumberProtocol<'p>: PyClass {
     {
         unimplemented!()
     }
-    fn __ipow__(&'p mut self, other: Self::Other, modulo: Option<Self::Modulo>) -> Self::Result
+    fn __ipow__(&'p mut self, other: Self::Other) -> Self::Result
     where
         Self: PyNumberIPowProtocol<'p>,
     {
@@ -544,7 +544,6 @@ pub trait PyNumberIDivmodProtocol<'p>: PyNumberProtocol<'p> {
 
 pub trait PyNumberIPowProtocol<'p>: PyNumberProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Modulo: FromPyObject<'p>;
     type Result: Into<PyResult<()>>;
 }
 
@@ -1280,7 +1279,7 @@ where
     T: for<'p> PyNumberIPowProtocol<'p>,
 {
     fn nb_inplace_power() -> Option<ffi::ternaryfunc> {
-        py_ternary_self_func!(PyNumberIPowProtocol, T::__ipow__)
+        py_dummy_ternary_self_func!(PyNumberIPowProtocol, T::__ipow__)
     }
 }
 

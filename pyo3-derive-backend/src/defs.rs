@@ -602,10 +602,9 @@ pub const NUM: Proto = Proto {
             pyres: false,
             proto: "pyo3::class::number::PyNumberIModProtocol",
         },
-        MethodProto::Ternary {
+        MethodProto::Binary {
             name: "__ipow__",
-            arg1: "Other",
-            arg2: "Modulo",
+            arg: "Other",
             pyres: false,
             proto: "pyo3::class::number::PyNumberIPowProtocol",
         },
