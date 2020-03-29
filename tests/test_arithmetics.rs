@@ -49,10 +49,10 @@ fn unary_arithmetic() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let c = PyCell::new(py, UnaryArithmetic::new(2.718281)).unwrap();
-    py_run!(py, c, "assert repr(-c) == 'UA(-2.718281)'");
-    py_run!(py, c, "assert repr(+c) == 'UA(2.718281)'");
-    py_run!(py, c, "assert repr(abs(c)) == 'UA(2.718281)'");
+    let c = PyCell::new(py, UnaryArithmetic::new(2.7)).unwrap();
+    py_run!(py, c, "assert repr(-c) == 'UA(-2.7)'");
+    py_run!(py, c, "assert repr(+c) == 'UA(2.7)'");
+    py_run!(py, c, "assert repr(abs(c)) == 'UA(2.7)'");
     py_run!(py, c, "assert repr(round(c)) == 'UA(3)'");
     py_run!(py, c, "assert repr(round(c, 1)) == 'UA(3)'");
 }
