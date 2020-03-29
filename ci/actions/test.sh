@@ -1,6 +1,8 @@
 #!/bin/bash
 
-cargo test --features "$FEATURES num-bigint num-complex"
+set -e -u -o pipefail
+
+cargo test --features "${FEATURES:-} num-bigint num-complex"
 (cd pyo3-derive-backend; cargo test)
 
 for example_dir in examples/*; do
