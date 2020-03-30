@@ -4,8 +4,11 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::internal_tricks::Unsendable;
 use crate::{
-    ffi, AsPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, PyObject, PyTryFrom, Python,
+    ToBorrowedObject, ToPyObject,
 };
+use std::cmp;
+use std::collections::{BTreeSet, HashSet};
 use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
@@ -178,6 +181,35 @@ where
             }
         }
         set.into()
+    }
+}
+
+impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
+where
+    K: FromPyObject<'source> + cmp::Eq + hash::Hash,
+    S: hash::BuildHasher + Default,
+{
+    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+        let set = <PySet as PyTryFrom>::try_from(ob)?;
+        let mut ret = HashSet::default();
+        for k in set.iter() {
+            ret.insert(K::extract(k)?);
+        }
+        Ok(ret)
+    }
+}
+
+impl<'source, K> FromPyObject<'source> for BTreeSet<K>
+where
+    K: FromPyObject<'source> + cmp::Ord,
+{
+    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+        let set = <PySet as PyTryFrom>::try_from(ob)?;
+        let mut ret = BTreeSet::default();
+        for k in set.iter() {
+            ret.insert(K::extract(k)?);
+        }
+        Ok(ret)
     }
 }
 
