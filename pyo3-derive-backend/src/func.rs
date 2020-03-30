@@ -69,7 +69,7 @@ impl MethodProto {
     }
 }
 
-pub fn impl_method_proto(
+pub(crate) fn impl_method_proto(
     cls: &syn::Type,
     sig: &mut syn::Signature,
     meth: &MethodProto,

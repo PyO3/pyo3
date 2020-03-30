@@ -63,39 +63,40 @@ fn impl_proto_impl(
 
     for iimpl in impls.iter_mut() {
         if let syn::ImplItem::Method(ref mut met) = iimpl {
-            for m in proto.methods {
-                if met.sig.ident == m.name() {
-                    impl_method_proto(ty, &mut met.sig, m).to_tokens(&mut tokens);
-                }
+            if let Some(m) = proto.get_proto(&met.sig.ident) {
+                impl_method_proto(ty, &mut met.sig, m).to_tokens(&mut tokens);
             }
-            for m in proto.py_methods {
-                if met.sig.ident == m.name {
-                    let name = &met.sig.ident;
-                    let proto: syn::Path = syn::parse_str(m.proto).unwrap();
+            if let Some(m) = proto.get_method(&met.sig.ident) {
+                let name = &met.sig.ident;
+                let proto: syn::Path = syn::parse_str(m.proto).unwrap();
 
-                    let fn_spec = match FnSpec::parse(&met.sig, &mut met.attrs, false) {
-                        Ok(fn_spec) => fn_spec,
-                        Err(err) => return err.to_compile_error(),
-                    };
-                    let meth = pymethod::impl_proto_wrap(ty, &fn_spec);
+                let fn_spec = match FnSpec::parse(&met.sig, &mut met.attrs, false) {
+                    Ok(fn_spec) => fn_spec,
+                    Err(err) => return err.to_compile_error(),
+                };
+                let meth = pymethod::impl_proto_wrap(ty, &fn_spec);
+                let coexist = if m.can_coexist {
+                    quote!(pyo3::ffi::METH_COEXIST)
+                } else {
+                    quote!(0)
+                };
+                py_methods.push(quote! {
+                    impl #proto for #ty
+                    {
+                        #[inline]
+                        fn #name() -> Option<pyo3::class::methods::PyMethodDef> {
+                            #meth
 
-                    py_methods.push(quote! {
-                        impl #proto for #ty
-                        {
-                            #[inline]
-                            fn #name() -> Option<pyo3::class::methods::PyMethodDef> {
-                                #meth
-
-                                Some(pyo3::class::PyMethodDef {
-                                    ml_name: stringify!(#name),
-                                    ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
-                                    ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS,
-                                    ml_doc: ""
-                                })
-                            }
+                            Some(pyo3::class::PyMethodDef {
+                                ml_name: stringify!(#name),
+                                ml_meth: pyo3::class::PyMethodType::PyCFunctionWithKeywords(__wrap),
+                                // We need METH_COEXIST here to prevent __add__  from overriding __radd__
+                                ml_flags: pyo3::ffi::METH_VARARGS | pyo3::ffi::METH_KEYWORDS | #coexist,
+                                ml_doc: ""
+                            })
                         }
-                    });
-                }
+                    }
+                });
             }
         }
     }

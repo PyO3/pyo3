@@ -108,7 +108,6 @@ impl Drop for GILGuard {
         unsafe {
             let pool: &'static mut ReleasePool = &mut *POOL;
             pool.drain(self.python(), self.owned, self.borrowed);
-
             ffi::PyGILState_Release(self.gstate);
         }
     }
