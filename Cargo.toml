@@ -35,7 +35,7 @@ assert_approx_eq = "1.1.0"
 trybuild = "1.0.23"
 
 [build-dependencies]
-regex = "1"
+regex = { version = "1", default_features = false, features = ["std"] }
 version_check = "0.9.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
