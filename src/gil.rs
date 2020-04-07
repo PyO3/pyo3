@@ -3,11 +3,32 @@
 //! Interaction with python's global interpreter lock
 
 use crate::{ffi, internal_tricks::Unsendable, PyAny, Python};
+use std::cell::Cell;
 use std::ptr::NonNull;
 use std::{any, sync};
 
 static START: sync::Once = sync::Once::new();
 static START_PYO3: sync::Once = sync::Once::new();
+
+thread_local! {
+    /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
+    ///
+    /// It will be incremented whenever a GIL-holding RAII struct is created, and decremented
+    /// whenever they are dropped.
+    ///
+    /// As a result, if this thread has the GIL, GIL_COUNT is greater than zero.
+    static GIL_COUNT: Cell<u32> = Cell::new(0);
+}
+
+/// Check whether the GIL is acquired.
+///
+/// Note: This uses pyo3's internal count rather than PyGILState_Check for two reasons:
+///  1) for performance
+///  2) PyGILState_Check always returns 1 if the sub-interpreter APIs have ever been called,
+///     which could lead to incorrect conclusions that the GIL is held.
+fn gil_is_acquired() -> bool {
+    GIL_COUNT.with(|c| c.get() > 0)
+}
 
 /// Prepares the use of Python in a free-threaded context.
 ///
@@ -110,6 +131,8 @@ impl Drop for GILGuard {
             pool.drain(self.python(), self.owned, self.borrowed);
             ffi::PyGILState_Release(self.gstate);
         }
+
+        decrement_gil_count();
     }
 }
 
@@ -177,6 +200,7 @@ pub struct GILPool<'p> {
 impl<'p> GILPool<'p> {
     #[inline]
     pub fn new(py: Python) -> GILPool {
+        increment_gil_count();
         let p: &'static mut ReleasePool = unsafe { &mut *POOL };
         GILPool {
             py,
@@ -193,6 +217,7 @@ impl<'p> Drop for GILPool<'p> {
             let pool: &'static mut ReleasePool = &mut *POOL;
             pool.drain(self.py, self.owned, self.borrowed);
         }
+        decrement_gil_count();
     }
 }
 
@@ -210,7 +235,11 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
 
 pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
     let pool = &mut *POOL;
-    (**pool.p.lock()).push(obj);
+    if gil_is_acquired() {
+        ffi::Py_DECREF(obj.as_ptr())
+    } else {
+        (**pool.p.lock()).push(obj);
+    }
 }
 
 pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
@@ -233,7 +262,12 @@ impl GILGuard {
 
         unsafe {
             let gstate = ffi::PyGILState_Ensure(); // acquire GIL
+            increment_gil_count();
+
+            // Release objects that were dropped since last GIL acquisition
             let pool: &'static mut ReleasePool = &mut *POOL;
+            pool.release_pointers();
+
             GILGuard {
                 owned: pool.owned.len(),
                 borrowed: pool.borrowed.len(),
@@ -248,6 +282,25 @@ impl GILGuard {
     pub fn python(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
+}
+
+/// Increment pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
+#[inline(always)]
+fn increment_gil_count() {
+    GIL_COUNT.with(|c| c.set(c.get() + 1))
+}
+
+/// Decrement pyo3's internal GIL count - to be called whenever GILPool or GILGuard is dropped.
+#[inline(always)]
+fn decrement_gil_count() {
+    GIL_COUNT.with(|c| {
+        let current = c.get();
+        debug_assert!(
+            current > 0,
+            "Negative GIL count detected. Please report this error to the PyO3 repo as a bug."
+        );
+        c.set(current - 1);
+    })
 }
 
 use self::array_list::ArrayList;
@@ -308,7 +361,7 @@ mod array_list {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, NonNull, ReleasePool, POOL};
+    use super::{GILPool, NonNull, ReleasePool, GIL_COUNT, POOL};
     use crate::object::PyObject;
     use crate::AsPyPointer;
     use crate::Python;
@@ -327,7 +380,6 @@ mod test {
 
     #[test]
     fn test_owned() {
-        gil::init_once();
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object();
@@ -356,7 +408,6 @@ mod test {
 
     #[test]
     fn test_owned_nested() {
-        gil::init_once();
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object();
@@ -393,7 +444,6 @@ mod test {
     #[test]
     fn test_borrowed() {
         gil::init_once();
-
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
@@ -420,7 +470,6 @@ mod test {
     #[test]
     fn test_borrowed_nested() {
         gil::init_once();
-
         unsafe {
             let p: &'static mut ReleasePool = &mut *POOL;
 
@@ -455,8 +504,7 @@ mod test {
     }
 
     #[test]
-    fn test_pyobject_drop() {
-        gil::init_once();
+    fn test_pyobject_drop_with_gil_decreases_refcnt() {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = get_object();
@@ -471,13 +519,74 @@ mod test {
                 assert_eq!(p.owned.len(), 0);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
             }
+
+            // With the GIL held, obj can be dropped immediately
+            drop(obj);
+            assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
+        }
+    }
+
+    #[test]
+    fn test_pyobject_drop_without_gil_doesnt_decrease_refcnt() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = get_object();
+        // Ensure that obj does not get freed
+        let _ref = obj.clone_ref(py);
+        let obj_ptr = obj.as_ptr();
+
+        unsafe {
+            let p: &'static mut ReleasePool = &mut *POOL;
+
+            {
+                assert_eq!(p.owned.len(), 0);
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
+            }
+
+            // Without the GIL held, obj cannot be dropped until the next GIL acquire
+            drop(gil);
             drop(obj);
             assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
 
             {
+                // Next time the GIL is acquired, the object is released
                 let _gil = Python::acquire_gil();
+                assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
             }
-            assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
         }
+    }
+
+    #[test]
+    fn test_gil_counts() {
+        // Check GILGuard and GILPool both increase counts correctly
+        let get_gil_count = || GIL_COUNT.with(|c| c.get());
+
+        assert_eq!(get_gil_count(), 0);
+        let gil = Python::acquire_gil();
+        assert_eq!(get_gil_count(), 1);
+
+        let py = gil.python();
+
+        assert_eq!(get_gil_count(), 1);
+        let pool = GILPool::new(py);
+        assert_eq!(get_gil_count(), 2);
+
+        let pool2 = GILPool::new(py);
+        assert_eq!(get_gil_count(), 3);
+
+        drop(pool);
+        assert_eq!(get_gil_count(), 2);
+
+        let gil2 = Python::acquire_gil();
+        assert_eq!(get_gil_count(), 3);
+
+        drop(gil2);
+        assert_eq!(get_gil_count(), 2);
+
+        drop(pool2);
+        assert_eq!(get_gil_count(), 1);
+
+        drop(gil);
+        assert_eq!(get_gil_count(), 0);
     }
 }

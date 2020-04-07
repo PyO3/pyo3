@@ -433,7 +433,7 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyCell<T> {
 /// # let gil = Python::acquire_gil();
 /// # let py = gil.python();
 /// # let sub = PyCell::new(py, Child::new()).unwrap();
-/// # pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 4)'");
+/// # pyo3::py_run!(py, sub, "assert sub.format() == 'Caterpillar(base: Butterfly, cnt: 3)'");
 /// ```
 pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCellInner<T>,
