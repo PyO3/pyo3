@@ -84,7 +84,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItem")]
     pub fn PyDict_DelItem(mp: *mut PyObject, key: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_Clear")]
-    pub fn PyDict_Clear(mp: *mut PyObject) -> ();
+    pub fn PyDict_Clear(mp: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyDict_Next")]
     pub fn PyDict_Next(
         mp: *mut PyObject,

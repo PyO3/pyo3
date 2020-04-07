@@ -22,10 +22,6 @@ pub struct PyStructSequence_Desc {
 extern "C" {
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc) -> *mut PyTypeObject;
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;
-    pub fn PyStructSequence_SetItem(
-        arg1: *mut PyObject,
-        arg2: Py_ssize_t,
-        arg3: *mut PyObject,
-    ) -> ();
+    pub fn PyStructSequence_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject);
     pub fn PyStructSequence_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
 }

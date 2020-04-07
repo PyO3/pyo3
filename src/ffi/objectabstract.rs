@@ -132,7 +132,7 @@ extern "C" {
         strides: *mut Py_ssize_t,
         itemsize: c_int,
         fort: c_char,
-    ) -> ();
+    );
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_FillInfo")]
     pub fn PyBuffer_FillInfo(
         view: *mut Py_buffer,
@@ -143,7 +143,7 @@ extern "C" {
         flags: c_int,
     ) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyBuffer_Release")]
-    pub fn PyBuffer_Release(view: *mut Py_buffer) -> ();
+    pub fn PyBuffer_Release(view: *mut Py_buffer);
 }
 
 #[cfg_attr(windows, link(name = "pythonXY"))]

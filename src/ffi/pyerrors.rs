@@ -9,31 +9,31 @@ use std::os::raw::{c_char, c_int};
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetNone")]
-    pub fn PyErr_SetNone(arg1: *mut PyObject) -> ();
+    pub fn PyErr_SetNone(arg1: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetObject")]
-    pub fn PyErr_SetObject(arg1: *mut PyObject, arg2: *mut PyObject) -> ();
+    pub fn PyErr_SetObject(arg1: *mut PyObject, arg2: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetString")]
-    pub fn PyErr_SetString(exception: *mut PyObject, string: *const c_char) -> ();
+    pub fn PyErr_SetString(exception: *mut PyObject, string: *const c_char);
     #[cfg_attr(PyPy, link_name = "PyPyErr_Occurred")]
     pub fn PyErr_Occurred() -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_Clear")]
-    pub fn PyErr_Clear() -> ();
+    pub fn PyErr_Clear();
     #[cfg_attr(PyPy, link_name = "PyPyErr_Fetch")]
     pub fn PyErr_Fetch(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
-    ) -> ();
+    );
     #[cfg_attr(PyPy, link_name = "PyPyErr_Restore")]
-    pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> ();
+    pub fn PyErr_Restore(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_GetExcInfo")]
     pub fn PyErr_GetExcInfo(
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
-    ) -> ();
+    );
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetExcInfo")]
-    pub fn PyErr_SetExcInfo(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject) -> ();
+    pub fn PyErr_SetExcInfo(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPy_FatalError")]
     pub fn Py_FatalError(message: *const c_char) -> !;
     #[cfg_attr(PyPy, link_name = "PyPyErr_GivenExceptionMatches")]
@@ -45,7 +45,7 @@ extern "C" {
         arg1: *mut *mut PyObject,
         arg2: *mut *mut PyObject,
         arg3: *mut *mut PyObject,
-    ) -> ();
+    );
     #[cfg_attr(PyPy, link_name = "PyPyException_SetTraceback")]
     pub fn PyException_SetTraceback(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyException_GetTraceback")]
@@ -53,11 +53,11 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyException_GetCause")]
     pub fn PyException_GetCause(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyException_SetCause")]
-    pub fn PyException_SetCause(arg1: *mut PyObject, arg2: *mut PyObject) -> ();
+    pub fn PyException_SetCause(arg1: *mut PyObject, arg2: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyException_GetContext")]
     pub fn PyException_GetContext(arg1: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyException_SetContext")]
-    pub fn PyException_SetContext(arg1: *mut PyObject, arg2: *mut PyObject) -> ();
+    pub fn PyException_SetContext(arg1: *mut PyObject, arg2: *mut PyObject);
 }
 
 #[inline]
@@ -277,8 +277,8 @@ extern "C" {
         arg3: *mut PyObject,
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_BadInternalCall")]
-    pub fn PyErr_BadInternalCall() -> ();
-    pub fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int) -> ();
+    pub fn PyErr_BadInternalCall();
+    pub fn _PyErr_BadInternalCall(filename: *const c_char, lineno: c_int);
     #[cfg_attr(PyPy, link_name = "PyPyErr_NewException")]
     pub fn PyErr_NewException(
         name: *const c_char,
@@ -293,13 +293,13 @@ extern "C" {
         dict: *mut PyObject,
     ) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyErr_WriteUnraisable")]
-    pub fn PyErr_WriteUnraisable(arg1: *mut PyObject) -> ();
+    pub fn PyErr_WriteUnraisable(arg1: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyErr_CheckSignals")]
     pub fn PyErr_CheckSignals() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyErr_SetInterrupt")]
-    pub fn PyErr_SetInterrupt() -> ();
-    pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int) -> ();
-    pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int) -> ();
+    pub fn PyErr_SetInterrupt();
+    pub fn PyErr_SyntaxLocation(filename: *const c_char, lineno: c_int);
+    pub fn PyErr_SyntaxLocationEx(filename: *const c_char, lineno: c_int, col_offset: c_int);
     pub fn PyErr_ProgramText(filename: *const c_char, lineno: c_int) -> *mut PyObject;
     #[cfg(not(PyPy))]
     pub fn PyUnicodeDecodeError_Create(

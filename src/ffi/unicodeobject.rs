@@ -116,8 +116,8 @@ extern "C" {
     //                             vargs: va_list) -> *mut PyObject;
     pub fn PyUnicode_FromFormat(format: *const c_char, ...) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_InternInPlace")]
-    pub fn PyUnicode_InternInPlace(arg1: *mut *mut PyObject) -> ();
-    pub fn PyUnicode_InternImmortal(arg1: *mut *mut PyObject) -> ();
+    pub fn PyUnicode_InternInPlace(arg1: *mut *mut PyObject);
+    pub fn PyUnicode_InternImmortal(arg1: *mut *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_InternFromString")]
     pub fn PyUnicode_InternFromString(u: *const c_char) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_FromWideChar")]
@@ -389,8 +389,8 @@ extern "C" {
     pub fn PyUnicode_EncodeFSDefault(unicode: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Concat")]
     pub fn PyUnicode_Concat(left: *mut PyObject, right: *mut PyObject) -> *mut PyObject;
-    pub fn PyUnicode_Append(pleft: *mut *mut PyObject, right: *mut PyObject) -> ();
-    pub fn PyUnicode_AppendAndDel(pleft: *mut *mut PyObject, right: *mut PyObject) -> ();
+    pub fn PyUnicode_Append(pleft: *mut *mut PyObject, right: *mut PyObject);
+    pub fn PyUnicode_AppendAndDel(pleft: *mut *mut PyObject, right: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Split")]
     pub fn PyUnicode_Split(
         s: *mut PyObject,
