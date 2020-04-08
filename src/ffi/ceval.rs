@@ -45,7 +45,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPy_MakePendingCalls")]
     pub fn Py_MakePendingCalls() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPy_SetRecursionLimit")]
-    pub fn Py_SetRecursionLimit(arg1: c_int) -> ();
+    pub fn Py_SetRecursionLimit(arg1: c_int);
     #[cfg_attr(PyPy, link_name = "PyPy_GetRecursionLimit")]
     pub fn Py_GetRecursionLimit() -> c_int;
     fn _Py_CheckRecursiveCall(_where: *mut c_char) -> c_int;
@@ -74,7 +74,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_SaveThread")]
     pub fn PyEval_SaveThread() -> *mut PyThreadState;
     #[cfg_attr(PyPy, link_name = "PyPyEval_RestoreThread")]
-    pub fn PyEval_RestoreThread(arg1: *mut PyThreadState) -> ();
+    pub fn PyEval_RestoreThread(arg1: *mut PyThreadState);
 }
 
 #[cfg(py_sys_config = "WITH_THREAD")]
@@ -83,13 +83,13 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyEval_ThreadsInitialized")]
     pub fn PyEval_ThreadsInitialized() -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyEval_InitThreads")]
-    pub fn PyEval_InitThreads() -> ();
-    pub fn PyEval_AcquireLock() -> ();
-    pub fn PyEval_ReleaseLock() -> ();
+    pub fn PyEval_InitThreads();
+    pub fn PyEval_AcquireLock();
+    pub fn PyEval_ReleaseLock();
     #[cfg_attr(PyPy, link_name = "PyPyEval_AcquireThread")]
-    pub fn PyEval_AcquireThread(tstate: *mut PyThreadState) -> ();
+    pub fn PyEval_AcquireThread(tstate: *mut PyThreadState);
     #[cfg_attr(PyPy, link_name = "PyPyEval_ReleaseThread")]
-    pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState) -> ();
+    pub fn PyEval_ReleaseThread(tstate: *mut PyThreadState);
     #[cfg(not(Py_3_8))]
-    pub fn PyEval_ReInitThreads() -> ();
+    pub fn PyEval_ReInitThreads();
 }

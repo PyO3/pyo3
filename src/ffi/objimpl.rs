@@ -11,7 +11,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Realloc")]
     pub fn PyObject_Realloc(ptr: *mut c_void, new_size: size_t) -> *mut c_void;
     #[cfg_attr(PyPy, link_name = "PyPyObject_Free")]
-    pub fn PyObject_Free(ptr: *mut c_void) -> ();
+    pub fn PyObject_Free(ptr: *mut c_void);
 
     #[cfg(not(Py_LIMITED_API))]
     pub fn _Py_GetAllocatedBlocks() -> Py_ssize_t;
@@ -37,7 +37,7 @@ extern "C" {
 pub struct PyObjectArenaAllocator {
     pub ctx: *mut c_void,
     pub alloc: Option<extern "C" fn(ctx: *mut c_void, size: size_t) -> *mut c_void>,
-    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t) -> ()>,
+    pub free: Option<extern "C" fn(ctx: *mut c_void, ptr: *mut c_void, size: size_t)>,
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -50,8 +50,8 @@ impl Default for PyObjectArenaAllocator {
 #[cfg(not(Py_LIMITED_API))]
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
-    pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator) -> ();
-    pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator) -> ();
+    pub fn PyObject_GetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
+    pub fn PyObject_SetArenaAllocator(allocator: *mut PyObjectArenaAllocator);
 }
 
 /// Test if a type has a GC head
@@ -84,10 +84,10 @@ extern "C" {
     pub fn _PyObject_GC_New(arg1: *mut PyTypeObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "_PyPyObject_GC_NewVar")]
     pub fn _PyObject_GC_NewVar(arg1: *mut PyTypeObject, arg2: Py_ssize_t) -> *mut PyVarObject;
-    pub fn PyObject_GC_Track(arg1: *mut c_void) -> ();
-    pub fn PyObject_GC_UnTrack(arg1: *mut c_void) -> ();
+    pub fn PyObject_GC_Track(arg1: *mut c_void);
+    pub fn PyObject_GC_UnTrack(arg1: *mut c_void);
     #[cfg_attr(PyPy, link_name = "PyPyObject_GC_Del")]
-    pub fn PyObject_GC_Del(arg1: *mut c_void) -> ();
+    pub fn PyObject_GC_Del(arg1: *mut c_void);
 }
 
 /// Test if a type supports weak references
