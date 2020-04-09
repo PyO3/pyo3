@@ -8,11 +8,11 @@
 //! Parts of the documentation are copied from the respective methods from the
 //! [typeobj docs](https://docs.python.org/3/c-api/typeobj.html)
 
-use crate::callback::{BoolCallbackConverter, HashConverter, PyObjectCallbackConverter};
+use crate::callback::HashCallbackOutput;
 use crate::class::methods::PyMethodDef;
 use crate::{
-    exceptions, ffi, FromPyObject, IntoPy, IntoPyPointer, ObjectProtocol, PyAny, PyClass, PyErr,
-    PyObject, PyResult, Python,
+    callback, exceptions, ffi, run_callback, FromPyObject, GILPool, IntoPy, ObjectProtocol, PyAny,
+    PyCell, PyClass, PyErr, PyObject, PyResult, Python,
 };
 use std::os::raw::c_int;
 
@@ -219,27 +219,23 @@ where
             T: for<'p> PyObjectGetAttrProtocol<'p>,
         {
             let py = Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
+            run_callback(py, || {
+                let _pool = GILPool::new(py);
 
-            // Behave like python's __getattr__ (as opposed to __getattribute__) and check
-            // for existing fields and methods first
-            let existing = ffi::PyObject_GenericGetAttr(slf, arg);
-            if existing.is_null() {
-                // PyObject_HasAttr also tries to get an object and clears the error if it fails
-                ffi::PyErr_Clear();
-            } else {
-                return existing;
-            }
+                // Behave like python's __getattr__ (as opposed to __getattribute__) and check
+                // for existing fields and methods first
+                let existing = ffi::PyObject_GenericGetAttr(slf, arg);
+                if existing.is_null() {
+                    // PyObject_HasAttr also tries to get an object and clears the error if it fails
+                    ffi::PyErr_Clear();
+                } else {
+                    return Ok(existing);
+                }
 
-            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let arg = py.from_borrowed_ptr::<crate::PyAny>(arg);
-            call_ref_with_converter!(
-                slf,
-                PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData),
-                py,
-                __getattr__,
-                arg
-            )
+                let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+                let arg = py.from_borrowed_ptr::<PyAny>(arg);
+                callback::convert(py, call_ref!(slf, __getattr__, arg))
+            })
         }
         Some(wrap::<T>)
     }
@@ -357,11 +353,7 @@ where
     T: for<'p> PyObjectStrProtocol<'p>,
 {
     fn tp_str() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyObjectStrProtocol,
-            T::__str__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyObjectStrProtocol, T::__str__)
     }
 }
 
@@ -381,11 +373,7 @@ where
     T: for<'p> PyObjectReprProtocol<'p>,
 {
     fn tp_repr() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyObjectReprProtocol,
-            T::__repr__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyObjectReprProtocol, T::__repr__)
     }
 }
 
@@ -447,8 +435,8 @@ where
         py_unary_func!(
             PyObjectHashProtocol,
             T::__hash__,
-            HashConverter::<isize>(std::marker::PhantomData),
-            ffi::Py_hash_t
+            ffi::Py_hash_t,
+            HashCallbackOutput
         )
     }
 }
@@ -469,12 +457,7 @@ where
     T: for<'p> PyObjectBoolProtocol<'p>,
 {
     fn nb_bool() -> Option<ffi::inquiry> {
-        py_unary_func!(
-            PyObjectBoolProtocol,
-            T::__bool__,
-            BoolCallbackConverter,
-            c_int
-        )
+        py_unary_func!(PyObjectBoolProtocol, T::__bool__, c_int)
     }
 }
 
@@ -503,26 +486,17 @@ where
             T: for<'p> PyObjectRichcmpProtocol<'p>,
         {
             let py = Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
-            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let arg = py.from_borrowed_ptr::<PyAny>(arg);
+            run_callback(py, || {
+                let _pool = GILPool::new(py);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+                let arg = py.from_borrowed_ptr::<PyAny>(arg);
 
-            match slf.try_borrow() {
-                Ok(borrowed_slf) => {
-                    let res = match extract_op(op) {
-                        Ok(op) => match arg.extract() {
-                            Ok(arg) => borrowed_slf.__richcmp__(arg, op).into(),
-                            Err(e) => Err(e),
-                        },
-                        Err(e) => Err(e),
-                    };
-                    match res {
-                        Ok(val) => val.into_py(py).into_ptr(),
-                        Err(e) => e.restore_and_null(py),
-                    }
-                }
-                Err(e) => PyErr::from(e).restore_and_null(py),
-            }
+                let borrowed_slf = slf.try_borrow()?;
+                let op = extract_op(op)?;
+                let arg = arg.extract()?;
+                let result = borrowed_slf.__richcmp__(arg, op).into();
+                callback::convert(py, result)
+            })
         }
         Some(wrap::<T>)
     }

@@ -3,10 +3,9 @@
 //! Python Mapping Interface
 //! Trait and support implementation for implementing mapping support
 
-use crate::callback::{LenResultConverter, PyObjectCallbackConverter};
 use crate::class::methods::PyMethodDef;
 use crate::err::{PyErr, PyResult};
-use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject, Python};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -141,7 +140,7 @@ where
 {
     #[inline]
     fn mp_length() -> Option<ffi::lenfunc> {
-        py_len_func!(PyMappingLenProtocol, T::__len__, LenResultConverter)
+        py_len_func!(PyMappingLenProtocol, T::__len__)
     }
 }
 
@@ -164,11 +163,7 @@ where
 {
     #[inline]
     fn mp_subscript() -> Option<ffi::binaryfunc> {
-        py_binary_func!(
-            PyMappingGetItemProtocol,
-            T::__getitem__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_func!(PyMappingGetItemProtocol, T::__getitem__)
     }
 }
 

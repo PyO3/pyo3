@@ -68,7 +68,7 @@ extern "C" {
     pub fn PyImport_Import(name: *mut PyObject) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyImport_ReloadModule")]
     pub fn PyImport_ReloadModule(m: *mut PyObject) -> *mut PyObject;
-    pub fn PyImport_Cleanup() -> ();
+    pub fn PyImport_Cleanup();
     pub fn PyImport_ImportFrozenModuleObject(name: *mut PyObject) -> c_int;
     pub fn PyImport_ImportFrozenModule(name: *const c_char) -> c_int;
 

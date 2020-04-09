@@ -7,9 +7,44 @@ pub struct Proto {
     pub py_methods: &'static [PyMethod],
 }
 
+impl Proto {
+    pub(crate) fn get_proto<Q>(&self, query: Q) -> Option<&'static MethodProto>
+    where
+        Q: PartialEq<&'static str>,
+    {
+        self.methods.iter().find(|m| query == m.name())
+    }
+    pub(crate) fn get_method<Q>(&self, query: Q) -> Option<&'static PyMethod>
+    where
+        Q: PartialEq<&'static str>,
+    {
+        self.py_methods.iter().find(|m| query == m.name)
+    }
+}
+
+// TODO(kngwyu): Currently only __radd__-like methods use METH_COEXIST to prevent
+// __add__-like methods from overriding them.
 pub struct PyMethod {
     pub name: &'static str,
     pub proto: &'static str,
+    pub can_coexist: bool,
+}
+
+impl PyMethod {
+    const fn coexist(name: &'static str, proto: &'static str) -> Self {
+        PyMethod {
+            name,
+            proto,
+            can_coexist: true,
+        }
+    }
+    const fn new(name: &'static str, proto: &'static str) -> Self {
+        PyMethod {
+            name,
+            proto,
+            can_coexist: false,
+        }
+    }
 }
 
 pub const OBJECT: Proto = Proto {
@@ -73,18 +108,9 @@ pub const OBJECT: Proto = Proto {
         },
     ],
     py_methods: &[
-        PyMethod {
-            name: "__format__",
-            proto: "pyo3::class::basic::FormatProtocolImpl",
-        },
-        PyMethod {
-            name: "__bytes__",
-            proto: "pyo3::class::basic::BytesProtocolImpl",
-        },
-        PyMethod {
-            name: "__unicode__",
-            proto: "pyo3::class::basic::UnicodeProtocolImpl",
-        },
+        PyMethod::new("__format__", "pyo3::class::basic::FormatProtocolImpl"),
+        PyMethod::new("__bytes__", "pyo3::class::basic::BytesProtocolImpl"),
+        PyMethod::new("__unicode__", "pyo3::class::basic::UnicodeProtocolImpl"),
     ],
 };
 
@@ -120,14 +146,14 @@ pub const ASYNC: Proto = Proto {
         },
     ],
     py_methods: &[
-        PyMethod {
-            name: "__aenter__",
-            proto: "pyo3::class::pyasync::PyAsyncAenterProtocolImpl",
-        },
-        PyMethod {
-            name: "__aexit__",
-            proto: "pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
-        },
+        PyMethod::new(
+            "__aenter__",
+            "pyo3::class::pyasync::PyAsyncAenterProtocolImpl",
+        ),
+        PyMethod::new(
+            "__aexit__",
+            "pyo3::class::pyasync::PyAsyncAexitProtocolImpl",
+        ),
     ],
 };
 
@@ -165,14 +191,14 @@ pub const CONTEXT: Proto = Proto {
         },
     ],
     py_methods: &[
-        PyMethod {
-            name: "__enter__",
-            proto: "pyo3::class::context::PyContextEnterProtocolImpl",
-        },
-        PyMethod {
-            name: "__exit__",
-            proto: "pyo3::class::context::PyContextExitProtocolImpl",
-        },
+        PyMethod::new(
+            "__enter__",
+            "pyo3::class::context::PyContextEnterProtocolImpl",
+        ),
+        PyMethod::new(
+            "__exit__",
+            "pyo3::class::context::PyContextExitProtocolImpl",
+        ),
     ],
 };
 
@@ -222,14 +248,11 @@ pub const DESCR: Proto = Proto {
         },
     ],
     py_methods: &[
-        PyMethod {
-            name: "__del__",
-            proto: "pyo3::class::context::PyDescrDelProtocolImpl",
-        },
-        PyMethod {
-            name: "__set_name__",
-            proto: "pyo3::class::context::PyDescrNameProtocolImpl",
-        },
+        PyMethod::new("__del__", "pyo3::class::context::PyDescrDelProtocolImpl"),
+        PyMethod::new(
+            "__set_name__",
+            "pyo3::class::context::PyDescrNameProtocolImpl",
+        ),
     ],
 };
 
@@ -283,10 +306,10 @@ pub const MAPPING: Proto = Proto {
             proto: "pyo3::class::mapping::PyMappingReversedProtocol",
         },
     ],
-    py_methods: &[PyMethod {
-        name: "__reversed__",
-        proto: "pyo3::class::mapping::PyMappingReversedProtocolImpl",
-    }],
+    py_methods: &[PyMethod::new(
+        "__reversed__",
+        "pyo3::class::mapping::PyMappingReversedProtocolImpl",
+    )],
 };
 
 pub const SEQ: Proto = Proto {
@@ -579,10 +602,9 @@ pub const NUM: Proto = Proto {
             pyres: false,
             proto: "pyo3::class::number::PyNumberIModProtocol",
         },
-        MethodProto::Ternary {
+        MethodProto::Binary {
             name: "__ipow__",
-            arg1: "Other",
-            arg2: "Modulo",
+            arg: "Other",
             pyres: false,
             proto: "pyo3::class::number::PyNumberIPowProtocol",
         },
@@ -652,80 +674,57 @@ pub const NUM: Proto = Proto {
             proto: "pyo3::class::number::PyNumberFloatProtocol",
         },
         MethodProto::Unary {
-            name: "__round__",
-            pyres: true,
-            proto: "pyo3::class::number::PyNumberRoundProtocol",
-        },
-        MethodProto::Unary {
             name: "__index__",
             pyres: true,
             proto: "pyo3::class::number::PyNumberIndexProtocol",
         },
+        MethodProto::Binary {
+            name: "__round__",
+            arg: "NDigits",
+            pyres: true,
+            proto: "pyo3::class::number::PyNumberRoundProtocol",
+        },
     ],
     py_methods: &[
-        PyMethod {
-            name: "__radd__",
-            proto: "pyo3::class::number::PyNumberRAddProtocolImpl",
-        },
-        PyMethod {
-            name: "__rsub__",
-            proto: "pyo3::class::number::PyNumberRSubProtocolImpl",
-        },
-        PyMethod {
-            name: "__rmul__",
-            proto: "pyo3::class::number::PyNumberRMulProtocolImpl",
-        },
-        PyMethod {
-            name: "__rmatmul__",
-            proto: "pyo3::class::number::PyNumberRMatmulProtocolImpl",
-        },
-        PyMethod {
-            name: "__rtruediv__",
-            proto: "pyo3::class::number::PyNumberRTruedivProtocolImpl",
-        },
-        PyMethod {
-            name: "__rfloordiv__",
-            proto: "pyo3::class::number::PyNumberRFloordivProtocolImpl",
-        },
-        PyMethod {
-            name: "__rmod__",
-            proto: "pyo3::class::number::PyNumberRModProtocolImpl",
-        },
-        PyMethod {
-            name: "__rdivmod__",
-            proto: "pyo3::class::number::PyNumberRDivmodProtocolImpl",
-        },
-        PyMethod {
-            name: "__rpow__",
-            proto: "pyo3::class::number::PyNumberRPowProtocolImpl",
-        },
-        PyMethod {
-            name: "__rlshift__",
-            proto: "pyo3::class::number::PyNumberRLShiftProtocolImpl",
-        },
-        PyMethod {
-            name: "__rrshift__",
-            proto: "pyo3::class::number::PyNumberRRShiftProtocolImpl",
-        },
-        PyMethod {
-            name: "__rand__",
-            proto: "pyo3::class::number::PyNumberRAndProtocolImpl",
-        },
-        PyMethod {
-            name: "__rxor__",
-            proto: "pyo3::class::number::PyNumberRXorProtocolImpl",
-        },
-        PyMethod {
-            name: "__ror__",
-            proto: "pyo3::class::number::PyNumberROrProtocolImpl",
-        },
-        PyMethod {
-            name: "__complex__",
-            proto: "pyo3::class::number::PyNumberComplexProtocolImpl",
-        },
-        PyMethod {
-            name: "__round__",
-            proto: "pyo3::class::number::PyNumberRoundProtocolImpl",
-        },
+        PyMethod::coexist("__radd__", "pyo3::class::number::PyNumberRAddProtocolImpl"),
+        PyMethod::coexist("__rsub__", "pyo3::class::number::PyNumberRSubProtocolImpl"),
+        PyMethod::coexist("__rmul__", "pyo3::class::number::PyNumberRMulProtocolImpl"),
+        PyMethod::coexist(
+            "__rmatmul__",
+            "pyo3::class::number::PyNumberRMatmulProtocolImpl",
+        ),
+        PyMethod::coexist(
+            "__rtruediv__",
+            "pyo3::class::number::PyNumberRTruedivProtocolImpl",
+        ),
+        PyMethod::coexist(
+            "__rfloordiv__",
+            "pyo3::class::number::PyNumberRFloordivProtocolImpl",
+        ),
+        PyMethod::coexist("__rmod__", "pyo3::class::number::PyNumberRModProtocolImpl"),
+        PyMethod::coexist(
+            "__rdivmod__",
+            "pyo3::class::number::PyNumberRDivmodProtocolImpl",
+        ),
+        PyMethod::coexist("__rpow__", "pyo3::class::number::PyNumberRPowProtocolImpl"),
+        PyMethod::coexist(
+            "__rlshift__",
+            "pyo3::class::number::PyNumberRLShiftProtocolImpl",
+        ),
+        PyMethod::coexist(
+            "__rrshift__",
+            "pyo3::class::number::PyNumberRRShiftProtocolImpl",
+        ),
+        PyMethod::coexist("__rand__", "pyo3::class::number::PyNumberRAndProtocolImpl"),
+        PyMethod::coexist("__rxor__", "pyo3::class::number::PyNumberRXorProtocolImpl"),
+        PyMethod::coexist("__ror__", "pyo3::class::number::PyNumberROrProtocolImpl"),
+        PyMethod::new(
+            "__complex__",
+            "pyo3::class::number::PyNumberComplexProtocolImpl",
+        ),
+        PyMethod::new(
+            "__round__",
+            "pyo3::class::number::PyNumberRoundProtocolImpl",
+        ),
     ],
 };

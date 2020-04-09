@@ -98,9 +98,14 @@ where
                 arg,
                 _py: py,
             };
-            match slf.borrow().__traverse__(visit) {
-                Ok(()) => 0,
-                Err(PyTraverseError(code)) => code,
+
+            if let Ok(borrow) = slf.try_borrow() {
+                match borrow.__traverse__(visit) {
+                    Ok(()) => 0,
+                    Err(PyTraverseError(code)) => code,
+                }
+            } else {
+                0
             }
         }
 

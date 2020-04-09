@@ -2,6 +2,7 @@ use pyo3::class::PyGCProtocol;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::prelude::*;
+use pyo3::type_object::PyTypeObject;
 use pyo3::{py_run, AsPyPointer, PyCell, PyTryInto};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -244,4 +245,64 @@ fn inheritance_with_new_methods_with_drop() {
 
     assert!(drop_called1.load(Ordering::Relaxed));
     assert!(drop_called2.load(Ordering::Relaxed));
+}
+
+#[pyclass(gc)]
+struct TraversableClass {
+    traversed: AtomicBool,
+}
+
+impl TraversableClass {
+    fn new() -> Self {
+        Self {
+            traversed: AtomicBool::new(false),
+        }
+    }
+}
+
+#[pyproto]
+impl PyGCProtocol for TraversableClass {
+    fn __clear__(&mut self) {}
+    fn __traverse__(&self, _visit: PyVisit) -> Result<(), PyTraverseError> {
+        self.traversed.store(true, Ordering::Relaxed);
+        Ok(())
+    }
+}
+
+#[test]
+fn gc_during_borrow() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    unsafe {
+        // declare a dummy visitor function
+        extern "C" fn novisit(
+            _object: *mut pyo3::ffi::PyObject,
+            _arg: *mut core::ffi::c_void,
+        ) -> std::os::raw::c_int {
+            0
+        }
+
+        // get the traverse function
+        let ty = TraversableClass::type_object().as_ref(py).as_type_ptr();
+        let traverse = (*ty).tp_traverse.unwrap();
+
+        // create an object and check that traversing it works normally
+        // when it's not borrowed
+        let cell = PyCell::new(py, TraversableClass::new()).unwrap();
+        let obj = cell.to_object(py);
+        assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
+        traverse(obj.as_ptr(), novisit, std::ptr::null_mut());
+        assert!(cell.borrow().traversed.load(Ordering::Relaxed));
+
+        // create an object and check that it is not traversed if the GC
+        // is invoked while it is already borrowed mutably
+        let cell2 = PyCell::new(py, TraversableClass::new()).unwrap();
+        let obj2 = cell2.to_object(py);
+        let guard = cell2.borrow_mut();
+        assert!(!guard.traversed.load(Ordering::Relaxed));
+        traverse(obj2.as_ptr(), novisit, std::ptr::null_mut());
+        assert!(!guard.traversed.load(Ordering::Relaxed));
+        drop(guard);
+    }
 }

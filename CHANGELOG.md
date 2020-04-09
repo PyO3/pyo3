@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 * `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
+* Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
 
 ## [0.9.2]
 
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `PyAny` is now on the top level module and prelude. [#816](https://github.com/PyO3/pyo3/pull/816)
 
 ### Added
+
 * `PyCell`, which has RefCell-like features. [#770](https://github.com/PyO3/pyo3/pull/770)
 * `PyClass`, `PyLayout`, `PyClassInitializer`. [#683](https://github.com/PyO3/pyo3/pull/683)
 * Implemented `IntoIterator` for `PySet` and `PyFrozenSet`. [#716](https://github.com/PyO3/pyo3/pull/716)
@@ -113,13 +115,11 @@ and `PyString::to_string_lossy` [#642](https://github.com/PyO3/pyo3/pull/642).
 * Remove `__contains__` and `__iter__` from PyMappingProtocol. [#644](https://github.com/PyO3/pyo3/pull/644)
 * Fix proc-macro definition of PySetAttrProtocol. [#645](https://github.com/PyO3/pyo3/pull/645)
 
-
 ## [0.8.1]
 
 ### Added
 
  * Conversion between [num-bigint](https://github.com/rust-num/num-bigint) and Python int. [#608](https://github.com/PyO3/pyo3/pull/608)
-
 
 ### Fixed
 
@@ -402,7 +402,6 @@ Yanked
 ### Removed
 
 * Remove use of now unneeded 'AsciiExt' trait
-
 
 ## [0.2.2] - 09-26-2017
 

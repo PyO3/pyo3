@@ -165,7 +165,7 @@ mod bufferinfo {
         arg3: c_int,
     ) -> c_int;
     pub type releasebufferproc =
-        unsafe extern "C" fn(arg1: *mut crate::ffi::PyObject, arg2: *mut Py_buffer) -> ();
+        unsafe extern "C" fn(arg1: *mut crate::ffi::PyObject, arg2: *mut Py_buffer);
 
     /// Maximum number of dimensions
     pub const PyBUF_MAX_NDIM: c_int = 64;
@@ -829,9 +829,9 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyCallable_Check")]
     pub fn PyCallable_Check(arg1: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyObject_ClearWeakRefs")]
-    pub fn PyObject_ClearWeakRefs(arg1: *mut PyObject) -> ();
+    pub fn PyObject_ClearWeakRefs(arg1: *mut PyObject);
     #[cfg(not(Py_LIMITED_API))]
-    pub fn PyObject_CallFinalizer(arg1: *mut PyObject) -> ();
+    pub fn PyObject_CallFinalizer(arg1: *mut PyObject);
     #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
     pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
@@ -839,7 +839,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyObject_Dir")]
     pub fn PyObject_Dir(arg1: *mut PyObject) -> *mut PyObject;
     pub fn Py_ReprEnter(arg1: *mut PyObject) -> c_int;
-    pub fn Py_ReprLeave(arg1: *mut PyObject) -> ();
+    pub fn Py_ReprLeave(arg1: *mut PyObject);
 }
 
 // Flag bits for printing:
@@ -908,7 +908,7 @@ pub unsafe fn PyType_FastSubclass(t: *mut PyTypeObject, f: c_ulong) -> c_int {
 #[cfg_attr(windows, link(name = "pythonXY"))]
 extern "C" {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
-    pub fn _Py_Dealloc(arg1: *mut PyObject) -> ();
+    pub fn _Py_Dealloc(arg1: *mut PyObject);
 }
 
 // Reference counting macros.

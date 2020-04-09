@@ -69,6 +69,8 @@ pub unsafe fn PyDictViewSet_Check(op: *mut PyObject) -> c_int {
 extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_New")]
     pub fn PyDict_New() -> *mut PyObject;
+    #[cfg(not(PyPy))]
+    pub fn _PyDict_NewPresized(minused: Py_ssize_t) -> *mut PyObject;
     #[cfg_attr(PyPy, link_name = "PyPyDict_GetItem")]
     pub fn PyDict_GetItem(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
     pub fn PyDict_GetItemWithError(mp: *mut PyObject, key: *mut PyObject) -> *mut PyObject;
@@ -84,7 +86,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyDict_DelItem")]
     pub fn PyDict_DelItem(mp: *mut PyObject, key: *mut PyObject) -> c_int;
     #[cfg_attr(PyPy, link_name = "PyPyDict_Clear")]
-    pub fn PyDict_Clear(mp: *mut PyObject) -> ();
+    pub fn PyDict_Clear(mp: *mut PyObject);
     #[cfg_attr(PyPy, link_name = "PyPyDict_Next")]
     pub fn PyDict_Next(
         mp: *mut PyObject,

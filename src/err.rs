@@ -1,15 +1,12 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::instance::Py;
-use crate::object::PyObject;
 use crate::type_object::PyTypeObject;
-use crate::types::{PyAny, PyType};
-use crate::AsPyPointer;
-use crate::IntoPyPointer;
-use crate::Python;
-use crate::{exceptions, IntoPy};
-use crate::{ffi, FromPy};
-use crate::{ToBorrowedObject, ToPyObject};
+use crate::types::PyType;
+use crate::{exceptions, ffi};
+use crate::{
+    AsPyPointer, FromPy, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject,
+    ToPyObject,
+};
 use libc::c_int;
 use std::ffi::CString;
 use std::io;

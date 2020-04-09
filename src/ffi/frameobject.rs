@@ -65,17 +65,12 @@ extern "C" {
         locals: *mut PyObject,
     ) -> *mut PyFrameObject;
 
-    pub fn PyFrame_BlockSetup(
-        f: *mut PyFrameObject,
-        _type: c_int,
-        handler: c_int,
-        level: c_int,
-    ) -> ();
+    pub fn PyFrame_BlockSetup(f: *mut PyFrameObject, _type: c_int, handler: c_int, level: c_int);
     pub fn PyFrame_BlockPop(f: *mut PyFrameObject) -> *mut PyTryBlock;
 
-    pub fn PyFrame_LocalsToFast(f: *mut PyFrameObject, clear: c_int) -> ();
+    pub fn PyFrame_LocalsToFast(f: *mut PyFrameObject, clear: c_int);
     pub fn PyFrame_FastToLocalsWithError(f: *mut PyFrameObject) -> c_int;
-    pub fn PyFrame_FastToLocals(f: *mut PyFrameObject) -> ();
+    pub fn PyFrame_FastToLocals(f: *mut PyFrameObject);
 
     pub fn PyFrame_ClearFreeList() -> c_int;
     pub fn PyFrame_GetLineNumber(f: *mut PyFrameObject) -> c_int;
