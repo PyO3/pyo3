@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+* `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
+
+### Fixed
+* `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
+
 ## [0.9.2]
 
 ### Added
