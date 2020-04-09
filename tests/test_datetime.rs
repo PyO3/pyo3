@@ -3,33 +3,55 @@
 use pyo3::ffi::*;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use pyo3::{AsPyRef, PyObject};
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
-fn _get_subclasses<'p>(
-    py: &'p Python,
+fn _get_subclasses(
+    py: Python,
     py_type: &str,
     args: &str,
-) -> PyResult<(&'p PyAny, &'p PyAny, &'p PyAny)> {
+) -> PyResult<(PyObject, PyObject, PyObject)> {
+    // NOTE: Using Py<Dict> and PyObject return type works around an issue in the release pool
+    // for gil-scoped types - see #756
+
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 
-    let locals = [(py_type, datetime.get(py_type)?)].into_py_dict(*py);
+    let locals = Py::from([(py_type, datetime.get(py_type)?)].into_py_dict(py));
 
     let make_subclass_py = format!("class Subklass({}):\n    pass", py_type);
 
     let make_sub_subclass_py = "class SubSubklass(Subklass):\n    pass";
 
-    py.run(&make_subclass_py, None, Some(&locals))?;
-    py.run(&make_sub_subclass_py, None, Some(&locals))?;
+    py.run(&make_subclass_py, None, Some(locals.as_ref(py)))?;
+    py.run(&make_sub_subclass_py, None, Some(locals.as_ref(py)))?;
 
     // Construct an instance of the base class
-    let obj = py.eval(&format!("{}({})", py_type, args), None, Some(&locals))?;
+    let obj = py
+        .eval(
+            &format!("{}({})", py_type, args),
+            None,
+            Some(locals.as_ref(py)),
+        )?
+        .into();
 
     // Construct an instance of the subclass
-    let sub_obj = py.eval(&format!("Subklass({})", args), None, Some(&locals))?;
+    let sub_obj = py
+        .eval(
+            &format!("Subklass({})", args),
+            None,
+            Some(locals.as_ref(py)),
+        )?
+        .into();
 
     // Construct an instance of the sub-subclass
-    let sub_sub_obj = py.eval(&format!("SubSubklass({})", args), None, Some(&locals))?;
+    let sub_sub_obj = py
+        .eval(
+            &format!("SubSubklass({})", args),
+            None,
+            Some(locals.as_ref(py)),
+        )?
+        .into();
 
     Ok((obj, sub_obj, sub_sub_obj))
 }
@@ -58,7 +80,7 @@ macro_rules! assert_check_only {
 fn test_date_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "date", "2018, 1, 1").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
 
     assert_check_exact!(PyDate_Check, obj);
     assert_check_only!(PyDate_Check, sub_obj);
@@ -69,7 +91,7 @@ fn test_date_check() {
 fn test_time_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "time", "12, 30, 15").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
 
     assert_check_exact!(PyTime_Check, obj);
     assert_check_only!(PyTime_Check, sub_obj);
@@ -80,9 +102,8 @@ fn test_time_check() {
 fn test_datetime_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "datetime", "2018, 1, 1, 13, 30, 15")
-        .map_err(|e| e.print(py))
-        .unwrap();
+    let (obj, sub_obj, sub_sub_obj) =
+        _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15").unwrap();
 
     assert_check_only!(PyDate_Check, obj);
     assert_check_exact!(PyDateTime_Check, obj);
@@ -94,7 +115,7 @@ fn test_datetime_check() {
 fn test_delta_check() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "timedelta", "1, -3").unwrap();
+    let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
 
     assert_check_exact!(PyDelta_Check, obj);
     assert_check_only!(PyDelta_Check, sub_obj);
@@ -109,7 +130,7 @@ fn test_datetime_utc() {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
+    let datetime = py.import("datetime").unwrap();
     let timezone = datetime.get("timezone").unwrap();
     let utc = timezone.getattr("utc").unwrap().to_object(py);
 
