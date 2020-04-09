@@ -8,11 +8,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Added
+* `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
 
+### Fixed
+* `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
+* Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
+
+## [0.9.2]
+
+### Added
 * `FromPyObject` implementations for `HashSet` and `BTreeSet`. [#842](https://github.com/PyO3/pyo3/pull/842)
 
 ### Fixed
-- Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
+* Correctly detect 32bit architecture. [#830](https://github.com/PyO3/pyo3/pull/830)
 
 ## [0.9.1]
 
