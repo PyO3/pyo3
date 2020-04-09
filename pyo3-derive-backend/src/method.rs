@@ -63,7 +63,7 @@ impl<'a> FnSpec<'a> {
         let is_mut = self
             .self_
             .expect("impl_borrow_self is called for non-self fn");
-        crate::utils::borrow_self(is_mut, true)
+        crate::utils::borrow_self(is_mut)
     }
 
     /// Parser function signature and function attributes

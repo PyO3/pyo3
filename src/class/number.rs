@@ -3,7 +3,6 @@
 //! Python Number Interface
 //! Trait and support implementation for implementing number protocol
 
-use crate::callback::PyObjectCallbackConverter;
 use crate::class::basic::PyObjectProtocolImpl;
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
@@ -761,11 +760,7 @@ where
     T: for<'p> PyNumberAddProtocol<'p>,
 {
     fn nb_add() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberAddProtocol,
-            T::__add__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberAddProtocol, T::__add__)
     }
 }
 
@@ -787,11 +782,7 @@ where
     T: for<'p> PyNumberSubProtocol<'p>,
 {
     fn nb_subtract() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberSubProtocol,
-            T::__sub__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberSubProtocol, T::__sub__)
     }
 }
 
@@ -813,11 +804,7 @@ where
     T: for<'p> PyNumberMulProtocol<'p>,
 {
     fn nb_multiply() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberMulProtocol,
-            T::__mul__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberMulProtocol, T::__mul__)
     }
 }
 
@@ -839,11 +826,7 @@ where
     T: for<'p> PyNumberMatmulProtocol<'p>,
 {
     fn nb_matrix_multiply() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberMatmulProtocol,
-            T::__matmul__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberMatmulProtocol, T::__matmul__)
     }
 }
 
@@ -865,11 +848,7 @@ where
     T: for<'p> PyNumberTruedivProtocol<'p>,
 {
     fn nb_true_divide() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberTruedivProtocol,
-            T::__truediv__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberTruedivProtocol, T::__truediv__)
     }
 }
 
@@ -891,11 +870,7 @@ where
     T: for<'p> PyNumberFloordivProtocol<'p>,
 {
     fn nb_floor_divide() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberFloordivProtocol,
-            T::__floordiv__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberFloordivProtocol, T::__floordiv__)
     }
 }
 
@@ -917,11 +892,7 @@ where
     T: for<'p> PyNumberModProtocol<'p>,
 {
     fn nb_remainder() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberModProtocol,
-            T::__mod__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberModProtocol, T::__mod__)
     }
 }
 
@@ -943,11 +914,7 @@ where
     T: for<'p> PyNumberDivmodProtocol<'p>,
 {
     fn nb_divmod() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberDivmodProtocol,
-            T::__divmod__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberDivmodProtocol, T::__divmod__)
     }
 }
 
@@ -969,11 +936,7 @@ where
     T: for<'p> PyNumberPowProtocol<'p>,
 {
     fn nb_power() -> Option<ffi::ternaryfunc> {
-        py_ternary_num_func!(
-            PyNumberPowProtocol,
-            T::__pow__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_ternary_num_func!(PyNumberPowProtocol, T::__pow__)
     }
 }
 
@@ -995,11 +958,7 @@ where
     T: for<'p> PyNumberLShiftProtocol<'p>,
 {
     fn nb_lshift() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberLShiftProtocol,
-            T::__lshift__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberLShiftProtocol, T::__lshift__)
     }
 }
 
@@ -1021,11 +980,7 @@ where
     T: for<'p> PyNumberRShiftProtocol<'p>,
 {
     fn nb_rshift() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberRShiftProtocol,
-            T::__rshift__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberRShiftProtocol, T::__rshift__)
     }
 }
 
@@ -1047,11 +1002,7 @@ where
     T: for<'p> PyNumberAndProtocol<'p>,
 {
     fn nb_and() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberAndProtocol,
-            T::__and__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberAndProtocol, T::__and__)
     }
 }
 
@@ -1073,11 +1024,7 @@ where
     T: for<'p> PyNumberXorProtocol<'p>,
 {
     fn nb_xor() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberXorProtocol,
-            T::__xor__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberXorProtocol, T::__xor__)
     }
 }
 
@@ -1099,11 +1046,7 @@ where
     T: for<'p> PyNumberOrProtocol<'p>,
 {
     fn nb_or() -> Option<ffi::binaryfunc> {
-        py_binary_num_func!(
-            PyNumberOrProtocol,
-            T::__or__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_num_func!(PyNumberOrProtocol, T::__or__)
     }
 }
 
@@ -1426,11 +1369,7 @@ where
     T: for<'p> PyNumberRAddProtocol<'p>,
 {
     fn nb_add_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRAddProtocol,
-            T::__radd__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRAddProtocol, T::__radd__)
     }
 }
 
@@ -1466,11 +1405,7 @@ where
     T: for<'p> PyNumberRSubProtocol<'p>,
 {
     fn nb_sub_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRSubProtocol,
-            T::__rsub__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRSubProtocol, T::__rsub__)
     }
 }
 
@@ -1506,11 +1441,7 @@ where
     T: for<'p> PyNumberRMulProtocol<'p>,
 {
     fn nb_mul_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRMulProtocol,
-            T::__rmul__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRMulProtocol, T::__rmul__)
     }
 }
 
@@ -1546,11 +1477,7 @@ where
     T: for<'p> PyNumberRMatmulProtocol<'p>,
 {
     fn nb_matmul_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRMatmulProtocol,
-            T::__rmatmul__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRMatmulProtocol, T::__rmatmul__)
     }
 }
 
@@ -1586,11 +1513,7 @@ where
     T: for<'p> PyNumberRTruedivProtocol<'p>,
 {
     fn nb_truediv_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRTruedivProtocol,
-            T::__rtruediv__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRTruedivProtocol, T::__rtruediv__)
     }
 }
 
@@ -1626,11 +1549,7 @@ where
     T: for<'p> PyNumberRFloordivProtocol<'p>,
 {
     fn nb_floordiv_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRFloordivProtocol,
-            T::__rfloordiv__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRFloordivProtocol, T::__rfloordiv__)
     }
 }
 
@@ -1666,11 +1585,7 @@ where
     T: for<'p> PyNumberRModProtocol<'p>,
 {
     fn nb_mod_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRModProtocol,
-            T::__rmod__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRModProtocol, T::__rmod__)
     }
 }
 
@@ -1706,11 +1621,7 @@ where
     T: for<'p> PyNumberRDivmodProtocol<'p>,
 {
     fn nb_divmod_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRDivmodProtocol,
-            T::__rdivmod__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRDivmodProtocol, T::__rdivmod__)
     }
 }
 
@@ -1746,11 +1657,7 @@ where
     T: for<'p> PyNumberRPowProtocol<'p>,
 {
     fn nb_pow_fallback() -> Option<ffi::ternaryfunc> {
-        py_ternary_reverse_num_func!(
-            PyNumberRPowProtocol,
-            T::__rpow__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_ternary_reverse_num_func!(PyNumberRPowProtocol, T::__rpow__)
     }
 }
 
@@ -1786,11 +1693,7 @@ where
     T: for<'p> PyNumberRLShiftProtocol<'p>,
 {
     fn nb_lshift_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRLShiftProtocol,
-            T::__rlshift__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRLShiftProtocol, T::__rlshift__)
     }
 }
 
@@ -1826,11 +1729,7 @@ where
     T: for<'p> PyNumberRRShiftProtocol<'p>,
 {
     fn nb_rshift_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRRShiftProtocol,
-            T::__rrshift__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRRShiftProtocol, T::__rrshift__)
     }
 }
 
@@ -1866,11 +1765,7 @@ where
     T: for<'p> PyNumberRAndProtocol<'p>,
 {
     fn nb_and_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRAndProtocol,
-            T::__rand__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRAndProtocol, T::__rand__)
     }
 }
 
@@ -1906,11 +1801,7 @@ where
     T: for<'p> PyNumberRXorProtocol<'p>,
 {
     fn nb_xor_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberRXorProtocol,
-            T::__rxor__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberRXorProtocol, T::__rxor__)
     }
 }
 
@@ -1946,11 +1837,7 @@ where
     T: for<'p> PyNumberROrProtocol<'p>,
 {
     fn nb_or_fallback() -> Option<ffi::binaryfunc> {
-        py_binary_reverse_num_func!(
-            PyNumberROrProtocol,
-            T::__ror__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_binary_reverse_num_func!(PyNumberROrProtocol, T::__ror__)
     }
 }
 
@@ -1973,11 +1860,7 @@ where
 {
     #[inline]
     fn nb_negative() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberNegProtocol,
-            T::__neg__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberNegProtocol, T::__neg__)
     }
 }
 
@@ -1999,11 +1882,7 @@ where
     T: for<'p> PyNumberPosProtocol<'p>,
 {
     fn nb_positive() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberPosProtocol,
-            T::__pos__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberPosProtocol, T::__pos__)
     }
 }
 
@@ -2025,11 +1904,7 @@ where
     T: for<'p> PyNumberAbsProtocol<'p>,
 {
     fn nb_absolute() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberAbsProtocol,
-            T::__abs__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberAbsProtocol, T::__abs__)
     }
 }
 
@@ -2051,11 +1926,7 @@ where
     T: for<'p> PyNumberInvertProtocol<'p>,
 {
     fn nb_invert() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberInvertProtocol,
-            T::__invert__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberInvertProtocol, T::__invert__)
     }
 }
 
@@ -2077,11 +1948,7 @@ where
     T: for<'p> PyNumberIntProtocol<'p>,
 {
     fn nb_int() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberIntProtocol,
-            T::__int__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberIntProtocol, T::__int__)
     }
 }
 
@@ -2103,11 +1970,7 @@ where
     T: for<'p> PyNumberFloatProtocol<'p>,
 {
     fn nb_float() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberFloatProtocol,
-            T::__float__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberFloatProtocol, T::__float__)
     }
 }
 
@@ -2129,11 +1992,7 @@ where
     T: for<'p> PyNumberIndexProtocol<'p>,
 {
     fn nb_index() -> Option<ffi::unaryfunc> {
-        py_unary_func!(
-            PyNumberIndexProtocol,
-            T::__index__,
-            PyObjectCallbackConverter::<T::Success>(std::marker::PhantomData)
-        )
+        py_unary_func!(PyNumberIndexProtocol, T::__index__)
     }
 }
 

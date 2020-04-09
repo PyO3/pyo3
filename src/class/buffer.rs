@@ -4,9 +4,9 @@
 //!
 //! For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 //! c-api
-use crate::callback::UnitCallbackConverter;
 use crate::err::PyResult;
-use crate::{ffi, PyClass, PyRefMut};
+use crate::gil::GILPool;
+use crate::{callback, ffi, run_callback, PyCell, PyClass, PyRefMut, Python};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -91,14 +91,13 @@ where
         where
             T: for<'p> PyBufferGetBufferProtocol<'p>,
         {
-            let py = crate::Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
-            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let result = slf
-                .try_borrow_mut()
-                .map_err(crate::PyErr::from)
-                .and_then(|slf_mut| T::bf_getbuffer(slf_mut, arg1, arg2).into());
-            crate::callback::cb_convert(UnitCallbackConverter, py, result)
+            let py = Python::assume_gil_acquired();
+            run_callback(py, || {
+                let _pool = GILPool::new(py);
+                let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
+                let result = T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into();
+                callback::convert(py, result)
+            })
         }
         Some(wrap::<T>)
     }
@@ -127,14 +126,13 @@ where
         where
             T: for<'p> PyBufferReleaseBufferProtocol<'p>,
         {
-            let py = crate::Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
-            let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-            let result = slf
-                .try_borrow_mut()
-                .map_err(crate::PyErr::from)
-                .and_then(|slf_mut| T::bf_releasebuffer(slf_mut, arg1).into());
-            crate::callback::cb_convert(UnitCallbackConverter, py, result);
+            let py = Python::assume_gil_acquired();
+            run_callback(py, || {
+                let _pool = GILPool::new(py);
+                let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
+                let result = T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into();
+                crate::callback::convert(py, result)
+            })
         }
         Some(wrap::<T>)
     }
