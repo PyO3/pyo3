@@ -5,10 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.9.2]
 
 ### Added
 * `FromPyObject` implementations for `HashSet` and `BTreeSet`. [#842](https://github.com/PyO3/pyo3/pull/842)
+
+### Fixed
+* Correctly detect 32bit architecture. [#830](https://github.com/PyO3/pyo3/pull/830)
 
 ## [0.9.1]
 
