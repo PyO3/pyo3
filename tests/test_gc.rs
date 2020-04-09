@@ -277,8 +277,8 @@ fn gc_during_borrow() {
     unsafe {
         // declare a dummy visitor function
         extern "C" fn novisit(
-            object: *mut pyo3::ffi::PyObject,
-            arg: *mut core::ffi::c_void,
+            _object: *mut pyo3::ffi::PyObject,
+            _arg: *mut core::ffi::c_void,
         ) -> std::os::raw::c_int {
             0
         }
