@@ -65,6 +65,7 @@ extern "C" {
     #[cfg_attr(PyPy, link_name = "PyPyGILState_Release")]
     pub fn PyGILState_Release(arg1: PyGILState_STATE);
     pub fn PyGILState_GetThisThreadState() -> *mut PyThreadState;
+    pub fn PyGILState_Check() -> c_int;
 }
 
 #[inline]
