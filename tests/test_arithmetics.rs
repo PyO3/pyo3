@@ -151,39 +151,39 @@ fn inplace_operations() {
 
 #[pyproto]
 impl PyNumberProtocol for BinaryArithmetic {
-    fn __add__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __add__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
     }
 
-    fn __sub__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __sub__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} - {:?}", lhs, rhs))
     }
 
-    fn __mul__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __mul__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} * {:?}", lhs, rhs))
     }
 
-    fn __lshift__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __lshift__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} << {:?}", lhs, rhs))
     }
 
-    fn __rshift__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __rshift__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} >> {:?}", lhs, rhs))
     }
 
-    fn __and__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __and__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} & {:?}", lhs, rhs))
     }
 
-    fn __xor__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __xor__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} ^ {:?}", lhs, rhs))
     }
 
-    fn __or__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __or__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} | {:?}", lhs, rhs))
     }
 
-    fn __pow__(lhs: &PyAny, rhs: &PyAny, mod_: Option<u32>) -> PyResult<String> {
+    fn __pow__(lhs: &PyObject, rhs: &PyObject, mod_: Option<u32>) -> PyResult<String> {
         Ok(format!("{:?} ** {:?} (mod: {:?})", lhs, rhs, mod_))
     }
 }
@@ -224,39 +224,39 @@ struct RhsArithmetic {}
 
 #[pyproto]
 impl PyNumberProtocol for RhsArithmetic {
-    fn __radd__(&self, other: &PyAny) -> PyResult<String> {
+    fn __radd__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} + RA", other))
     }
 
-    fn __rsub__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rsub__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} - RA", other))
     }
 
-    fn __rmul__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rmul__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} * RA", other))
     }
 
-    fn __rlshift__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rlshift__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} << RA", other))
     }
 
-    fn __rrshift__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rrshift__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} >> RA", other))
     }
 
-    fn __rand__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rand__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} & RA", other))
     }
 
-    fn __rxor__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rxor__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} ^ RA", other))
     }
 
-    fn __ror__(&self, other: &PyAny) -> PyResult<String> {
+    fn __ror__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} | RA", other))
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> PyResult<String> {
+    fn __rpow__(&self, other: &PyObject, _mod: Option<&'p PyObject>) -> PyResult<String> {
         Ok(format!("{:?} ** RA", other))
     }
 }
@@ -292,27 +292,27 @@ struct LhsAndRhsArithmetic {}
 
 #[pyproto]
 impl PyNumberProtocol for LhsAndRhsArithmetic {
-    fn __radd__(&self, other: &PyAny) -> PyResult<String> {
+    fn __radd__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} + RA", other))
     }
 
-    fn __rsub__(&self, other: &PyAny) -> PyResult<String> {
+    fn __rsub__(&self, other: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} - RA", other))
     }
 
-    fn __rpow__(&self, other: &PyAny, _mod: Option<&'p PyAny>) -> PyResult<String> {
+    fn __rpow__(&self, other: &PyObject, _mod: Option<&'p PyObject>) -> PyResult<String> {
         Ok(format!("{:?} ** RA", other))
     }
 
-    fn __add__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __add__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} + {:?}", lhs, rhs))
     }
 
-    fn __sub__(lhs: &PyAny, rhs: &PyAny) -> PyResult<String> {
+    fn __sub__(lhs: &PyObject, rhs: &PyObject) -> PyResult<String> {
         Ok(format!("{:?} - {:?}", lhs, rhs))
     }
 
-    fn __pow__(lhs: &PyAny, rhs: &PyAny, _mod: Option<u32>) -> PyResult<String> {
+    fn __pow__(lhs: &PyObject, rhs: &PyObject, _mod: Option<u32>) -> PyResult<String> {
         Ok(format!("{:?} ** {:?}", lhs, rhs))
     }
 }
@@ -349,7 +349,7 @@ impl PyObjectProtocol for RichComparisons {
         Ok("RC")
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<String> {
+    fn __richcmp__(&self, other: &PyObject, op: CompareOp) -> PyResult<String> {
         match op {
             CompareOp::Lt => Ok(format!("{} < {:?}", self.__repr__().unwrap(), other)),
             CompareOp::Le => Ok(format!("{} <= {:?}", self.__repr__().unwrap(), other)),
@@ -370,7 +370,7 @@ impl PyObjectProtocol for RichComparisons2 {
         Ok("RC2")
     }
 
-    fn __richcmp__(&self, _other: &PyAny, op: CompareOp) -> PyResult<Py<PyAny>> {
+    fn __richcmp__(&self, _other: &PyObject, op: CompareOp) -> PyResult<Py<PyObject>> {
         let gil = GILGuard::acquire();
         match op {
             CompareOp::Eq => Ok(true.to_object(gil.python())),

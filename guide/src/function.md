@@ -177,15 +177,15 @@ Currently, there are no conversions between `Fn`s in Rust and callables in Pytho
 
 ### Calling Python functions in Rust
 
-You can use [`PyAny::is_callable`] to check if you have a callable object. `is_callable` will return `true` for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with [`PyAny::call`] with the args as first parameter and the kwargs (or `None`) as second parameter. There are also [`PyAny::call0`] with no args and [`PyAny::call1`] with only positional args.
+You can use [`PyObject::is_callable`] to check if you have a callable object. `is_callable` will return `true` for functions (including lambdas), methods and objects with a `__call__` method. You can call the object with [`PyObject::call`] with the args as first parameter and the kwargs (or `None`) as second parameter. There are also [`PyObject::call0`] with no args and [`PyObject::call1`] with only positional args.
 
 ### Calling Rust functions in Python
 
-If you have a static function, you can expose it with `#[pyfunction]` and use [`wrap_pyfunction!`] to get the corresponding [`PyAny`]. For dynamic functions, e.g. lambdas and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a `Box`. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.
+If you have a static function, you can expose it with `#[pyfunction]` and use [`wrap_pyfunction!`] to get the corresponding [`PyObject`]. For dynamic functions, e.g. lambdas and functions that were passed as arguments, you must put them in some kind of owned container, e.g. a `Box`. (A long-term solution will be a special container similar to wasm-bindgen's `Closure`). You can then use a `#[pyclass]` struct with that container as a field as a way to pass the function over the FFI barrier. You can even make that class callable with `__call__` so it looks like a function in Python code.
 
-[`PyAny::is_callable`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.is_callable
-[`PyAny::call`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call
-[`PyAny::call0`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call0
-[`PyAny::call1`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html#tymethod.call1
-[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
+[`PyObject::is_callable`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#tymethod.is_callable
+[`PyObject::call`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#tymethod.call
+[`PyObject::call0`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#tymethod.call0
+[`PyObject::call1`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#tymethod.call1
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
 [`wrap_pyfunction!`]: https://docs.rs/pyo3/latest/pyo3/macro.wrap_pyfunction.html

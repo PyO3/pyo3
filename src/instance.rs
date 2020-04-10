@@ -3,8 +3,8 @@ use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::type_object::PyBorrowFlagLayout;
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPyPointer, PyAny, PyCell, PyClass,
-    PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPyPointer, PyCell, PyClass, PyClassInitializer,
+    PyObject, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
 use std::mem;
@@ -19,13 +19,13 @@ pub unsafe trait PyNativeType: Sized {
     fn py(&self) -> Python {
         unsafe { Python::assume_gil_acquired() }
     }
-    /// Cast `&PyAny` to `&Self` without no type checking.
+    /// Cast `&PyObject` to `&Self` without no type checking.
     ///
     /// # Safety
     ///
     /// `obj` must have the same layout as `*const ffi::PyObject` and must be
     /// an instance of a type corresponding to `Self`.
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
+    unsafe fn unchecked_downcast(obj: &PyObject) -> &Self {
         &*(obj.as_ptr() as *const Self)
     }
 }
@@ -286,14 +286,14 @@ impl<T> Py<T> {
     // }
 }
 
-/// Retrieves `&'py` types from `Py<T>` or `Py<PyAny>`.
+/// Retrieves `&'py` types from `Py<T>` or `Py<PyObject>`.
 ///
 /// # Examples
 /// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`
 /// for `#[pyclass]`.
 /// ```
 /// # use pyo3::prelude::*;
-/// let obj: Py<PyAny> = {
+/// let obj: Py<PyObject> = {
 ///     let gil = Python::acquire_gil();
 ///     let py = gil.python();
 ///     py.eval("[]", None, None).unwrap().to_object(py).into()
@@ -314,18 +314,18 @@ where
 {
     type Target = T::AsRefTarget;
     fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p Self::Target {
-        let any = self.as_ptr() as *const PyAny;
+        let any = self.as_ptr() as *const PyObject;
         unsafe { PyNativeType::unchecked_downcast(&*any) }
     }
 }
 
 impl<T> ToPyObject for Py<T> {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         unsafe { py.from_owned_ptr(self.clone_ref(py).into_ptr()) }
     }
 }
 
-impl<T> FromPy<Py<T>> for Py<PyAny> {
+impl<T> FromPy<Py<T>> for Py<PyObject> {
     /// Converts a `Py` instance to `PyObject`.
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
@@ -420,8 +420,8 @@ where
     &'a T::AsRefTarget: FromPyObject<'a>,
     T::AsRefTarget: 'a + AsPyPointer,
 {
-    /// Extracts `Self` from the source `Py<PyAny>`.
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    /// Extracts `Self` from the source `Py<PyObject>`.
+    fn extract(ob: &'a PyObject) -> PyResult<Self> {
         unsafe {
             ob.extract::<&T::AsRefTarget>()
                 .map(|val| Py::from_borrowed_ptr(val.as_ptr()))

@@ -8,7 +8,7 @@ The C API is naturally unsafe and requires you to manage reference counts, error
 
 ## Memory Management
 
-PyO3's "owned references" (`&PyAny` etc.) make PyO3 more ergonomic to use by ensuring that their lifetime can never be longer than the duration the Python GIL is held. This means that most of PyO3's API can assume the GIL is held. (If PyO3 could not assume this, every PyO3 API would need to take a `Python` GIL token to prove that the GIL is held.)
+PyO3's "owned references" (`&PyObject` etc.) make PyO3 more ergonomic to use by ensuring that their lifetime can never be longer than the duration the Python GIL is held. This means that most of PyO3's API can assume the GIL is held. (If PyO3 could not assume this, every PyO3 API would need to take a `Python` GIL token to prove that the GIL is held.)
 
 The caveat to these "owned references" is that Rust references do not normally convey ownership (they are always `Copy`, and cannot implement `Drop`). Whenever a PyO3 API returns an owned reference, PyO3 stores it internally, so that PyO3 can decrease the reference count just before PyO3 releases the GIL.
 

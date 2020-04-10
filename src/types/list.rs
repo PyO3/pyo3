@@ -5,13 +5,13 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyNativeType, Python, ToBorrowedObject,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyNativeType, PyObject, Python, ToBorrowedObject,
     ToPyObject,
 };
 
 /// Represents a Python `list`.
 #[repr(transparent)]
-pub struct PyList(PyAny);
+pub struct PyList(PyObject);
 
 pyobject_native_var_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
@@ -53,7 +53,7 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> &PyAny {
+    pub fn get_item(&self, index: isize) -> &PyObject {
         assert!((index.abs() as usize) < self.len());
         unsafe {
             let ptr = ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t);
@@ -67,7 +67,7 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_parked_item(&self, index: isize) -> Py<PyAny> {
+    pub fn get_parked_item(&self, index: isize) -> Py<PyObject> {
         unsafe { Py::from_borrowed_ptr(ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t)) }
     }
 
@@ -134,10 +134,10 @@ pub struct PyListIterator<'a> {
 }
 
 impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyAny;
+    type Item = &'a PyObject;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
+    fn next(&mut self) -> Option<&'a PyObject> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
@@ -149,7 +149,7 @@ impl<'a> Iterator for PyListIterator<'a> {
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyList {
-    type Item = &'a PyAny;
+    type Item = &'a PyObject;
     type IntoIter = PyListIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -161,7 +161,7 @@ impl<T> ToPyObject for [T]
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
@@ -176,11 +176,11 @@ where
 macro_rules! array_impls {
     ($($N:expr),+) => {
         $(
-            impl<T> IntoPy<Py<PyAny>> for [T; $N]
+            impl<T> IntoPy<Py<PyObject>> for [T; $N]
             where
                 T: ToPyObject
             {
-                fn into_py(self, py: Python) -> Py<PyAny> {
+                fn into_py(self, py: Python) -> Py<PyObject> {
                     self.as_ref().to_object(py).into()
                 }
             }
@@ -197,16 +197,16 @@ impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         self.as_slice().to_object(py)
     }
 }
 
-impl<T> IntoPy<Py<PyAny>> for Vec<T>
+impl<T> IntoPy<Py<PyObject>> for Vec<T>
 where
-    T: IntoPy<Py<PyAny>>,
+    T: IntoPy<Py<PyObject>>,
 {
-    fn into_py(self, py: Python) -> Py<PyAny> {
+    fn into_py(self, py: Python) -> Py<PyObject> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {

@@ -3,7 +3,7 @@ use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
-use crate::{ffi, FromPy, Py, PyAny, PyClass, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, FromPy, Py, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -101,7 +101,7 @@ impl<T: PyClass> PyCellInner<T> {
 /// [Interior Mutability Pattern](https://doc.rust-lang.org/book/ch15-05-interior-mutability.html)
 /// like [std::cell::RefCell](https://doc.rust-lang.org/std/cell/struct.RefCell.html).
 ///
-/// `PyCell` implements `Deref<Target = PyAny>`, so you can also call methods from `PyAny`
+/// `PyCell` implements `Deref<Target = PyObject>`, so you can also call methods from `PyObject`
 /// when you have a `PyCell<T>`.
 ///
 /// # Examples
@@ -372,21 +372,21 @@ impl<T: PyClass> AsPyPointer for PyCell<T> {
 }
 
 impl<T: PyClass> ToPyObject for &PyCell<T> {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         unsafe { py.from_borrowed_ptr(self.as_ptr()) }
     }
 }
 
-impl<T: PyClass> AsRef<PyAny> for PyCell<T> {
-    fn as_ref(&self) -> &PyAny {
+impl<T: PyClass> AsRef<PyObject> for PyCell<T> {
+    fn as_ref(&self) -> &PyObject {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 }
 
 impl<T: PyClass> Deref for PyCell<T> {
-    type Target = PyAny;
+    type Target = PyObject;
 
-    fn deref(&self) -> &PyAny {
+    fn deref(&self) -> &PyObject {
         unsafe { self.py().from_borrowed_ptr(self.as_ptr()) }
     }
 }
@@ -536,8 +536,8 @@ impl<'p, T: PyClass> Drop for PyRef<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> FromPy<PyRef<'p, T>> for Py<PyAny> {
-    fn from_py(pyref: PyRef<'p, T>, _py: Python<'_>) -> Py<PyAny> {
+impl<'p, T: PyClass> FromPy<PyRef<'p, T>> for Py<PyObject> {
+    fn from_py(pyref: PyRef<'p, T>, _py: Python<'_>) -> Py<PyObject> {
         unsafe { Py::from_borrowed_ptr(pyref.inner.as_ptr()) }
     }
 }
@@ -634,8 +634,8 @@ impl<'p, T: PyClass> Drop for PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> FromPy<PyRefMut<'p, T>> for Py<PyAny> {
-    fn from_py(pyref: PyRefMut<'p, T>, _py: Python<'_>) -> Py<PyAny> {
+impl<'p, T: PyClass> FromPy<PyRefMut<'p, T>> for Py<PyObject> {
+    fn from_py(pyref: PyRefMut<'p, T>, _py: Python<'_>) -> Py<PyObject> {
         unsafe { Py::from_borrowed_ptr(pyref.inner.as_ptr()) }
     }
 }

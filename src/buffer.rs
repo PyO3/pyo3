@@ -18,7 +18,7 @@
 
 //! `PyBuffer` implementation
 use crate::err::{self, PyResult};
-use crate::{exceptions, ffi, AsPyPointer, PyAny, Python};
+use crate::{exceptions, ffi, AsPyPointer, PyObject, Python};
 use std::ffi::CStr;
 use std::os::raw;
 use std::pin::Pin;
@@ -160,7 +160,7 @@ fn validate(b: &ffi::Py_buffer) {
 
 impl PyBuffer {
     /// Get the underlying buffer from the specified python object.
-    pub fn get(py: Python, obj: &PyAny) -> PyResult<PyBuffer> {
+    pub fn get(py: Python, obj: &PyObject) -> PyResult<PyBuffer> {
         unsafe {
             let mut buf = Box::pin(mem::zeroed::<ffi::Py_buffer>());
             err::error_on_minusone(

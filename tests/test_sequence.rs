@@ -55,7 +55,7 @@ impl PySequenceProtocol for ByteSequence {
         }
     }
 
-    fn __contains__(&self, other: &PyAny) -> PyResult<bool> {
+    fn __contains__(&self, other: &PyObject) -> PyResult<bool> {
         match u8::extract(other) {
             Ok(ref x) => Ok(self.elements.contains(x)),
             Err(_) => Ok(false),

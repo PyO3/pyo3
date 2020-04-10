@@ -12,11 +12,11 @@ use std::cmp::Ordering;
 
 /// A Python object with GIL lifetime
 ///
-/// Represents any Python object.  All Python objects can be cast to `PyAny`.
+/// Represents any Python object.  All Python objects can be cast to `PyObject`.
 /// In addition, if the inner object is an instance of type `T`, we can downcast
-/// `PyAny` into `T`.
+/// `PyObject` into `T`.
 ///
-/// `PyAny` is used as a reference with a lifetime that represents that the GIL
+/// `PyObject` is used as a reference with a lifetime that represents that the GIL
 /// is held, therefore its API does not require a `Python<'py>` token.
 ///
 /// See [the guide](https://pyo3.rs/master/types.html) for an explanation
@@ -26,47 +26,47 @@ use std::cmp::Ordering;
 ///
 /// ```
 /// use pyo3::prelude::*;
-/// use pyo3::types::{PyAny, PyDict, PyList};
+/// use pyo3::types::{PyObject, PyDict, PyList};
 /// let gil = Python::acquire_gil();
 /// let dict = PyDict::new(gil.python());
-/// assert!(gil.python().is_instance::<PyAny, _>(dict).unwrap());
+/// assert!(gil.python().is_instance::<PyObject, _>(dict).unwrap());
 /// let any = dict.as_ref();
 /// assert!(any.downcast::<PyDict>().is_ok());
 /// assert!(any.downcast::<PyList>().is_err());
 /// ```
 #[repr(transparent)]
-pub struct PyAny(UnsafeCell<ffi::PyObject>);
+pub struct PyObject(UnsafeCell<ffi::PyObject>);
 
-impl crate::AsPyPointer for PyAny {
+impl crate::AsPyPointer for PyObject {
     #[inline]
     fn as_ptr(&self) -> *mut ffi::PyObject {
         self.0.get()
     }
 }
 
-impl PartialEq for PyAny {
+impl PartialEq for PyObject {
     #[inline]
-    fn eq(&self, o: &PyAny) -> bool {
+    fn eq(&self, o: &PyObject) -> bool {
         self.as_ptr() == o.as_ptr()
     }
 }
 
-unsafe impl crate::PyNativeType for PyAny {}
-unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {}
-impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}
+unsafe impl crate::PyNativeType for PyObject {}
+unsafe impl crate::type_object::PyLayout<PyObject> for ffi::PyObject {}
+impl crate::type_object::PySizedLayout<PyObject> for ffi::PyObject {}
 
 pyobject_native_type_convert!(
-    PyAny,
+    PyObject,
     ffi::PyObject,
     ffi::PyBaseObject_Type,
     Some("builtins"),
     ffi::PyObject_Check
 );
 
-pyobject_native_type_extract!(PyAny);
+pyobject_native_type_extract!(PyObject);
 
-impl PyAny {
-    /// Convert this PyAny to a concrete Python type.
+impl PyObject {
+    /// Convert this PyObject to a concrete Python type.
     pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>
     where
         for<'py> T: PyTryFrom<'py>,
@@ -89,7 +89,7 @@ impl PyAny {
     /// Retrieves an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
-    pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
+    pub fn getattr<N>(&self, attr_name: N) -> PyResult<&PyObject>
     where
         N: ToPyObject,
     {
@@ -140,7 +140,7 @@ impl PyAny {
     /// elif a > b:
     ///     return Greater
     /// else:
-    ///     raise TypeError("PyAny::compare(): All comparisons returned false")
+    ///     raise TypeError("PyObject::compare(): All comparisons returned false")
     /// ```
     pub fn compare<O>(&self, other: O) -> PyResult<Ordering>
     where
@@ -170,7 +170,7 @@ impl PyAny {
                 return Err(PyErr::fetch(py));
             }
             Err(TypeError::py_err(
-                "PyAny::compare(): All comparisons returned false",
+                "PyObject::compare(): All comparisons returned false",
             ))
         }
 
@@ -189,7 +189,7 @@ impl PyAny {
     ///   * CompareOp::Le: `self <= other`
     ///   * CompareOp::Gt: `self > other`
     ///   * CompareOp::Ge: `self >= other`
-    pub fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<&PyAny>
+    pub fn rich_compare<O>(&self, other: O, compare_op: CompareOp) -> PyResult<&PyObject>
     where
         O: ToPyObject,
     {
@@ -216,7 +216,7 @@ impl PyAny {
         &self,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<&PyObject> {
         let args = args.into_py(self.py()).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
@@ -233,14 +233,14 @@ impl PyAny {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call0(&self) -> PyResult<&PyAny> {
+    pub fn call0(&self) -> PyResult<&PyObject> {
         self.call((), None)
     }
 
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
-    pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObject> {
         self.call(args, None)
     }
 
@@ -265,7 +265,7 @@ impl PyAny {
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<&PyObject> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
@@ -286,14 +286,14 @@ impl PyAny {
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
-    pub fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn call_method0(&self, name: &str) -> PyResult<&PyObject> {
         self.call_method(name, (), None)
     }
 
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
-    pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObject> {
         self.call_method(name, args, None)
     }
 
@@ -326,7 +326,7 @@ impl PyAny {
     /// Gets an item from the collection.
     ///
     /// This is equivalent to the Python expression `self[key]`.
-    pub fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
+    pub fn get_item<K>(&self, key: K) -> PyResult<&PyObject>
     where
         K: ToBorrowedObject,
     {

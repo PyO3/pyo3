@@ -1,13 +1,13 @@
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, AsPyPointer, PyObject, Python};
 #[cfg(not(PyPy))]
 use std::ops::*;
 use std::os::raw::c_double;
 
 /// Represents a Python `complex`.
 #[repr(transparent)]
-pub struct PyComplex(PyAny);
+pub struct PyComplex(PyObject);
 
 pyobject_native_type!(
     PyComplex,
@@ -129,7 +129,7 @@ impl<'py> Neg for &'py PyComplex {
 #[cfg(feature = "num-complex")]
 mod complex_conversion {
     use super::*;
-    use crate::{FromPyObject, Py, PyAny, PyErr, PyResult, ToPyObject};
+    use crate::{FromPyObject, Py, PyErr, PyObject, PyResult, ToPyObject};
     use num_complex::Complex;
 
     impl PyComplex {
@@ -148,7 +148,7 @@ mod complex_conversion {
         ($float: ty) => {
             impl ToPyObject for Complex<$float> {
                 #[inline]
-                fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+                fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
                     unsafe {
                         let raw_obj =
                             ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double);
@@ -156,15 +156,15 @@ mod complex_conversion {
                     }
                 }
             }
-            impl crate::IntoPy<Py<PyAny>> for Complex<$float> {
-                fn into_py(self, py: Python) -> Py<PyAny> {
+            impl crate::IntoPy<Py<PyObject>> for Complex<$float> {
+                fn into_py(self, py: Python) -> Py<PyObject> {
                     self.to_object(py).into()
                 }
             }
             #[cfg(not(Py_LIMITED_API))]
             #[allow(clippy::float_cmp)] // The comparison is for an error value
             impl<'source> FromPyObject<'source> for Complex<$float> {
-                fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
+                fn extract(obj: &'source PyObject) -> PyResult<Complex<$float>> {
                     unsafe {
                         let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
                         if val.real == -1.0 && PyErr::occurred(obj.py()) {
@@ -178,7 +178,7 @@ mod complex_conversion {
             #[cfg(Py_LIMITED_API)]
             #[allow(clippy::float_cmp)] // The comparison is for an error value
             impl<'source> FromPyObject<'source> for Complex<$float> {
-                fn extract(obj: &'source PyAny) -> PyResult<Complex<$float>> {
+                fn extract(obj: &'source PyObject) -> PyResult<Complex<$float>> {
                     unsafe {
                         let ptr = obj.as_ptr();
                         let real = ffi::PyComplex_RealAsDouble(ptr);

@@ -9,7 +9,7 @@
 //!
 
 use crate::err::PyResult;
-use crate::{ffi, Py, PyAny, PyClass};
+use crate::{ffi, Py, PyClass, PyObject};
 
 /// Python Async/Await support interface.
 ///
@@ -58,22 +58,22 @@ pub trait PyAsyncProtocol<'p>: PyClass {
 }
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -81,7 +81,7 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type ExcType: crate::FromPyObject<'p>;
     type ExcValue: crate::FromPyObject<'p>;
     type Traceback: crate::FromPyObject<'p>;
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -174,13 +174,13 @@ mod anext {
     use crate::callback::IntoPyCallbackOutput;
     use crate::err::PyResult;
     use crate::Python;
-    use crate::{ffi, IntoPy, IntoPyPointer, Py, PyAny};
+    use crate::{ffi, IntoPy, IntoPyPointer, Py, PyObject};
 
     struct IterANextOutput<T>(Option<T>);
 
     impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for IterANextOutput<T>
     where
-        T: IntoPy<Py<PyAny>>,
+        T: IntoPy<Py<PyObject>>,
     {
         fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
             match self.0 {

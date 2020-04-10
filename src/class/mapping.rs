@@ -4,7 +4,7 @@
 //! Trait and support implementation for implementing mapping support
 
 use crate::err::{PyErr, PyResult};
-use crate::{exceptions, ffi, FromPyObject, IntoPy, Py, PyAny, PyClass};
+use crate::{exceptions, ffi, FromPyObject, IntoPy, Py, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
@@ -54,7 +54,7 @@ pub trait PyMappingLenProtocol<'p>: PyMappingProtocol<'p> {
 
 pub trait PyMappingGetItemProtocol<'p>: PyMappingProtocol<'p> {
     type Key: FromPyObject<'p>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -70,7 +70,7 @@ pub trait PyMappingDelItemProtocol<'p>: PyMappingProtocol<'p> {
 }
 
 pub trait PyMappingReversedProtocol<'p>: PyMappingProtocol<'p> {
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 

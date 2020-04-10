@@ -5,13 +5,13 @@ use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
-use crate::types::{PyAny, PyList, PyTuple};
+use crate::types::{PyList, PyObject, PyTuple};
 use crate::AsPyPointer;
 use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
-pub struct PySequence(PyAny);
+pub struct PySequence(PyObject);
 pyobject_native_type_named!(PySequence);
 pyobject_native_type_extract!(PySequence);
 
@@ -42,11 +42,11 @@ impl PySequence {
         unsafe {
             let ptr = self
                 .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Concat(
+                .from_owned_ptr_or_err::<PyObject>(ffi::PySequence_Concat(
                     self.as_ptr(),
                     other.as_ptr(),
                 ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+            Ok(&*(ptr as *const PyObject as *const PySequence))
         }
     }
 
@@ -59,11 +59,11 @@ impl PySequence {
         unsafe {
             let ptr = self
                 .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Repeat(
+                .from_owned_ptr_or_err::<PyObject>(ffi::PySequence_Repeat(
                     self.as_ptr(),
                     count as Py_ssize_t,
                 ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+            Ok(&*(ptr as *const PyObject as *const PySequence))
         }
     }
 
@@ -102,7 +102,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self[index]`.
     #[inline]
-    pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
+    pub fn get_item(&self, index: isize) -> PyResult<&PyObject> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -113,7 +113,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
-    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyAny> {
+    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyObject> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PySequence_GetSlice(
                 self.as_ptr(),
@@ -158,7 +158,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python statement `self[i1:i2] = v`.
     #[inline]
-    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyAny) -> PyResult<()> {
+    pub fn set_slice(&self, i1: isize, i2: isize, v: &PyObject) -> PyResult<()> {
         unsafe {
             err::error_on_minusone(
                 self.py(),
@@ -265,7 +265,7 @@ macro_rules! array_impls {
             where
                 T: Copy + Default + FromPyObject<'a>,
             {
-                default fn extract(obj: &'a PyAny) -> PyResult<Self> {
+                default fn extract(obj: &'a PyObject) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
                     extract_sequence_into_slice(obj, &mut array)?;
                     Ok(array)
@@ -276,7 +276,7 @@ macro_rules! array_impls {
             where
                 for<'a> T: Copy + Default + FromPyObject<'a> + buffer::Element,
             {
-                fn extract(obj: &'source PyAny) -> PyResult<Self> {
+                fn extract(obj: &'source PyObject) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
                     // first try buffer protocol
                     if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
@@ -304,7 +304,7 @@ impl<'a, T> FromPyObject<'a> for Vec<T>
 where
     T: FromPyObject<'a>,
 {
-    default fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    default fn extract(obj: &'a PyObject) -> PyResult<Self> {
         extract_sequence(obj)
     }
 }
@@ -313,7 +313,7 @@ impl<'source, T> FromPyObject<'source> for Vec<T>
 where
     for<'a> T: FromPyObject<'a> + buffer::Element + Copy,
 {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract(obj: &'source PyObject) -> PyResult<Self> {
         // first try buffer protocol
         if let Ok(buf) = buffer::PyBuffer::get(obj.py(), obj) {
             if buf.dimensions() == 1 {
@@ -329,7 +329,7 @@ where
     }
 }
 
-fn extract_sequence<'s, T>(obj: &'s PyAny) -> PyResult<Vec<T>>
+fn extract_sequence<'s, T>(obj: &'s PyObject) -> PyResult<Vec<T>>
 where
     T: FromPyObject<'s>,
 {
@@ -341,7 +341,7 @@ where
     Ok(v)
 }
 
-fn extract_sequence_into_slice<'s, T>(obj: &'s PyAny, slice: &mut [T]) -> PyResult<()>
+fn extract_sequence_into_slice<'s, T>(obj: &'s PyObject, slice: &mut [T]) -> PyResult<()>
 where
     T: FromPyObject<'s>,
 {
@@ -358,7 +358,7 @@ where
 }
 
 impl<'v> PyTryFrom<'v> for PySequence {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from<V: Into<&'v PyObject>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
         let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
@@ -369,12 +369,12 @@ impl<'v> PyTryFrom<'v> for PySequence {
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyObject>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
+    unsafe fn try_from_unchecked<V: Into<&'v PyObject>>(value: V) -> &'v PySequence {
         let ptr = value.into() as *const _ as *const PySequence;
         &*ptr
     }
@@ -385,9 +385,9 @@ mod test {
     use crate::types::PySequence;
     use crate::AsPyPointer;
     use crate::Python;
-    use crate::{Py, PyAny, PyTryFrom, ToPyObject};
+    use crate::{Py, PyObject, PyTryFrom, ToPyObject};
 
-    fn get_object() -> Py<PyAny> {
+    fn get_object() -> Py<PyObject> {
         // Convenience function for getting a single unique object
         let gil = Python::acquire_gil();
         let py = gil.python();

@@ -5,7 +5,7 @@
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::type_object::{PyTypeInfo, PyTypeObject};
-use crate::types::{PyAny, PyDict, PyModule, PyType};
+use crate::types::{PyDict, PyModule, PyObject, PyType};
 use crate::{ffi, AsPyPointer, AsPyRef, FromPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom};
 use std::ffi::CString;
 use std::marker::PhantomData;
@@ -107,10 +107,10 @@ impl<'p> Python<'p> {
     ///
     /// **Note:**
     /// PyO3 types that represent objects with a lifetime tied to holding the GIL
-    /// cannot be used in the closure.  This includes `&PyAny` and all the
+    /// cannot be used in the closure.  This includes `&PyObject` and all the
     /// concrete-typed siblings, like `&PyString`.
     ///
-    /// You can convert such references to e.g. `Py<PyAny>` or `Py<PyString>`,
+    /// You can convert such references to e.g. `Py<PyObject>` or `Py<PyString>`,
     /// which makes them independent of the GIL lifetime.  However, you cannot
     /// do much with those without a `Python<'p>` token, for which you'd need to
     /// reacquire the GIL.
@@ -168,7 +168,7 @@ impl<'p> Python<'p> {
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<&'p PyObject> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -221,7 +221,7 @@ impl<'p> Python<'p> {
         start: c_int,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<&'p PyObject> {
         let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
@@ -280,14 +280,14 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> &'p PyAny {
+    pub fn None(self) -> &'p PyObject {
         unsafe { self.from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> &'p PyAny {
+    pub fn NotImplemented(self) -> &'p PyObject {
         unsafe { self.from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
@@ -350,21 +350,21 @@ impl<'p> Python<'p> {
 
 impl<'p> Python<'p> {
     /// Registers the object in the release pool, and tries to downcast to specific type.
-    pub fn checked_cast_as<T>(self, obj: Py<PyAny>) -> Result<&'p T, PyDowncastError>
+    pub fn checked_cast_as<T>(self, obj: Py<PyObject>) -> Result<&'p T, PyDowncastError>
     where
         T: PyTryFrom<'p>,
     {
-        let any: &PyAny = unsafe { self.from_owned_ptr(obj.into_ptr()) };
+        let any: &PyObject = unsafe { self.from_owned_ptr(obj.into_ptr()) };
         <T as PyTryFrom>::try_from(any)
     }
 
     /// Registers the object in the release pool, and does an unchecked downcast
     /// to the specific type.
-    pub unsafe fn cast_as<T>(self, obj: Py<PyAny>) -> &'p T
+    pub unsafe fn cast_as<T>(self, obj: Py<PyObject>) -> &'p T
     where
         T: PyNativeType + PyTypeInfo,
     {
-        let any: &PyAny = self.from_owned_ptr(obj.into_ptr());
+        let any: &PyObject = self.from_owned_ptr(obj.into_ptr());
         T::unchecked_downcast(any)
     }
 
@@ -445,7 +445,7 @@ impl<'p> Python<'p> {
         unsafe { gil::register_any(ob) }
     }
 
-    /// Releases a Py<PyAny> reference.
+    /// Releases a Py<PyObject> reference.
     #[inline]
     pub fn release<T>(self, ob: T)
     where
@@ -468,7 +468,7 @@ impl<'p> Python<'p> {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{IntoPyDict, PyAny, PyBool, PyInt, PyList};
+    use crate::types::{IntoPyDict, PyBool, PyInt, PyList, PyObject};
     use crate::Python;
 
     #[test]
@@ -517,7 +517,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         assert!(py
-            .is_instance::<PyBool, PyAny>(PyBool::new(py, true).into())
+            .is_instance::<PyBool, PyObject>(PyBool::new(py, true).into())
             .unwrap());
         let list = PyList::new(py, &[1, 2, 3, 4]);
         assert!(!py.is_instance::<PyBool, _>(list.as_ref()).unwrap());

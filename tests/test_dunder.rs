@@ -374,8 +374,8 @@ impl<'p> PyContextProtocol<'p> for ContextManager {
     fn __exit__(
         &mut self,
         ty: Option<&'p PyType>,
-        _value: Option<&'p PyAny>,
-        _traceback: Option<&'p PyAny>,
+        _value: Option<&'p PyObject>,
+        _traceback: Option<&'p PyObject>,
     ) -> PyResult<bool> {
         let gil = GILGuard::acquire();
         self.exit_called = true;
@@ -433,7 +433,7 @@ struct Test {}
 
 #[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<Py<PyAny>> {
+    fn __getitem__(&self, idx: &PyObject) -> PyResult<Py<PyObject>> {
         let gil = GILGuard::acquire();
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;

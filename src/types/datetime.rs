@@ -26,7 +26,7 @@ use crate::ffi::{
     PyDateTime_TIME_GET_SECOND,
 };
 use crate::types::PyTuple;
-use crate::{AsPyPointer, PyAny, Python, ToPyObject};
+use crate::{AsPyPointer, PyObject, Python, ToPyObject};
 use std::os::raw::c_int;
 #[cfg(not(PyPy))]
 use std::ptr;
@@ -63,7 +63,7 @@ pub trait PyTimeAccess {
 
 /// Bindings around `datetime.date`
 #[repr(transparent)]
-pub struct PyDate(PyAny);
+pub struct PyDate(PyObject);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
@@ -120,7 +120,7 @@ impl PyDateAccess for PyDate {
 
 /// Bindings for `datetime.datetime`
 #[repr(transparent)]
-pub struct PyDateTime(PyAny);
+pub struct PyDateTime(PyObject);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
@@ -139,7 +139,7 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyAny>,
+        tzinfo: Option<&PyObject>,
     ) -> PyResult<&'p PyDateTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
@@ -231,7 +231,7 @@ impl PyTimeAccess for PyDateTime {
 
 /// Bindings for `datetime.time`
 #[repr(transparent)]
-pub struct PyTime(PyAny);
+pub struct PyTime(PyObject);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
@@ -247,7 +247,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyAny>,
+        tzinfo: Option<&PyObject>,
     ) -> PyResult<&'p PyTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTime)(
@@ -272,7 +272,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyAny>,
+        tzinfo: Option<&PyObject>,
         fold: bool,
     ) -> PyResult<&'p PyTime> {
         unsafe {
@@ -317,7 +317,7 @@ impl PyTimeAccess for PyTime {
 ///
 /// This is an abstract base class and should not be constructed directly.
 #[repr(transparent)]
-pub struct PyTzInfo(PyAny);
+pub struct PyTzInfo(PyObject);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
@@ -328,7 +328,7 @@ pyobject_native_type!(
 
 /// Bindings for `datetime.timedelta`
 #[repr(transparent)]
-pub struct PyDelta(PyAny);
+pub struct PyDelta(PyObject);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,
@@ -373,7 +373,7 @@ impl PyDeltaAccess for PyDelta {
 }
 
 // Utility function
-unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyAny>) -> *mut ffi::PyObject {
+unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
     // Convenience function for unpacking Options to either an Object or None
     match opt {
         Some(tzi) => tzi.as_ptr(),

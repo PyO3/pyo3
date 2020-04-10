@@ -39,7 +39,7 @@ impl BaseClass {
     fn base_method(&self, x: usize) -> usize {
         x * self.val1
     }
-    fn base_set(&mut self, fn_: &pyo3::PyAny) -> PyResult<()> {
+    fn base_set(&mut self, fn_: &pyo3::PyObject) -> PyResult<()> {
         let value: usize = fn_.call0()?.extract()?;
         self.val1 = value;
         Ok(())

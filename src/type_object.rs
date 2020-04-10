@@ -3,7 +3,7 @@
 
 use crate::pyclass::{initialize_type_object, PyClass};
 use crate::pyclass_init::PyObjectInit;
-use crate::types::{PyAny, PyType};
+use crate::types::{PyObject, PyType};
 use crate::{ffi, AsPyPointer, Py, Python};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representaion of `U` in Python heap.
 /// E.g., `PyCell` is a concrete representaion of all `pyclass`es, and `ffi::PyObject`
-/// is of `PyAny`.
+/// is of `PyObject`.
 ///
 /// This trait is intended to be used internally.
 pub unsafe trait PyLayout<T: PyTypeInfo> {
@@ -104,14 +104,14 @@ pub unsafe trait PyTypeInfo: Sized {
     fn type_object() -> &'static ffi::PyTypeObject;
 
     /// Check if `*mut ffi::PyObject` is instance of this type
-    fn is_instance(object: &PyAny) -> bool {
+    fn is_instance(object: &PyObject) -> bool {
         unsafe {
             ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object() as *const _ as _) != 0
         }
     }
 
     /// Check if `*mut ffi::PyObject` is exact instance of this type
-    fn is_exact_instance(object: &PyAny) -> bool {
+    fn is_exact_instance(object: &PyObject) -> bool {
         unsafe { (*object.as_ptr()).ob_type == Self::type_object() as *const _ as _ }
     }
 }

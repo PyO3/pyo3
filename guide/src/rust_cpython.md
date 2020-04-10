@@ -70,7 +70,7 @@ impl PyList {
 
    fn new(py: Python) -> &PyList {...}
 
-   fn get_item(&self, index: isize) -> &PyAny {...}
+   fn get_item(&self, index: isize) -> &PyObject {...}
 }
 ```
 

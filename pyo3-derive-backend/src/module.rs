@@ -178,7 +178,7 @@ pub fn add_fn_to_module(
     let wrapper = function_c_wrapper(&func.sig.ident, &spec);
 
     Ok(quote! {
-        fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::Py<pyo3::PyAny> {
+        fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::Py<pyo3::PyObject> {
             #wrapper
 
             let _def = pyo3::class::PyMethodDef {

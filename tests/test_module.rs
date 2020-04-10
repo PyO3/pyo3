@@ -257,14 +257,14 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(a = 5, vararg = "*")]
-fn ext_vararg_fn<'p>(py: Python<'p>, a: i32, vararg: &PyTuple) -> &'p PyAny {
+fn ext_vararg_fn<'p>(py: Python<'p>, a: i32, vararg: &PyTuple) -> &'p PyObject {
     [a.to_object(py), vararg.into()].to_object(py)
 }
 
 #[pymodule]
 fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "int_vararg_fn", a = 5, vararg = "*")]
-    fn int_vararg_fn<'p>(py: Python<'p>, a: i32, vararg: &PyTuple) -> &'p PyAny {
+    fn int_vararg_fn<'p>(py: Python<'p>, a: i32, vararg: &PyTuple) -> &'p PyObject {
         ext_vararg_fn(py, a, vararg)
     }
 

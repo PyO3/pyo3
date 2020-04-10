@@ -2,8 +2,8 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
-    PyNativeType, PyResult, PyTryFrom, Python, ToPyObject,
+    exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyErr, PyNativeType,
+    PyObject, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::slice;
 
@@ -11,7 +11,7 @@ use std::slice;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyTuple(PyAny);
+pub struct PyTuple(PyObject);
 
 pyobject_native_var_type!(PyTuple, ffi::PyTuple_Type, ffi::PyTuple_Check);
 
@@ -71,7 +71,7 @@ impl PyTuple {
     /// Gets the tuple item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: usize) -> &PyAny {
+    pub fn get_item(&self, index: usize) -> &PyObject {
         assert!(index < self.len());
         unsafe {
             self.py()
@@ -80,13 +80,13 @@ impl PyTuple {
     }
 
     /// Returns `self` as a slice of objects.
-    pub fn as_slice(&self) -> &[&PyAny] {
+    pub fn as_slice(&self) -> &[&PyObject] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
             let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
-            &*(slice as *const [*mut ffi::PyObject] as *const [&PyAny])
+            &*(slice as *const [*mut ffi::PyObject] as *const [&PyObject])
         }
     }
 
@@ -101,15 +101,15 @@ impl PyTuple {
 
 /// Used by `PyTuple::iter()`.
 pub struct PyTupleIterator<'a> {
-    slice: &'a [&'a PyAny],
+    slice: &'a [&'a PyObject],
     index: usize,
 }
 
 impl<'a> Iterator for PyTupleIterator<'a> {
-    type Item = &'a PyAny;
+    type Item = &'a PyObject;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
+    fn next(&mut self) -> Option<&'a PyObject> {
         if self.index < self.slice.len() {
             let item = &self.slice[self.index];
             self.index += 1;
@@ -121,7 +121,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a PyTuple {
-    type Item = &'a PyAny;
+    type Item = &'a PyObject;
     type IntoIter = PyTupleIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -146,7 +146,7 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+        fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
@@ -154,8 +154,8 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
     }
-    impl <$($T: IntoPy<Py<PyAny>>),+> IntoPy<Py<PyAny>> for ($($T,)+) {
-        fn into_py(self, py: Python) -> Py<PyAny> {
+    impl <$($T: IntoPy<Py<PyObject>>),+> IntoPy<Py<PyObject>> for ($($T,)+) {
+        fn into_py(self, py: Python) -> Py<PyObject> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
@@ -164,7 +164,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         }
     }
 
-    impl <$($T: IntoPy<Py<PyAny>>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
+    impl <$($T: IntoPy<Py<PyObject>>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
@@ -175,7 +175,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     }
 
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
-        fn extract(obj: &'s PyAny) -> PyResult<Self>
+        fn extract(obj: &'s PyObject) -> PyResult<Self>
         {
             let t = <PyTuple as PyTryFrom>::try_from(obj)?;
             let slice = t.as_slice();
@@ -247,7 +247,7 @@ tuple_conversion!(
 
 #[cfg(test)]
 mod test {
-    use crate::types::{PyAny, PyTuple};
+    use crate::types::{PyObject, PyTuple};
     use crate::{PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
 
@@ -257,7 +257,7 @@ mod test {
         let py = gil.python();
         let ob = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, ob.len());
-        let ob: &PyAny = ob.into();
+        let ob: &PyObject = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
 
         let mut map = HashSet::new();
@@ -273,7 +273,7 @@ mod test {
         let ob = (1, 2, 3).to_object(py);
         let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(3, tuple.len());
-        let ob: &PyAny = tuple.into();
+        let ob: &PyObject = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
     }
 

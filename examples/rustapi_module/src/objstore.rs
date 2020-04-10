@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 #[pyclass]
 #[derive(Default)]
 pub struct ObjStore {
-    obj: Vec<Py<PyAny>>,
+    obj: Vec<Py<PyObject>>,
 }
 
 #[pymethods]
@@ -13,7 +13,7 @@ impl ObjStore {
         ObjStore::default()
     }
 
-    fn push(&mut self, py: Python, obj: &PyAny) {
+    fn push(&mut self, py: Python, obj: &PyObject) {
         self.obj.push(obj.to_object(py).into());
     }
 }

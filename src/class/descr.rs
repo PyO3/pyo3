@@ -7,35 +7,35 @@
 
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
-use crate::types::{PyAny, PyType};
+use crate::types::{PyObject, PyType};
 use crate::{ffi, FromPyObject, IntoPy, Py, PyClass};
 use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
 pub trait PyDescrProtocol<'p>: PyClass {
-    fn __get__(&'p self, instance: &'p PyAny, owner: Option<&'p PyType>) -> Self::Result
+    fn __get__(&'p self, instance: &'p PyObject, owner: Option<&'p PyType>) -> Self::Result
     where
         Self: PyDescrGetProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __set__(&'p self, instance: &'p PyAny, value: &'p PyAny) -> Self::Result
+    fn __set__(&'p self, instance: &'p PyObject, value: &'p PyObject) -> Self::Result
     where
         Self: PyDescrSetProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __delete__(&'p self, instance: &'p PyAny) -> Self::Result
+    fn __delete__(&'p self, instance: &'p PyObject) -> Self::Result
     where
         Self: PyDescrDeleteProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __set_name__(&'p self, instance: &'p PyAny) -> Self::Result
+    fn __set_name__(&'p self, instance: &'p PyObject) -> Self::Result
     where
         Self: PyDescrSetNameProtocol<'p>,
     {
@@ -46,7 +46,7 @@ pub trait PyDescrProtocol<'p>: PyClass {
 pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
     type Inst: FromPyObject<'p>;
     type Owner: FromPyObject<'p>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 

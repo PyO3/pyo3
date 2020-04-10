@@ -9,7 +9,7 @@ use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
-use crate::types::{PyAny, PyDict, PyList};
+use crate::types::{PyDict, PyList, PyObject};
 use crate::{AsPyPointer, AsPyRef, IntoPy, Py, Python, ToPyObject};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -17,7 +17,7 @@ use std::str;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
-pub struct PyModule(PyAny);
+pub struct PyModule(PyObject);
 
 pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 
@@ -128,28 +128,28 @@ impl PyModule {
         name: &str,
         args: impl IntoPy<Py<PyTuple>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<&PyObject> {
         self.getattr(name)?.call(args, kwargs)
     }
 
     /// Calls a function in the module with only positional arguments.
     ///
     /// This is equivalent to the Python expression `module.name(*args)`.
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyObject> {
         self.getattr(name)?.call1(args)
     }
 
     /// Calls a function in the module without arguments.
     ///
     /// This is equivalent to the Python expression `module.name()`.
-    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn call0(&self, name: &str) -> PyResult<&PyObject> {
         self.getattr(name)?.call0()
     }
 
     /// Gets a member from the module.
     ///
     /// This is equivalent to the Python expression `module.name`.
-    pub fn get(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn get(&self, name: &str) -> PyResult<&PyObject> {
         self.getattr(name)
     }
 
@@ -193,7 +193,7 @@ impl PyModule {
     /// ```rust,ignore
     /// m.add("also_double", wrap_pyfunction!(double)(py));
     /// ```
-    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> Py<PyAny>) -> PyResult<()> {
+    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> Py<PyObject>) -> PyResult<()> {
         let function = wrapper(self.py());
         let name = function
             .as_ref(self.py())

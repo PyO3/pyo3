@@ -10,7 +10,7 @@
 
 use crate::callback::HashCallbackOutput;
 use crate::{
-    exceptions, ffi, FromPyObject, IntoPy, PyAny, PyCell, PyClass, PyErr, PyResult, Py,
+    exceptions, ffi, FromPyObject, IntoPy, PyObject, PyCell, PyClass, PyErr, PyResult, Py,
 };
 use std::os::raw::c_int;
 
@@ -101,7 +101,7 @@ pub trait PyObjectProtocol<'p>: PyClass {
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
@@ -114,16 +114,16 @@ pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
     type Format: FromPyObject<'p>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
@@ -133,12 +133,12 @@ pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<bool>>;
 }
 pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -210,7 +210,7 @@ where
                 }
 
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
-                let arg = py.from_borrowed_ptr::<PyAny>(arg);
+                let arg = py.from_borrowed_ptr::<PyObject>(arg);
                 call_ref!(slf, __getattr__, arg)
             })
         }
@@ -425,7 +425,7 @@ where
         {
             crate::callback_body!(py, {
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
-                let arg = py.from_borrowed_ptr::<PyAny>(arg);
+                let arg = py.from_borrowed_ptr::<PyObject>(arg);
 
                 let op = extract_op(op)?;
                 let arg = arg.extract()?;

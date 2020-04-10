@@ -54,12 +54,12 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<PyAny>> {
+    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<PyObject>> {
         let py = unsafe { Python::assume_gil_acquired() };
         Ok(slf.into_py(py))
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<Py<PyObject>>> {
         let py = unsafe { Python::assume_gil_acquired() };
         let bytes = slf.keys.as_ref(py).as_bytes();
         match bytes.get(slf.idx) {
@@ -89,7 +89,7 @@ fn reader() -> Reader {
 fn test_nested_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader: Py<PyAny> = reader().into_py(py);
+    let reader: Py<PyObject> = reader().into_py(py);
     py_assert!(
         py,
         reader,
@@ -101,7 +101,7 @@ fn test_nested_iter() {
 fn test_clone_ref() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader: Py<PyAny> = reader().into_py(py);
+    let reader: Py<PyObject> = reader().into_py(py);
     py_assert!(py, reader, "reader == reader.clone_ref()");
     py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
 }

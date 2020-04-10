@@ -3,8 +3,8 @@
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
 use crate::{
-    exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyAny, PyErr, PyNativeType, PyResult,
-    Python, ToPyObject,
+    exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyErr, PyNativeType, PyObject,
+    PyResult, Python, ToPyObject,
 };
 use std::convert::TryFrom;
 use std::i64;
@@ -26,18 +26,18 @@ macro_rules! int_fits_larger_int {
     ($rust_type:ty, $larger_type:ty) => {
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
                 (*self as $larger_type).to_object(py)
             }
         }
-        impl IntoPy<Py<PyAny>> for $rust_type {
-            fn into_py(self, py: Python) -> Py<PyAny> {
+        impl IntoPy<Py<PyObject>> for $rust_type {
+            fn into_py(self, py: Python) -> Py<PyObject> {
                 (self as $larger_type).into_py(py)
             }
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+            fn extract(obj: &'source PyObject) -> PyResult<Self> {
                 let val: $larger_type = obj.extract()?;
                 <$rust_type>::try_from(val).map_err(|_| exceptions::OverflowError.into())
             }
@@ -56,7 +56,7 @@ macro_rules! int_convert_128 {
     ($rust_type: ty, $byte_size: expr, $is_signed: expr) => {
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
                 unsafe {
                     let bytes = self.to_ne_bytes();
                     let obj = ffi::_PyLong_FromByteArray(
@@ -69,13 +69,13 @@ macro_rules! int_convert_128 {
                 }
             }
         }
-        impl IntoPy<Py<PyAny>> for $rust_type {
-            fn into_py(self, py: Python) -> Py<PyAny> {
+        impl IntoPy<Py<PyObject>> for $rust_type {
+            fn into_py(self, py: Python) -> Py<PyObject> {
                 self.to_object(py).into()
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+            fn extract(ob: &'source PyObject) -> PyResult<$rust_type> {
                 unsafe {
                     let num = ffi::PyNumber_Index(ob.as_ptr());
                     if num.is_null() {
@@ -107,7 +107,7 @@ macro_rules! int_convert_128 {
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyAny);
+pub struct PyLong(PyObject);
 
 pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 
@@ -115,19 +115,19 @@ macro_rules! int_fits_c_long {
     ($rust_type:ty) => {
         impl ToPyObject for $rust_type {
             #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
-            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
                 unsafe { py.from_owned_ptr(ffi::PyLong_FromLong(*self as c_long)) }
             }
         }
-        impl IntoPy<Py<PyAny>> for $rust_type {
+        impl IntoPy<Py<PyObject>> for $rust_type {
             #![cfg_attr(feature = "cargo-clippy", allow(clippy::cast_lossless))]
-            fn into_py(self, _py: Python) -> Py<PyAny> {
+            fn into_py(self, _py: Python) -> Py<PyObject> {
                 unsafe { Py::from_owned_ptr_or_panic(ffi::PyLong_FromLong(self as c_long)) }
             }
         }
 
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(obj: &'source PyAny) -> PyResult<Self> {
+            fn extract(obj: &'source PyObject) -> PyResult<Self> {
                 let ptr = obj.as_ptr();
                 let val = unsafe {
                     let num = ffi::PyNumber_Index(ptr);
@@ -149,18 +149,18 @@ macro_rules! int_convert_u64_or_i64 {
     ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr) => {
         impl ToPyObject for $rust_type {
             #[inline]
-            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+            fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
                 unsafe { py.from_owned_ptr($pylong_from_ll_or_ull(*self)) }
             }
         }
-        impl IntoPy<Py<PyAny>> for $rust_type {
+        impl IntoPy<Py<PyObject>> for $rust_type {
             #[inline]
-            fn into_py(self, _py: Python) -> Py<PyAny> {
+            fn into_py(self, _py: Python) -> Py<PyObject> {
                 unsafe { Py::from_owned_ptr_or_panic($pylong_from_ll_or_ull(self)) }
             }
         }
         impl<'source> FromPyObject<'source> for $rust_type {
-            fn extract(ob: &'source PyAny) -> PyResult<$rust_type> {
+            fn extract(ob: &'source PyObject) -> PyResult<$rust_type> {
                 let ptr = ob.as_ptr();
                 unsafe {
                     let num = ffi::PyNumber_Index(ptr);
@@ -220,7 +220,7 @@ mod bigint_conversion {
     use super::*;
     use num_bigint::{BigInt, BigUint};
 
-    unsafe fn extract_small(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<[c_uchar; 128]> {
+    unsafe fn extract_small(ob: &PyObject, n: usize, is_signed: c_int) -> PyResult<[c_uchar; 128]> {
         let buffer = [0; 128];
         let ok = ffi::_PyLong_AsByteArray(
             ob.as_ptr() as *mut ffi::PyLongObject,
@@ -236,7 +236,7 @@ mod bigint_conversion {
         }
     }
 
-    unsafe fn extract_large(ob: &PyAny, n: usize, is_signed: c_int) -> PyResult<Vec<c_uchar>> {
+    unsafe fn extract_large(ob: &PyObject, n: usize, is_signed: c_int) -> PyResult<Vec<c_uchar>> {
         let buffer = vec![0; n];
         let ok = ffi::_PyLong_AsByteArray(
             ob.as_ptr() as *mut ffi::PyLongObject,
@@ -255,7 +255,7 @@ mod bigint_conversion {
     macro_rules! bigint_conversion {
         ($rust_ty: ty, $is_signed: expr, $to_bytes: path, $from_bytes: path) => {
             impl ToPyObject for $rust_ty {
-                fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+                fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
                     unsafe {
                         let bytes = $to_bytes(self);
                         let obj = ffi::_PyLong_FromByteArray(
@@ -268,13 +268,13 @@ mod bigint_conversion {
                     }
                 }
             }
-            impl IntoPy<Py<PyAny>> for $rust_ty {
-                fn into_py(self, py: Python) -> Py<PyAny> {
+            impl IntoPy<Py<PyObject>> for $rust_ty {
+                fn into_py(self, py: Python) -> Py<PyObject> {
                     self.to_object(py).into()
                 }
             }
             impl<'source> FromPyObject<'source> for $rust_ty {
-                fn extract(ob: &'source PyAny) -> PyResult<$rust_ty> {
+                fn extract(ob: &'source PyObject) -> PyResult<$rust_ty> {
                     unsafe {
                         let num = ffi::PyNumber_Index(ob.as_ptr());
                         if num.is_null() {
@@ -516,7 +516,7 @@ mod test {
     #[test]
     #[cfg(not(Py_LIMITED_API))]
     fn test_u128_overflow() {
-        use crate::{exceptions, ffi, PyAny};
+        use crate::{exceptions, ffi, PyObject};
         use std::os::raw::c_uchar;
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -528,7 +528,7 @@ mod test {
                 super::IS_LITTLE_ENDIAN,
                 0,
             );
-            let obj: &PyAny = py.from_owned_ptr(obj);
+            let obj: &PyObject = py.from_owned_ptr(obj);
             let err = obj.extract::<u128>().unwrap_err();
             assert!(err.is_instance::<exceptions::OverflowError>(py));
         }

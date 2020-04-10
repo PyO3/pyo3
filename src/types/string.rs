@@ -2,7 +2,7 @@
 
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, Py, PyResult,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyObject, PyErr, PyNativeType, Py, PyResult,
     PyTryFrom, Python, ToPyObject,
 };
 use std::borrow::Cow;
@@ -14,7 +14,7 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyString(PyAny);
+pub struct PyString(PyObject);
 
 pyobject_native_var_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
@@ -28,7 +28,11 @@ impl PyString {
         unsafe { py.from_owned_ptr(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    pub fn from_object<'p>(src: &'p PyAny, encoding: &str, errors: &str) -> PyResult<&'p PyString> {
+    pub fn from_object<'p>(
+        src: &'p PyObject,
+        encoding: &str,
+        errors: &str,
+    ) -> PyResult<&'p PyString> {
         unsafe {
             src.py()
                 .from_owned_ptr_or_err::<PyString>(ffi::PyUnicode_FromEncodedObject(
@@ -91,14 +95,14 @@ impl PyString {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         PyString::new(py, self).into()
     }
 }
 
-impl<'a> IntoPy<Py<PyAny>> for &'a str {
+impl<'a> IntoPy<Py<PyObject>> for &'a str {
     #[inline]
-    fn into_py(self, py: Python) -> Py<PyAny> {
+    fn into_py(self, py: Python) -> Py<PyObject> {
         PyString::new(py, self).into_py(py)
     }
 }
@@ -107,7 +111,7 @@ impl<'a> IntoPy<Py<PyAny>> for &'a str {
 /// See `PyString::new` for details on the conversion.
 impl<'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         PyString::new(py, self).into()
     }
 }
@@ -116,20 +120,20 @@ impl<'a> ToPyObject for Cow<'a, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         PyString::new(py, self).into()
     }
 }
 
-impl FromPy<String> for Py<PyAny> {
+impl FromPy<String> for Py<PyObject> {
     fn from_py(other: String, py: Python) -> Self {
         PyString::new(py, &other).into_py(py)
     }
 }
 
-impl<'a> IntoPy<Py<PyAny>> for &'a String {
+impl<'a> IntoPy<Py<PyObject>> for &'a String {
     #[inline]
-    fn into_py(self, py: Python) -> Py<PyAny> {
+    fn into_py(self, py: Python) -> Py<PyObject> {
         PyString::new(py, self).into_py(py)
     }
 }
@@ -137,7 +141,7 @@ impl<'a> IntoPy<Py<PyAny>> for &'a String {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &'source PyObject) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(ob)?.to_string()
     }
 }
@@ -145,7 +149,7 @@ impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'a> crate::FromPyObject<'a> for &'a str {
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    fn extract(ob: &'a PyObject) -> PyResult<Self> {
         let s: Cow<'a, str> = crate::FromPyObject::extract(ob)?;
         match s {
             Cow::Borrowed(r) => Ok(r),
@@ -160,7 +164,7 @@ impl<'a> crate::FromPyObject<'a> for &'a str {
 /// Allows extracting strings from Python objects.
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for String {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract(obj: &'source PyObject) -> PyResult<Self> {
         <PyString as PyTryFrom>::try_from(obj)?
             .to_string()
             .map(Cow::into_owned)

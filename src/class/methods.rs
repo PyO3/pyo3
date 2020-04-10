@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
-use crate::{ffi, Py, PyAny, Python};
+use crate::{ffi, Py, PyObject, Python};
 use libc::c_int;
 use std::ffi::CString;
 use std::fmt;
@@ -46,7 +46,7 @@ pub struct PyMethodDef {
 #[derive(Copy, Clone)]
 pub struct PyClassAttributeDef {
     pub name: &'static str,
-    pub meth: for<'p> fn(Python<'p>) -> Py<PyAny>,
+    pub meth: for<'p> fn(Python<'p>) -> Py<PyObject>,
 }
 
 #[derive(Copy, Clone, Debug)]

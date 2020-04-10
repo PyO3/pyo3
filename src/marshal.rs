@@ -1,5 +1,5 @@
 use crate::ffi;
-use crate::types::{PyAny, PyBytes};
+use crate::types::{PyBytes, PyObject};
 use crate::{AsPyPointer, FromPyPointer, PyResult, Python};
 use std::os::raw::{c_char, c_int};
 
@@ -35,7 +35,7 @@ pub fn dumps<'a>(py: Python<'a>, object: &impl AsPyPointer, version: i32) -> PyR
 }
 
 /// Deserialize an object from bytes using the Python built-in marshal module.
-pub fn loads<'a, B>(py: Python<'a>, data: &B) -> PyResult<&'a PyAny>
+pub fn loads<'a, B>(py: Python<'a>, data: &B) -> PyResult<&'a PyObject>
 where
     B: AsRef<[u8]> + ?Sized,
 {

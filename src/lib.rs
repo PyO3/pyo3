@@ -146,8 +146,8 @@ pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::{prepare_freethreaded_python, Python};
 pub use crate::type_object::{type_flags, PyTypeInfo};
-// Since PyAny is as important as PyObject, we expose it to the top level.
-pub use crate::types::PyAny;
+// Since PyObject is as important as PyObject, we expose it to the top level.
+pub use crate::types::PyObject;
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]
@@ -216,7 +216,7 @@ macro_rules! wrap_pyfunction {
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
         pyo3::paste::expr! {
-            &|_py| unsafe { pyo3::Py::<PyAny>::from_owned_ptr([<PyInit_ $module_name>]()) }
+            &|_py| unsafe { pyo3::Py::<PyObject>::from_owned_ptr([<PyInit_ $module_name>]()) }
         }
     }};
 }

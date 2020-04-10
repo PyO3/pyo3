@@ -84,7 +84,7 @@ fn data_is_dropped() {
 #[allow(dead_code)]
 #[pyclass]
 struct GCIntegration {
-    self_ref: RefCell<Py<PyAny>>,
+    self_ref: RefCell<Py<PyObject>>,
     dropped: TestDropCall,
 }
 

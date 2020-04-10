@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyErr, PyNativeType, PyResult,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyErr, PyNativeType, PyObject, PyResult,
     Python, ToPyObject,
 };
 use std::os::raw::c_double;
@@ -14,7 +14,7 @@ use std::os::raw::c_double;
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
-pub struct PyFloat(PyAny);
+pub struct PyFloat(PyObject);
 
 pyobject_native_type!(
     PyFloat,
@@ -36,12 +36,12 @@ impl PyFloat {
 }
 
 impl ToPyObject for f64 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         PyFloat::new(py, *self).into()
     }
 }
 
-impl FromPy<f64> for Py<PyAny> {
+impl FromPy<f64> for Py<PyObject> {
     fn from_py(other: f64, py: Python) -> Self {
         PyFloat::new(py, other).into_py(py)
     }
@@ -50,7 +50,7 @@ impl FromPy<f64> for Py<PyAny> {
 impl<'source> FromPyObject<'source> for f64 {
     // PyFloat_AsDouble returns -1.0 upon failure
     #![cfg_attr(feature = "cargo-clippy", allow(clippy::float_cmp))]
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract(obj: &'source PyObject) -> PyResult<Self> {
         let v = unsafe { ffi::PyFloat_AsDouble(obj.as_ptr()) };
 
         if v == -1.0 && PyErr::occurred(obj.py()) {
@@ -62,19 +62,19 @@ impl<'source> FromPyObject<'source> for f64 {
 }
 
 impl ToPyObject for f32 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         PyFloat::new(py, f64::from(*self)).into()
     }
 }
 
-impl FromPy<f32> for Py<PyAny> {
+impl FromPy<f32> for Py<PyObject> {
     fn from_py(other: f32, py: Python) -> Self {
         PyFloat::new(py, f64::from(other)).into_py(py)
     }
 }
 
 impl<'source> FromPyObject<'source> for f32 {
-    fn extract(obj: &'source PyAny) -> PyResult<Self> {
+    fn extract(obj: &'source PyObject) -> PyResult<Self> {
         Ok(obj.extract::<f64>()? as f32)
     }
 }

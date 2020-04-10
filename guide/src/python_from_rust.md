@@ -26,7 +26,7 @@ fn main() -> PyResult<()> {
 
 [`Python::eval`](https://pyo3.rs/master/doc/pyo3/struct.Python.html#method.eval) is
 a method to execute a [Python expression](https://docs.python.org/3.7/reference/expressions.html)
-and return the evaluated value as a `&PyAny` object.
+and return the evaluated value as a `&PyObject` object.
 
 ```rust
 use pyo3::prelude::*;

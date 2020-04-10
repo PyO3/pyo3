@@ -5,7 +5,7 @@
 
 use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::{PyErr, PyResult};
-use crate::{exceptions, ffi, Py, PyAny, PyCell, PyClass};
+use crate::{exceptions, ffi, Py, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
 /// Sequence interface
@@ -84,7 +84,7 @@ pub trait PySequenceLenProtocol<'p>: PySequenceProtocol<'p> {
 
 pub trait PySequenceGetItemProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -106,22 +106,26 @@ pub trait PySequenceContainsProtocol<'p>: PySequenceProtocol<'p> {
 
 pub trait PySequenceConcatProtocol<'p>: PySequenceProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PySequenceRepeatProtocol<'p>: PySequenceProtocol<'p> {
     type Index: FromPyObject<'p> + From<isize>;
-    type Success: IntoPy<Py<PyAny>>;
+    type Success: IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
-pub trait PySequenceInplaceConcatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<Py<PyAny>> {
+pub trait PySequenceInplaceConcatProtocol<'p>:
+    PySequenceProtocol<'p> + IntoPy<Py<PyObject>>
+{
     type Other: FromPyObject<'p>;
     type Result: Into<PyResult<Self>>;
 }
 
-pub trait PySequenceInplaceRepeatProtocol<'p>: PySequenceProtocol<'p> + IntoPy<Py<PyAny>> {
+pub trait PySequenceInplaceRepeatProtocol<'p>:
+    PySequenceProtocol<'p> + IntoPy<Py<PyObject>>
+{
     type Index: FromPyObject<'p> + From<isize>;
     type Result: Into<PyResult<Self>>;
 }
@@ -265,7 +269,7 @@ mod sq_ass_item_impl {
                     }
 
                     let mut slf = slf.try_borrow_mut()?;
-                    let value = py.from_borrowed_ptr::<PyAny>(value);
+                    let value = py.from_borrowed_ptr::<PyObject>(value);
                     let value = value.extract()?;
                     slf.__setitem__(key.into(), value).into()
                 })
@@ -349,7 +353,7 @@ mod sq_ass_item_impl {
                     if value.is_null() {
                         call_mut!(slf, __delitem__; key.into())
                     } else {
-                        let value = py.from_borrowed_ptr::<PyAny>(value);
+                        let value = py.from_borrowed_ptr::<PyObject>(value);
                         let mut slf_ = slf.try_borrow_mut()?;
                         let value = value.extract()?;
                         slf_.__setitem__(key.into(), value).into()

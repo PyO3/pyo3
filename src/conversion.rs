@@ -4,7 +4,7 @@
 use crate::err::{self, PyDowncastError, PyResult};
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
-use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
+use crate::{ffi, gil, Py, PyCell, PyClass, PyNativeType, PyObject, PyRef, PyRefMut, Python};
 use std::ptr::NonNull;
 
 /// This trait represents that **we can do zero-cost conversion from the object
@@ -79,7 +79,7 @@ where
 /// Conversion trait that allows various objects to be converted into `PyObject`.
 pub trait ToPyObject {
     /// Converts self into a Python object.
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny;
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject;
 }
 
 /// This trait has two implementations: The slow one is implemented for
@@ -152,12 +152,12 @@ where
 /// a Python object reference.
 ///
 /// Normal usage is through the helper methods `PyObject::extract` or
-/// `PyAny::extract`:
+/// `PyObject::extract`:
 ///
-/// ```let obj: Py<PyAny> = ...;
+/// ```let obj: Py<PyObject> = ...;
 /// let value: &TargetType = obj.extract(py)?;
 ///
-/// let any: &PyAny = ...;
+/// let any: &PyObject = ...;
 /// let value: &TargetType = any.extract()?;
 /// ```
 ///
@@ -172,23 +172,23 @@ where
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
 /// In cases where the result does not depend on the `'prepared` lifetime,
-/// the inherent method `Py<PyAny>::extract()` can be used.
+/// the inherent method `Py<PyObject>::extract()` can be used.
 ///
-/// The trait's conversion method takes a `&PyAny` argument but is called
+/// The trait's conversion method takes a `&PyObject` argument but is called
 /// `FromPyObject` for historical reasons.
 pub trait FromPyObject<'source>: Sized {
-    /// Extracts `Self` from the source `Py<PyAny>`.
-    fn extract(ob: &'source PyAny) -> PyResult<Self>;
+    /// Extracts `Self` from the source `Py<PyObject>`.
+    fn extract(ob: &'source PyObject) -> PyResult<Self>;
 }
 
-/// Identity conversion: allows using existing `Py<PyAny>` instances where
+/// Identity conversion: allows using existing `Py<PyObject>` instances where
 /// `T: ToPyObject` is expected.
 impl<'a, T: ?Sized> ToPyObject for &'a T
 where
     T: ToPyObject,
 {
     #[inline]
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         <T as ToPyObject>::to_object(*self, py)
     }
 }
@@ -199,7 +199,7 @@ impl<T> ToPyObject for Option<T>
 where
     T: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         match *self {
             Some(ref val) => val.to_object(py),
             None => py.None(),
@@ -207,11 +207,11 @@ where
     }
 }
 
-impl<T> IntoPy<Py<PyAny>> for Option<T>
+impl<T> IntoPy<Py<PyObject>> for Option<T>
 where
-    T: IntoPy<Py<PyAny>>,
+    T: IntoPy<Py<PyObject>>,
 {
-    fn into_py(self, py: Python) -> Py<PyAny> {
+    fn into_py(self, py: Python) -> Py<PyObject> {
         match self {
             Some(val) => val.into_py(py),
             None => py.None().into(),
@@ -221,23 +221,23 @@ where
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         py.None()
     }
 }
 
-impl FromPy<()> for Py<PyAny> {
+impl FromPy<()> for Py<PyObject> {
     fn from_py(_: (), py: Python) -> Self {
         py.None().into()
     }
 }
 
-impl<'a, T> FromPy<&'a T> for Py<PyAny>
+impl<'a, T> FromPy<&'a T> for Py<PyObject>
 where
     T: AsPyPointer,
 {
     #[inline]
-    fn from_py(other: &'a T, _py: Python) -> Py<PyAny> {
+    fn from_py(other: &'a T, _py: Python) -> Py<PyObject> {
         unsafe { Py::from_borrowed_ptr(other.as_ptr()) }
     }
 }
@@ -246,7 +246,7 @@ impl<'a, T> FromPyObject<'a> for &'a PyCell<T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyObject) -> PyResult<Self> {
         PyTryFrom::try_from(obj).map_err(Into::into)
     }
 }
@@ -255,7 +255,7 @@ impl<'a, T> FromPyObject<'a> for T
 where
     T: PyClass + Clone,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyObject) -> PyResult<Self> {
         let cell: &PyCell<Self> = PyTryFrom::try_from(obj)?;
         Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
     }
@@ -265,7 +265,7 @@ impl<'a, T> FromPyObject<'a> for PyRef<'a, T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyObject) -> PyResult<Self> {
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;
         cell.try_borrow().map_err(Into::into)
     }
@@ -275,7 +275,7 @@ impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
 where
     T: PyClass,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyObject) -> PyResult<Self> {
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;
         cell.try_borrow_mut().map_err(Into::into)
     }
@@ -285,7 +285,7 @@ impl<'a, T> FromPyObject<'a> for Option<T>
 where
     T: FromPyObject<'a>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyObject) -> PyResult<Self> {
         if obj.as_ptr() == unsafe { ffi::Py_None() } {
             Ok(None)
         } else {
@@ -298,35 +298,35 @@ where
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
-/// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
+/// If `T` implements `PyTryFrom`, we can convert `&PyObject` to `&T`.
 ///
 /// This trait is similar to `std::convert::TryFrom`
 pub trait PyTryFrom<'v>: Sized + PyNativeType {
-    /// Cast PyAny to a concrete Python object type.
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    /// Cast PyObject to a concrete Python object type.
+    fn try_from<V: Into<&'v PyObject>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
-    /// Cast PyAny to a concrete Python object type. With exact type check.
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    /// Cast PyObject to a concrete Python object type. With exact type check.
+    fn try_from_exact<V: Into<&'v PyObject>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
-    /// Cast PyAny to a concrete Python object type without a type check.
+    /// Cast PyObject to a concrete Python object type without a type check.
     ///
     /// # Safety
     /// The caller must have already verified the reference is for this type.
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
+    unsafe fn try_from_unchecked<V: Into<&'v PyObject>>(value: V) -> &'v Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryInto`
 pub trait PyTryInto<T>: Sized {
-    /// Cast from Py<PyAny> to a concrete Python object type.
+    /// Cast from Py<PyObject> to a concrete Python object type.
     fn try_into(&self) -> Result<&T, PyDowncastError>;
 
-    /// Cast from Py<PyAny> to a concrete Python object type. With exact type check.
+    /// Cast from Py<PyObject> to a concrete Python object type. With exact type check.
     fn try_into_exact(&self) -> Result<&T, PyDowncastError>;
 }
 
 // TryFrom implies TryInto
-impl<U> PyTryInto<U> for PyAny
+impl<U> PyTryInto<U> for PyObject
 where
     U: for<'v> PyTryFrom<'v>,
 {
@@ -342,7 +342,7 @@ impl<'v, T> PyTryFrom<'v> for T
 where
     T: PyTypeInfo + PyNativeType,
 {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from<V: Into<&'v PyObject>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -353,7 +353,7 @@ where
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyObject>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
@@ -365,7 +365,7 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+    unsafe fn try_from_unchecked<V: Into<&'v PyObject>>(value: V) -> &'v Self {
         Self::unchecked_downcast(value.into())
     }
 }
@@ -374,7 +374,7 @@ impl<'v, T> PyTryFrom<'v> for PyCell<T>
 where
     T: 'v + PyClass,
 {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from<V: Into<&'v PyObject>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -384,7 +384,7 @@ where
             }
         }
     }
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyObject>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
@@ -395,7 +395,7 @@ where
         }
     }
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+    unsafe fn try_from_unchecked<V: Into<&'v PyObject>>(value: V) -> &'v Self {
         Self::unchecked_downcast(value.into())
     }
 }

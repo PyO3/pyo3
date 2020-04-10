@@ -9,7 +9,7 @@ use crate::exceptions::TypeError;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
-use crate::types::{PyAny, PyDict, PyModule, PyTuple};
+use crate::types::{PyDict, PyModule, PyObject, PyTuple};
 use crate::{ffi, GILPool, IntoPy, Py, PyCell, Python};
 use std::cell::UnsafeCell;
 
@@ -39,7 +39,7 @@ pub fn parse_fn_args<'p>(
     kwargs: Option<&'p PyDict>,
     accept_args: bool,
     accept_kwargs: bool,
-    output: &mut [Option<&'p PyAny>],
+    output: &mut [Option<&'p PyObject>],
 ) -> PyResult<(&'p PyTuple, Option<&'p PyDict>)> {
     let nargs = args.len();
     let mut used_args = 0;
@@ -156,7 +156,7 @@ impl ModuleDef {
     }
 }
 
-/// This trait wraps a T: IntoPy<Py<PyAny>> into PyResult<T> while PyResult<T> remains PyResult<T>.
+/// This trait wraps a T: IntoPy<Py<PyObject>> into PyResult<T> while PyResult<T> remains PyResult<T>.
 ///
 /// This is necessary because proc macros run before typechecking and can't decide
 /// whether a return type is a (possibly aliased) PyResult or not. It is also quite handy because
@@ -165,20 +165,20 @@ pub trait IntoPyResult<T> {
     fn into_py_result(self) -> PyResult<T>;
 }
 
-impl<T: IntoPy<Py<PyAny>>> IntoPyResult<T> for T {
+impl<T: IntoPy<Py<PyObject>>> IntoPyResult<T> for T {
     fn into_py_result(self) -> PyResult<T> {
         Ok(self)
     }
 }
 
-impl<T: IntoPy<Py<PyAny>>> IntoPyResult<T> for PyResult<T> {
+impl<T: IntoPy<Py<PyObject>>> IntoPyResult<T> for PyResult<T> {
     fn into_py_result(self) -> PyResult<T> {
         self
     }
 }
 
 /// Variant of IntoPyResult for the specific case of `#[new]`. In the case of returning (Sub, Base)
-/// from `#[new]`, IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<Py<PyAny>>.
+/// from `#[new]`, IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<Py<PyObject>>.
 pub trait IntoPyNewResult<T: PyClass, I: Into<PyClassInitializer<T>>> {
     fn into_pynew_result(self) -> PyResult<I>;
 }
@@ -197,20 +197,20 @@ impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyRes
 
 #[doc(hidden)]
 pub trait GetPropertyValue {
-    fn get_property_value(&self, py: Python) -> Py<PyAny>;
+    fn get_property_value(&self, py: Python) -> Py<PyObject>;
 }
 
 impl<T> GetPropertyValue for &T
 where
-    T: IntoPy<Py<PyAny>> + Clone,
+    T: IntoPy<Py<PyObject>> + Clone,
 {
-    fn get_property_value(&self, py: Python) -> Py<PyAny> {
+    fn get_property_value(&self, py: Python) -> Py<PyObject> {
         (*self).clone().into_py(py)
     }
 }
 
 impl<T> GetPropertyValue for Py<T> {
-    fn get_property_value(&self, py: Python) -> Py<PyAny> {
+    fn get_property_value(&self, py: Python) -> Py<PyObject> {
         self.clone_ref(py).into_py(py)
     }
 }

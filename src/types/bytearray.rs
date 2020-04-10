@@ -1,13 +1,13 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::err::{PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, AsPyPointer, PyObject, Python};
 use std::os::raw::c_char;
 use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
-pub struct PyByteArray(PyAny);
+pub struct PyByteArray(PyObject);
 
 pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
 

@@ -2,7 +2,7 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyResult, Python};
+use crate::{ffi, AsPyPointer, PyDowncastError, PyErr, PyNativeType, PyObject, PyResult, Python};
 
 /// A Python iterator object.
 ///
@@ -19,13 +19,13 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 /// let gil = Python::acquire_gil();
 /// let py = gil.python();
 /// let list = py.eval("iter([1, 2, 3, 4])", None, None)?;
-/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(PyAny::extract::<usize>)).collect();
+/// let numbers: PyResult<Vec<usize>> = list.iter()?.map(|i| i.and_then(PyObject::extract::<usize>)).collect();
 /// let sum: usize = numbers?.iter().sum();
 /// assert_eq!(sum, 10);
 /// # Ok(())
 /// # }
 /// ```
-pub struct PyIterator<'p>(&'p PyAny);
+pub struct PyIterator<'p>(&'p PyObject);
 
 impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
@@ -52,7 +52,7 @@ impl<'p> PyIterator<'p> {
 }
 
 impl<'p> Iterator for PyIterator<'p> {
-    type Item = PyResult<&'p PyAny>;
+    type Item = PyResult<&'p PyObject>;
 
     /// Retrieves the next item from an iterator.
     ///
@@ -88,7 +88,7 @@ mod tests {
     use crate::gil::GILPool;
     use crate::instance::AsPyRef;
     use crate::types::{PyDict, PyList};
-    use crate::{Py, PyAny, Python, ToPyObject};
+    use crate::{Py, PyObject, Python, ToPyObject};
     use indoc::indoc;
 
     #[test]
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn iter_refcnt() {
-        let obj: Py<PyAny>;
+        let obj: Py<PyObject>;
         let count;
         {
             let gil_guard = Python::acquire_gil();
@@ -128,8 +128,8 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
 
-        let obj: Py<PyAny>;
-        let none: Py<PyAny>;
+        let obj: Py<PyObject>;
+        let none: Py<PyObject>;
         let count;
         {
             let _pool = unsafe { GILPool::new() };

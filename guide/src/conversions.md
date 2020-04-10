@@ -27,14 +27,14 @@ and [`PyRefMut`].  They work like the reference wrappers of
 ## The `ToPyObject` trait
 
 [`ToPyObject`] is a conversion trait that allows various objects to be
-converted into [`&PyAny`]. `IntoPy<Py<PyAny>>` serves the
+converted into [`&PyObject`]. `IntoPy<Py<PyObject>>` serves the
 same purpose, except that it consumes `self`.
 
 
 ## `*args` and `**kwargs` for Python object calls
 
 There are several ways how to pass positional and keyword arguments to a Python object call.
-[`PyAny`] provides two methods:
+[`PyObject`] provides two methods:
 
 * `call` - call any callable Python object.
 * `call_method` - call a specific method on the object, shorthand for `get_attr` then `call`.
@@ -48,7 +48,7 @@ use pyo3::types::{PyDict, PyTuple};
 
 struct SomeObject;
 impl SomeObject {
-    fn new(py: Python) -> &PyAny {
+    fn new(py: Python) -> &PyObject {
         PyDict::new(py).to_object(py)
     }
 }
@@ -89,7 +89,7 @@ use std::collections::HashMap;
 struct SomeObject;
 
 impl SomeObject {
-    fn new(py: Python) -> &PyAny {
+    fn new(py: Python) -> &PyObject {
         PyDict::new(py).to_object(py)
     }
 }
@@ -135,9 +135,9 @@ Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [
 [`FromPy`]: https://docs.rs/pyo3/latest/pyo3/trait.FromPy.html
 [`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/types/trait.FromPyObject.html
 [`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/trait.ToPyObject.html
-[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
 [`PyTuple`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
-[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
 [`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
 
 [`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html

@@ -1,5 +1,5 @@
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyObject, PyResult, PyTryFrom, Python,
 };
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -10,7 +10,7 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyBytes(PyAny);
+pub struct PyBytes(PyObject);
 
 pyobject_native_var_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
 
@@ -56,14 +56,14 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
-impl<'a> FromPy<&'a [u8]> for Py<PyAny> {
+impl<'a> FromPy<&'a [u8]> for Py<PyObject> {
     fn from_py(other: &'a [u8], py: Python) -> Self {
         PyBytes::new(py, other).into_py(py)
     }
 }
 
 impl<'a> FromPyObject<'a> for &'a [u8] {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyObject) -> PyResult<Self> {
         Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
     }
 }

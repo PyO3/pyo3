@@ -116,7 +116,7 @@ fn test_polymorphic_container_does_not_accept_other_types() {
     .unwrap()
     .to_object(py);
 
-    let setattr = |value: Py<PyAny>| p.setattr("inner", value);
+    let setattr = |value: Py<PyObject>| p.setattr("inner", value);
 
     assert!(setattr(1i32.into_py(py)).is_err());
     assert!(setattr(py.None().into_py(py)).is_err());
@@ -151,10 +151,10 @@ fn test_pycell_deref() {
 
     let cell = PyCell::new(py, (SubClass {}, BaseClass { value: 120 })).unwrap();
 
-    // Should be able to deref as PyAny
+    // Should be able to deref as PyObject
     assert_eq!(
         cell.call_method0("foo")
-            .and_then(PyAny::extract::<&str>)
+            .and_then(PyObject::extract::<&str>)
             .unwrap(),
         "SubClass"
     );

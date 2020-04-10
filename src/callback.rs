@@ -6,7 +6,7 @@ use crate::err::PyResult;
 use crate::exceptions::OverflowError;
 use crate::ffi::{self, Py_hash_t};
 use crate::IntoPyPointer;
-use crate::{IntoPy, Py, PyAny, Python};
+use crate::{IntoPy, Py, PyObject, Python};
 use std::isize;
 use std::os::raw::c_int;
 
@@ -48,7 +48,7 @@ where
 
 impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for T
 where
-    T: IntoPy<Py<PyAny>>,
+    T: IntoPy<Py<PyObject>>,
 {
     fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
         Ok(self.into_py(py).into_ptr())

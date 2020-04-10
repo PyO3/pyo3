@@ -5,7 +5,7 @@
 use crate::callback::IntoPyCallbackOutput;
 use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
-use crate::{ffi, IntoPy, IntoPyPointer, Py, PyAny, PyClass, Python};
+use crate::{ffi, IntoPy, IntoPyPointer, Py, PyClass, PyObject, Python};
 
 /// Python Iterator Interface.
 ///
@@ -30,13 +30,13 @@ pub trait PyIterProtocol<'p>: PyClass {
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
     type Receiver: TryFromPyCell<'p, Self>;
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
     type Receiver: TryFromPyCell<'p, Self>;
-    type Success: crate::IntoPy<Py<PyAny>>;
+    type Success: crate::IntoPy<Py<PyObject>>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
@@ -110,7 +110,7 @@ struct IterNextConverter<T>(Option<T>);
 
 impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for IterNextConverter<T>
 where
-    T: IntoPy<Py<PyAny>>,
+    T: IntoPy<Py<PyObject>>,
 {
     fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
         match self.0 {

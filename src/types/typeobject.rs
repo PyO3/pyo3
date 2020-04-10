@@ -5,13 +5,13 @@
 use crate::err::{PyErr, PyResult};
 use crate::instance::{Py, PyNativeType};
 use crate::type_object::PyTypeObject;
-use crate::{ffi, AsPyPointer, PyAny, Python};
+use crate::{ffi, AsPyPointer, PyObject, Python};
 use std::borrow::Cow;
 use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
-pub struct PyType(PyAny);
+pub struct PyType(PyObject);
 
 pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 

@@ -2,7 +2,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::types::{PyAny, PyList};
+use crate::types::{PyList, PyObject};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{
@@ -14,7 +14,7 @@ use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict(PyAny);
+pub struct PyDict(PyObject);
 
 pyobject_native_type!(
     PyDict,
@@ -37,7 +37,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence<'p>(py: Python<'p>, seq: &PyAny) -> PyResult<&'p PyDict> {
+    pub fn from_sequence<'p>(py: Python<'p>, seq: &PyObject) -> PyResult<&'p PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
             match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
@@ -95,8 +95,8 @@ impl PyDict {
     ///
     /// Returns `None` if the item is not present, or if an error occurs.
     ///
-    /// To get a `KeyError` for non-existing keys, use `PyAny::get_item`.
-    pub fn get_item<K>(&self, key: K) -> Option<&PyAny>
+    /// To get a `KeyError` for non-existing keys, use `PyObject::get_item`.
+    pub fn get_item<K>(&self, key: K) -> Option<&PyObject>
     where
         K: ToBorrowedObject,
     {
@@ -180,12 +180,12 @@ impl PyDict {
 }
 
 pub struct PyDictIterator<'py> {
-    dict: &'py PyAny,
+    dict: &'py PyObject,
     pos: isize,
 }
 
 impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyAny, &'py PyAny);
+    type Item = (&'py PyObject, &'py PyObject);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -206,7 +206,7 @@ impl<'py> Iterator for PyDictIterator<'py> {
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyDict {
-    type Item = (&'a PyAny, &'a PyAny);
+    type Item = (&'a PyObject, &'a PyObject);
     type IntoIter = PyDictIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -220,7 +220,7 @@ where
     V: ToPyObject,
     H: hash::BuildHasher,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -230,18 +230,18 @@ where
     K: cmp::Eq + ToPyObject,
     V: ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
-impl<K, V, H> IntoPy<Py<PyAny>> for collections::HashMap<K, V, H>
+impl<K, V, H> IntoPy<Py<PyObject>> for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPy<Py<PyAny>>,
-    V: IntoPy<Py<PyAny>>,
+    K: hash::Hash + cmp::Eq + IntoPy<Py<PyObject>>,
+    V: IntoPy<Py<PyObject>>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python) -> Py<PyAny> {
+    fn into_py(self, py: Python) -> Py<PyObject> {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -249,12 +249,12 @@ where
     }
 }
 
-impl<K, V> IntoPy<Py<PyAny>> for collections::BTreeMap<K, V>
+impl<K, V> IntoPy<Py<PyObject>> for collections::BTreeMap<K, V>
 where
-    K: cmp::Eq + IntoPy<Py<PyAny>>,
-    V: IntoPy<Py<PyAny>>,
+    K: cmp::Eq + IntoPy<Py<PyObject>>,
+    V: IntoPy<Py<PyObject>>,
 {
-    fn into_py(self, py: Python) -> Py<PyAny> {
+    fn into_py(self, py: Python) -> Py<PyObject> {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
@@ -329,7 +329,7 @@ where
     V: FromPyObject<'source>,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+    fn extract(ob: &'source PyObject) -> Result<Self, PyErr> {
         let dict = <PyDict as PyTryFrom>::try_from(ob)?;
         let mut ret = HashMap::default();
         for (k, v) in dict.iter() {
@@ -344,7 +344,7 @@ where
     K: FromPyObject<'source> + cmp::Ord,
     V: FromPyObject<'source>,
 {
-    fn extract(ob: &'source PyAny) -> Result<Self, PyErr> {
+    fn extract(ob: &'source PyObject) -> Result<Self, PyErr> {
         let dict = <PyDict as PyTryFrom>::try_from(ob)?;
         let mut ret = BTreeMap::new();
         for (k, v) in dict.iter() {

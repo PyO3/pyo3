@@ -154,7 +154,7 @@ In addition, you can also extract `&PyCell<T>`, though you rarely need it.
 
 Before:
 ```ignore
-let obj: &PyAny = create_obj();
+let obj: &PyObject = create_obj();
 let obj_ref: &MyClass = obj.extract().unwrap();
 let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
 ```
@@ -170,7 +170,7 @@ After:
 # let typeobj = py.get_type::<MyClass>();
 # let d = [("c", typeobj)].into_py_dict(py);
 # let create_obj = || py.eval("c()", None, Some(d)).unwrap();
-let obj: &PyAny = create_obj();
+let obj: &PyObject = create_obj();
 let obj_cell: &PyCell<MyClass> = obj.extract().unwrap();
 let obj_cloned: MyClass = obj.extract().unwrap(); // extracted by cloning the object
 {

@@ -26,7 +26,7 @@ In PyO3, holding the GIL is modeled by acquiring a token of the type
 * It can be passed to functions that require a proof of holding the GIL,
   such as [`Py::clone_ref`][clone_ref].
 * Its lifetime can be used to create Rust references that implicitly guarantee
-  holding the GIL, such as [`&'py PyAny`][PyAny].
+  holding the GIL, such as [`&'py PyObject`][PyObject].
 
 The latter two points are the reason why some APIs in PyO3 require the `py:
 Python` argument, while others don't.
@@ -46,17 +46,17 @@ references is done at runtime using `PyCell`, a scheme very similar to
 
 ## Object types
 
-### [`PyAny`]
+### [`PyObject`]
 
 **Represents:** a Python object of unspecified type, restricted to a GIL
-lifetime.  Currently, `PyAny` can only ever occur as a reference, `&PyAny`.
+lifetime.  Currently, `PyObject` can only ever occur as a reference, `&PyObject`.
 
 **Used:** Whenever you want to refer to some Python object and will have the
 GIL for the whole duration you need to access that object. For example,
 intermediate values and arguments to `pyfunction`s or `pymethod`s implemented
 in Rust where any type is allowed.
 
-Many general methods for interacting with Python objects are on the `PyAny` struct,
+Many general methods for interacting with Python objects are on the `PyObject` struct,
 such as `getattr`, `setattr`, and `.call`.
 
 **Conversions:**
@@ -66,15 +66,15 @@ such as `getattr`, `setattr`, and `.call`.
 # use pyo3::types::PyList;
 # let gil = Python::acquire_gil();
 # let py = gil.python();
-let obj: &PyAny = PyList::empty(py);
+let obj: &PyObject = PyList::empty(py);
 
-// Convert to &ConcreteType using PyAny::downcast
+// Convert to &ConcreteType using PyObject::downcast
 let _: &PyList = obj.downcast().unwrap();
 
-// Convert to Py<PyAny> using .into() or Py::from
-let _: Py<PyAny> = obj.into();
+// Convert to Py<PyObject> using .into() or Py::from
+let _: Py<PyObject> = obj.into();
 
-// Convert to Py<ConcreteType> using PyAny::extract
+// Convert to Py<ConcreteType> using PyObject::extract
 let _: Py<PyList> = obj.extract().unwrap();
 ```
 
@@ -82,14 +82,14 @@ let _: Py<PyList> = obj.extract().unwrap();
 ### `PyTuple`, `PyDict`, and many more
 
 **Represents:** a native Python object of known type, restricted to a GIL
-lifetime just like `PyAny`.
+lifetime just like `PyObject`.
 
 **Used:** Whenever you want to operate with native Python types while holding
-the GIL.  Like `PyAny`, this is the most convenient form to use for function
+the GIL.  Like `PyObject`, this is the most convenient form to use for function
 arguments and intermediate values.
 
-These types all implement `Deref<Target = PyAny>`, so they all expose the same
-methods which can be found on `PyAny`.
+These types all implement `Deref<Target = PyObject>`, so they all expose the same
+methods which can be found on `PyObject`.
 
 **Conversions:**
 
@@ -100,14 +100,14 @@ methods which can be found on `PyAny`.
 # let py = gil.python();
 let list = PyList::empty(py);
 
-// Can use methods from PyAny on all Python types due to Deref implementation
+// Can use methods from PyObject on all Python types due to Deref implementation
 let _ = list.repr();
 
-// Rust will convert &PyList etc. to &PyAny automatically due to Deref implementation
-let _: &PyAny = list;
+// Rust will convert &PyList etc. to &PyObject automatically due to Deref implementation
+let _: &PyObject = list;
 
-// For more explicit &PyAny conversion, use .as_ref()
-let _: &PyAny = list.as_ref();
+// For more explicit &PyObject conversion, use .as_ref()
+let _: &PyObject = list.as_ref();
 
 // To convert to Py<T> use .into() or Py::from()
 let _: Py<PyList> = list.into();
@@ -138,7 +138,7 @@ let list: Py<PyList> = PyList::empty(py).into();
 let _: &PyList = list.as_ref(py);
 ```
 
-**Note:** `PyObject` is semantically equivalent to `Py<PyAny>` and might be
+**Note:** `PyObject` is semantically equivalent to `Py<PyObject>` and might be
 merged with it in the future.
 
 
@@ -152,8 +152,8 @@ wrapped in a Python object.  The cell part is an analog to stdlib's
 taking `&SomeType` or `&mut SomeType`) while maintaining the aliasing rules of
 Rust references.
 
-Like pyo3's Python native types, `PyCell<T>` implements `Deref<Target = PyAny>`,
-so it also exposes all of the methods on `PyAny`.
+Like pyo3's Python native types, `PyCell<T>` implements `Deref<Target = PyObject>`,
+so it also exposes all of the methods on `PyObject`.
 
 **Conversions:**
 
@@ -173,16 +173,16 @@ let pr: PyRef<MyClass> = cell.try_borrow().unwrap();
 let prm: PyRefMut<MyClass> = cell.try_borrow_mut().unwrap();
 # drop(prm);
 
-// Can use methods from PyAny on PyCell<T> due to Deref implementation
+// Can use methods from PyObject on PyCell<T> due to Deref implementation
 let _ = cell.repr();
 
-// Rust will convert &PyCell<T> to &PyAny automatically due to Deref implementation
-let _: &PyAny = cell;
+// Rust will convert &PyCell<T> to &PyObject automatically due to Deref implementation
+let _: &PyObject = cell;
 
-// For more explicit &PyAny conversion, use .as_ref()
-let any: &PyAny = cell.as_ref();
+// For more explicit &PyObject conversion, use .as_ref()
+let any: &PyObject = cell.as_ref();
 
-// To obtain a PyCell<T> from PyAny, use PyAny::downcast
+// To obtain a PyCell<T> from PyObject, use PyObject::downcast
 let _: &PyCell<MyClass> = any.downcast().unwrap();
 ```
 
@@ -192,7 +192,7 @@ let _: &PyCell<MyClass> = any.downcast().unwrap();
 borrows, analog to `Ref` and `RefMut` used by `RefCell`.
 
 **Used:** while borrowing a `PyCell`.  They can also be used with `.extract()`
-on types like `Py<T>` and `PyAny` to get a reference quickly.
+on types like `Py<T>` and `PyObject` to get a reference quickly.
 
 
 
@@ -211,6 +211,6 @@ This trait marks structs that mirror native Python types, such as `PyList`.
 
 [eval]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.eval
 [clone_ref]: https://docs.rs/pyo3/latest/pyo3/struct.Py.html#method.clone_ref
-[PyAny]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
+[PyObject]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyObject.html
 [PyList_append]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html

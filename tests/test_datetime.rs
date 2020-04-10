@@ -2,14 +2,14 @@
 
 use pyo3::ffi::*;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyObject};
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
 fn _get_subclasses<'p>(
     py: &'p Python,
     py_type: &str,
     args: &str,
-) -> PyResult<(&'p PyAny, &'p PyAny, &'p PyAny)> {
+) -> PyResult<(&'p PyObject, &'p PyObject, &'p PyObject)> {
     // Import the class from Python and create some subclasses
     let datetime = py.import("datetime")?;
 

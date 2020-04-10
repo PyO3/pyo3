@@ -3,7 +3,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyNativeType, Python,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyNativeType, PyObject, Python,
     ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
@@ -12,11 +12,11 @@ use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
 #[repr(transparent)]
-pub struct PySet(PyAny);
+pub struct PySet(PyObject);
 
 /// Represents a  Python `frozenset`
 #[repr(transparent)]
-pub struct PyFrozenSet(PyAny);
+pub struct PyFrozenSet(PyObject);
 
 pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
 pyobject_native_type!(
@@ -98,7 +98,7 @@ impl PySet {
     }
 
     /// Removes and returns an arbitrary element from the set.
-    pub fn pop(&self) -> Option<&PyAny> {
+    pub fn pop(&self) -> Option<&PyObject> {
         let element = unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySet_Pop(self.as_ptr()))
@@ -123,13 +123,13 @@ impl PySet {
 
 #[cfg(not(Py_LIMITED_API))]
 pub struct PySetIterator<'py> {
-    set: &'py super::PyAny,
+    set: &'py super::PyObject,
     pos: isize,
 }
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
+    type Item = &'py super::PyObject;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -149,7 +149,7 @@ impl<'py> Iterator for PySetIterator<'py> {
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PySet {
-    type Item = &'a PyAny;
+    type Item = &'a PyObject;
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -161,7 +161,7 @@ impl<T> ToPyObject for collections::HashSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -176,7 +176,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
 {
-    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyObject {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -187,9 +187,9 @@ where
     }
 }
 
-impl<K, S> FromPy<HashSet<K, S>> for Py<PyAny>
+impl<K, S> FromPy<HashSet<K, S>> for Py<PyObject>
 where
-    K: IntoPy<Py<PyAny>> + Eq + hash::Hash,
+    K: IntoPy<Py<PyObject>> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
     fn from_py(src: HashSet<K, S>, py: Python) -> Self {
@@ -208,15 +208,15 @@ where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &'source PyObject) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
     }
 }
 
-impl<K> FromPy<BTreeSet<K>> for Py<PyAny>
+impl<K> FromPy<BTreeSet<K>> for Py<PyObject>
 where
-    K: IntoPy<Py<PyAny>> + cmp::Ord + ToPyObject,
+    K: IntoPy<Py<PyObject>> + cmp::Ord + ToPyObject,
 {
     fn from_py(src: BTreeSet<K>, py: Python) -> Self {
         let set = PySet::empty(py).expect("Failed to construct empty set");
@@ -233,7 +233,7 @@ impl<'source, K> FromPyObject<'source> for BTreeSet<K>
 where
     K: FromPyObject<'source> + cmp::Ord,
 {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract(ob: &'source PyObject) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
     }
@@ -291,7 +291,7 @@ impl PyFrozenSet {
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
-    type Item = &'a PyAny;
+    type Item = &'a PyObject;
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -305,7 +305,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{AsPyRef, IntoPy, Py, PyAny, PyTryFrom, Python, ToPyObject};
+    use crate::{AsPyRef, IntoPy, Py, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 
@@ -494,8 +494,8 @@ mod test {
         let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
         let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-        let bto: Py<PyAny> = bt.clone().into_py(py);
-        let hso: Py<PyAny> = hs.clone().into_py(py);
+        let bto: Py<PyObject> = bt.clone().into_py(py);
+        let hso: Py<PyObject> = hs.clone().into_py(py);
 
         assert_eq!(bt, bto.as_ref(py).extract().unwrap());
         assert_eq!(hs, hso.as_ref(py).extract().unwrap());

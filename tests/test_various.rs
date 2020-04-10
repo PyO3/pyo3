@@ -130,7 +130,7 @@ impl PickleSupport {
     pub fn __reduce__<'py>(
         slf: &'py PyCell<Self>,
         py: Python<'py>,
-    ) -> PyResult<(&'py PyAny, &'py PyTuple, &'py PyAny)> {
+    ) -> PyResult<(&'py PyObject, &'py PyTuple, &'py PyObject)> {
         let cls = slf.to_object(py).getattr("__class__")?;
         let dict = slf.to_object(py).getattr("__dict__")?;
         Ok((cls, PyTuple::empty(py), dict))

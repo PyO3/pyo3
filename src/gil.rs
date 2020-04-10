@@ -359,10 +359,10 @@ fn decrement_gil_count() {
 #[cfg(test)]
 mod test {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
-    use crate::{ffi, gil, AsPyPointer, IntoPyPointer, Python, IntoPy, Py, PyAny};
+    use crate::{ffi, gil, AsPyPointer, IntoPyPointer, Python, IntoPy, Py, PyObject};
     use std::ptr::NonNull;
 
-    fn get_object(py: Python) -> Py<PyAny> {
+    fn get_object(py: Python) -> Py<PyObject> {
         // Convenience function for getting a single unique object, using `new_pool` so as to leave
         // the original pool state unchanged.
         let pool = unsafe { py.new_pool() };
@@ -640,7 +640,7 @@ mod test {
                 let _pool = GILPool::new();
 
                 // Rebuild obj so that it can be dropped
-                Py::<PyAny>::from_owned_ptr(ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _);
+                Py::<PyObject>::from_owned_ptr(ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _);
             }
 
             let ptr = obj.into_ptr();
