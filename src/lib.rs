@@ -141,7 +141,6 @@ pub use crate::conversion::{
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
 pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{AsPyRef, Py, PyNativeType};
-pub use crate::object::PyObject;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass::PyClass;
 pub use crate::pyclass_init::PyClassInitializer;
@@ -182,7 +181,6 @@ mod instance;
 #[macro_use]
 mod internal_tricks;
 pub mod marshal;
-mod object;
 pub mod panic;
 pub mod prelude;
 pub mod pycell;
@@ -218,7 +216,7 @@ macro_rules! wrap_pyfunction {
 macro_rules! wrap_pymodule {
     ($module_name:ident) => {{
         pyo3::paste::expr! {
-            &|py| unsafe { pyo3::PyObject::from_owned_ptr(py, [<PyInit_ $module_name>]()) }
+            &|_py| unsafe { pyo3::Py::<PyAny>::from_owned_ptr([<PyInit_ $module_name>]()) }
         }
     }};
 }

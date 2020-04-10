@@ -1,6 +1,5 @@
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyResult, PyTryFrom, Python,
 };
 use std::ops::Index;
 use std::os::raw::c_char;
@@ -57,9 +56,9 @@ impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
     }
 }
 
-impl<'a> FromPy<&'a [u8]> for PyObject {
+impl<'a> FromPy<&'a [u8]> for Py<PyAny> {
     fn from_py(other: &'a [u8], py: Python) -> Self {
-        PyBytes::new(py, other).to_object(py)
+        PyBytes::new(py, other).into_py(py)
     }
 }
 

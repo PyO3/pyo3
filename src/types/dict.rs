@@ -2,12 +2,11 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 #[cfg(not(PyPy))]
 use crate::IntoPyPointer;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
+    ffi, AsPyPointer, FromPyObject, IntoPy, Py, PyTryFrom, Python, ToBorrowedObject, ToPyObject,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::NonNull;
@@ -38,7 +37,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence<'p>(py: Python<'p>, seq: &PyAny) -> PyResult<&'p PyDict> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
             match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
@@ -221,7 +220,7 @@ where
     V: ToPyObject,
     H: hash::BuildHasher,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
@@ -231,35 +230,35 @@ where
     K: cmp::Eq + ToPyObject,
     V: ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         IntoPyDict::into_py_dict(self, py).into()
     }
 }
 
-impl<K, V, H> IntoPy<PyObject> for collections::HashMap<K, V, H>
+impl<K, V, H> IntoPy<Py<PyAny>> for collections::HashMap<K, V, H>
 where
-    K: hash::Hash + cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
+    K: hash::Hash + cmp::Eq + IntoPy<Py<PyAny>>,
+    V: IntoPy<Py<PyAny>>,
     H: hash::BuildHasher,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> Py<PyAny> {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict(iter, py).into_py(py)
     }
 }
 
-impl<K, V> IntoPy<PyObject> for collections::BTreeMap<K, V>
+impl<K, V> IntoPy<Py<PyAny>> for collections::BTreeMap<K, V>
 where
-    K: cmp::Eq + IntoPy<PyObject>,
-    V: IntoPy<PyObject>,
+    K: cmp::Eq + IntoPy<Py<PyAny>>,
+    V: IntoPy<Py<PyAny>>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> Py<PyAny> {
         let iter = self
             .into_iter()
             .map(|(k, v)| (k.into_py(py), v.into_py(py)));
-        IntoPyDict::into_py_dict(iter, py).into()
+        IntoPyDict::into_py_dict(iter, py).into_py(py)
     }
 }
 
@@ -357,11 +356,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::conversion::IntoPy;
-    use crate::instance::AsPyRef;
     use crate::types::dict::IntoPyDict;
     use crate::types::{PyDict, PyList, PyTuple};
-    use crate::PyObject;
     use crate::Python;
     use crate::{PyTryFrom, ToPyObject};
     use std::collections::{BTreeMap, HashMap};
@@ -418,11 +414,11 @@ mod test {
         let py = gil.python();
         let mut v = HashMap::new();
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(0, dict.len());
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict2 = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict2 = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(1, dict2.len());
     }
 
@@ -433,7 +429,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(true, dict.contains(7i32).unwrap());
         assert_eq!(false, dict.contains(8i32).unwrap());
     }
@@ -445,7 +441,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(32, dict.get_item(7i32).unwrap().extract::<i32>().unwrap());
         assert_eq!(None, dict.get_item(8i32));
     }
@@ -457,7 +453,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(
@@ -494,7 +490,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert!(dict.set_item(7i32, 42i32).is_ok()); // change
         assert!(dict.set_item(8i32, 123i32).is_ok()); // insert
         assert_eq!(32i32, v[&7i32]); // not updated!
@@ -508,7 +504,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert!(dict.del_item(7i32).is_ok());
         assert_eq!(0, dict.len());
         assert_eq!(None, dict.get_item(7i32));
@@ -521,7 +517,7 @@ mod test {
         let mut v = HashMap::new();
         v.insert(7, 32);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         assert!(dict.del_item(7i32).is_ok()); // change
         assert_eq!(32i32, *v.get(&7i32).unwrap()); // not updated!
     }
@@ -535,7 +531,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         let mut value_sum = 0;
@@ -557,7 +553,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut key_sum = 0;
         for el in dict.keys().iter() {
@@ -575,7 +571,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         // Can't just compare against a vector of tuples since we don't have a guaranteed ordering.
         let mut values_sum = 0;
         for el in dict.values().iter() {
@@ -593,7 +589,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict.iter() {
@@ -613,7 +609,7 @@ mod test {
         v.insert(8, 42);
         v.insert(9, 123);
         let ob = v.to_object(py);
-        let dict = <PyDict as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let dict = <PyDict as PyTryFrom>::try_from(ob).unwrap();
         let mut key_sum = 0;
         let mut value_sum = 0;
         for (key, value) in dict {
@@ -633,7 +629,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -649,7 +645,7 @@ mod test {
         map.insert(1, 1);
 
         let m = map.to_object(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let py_map = <PyDict as PyTryFrom>::try_from(m).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -664,8 +660,8 @@ mod test {
         let mut map = HashMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let m = map.to_object(py);
+        let py_map = <PyDict as PyTryFrom>::try_from(m).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);
@@ -693,8 +689,8 @@ mod test {
         let mut map = BTreeMap::<i32, i32>::new();
         map.insert(1, 1);
 
-        let m: PyObject = map.into_py(py);
-        let py_map = <PyDict as PyTryFrom>::try_from(m.as_ref(py)).unwrap();
+        let m = map.to_object(py);
+        let py_map = <PyDict as PyTryFrom>::try_from(m).unwrap();
 
         assert!(py_map.len() == 1);
         assert!(py_map.get_item(1).unwrap().extract::<i32>().unwrap() == 1);

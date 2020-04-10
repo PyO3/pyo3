@@ -6,12 +6,11 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
-use crate::object::PyObject;
 use crate::pyclass::PyClass;
 use crate::type_object::PyTypeObject;
 use crate::types::PyTuple;
 use crate::types::{PyAny, PyDict, PyList};
-use crate::{AsPyPointer, IntoPy, Py, Python, ToPyObject};
+use crate::{AsPyPointer, AsPyRef, IntoPy, Py, Python, ToPyObject};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::str;
@@ -194,11 +193,12 @@ impl PyModule {
     /// ```rust,ignore
     /// m.add("also_double", wrap_pyfunction!(double)(py));
     /// ```
-    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> PyObject) -> PyResult<()> {
+    pub fn add_wrapped(&self, wrapper: &impl Fn(Python) -> Py<PyAny>) -> PyResult<()> {
         let function = wrapper(self.py());
         let name = function
-            .getattr(self.py(), "__name__")
+            .as_ref(self.py())
+            .getattr("__name__")
             .expect("A function or module must have a __name__");
-        self.add(name.extract(self.py()).unwrap(), function)
+        self.add(name.extract().unwrap(), &function)
     }
 }

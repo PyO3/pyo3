@@ -68,7 +68,7 @@ have Rust types as well.
 # use pyo3::exceptions;
 # use pyo3::prelude::*;
 # fn check_for_error() -> bool {false}
-fn my_func(arg: PyObject) -> PyResult<()> {
+fn my_func(arg: &PyAny) -> PyResult<()> {
     if check_for_error() {
         Err(exceptions::ValueError::py_err("argument is wrong"))
     } else {
@@ -190,15 +190,15 @@ use pyo3::import_exception;
 
 import_exception!(io, UnsupportedOperation);
 
-fn tell(file: PyObject) -> PyResult<u64> {
+fn tell(file: &PyAny) -> PyResult<u64> {
     use pyo3::exceptions::*;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    match file.call_method0(py, "tell") {
+    match file.call_method0("tell") {
         Err(_) => Err(UnsupportedOperation::py_err("not supported: tell")),
-        Ok(x) => x.extract::<u64>(py),
+        Ok(x) => x.extract::<u64>(),
     }
 }
 

@@ -13,7 +13,6 @@
 pub use crate::err::{PyErr, PyResult};
 pub use crate::gil::GILGuard;
 pub use crate::instance::{AsPyRef, Py};
-pub use crate::object::PyObject;
 pub use crate::pycell::{PyCell, PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::Python;

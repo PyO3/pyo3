@@ -370,13 +370,14 @@ impl PyObjectProtocol for RichComparisons2 {
         Ok("RC2")
     }
 
-    fn __richcmp__(&self, _other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
+    fn __richcmp__(&self, _other: &PyAny, op: CompareOp) -> PyResult<Py<PyAny>> {
         let gil = GILGuard::acquire();
         match op {
             CompareOp::Eq => Ok(true.to_object(gil.python())),
             CompareOp::Ne => Ok(false.to_object(gil.python())),
             _ => Ok(gil.python().NotImplemented()),
         }
+        .map(Into::into)
     }
 }
 

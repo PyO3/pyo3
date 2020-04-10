@@ -71,7 +71,7 @@ pub fn gen_py_const(
     let spec = ConstSpec::parse(name, attrs)?;
     if spec.is_class_attr {
         let wrapper = quote! {
-            fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+            fn __wrap(py: pyo3::Python<'_>) -> pyo3::Py<pyo3::PyAny> {
                 pyo3::IntoPy::into_py(#cls::#name, py)
             }
         };
@@ -275,7 +275,7 @@ pub fn impl_wrap_class_attribute(cls: &syn::Type, spec: &FnSpec<'_>) -> TokenStr
     let cb = quote! { #cls::#name() };
 
     quote! {
-        fn __wrap(py: pyo3::Python<'_>) -> pyo3::PyObject {
+        fn __wrap(py: pyo3::Python<'_>) -> pyo3::Py<PyAny> {
             pyo3::IntoPy::into_py(#cb, py)
         }
     }

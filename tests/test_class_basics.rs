@@ -144,13 +144,13 @@ struct ClassWithObjectField {
     // PyObject has special case for derive_utils::GetPropertyValue,
     // so this test is making sure it compiles!
     #[pyo3(get, set)]
-    value: PyObject,
+    value: Py<PyAny>,
 }
 
 #[pymethods]
 impl ClassWithObjectField {
     #[new]
-    fn new(value: PyObject) -> ClassWithObjectField {
+    fn new(value: Py<PyAny>) -> ClassWithObjectField {
         Self { value }
     }
 }

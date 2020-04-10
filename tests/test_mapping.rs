@@ -57,7 +57,7 @@ impl PyMappingProtocol for Mapping {
     }
 
     /// not an actual reversed implementation, just to demonstrate that the method is callable.
-    fn __reversed__(&self) -> PyResult<PyObject> {
+    fn __reversed__(&self) -> PyResult<Py<PyAny>> {
         let gil = Python::acquire_gil();
         Ok(self
             .index

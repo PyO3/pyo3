@@ -2,8 +2,8 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyErr, PyNativeType, PyObject, PyResult, Python,
-    ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyErr, PyNativeType, PyResult,
+    Python, ToPyObject,
 };
 use std::os::raw::c_double;
 
@@ -36,14 +36,14 @@ impl PyFloat {
 }
 
 impl ToPyObject for f64 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         PyFloat::new(py, *self).into()
     }
 }
 
-impl FromPy<f64> for PyObject {
+impl FromPy<f64> for Py<PyAny> {
     fn from_py(other: f64, py: Python) -> Self {
-        PyFloat::new(py, other).into()
+        PyFloat::new(py, other).into_py(py)
     }
 }
 
@@ -62,14 +62,14 @@ impl<'source> FromPyObject<'source> for f64 {
 }
 
 impl ToPyObject for f32 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         PyFloat::new(py, f64::from(*self)).into()
     }
 }
 
-impl FromPy<f32> for PyObject {
+impl FromPy<f32> for Py<PyAny> {
     fn from_py(other: f32, py: Python) -> Self {
-        PyFloat::new(py, f64::from(other)).into()
+        PyFloat::new(py, f64::from(other)).into_py(py)
     }
 }
 
@@ -94,7 +94,7 @@ mod test {
                 let py = gil.python();
                 let val = 123 as $t1;
                 let obj = val.to_object(py);
-                assert_approx_eq!(obj.extract::<$t2>(py).unwrap(), val as $t2);
+                assert_approx_eq!(obj.extract::<$t2>().unwrap(), val as $t2);
             }
         )
     );

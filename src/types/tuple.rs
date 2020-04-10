@@ -2,8 +2,8 @@
 
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
-    PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny, PyErr,
+    PyNativeType, PyResult, PyTryFrom, Python, ToPyObject,
 };
 use std::slice;
 
@@ -52,16 +52,19 @@ impl PyTuple {
     }
 
     /// Takes a slice of the tuple pointed from `low` to `high` and returns it as a new tuple.
-    pub fn slice(&self, low: isize, high: isize) -> Py<PyTuple> {
-        unsafe { Py::from_owned_ptr_or_panic(ffi::PyTuple_GetSlice(self.as_ptr(), low, high)) }
+    pub fn slice(&self, low: isize, high: isize) -> &PyTuple {
+        unsafe {
+            self.py()
+                .from_owned_ptr(ffi::PyTuple_GetSlice(self.as_ptr(), low, high))
+        }
     }
 
     /// Takes a slice of the tuple from `low` to the end and returns it as a new tuple.
-    pub fn split_from(&self, low: isize) -> Py<PyTuple> {
+    pub fn split_from(&self, low: isize) -> &PyTuple {
         unsafe {
             let ptr =
                 ffi::PyTuple_GetSlice(self.as_ptr(), low, ffi::PyTuple_GET_SIZE(self.as_ptr()));
-            Py::from_owned_ptr_or_panic(ptr)
+            self.py().from_owned_ptr(ptr)
         }
     }
 
@@ -77,20 +80,19 @@ impl PyTuple {
     }
 
     /// Returns `self` as a slice of objects.
-    pub fn as_slice(&self) -> &[PyObject] {
+    pub fn as_slice(&self) -> &[&PyAny] {
         // This is safe because PyObject has the same memory layout as *mut ffi::PyObject,
         // and because tuples are immutable.
         unsafe {
             let ptr = self.as_ptr() as *mut ffi::PyTupleObject;
             let slice = slice::from_raw_parts((*ptr).ob_item.as_ptr(), self.len());
-            &*(slice as *const [*mut ffi::PyObject] as *const [PyObject])
+            &*(slice as *const [*mut ffi::PyObject] as *const [&PyAny])
         }
     }
 
     /// Returns an iterator over the tuple items.
     pub fn iter(&self) -> PyTupleIterator {
         PyTupleIterator {
-            py: self.py(),
             slice: self.as_slice(),
             index: 0,
         }
@@ -99,8 +101,7 @@ impl PyTuple {
 
 /// Used by `PyTuple::iter()`.
 pub struct PyTupleIterator<'a> {
-    py: Python<'a>,
-    slice: &'a [PyObject],
+    slice: &'a [&'a PyAny],
     index: usize,
 }
 
@@ -110,7 +111,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
         if self.index < self.slice.len() {
-            let item = self.slice[self.index].as_ref(self.py);
+            let item = &self.slice[self.index];
             self.index += 1;
             Some(item)
         } else {
@@ -145,25 +146,25 @@ fn wrong_tuple_length(t: &PyTuple, expected_length: usize) -> PyErr {
 
 macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
     impl <$($T: ToPyObject),+> ToPyObject for ($($T,)+) {
-        fn to_object(&self, py: Python) -> PyObject {
+        fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.to_object(py).into_ptr());)+
-                PyObject::from_owned_ptr_or_panic(py, ptr)
+                py.from_owned_ptr(ptr)
             }
         }
     }
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<PyObject> for ($($T,)+) {
-        fn into_py(self, py: Python) -> PyObject {
+    impl <$($T: IntoPy<Py<PyAny>>),+> IntoPy<Py<PyAny>> for ($($T,)+) {
+        fn into_py(self, py: Python) -> Py<PyAny> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
                 $(ffi::PyTuple_SetItem(ptr, $n, self.$n.into_py(py).into_ptr());)+
-                PyObject::from_owned_ptr_or_panic(py, ptr)
+                Py::from_owned_ptr_or_panic(ptr)
             }
         }
     }
 
-    impl <$($T: IntoPy<PyObject>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
+    impl <$($T: IntoPy<Py<PyAny>>),+> IntoPy<Py<PyTuple>> for ($($T,)+) {
         fn into_py(self, py: Python) -> Py<PyTuple> {
             unsafe {
                 let ptr = ffi::PyTuple_New($length);
@@ -180,7 +181,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
-                    $(slice[$n].extract::<$T>(obj.py())?,)+
+                    $(slice[$n].extract::<$T>()?,)+
                 ))
             } else {
                 Err(wrong_tuple_length(t, $length))
@@ -247,7 +248,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod test {
     use crate::types::{PyAny, PyTuple};
-    use crate::{AsPyRef, PyTryFrom, Python, ToPyObject};
+    use crate::{PyTryFrom, Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -270,7 +271,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(3, tuple.len());
         let ob: &PyAny = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
@@ -281,7 +282,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
@@ -294,7 +295,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(3, tuple.len());
 
         for (i, item) in tuple.iter().enumerate() {

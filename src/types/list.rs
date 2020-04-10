@@ -5,7 +5,7 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
-    AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
+    AsPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyNativeType, Python, ToBorrowedObject,
     ToPyObject,
 };
 
@@ -67,13 +67,8 @@ impl PyList {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_parked_item(&self, index: isize) -> PyObject {
-        unsafe {
-            PyObject::from_borrowed_ptr(
-                self.py(),
-                ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t),
-            )
-        }
+    pub fn get_parked_item(&self, index: isize) -> Py<PyAny> {
+        unsafe { Py::from_borrowed_ptr(ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t)) }
     }
 
     /// Sets the item at the specified index.
@@ -166,14 +161,14 @@ impl<T> ToPyObject for [T]
 where
     T: ToPyObject,
 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.iter().enumerate() {
                 let obj = e.to_object(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyObject::from_owned_ptr_or_panic(py, ptr)
+            py.from_owned_ptr(ptr)
         }
     }
 }
@@ -181,12 +176,12 @@ where
 macro_rules! array_impls {
     ($($N:expr),+) => {
         $(
-            impl<T> IntoPy<PyObject> for [T; $N]
+            impl<T> IntoPy<Py<PyAny>> for [T; $N]
             where
                 T: ToPyObject
             {
-                fn into_py(self, py: Python) -> PyObject {
-                    self.as_ref().to_object(py)
+                fn into_py(self, py: Python) -> Py<PyAny> {
+                    self.as_ref().to_object(py).into()
                 }
             }
         )+
@@ -202,23 +197,23 @@ impl<T> ToPyObject for Vec<T>
 where
     T: ToPyObject,
 {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         self.as_slice().to_object(py)
     }
 }
 
-impl<T> IntoPy<PyObject> for Vec<T>
+impl<T> IntoPy<Py<PyAny>> for Vec<T>
 where
-    T: IntoPy<PyObject>,
+    T: IntoPy<Py<PyAny>>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> Py<PyAny> {
         unsafe {
             let ptr = ffi::PyList_New(self.len() as Py_ssize_t);
             for (i, e) in self.into_iter().enumerate() {
                 let obj = e.into_py(py).into_ptr();
                 ffi::PyList_SetItem(ptr, i as Py_ssize_t, obj);
             }
-            PyObject::from_owned_ptr_or_panic(py, ptr)
+            Py::from_owned_ptr_or_panic(ptr)
         }
     }
 }
@@ -228,7 +223,7 @@ mod test {
     use crate::instance::AsPyRef;
     use crate::types::PyList;
     use crate::Python;
-    use crate::{IntoPy, PyObject, PyTryFrom, ToPyObject};
+    use crate::{PyTryFrom, ToPyObject};
 
     #[test]
     fn test_new() {
@@ -248,7 +243,7 @@ mod test {
         let py = gil.python();
         let v = vec![1, 2, 3, 4];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(4, list.len());
     }
 
@@ -258,7 +253,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
         assert_eq!(5, list.get_item(2).extract::<i32>().unwrap());
@@ -271,11 +266,23 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
-        assert_eq!(2, list.get_parked_item(0).extract::<i32>(py).unwrap());
-        assert_eq!(3, list.get_parked_item(1).extract::<i32>(py).unwrap());
-        assert_eq!(5, list.get_parked_item(2).extract::<i32>(py).unwrap());
-        assert_eq!(7, list.get_parked_item(3).extract::<i32>(py).unwrap());
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
+        assert_eq!(
+            2,
+            list.get_parked_item(0).as_ref(py).extract::<i32>().unwrap()
+        );
+        assert_eq!(
+            3,
+            list.get_parked_item(1).as_ref(py).extract::<i32>().unwrap()
+        );
+        assert_eq!(
+            5,
+            list.get_parked_item(2).as_ref(py).extract::<i32>().unwrap()
+        );
+        assert_eq!(
+            7,
+            list.get_parked_item(3).as_ref(py).extract::<i32>().unwrap()
+        );
     }
 
     #[test]
@@ -284,7 +291,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         let val = 42i32.to_object(py);
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         list.set_item(0, val).unwrap();
@@ -301,7 +308,7 @@ mod test {
             let _pool = unsafe { crate::GILPool::new() };
             let v = vec![2];
             let ob = v.to_object(py);
-            let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+            let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
             let none = py.None();
             cnt = none.get_refcnt();
             list.set_item(0, none).unwrap();
@@ -316,7 +323,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         let val = 42i32.to_object(py);
         assert_eq!(4, list.len());
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
@@ -349,7 +356,7 @@ mod test {
         let py = gil.python();
         let v = vec![2];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         list.append(3).unwrap();
         assert_eq!(2, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(3, list.get_item(1).extract::<i32>().unwrap());
@@ -377,7 +384,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         let mut idx = 0;
         for el in list.iter() {
             assert_eq!(v[idx], el.extract::<i32>().unwrap());
@@ -392,7 +399,7 @@ mod test {
         let py = gil.python();
         let v = vec![1, 2, 3, 4];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         for (i, item) in list.iter().enumerate() {
             assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
         }
@@ -404,7 +411,7 @@ mod test {
         let py = gil.python();
         let v = vec![2, 3, 5, 7];
         let ob = v.to_object(py);
-        let list = <PyList as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let list = <PyList as PyTryFrom>::try_from(ob).unwrap();
         let v2 = list.as_ref().extract::<Vec<i32>>().unwrap();
         assert_eq!(v, v2);
     }
@@ -447,8 +454,8 @@ mod test {
     fn test_array_into_py() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let array: PyObject = [1, 2].into_py(py);
-        let list = <PyList as PyTryFrom>::try_from(array.as_ref(py)).unwrap();
+        let array = [1, 2].to_object(py);
+        let list = <PyList as PyTryFrom>::try_from(array).unwrap();
         assert_eq!(1, list.get_item(0).extract::<i32>().unwrap());
         assert_eq!(2, list.get_item(1).extract::<i32>().unwrap());
     }

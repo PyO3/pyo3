@@ -10,7 +10,7 @@ fn drop_many_objects(b: &mut Bencher) {
     let py = gil.python();
     b.iter(|| {
         for _ in 0..1000 {
-            std::mem::drop(py.None());
+            std::mem::drop(Py::from(py.None()));
         }
     });
 }

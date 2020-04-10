@@ -359,17 +359,17 @@ fn decrement_gil_count() {
 #[cfg(test)]
 mod test {
     use super::{gil_is_acquired, GILPool, GIL_COUNT, OWNED_OBJECTS, POOL};
-    use crate::{ffi, gil, AsPyPointer, IntoPyPointer, PyObject, Python, ToPyObject};
+    use crate::{ffi, gil, AsPyPointer, IntoPyPointer, Python, IntoPy, Py, PyAny};
     use std::ptr::NonNull;
 
-    fn get_object(py: Python) -> PyObject {
+    fn get_object(py: Python) -> Py<PyAny> {
         // Convenience function for getting a single unique object, using `new_pool` so as to leave
         // the original pool state unchanged.
         let pool = unsafe { py.new_pool() };
         let py = pool.python();
 
         let obj = py.eval("object()", None, None).unwrap();
-        obj.to_object(py)
+        obj.into_py(py)
     }
 
     fn owned_object_count() -> usize {
@@ -637,13 +637,10 @@ mod test {
             unsafe extern "C" fn capsule_drop(capsule: *mut ffi::PyObject) {
                 // This line will implicitly call update_counts
                 // -> and so cause deadlock if update_counts is not handling recursion correctly.
-                let pool = GILPool::new();
+                let _pool = GILPool::new();
 
                 // Rebuild obj so that it can be dropped
-                PyObject::from_owned_ptr(
-                    pool.python(),
-                    ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _,
-                );
+                Py::<PyAny>::from_owned_ptr(ffi::PyCapsule_GetPointer(capsule, std::ptr::null()) as _);
             }
 
             let ptr = obj.into_ptr();

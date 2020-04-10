@@ -27,7 +27,7 @@ and [`PyRefMut`].  They work like the reference wrappers of
 ## The `ToPyObject` trait
 
 [`ToPyObject`] is a conversion trait that allows various objects to be
-converted into [`PyObject`]. `IntoPy<PyObject>` serves the
+converted into [`&PyAny`]. `IntoPy<Py<PyAny>>` serves the
 same purpose, except that it consumes `self`.
 
 
@@ -48,7 +48,7 @@ use pyo3::types::{PyDict, PyTuple};
 
 struct SomeObject;
 impl SomeObject {
-    fn new(py: Python) -> PyObject {
+    fn new(py: Python) -> &PyAny {
         PyDict::new(py).to_object(py)
     }
 }
@@ -64,15 +64,15 @@ fn main() {
     let obj = SomeObject::new(py);
 
     // call object without empty arguments
-    obj.call0(py);
+    obj.call0();
 
     // call object with PyTuple
     let args = PyTuple::new(py, &[arg1, arg2, arg3]);
-    obj.call1(py, args);
+    obj.call1(args);
 
     // pass arguments as rust tuple
     let args = (arg1, arg2, arg3);
-    obj.call1(py, args);
+    obj.call1(args);
 }
 ```
 
@@ -89,7 +89,7 @@ use std::collections::HashMap;
 struct SomeObject;
 
 impl SomeObject {
-    fn new(py: Python) -> PyObject {
+    fn new(py: Python) -> &PyAny {
         PyDict::new(py).to_object(py)
     }
 }
@@ -107,16 +107,16 @@ fn main() {
 
     // call object with PyDict
     let kwargs = [(key1, val1)].into_py_dict(py);
-    obj.call(py, (), Some(kwargs));
+    obj.call((), Some(kwargs));
 
     // pass arguments as Vec
     let kwargs = vec![(key1, val1), (key2, val2)];
-    obj.call(py, (), Some(kwargs.into_py_dict(py)));
+    obj.call((), Some(kwargs.into_py_dict(py)));
 
     // pass arguments as HashMap
     let mut kwargs = HashMap::<&str, i32>::new();
     kwargs.insert(key1, 1);
-    obj.call(py, (), Some(kwargs.into_py_dict(py)));
+    obj.call((), Some(kwargs.into_py_dict(py)));
 }
 ```
 
@@ -131,11 +131,11 @@ Just like `From<T>`, if you implement `FromPy<T>` you gain a blanket implementat
 Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [`FromPy`] trait will be added that will implement
 [`IntoPy`], just like with `From` and `Into`.
 
-[`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.IntoPy.html
-[`FromPy`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPy.html
-[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
-[`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.ToPyObject.html
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
+[`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/trait.IntoPy.html
+[`FromPy`]: https://docs.rs/pyo3/latest/pyo3/trait.FromPy.html
+[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/types/trait.FromPyObject.html
+[`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/trait.ToPyObject.html
+[`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
 [`PyTuple`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
 [`PyAny`]: https://docs.rs/pyo3/latest/pyo3/struct.PyAny.html
 [`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html

@@ -25,7 +25,6 @@ use crate::ffi::{
     PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
     PyDateTime_TIME_GET_SECOND,
 };
-use crate::object::PyObject;
 use crate::types::PyTuple;
 use crate::{AsPyPointer, PyAny, Python, ToPyObject};
 use std::os::raw::c_int;
@@ -140,7 +139,7 @@ impl PyDateTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyAny>,
     ) -> PyResult<&'p PyDateTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
@@ -166,9 +165,9 @@ impl PyDateTime {
         timestamp: f64,
         time_zone_info: Option<&PyTzInfo>,
     ) -> PyResult<&'p PyDateTime> {
-        let timestamp: PyObject = timestamp.to_object(py);
+        let timestamp = timestamp.to_object(py);
 
-        let time_zone_info: PyObject = match time_zone_info {
+        let time_zone_info = match time_zone_info {
             Some(time_zone_info) => time_zone_info.to_object(py),
             None => py.None(),
         };
@@ -248,7 +247,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyAny>,
     ) -> PyResult<&'p PyTime> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTime)(
@@ -273,7 +272,7 @@ impl PyTime {
         minute: u8,
         second: u8,
         microsecond: u32,
-        tzinfo: Option<&PyObject>,
+        tzinfo: Option<&PyAny>,
         fold: bool,
     ) -> PyResult<&'p PyTime> {
         unsafe {
@@ -374,7 +373,7 @@ impl PyDeltaAccess for PyDelta {
 }
 
 // Utility function
-unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyObject>) -> *mut ffi::PyObject {
+unsafe fn opt_to_pyobj(py: Python, opt: Option<&PyAny>) -> *mut ffi::PyObject {
     // Convenience function for unpacking Options to either an Object or None
     match opt {
         Some(tzi) => tzi.as_ptr(),

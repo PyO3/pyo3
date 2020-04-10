@@ -157,9 +157,8 @@ macro_rules! pyobject_native_type_convert(
         impl<$($type_param,)*> $crate::ToPyObject for $name
         {
             #[inline]
-            fn to_object(&self, py: $crate::Python) -> $crate::PyObject {
-                use $crate::AsPyPointer;
-                unsafe { $crate::PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+            fn to_object<'p>(&self, py: $crate::Python<'p>) -> &'p $crate::PyAny {
+                unsafe { py.from_borrowed_ptr(self.as_ptr()) }
             }
         }
 

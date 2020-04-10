@@ -178,7 +178,7 @@ pub fn add_fn_to_module(
     let wrapper = function_c_wrapper(&func.sig.ident, &spec);
 
     Ok(quote! {
-        fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::PyObject {
+        fn #function_wrapper_ident(py: pyo3::Python) -> pyo3::Py<pyo3::PyAny> {
             #wrapper
 
             let _def = pyo3::class::PyMethodDef {
@@ -189,8 +189,7 @@ pub fn add_fn_to_module(
             };
 
             let function = unsafe {
-                pyo3::PyObject::from_owned_ptr_or_panic(
-                    py,
+                pyo3::Py::from_owned_ptr_or_panic(
                     pyo3::ffi::PyCFunction_New(
                         Box::into_raw(Box::new(_def.as_method_def())),
                         ::std::ptr::null_mut()

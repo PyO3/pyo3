@@ -130,9 +130,9 @@ impl PickleSupport {
     pub fn __reduce__<'py>(
         slf: &'py PyCell<Self>,
         py: Python<'py>,
-    ) -> PyResult<(PyObject, &'py PyTuple, PyObject)> {
-        let cls = slf.to_object(py).getattr(py, "__class__")?;
-        let dict = slf.to_object(py).getattr(py, "__dict__")?;
+    ) -> PyResult<(&'py PyAny, &'py PyTuple, &'py PyAny)> {
+        let cls = slf.to_object(py).getattr("__class__")?;
+        let dict = slf.to_object(py).getattr("__dict__")?;
         Ok((cls, PyTuple::empty(py), dict))
     }
 }
@@ -174,9 +174,8 @@ fn incorrect_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let int = 13isize.to_object(py);
-    let int_ref = int.as_ref(py);
     // Should not segfault.
-    assert!(int_ref.iter().is_err());
+    assert!(int.iter().is_err());
     assert!(py
         .eval("print('Exception state should not be set.')", None, None)
         .is_ok());

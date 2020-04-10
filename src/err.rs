@@ -5,8 +5,8 @@ use crate::type_object::PyTypeObject;
 use crate::types::PyType;
 use crate::{exceptions, ffi};
 use crate::{
-    AsPyPointer, FromPy, FromPyPointer, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python,
-    ToBorrowedObject, ToPyObject,
+    AsPyPointer, FromPy, FromPyPointer, IntoPy, IntoPyPointer, Py, PyAny, Python, ToBorrowedObject,
+    ToPyObject,
 };
 use libc::c_int;
 use std::ffi::CString;
@@ -23,7 +23,7 @@ use std::ptr::NonNull;
 /// call `Python::acquire_gil`.
 pub enum PyErrValue {
     None,
-    Value(PyObject),
+    Value(Py<PyAny>),
     ToArgs(Box<dyn PyErrArguments>),
     ToObject(Box<dyn ToPyObject>),
 }
@@ -42,13 +42,13 @@ pub struct PyErr {
 
     /// The value of the exception.
     ///
-    /// This can be either an instance of `PyObject`, a tuple of arguments to be passed to
+    /// This can be either an instance of `Py<PyAny>`, a tuple of arguments to be passed to
     /// `ptype`'s constructor, or a single argument to be passed to `ptype`'s constructor.  Call
     /// `PyErr::to_object()` to get the exception instance in all cases.
     pub pvalue: PyErrValue,
 
     /// The `PyTraceBack` object associated with the error.
-    pub ptraceback: Option<PyObject>,
+    pub ptraceback: Option<Py<PyAny>>,
 }
 
 /// Represents the result of a Python call.
@@ -60,7 +60,7 @@ pub struct PyDowncastError;
 /// Helper conversion trait that allows to use custom arguments for exception constructor.
 pub trait PyErrArguments {
     /// Arguments for exception
-    fn arguments(&self, _: Python) -> PyObject;
+    fn arguments(&self, _: Python) -> Py<PyAny>;
 }
 
 impl PyErr {
@@ -208,7 +208,7 @@ impl PyErr {
         _: Python<'p>,
         name: &str,
         base: Option<&PyType>,
-        dict: Option<PyObject>,
+        dict: Option<Py<PyAny>>,
     ) -> NonNull<ffi::PyTypeObject> {
         let base: *mut ffi::PyObject = match base {
             None => std::ptr::null_mut(),
@@ -240,9 +240,7 @@ impl PyErr {
         // Note: must not panic to ensure all owned pointers get acquired correctly,
         // and because we mustn't panic in normalize().
 
-        let pvalue = if let Some(obj) =
-            PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), pvalue)
-        {
+        let pvalue = if let Some(obj) = Py::from_owned_ptr_or_opt(pvalue) {
             PyErrValue::Value(obj)
         } else {
             PyErrValue::None
@@ -257,7 +255,7 @@ impl PyErr {
         PyErr {
             ptype,
             pvalue,
-            ptraceback: PyObject::from_owned_ptr_or_opt(Python::assume_gil_acquired(), ptraceback),
+            ptraceback: Py::from_owned_ptr_or_opt(ptraceback),
         }
     }
 
@@ -336,11 +334,11 @@ impl PyErr {
     ///
     /// This method takes `mut self` because the error might need
     /// to be normalized in order to create the exception instance.
-    fn instance(mut self, py: Python) -> PyObject {
+    fn instance(mut self, py: Python) -> Py<PyAny> {
         self.normalize(py);
         match self.pvalue {
             PyErrValue::Value(ref instance) => instance.clone_ref(py),
-            _ => py.None(),
+            _ => py.None().into(),
         }
     }
 
@@ -398,7 +396,7 @@ impl PyErr {
             PyErrValue::None => PyErrValue::None,
             PyErrValue::Value(ref ob) => PyErrValue::Value(ob.clone_ref(py)),
             PyErrValue::ToArgs(ref ob) => PyErrValue::Value(ob.arguments(py)),
-            PyErrValue::ToObject(ref ob) => PyErrValue::Value(ob.to_object(py)),
+            PyErrValue::ToObject(ref ob) => PyErrValue::Value(ob.to_object(py).into()),
         };
 
         let t = if let Some(ref val) = self.ptraceback {
@@ -420,21 +418,21 @@ impl std::fmt::Debug for PyErr {
     }
 }
 
-impl FromPy<PyErr> for PyObject {
+impl FromPy<PyErr> for Py<PyAny> {
     fn from_py(other: PyErr, py: Python) -> Self {
         other.instance(py)
     }
 }
 
 impl ToPyObject for PyErr {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         let err = self.clone_ref(py);
-        err.instance(py)
+        err.instance(py).to_object(py)
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a PyErr {
-    fn into_py(self, py: Python) -> PyObject {
+impl<'a> IntoPy<Py<PyAny>> for &'a PyErr {
+    fn into_py(self, py: Python) -> Py<PyAny> {
         let err = self.clone_ref(py);
         err.instance(py)
     }
@@ -473,8 +471,8 @@ impl<T> std::convert::Into<PyResult<T>> for PyErr {
 macro_rules! impl_to_pyerr {
     ($err: ty, $pyexc: ty) => {
         impl PyErrArguments for $err {
-            fn arguments(&self, py: Python) -> PyObject {
-                self.to_string().to_object(py)
+            fn arguments(&self, py: Python) -> Py<PyAny> {
+                self.to_string().to_object(py).into()
             }
         }
 
@@ -523,8 +521,8 @@ impl std::convert::From<io::Error> for PyErr {
 }
 
 impl PyErrArguments for io::Error {
-    fn arguments(&self, py: Python) -> PyObject {
-        self.to_string().to_object(py)
+    fn arguments(&self, py: Python) -> Py<PyAny> {
+        self.to_string().to_object(py).into()
     }
 }
 
@@ -535,14 +533,14 @@ impl<W: 'static + Send + std::fmt::Debug> std::convert::From<std::io::IntoInnerE
 }
 
 impl<W: Send + std::fmt::Debug> PyErrArguments for std::io::IntoInnerError<W> {
-    fn arguments(&self, py: Python) -> PyObject {
-        self.to_string().to_object(py)
+    fn arguments(&self, py: Python) -> Py<PyAny> {
+        self.to_string().to_object(py).into()
     }
 }
 
 impl PyErrArguments for std::convert::Infallible {
-    fn arguments(&self, py: Python) -> PyObject {
-        "Infalliable!".to_object(py)
+    fn arguments(&self, py: Python) -> Py<PyAny> {
+        "Infalliable!".to_object(py).into()
     }
 }
 

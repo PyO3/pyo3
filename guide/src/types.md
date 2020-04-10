@@ -24,7 +24,7 @@ In PyO3, holding the GIL is modeled by acquiring a token of the type
 * It provides some global API for the Python interpreter, such as
   [`eval`][eval].
 * It can be passed to functions that require a proof of holding the GIL,
-  such as [`PyObject::clone_ref`][clone_ref].
+  such as [`Py::clone_ref`][clone_ref].
 * Its lifetime can be used to create Rust references that implicitly guarantee
   holding the GIL, such as [`&'py PyAny`][PyAny].
 
@@ -71,9 +71,6 @@ let obj: &PyAny = PyList::empty(py);
 // Convert to &ConcreteType using PyAny::downcast
 let _: &PyList = obj.downcast().unwrap();
 
-// Convert to PyObject using .into() or .to_object(py)
-let _: PyObject = obj.into();
-
 // Convert to Py<PyAny> using .into() or Py::from
 let _: Py<PyAny> = obj.into();
 
@@ -112,42 +109,8 @@ let _: &PyAny = list;
 // For more explicit &PyAny conversion, use .as_ref()
 let _: &PyAny = list.as_ref();
 
-// To convert to PyObject use .into() or .to_object(py)
-let _: PyObject = list.into();
-
 // To convert to Py<T> use .into() or Py::from()
 let _: Py<PyList> = list.into();
-```
-
-### `PyObject`
-
-**Represents:** a GIL independent reference to a Python object of unspecified
-type.
-
-**Used:** Whenever you want to carry around references to "some" Python object,
-without caring about a GIL lifetime.  For example, storing Python object
-references in a Rust struct that outlives the Python-Rust FFI boundary,
-or returning objects from functions implemented in Rust back to Python.
-
-Can be cloned using Python reference counts with `.clone_ref()`.
-
-**Conversions:**
-
-```rust
-# use pyo3::prelude::*;
-# use pyo3::types::PyList;
-# let gil = Python::acquire_gil();
-# let py = gil.python();
-let obj: PyObject = PyList::empty(py).into();
-
-// Convert to &PyAny using AsPyRef::as_ref
-let _: &PyAny = obj.as_ref(py);
-
-// Convert to &ConcreteType using PyObject::cast_as
-let _: &PyList = obj.cast_as(py).unwrap();
-
-// Convert to Py<ConcreteType> using PyObject::extract
-let _: Py<PyList> = obj.extract(py).unwrap();
 ```
 
 ### `Py<SomeType>`
@@ -156,7 +119,10 @@ let _: Py<PyList> = obj.extract(py).unwrap();
 This can be a Python native type (like `PyTuple`), or a `pyclass` type
 implemented in Rust.
 
-**Used:** Like `PyObject`, but with a known inner type.
+**Used:** Whenever you want to carry around references to "some" Python object,
+without caring about a GIL lifetime.  For example, storing Python object
+references in a Rust struct that outlives the Python-Rust FFI boundary,
+or returning objects from functions implemented in Rust back to Python.
 
 **Conversions:**
 
@@ -170,9 +136,6 @@ let list: Py<PyList> = PyList::empty(py).into();
 // Access the native type using AsPyRef::as_ref(py)
 // (For #[pyclass] types, as_ref() will return &PyCell<T>)
 let _: &PyList = list.as_ref(py);
-
-// Convert to PyObject with .into()
-let _: PyObject = list.into();
 ```
 
 **Note:** `PyObject` is semantically equivalent to `Py<PyAny>` and might be
@@ -247,7 +210,7 @@ This trait marks structs that mirror native Python types, such as `PyList`.
 
 
 [eval]: https://docs.rs/pyo3/latest/pyo3/struct.Python.html#method.eval
-[clone_ref]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html#method.clone_ref
+[clone_ref]: https://docs.rs/pyo3/latest/pyo3/struct.Py.html#method.clone_ref
 [PyAny]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyAny.html
 [PyList_append]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyList.html#method.append
 [RefCell]: https://doc.rust-lang.org/std/cell/struct.RefCell.html

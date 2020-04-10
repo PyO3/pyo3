@@ -211,23 +211,23 @@ impl MethArgs {
         Ok(test)
     }
     #[args(args = "*", kwargs = "**")]
-    fn get_kwargs(
+    fn get_kwargs<'p>(
         &self,
-        py: Python,
+        py: Python<'p>,
         args: &PyTuple,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<&'p PyAny> {
         Ok([args.into(), kwargs.to_object(py)].to_object(py))
     }
 
     #[args(args = "*", kwargs = "**")]
-    fn get_pos_arg_kw(
+    fn get_pos_arg_kw<'p>(
         &self,
-        py: Python,
+        py: Python<'p>,
         a: i32,
         args: &PyTuple,
         kwargs: Option<&PyDict>,
-    ) -> PyObject {
+    ) -> &'p PyAny {
         [a.to_object(py), args.into(), kwargs.to_object(py)].to_object(py)
     }
 
@@ -242,7 +242,7 @@ impl MethArgs {
     }
 
     #[args(kwargs = "**")]
-    fn get_pos_kw(&self, py: Python, a: i32, kwargs: Option<&PyDict>) -> PyObject {
+    fn get_pos_kw<'p>(&self, py: Python<'p>, a: i32, kwargs: Option<&PyDict>) -> &'p PyAny {
         [a.to_object(py), kwargs.to_object(py)].to_object(py)
     }
     // "args" can be anything that can be extracted from PyTuple

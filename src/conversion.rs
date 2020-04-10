@@ -2,7 +2,6 @@
 
 //! Conversions between various states of Rust and Python types and their wrappers.
 use crate::err::{self, PyDowncastError, PyResult};
-use crate::object::PyObject;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyTuple;
 use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
@@ -80,7 +79,7 @@ where
 /// Conversion trait that allows various objects to be converted into `PyObject`.
 pub trait ToPyObject {
     /// Converts self into a Python object.
-    fn to_object(&self, py: Python) -> PyObject;
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny;
 }
 
 /// This trait has two implementations: The slow one is implemented for
@@ -149,20 +148,13 @@ where
     }
 }
 
-// From (and thus Into) is reflexive
-impl<T> FromPy<T> for T {
-    fn from_py(t: T, _: Python) -> T {
-        t
-    }
-}
-
 /// `FromPyObject` is implemented by various types that can be extracted from
 /// a Python object reference.
 ///
 /// Normal usage is through the helper methods `PyObject::extract` or
 /// `PyAny::extract`:
 ///
-/// ```let obj: PyObject = ...;
+/// ```let obj: Py<PyAny> = ...;
 /// let value: &TargetType = obj.extract(py)?;
 ///
 /// let any: &PyAny = ...;
@@ -180,23 +172,23 @@ impl<T> FromPy<T> for T {
 /// both the `obj` and `prepared` variables must outlive the resulting string slice.
 ///
 /// In cases where the result does not depend on the `'prepared` lifetime,
-/// the inherent method `PyObject::extract()` can be used.
+/// the inherent method `Py<PyAny>::extract()` can be used.
 ///
 /// The trait's conversion method takes a `&PyAny` argument but is called
 /// `FromPyObject` for historical reasons.
 pub trait FromPyObject<'source>: Sized {
-    /// Extracts `Self` from the source `PyObject`.
+    /// Extracts `Self` from the source `Py<PyAny>`.
     fn extract(ob: &'source PyAny) -> PyResult<Self>;
 }
 
-/// Identity conversion: allows using existing `PyObject` instances where
+/// Identity conversion: allows using existing `Py<PyAny>` instances where
 /// `T: ToPyObject` is expected.
 impl<'a, T: ?Sized> ToPyObject for &'a T
 where
     T: ToPyObject,
 {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         <T as ToPyObject>::to_object(*self, py)
     }
 }
@@ -207,7 +199,7 @@ impl<T> ToPyObject for Option<T>
 where
     T: ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         match *self {
             Some(ref val) => val.to_object(py),
             None => py.None(),
@@ -215,38 +207,38 @@ where
     }
 }
 
-impl<T> IntoPy<PyObject> for Option<T>
+impl<T> IntoPy<Py<PyAny>> for Option<T>
 where
-    T: IntoPy<PyObject>,
+    T: IntoPy<Py<PyAny>>,
 {
-    fn into_py(self, py: Python) -> PyObject {
+    fn into_py(self, py: Python) -> Py<PyAny> {
         match self {
             Some(val) => val.into_py(py),
-            None => py.None(),
+            None => py.None().into(),
         }
     }
 }
 
 /// `()` is converted to Python `None`.
 impl ToPyObject for () {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         py.None()
     }
 }
 
-impl FromPy<()> for PyObject {
+impl FromPy<()> for Py<PyAny> {
     fn from_py(_: (), py: Python) -> Self {
-        py.None()
+        py.None().into()
     }
 }
 
-impl<'a, T> FromPy<&'a T> for PyObject
+impl<'a, T> FromPy<&'a T> for Py<PyAny>
 where
     T: AsPyPointer,
 {
     #[inline]
-    fn from_py(other: &'a T, py: Python) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, other.as_ptr()) }
+    fn from_py(other: &'a T, _py: Python) -> Py<PyAny> {
+        unsafe { Py::from_borrowed_ptr(other.as_ptr()) }
     }
 }
 
@@ -310,24 +302,26 @@ where
 ///
 /// This trait is similar to `std::convert::TryFrom`
 pub trait PyTryFrom<'v>: Sized + PyNativeType {
-    /// Cast from a concrete Python object type to PyObject.
+    /// Cast PyAny to a concrete Python object type.
     fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
-    /// Cast from a concrete Python object type to PyObject. With exact type check.
+    /// Cast PyAny to a concrete Python object type. With exact type check.
     fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
-    /// Cast a PyAny to a specific type of PyObject. The caller must
-    /// have already verified the reference is for this type.
+    /// Cast PyAny to a concrete Python object type without a type check.
+    ///
+    /// # Safety
+    /// The caller must have already verified the reference is for this type.
     unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
 /// This trait is similar to `std::convert::TryInto`
 pub trait PyTryInto<T>: Sized {
-    /// Cast from PyObject to a concrete Python object type.
+    /// Cast from Py<PyAny> to a concrete Python object type.
     fn try_into(&self) -> Result<&T, PyDowncastError>;
 
-    /// Cast from PyObject to a concrete Python object type. With exact type check.
+    /// Cast from Py<PyAny> to a concrete Python object type. With exact type check.
     fn try_into_exact(&self) -> Result<&T, PyDowncastError>;
 }
 

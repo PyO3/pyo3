@@ -108,7 +108,7 @@ fn test_buffer_referenced() {
         let input = vec![b' ', b'2', b'3'];
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let instance: PyObject = TestBufferClass {
+        let instance: Py<PyAny> = TestBufferClass {
             vec: input.clone(),
             drop_called: drop_called.clone(),
         }

@@ -429,7 +429,7 @@ impl MyClass {
 ```
 
 Calls to these methods are protected by the GIL, so both `&self` and `&mut self` can be used.
-The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`;
+The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<Py<PyAny>>`;
 the latter is allowed if the method cannot raise Python exceptions.
 
 A `Python` parameter can be specified as part of method signature, in this case the `py` argument
@@ -480,13 +480,13 @@ Declares a class method callable from Python.
   This may be the type object of a derived class.
 * The first parameter implicitly has type `&PyType`.
 * For details on `parameter-list`, see the documentation of `Method arguments` section.
-* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<PyObject>`.
+* The return type must be `PyResult<T>` or `T` for some `T` that implements `IntoPy<Py<PyAny>>`.
 
 ## Static methods
 
 To create a static method for a custom class, the method needs to be annotated with the
 `#[staticmethod]` attribute. The return type must be `T` or `PyResult<T>` for some `T` that implements
-`IntoPy<PyObject>`.
+`IntoPy<Py<PyAny>>`.
 
 ```rust
 # use pyo3::prelude::*;
@@ -675,7 +675,7 @@ The [`PyObjectProtocol`] trait provides several basic customizations.
 
 To customize object attribute access, define the following methods:
 
-  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPy<PyObject>>`
+  * `fn __getattr__(&self, name: FromPyObject) -> PyResult<impl IntoPy<Py<PyAny>>>`
   * `fn __setattr__(&mut self, name: FromPyObject, value: FromPyObject) -> PyResult<()>`
   * `fn __delattr__(&mut self, name: FromPyObject) -> PyResult<()>`
 
@@ -740,7 +740,7 @@ use pyo3::gc::{PyGCProtocol, PyVisit};
 
 #[pyclass]
 struct ClassWithGCSupport {
-    obj: Option<PyObject>,
+    obj: Option<Py<PyAny>>,
 }
 
 #[pyproto]
@@ -781,8 +781,8 @@ struct GCTracked {} // Fails because it does not implement PyGCProtocol
 Iterators can be defined using the
 [`PyIterProtocol`](https://docs.rs/pyo3/latest/pyo3/class/iter/trait.PyIterProtocol.html) trait.
 It includes two methods `__iter__` and `__next__`:
-  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
-  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
+  * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<Py<PyAny>>>`
+  * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<Py<PyAny>>>>`
 
 Returning `Ok(None)` from `__next__` indicates that that there are no further items.
 These two methods can be take either `PyRef<Self>` or `PyRefMut<Self>` as their
@@ -797,7 +797,7 @@ use pyo3::PyIterProtocol;
 
 #[pyclass]
 struct MyIterator {
-    iter: Box<Iterator<Item = PyObject> + Send>,
+    iter: Box<Iterator<Item = Py<PyAny>> + Send>,
 }
 
 #[pyproto]
@@ -805,7 +805,7 @@ impl PyIterProtocol for MyIterator {
     fn __iter__(slf: PyRef<Self>) -> PyResult<Py<MyIterator>> {
         Ok(slf.into())
     }
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         Ok(slf.iter.next())
     }
 }
@@ -919,8 +919,8 @@ impl pyo3::pyclass::PyClass for MyClass {
     type BaseNativeType = PyAny;
 }
 
-impl pyo3::IntoPy<PyObject> for MyClass {
-    fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+impl pyo3::IntoPy<Py<PyAny>> for MyClass {
+    fn into_py(self, py: pyo3::Python) -> pyo3::Py<pyo3::PyAny> {
         pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
     }
 }

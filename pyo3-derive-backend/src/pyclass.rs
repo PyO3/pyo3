@@ -359,11 +359,11 @@ fn impl_class(
         quote! { pyo3::PyAny }
     };
 
-    // If #cls is not extended type, we allow Self->PyObject conversion
+    // If #cls is not extended type, we allow Self->Py<PyAny> conversion
     let into_pyobject = if !attr.has_extends {
         quote! {
-            impl pyo3::IntoPy<PyObject> for #cls {
-                fn into_py(self, py: pyo3::Python) -> pyo3::PyObject {
+            impl pyo3::IntoPy<Py<PyAny>> for #cls {
+                fn into_py(self, py: pyo3::Python) -> pyo3::Py<PyAny> {
                     pyo3::IntoPy::into_py(pyo3::Py::new(py, self).unwrap(), py)
                 }
             }

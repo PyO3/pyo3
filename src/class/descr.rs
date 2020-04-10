@@ -8,7 +8,7 @@
 use crate::class::methods::PyMethodDef;
 use crate::err::PyResult;
 use crate::types::{PyAny, PyType};
-use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
+use crate::{ffi, FromPyObject, IntoPy, Py, PyClass};
 use std::os::raw::c_int;
 
 /// Descriptor interface
@@ -46,7 +46,7 @@ pub trait PyDescrProtocol<'p>: PyClass {
 pub trait PyDescrGetProtocol<'p>: PyDescrProtocol<'p> {
     type Inst: FromPyObject<'p>;
     type Owner: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 

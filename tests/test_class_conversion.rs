@@ -19,14 +19,14 @@ fn test_cloneable_pyclass() {
 
     let py_c = Py::new(py, c.clone()).unwrap().to_object(py);
 
-    let c2: Cloneable = py_c.extract(py).unwrap();
+    let c2: Cloneable = py_c.extract().unwrap();
     assert_eq!(c, c2);
     {
-        let rc: PyRef<Cloneable> = py_c.extract(py).unwrap();
+        let rc: PyRef<Cloneable> = py_c.extract().unwrap();
         assert_eq!(&c, &*rc);
         // Drops PyRef before taking PyRefMut
     }
-    let mrc: PyRefMut<Cloneable> = py_c.extract(py).unwrap();
+    let mrc: PyRefMut<Cloneable> = py_c.extract().unwrap();
     assert_eq!(&c, &*mrc);
 }
 
@@ -87,19 +87,17 @@ fn test_polymorphic_container_stores_sub_class() {
             inner: Py::new(py, BaseClass::default()).unwrap(),
         },
     )
-    .unwrap()
-    .to_object(py);
+    .unwrap();
 
-    p.as_ref(py)
-        .setattr(
-            "inner",
-            PyCell::new(
-                py,
-                PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
-            )
-            .unwrap(),
+    p.setattr(
+        "inner",
+        PyCell::new(
+            py,
+            PyClassInitializer::from(BaseClass::default()).add_subclass(SubClass {}),
         )
-        .unwrap();
+        .unwrap(),
+    )
+    .unwrap();
 
     py_assert!(py, p, "p.inner.foo() == 'SubClass'");
 }
@@ -118,10 +116,10 @@ fn test_polymorphic_container_does_not_accept_other_types() {
     .unwrap()
     .to_object(py);
 
-    let setattr = |value: PyObject| p.as_ref(py).setattr("inner", value);
+    let setattr = |value: Py<PyAny>| p.setattr("inner", value);
 
     assert!(setattr(1i32.into_py(py)).is_err());
-    assert!(setattr(py.None()).is_err());
+    assert!(setattr(py.None().into_py(py)).is_err());
     assert!(setattr((1i32, 2i32).into_py(py)).is_err());
 }
 

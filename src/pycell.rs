@@ -3,8 +3,7 @@ use crate::conversion::{AsPyPointer, FromPyPointer, ToPyObject};
 use crate::pyclass_init::PyClassInitializer;
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
-use crate::types::PyAny;
-use crate::{ffi, FromPy, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
+use crate::{ffi, FromPy, Py, PyAny, PyClass, PyErr, PyNativeType, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt;
 use std::mem::ManuallyDrop;
@@ -373,8 +372,8 @@ impl<T: PyClass> AsPyPointer for PyCell<T> {
 }
 
 impl<T: PyClass> ToPyObject for &PyCell<T> {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, self.as_ptr()) }
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
+        unsafe { py.from_borrowed_ptr(self.as_ptr()) }
     }
 }
 
@@ -537,9 +536,9 @@ impl<'p, T: PyClass> Drop for PyRef<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> FromPy<PyRef<'p, T>> for PyObject {
-    fn from_py(pyref: PyRef<'p, T>, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, pyref.inner.as_ptr()) }
+impl<'p, T: PyClass> FromPy<PyRef<'p, T>> for Py<PyAny> {
+    fn from_py(pyref: PyRef<'p, T>, _py: Python<'_>) -> Py<PyAny> {
+        unsafe { Py::from_borrowed_ptr(pyref.inner.as_ptr()) }
     }
 }
 
@@ -635,9 +634,9 @@ impl<'p, T: PyClass> Drop for PyRefMut<'p, T> {
     }
 }
 
-impl<'p, T: PyClass> FromPy<PyRefMut<'p, T>> for PyObject {
-    fn from_py(pyref: PyRefMut<'p, T>, py: Python<'_>) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(py, pyref.inner.as_ptr()) }
+impl<'p, T: PyClass> FromPy<PyRefMut<'p, T>> for Py<PyAny> {
+    fn from_py(pyref: PyRefMut<'p, T>, _py: Python<'_>) -> Py<PyAny> {
+        unsafe { Py::from_borrowed_ptr(pyref.inner.as_ptr()) }
     }
 }
 

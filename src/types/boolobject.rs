@@ -1,6 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyResult, PyTryFrom, Python,
     ToPyObject,
 };
 
@@ -27,24 +27,21 @@ impl PyBool {
 /// Converts a Rust `bool` to a Python `bool`.
 impl ToPyObject for bool {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         unsafe {
-            PyObject::from_borrowed_ptr(
-                py,
-                if *self {
-                    ffi::Py_True()
-                } else {
-                    ffi::Py_False()
-                },
-            )
+            py.from_borrowed_ptr(if *self {
+                ffi::Py_True()
+            } else {
+                ffi::Py_False()
+            })
         }
     }
 }
 
-impl FromPy<bool> for PyObject {
+impl FromPy<bool> for Py<PyAny> {
     #[inline]
     fn from_py(other: bool, py: Python) -> Self {
-        PyBool::new(py, other).into()
+        PyBool::new(py, other).into_py(py)
     }
 }
 
@@ -69,8 +66,8 @@ mod test {
         let py = gil.python();
         assert!(PyBool::new(py, true).is_true());
         let t: &PyAny = PyBool::new(py, true).into();
-        assert_eq!(true, t.extract().unwrap());
-        assert_eq!(true.to_object(py), PyBool::new(py, true).into());
+        assert_eq!(true, t.extract::<bool>().unwrap());
+        assert_eq!(true.to_object(py), PyBool::new(py, true).as_ref());
     }
 
     #[test]
@@ -80,6 +77,6 @@ mod test {
         assert!(!PyBool::new(py, false).is_true());
         let t: &PyAny = PyBool::new(py, false).into();
         assert_eq!(false, t.extract().unwrap());
-        assert_eq!(false.to_object(py), PyBool::new(py, false).into());
+        assert_eq!(false.to_object(py), PyBool::new(py, false).as_ref());
     }
 }

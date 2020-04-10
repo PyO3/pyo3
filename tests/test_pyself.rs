@@ -1,5 +1,4 @@
 //! Test slf: PyRef/PyMutRef<Self>(especially, slf.into::<Py>) works
-use pyo3;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3::{AsPyRef, PyCell, PyIterProtocol};
@@ -55,12 +54,12 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRef<Self>) -> PyResult<PyObject> {
+    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<PyAny>> {
         let py = unsafe { Python::assume_gil_acquired() };
         Ok(slf.into_py(py))
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let py = unsafe { Python::assume_gil_acquired() };
         let bytes = slf.keys.as_ref(py).as_bytes();
         match bytes.get(slf.idx) {
@@ -71,7 +70,7 @@ impl PyIterProtocol for Iter {
                 let res = reader_ref
                     .inner
                     .get(&b)
-                    .map(|s| PyString::new(py, s).into());
+                    .map(|s| PyString::new(py, s).into_py(py));
                 Ok(res)
             }
             None => Ok(None),
@@ -90,7 +89,7 @@ fn reader() -> Reader {
 fn test_nested_iter() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader: PyObject = reader().into_py(py);
+    let reader: Py<PyAny> = reader().into_py(py);
     py_assert!(
         py,
         reader,
@@ -102,7 +101,7 @@ fn test_nested_iter() {
 fn test_clone_ref() {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    let reader: PyObject = reader().into_py(py);
+    let reader: Py<PyAny> = reader().into_py(py);
     py_assert!(py, reader, "reader == reader.clone_ref()");
     py_assert!(py, reader, "reader == reader.clone_ref_with_py()");
 }

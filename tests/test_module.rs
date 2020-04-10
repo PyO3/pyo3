@@ -140,9 +140,9 @@ fn test_module_from_code() {
         .to_object(py);
 
     let ret_value: i32 = add_func
-        .call1(py, (1, 2))
+        .call1((1, 2))
         .expect("A value should be returned")
-        .extract(py)
+        .extract()
         .expect("The value should be able to be converted to an i32");
 
     assert_eq!(ret_value, 3);
@@ -257,14 +257,14 @@ fn test_module_nesting() {
 // Test that argument parsing specification works for pyfunctions
 
 #[pyfunction(a = 5, vararg = "*")]
-fn ext_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
+fn ext_vararg_fn<'p>(py: Python<'p>, a: i32, vararg: &PyTuple) -> &'p PyAny {
     [a.to_object(py), vararg.into()].to_object(py)
 }
 
 #[pymodule]
 fn vararg_module(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m, "int_vararg_fn", a = 5, vararg = "*")]
-    fn int_vararg_fn(py: Python, a: i32, vararg: &PyTuple) -> PyObject {
+    fn int_vararg_fn<'p>(py: Python<'p>, a: i32, vararg: &PyTuple) -> &'p PyAny {
         ext_vararg_fn(py, a, vararg)
     }
 

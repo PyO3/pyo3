@@ -6,9 +6,7 @@ use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::gil::{self, GILGuard, GILPool};
 use crate::type_object::{PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
-use crate::{
-    ffi, AsPyPointer, AsPyRef, FromPyPointer, IntoPyPointer, PyNativeType, PyObject, PyTryFrom,
-};
+use crate::{ffi, AsPyPointer, AsPyRef, FromPyPointer, IntoPyPointer, Py, PyNativeType, PyTryFrom};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -112,7 +110,7 @@ impl<'p> Python<'p> {
     /// cannot be used in the closure.  This includes `&PyAny` and all the
     /// concrete-typed siblings, like `&PyString`.
     ///
-    /// You can convert such references to e.g. `PyObject` or `Py<PyString>`,
+    /// You can convert such references to e.g. `Py<PyAny>` or `Py<PyString>`,
     /// which makes them independent of the GIL lifetime.  However, you cannot
     /// do much with those without a `Python<'p>` token, for which you'd need to
     /// reacquire the GIL.
@@ -282,15 +280,15 @@ impl<'p> Python<'p> {
     /// Gets the Python builtin value `None`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn None(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_None()) }
+    pub fn None(self) -> &'p PyAny {
+        unsafe { self.from_borrowed_ptr(ffi::Py_None()) }
     }
 
     /// Gets the Python builtin value `NotImplemented`.
     #[allow(non_snake_case)] // the Python keyword starts with uppercase
     #[inline]
-    pub fn NotImplemented(self) -> PyObject {
-        unsafe { PyObject::from_borrowed_ptr(self, ffi::Py_NotImplemented()) }
+    pub fn NotImplemented(self) -> &'p PyAny {
+        unsafe { self.from_borrowed_ptr(ffi::Py_NotImplemented()) }
     }
 
     /// Create a new pool for managing PyO3's owned references.
@@ -352,7 +350,7 @@ impl<'p> Python<'p> {
 
 impl<'p> Python<'p> {
     /// Registers the object in the release pool, and tries to downcast to specific type.
-    pub fn checked_cast_as<T>(self, obj: PyObject) -> Result<&'p T, PyDowncastError>
+    pub fn checked_cast_as<T>(self, obj: Py<PyAny>) -> Result<&'p T, PyDowncastError>
     where
         T: PyTryFrom<'p>,
     {
@@ -362,7 +360,7 @@ impl<'p> Python<'p> {
 
     /// Registers the object in the release pool, and does an unchecked downcast
     /// to the specific type.
-    pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
+    pub unsafe fn cast_as<T>(self, obj: Py<PyAny>) -> &'p T
     where
         T: PyNativeType + PyTypeInfo,
     {
@@ -447,7 +445,7 @@ impl<'p> Python<'p> {
         unsafe { gil::register_any(ob) }
     }
 
-    /// Releases a PyObject reference.
+    /// Releases a Py<PyAny> reference.
     #[inline]
     pub fn release<T>(self, ob: T)
     where

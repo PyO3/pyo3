@@ -10,7 +10,7 @@
 
 use crate::callback::HashCallbackOutput;
 use crate::{
-    exceptions, ffi, FromPyObject, IntoPy, PyAny, PyCell, PyClass, PyErr, PyObject, PyResult,
+    exceptions, ffi, FromPyObject, IntoPy, PyAny, PyCell, PyClass, PyErr, PyResult, Py,
 };
 use std::os::raw::c_int;
 
@@ -101,7 +101,7 @@ pub trait PyObjectProtocol<'p>: PyClass {
 
 pub trait PyObjectGetAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Name: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectSetAttrProtocol<'p>: PyObjectProtocol<'p> {
@@ -114,16 +114,16 @@ pub trait PyObjectDelAttrProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<()>>;
 }
 pub trait PyObjectStrProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectReprProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectFormatProtocol<'p>: PyObjectProtocol<'p> {
     type Format: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectHashProtocol<'p>: PyObjectProtocol<'p> {
@@ -133,12 +133,12 @@ pub trait PyObjectBoolProtocol<'p>: PyObjectProtocol<'p> {
     type Result: Into<PyResult<bool>>;
 }
 pub trait PyObjectBytesProtocol<'p>: PyObjectProtocol<'p> {
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 pub trait PyObjectRichcmpProtocol<'p>: PyObjectProtocol<'p> {
     type Other: FromPyObject<'p>;
-    type Success: IntoPy<PyObject>;
+    type Success: IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 

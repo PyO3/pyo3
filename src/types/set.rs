@@ -3,7 +3,7 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyAny, PyNativeType, Python,
     ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
@@ -98,9 +98,11 @@ impl PySet {
     }
 
     /// Removes and returns an arbitrary element from the set.
-    pub fn pop(&self) -> Option<PyObject> {
-        let element =
-            unsafe { PyObject::from_owned_ptr_or_err(self.py(), ffi::PySet_Pop(self.as_ptr())) };
+    pub fn pop(&self) -> Option<&PyAny> {
+        let element = unsafe {
+            self.py()
+                .from_owned_ptr_or_err(ffi::PySet_Pop(self.as_ptr()))
+        };
         match element {
             Ok(e) => Some(e),
             Err(_) => None,
@@ -159,7 +161,7 @@ impl<T> ToPyObject for collections::HashSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -174,7 +176,7 @@ impl<T> ToPyObject for collections::BTreeSet<T>
 where
     T: hash::Hash + Eq + ToPyObject,
 {
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         let set = PySet::new::<T>(py, &[]).expect("Failed to construct empty set");
         {
             for val in self {
@@ -185,9 +187,9 @@ where
     }
 }
 
-impl<K, S> FromPy<HashSet<K, S>> for PyObject
+impl<K, S> FromPy<HashSet<K, S>> for Py<PyAny>
 where
-    K: IntoPy<PyObject> + Eq + hash::Hash,
+    K: IntoPy<Py<PyAny>> + Eq + hash::Hash,
     S: hash::BuildHasher + Default,
 {
     fn from_py(src: HashSet<K, S>, py: Python) -> Self {
@@ -197,7 +199,7 @@ where
                 set.add(val.into_py(py)).expect("Failed to add to set");
             }
         }
-        set.into()
+        set.into_py(py)
     }
 }
 
@@ -212,9 +214,9 @@ where
     }
 }
 
-impl<K> FromPy<BTreeSet<K>> for PyObject
+impl<K> FromPy<BTreeSet<K>> for Py<PyAny>
 where
-    K: IntoPy<PyObject> + cmp::Ord + ToPyObject,
+    K: IntoPy<Py<PyAny>> + cmp::Ord + ToPyObject,
 {
     fn from_py(src: BTreeSet<K>, py: Python) -> Self {
         let set = PySet::empty(py).expect("Failed to construct empty set");
@@ -223,7 +225,7 @@ where
                 set.add(val.into_py(py)).expect("Failed to add to set");
             }
         }
-        set.into()
+        set.into_py(py)
     }
 }
 
@@ -303,7 +305,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{AsPyRef, IntoPy, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{AsPyRef, IntoPy, Py, PyAny, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 
@@ -334,11 +336,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let set = <PySet as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = <PySet as PyTryFrom>::try_from(ob.as_ref(py)).unwrap();
+        let set2 = <PySet as PyTryFrom>::try_from(ob).unwrap();
         assert_eq!(1, set2.len());
     }
 
@@ -492,10 +494,10 @@ mod test {
         let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
         let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
-        let bto: PyObject = bt.clone().into_py(py);
-        let hso: PyObject = hs.clone().into_py(py);
+        let bto: Py<PyAny> = bt.clone().into_py(py);
+        let hso: Py<PyAny> = hs.clone().into_py(py);
 
-        assert_eq!(bt, bto.extract(py).unwrap());
-        assert_eq!(hs, hso.extract(py).unwrap());
+        assert_eq!(bt, bto.as_ref(py).extract().unwrap());
+        assert_eq!(hs, hso.as_ref(py).extract().unwrap());
     }
 }

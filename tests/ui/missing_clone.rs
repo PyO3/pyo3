@@ -12,5 +12,5 @@ fn main() {
     let py = gil.python();
 
     let pyvalue = Py::new(py, t).unwrap().to_object(py);
-    let t: TestClass = pyvalue.extract(py).unwrap();
+    let t: TestClass = pyvalue.extract().unwrap();
 }

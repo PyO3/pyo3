@@ -9,7 +9,7 @@
 //!
 
 use crate::err::PyResult;
-use crate::{ffi, PyClass, PyObject};
+use crate::{ffi, Py, PyAny, PyClass};
 
 /// Python Async/Await support interface.
 ///
@@ -58,22 +58,22 @@ pub trait PyAsyncProtocol<'p>: PyClass {
 }
 
 pub trait PyAsyncAwaitProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<PyObject>;
+    type Success: crate::IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAiterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<PyObject>;
+    type Success: crate::IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyAsyncAnextProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<PyObject>;
+    type Success: crate::IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
 
 pub trait PyAsyncAenterProtocol<'p>: PyAsyncProtocol<'p> {
-    type Success: crate::IntoPy<PyObject>;
+    type Success: crate::IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -81,7 +81,7 @@ pub trait PyAsyncAexitProtocol<'p>: PyAsyncProtocol<'p> {
     type ExcType: crate::FromPyObject<'p>;
     type ExcValue: crate::FromPyObject<'p>;
     type Traceback: crate::FromPyObject<'p>;
-    type Success: crate::IntoPy<PyObject>;
+    type Success: crate::IntoPy<Py<PyAny>>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
@@ -173,15 +173,14 @@ mod anext {
     use super::{PyAsyncAnextProtocol, PyAsyncAnextProtocolImpl};
     use crate::callback::IntoPyCallbackOutput;
     use crate::err::PyResult;
-    use crate::IntoPyPointer;
     use crate::Python;
-    use crate::{ffi, IntoPy, PyObject};
+    use crate::{ffi, IntoPy, IntoPyPointer, Py, PyAny};
 
     struct IterANextOutput<T>(Option<T>);
 
     impl<T> IntoPyCallbackOutput<*mut ffi::PyObject> for IterANextOutput<T>
     where
-        T: IntoPy<PyObject>,
+        T: IntoPy<Py<PyAny>>,
     {
         fn convert(self, py: Python) -> PyResult<*mut ffi::PyObject> {
             match self.0 {

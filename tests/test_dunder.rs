@@ -93,7 +93,7 @@ impl<'p> PyObjectProtocol<'p> for StringMethods {
         Ok(format!("format({})", format_spec))
     }
 
-    fn __bytes__(&self) -> PyResult<PyObject> {
+    fn __bytes__(&self) -> PyResult<Py<PyBytes>> {
         let gil = GILGuard::acquire();
         Ok(PyBytes::new(gil.python(), b"bytes").into())
     }
@@ -433,7 +433,7 @@ struct Test {}
 
 #[pyproto]
 impl<'p> PyMappingProtocol<'p> for Test {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<Py<PyAny>> {
         let gil = GILGuard::acquire();
         if let Ok(slice) = idx.cast_as::<PySlice>() {
             let indices = slice.indices(1000)?;

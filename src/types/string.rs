@@ -2,7 +2,7 @@
 
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject, PyResult,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, Py, PyResult,
     PyTryFrom, Python, ToPyObject,
 };
 use std::borrow::Cow;
@@ -91,15 +91,15 @@ impl PyString {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for str {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         PyString::new(py, self).into()
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a str {
+impl<'a> IntoPy<Py<PyAny>> for &'a str {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
+    fn into_py(self, py: Python) -> Py<PyAny> {
+        PyString::new(py, self).into_py(py)
     }
 }
 
@@ -107,7 +107,7 @@ impl<'a> IntoPy<PyObject> for &'a str {
 /// See `PyString::new` for details on the conversion.
 impl<'a> ToPyObject for Cow<'a, str> {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         PyString::new(py, self).into()
     }
 }
@@ -116,21 +116,21 @@ impl<'a> ToPyObject for Cow<'a, str> {
 /// See `PyString::new` for details on the conversion.
 impl ToPyObject for String {
     #[inline]
-    fn to_object(&self, py: Python) -> PyObject {
+    fn to_object<'p>(&self, py: Python<'p>) -> &'p PyAny {
         PyString::new(py, self).into()
     }
 }
 
-impl FromPy<String> for PyObject {
+impl FromPy<String> for Py<PyAny> {
     fn from_py(other: String, py: Python) -> Self {
-        PyString::new(py, &other).into()
+        PyString::new(py, &other).into_py(py)
     }
 }
 
-impl<'a> IntoPy<PyObject> for &'a String {
+impl<'a> IntoPy<Py<PyAny>> for &'a String {
     #[inline]
-    fn into_py(self, py: Python) -> PyObject {
-        PyString::new(py, self).into()
+    fn into_py(self, py: Python) -> Py<PyAny> {
+        PyString::new(py, self).into_py(py)
     }
 }
 
@@ -170,8 +170,6 @@ impl<'source> FromPyObject<'source> for String {
 #[cfg(test)]
 mod test {
     use super::PyString;
-    use crate::instance::AsPyRef;
-    use crate::object::PyObject;
     use crate::Python;
     use crate::{FromPyObject, PyTryFrom, ToPyObject};
     use std::borrow::Cow;
@@ -182,7 +180,7 @@ mod test {
         let py = gil.python();
         let s = "\u{1F30F}";
         let py_string = s.to_object(py);
-        assert_eq!(s, py_string.extract::<String>(py).unwrap());
+        assert_eq!(s, py_string.extract::<String>().unwrap());
     }
 
     #[test]
@@ -192,7 +190,7 @@ mod test {
         let s = "Hello Python";
         let py_string = s.to_object(py);
 
-        let s2: &str = FromPyObject::extract(py_string.as_ref(py)).unwrap();
+        let s2: &str = FromPyObject::extract(py_string).unwrap();
         assert_eq!(s, s2);
     }
 
@@ -201,8 +199,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "ascii 🐈";
-        let obj: PyObject = PyString::new(py, s).into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let obj = PyString::new(py, s);
+        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
         assert_eq!(s.as_bytes(), py_string.as_bytes().unwrap());
     }
 
@@ -210,8 +208,8 @@ mod test {
     fn test_as_bytes_surrogate() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let obj: PyObject = py.eval(r#"'\ud800'"#, None, None).unwrap().into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let obj = py.eval(r#"'\ud800'"#, None, None).unwrap();
+        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
         assert!(py_string.as_bytes().is_err());
     }
 
@@ -220,8 +218,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "ascii";
-        let obj: PyObject = PyString::new(py, s).into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let obj = PyString::new(py, s);
+        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
     }
@@ -231,8 +229,8 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "哈哈🐈";
-        let obj: PyObject = PyString::new(py, s).into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let obj = PyString::new(py, s);
+        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
     }
@@ -241,11 +239,8 @@ mod test {
     fn test_to_string_lossy() {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let obj: PyObject = py
-            .eval(r#"'🐈 Hello \ud800World'"#, None, None)
-            .unwrap()
-            .into();
-        let py_string = <PyString as PyTryFrom>::try_from(obj.as_ref(py)).unwrap();
+        let obj = py.eval(r#"'🐈 Hello \ud800World'"#, None, None).unwrap();
+        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
         assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
     }
 
@@ -254,7 +249,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "Hello\n".to_object(py);
-        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+        let s = <PyString as PyTryFrom>::try_from(v).unwrap();
         assert_eq!(format!("{:?}", s), "'Hello\\n'");
     }
 
@@ -263,7 +258,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let v = "Hello\n".to_object(py);
-        let s = <PyString as PyTryFrom>::try_from(v.as_ref(py)).unwrap();
+        let s = <PyString as PyTryFrom>::try_from(v).unwrap();
         assert_eq!(format!("{}", s), "Hello\n");
     }
 }

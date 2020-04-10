@@ -88,9 +88,7 @@ mod tests {
     use crate::gil::GILPool;
     use crate::instance::AsPyRef;
     use crate::types::{PyDict, PyList};
-    use crate::GILGuard;
-    use crate::Python;
-    use crate::ToPyObject;
+    use crate::{Py, PyAny, Python, ToPyObject};
     use indoc::indoc;
 
     #[test]
@@ -98,8 +96,7 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
         let obj = vec![10, 20].to_object(py);
-        let inst = obj.as_ref(py);
-        let mut it = inst.iter().unwrap();
+        let mut it = obj.iter().unwrap();
         assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         assert_eq!(20, it.next().unwrap().unwrap().extract().unwrap());
         assert!(it.next().is_none());
@@ -107,20 +104,19 @@ mod tests {
 
     #[test]
     fn iter_refcnt() {
-        let obj;
+        let obj: Py<PyAny>;
         let count;
         {
             let gil_guard = Python::acquire_gil();
             let py = gil_guard.python();
-            obj = vec![10, 20].to_object(py);
-            count = obj.get_refcnt();
+            obj = vec![10, 20].to_object(py).into();
         }
+        count = obj.get_refcnt();
 
         {
             let gil_guard = Python::acquire_gil();
             let py = gil_guard.python();
-            let inst = obj.as_ref(py);
-            let mut it = inst.iter().unwrap();
+            let mut it = obj.as_ref(py).iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
         }
@@ -132,23 +128,22 @@ mod tests {
         let gil_guard = Python::acquire_gil();
         let py = gil_guard.python();
 
-        let obj;
-        let none;
+        let obj: Py<PyAny>;
+        let none: Py<PyAny>;
         let count;
         {
             let _pool = unsafe { GILPool::new() };
             let l = PyList::empty(py);
-            none = py.None();
+            none = py.None().into();
             l.append(10).unwrap();
             l.append(&none).unwrap();
-            count = none.get_refcnt();
-            obj = l.to_object(py);
+            obj = l.to_object(py).into();
         }
+        count = none.get_refcnt();
 
         {
             let _pool = unsafe { GILPool::new() };
-            let inst = obj.as_ref(py);
-            let mut it = inst.iter().unwrap();
+            let mut it = obj.as_ref(py).iter().unwrap();
 
             assert_eq!(10, it.next().unwrap().unwrap().extract().unwrap());
             assert!(it.next().unwrap().unwrap().is_none());
@@ -169,7 +164,7 @@ mod tests {
         "#
         );
 
-        let gil = GILGuard::acquire();
+        let gil = Python::acquire_gil();
         let py = gil.python();
 
         let context = PyDict::new(py);

@@ -84,7 +84,7 @@ fn data_is_dropped() {
 #[allow(dead_code)]
 #[pyclass]
 struct GCIntegration {
-    self_ref: RefCell<PyObject>,
+    self_ref: RefCell<Py<PyAny>>,
     dropped: TestDropCall,
 }
 
@@ -96,7 +96,7 @@ impl PyGCProtocol for GCIntegration {
 
     fn __clear__(&mut self) {
         let gil = GILGuard::acquire();
-        *self.self_ref.borrow_mut() = gil.python().None();
+        *self.self_ref.borrow_mut() = gil.python().None().into();
     }
 }
 
@@ -110,7 +110,7 @@ fn gc_integration() {
         let inst = PyCell::new(
             py,
             GCIntegration {
-                self_ref: RefCell::new(py.None()),
+                self_ref: RefCell::new(py.None().into()),
                 dropped: TestDropCall {
                     drop_called: Arc::clone(&drop_called),
                 },
@@ -119,7 +119,7 @@ fn gc_integration() {
         .unwrap();
 
         let mut borrow = inst.borrow_mut();
-        *borrow.self_ref.borrow_mut() = inst.to_object(py);
+        *borrow.self_ref.borrow_mut() = inst.to_object(py).into();
     }
 
     let gil = Python::acquire_gil();

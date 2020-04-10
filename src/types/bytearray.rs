@@ -88,9 +88,8 @@ impl PyByteArray {
 #[cfg(test)]
 mod test {
     use crate::exceptions;
-    use crate::object::PyObject;
     use crate::types::PyByteArray;
-    use crate::Python;
+    use crate::{Py, Python};
 
     #[test]
     fn test_bytearray() {
@@ -102,7 +101,7 @@ mod test {
         assert_eq!(src.len(), bytearray.len());
         assert_eq!(src, bytearray.to_vec().as_slice());
 
-        let ba: PyObject = bytearray.into();
+        let ba: Py<PyByteArray> = bytearray.into();
         let bytearray = PyByteArray::from(py, &ba).unwrap();
 
         assert_eq!(src.len(), bytearray.len());
@@ -112,11 +111,10 @@ mod test {
         assert_eq!(20, bytearray.len());
 
         let none = py.None();
-        if let Err(err) = PyByteArray::from(py, &none) {
+        if let Err(err) = PyByteArray::from(py, none) {
             assert!(err.is_instance::<exceptions::TypeError>(py));
         } else {
             panic!("error");
         }
-        drop(none);
     }
 }
