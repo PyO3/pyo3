@@ -56,19 +56,14 @@ macro_rules! assert_check_only {
 
 // Because of the relase pool unsoundness reported in https://github.com/PyO3/pyo3/issues/756,
 // we need to stop other threads before calling `py.import()`.
-// TODO(kngwyu): Remove this macro
-macro_rules! lock {
-    () => {
-        let _mutex = std::sync::Mutex::new(());
-        let _lock = _mutex.lock().unwrap();
-    };
-}
+// TODO(kngwyu): Remove this variable
+static MUTEX: parking_lot::Mutex<()> = parking_lot::const_mutex(());
 
 #[test]
 fn test_date_check() {
+    let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    lock!();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "date", "2018, 1, 1").unwrap();
 
     assert_check_exact!(PyDate_Check, obj);
@@ -78,9 +73,9 @@ fn test_date_check() {
 
 #[test]
 fn test_time_check() {
+    let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    lock!();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "time", "12, 30, 15").unwrap();
 
     assert_check_exact!(PyTime_Check, obj);
@@ -90,9 +85,9 @@ fn test_time_check() {
 
 #[test]
 fn test_datetime_check() {
+    let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    lock!();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "datetime", "2018, 1, 1, 13, 30, 15")
         .map_err(|e| e.print(py))
         .unwrap();
@@ -105,9 +100,9 @@ fn test_datetime_check() {
 
 #[test]
 fn test_delta_check() {
+    let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    lock!();
     let (obj, sub_obj, sub_sub_obj) = _get_subclasses(&py, "timedelta", "1, -3").unwrap();
 
     assert_check_exact!(PyDelta_Check, obj);
@@ -120,9 +115,9 @@ fn test_datetime_utc() {
     use assert_approx_eq::assert_approx_eq;
     use pyo3::types::PyDateTime;
 
+    let _lock = MUTEX.lock();
     let gil = Python::acquire_gil();
     let py = gil.python();
-    lock!();
     let datetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
     let timezone = datetime.get("timezone").unwrap();
     let utc = timezone.getattr("utc").unwrap().to_object(py);

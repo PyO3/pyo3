@@ -25,7 +25,7 @@ libc = "0.2.62"
 num-bigint = { version = "0.2", optional = true }
 num-complex = { version = "0.2", optional = true }
 num-traits = "0.2.8"
-parking_lot = { version = "0.10" }
+parking_lot = { version = "0.10.2" }
 paste = "0.1.6"
 pyo3cls = { path = "pyo3cls", version = "=0.9.2" }
 unindent = "0.1.4"
