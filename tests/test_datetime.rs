@@ -1,6 +1,5 @@
 #![feature(concat_idents)]
 
-use parking_lot::{lock_api::RawMutex as _RawMutex, RawMutex};
 use pyo3::ffi::*;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
@@ -58,7 +57,7 @@ macro_rules! assert_check_only {
 // Because of the relase pool unsoundness reported in https://github.com/PyO3/pyo3/issues/756,
 // we need to stop other threads before calling `py.import()`.
 // TODO(kngwyu): Remove this variable
-static MUTEX: RawMutex = RawMutex::INIT;
+static MUTEX: parking_lot::Mutex<()> = parking_lot::const_mutex(());
 
 #[test]
 fn test_date_check() {
