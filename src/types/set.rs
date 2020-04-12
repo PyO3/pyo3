@@ -4,8 +4,8 @@
 use crate::err::{self, PyErr, PyResult};
 use crate::internal_tricks::Unsendable;
 use crate::{
-    ffi, AsPyPointer, FromPyObject, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
-    ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
+    ToBorrowedObject, ToPyObject,
 };
 use std::cmp;
 use std::collections::{BTreeSet, HashSet};
@@ -184,6 +184,22 @@ where
     }
 }
 
+impl<K, S> FromPy<HashSet<K, S>> for PyObject
+where
+    K: IntoPy<PyObject> + Eq + hash::Hash,
+    S: hash::BuildHasher + Default,
+{
+    fn from_py(src: HashSet<K, S>, py: Python) -> Self {
+        let set = PySet::empty(py).expect("Failed to construct empty set");
+        {
+            for val in src {
+                set.add(val.into_py(py)).expect("Failed to add to set");
+            }
+        }
+        set.into()
+    }
+}
+
 impl<'source, K, S> FromPyObject<'source> for HashSet<K, S>
 where
     K: FromPyObject<'source> + cmp::Eq + hash::Hash,
@@ -192,6 +208,21 @@ where
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let set: &PySet = ob.downcast()?;
         set.iter().map(K::extract).collect()
+    }
+}
+
+impl<K> FromPy<BTreeSet<K>> for PyObject
+where
+    K: IntoPy<PyObject> + cmp::Ord + ToPyObject,
+{
+    fn from_py(src: BTreeSet<K>, py: Python) -> Self {
+        let set = PySet::empty(py).expect("Failed to construct empty set");
+        {
+            for val in src {
+                set.add(val.into_py(py)).expect("Failed to add to set");
+            }
+        }
+        set.into()
     }
 }
 
@@ -271,7 +302,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{AsPyRef, ObjectProtocol, PyTryFrom, Python, ToPyObject};
+    use crate::{AsPyRef, IntoPy, ObjectProtocol, PyObject, PyTryFrom, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 
@@ -450,5 +481,20 @@ mod test {
             hash_set,
             BTreeSet::from_iter([1, 2, 3, 4, 5].iter().copied())
         );
+    }
+
+    #[test]
+    fn test_set_into_py() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let bt: BTreeSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+        let hs: HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
+
+        let bto: PyObject = bt.clone().into_py(py);
+        let hso: PyObject = hs.clone().into_py(py);
+
+        assert_eq!(bt, bto.extract(py).unwrap());
+        assert_eq!(hs, hso.extract(py).unwrap());
     }
 }
