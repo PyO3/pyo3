@@ -137,7 +137,7 @@ mod tests {
         let none;
         let count;
         {
-            let _pool = GILPool::new(py);
+            let _pool = unsafe { GILPool::new() };
             let l = PyList::empty(py);
             none = py.None();
             l.append(10).unwrap();
@@ -147,7 +147,7 @@ mod tests {
         }
 
         {
-            let _pool = GILPool::new(py);
+            let _pool = unsafe { GILPool::new() };
             let inst = obj.as_ref(py);
             let mut it = inst.iter().unwrap();
 

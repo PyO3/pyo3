@@ -6,7 +6,7 @@
 //! c-api
 use crate::err::PyResult;
 use crate::gil::GILPool;
-use crate::{callback, ffi, run_callback, PyCell, PyClass, PyRefMut, Python};
+use crate::{callback, ffi, run_callback, PyCell, PyClass, PyRefMut};
 use std::os::raw::c_int;
 
 /// Buffer protocol interface
@@ -91,9 +91,9 @@ where
         where
             T: for<'p> PyBufferGetBufferProtocol<'p>,
         {
-            let py = Python::assume_gil_acquired();
+            let pool = GILPool::new();
+            let py = pool.python();
             run_callback(py, || {
-                let _pool = GILPool::new(py);
                 let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
                 let result = T::bf_getbuffer(slf.try_borrow_mut()?, arg1, arg2).into();
                 callback::convert(py, result)
@@ -126,9 +126,9 @@ where
         where
             T: for<'p> PyBufferReleaseBufferProtocol<'p>,
         {
-            let py = Python::assume_gil_acquired();
+            let pool = GILPool::new();
+            let py = pool.python();
             run_callback(py, || {
-                let _pool = GILPool::new(py);
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
                 let result = T::bf_releasebuffer(slf.try_borrow_mut()?, arg1).into();
                 crate::callback::convert(py, result)

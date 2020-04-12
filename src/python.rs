@@ -57,6 +57,10 @@ impl<'p> Python<'p> {
     /// Because the output lifetime `'p` is not connected to any input parameter,
     /// care must be taken that the compiler infers an appropriate lifetime for `'p`
     /// when calling this function.
+    ///
+    /// # Safety
+    /// The lifetime `'p` must be shorter than the period you *assume* that you have GIL.
+    /// I.e., `Python<'static>` is always *really* unsafe.
     #[inline]
     pub unsafe fn assume_gil_acquired() -> Python<'p> {
         Python(PhantomData)

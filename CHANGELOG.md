@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 * `PyObject` and `Py<T>` reference counts are now decremented sooner after `drop()`. [#851](https://github.com/PyO3/pyo3/pull/851)
-  * When the GIL is held, the refcount is now decreased immediately on drop. (Previously would wait until just before releasing the GIL.)
-  * When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
+* When the GIL is held, the refcount is now decreased immediately on drop. (Previously would wait until just before releasing the GIL.)
+* When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
 
 ### Added
 * `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 * `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
 * Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
+* `&'static Py~` is not allowed as arguments. [#869](https://github.com/PyO3/pyo3/pull/869)
 
 ## [0.9.2]
 

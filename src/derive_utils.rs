@@ -6,7 +6,6 @@
 
 use crate::err::PyResult;
 use crate::exceptions::TypeError;
-use crate::init_once;
 use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
@@ -138,8 +137,6 @@ impl ModuleDef {
         doc: &str,
         initializer: impl Fn(Python, &PyModule) -> PyResult<()>,
     ) -> PyResult<*mut ffi::PyObject> {
-        init_once();
-
         #[cfg(py_sys_config = "WITH_THREAD")]
         // > Changed in version 3.7: This function is now called by Py_Initialize(), so you don’t have
         // > to call it yourself anymore.
@@ -147,11 +144,11 @@ impl ModuleDef {
         ffi::PyEval_InitThreads();
 
         let module = ffi::PyModule_Create(self.0.get());
-        let py = Python::assume_gil_acquired();
+        let pool = GILPool::new();
+        let py = pool.python();
         if module.is_null() {
             return Err(crate::PyErr::fetch(py));
         }
-        let _pool = GILPool::new(py);
         let module = py.from_owned_ptr_or_err::<PyModule>(module)?;
         module.add("__doc__", doc)?;
         initializer(py, module)?;
