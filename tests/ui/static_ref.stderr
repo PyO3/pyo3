@@ -1,0 +1,11 @@
+error[E0597]: `_pool` does not live long enough
+ --> $DIR/static_ref.rs:9:1
+  |
+9 | #[pymethods]
+  | ^^^^^^^^^^^-
+  | |          |
+  | |          `_pool` dropped here while still borrowed
+  | borrowed value does not live long enough
+  | cast requires that `_pool` is borrowed for `'static`
+  |
+  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

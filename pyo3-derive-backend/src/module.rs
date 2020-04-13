@@ -220,9 +220,9 @@ fn function_c_wrapper(name: &Ident, spec: &method::FnSpec<'_>) -> TokenStream {
         {
             const _LOCATION: &'static str = concat!(stringify!(#name), "()");
 
-            let _py = pyo3::Python::assume_gil_acquired();
+            let _pool = pyo3::GILPool::new();
+            let _py = _pool.python();
             pyo3::run_callback(_py, || {
-                let _pool = pyo3::GILPool::new(_py);
                 let _args = _py.from_borrowed_ptr::<pyo3::types::PyTuple>(_args);
                 let _kwargs: Option<&pyo3::types::PyDict> = _py.from_borrowed_ptr_or_opt(_kwargs);
 

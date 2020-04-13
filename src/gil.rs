@@ -3,12 +3,10 @@
 //! Interaction with python's global interpreter lock
 
 use crate::{ffi, internal_tricks::Unsendable, PyAny, Python};
-use std::cell::Cell;
-use std::ptr::NonNull;
-use std::{any, sync};
+use std::cell::{Cell, UnsafeCell};
+use std::{any, mem::ManuallyDrop, ptr::NonNull, sync};
 
 static START: sync::Once = sync::Once::new();
-static START_PYO3: sync::Once = sync::Once::new();
 
 thread_local! {
     /// This is a internal counter in pyo3 monitoring whether this thread has the GIL.
@@ -90,16 +88,6 @@ pub fn prepare_freethreaded_python() {
             // Note that the PyThreadState returned by PyEval_SaveThread is also held in TLS by the Python runtime,
             // and will be restored by PyGILState_Ensure.
         }
-
-        init_once();
-    });
-}
-
-#[doc(hidden)]
-pub fn init_once() {
-    START_PYO3.call_once(|| unsafe {
-        // initialize release pool
-        POOL = Box::into_raw(Box::new(ReleasePool::new()));
     });
 }
 
@@ -116,28 +104,46 @@ pub fn init_once() {
 /// ```
 #[must_use]
 pub struct GILGuard {
-    owned: usize,
-    borrowed: usize,
     gstate: ffi::PyGILState_STATE,
-    // Stable solution for impl !Send
-    no_send: Unsendable,
+    pool: ManuallyDrop<GILPool>,
+}
+
+impl GILGuard {
+    /// Acquires the global interpreter lock, which allows access to the Python runtime.
+    ///
+    /// If the Python runtime is not already initialized, this function will initialize it.
+    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
+    pub fn acquire() -> GILGuard {
+        prepare_freethreaded_python();
+
+        unsafe {
+            let gstate = ffi::PyGILState_Ensure(); // acquire GIL
+            GILGuard {
+                gstate,
+                pool: ManuallyDrop::new(GILPool::new()),
+            }
+        }
+    }
+
+    /// Retrieves the marker type that proves that the GIL was acquired.
+    #[inline]
+    pub fn python(&self) -> Python {
+        unsafe { Python::assume_gil_acquired() }
+    }
 }
 
 /// The Drop implementation for `GILGuard` will release the GIL.
 impl Drop for GILGuard {
     fn drop(&mut self) {
         unsafe {
-            let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.drain(self.python(), self.owned, self.borrowed);
+            ManuallyDrop::drop(&mut self.pool);
             ffi::PyGILState_Release(self.gstate);
         }
-
-        decrement_gil_count();
     }
 }
 
-/// Release pool
-struct ReleasePool {
+/// Implementation of release pool
+struct ReleasePoolImpl {
     owned: ArrayList<NonNull<ffi::PyObject>>,
     borrowed: ArrayList<NonNull<ffi::PyObject>>,
     pointers: *mut Vec<NonNull<ffi::PyObject>>,
@@ -145,9 +151,9 @@ struct ReleasePool {
     p: parking_lot::Mutex<*mut Vec<NonNull<ffi::PyObject>>>,
 }
 
-impl ReleasePool {
-    fn new() -> ReleasePool {
-        ReleasePool {
+impl ReleasePoolImpl {
+    fn new() -> Self {
+        Self {
             owned: ArrayList::new(),
             borrowed: ArrayList::new(),
             pointers: Box::into_raw(Box::new(Vec::with_capacity(256))),
@@ -187,42 +193,69 @@ impl ReleasePool {
     }
 }
 
-static mut POOL: *mut ReleasePool = ::std::ptr::null_mut();
-
-#[doc(hidden)]
-pub struct GILPool<'p> {
-    py: Python<'p>,
-    owned: usize,
-    borrowed: usize,
-    no_send: Unsendable,
+/// Sync wrapper of ReleasePoolImpl
+struct ReleasePool {
+    value: UnsafeCell<Option<ReleasePoolImpl>>,
 }
 
-impl<'p> GILPool<'p> {
-    #[inline]
-    pub fn new(py: Python) -> GILPool {
-        increment_gil_count();
-        let p: &'static mut ReleasePool = unsafe { &mut *POOL };
-        GILPool {
-            py,
-            owned: p.owned.len(),
-            borrowed: p.borrowed.len(),
-            no_send: Unsendable::default(),
+impl ReleasePool {
+    const fn new() -> Self {
+        Self {
+            value: UnsafeCell::new(None),
         }
+    }
+    /// # Safety
+    /// This function is not thread safe. Thus, the caller has to have GIL.
+    #[allow(clippy::mut_from_ref)]
+    unsafe fn get_or_init(&self) -> &mut ReleasePoolImpl {
+        (*self.value.get()).get_or_insert_with(ReleasePoolImpl::new)
     }
 }
 
-impl<'p> Drop for GILPool<'p> {
+static POOL: ReleasePool = ReleasePool::new();
+
+unsafe impl Sync for ReleasePool {}
+
+#[doc(hidden)]
+pub struct GILPool {
+    owned: usize,
+    borrowed: usize,
+    // Stable solution for impl !Send
+    no_send: Unsendable,
+}
+
+impl GILPool {
+    /// # Safety
+    /// This function requires that GIL is already acquired.
+    #[inline]
+    pub unsafe fn new() -> GILPool {
+        increment_gil_count();
+        // Release objects that were dropped since last GIL acquisition
+        let pool = POOL.get_or_init();
+        pool.release_pointers();
+        GILPool {
+            owned: pool.owned.len(),
+            borrowed: pool.borrowed.len(),
+            no_send: Unsendable::default(),
+        }
+    }
+    pub unsafe fn python(&self) -> Python {
+        Python::assume_gil_acquired()
+    }
+}
+
+impl Drop for GILPool {
     fn drop(&mut self) {
         unsafe {
-            let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.drain(self.py, self.owned, self.borrowed);
+            let pool = POOL.get_or_init();
+            pool.drain(self.python(), self.owned, self.borrowed);
         }
         decrement_gil_count();
     }
 }
 
 pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
-    let pool: &'static mut ReleasePool = &mut *POOL;
+    let pool = POOL.get_or_init();
 
     pool.obj.push(Box::new(obj));
     pool.obj
@@ -234,7 +267,7 @@ pub unsafe fn register_any<'p, T: 'static>(obj: T) -> &'p T {
 }
 
 pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
-    let pool = &mut *POOL;
+    let pool = POOL.get_or_init();
     if gil_is_acquired() {
         ffi::Py_DECREF(obj.as_ptr())
     } else {
@@ -243,45 +276,13 @@ pub unsafe fn register_pointer(obj: NonNull<ffi::PyObject>) {
 }
 
 pub unsafe fn register_owned(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
-    let pool = &mut *POOL;
+    let pool = POOL.get_or_init();
     &*(pool.owned.push_back(obj) as *const _ as *const PyAny)
 }
 
 pub unsafe fn register_borrowed(_py: Python, obj: NonNull<ffi::PyObject>) -> &PyAny {
-    let pool = &mut *POOL;
+    let pool = POOL.get_or_init();
     &*(pool.borrowed.push_back(obj) as *const _ as *const PyAny)
-}
-
-impl GILGuard {
-    /// Acquires the global interpreter lock, which allows access to the Python runtime.
-    ///
-    /// If the Python runtime is not already initialized, this function will initialize it.
-    /// See [prepare_freethreaded_python()](fn.prepare_freethreaded_python.html) for details.
-    pub fn acquire() -> GILGuard {
-        prepare_freethreaded_python();
-
-        unsafe {
-            let gstate = ffi::PyGILState_Ensure(); // acquire GIL
-            increment_gil_count();
-
-            // Release objects that were dropped since last GIL acquisition
-            let pool: &'static mut ReleasePool = &mut *POOL;
-            pool.release_pointers();
-
-            GILGuard {
-                owned: pool.owned.len(),
-                borrowed: pool.borrowed.len(),
-                gstate,
-                no_send: Unsendable::default(),
-            }
-        }
-    }
-
-    /// Retrieves the marker type that proves that the GIL was acquired.
-    #[inline]
-    pub fn python(&self) -> Python {
-        unsafe { Python::assume_gil_acquired() }
-    }
 }
 
 /// Increment pyo3's internal GIL count - to be called whenever GILPool or GILGuard is created.
@@ -361,7 +362,7 @@ mod array_list {
 
 #[cfg(test)]
 mod test {
-    use super::{GILPool, NonNull, ReleasePool, GIL_COUNT, POOL};
+    use super::{GILPool, NonNull, GIL_COUNT, POOL};
     use crate::object::PyObject;
     use crate::AsPyPointer;
     use crate::Python;
@@ -388,7 +389,7 @@ mod test {
         let _ref = obj.clone_ref(py);
 
         unsafe {
-            let p: &'static mut ReleasePool = &mut *POOL;
+            let p = POOL.get_or_init();
 
             {
                 let gil = Python::acquire_gil();
@@ -416,10 +417,10 @@ mod test {
         let obj_ptr = obj.as_ptr();
 
         unsafe {
-            let p: &'static mut ReleasePool = &mut *POOL;
+            let p = POOL.get_or_init();
 
             {
-                let _pool = GILPool::new(py);
+                let _pool = GILPool::new();
                 assert_eq!(p.owned.len(), 0);
 
                 let _ = gil::register_owned(py, obj.into_nonnull());
@@ -427,7 +428,7 @@ mod test {
                 assert_eq!(p.owned.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 {
-                    let _pool = GILPool::new(py);
+                    let _pool = GILPool::new();
                     let obj = get_object();
                     let _ = gil::register_owned(py, obj.into_nonnull());
                     assert_eq!(p.owned.len(), 2);
@@ -443,9 +444,8 @@ mod test {
 
     #[test]
     fn test_borrowed() {
-        gil::init_once();
         unsafe {
-            let p: &'static mut ReleasePool = &mut *POOL;
+            let p = POOL.get_or_init();
 
             let obj = get_object();
             let obj_ptr = obj.as_ptr();
@@ -469,9 +469,8 @@ mod test {
 
     #[test]
     fn test_borrowed_nested() {
-        gil::init_once();
         unsafe {
-            let p: &'static mut ReleasePool = &mut *POOL;
+            let p = POOL.get_or_init();
 
             let obj = get_object();
             let obj_ptr = obj.as_ptr();
@@ -486,7 +485,7 @@ mod test {
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 1);
 
                 {
-                    let _pool = GILPool::new(py);
+                    let _pool = GILPool::new();
                     assert_eq!(p.borrowed.len(), 1);
                     gil::register_borrowed(py, NonNull::new(obj_ptr).unwrap());
                     assert_eq!(p.borrowed.len(), 2);
@@ -513,7 +512,7 @@ mod test {
         let obj_ptr = obj.as_ptr();
 
         unsafe {
-            let p: &'static mut ReleasePool = &mut *POOL;
+            let p = POOL.get_or_init();
 
             {
                 assert_eq!(p.owned.len(), 0);
@@ -536,7 +535,7 @@ mod test {
         let obj_ptr = obj.as_ptr();
 
         unsafe {
-            let p: &'static mut ReleasePool = &mut *POOL;
+            let p = POOL.get_or_init();
 
             {
                 assert_eq!(p.owned.len(), 0);
@@ -565,13 +564,11 @@ mod test {
         let gil = Python::acquire_gil();
         assert_eq!(get_gil_count(), 1);
 
-        let py = gil.python();
-
         assert_eq!(get_gil_count(), 1);
-        let pool = GILPool::new(py);
+        let pool = unsafe { GILPool::new() };
         assert_eq!(get_gil_count(), 2);
 
-        let pool2 = GILPool::new(py);
+        let pool2 = unsafe { GILPool::new() };
         assert_eq!(get_gil_count(), 3);
 
         drop(pool);

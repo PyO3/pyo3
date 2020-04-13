@@ -472,7 +472,7 @@ mod test {
 
         let cnt;
         {
-            let _pool = crate::GILPool::new(py);
+            let _pool = unsafe { crate::GILPool::new() };
             let none = py.None();
             cnt = none.get_refcnt();
             let _dict = [(10, none)].into_py_dict(py);

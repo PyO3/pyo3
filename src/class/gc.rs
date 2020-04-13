@@ -89,8 +89,8 @@ where
         where
             T: for<'p> PyGCTraverseProtocol<'p>,
         {
-            let py = Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
+            let pool = crate::GILPool::new();
+            let py = pool.python();
             let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
             let visit = PyVisit {
@@ -98,8 +98,8 @@ where
                 arg,
                 _py: py,
             };
-
-            if let Ok(borrow) = slf.try_borrow() {
+            let borrow = slf.try_borrow();
+            if let Ok(borrow) = borrow {
                 match borrow.__traverse__(visit) {
                     Ok(()) => 0,
                     Err(PyTraverseError(code)) => code,
@@ -136,8 +136,8 @@ where
         where
             T: for<'p> PyGCClearProtocol<'p>,
         {
-            let py = Python::assume_gil_acquired();
-            let _pool = crate::GILPool::new(py);
+            let pool = crate::GILPool::new();
+            let py = pool.python();
             let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
             slf.borrow_mut().__clear__();

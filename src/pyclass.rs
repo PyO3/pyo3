@@ -2,7 +2,7 @@
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
-use crate::{class, ffi, gil, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
+use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
@@ -111,8 +111,8 @@ where
     where
         T: PyClassAlloc,
     {
-        let py = Python::assume_gil_acquired();
-        let _pool = gil::GILPool::new(py);
+        let pool = crate::GILPool::new();
+        let py = pool.python();
         <T as PyClassAlloc>::dealloc(py, (obj as *mut T::Layout) as _)
     }
     type_object.tp_dealloc = Some(tp_dealloc_callback::<T>);

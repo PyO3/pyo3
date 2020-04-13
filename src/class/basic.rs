@@ -12,7 +12,7 @@ use crate::callback::HashCallbackOutput;
 use crate::class::methods::PyMethodDef;
 use crate::{
     callback, exceptions, ffi, run_callback, FromPyObject, GILPool, IntoPy, ObjectProtocol, PyAny,
-    PyCell, PyClass, PyErr, PyObject, PyResult, Python,
+    PyCell, PyClass, PyErr, PyObject, PyResult,
 };
 use std::os::raw::c_int;
 
@@ -218,10 +218,9 @@ where
         where
             T: for<'p> PyObjectGetAttrProtocol<'p>,
         {
-            let py = Python::assume_gil_acquired();
+            let pool = GILPool::new();
+            let py = pool.python();
             run_callback(py, || {
-                let _pool = GILPool::new(py);
-
                 // Behave like python's __getattr__ (as opposed to __getattribute__) and check
                 // for existing fields and methods first
                 let existing = ffi::PyObject_GenericGetAttr(slf, arg);
@@ -485,9 +484,9 @@ where
         where
             T: for<'p> PyObjectRichcmpProtocol<'p>,
         {
-            let py = Python::assume_gil_acquired();
+            let pool = GILPool::new();
+            let py = pool.python();
             run_callback(py, || {
-                let _pool = GILPool::new(py);
                 let slf = py.from_borrowed_ptr::<crate::PyCell<T>>(slf);
                 let arg = py.from_borrowed_ptr::<PyAny>(arg);
 

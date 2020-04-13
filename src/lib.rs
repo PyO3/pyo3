@@ -140,7 +140,7 @@ pub use crate::conversion::{
     ToBorrowedObject, ToPyObject,
 };
 pub use crate::err::{PyDowncastError, PyErr, PyErrArguments, PyErrValue, PyResult};
-pub use crate::gil::{init_once, GILGuard, GILPool};
+pub use crate::gil::{GILGuard, GILPool};
 pub use crate::instance::{AsPyRef, ManagedPyRef, Py, PyNativeType};
 pub use crate::object::PyObject;
 pub use crate::objectprotocol::ObjectProtocol;

@@ -7,7 +7,7 @@ use crate::conversion::{FromPyObject, IntoPy};
 use crate::err::{PyErr, PyResult};
 use crate::gil::GILPool;
 use crate::objectprotocol::ObjectProtocol;
-use crate::{callback, exceptions, ffi, run_callback, PyAny, PyCell, PyClass, PyObject, Python};
+use crate::{callback, exceptions, ffi, run_callback, PyAny, PyCell, PyClass, PyObject};
 use std::os::raw::c_int;
 
 /// Sequence interface
@@ -256,9 +256,9 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceSetItemProtocol<'p>,
             {
-                let py = Python::assume_gil_acquired();
+                let pool = GILPool::new();
+                let py = pool.python();
                 run_callback(py, || {
-                    let _pool = GILPool::new(py);
                     let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                     if value.is_null() {
@@ -305,9 +305,9 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let py = Python::assume_gil_acquired();
+                let pool = GILPool::new();
+                let py = pool.python();
                 run_callback(py, || {
-                    let _pool = GILPool::new(py);
                     let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                     let result = if value.is_null() {
@@ -352,9 +352,9 @@ mod sq_ass_item_impl {
             where
                 T: for<'p> PySequenceSetItemProtocol<'p> + for<'p> PySequenceDelItemProtocol<'p>,
             {
-                let py = Python::assume_gil_acquired();
+                let pool = GILPool::new();
+                let py = pool.python();
                 run_callback(py, || {
-                    let _pool = GILPool::new(py);
                     let slf = py.from_borrowed_ptr::<PyCell<T>>(slf);
 
                     let result = if value.is_null() {
