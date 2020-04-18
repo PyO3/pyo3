@@ -5,6 +5,7 @@ use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl, PyLayout, PySizedLayout, PyTypeInfo};
 use crate::{ffi, FromPy, PyAny, PyClass, PyErr, PyNativeType, PyObject, PyResult, Python};
 use std::cell::{Cell, UnsafeCell};
+use std::error::Error;
 use std::fmt;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
@@ -647,6 +648,27 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     }
 }
 
+/// A trait for types that can be borrowed from a cell.
+///
+/// This serves to unify the use of `PyRef` and `PyRefMut` in automatically
+/// derived code, since both types can be obtained from a `PyCell`.
+pub trait TryFromPyCell<'a, T: PyClass>: Sized {
+    type Error: Error + Into<PyErr>;
+    fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error>;
+}
+
+impl <'a, T, R> TryFromPyCell<'a, T> for R
+where
+    T: 'a + PyClass,
+    R: std::convert::TryFrom<&'a PyCell<T>>,
+    R::Error: Error + Into<PyErr>,
+{
+    type Error = R::Error;
+    fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
+        <R as std::convert::TryFrom<&'a PyCell<T>>>::try_from(cell)
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq)]
 struct BorrowFlag(usize);
 
@@ -680,6 +702,8 @@ impl fmt::Display for PyBorrowError {
     }
 }
 
+impl Error for PyBorrowError {}
+
 /// An error returned by [`PyCell::try_borrow_mut`](struct.PyCell.html#method.try_borrow_mut).
 ///
 /// In Python, you can catch this error by `except RuntimeError`.
@@ -698,6 +722,8 @@ impl fmt::Display for PyBorrowMutError {
         fmt::Display::fmt("Already borrowed", f)
     }
 }
+
+impl Error for PyBorrowMutError {}
 
 pyo3_exception!(PyBorrowError, crate::exceptions::RuntimeError);
 pyo3_exception!(PyBorrowMutError, crate::exceptions::RuntimeError);
