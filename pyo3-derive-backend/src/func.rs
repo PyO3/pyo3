@@ -121,7 +121,9 @@ pub(crate) fn impl_method_proto(
                 }
             }
         }
-        MethodProto::UnaryS { pyres, proto, arg, .. } => {
+        MethodProto::UnaryS {
+            pyres, proto, arg, ..
+        } => {
             let p: syn::Path = syn::parse_str(proto).unwrap();
             let (ty, succ) = get_res_success(ty);
 
@@ -131,7 +133,9 @@ pub(crate) fn impl_method_proto(
             // update the type if not lifetime was given:
             // PyRef<Self> --> PyRef<'p, Self>
             if let syn::Type::Path(path) = &mut slf_ty {
-                if let syn::PathArguments::AngleBracketed(args) = &mut path.path.segments[0].arguments {
+                if let syn::PathArguments::AngleBracketed(args) =
+                    &mut path.path.segments[0].arguments
+                {
                     if let syn::GenericArgument::Lifetime(_) = args.args[0] {
                     } else {
                         let lt = syn::parse_quote! {'p};

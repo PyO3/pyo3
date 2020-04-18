@@ -656,7 +656,7 @@ pub trait TryFromPyCell<'a, T: PyClass>: Sized {
     fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error>;
 }
 
-impl <'a, T, R> TryFromPyCell<'a, T> for R
+impl<'a, T, R> TryFromPyCell<'a, T> for R
 where
     T: 'a + PyClass,
     R: std::convert::TryFrom<&'a PyCell<T>>,
