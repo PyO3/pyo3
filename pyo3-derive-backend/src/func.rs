@@ -130,11 +130,11 @@ pub(crate) fn impl_method_proto(
             let slf_name = syn::Ident::new(arg, Span::call_site());
             let mut slf_ty = get_arg_ty(sig, 0);
 
-            // update the type if not lifetime was given:
+            // update the type if no lifetime was given:
             // PyRef<Self> --> PyRef<'p, Self>
-            if let syn::Type::Path(path) = &mut slf_ty {
-                if let syn::PathArguments::AngleBracketed(args) =
-                    &mut path.path.segments[0].arguments
+            if let syn::Type::Path(ref mut path) = slf_ty {
+                if let syn::PathArguments::AngleBracketed(ref mut args) =
+                    path.path.segments[0].arguments
                 {
                     if let syn::GenericArgument::Lifetime(_) = args.args[0] {
                     } else {
