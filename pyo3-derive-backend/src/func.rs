@@ -18,6 +18,12 @@ pub enum MethodProto {
         pyres: bool,
         proto: &'static str,
     },
+    UnaryS {
+        name: &'static str,
+        arg: &'static str,
+        pyres: bool,
+        proto: &'static str,
+    },
     Binary {
         name: &'static str,
         arg: &'static str,
@@ -60,6 +66,7 @@ impl MethodProto {
         match *self {
             MethodProto::Free { ref name, .. } => name,
             MethodProto::Unary { ref name, .. } => name,
+            MethodProto::UnaryS { ref name, .. } => name,
             MethodProto::Binary { ref name, .. } => name,
             MethodProto::BinaryS { ref name, .. } => name,
             MethodProto::Ternary { ref name, .. } => name,
@@ -109,6 +116,58 @@ pub(crate) fn impl_method_proto(
             } else {
                 quote! {
                     impl<'p> #p<'p> for #cls {
+                        type Result = #ty;
+                    }
+                }
+            }
+        }
+        MethodProto::UnaryS {
+            pyres, proto, arg, ..
+        } => {
+            let p: syn::Path = syn::parse_str(proto).unwrap();
+            let (ty, succ) = get_res_success(ty);
+
+            let slf_name = syn::Ident::new(arg, Span::call_site());
+            let mut slf_ty = get_arg_ty(sig, 0);
+
+            // update the type if no lifetime was given:
+            // PyRef<Self> --> PyRef<'p, Self>
+            if let syn::Type::Path(ref mut path) = slf_ty {
+                if let syn::PathArguments::AngleBracketed(ref mut args) =
+                    path.path.segments[0].arguments
+                {
+                    if let syn::GenericArgument::Lifetime(_) = args.args[0] {
+                    } else {
+                        let lt = syn::parse_quote! {'p};
+                        args.args.insert(0, lt);
+                    }
+                }
+            }
+
+            let tmp: syn::ItemFn = syn::parse_quote! {
+                fn test(&self) -> <#cls as #p<'p>>::Result {}
+            };
+            sig.output = tmp.sig.output;
+            modify_self_ty(sig);
+
+            if let syn::FnArg::Typed(ref mut arg) = sig.inputs[0] {
+                arg.ty = Box::new(syn::parse_quote! {
+                    <#cls as #p<'p>>::#slf_name
+                });
+            }
+
+            if pyres {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #slf_name = #slf_ty;
+                        type Success = #succ;
+                        type Result = #ty;
+                    }
+                }
+            } else {
+                quote! {
+                    impl<'p> #p<'p> for #cls {
+                        type #slf_name = #slf_ty;
                         type Result = #ty;
                     }
                 }

@@ -55,7 +55,7 @@ struct Iter {
 
 #[pyproto]
 impl PyIterProtocol for Iter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
+    fn __iter__(slf: PyRef<Self>) -> PyResult<PyObject> {
         let py = unsafe { Python::assume_gil_acquired() };
         Ok(slf.into_py(py))
     }

@@ -28,7 +28,7 @@ macro_rules! py_unary_func {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! py_unary_refmut_func {
+macro_rules! py_unarys_func {
     ($trait:ident, $class:ident :: $f:ident $(, $conv:expr)?) => {{
         unsafe extern "C" fn wrap<T>(slf: *mut $crate::ffi::PyObject) -> *mut $crate::ffi::PyObject
         where
@@ -38,7 +38,9 @@ macro_rules! py_unary_refmut_func {
             let py = pool.python();
             $crate::run_callback(py, || {
                 let slf = py.from_borrowed_ptr::<$crate::PyCell<T>>(slf);
-                let res = $class::$f(slf.borrow_mut()).into();
+                let borrow = <T::Receiver>::try_from_pycell(slf)
+                    .map_err(|e| e.into())?;
+                let res = $class::$f(borrow).into();
                 $crate::callback::convert(py, res $(.map($conv))?)
             })
         }

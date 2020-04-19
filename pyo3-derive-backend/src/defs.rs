@@ -260,13 +260,15 @@ pub const ITER: Proto = Proto {
     name: "Iter",
     py_methods: &[],
     methods: &[
-        MethodProto::Unary {
+        MethodProto::UnaryS {
             name: "__iter__",
+            arg: "Receiver",
             pyres: true,
             proto: "pyo3::class::iter::PyIterIterProtocol",
         },
-        MethodProto::Unary {
+        MethodProto::UnaryS {
             name: "__next__",
+            arg: "Receiver",
             pyres: true,
             proto: "pyo3::class::iter::PyIterNextProtocol",
         },

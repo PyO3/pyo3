@@ -3,8 +3,9 @@
 //! Trait and support implementation for implementing iterators
 
 use crate::callback::IntoPyCallbackOutput;
+use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
-use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, PyRefMut, Python};
+use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 
 /// Python Iterator Interface.
 ///
@@ -12,14 +13,14 @@ use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, PyRefMut, Python};
 /// for more.
 #[allow(unused_variables)]
 pub trait PyIterProtocol<'p>: PyClass {
-    fn __iter__(slf: PyRefMut<Self>) -> Self::Result
+    fn __iter__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyIterIterProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn __next__(slf: PyRefMut<Self>) -> Self::Result
+    fn __next__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyIterNextProtocol<'p>,
     {
@@ -28,11 +29,13 @@ pub trait PyIterProtocol<'p>: PyClass {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
+    type Receiver: TryFromPyCell<'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }
@@ -76,7 +79,7 @@ where
 {
     #[inline]
     fn tp_iter() -> Option<ffi::getiterfunc> {
-        py_unary_refmut_func!(PyIterIterProtocol, T::__iter__)
+        py_unarys_func!(PyIterIterProtocol, T::__iter__)
     }
 }
 
@@ -99,7 +102,7 @@ where
 {
     #[inline]
     fn tp_iternext() -> Option<ffi::iternextfunc> {
-        py_unary_refmut_func!(PyIterNextProtocol, T::__next__, IterNextConverter)
+        py_unarys_func!(PyIterNextProtocol, T::__next__, IterNextConverter)
     }
 }
 

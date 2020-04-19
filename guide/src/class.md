@@ -808,7 +808,10 @@ It includes two methods `__iter__` and `__next__`:
   * `fn __iter__(slf: PyRefMut<Self>) -> PyResult<impl IntoPy<PyObject>>`
   * `fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<impl IntoPy<PyObject>>>`
 
-  Returning `Ok(None)` from `__next__` indicates that that there are no further items.
+Returning `Ok(None)` from `__next__` indicates that that there are no further items.
+These two methods can be take either `PyRef<Self>` or `PyRefMut<Self>` as their
+first argument, so that mutable borrow can be avoided if needed.
+
 
 Example:
 
@@ -823,7 +826,7 @@ struct MyIterator {
 
 #[pyproto]
 impl PyIterProtocol for MyIterator {
-    fn __iter__(mut slf: PyRefMut<Self>) -> PyResult<Py<MyIterator>> {
+    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<MyIterator>> {
         Ok(slf.into())
     }
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
