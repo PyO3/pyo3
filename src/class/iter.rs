@@ -3,8 +3,8 @@
 //! Trait and support implementation for implementing iterators
 
 use crate::callback::IntoPyCallbackOutput;
+use crate::derive_utils::TryFromPyCell;
 use crate::err::PyResult;
-use crate::pycell::TryFromPyCell;
 use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 
 /// Python Iterator Interface.

@@ -647,27 +647,6 @@ impl<T: PyClass + fmt::Debug> fmt::Debug for PyRefMut<'_, T> {
     }
 }
 
-/// A trait for types that can be borrowed from a cell.
-///
-/// This serves to unify the use of `PyRef` and `PyRefMut` in automatically
-/// derived code, since both types can be obtained from a `PyCell`.
-pub trait TryFromPyCell<'a, T: PyClass>: Sized {
-    type Error: Into<PyErr>;
-    fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error>;
-}
-
-impl<'a, T, R> TryFromPyCell<'a, T> for R
-where
-    T: 'a + PyClass,
-    R: std::convert::TryFrom<&'a PyCell<T>>,
-    R::Error: Into<PyErr>,
-{
-    type Error = R::Error;
-    fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
-        <R as std::convert::TryFrom<&'a PyCell<T>>>::try_from(cell)
-    }
-}
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 struct BorrowFlag(usize);
 
