@@ -1,4 +1,8 @@
 use pyo3::prelude::*;
+use pyo3::{ObjectProtocol, ToPyObject};
+
+#[macro_use]
+mod common;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq)]
@@ -24,4 +28,96 @@ fn test_cloneable_pyclass() {
     }
     let mrc: PyRefMut<Cloneable> = py_c.extract(py).unwrap();
     assert_eq!(&c, &*mrc);
+}
+
+#[pyclass]
+struct BaseClass {}
+
+#[pymethods]
+impl BaseClass {
+    fn foo(&self) -> &'static str {
+        "BaseClass"
+    }
+}
+
+#[pyclass(extends=BaseClass)]
+struct SubClass {}
+
+#[pymethods]
+impl SubClass {
+    fn foo(&self) -> &'static str {
+        "SubClass"
+    }
+}
+
+#[pyclass]
+struct PolymorphicContainer {
+    #[pyo3(get, set)]
+    inner: Py<BaseClass>,
+}
+
+#[test]
+fn test_polymorphic_container_stores_base_class() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let p = PyCell::new(
+        py,
+        PolymorphicContainer {
+            inner: Py::new(py, BaseClass {}).unwrap(),
+        },
+    )
+    .unwrap()
+    .to_object(py);
+
+    py_assert!(py, p, "p.inner.foo() == 'BaseClass'");
+}
+
+#[test]
+fn test_polymorphic_container_stores_sub_class() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let p = PyCell::new(
+        py,
+        PolymorphicContainer {
+            inner: Py::new(py, BaseClass {}).unwrap(),
+        },
+    )
+    .unwrap()
+    .to_object(py);
+
+    p.as_ref(py)
+        .setattr(
+            "inner",
+            PyCell::new(
+                py,
+                PyClassInitializer::from(BaseClass {}).add_subclass(SubClass {}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+    py_assert!(py, p, "p.inner.foo() == 'SubClass'");
+}
+
+#[test]
+fn test_polymorphic_container_does_not_accept_other_types() {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let p = PyCell::new(
+        py,
+        PolymorphicContainer {
+            inner: Py::new(py, BaseClass {}).unwrap(),
+        },
+    )
+    .unwrap()
+    .to_object(py);
+
+    let setattr = |value: PyObject| p.as_ref(py).setattr("inner", value);
+
+    assert!(setattr(1i32.into_py(py)).is_err());
+    assert!(setattr(py.None()).is_err());
+    assert!(setattr((1i32, 2i32).into_py(py)).is_err());
 }

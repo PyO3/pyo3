@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `PyObject` and `Py<T>` reference counts are now decremented sooner after `drop()`. [#851](https://github.com/PyO3/pyo3/pull/851)
   * When the GIL is held, the refcount is now decreased immediately on drop. (Previously would wait until just before releasing the GIL.)
   * When the GIL is not held, the refcount is now decreased when the GIL is next acquired. (Previously would wait until next time the GIL was released.)
+* `FromPyObject` for `Py<T>` now works for a wider range of `T`, in particular for `T: PyClass`. [#880](https://github.com/PyO3/pyo3/pull/880)
 
 ### Added
 * `_PyDict_NewPresized`. [#849](https://github.com/PyO3/pyo3/pull/849)
@@ -21,6 +22,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `__radd__` and other `__r*__` methods now correctly work with operators. [#839](https://github.com/PyO3/pyo3/pull/839)
 * Garbage Collector causing random panics when traversing objects that were mutably borrowed. [#855](https://github.com/PyO3/pyo3/pull/855)
 * `&'static Py~` being allowed as arguments. [#869](https://github.com/PyO3/pyo3/pull/869)
+* `#[pyo3(get)]` for `Py<T>`. [#880](https://github.com/PyO3/pyo3/pull/880)
+
 
 ## [0.9.2]
 
