@@ -10,7 +10,7 @@ use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyAny, PyDict, PyModule, PyTuple};
-use crate::{ffi, GILPool, IntoPy, PyCell, PyObject, Python};
+use crate::{ffi, GILPool, IntoPy, Py, PyCell, PyObject, Python};
 use std::cell::UnsafeCell;
 
 /// Description of a python parameter; used for `parse_args()`.
@@ -212,6 +212,12 @@ where
 impl GetPropertyValue for PyObject {
     fn get_property_value(&self, py: Python) -> PyObject {
         self.clone_ref(py)
+    }
+}
+
+impl<T> GetPropertyValue for Py<T> {
+    fn get_property_value(&self, py: Python) -> PyObject {
+        self.clone_ref(py).into()
     }
 }
 

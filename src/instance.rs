@@ -295,13 +295,14 @@ where
 
 impl<'a, T> FromPyObject<'a> for Py<T>
 where
-    T: AsPyPointer,
-    &'a T: 'a + FromPyObject<'a>,
+    T: PyTypeInfo,
+    &'a T::AsRefTarget: FromPyObject<'a>,
+    T::AsRefTarget: 'a + AsPyPointer,
 {
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: &'a PyAny) -> PyResult<Self> {
         unsafe {
-            ob.extract::<&T>()
+            ob.extract::<&T::AsRefTarget>()
                 .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
         }
     }
