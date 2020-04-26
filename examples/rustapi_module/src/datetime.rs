@@ -38,7 +38,7 @@ fn make_time<'p>(
         minute,
         second,
         microsecond,
-        tzinfo.map(|o| o.to_object(py)),
+        tzinfo.map(|o| o.as_ref()),
     )
 }
 
@@ -59,7 +59,7 @@ fn time_with_fold<'p>(
         minute,
         second,
         microsecond,
-        tzinfo.map(|o| o.to_object(py)),
+        tzinfo.map(|o| o.as_ref()),
         fold,
     )
 }
@@ -135,7 +135,7 @@ fn make_datetime<'p>(
         minute,
         second,
         microsecond,
-        tzinfo.map(|o| (o.to_object(py))),
+        tzinfo.map(|o| o.as_ref()),
     )
 }
 

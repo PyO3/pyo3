@@ -10,7 +10,7 @@
 
 use crate::callback::HashCallbackOutput;
 use crate::{
-    exceptions, ffi, FromPyObject, IntoPy, PyObject, PyCell, PyClass, PyErr, PyResult, Py,
+    exceptions, ffi, FromPyObject, IntoPy, Py, PyCell, PyClass, PyErr, PyObject, PyResult,
 };
 use std::os::raw::c_int;
 

@@ -41,14 +41,14 @@ pub unsafe fn PyFrozenSet_CheckExact(ob: *mut PyObject) -> c_int {
 }
 
 #[inline]
-#[cfg_attr(PyPy, link_name = "PyPyObjectSet_CheckExact")]
-pub unsafe fn PyObjectSet_CheckExact(ob: *mut PyObject) -> c_int {
+#[cfg_attr(PyPy, link_name = "PyPyAnySet_CheckExact")]
+pub unsafe fn PyAnySet_CheckExact(ob: *mut PyObject) -> c_int {
     (Py_TYPE(ob) == &mut PySet_Type || Py_TYPE(ob) == &mut PyFrozenSet_Type) as c_int
 }
 
 #[inline]
-pub unsafe fn PyObjectSet_Check(ob: *mut PyObject) -> c_int {
-    (PyObjectSet_CheckExact(ob) != 0
+pub unsafe fn PyAnySet_Check(ob: *mut PyObject) -> c_int {
+    (PyAnySet_CheckExact(ob) != 0
         || PyType_IsSubtype(Py_TYPE(ob), &mut PySet_Type) != 0
         || PyType_IsSubtype(Py_TYPE(ob), &mut PyFrozenSet_Type) != 0) as c_int
 }

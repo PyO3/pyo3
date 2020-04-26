@@ -3,7 +3,7 @@
 use crate::ffi::{self, Py_ssize_t};
 use crate::{
     exceptions, AsPyPointer, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyErr, PyNativeType,
-    PyObject, PyResult, PyTryFrom, Python, ToPyObject,
+    PyObject, PyResult, Python, ToPyObject,
 };
 use std::slice;
 
@@ -177,7 +177,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     impl<'s, $($T: FromPyObject<'s>),+> FromPyObject<'s> for ($($T,)+) {
         fn extract(obj: &'s PyObject) -> PyResult<Self>
         {
-            let t = <PyTuple as PyTryFrom>::try_from(obj)?;
+            let t: &PyTuple = obj.downcast()?;
             let slice = t.as_slice();
             if t.len() == $length {
                 Ok((
@@ -248,7 +248,7 @@ tuple_conversion!(
 #[cfg(test)]
 mod test {
     use crate::types::{PyObject, PyTuple};
-    use crate::{PyTryFrom, Python, ToPyObject};
+    use crate::{Python, ToPyObject};
     use std::collections::HashSet;
 
     #[test]
@@ -271,7 +271,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
+        let tuple: &PyTuple = ob.downcast().unwrap();
         assert_eq!(3, tuple.len());
         let ob: &PyObject = tuple.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
@@ -282,7 +282,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
+        let tuple: &PyTuple = ob.downcast().unwrap();
         assert_eq!(3, tuple.len());
         let mut iter = tuple.iter();
         assert_eq!(1, iter.next().unwrap().extract().unwrap());
@@ -295,7 +295,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ob = (1, 2, 3).to_object(py);
-        let tuple = <PyTuple as PyTryFrom>::try_from(ob).unwrap();
+        let tuple: &PyTuple = ob.downcast().unwrap();
         assert_eq!(3, tuple.len());
 
         for (i, item) in tuple.iter().enumerate() {

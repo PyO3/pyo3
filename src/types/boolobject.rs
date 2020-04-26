@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyObject, PyResult, PyTryFrom, Python,
-    ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyObject, PyResult, Python, ToPyObject,
 };
 
 /// Represents a Python `bool`.
@@ -50,7 +49,7 @@ impl FromPy<bool> for Py<PyObject> {
 /// Fails with `TypeError` if the input is not a Python `bool`.
 impl<'source> FromPyObject<'source> for bool {
     fn extract(obj: &'source PyObject) -> PyResult<Self> {
-        Ok(<PyBool as PyTryFrom>::try_from(obj)?.is_true())
+        Ok(obj.downcast::<PyBool>()?.is_true())
     }
 }
 

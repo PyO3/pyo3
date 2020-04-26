@@ -286,7 +286,7 @@ impl<T> Py<T> {
     // }
 }
 
-/// Retrieves `&'py` types from `Py<T>` or `Py<PyObject>`.
+/// Retrieves `&'py` types from `Py<T>`.
 ///
 /// # Examples
 /// `Py<T>::as_ref` returns `&PyDict`, `&PyList` or so for native types, and `&PyCell<T>`

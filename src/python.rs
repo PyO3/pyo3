@@ -352,7 +352,7 @@ impl<'p> Python<'p> {
     /// Registers the object in the release pool, and tries to downcast to specific type.
     pub fn checked_cast_as<T>(self, obj: Py<PyObject>) -> Result<&'p T, PyDowncastError>
     where
-        T: PyTryFrom<'p>,
+        T: for<'py> PyTryFrom<'py>,
     {
         let any: &PyObject = unsafe { self.from_owned_ptr(obj.into_ptr()) };
         <T as PyTryFrom>::try_from(any)

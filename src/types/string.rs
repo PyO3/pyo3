@@ -2,8 +2,8 @@
 
 use crate::types::PyBytes;
 use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyObject, PyErr, PyNativeType, Py, PyResult,
-    PyTryFrom, Python, ToPyObject,
+    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyErr, PyNativeType, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -142,7 +142,7 @@ impl<'a> IntoPy<Py<PyObject>> for &'a String {
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> crate::FromPyObject<'source> for Cow<'source, str> {
     fn extract(ob: &'source PyObject) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(ob)?.to_string()
+        ob.downcast::<PyString>()?.to_string()
     }
 }
 
@@ -165,9 +165,7 @@ impl<'a> crate::FromPyObject<'a> for &'a str {
 /// Accepts Python `str` and `unicode` objects.
 impl<'source> FromPyObject<'source> for String {
     fn extract(obj: &'source PyObject) -> PyResult<Self> {
-        <PyString as PyTryFrom>::try_from(obj)?
-            .to_string()
-            .map(Cow::into_owned)
+        obj.downcast::<PyString>()?.to_string().map(Cow::into_owned)
     }
 }
 
@@ -203,8 +201,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "ascii 🐈";
-        let obj = PyString::new(py, s);
-        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
+        let py_string = PyString::new(py, s);
         assert_eq!(s.as_bytes(), py_string.as_bytes().unwrap());
     }
 
@@ -213,7 +210,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = py.eval(r#"'\ud800'"#, None, None).unwrap();
-        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
+        let py_string: &PyString = obj.downcast().unwrap();
         assert!(py_string.as_bytes().is_err());
     }
 
@@ -222,8 +219,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "ascii";
-        let obj = PyString::new(py, s);
-        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
+        let py_string = PyString::new(py, s);
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
     }
@@ -233,8 +229,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let s = "哈哈🐈";
-        let obj = PyString::new(py, s);
-        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
+        let py_string = PyString::new(py, s);
         assert!(py_string.to_string().is_ok());
         assert_eq!(Cow::Borrowed(s), py_string.to_string().unwrap());
     }
@@ -244,7 +239,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = py.eval(r#"'🐈 Hello \ud800World'"#, None, None).unwrap();
-        let py_string = <PyString as PyTryFrom>::try_from(obj).unwrap();
+        let py_string: &PyString = obj.downcast().unwrap();
         assert_eq!(py_string.to_string_lossy(), "🐈 Hello ���World");
     }
 

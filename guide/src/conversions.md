@@ -131,13 +131,12 @@ Just like `From<T>`, if you implement `FromPy<T>` you gain a blanket implementat
 Eventually, traits such as [`ToPyObject`] will be replaced by this trait and a [`FromPy`] trait will be added that will implement
 [`IntoPy`], just like with `From` and `Into`.
 
-[`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/trait.IntoPy.html
-[`FromPy`]: https://docs.rs/pyo3/latest/pyo3/trait.FromPy.html
-[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/types/trait.FromPyObject.html
-[`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/trait.ToPyObject.html
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
+[`IntoPy`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.IntoPy.html
+[`FromPy`]: https://docs.rs/pyo3/latest/pyo3/conversion.FromPy.html
+[`FromPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.FromPyObject.html
+[`ToPyObject`]: https://docs.rs/pyo3/latest/pyo3/conversion/trait.ToPyObject.html
+[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyObject.html
 [`PyTuple`]: https://docs.rs/pyo3/latest/pyo3/types/struct.PyTuple.html
-[`PyObject`]: https://docs.rs/pyo3/latest/pyo3/struct.PyObject.html
 [`IntoPyDict`]: https://docs.rs/pyo3/latest/pyo3/types/trait.IntoPyDict.html
 
 [`PyRef`]: https://pyo3.rs/master/doc/pyo3/pycell/struct.PyRef.html

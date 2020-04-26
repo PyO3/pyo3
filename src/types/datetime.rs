@@ -168,7 +168,7 @@ impl PyDateTime {
         let timestamp = timestamp.to_object(py);
 
         let time_zone_info = match time_zone_info {
-            Some(time_zone_info) => time_zone_info.to_object(py),
+            Some(time_zone_info) => time_zone_info.as_ref(),
             None => py.None(),
         };
 

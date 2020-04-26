@@ -6,7 +6,6 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::exceptions::TypeError;
-use crate::instance::PyNativeType;
 use crate::pyclass::PyClass;
 use crate::pyclass_init::PyClassInitializer;
 use crate::types::{PyDict, PyModule, PyObject, PyTuple};
@@ -98,9 +97,7 @@ pub fn parse_fn_args<'p>(
     }
     // Adjust the remaining args
     let args = if accept_args {
-        let py = args.py();
-        let slice = args.slice(used_args as isize, nargs as isize);
-        py.checked_cast_as(slice.as_ref().into()).unwrap()
+        args.slice(used_args as isize, nargs as isize)
     } else {
         args
     };

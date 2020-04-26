@@ -121,7 +121,7 @@ macro_rules! pyobject_native_type_extract {
     ($name: ty $(,$type_param: ident)*) => {
         impl<'py, $($type_param,)*> $crate::FromPyObject<'py> for &'py $name {
             fn extract(obj: &'py $crate::PyObject) -> $crate::PyResult<Self> {
-                $crate::PyTryFrom::try_from(obj).map_err(Into::into)
+                obj.downcast().map_err(Into::into)
             }
         }
     }

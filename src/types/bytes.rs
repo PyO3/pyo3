@@ -1,6 +1,4 @@
-use crate::{
-    ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyObject, PyResult, PyTryFrom, Python,
-};
+use crate::{ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, Py, PyObject, PyResult, Python};
 use std::ops::Index;
 use std::os::raw::c_char;
 use std::slice::SliceIndex;
@@ -64,7 +62,7 @@ impl<'a> FromPy<&'a [u8]> for Py<PyObject> {
 
 impl<'a> FromPyObject<'a> for &'a [u8] {
     fn extract(obj: &'a PyObject) -> PyResult<Self> {
-        Ok(<PyBytes as PyTryFrom>::try_from(obj)?.as_bytes())
+        Ok(obj.downcast::<PyBytes>()?.as_bytes())
     }
 }
 #[cfg(test)]

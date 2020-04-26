@@ -305,7 +305,7 @@ impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
 #[cfg(test)]
 mod test {
     use super::{PyFrozenSet, PySet};
-    use crate::{AsPyRef, IntoPy, Py, PyObject, PyTryFrom, Python, ToPyObject};
+    use crate::{AsPyRef, IntoPy, Py, PyObject, Python, ToPyObject};
     use std::collections::{BTreeSet, HashSet};
     use std::iter::FromIterator;
 
@@ -336,11 +336,11 @@ mod test {
 
         let mut v = HashSet::new();
         let ob = v.to_object(py);
-        let set = <PySet as PyTryFrom>::try_from(ob).unwrap();
+        let set: &PySet = ob.downcast().unwrap();
         assert_eq!(0, set.len());
         v.insert(7);
         let ob = v.to_object(py);
-        let set2 = <PySet as PyTryFrom>::try_from(ob).unwrap();
+        let set2: &PySet = ob.downcast().unwrap();
         assert_eq!(1, set2.len());
     }
 

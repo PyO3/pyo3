@@ -18,6 +18,6 @@ pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::python::Python;
 pub use crate::{FromPy, FromPyObject, IntoPy, IntoPyPointer, PyTryFrom, PyTryInto, ToPyObject};
 // PyModule is only part of the prelude because we need it for the pymodule function
-pub use crate::types::{PyObject, PyModule};
+pub use crate::types::{PyModule, PyObject};
 #[cfg(feature = "macros")]
 pub use pyo3cls::{pyclass, pyfunction, pymethods, pymodule, pyproto};
