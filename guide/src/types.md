@@ -82,7 +82,8 @@ let _: Py<PyList> = obj.extract().unwrap();
 ### `PyTuple`, `PyDict`, and many more
 
 **Represents:** a native Python object of known type, restricted to a GIL
-lifetime just like `PyObject`.
+lifetime just like `PyObject`. They are accessible only through references in
+the same way, as `&PyTuple`, `&PyDict` etc.
 
 **Used:** Whenever you want to operate with native Python types while holding
 the GIL.  Like `PyObject`, this is the most convenient form to use for function
@@ -142,7 +143,7 @@ let _: &PyList = list.as_ref(py);
 merged with it in the future.
 
 
-### `PyCell<SomeType>`
+### `PyCell<T>`
 
 **Represents:** a reference to a Rust object (instance of `PyClass`) which is
 wrapped in a Python object.  The cell part is an analog to stdlib's
@@ -194,6 +195,32 @@ borrows, analog to `Ref` and `RefMut` used by `RefCell`.
 **Used:** while borrowing a `PyCell`.  They can also be used with `.extract()`
 on types like `Py<T>` and `PyObject` to get a reference quickly.
 
+
+## Outliving the GIL Lifetime
+
+In some cases you may need to create a Python object which is not bounded by
+the GIL lifetime. For example, you might not want to bother with annotating
+lifetimes in a complicated function signature. Or you might want to store a
+Python object inside of a Rust struct.
+
+For these cases PyO3 provides the `Py<T>` smart pointer type. It can contain
+any Python type, such as `Py<PyObject>`, `Py<PyTuple>`, or even `Py<T>` where
+`T: PyClass`.
+
+
+### Obtaining Py<T>
+
+Converting `T` from `Py<T>` depends on what `T` is:
+
+- For native types `PyObject`, `PyTuple` etc.: `obj.into()`
+- For Rust type `T`: `PyCell::new(py, obj).into()`
+
+
+### Accessing the stored object
+
+To access the value inside a `Py<T>`, use the `Py::as_ref` method. It takes the
+PyO3 GIL token `py` as its argument, so the returned `&T` is bounded by the GIL
+lifetime in the usual way.
 
 
 ## Related traits and types
