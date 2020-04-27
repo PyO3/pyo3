@@ -842,10 +842,19 @@ both `__iter__()` and `__next__()`. However, there is no equivalent to `PyIterPr
 implementation raise a `TypeError` to indicate that you shouldn't treat it as an iterator:
 
 ```rust
+# use pyo3::prelude::*;
+# use pyo3::PyIterProtocol;
+# 
+# #[pyclass]
+# struct MyContainer {}
+
 #[pyproto]
 impl PyIterProtocol for MyContainer {
-    
-    // . . . __iter__ implementation . . .
+    // . . . __iter__() . . .
+#     fn __iter__(_: PyRefMut<Self>) -> PyResult<Py<MyContainer>> {
+#         Err(pyo3::exceptions::RuntimeError::py_err(""))
+#     }
+# 
 
     fn __next__(_slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
         Err(pyo3::exceptions::TypeError::py_err("MyContainer is not an iterator"))
