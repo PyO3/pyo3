@@ -835,6 +835,24 @@ impl PyIterProtocol for MyIterator {
 }
 ```
 
+In many cases you'll have a distinction between the type being iterated over (i.e. the *iterable*) and the
+iterator it provides. In this case, the iterable only needs to support `__iter__()` while the iterator must support
+both `__iter__()` and `__next__()`. However, there is no equivalent to `PyIterProtocol` that only requires
+`__iter__()`. To model an iterable like this, you can implement `PyIterProtocol` for it but have the `__next__()`
+implementation raise a `TypeError` to indicate that you shouldn't treat it as an iterator:
+
+```rust
+#[pyproto]
+impl PyIterProtocol for MyContainer {
+    
+    // . . . __iter__ implementation . . .
+
+    fn __next__(_slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+        Err(pyo3::exceptions::TypeError::py_err("MyContainer is not an iterator"))
+    }
+}
+```
+
 ## How methods are implemented
 
 Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while PyO3 needs a
