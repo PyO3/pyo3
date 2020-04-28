@@ -888,6 +888,9 @@ impl PyIterProtocol for Container {
 # py_assert!(py, inst, "list(iter(iter(inst))) == [1, 2, 3, 4]");
 ```
 
+For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library
+documentation](https://docs.python.org/3/library/stdtypes.html#iterator-types).
+
 ## How methods are implemented
 
 Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while PyO3 needs a
