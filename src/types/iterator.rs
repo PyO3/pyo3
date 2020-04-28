@@ -25,7 +25,7 @@ use crate::{ffi, AsPyPointer, PyAny, PyDowncastError, PyErr, PyNativeType, PyRes
 /// # Ok(())
 /// # }
 /// ```
-pub struct PyIterator<'p>(&'p PyAny);
+pub struct PyIterator<'p>(PyAny<'p>);
 
 impl<'p> PyIterator<'p> {
     /// Constructs a `PyIterator` from a Python iterator object.
@@ -52,7 +52,7 @@ impl<'p> PyIterator<'p> {
 }
 
 impl<'p> Iterator for PyIterator<'p> {
-    type Item = PyResult<&'p PyAny>;
+    type Item = PyResult<PyAny<'p>>;
 
     /// Retrieves the next item from an iterator.
     ///

@@ -360,8 +360,8 @@ unsafe impl<T: PyClass> PyLayout<T> for PyCell<T> {
     }
 }
 
-unsafe impl<T: PyClass> PyDowncastImpl for PyCell<T> {
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
+unsafe impl<'py, T: PyClass> PyDowncastImpl<'py> for PyCell<T> {
+    unsafe fn unchecked_downcast<'a>(obj: &'a PyAny) -> &'a Self {
         &*(obj.as_ptr() as *const Self)
     }
     private_impl! {}

@@ -311,16 +311,16 @@ where
 /// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
 ///
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom<'v>: Sized + PyDowncastImpl {
+pub trait PyTryFrom<'v>: Sized + PyDowncastImpl<'v> {
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError>;
 
     /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self;
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
@@ -334,9 +334,9 @@ pub trait PyTryInto<T>: Sized {
 }
 
 // TryFrom implies TryInto
-impl<U> PyTryInto<U> for PyAny
+impl<'v, U> PyTryInto<U> for PyAny<'v>
 where
-    U: for<'v> PyTryFrom<'v>,
+    U: PyTryFrom<'v>,
 {
     fn try_into(&self) -> Result<&U, PyDowncastError> {
         U::try_from(self)
@@ -348,9 +348,9 @@ where
 
 impl<'v, T> PyTryFrom<'v> for T
 where
-    T: PyDowncastImpl + PyTypeInfo + PyNativeType,
+    T: PyDowncastImpl<'v> + PyTypeInfo + PyNativeType,
 {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -361,7 +361,7 @@ where
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
@@ -373,7 +373,7 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v Self {
         Self::unchecked_downcast(value.into())
     }
 }
@@ -382,7 +382,7 @@ impl<'v, T> PyTryFrom<'v> for PyCell<T>
 where
     T: 'v + PyClass,
 {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -392,7 +392,7 @@ where
             }
         }
     }
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_exact_instance(value) {
@@ -403,7 +403,7 @@ where
         }
     }
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v Self {
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v Self {
         Self::unchecked_downcast(value.into())
     }
 }

@@ -27,17 +27,17 @@ pub use self::typeobject::PyType;
 
 #[macro_export]
 macro_rules! pyobject_native_type_named (
-    ($name: ty $(,$type_param: ident)*) => {
-        impl<$($type_param,)*> ::std::convert::AsRef<$crate::PyAny> for $name {
+    ($name: ident $(,$type_param: ident)*) => {
+        impl<'a, $($type_param,)*> ::std::convert::AsRef<$crate::PyAny<'a>> for $name<'a> {
             #[inline]
-            fn as_ref(&self) -> &$crate::PyAny {
+            fn as_ref(&self) -> &$crate::PyAny<'a> {
                 unsafe{&*(self as *const $name as *const $crate::PyAny)}
             }
         }
 
-        unsafe impl<$($type_param,)*> $crate::PyNativeType for $name {}
+        unsafe impl<$($type_param,)*> $crate::PyNativeType for $name<'_> {}
 
-        impl<$($type_param,)*> $crate::AsPyPointer for $name {
+        impl<$($type_param,)*> $crate::AsPyPointer for $name<'_> {
             /// Gets the underlying FFI pointer, returns a borrowed pointer.
             #[inline]
             fn as_ptr(&self) -> *mut $crate::ffi::PyObject {
@@ -45,7 +45,7 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
-        impl<$($type_param,)*> PartialEq for $name {
+        impl<$($type_param,)*> PartialEq for $name<'_> {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
                 use $crate::AsPyPointer;
@@ -58,14 +58,14 @@ macro_rules! pyobject_native_type_named (
 
 #[macro_export]
 macro_rules! pyobject_native_type {
-    ($name: ty, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        unsafe impl $crate::type_object::PyLayout<$name> for $layout {}
-        impl $crate::type_object::PySizedLayout<$name> for $layout {}
-        impl $crate::derive_utils::PyBaseTypeUtils for $name {
+    ($name: ident, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
+        unsafe impl $crate::type_object::PyLayout<$name<'_>> for $layout {}
+        impl $crate::type_object::PySizedLayout<$name<'_>> for $layout {}
+        impl $crate::derive_utils::PyBaseTypeUtils for $name<'_> {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<$name>;
-            type BaseNativeType = $name;
+            type LayoutAsBase = $crate::pycell::PyCellBase<Self>;
+            type BaseNativeType = Self;
         }
         pyobject_native_type_named!($name $(,$type_param)*);
         pyobject_native_type_convert!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
@@ -120,11 +120,11 @@ macro_rules! pyobject_native_type_extract {
 
 #[macro_export]
 macro_rules! pyobject_native_type_convert(
-    ($name: ty, $layout: path, $typeobject: expr,
+    ($name: ident, $layout: path, $typeobject: expr,
      $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        unsafe impl<$($type_param,)*> $crate::type_object::PyTypeInfo for $name {
+        unsafe impl<'a, $($type_param,)*> $crate::type_object::PyTypeInfo for $name<'a> {
             type Type = ();
-            type BaseType = $crate::PyAny;
+            type BaseType = $crate::PyAny<'a>;
             type Layout = $layout;
             type BaseLayout = ffi::PyObject;
             type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;

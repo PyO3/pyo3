@@ -8,6 +8,7 @@ use crate::instance::{Py, PyNativeType};
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::type_object::PyTypeObject;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
 use std::borrow::Cow;
@@ -15,15 +16,15 @@ use std::ffi::CStr;
 
 /// Represents a reference to a Python `type object`.
 #[repr(transparent)]
-pub struct PyType(PyObject, Unsendable);
+pub struct PyType<'a>(PyAny<'a>);
 
 pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 
-impl PyType {
+impl<'py> PyType<'py> {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeObject>() -> Py<PyType> {
-        T::type_object()
+    pub fn new<T: PyTypeObject>(py: Python<'py>) -> Self {
+        T::type_object(py).clone()
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.

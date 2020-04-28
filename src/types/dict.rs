@@ -179,12 +179,12 @@ impl PyDict {
 }
 
 pub struct PyDictIterator<'py> {
-    dict: &'py PyAny,
+    dict: &'py PyAny<'py>,
     pos: isize,
 }
 
 impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyAny, &'py PyAny);
+    type Item = (&'py PyAny<'py>, &'py PyAny<'py>);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -202,7 +202,7 @@ impl<'py> Iterator for PyDictIterator<'py> {
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyDict {
-    type Item = (&'a PyAny, &'a PyAny);
+    type Item = (&'a PyAny<'a>, &'a PyAny<'a>);
     type IntoIter = PyDictIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

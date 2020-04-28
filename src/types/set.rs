@@ -122,13 +122,13 @@ impl PySet {
 
 #[cfg(not(Py_LIMITED_API))]
 pub struct PySetIterator<'py> {
-    set: &'py super::PyAny,
+    set: PyAny<'py>,
     pos: isize,
 }
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py super::PyAny;
+    type Item = &'py PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -146,7 +146,7 @@ impl<'py> Iterator for PySetIterator<'py> {
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PySet {
-    type Item = &'a PyAny;
+    type Item = &'a PyAny<'a>;
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -288,7 +288,7 @@ impl PyFrozenSet {
 
 #[cfg(not(Py_LIMITED_API))]
 impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
-    type Item = &'a PyAny;
+    type Item = &'a PyAny<'a>;
     type IntoIter = PySetIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

@@ -109,7 +109,7 @@ pub struct PyTupleIterator<'a> {
 }
 
 impl<'a> Iterator for PyTupleIterator<'a> {
-    type Item = &'a PyAny;
+    type Item = &'a PyAny<'a>;
 
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
@@ -124,7 +124,7 @@ impl<'a> Iterator for PyTupleIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a PyTuple {
-    type Item = &'a PyAny;
+    type Item = &'a PyAny<'a>;
     type IntoIter = PyTupleIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

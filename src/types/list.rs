@@ -136,7 +136,7 @@ pub struct PyListIterator<'a> {
 }
 
 impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyAny;
+    type Item = &'a PyAny<'a>;
 
     #[inline]
     fn next(&mut self) -> Option<&'a PyAny> {
@@ -151,7 +151,7 @@ impl<'a> Iterator for PyListIterator<'a> {
 }
 
 impl<'a> std::iter::IntoIterator for &'a PyList {
-    type Item = &'a PyAny;
+    type Item = &'a PyAny<'a>;
     type IntoIter = PyListIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

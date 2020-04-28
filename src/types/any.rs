@@ -1,7 +1,8 @@
 use crate::conversion::PyTryFrom;
 use crate::err::PyDowncastError;
-use crate::internal_tricks::Unsendable;
-use crate::{ffi, PyObject};
+use crate::ffi;
+use std::marker::PhantomData;
+use std::ptr::NonNull;
 
 /// A Python object with GIL lifetime
 ///
@@ -28,9 +29,9 @@ use crate::{ffi, PyObject};
 /// assert!(any.downcast::<PyList>().is_err());
 /// ```
 #[repr(transparent)]
-pub struct PyAny(PyObject, Unsendable);
-unsafe impl crate::type_object::PyLayout<PyAny> for ffi::PyObject {}
-impl crate::type_object::PySizedLayout<PyAny> for ffi::PyObject {}
+pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<&'a ffi::PyObject>);
+unsafe impl crate::type_object::PyLayout<PyAny<'_>> for ffi::PyObject {}
+impl crate::type_object::PySizedLayout<PyAny<'_>> for ffi::PyObject {}
 pyobject_native_type_named!(PyAny);
 pyobject_native_type_convert!(
     PyAny,

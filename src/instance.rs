@@ -35,7 +35,7 @@ pub unsafe trait PyNativeType: Sized {
 /// specified type information.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct Py<T>(NonNull<ffi::PyObject>, PhantomData<T>);
+pub struct Py<T: 'static>(NonNull<ffi::PyObject>, PhantomData<T>);
 
 unsafe impl<T> Send for Py<T> {}
 
@@ -164,18 +164,19 @@ impl<T> Py<T> {
 /// let py = gil.python();
 /// assert_eq!(obj.as_ref(py).len().unwrap(), 0);  // PyAny implements ObjectProtocol
 /// ```
-pub trait AsPyRef: Sized {
-    type Target;
+pub trait AsPyRef<'p>: Sized {
+    type Target: 'p;
     /// Return reference to object.
-    fn as_ref<'p>(&'p self, py: Python<'p>) -> &'p Self::Target;
+    fn as_ref(&self, py: Python<'p>) -> &Self::Target;
 }
 
-impl<T> AsPyRef for Py<T>
+impl<'p, T> AsPyRef<'p> for Py<T>
 where
     T: PyTypeInfo,
+    T::AsRefTarget: 'p,
 {
     type Target = T::AsRefTarget;
-    fn as_ref<'p>(&'p self, _py: Python<'p>) -> &'p Self::Target {
+    fn as_ref(&self, _py: Python<'p>) -> &Self::Target {
         let any = self as *const Py<T> as *const PyAny;
         unsafe { PyDowncastImpl::unchecked_downcast(&*any) }
     }

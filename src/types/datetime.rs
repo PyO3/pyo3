@@ -27,7 +27,7 @@ use crate::ffi::{
 };
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
-use crate::types::PyTuple;
+use crate::types::{PyAny, PyTuple};
 use crate::AsPyPointer;
 use crate::Python;
 use crate::ToPyObject;
@@ -66,7 +66,7 @@ pub trait PyTimeAccess {
 }
 
 /// Bindings around `datetime.date`
-pub struct PyDate(PyObject, Unsendable);
+pub struct PyDate<'a>(PyAny<'a>);
 pyobject_native_type!(
     PyDate,
     crate::ffi::PyDateTime_Date,
@@ -122,7 +122,7 @@ impl PyDateAccess for PyDate {
 }
 
 /// Bindings for `datetime.datetime`
-pub struct PyDateTime(PyObject, Unsendable);
+pub struct PyDateTime<'a>(PyAny<'a>);
 pyobject_native_type!(
     PyDateTime,
     crate::ffi::PyDateTime_DateTime,
@@ -142,7 +142,7 @@ impl PyDateTime {
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyObject>,
-    ) -> PyResult<&'p PyDateTime> {
+    ) -> PyResult<PyDateTime<'p>> {
         unsafe {
             let ptr = (PyDateTimeAPI.DateTime_FromDateAndTime)(
                 year,
@@ -166,7 +166,7 @@ impl PyDateTime {
         py: Python<'p>,
         timestamp: f64,
         time_zone_info: Option<&PyTzInfo>,
-    ) -> PyResult<&'p PyDateTime> {
+    ) -> PyResult<PyDateTime<'p>> {
         let timestamp: PyObject = timestamp.to_object(py);
 
         let time_zone_info: PyObject = match time_zone_info {
@@ -232,7 +232,7 @@ impl PyTimeAccess for PyDateTime {
 }
 
 /// Bindings for `datetime.time`
-pub struct PyTime(PyObject, Unsendable);
+pub struct PyTime<'a>(PyAny<'a>);
 pyobject_native_type!(
     PyTime,
     crate::ffi::PyDateTime_Time,
@@ -249,7 +249,7 @@ impl PyTime {
         second: u8,
         microsecond: u32,
         tzinfo: Option<&PyObject>,
-    ) -> PyResult<&'p PyTime> {
+    ) -> PyResult<PyTime<'p>> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTime)(
                 c_int::from(hour),
@@ -275,7 +275,7 @@ impl PyTime {
         microsecond: u32,
         tzinfo: Option<&PyObject>,
         fold: bool,
-    ) -> PyResult<&'p PyTime> {
+    ) -> PyResult<PyTime<'p>> {
         unsafe {
             let ptr = (PyDateTimeAPI.Time_FromTimeAndFold)(
                 c_int::from(hour),
@@ -317,7 +317,7 @@ impl PyTimeAccess for PyTime {
 /// Bindings for `datetime.tzinfo`
 ///
 /// This is an abstract base class and should not be constructed directly.
-pub struct PyTzInfo(PyObject, Unsendable);
+pub struct PyTzInfo<'a>(PyAny<'a>);
 pyobject_native_type!(
     PyTzInfo,
     crate::ffi::PyObject,
@@ -327,7 +327,7 @@ pyobject_native_type!(
 );
 
 /// Bindings for `datetime.timedelta`
-pub struct PyDelta(PyObject, Unsendable);
+pub struct PyDelta<'a>(PyAny<'a>);
 pyobject_native_type!(
     PyDelta,
     crate::ffi::PyDateTime_Delta,

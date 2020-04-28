@@ -37,7 +37,7 @@ impl PyErrValue {
 /// Represents a Python exception that was raised.
 pub struct PyErr {
     /// The type of the exception. This should be either a `PyClass` or a `PyType`.
-    pub ptype: Py<PyType>,
+    pub ptype: Py<PyType<'static>>,
 
     /// The value of the exception.
     ///

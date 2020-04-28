@@ -68,22 +68,22 @@ pub mod type_flags {
 // `&PyCell` is a pointer of `ffi::PyObject` but `&PyAny` is a pointer of a pointer,
 // so we need abstraction.
 // This mismatch eventually should be fixed(e.g., https://github.com/PyO3/pyo3/issues/679).
-pub unsafe trait PyDowncastImpl {
+pub unsafe trait PyDowncastImpl<'py> {
     /// Cast `&PyAny` to `&Self` without no type checking.
     ///
     /// # Safety
     ///
     /// Unless obj is not an instance of a type corresponding to Self,
     /// this method causes undefined behavior.
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self;
+    unsafe fn unchecked_downcast<'a>(obj: &'a PyAny<'py>) -> &'a Self;
     private_decl! {}
 }
 
-unsafe impl<'py, T> PyDowncastImpl for T
+unsafe impl<'py, T> PyDowncastImpl<'py> for T
 where
     T: 'py + crate::PyNativeType,
 {
-    unsafe fn unchecked_downcast(obj: &PyAny) -> &Self {
+    unsafe fn unchecked_downcast<'a>(obj: &'a PyAny<'py>) -> &'a Self {
         &*(obj as *const _ as *const Self)
     }
     private_impl! {}
@@ -124,7 +124,7 @@ pub unsafe trait PyTypeInfo: Sized {
     type Initializer: PyObjectInit<Self>;
 
     /// Utility type to make AsPyRef work
-    type AsRefTarget: PyDowncastImpl;
+    type AsRefTarget: for<'py> PyDowncastImpl<'py>;
 
     /// PyTypeObject instance for this type.
     fn type_object() -> &'static ffi::PyTypeObject;
@@ -150,15 +150,15 @@ pub unsafe trait PyTypeInfo: Sized {
 /// See [PyTypeInfo::type_object]
 pub unsafe trait PyTypeObject {
     /// Returns the safe abstraction over the type object.
-    fn type_object() -> Py<PyType>;
+    fn type_object(py: Python) -> &PyType;
 }
 
 unsafe impl<T> PyTypeObject for T
 where
     T: PyTypeInfo,
 {
-    fn type_object() -> Py<PyType> {
-        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
+    fn type_object(py: Python) -> &PyType {
+        unsafe { py.from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
     }
 }
 

@@ -199,7 +199,7 @@ pub trait ObjectProtocol {
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
         D: PyTryFrom<'a>,
-        &'a PyAny: std::convert::From<&'a Self>;
+        Self: AsRef<PyAny<'a>>;
 
     /// Extracts some type from the Python object.
     ///
@@ -207,7 +207,7 @@ pub trait ObjectProtocol {
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
-        &'a PyAny: std::convert::From<&'a Self>;
+        Self: AsRef<PyAny<'a>>;
 
     /// Returns the reference count for the Python object.
     fn get_refcnt(&self) -> isize;
@@ -468,7 +468,7 @@ where
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
         D: PyTryFrom<'a>,
-        &'a PyAny: std::convert::From<&'a Self>,
+        Self: AsRef<PyAny<'a>>,
     {
         D::try_from(self)
     }
@@ -476,7 +476,7 @@ where
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
         D: FromPyObject<'a>,
-        &'a PyAny: std::convert::From<&'a T>,
+        Self: AsRef<PyAny<'a>>,
     {
         FromPyObject::extract(self.into())
     }

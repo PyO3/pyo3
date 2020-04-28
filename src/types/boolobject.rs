@@ -7,7 +7,7 @@ use crate::{
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
-pub struct PyBool(PyObject, Unsendable);
+pub struct PyBool<'a>(PyAny<'a>);
 
 pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, ffi::PyBool_Check);
 

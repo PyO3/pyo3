@@ -163,7 +163,7 @@ impl<'p> Python<'p> {
         code: &str,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<PyAny<'p>> {
         self.run_code(code, ffi::Py_eval_input, globals, locals)
     }
 
@@ -216,7 +216,7 @@ impl<'p> Python<'p> {
         start: c_int,
         globals: Option<&PyDict>,
         locals: Option<&PyDict>,
-    ) -> PyResult<&'p PyAny> {
+    ) -> PyResult<PyAny<'p>> {
         let code = CString::new(code)?;
         unsafe {
             let mptr = ffi::PyImport_AddModule("__main__\0".as_ptr() as *const _);
@@ -242,7 +242,7 @@ impl<'p> Python<'p> {
     }
 
     /// Gets the Python type object for type `T`.
-    pub fn get_type<T>(self) -> &'p PyType
+    pub fn get_type<T>(self) -> &'p PyType<'p>
     where
         T: PyTypeObject,
     {
@@ -301,7 +301,7 @@ impl<'p> Python<'p> {
     /// to the specific type.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
-        T: PyDowncastImpl + PyTypeInfo,
+        T: PyDowncastImpl<'p> + PyTypeInfo,
     {
         let obj = gil::register_owned(self, obj.into_nonnull());
         T::unchecked_downcast(obj)
@@ -309,7 +309,7 @@ impl<'p> Python<'p> {
 
     /// Registers the object pointer in the release pool.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyAny {
+    pub unsafe fn from_borrowed_ptr_to_obj(self, ptr: *mut ffi::PyObject) -> &'p PyAny<'p> {
         match NonNull::new(ptr) {
             Some(p) => gil::register_borrowed(self, p),
             None => crate::err::panic_after_error(),

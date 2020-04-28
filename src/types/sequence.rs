@@ -14,7 +14,7 @@ use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
-pub struct PySequence(PyObject, Unsendable);
+pub struct PySequence<'a>(PyAny<'a>);
 pyobject_native_type_named!(PySequence);
 pyobject_native_type_extract!(PySequence);
 
@@ -360,8 +360,8 @@ where
     Ok(())
 }
 
-impl<'v> PyTryFrom<'v> for PySequence {
-    fn try_from<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+impl<'v> PyTryFrom<'v> for PySequence<'v> {
+    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v PySequence<'v>, PyDowncastError> {
         let value = value.into();
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
@@ -372,12 +372,12 @@ impl<'v> PyTryFrom<'v> for PySequence {
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny>>(value: V) -> Result<&'v PySequence, PyDowncastError> {
+    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v PySequence<'v>, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny>>(value: V) -> &'v PySequence {
+    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v PySequence<'v> {
         let ptr = value.into() as *const _ as *const PySequence;
         &*ptr
     }
