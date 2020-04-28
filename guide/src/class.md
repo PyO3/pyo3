@@ -836,9 +836,9 @@ impl PyIterProtocol for MyIterator {
 ```
 
 In many cases you'll have a distinction between the type being iterated over (i.e. the *iterable*) and the iterator it
-provides. In this case, the iterable only needs to support `__iter__()` while the iterator must support both
-`__iter__()` and `__next__()`. The default implementations in `PyIterProtocol` will ensure that the objects behave
-correctly in Python. For example:
+provides. In this case, you should implement `PyIterProtocol` for both the iterable and the iterator, but the iterable
+only needs to support `__iter__()` while the iterator must support both `__iter__()` and `__next__()`. The default
+implementations in `PyIterProtocol` will ensure that the objects behave correctly in Python. For example:
 
 ```rust
 # use pyo3::prelude::*;
