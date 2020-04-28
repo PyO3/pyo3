@@ -835,6 +835,62 @@ impl PyIterProtocol for MyIterator {
 }
 ```
 
+In many cases you'll have a distinction between the type being iterated over (i.e. the *iterable*) and the iterator it
+provides. In this case, you should implement `PyIterProtocol` for both the iterable and the iterator, but the iterable
+only needs to support `__iter__()` while the iterator must support both `__iter__()` and `__next__()`. The default
+implementations in `PyIterProtocol` will ensure that the objects behave correctly in Python. For example:
+
+```rust
+# use pyo3::prelude::*;
+# use pyo3::PyIterProtocol;
+
+#[pyclass]
+struct Iter {
+    inner: std::vec::IntoIter<usize>,
+}
+
+#[pyproto]
+impl PyIterProtocol for Iter {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iter>> {
+        Ok(slf.into())
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<usize>> {
+        Ok(slf.inner.next())
+    }
+}
+
+#[pyclass]
+struct Container {
+    iter: Vec<usize>,
+}
+
+#[pyproto]
+impl PyIterProtocol for Container {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iter>> {
+        let iter = Iter {
+            inner: slf.iter.clone().into_iter(),
+        };
+        PyCell::new(slf.py(), iter).map(Into::into)
+    }
+}
+
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let inst = pyo3::PyCell::new(
+#     py,
+#     Container {
+#         iter: vec![1, 2, 3, 4],
+#     },
+# )
+# .unwrap();
+# pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
+# pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
+```
+
+For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library
+documentation](https://docs.python.org/3/library/stdtypes.html#iterator-types).
+
 ## How methods are implemented
 
 Users should be able to define a `#[pyclass]` with or without `#[pymethods]`, while PyO3 needs a
