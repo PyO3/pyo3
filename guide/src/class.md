@@ -835,31 +835,57 @@ impl PyIterProtocol for MyIterator {
 }
 ```
 
-In many cases you'll have a distinction between the type being iterated over (i.e. the *iterable*) and the
-iterator it provides. In this case, the iterable only needs to support `__iter__()` while the iterator must support
-both `__iter__()` and `__next__()`. However, there is no equivalent to `PyIterProtocol` that only requires
-`__iter__()`. To model an iterable like this, you can implement `PyIterProtocol` for it but have the `__next__()`
-implementation raise a `TypeError` to indicate that you shouldn't treat it as an iterator:
+In many cases you'll have a distinction between the type being iterated over (i.e. the *iterable*) and the iterator it
+provides. In this case, the iterable only needs to support `__iter__()` while the iterator must support both
+`__iter__()` and `__next__()`. The default implementations in `PyIterProtocol` will ensure that the objects behave
+correctly in Python. For example:
 
 ```rust
 # use pyo3::prelude::*;
 # use pyo3::PyIterProtocol;
-# 
-# #[pyclass]
-# struct MyContainer {}
+
+#[pyclass]
+struct Iter {
+    inner: std::vec::IntoIter<usize>,
+}
 
 #[pyproto]
-impl PyIterProtocol for MyContainer {
-    // . . . __iter__() . . .
-#     fn __iter__(_: PyRefMut<Self>) -> PyResult<Py<MyContainer>> {
-#         Err(pyo3::exceptions::RuntimeError::py_err(""))
-#     }
-# 
+impl PyIterProtocol for Iter {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iter>> {
+        Ok(slf.into())
+    }
 
-    fn __next__(_slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
-        Err(pyo3::exceptions::TypeError::py_err("MyContainer is not an iterator"))
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<usize>> {
+        Ok(slf.inner.next())
     }
 }
+
+#[pyclass]
+struct Container {
+    iter: Vec<usize>,
+}
+
+#[pyproto]
+impl PyIterProtocol for Container {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Iter>> {
+        let iter = Iter {
+            inner: slf.iter.clone().into_iter(),
+        };
+        PyCell::new(slf.py(), iter).map(Into::into)
+    }
+}
+
+# let gil = Python::acquire_gil();
+# let py = gil.python();
+# let inst = pyo3::PyCell::new(
+#     py,
+#     Container {
+#         iter: vec![1, 2, 3, 4],
+#     },
+# )
+# .unwrap();
+# py_assert!(py, inst, "list(inst) == [1, 2, 3, 4]");
+# py_assert!(py, inst, "list(iter(iter(inst))) == [1, 2, 3, 4]");
 ```
 
 ## How methods are implemented
