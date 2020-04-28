@@ -884,8 +884,8 @@ impl PyIterProtocol for Container {
 #     },
 # )
 # .unwrap();
-# py_assert!(py, inst, "list(inst) == [1, 2, 3, 4]");
-# py_assert!(py, inst, "list(iter(iter(inst))) == [1, 2, 3, 4]");
+# pyo3::py_run!(py, inst, "assert list(inst) == [1, 2, 3, 4]");
+# pyo3::py_run!(py, inst, "assert list(iter(iter(inst))) == [1, 2, 3, 4]");
 ```
 
 For more details on Python's iteration protocols, check out [the "Iterator Types" section of the library
