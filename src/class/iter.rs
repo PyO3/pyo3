@@ -12,7 +12,7 @@ use crate::{ffi, IntoPy, IntoPyPointer, PyClass, PyObject, Python};
 /// Check [CPython doc](https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_iter)
 /// for more.
 #[allow(unused_variables)]
-pub trait PyIterProtocol<'p>: PyClass {
+pub trait PyIterProtocol<'p>: PyClass<'p> {
     fn __iter__(slf: Self::Receiver) -> Self::Result
     where
         Self: PyIterIterProtocol<'p>,
@@ -29,13 +29,13 @@ pub trait PyIterProtocol<'p>: PyClass {
 }
 
 pub trait PyIterIterProtocol<'p>: PyIterProtocol<'p> {
-    type Receiver: TryFromPyCell<'p, Self>;
+    type Receiver: for<'a> TryFromPyCell<'a, 'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Self::Success>>;
 }
 
 pub trait PyIterNextProtocol<'p>: PyIterProtocol<'p> {
-    type Receiver: TryFromPyCell<'p, Self>;
+    type Receiver: for<'a> TryFromPyCell<'a, 'p, Self>;
     type Success: crate::IntoPy<PyObject>;
     type Result: Into<PyResult<Option<Self::Success>>>;
 }

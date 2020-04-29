@@ -16,7 +16,7 @@ use crate::{ffi, PyClass, PyObject};
 ///
 /// Each method in this trait corresponds to Python async/await implementation.
 #[allow(unused_variables)]
-pub trait PyAsyncProtocol<'p>: PyClass {
+pub trait PyAsyncProtocol<'p>: PyClass<'p> {
     fn __await__(&'p self) -> Self::Result
     where
         Self: PyAsyncAwaitProtocol<'p>,

@@ -174,7 +174,7 @@ impl<'py> PyModule<'py> {
     /// and adds the type to this module.
     pub fn add_class<T>(&self) -> PyResult<()>
     where
-        T: PyClass,
+        T: PyClass<'py>,
     {
         self.add(T::NAME, <T as PyTypeObject>::type_object())
     }

@@ -121,7 +121,7 @@ pub unsafe trait PyTypeInfo<'py>: Sized {
     type BaseLayout: PySizedLayout<'py, Self::BaseType>;
 
     /// Initializer for layout
-    type Initializer: PyObjectInit<Self>;
+    type Initializer: PyObjectInit<'py, Self>;
 
     /// Utility type to make AsPyRef work
     type AsRefTarget: PyDowncastImpl<'py>;

@@ -13,7 +13,7 @@ use std::os::raw::c_int;
 
 /// Descriptor interface
 #[allow(unused_variables)]
-pub trait PyDescrProtocol<'p>: PyClass {
+pub trait PyDescrProtocol<'p>: PyClass<'p> {
     fn __get__(&'p self, instance: &'p PyAny, owner: Option<&'p PyType>) -> Self::Result
     where
         Self: PyDescrGetProtocol<'p>,

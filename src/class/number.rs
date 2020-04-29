@@ -10,7 +10,7 @@ use crate::{ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
 /// Number interface
 #[allow(unused_variables)]
-pub trait PyNumberProtocol<'p>: PyClass {
+pub trait PyNumberProtocol<'p>: PyClass<'p> {
     fn __add__(lhs: Self::Left, rhs: Self::Right) -> Self::Result
     where
         Self: PyNumberAddProtocol<'p>,

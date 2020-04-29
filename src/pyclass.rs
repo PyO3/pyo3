@@ -72,7 +72,7 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
 pub trait PyClass<'py>:
-    PyTypeInfo<'py, Layout = PyCellLayout<Self>> + Sized + PyClassAlloc<'py> + PyMethodsProtocol
+    PyTypeInfo<'py, Layout = PyCellLayout<'py, Self>> + Sized + PyClassAlloc<'py> + PyMethodsProtocol
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -80,7 +80,7 @@ pub trait PyClass<'py>:
     type WeakRef: PyClassWeakRef;
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    type BaseNativeType: PyTypeInfo<'py> + PyNativeType<'static>;
+    type BaseNativeType: PyTypeInfo<'py> + PyNativeType<'py>;
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -202,7 +202,7 @@ where
     }
 }
 
-fn py_class_flags<T: PyTypeInfo>(type_object: &mut ffi::PyTypeObject) {
+fn py_class_flags<T: for<'py> PyTypeInfo<'py>>(type_object: &mut ffi::PyTypeObject) {
     if type_object.tp_traverse != None
         || type_object.tp_clear != None
         || T::FLAGS & type_flags::GC != 0

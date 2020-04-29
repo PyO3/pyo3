@@ -47,10 +47,10 @@ impl<T> Py<T> {
     /// This method is **soft-duplicated** since PyO3 0.9.0.
     /// Use [`PyCell::new`](../pycell/struct.PyCell.html#method.new) and
     /// `Py::from` instead.
-    pub fn new(py: Python, value: impl Into<PyClassInitializer<T>>) -> PyResult<Py<T>>
+    pub fn new<'py>(py: Python<'py>, value: impl Into<PyClassInitializer<'py, T>>) -> PyResult<Py<T>>
     where
-        T: PyClass,
-        T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
+        T: PyClass<'py>,
+        T::BaseLayout: PyBorrowFlagLayout<'py, T::BaseType>,
     {
         let initializer = value.into();
         let obj = unsafe { initializer.create_cell(py)? };
@@ -172,7 +172,7 @@ pub trait AsPyRef<'p>: Sized {
 
 impl<'p, T> AsPyRef<'p> for Py<T>
 where
-    T: PyTypeInfo,
+    T: PyTypeInfo<'p>,
     T::AsRefTarget: 'p,
 {
     type Target = T::AsRefTarget;
@@ -226,29 +226,29 @@ where
 }
 
 // `&PyCell<T>` can be converted to `Py<T>`
-impl<'a, T> std::convert::From<&PyCell<'_, T>> for Py<T>
+impl<'py, T> std::convert::From<&PyCell<'py, T>> for Py<T>
 where
-    T: PyClass,
+    T: PyClass<'py>,
 {
-    fn from(cell: &PyCell<T>) -> Self {
+    fn from(cell: &PyCell<'py, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(cell.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<PyRef<'a, T>> for Py<T>
+impl<'py, T> std::convert::From<PyRef<'_, 'py, T>> for Py<T>
 where
-    T: PyClass,
+    T: PyClass<'py>,
 {
-    fn from(pyref: PyRef<'a, T>) -> Self {
+    fn from(pyref: PyRef<'_, 'py, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
     }
 }
 
-impl<'a, T> std::convert::From<PyRefMut<'a, T>> for Py<T>
+impl<'py, T> std::convert::From<PyRefMut<'_, 'py, T>> for Py<T>
 where
-    T: PyClass,
+    T: PyClass<'py>,
 {
-    fn from(pyref: PyRefMut<'a, T>) -> Self {
+    fn from(pyref: PyRefMut<'_, 'py, T>) -> Self {
         unsafe { Py::from_borrowed_ptr(pyref.as_ptr()) }
     }
 }
@@ -276,14 +276,14 @@ impl<T> std::convert::From<Py<T>> for PyObject {
     }
 }
 
-impl<'a, T> FromPyObject<'a> for Py<T>
+impl<'a, 'py, T> FromPyObject<'py> for Py<T>
 where
-    T: PyTypeInfo,
-    &'a T::AsRefTarget: FromPyObject<'a>,
-    T::AsRefTarget: 'a + AsPyPointer,
+    T: PyTypeInfo<'py>,
+    &'a T::AsRefTarget: FromPyObject<'py>,
+    T::AsRefTarget: 'py + AsPyPointer,
 {
     /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &'a PyAny) -> PyResult<Self> {
+    fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
         unsafe {
             ob.extract::<&T::AsRefTarget>()
                 .map(|val| Py::from_borrowed_ptr(val.as_ptr()))

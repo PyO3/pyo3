@@ -9,7 +9,7 @@ use crate::{exceptions, ffi, FromPyObject, IntoPy, PyClass, PyObject};
 
 /// Mapping interface
 #[allow(unused_variables)]
-pub trait PyMappingProtocol<'p>: PyClass {
+pub trait PyMappingProtocol<'p>: PyClass<'p> {
     fn __len__(&'p self) -> Self::Result
     where
         Self: PyMappingLenProtocol<'p>,

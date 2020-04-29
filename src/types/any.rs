@@ -35,7 +35,7 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<&'a ffi::PyObject>);
 
-impl crate::type_object::PySizedLayout<PyAny<'_>> for ffi::PyObject {}
+impl<'py> crate::type_object::PySizedLayout<'py, PyAny<'py>> for ffi::PyObject {}
 pyobject_native_type_named!(PyAny);
 pyobject_native_type_info!(
     PyAny,

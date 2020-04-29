@@ -68,9 +68,9 @@ impl<T> FreeList<T> {
     }
 }
 
-impl<T> PyClassAlloc for T
+impl<'py, T> PyClassAlloc<'py> for T
 where
-    T: PyTypeInfo + PyClassWithFreeList,
+    T: PyTypeInfo<'py> + PyClassWithFreeList,
 {
     unsafe fn alloc(_py: Python) -> *mut Self::Layout {
         if let Some(obj) = <Self as PyClassWithFreeList>::get_free_list().pop() {

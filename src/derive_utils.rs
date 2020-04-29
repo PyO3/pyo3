@@ -179,17 +179,17 @@ impl<T: IntoPy<PyObject>> IntoPyResult<T> for PyResult<T> {
 
 /// Variant of IntoPyResult for the specific case of `#[new]`. In the case of returning (Sub, Base)
 /// from `#[new]`, IntoPyResult can't apply because (Sub, Base) doesn't implement IntoPy<PyObject>.
-pub trait IntoPyNewResult<T: PyClass, I: Into<PyClassInitializer<T>>> {
+pub trait IntoPyNewResult<'py, T: PyClass<'py>, I: Into<PyClassInitializer<'py, T>>> {
     fn into_pynew_result(self) -> PyResult<I>;
 }
 
-impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for I {
+impl<'py, T: PyClass<'py>, I: Into<PyClassInitializer<'py, T>>> IntoPyNewResult<'py, T, I> for I {
     fn into_pynew_result(self) -> PyResult<I> {
         Ok(self)
     }
 }
 
-impl<T: PyClass, I: Into<PyClassInitializer<T>>> IntoPyNewResult<T, I> for PyResult<I> {
+impl<'py, T: PyClass<'py>, I: Into<PyClassInitializer<'py, T>>> IntoPyNewResult<'py, T, I> for PyResult<I> {
     fn into_pynew_result(self) -> PyResult<I> {
         self
     }
@@ -223,17 +223,17 @@ impl<T> GetPropertyValue for Py<T> {
 
 /// Utilities for basetype
 #[doc(hidden)]
-pub trait PyBaseTypeUtils {
+pub trait PyBaseTypeUtils<'py> {
     type Dict;
     type WeakRef;
     type LayoutAsBase;
     type BaseNativeType;
 }
 
-impl<T: PyClass> PyBaseTypeUtils for T {
+impl<'py, T: PyClass<'py>> PyBaseTypeUtils<'py> for T {
     type Dict = T::Dict;
     type WeakRef = T::WeakRef;
-    type LayoutAsBase = crate::pycell::PyCellInner<T>;
+    type LayoutAsBase = crate::pycell::PyCellInner<'py, T>;
     type BaseNativeType = T::BaseNativeType;
 }
 
@@ -255,19 +255,19 @@ where
 /// This serves to unify the use of `PyRef` and `PyRefMut` in automatically
 /// derived code, since both types can be obtained from a `PyCell`.
 #[doc(hidden)]
-pub trait TryFromPyCell<'a, T: PyClass>: Sized {
+pub trait TryFromPyCell<'a, 'py: 'a, T: PyClass<'py>>: Sized {
     type Error: Into<PyErr>;
-    fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error>;
+    fn try_from_pycell(cell: &'a crate::PyCell<'py, T>) -> Result<Self, Self::Error>;
 }
 
-impl<'a, T, R> TryFromPyCell<'a, T> for R
+impl<'a, 'py: 'a, T, R> TryFromPyCell<'a, 'py, T> for R
 where
-    T: 'a + PyClass,
-    R: std::convert::TryFrom<&'a PyCell<'a, T>>,
+    T: 'py + PyClass<'py>,
+    R: std::convert::TryFrom<&'a PyCell<'py, T>>,
     R::Error: Into<PyErr>,
 {
     type Error = R::Error;
-    fn try_from_pycell(cell: &'a crate::PyCell<T>) -> Result<Self, Self::Error> {
-        <R as std::convert::TryFrom<&'a PyCell<T>>>::try_from(cell)
+    fn try_from_pycell(cell: &'a crate::PyCell<'py, T>) -> Result<Self, Self::Error> {
+        <R as std::convert::TryFrom<&'a PyCell<'py, T>>>::try_from(cell)
     }
 }

@@ -252,40 +252,40 @@ where
     }
 }
 
-impl<'a, T> FromPyObject<'a> for &'a PyCell<'a, T>
+impl<'py, T> FromPyObject<'py> for &PyCell<'py, T>
 where
-    T: PyClass,
+    T: PyClass<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &PyAny<'py>) -> PyResult<Self> {
         PyTryFrom::try_from(obj).map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for T
+impl<'py, T> FromPyObject<'py> for T
 where
-    T: PyClass + Clone,
+    T: PyClass<'py> + Clone,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &PyAny<'py>) -> PyResult<Self> {
         let cell: &PyCell<Self> = PyTryFrom::try_from(obj)?;
         Ok(unsafe { cell.try_borrow_unguarded()?.clone() })
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRef<'a, T>
+impl<'a, 'py, T> FromPyObject<'py> for PyRef<'a, 'py, T>
 where
-    T: PyClass,
+    T: PyClass<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;
         cell.try_borrow().map_err(Into::into)
     }
 }
 
-impl<'a, T> FromPyObject<'a> for PyRefMut<'a, T>
+impl<'a, 'py, T> FromPyObject<'a> for PyRefMut<'a, 'py, T>
 where
-    T: PyClass,
+    T: PyClass<'py>,
 {
-    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+    fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
         let cell: &PyCell<T> = PyTryFrom::try_from(obj)?;
         cell.try_borrow_mut().map_err(Into::into)
     }
@@ -348,7 +348,7 @@ where
 
 impl<'py, T> PyTryFrom<'py> for T
 where
-    T: PyDowncastImpl<'py> + PyTypeInfo + PyNativeType<'py>,
+    T: PyDowncastImpl<'py> + PyTypeInfo<'py> + PyNativeType<'py>,
 {
     fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         unsafe {
@@ -378,7 +378,7 @@ where
 
 impl<'py, T> PyTryFrom<'py> for PyCell<'py, T>
 where
-    T: 'py + PyClass,
+    T: 'py + PyClass<'py>,
 {
     fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         let value = value.into();

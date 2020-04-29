@@ -23,7 +23,7 @@ pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 impl<'py> PyType<'py> {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeInfo>(py: Python<'py>) -> Self {
+    pub fn new<T: PyTypeInfo<'py>>(py: Python<'py>) -> Self {
         py.from_owned_ptr(T::type_object() as *const _ as *mut ffi::PyTypeObject as _)
     }
 
@@ -51,7 +51,7 @@ impl<'py> PyType<'py> {
     /// Equivalent to Python's `issubclass` function.
     pub fn is_subclass<T>(&self) -> PyResult<bool>
     where
-        T: PyTypeInfo,
+        T: PyTypeInfo<'py>,
     {
         let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object() as *const _ as *mut ffi::PyTypeObject as _)};
         if result == -1 {

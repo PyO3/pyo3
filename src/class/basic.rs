@@ -29,7 +29,7 @@ pub enum CompareOp {
 
 /// Basic Python class customization
 #[allow(unused_variables)]
-pub trait PyObjectProtocol<'p>: PyClass {
+pub trait PyObjectProtocol<'p>: PyClass<'p> {
     fn __getattr__(&'p self, name: Self::Name) -> Self::Result
     where
         Self: PyObjectGetAttrProtocol<'p>,

@@ -10,7 +10,7 @@ use crate::{PyClass, PyObject};
 
 /// Context manager interface
 #[allow(unused_variables)]
-pub trait PyContextProtocol<'p>: PyClass {
+pub trait PyContextProtocol<'p>: PyClass<'p> {
     fn __enter__(&'p mut self) -> Self::Result
     where
         Self: PyContextEnterProtocol<'p>,

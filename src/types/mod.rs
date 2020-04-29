@@ -88,11 +88,11 @@ macro_rules! pyobject_native_type_named (
 #[macro_export]
 macro_rules! pyobject_native_type {
     ($name: ident, $layout: path, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        impl $crate::type_object::PySizedLayout<$name<'_>> for $layout {}
-        impl $crate::derive_utils::PyBaseTypeUtils for $name<'_> {
+        impl<'py> $crate::type_object::PySizedLayout<'py, $name<'py>> for $layout {}
+        impl<'py> $crate::derive_utils::PyBaseTypeUtils<'py> for $name<'py> {
             type Dict = $crate::pyclass_slots::PyClassDummySlot;
             type WeakRef = $crate::pyclass_slots::PyClassDummySlot;
-            type LayoutAsBase = $crate::pycell::PyCellBase<Self>;
+            type LayoutAsBase = $crate::pycell::PyCellBase<'py, Self>;
             type BaseNativeType = Self;
         }
         pyobject_native_type_named!($name $(,$type_param)*);
@@ -141,14 +141,14 @@ macro_rules! pyobject_native_type_extract {
 macro_rules! pyobject_native_type_info(
     ($name: ident, $layout: path, $typeobject: expr,
      $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
-        unsafe impl $crate::type_object::PyLayout<$name<'_>> for $layout {}
+        unsafe impl<'py> $crate::type_object::PyLayout<'py, $name<'py>> for $layout {}
 
-        unsafe impl<'a, $($type_param,)*> $crate::type_object::PyTypeInfo for $name<'_> {
+        unsafe impl<'py, $($type_param,)*> $crate::type_object::PyTypeInfo<'py> for $name<'py> {
             type Type = ();
-            type BaseType = $crate::PyAny<'static>;
+            type BaseType = $crate::PyAny<'py>;
             type Layout = $layout;
             type BaseLayout = ffi::PyObject;
-            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<Self>;
+            type Initializer = $crate::pyclass_init::PyNativeTypeInitializer<'py, Self>;
             type AsRefTarget = Self;
 
             const NAME: &'static str = stringify!($name);

@@ -14,15 +14,15 @@ use std::os::raw::c_int;
 /// For more information check [buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 /// c-api
 #[allow(unused_variables)]
-pub trait PyBufferProtocol<'p>: PyClass {
-    fn bf_getbuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
+pub trait PyBufferProtocol<'p>: PyClass<'p> {
+    fn bf_getbuffer(slf: PyRefMut<'_, 'p, Self>, view: *mut ffi::Py_buffer, flags: c_int) -> Self::Result
     where
         Self: PyBufferGetBufferProtocol<'p>,
     {
         unimplemented!()
     }
 
-    fn bf_releasebuffer(slf: PyRefMut<Self>, view: *mut ffi::Py_buffer) -> Self::Result
+    fn bf_releasebuffer(slf: PyRefMut<'_, 'p, Self>, view: *mut ffi::Py_buffer) -> Self::Result
     where
         Self: PyBufferReleaseBufferProtocol<'p>,
     {
