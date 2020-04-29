@@ -12,13 +12,13 @@ use crate::{
 
 /// Represents a Python `list`.
 #[repr(transparent)]
-pub struct PyList(PyObject, Unsendable);
+pub struct PyList<'py>(PyAny<'py>);
 
 pyobject_native_var_type!(PyList, ffi::PyList_Type, ffi::PyList_Check);
 
-impl PyList {
+impl<'py> PyList<'py> {
     /// Constructs a new list with the given elements.
-    pub fn new<T, U>(py: Python<'_>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> &PyList
+    pub fn new<T, U>(py: Python<'py>, elements: impl IntoIterator<Item = T, IntoIter = U>) -> Self
     where
         T: ToPyObject,
         U: ExactSizeIterator<Item = T>,
@@ -36,7 +36,7 @@ impl PyList {
     }
 
     /// Constructs a new empty list.
-    pub fn empty(py: Python) -> &PyList {
+    pub fn empty(py: Python<'py>) -> Self {
         unsafe { py.from_owned_ptr::<PyList>(ffi::PyList_New(0)) }
     }
 
@@ -131,7 +131,7 @@ impl PyList {
 
 /// Used by `PyList::iter()`.
 pub struct PyListIterator<'a> {
-    list: &'a PyList,
+    list: &'a PyList<'a>,
     index: isize,
 }
 
@@ -150,7 +150,7 @@ impl<'a> Iterator for PyListIterator<'a> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyList {
+impl<'a> std::iter::IntoIterator for &'a PyList<'a> {
     type Item = &'a PyAny<'a>;
     type IntoIter = PyListIterator<'a>;
 

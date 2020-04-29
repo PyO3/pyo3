@@ -5,11 +5,10 @@
 use crate::err::{PyDowncastError, PyErr, PyResult};
 use crate::ffi;
 use crate::gil::{self, GILGuard};
-use crate::instance::AsPyRef;
 use crate::object::PyObject;
 use crate::type_object::{PyDowncastImpl, PyTypeInfo, PyTypeObject};
 use crate::types::{PyAny, PyDict, PyModule, PyType};
-use crate::{AsPyPointer, FromPyPointer, IntoPyPointer, PyTryFrom};
+use crate::{AsPyPointer, FromPyPointer, IntoPyPointer, PyTryFrom, AsPyRef};
 use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -199,7 +198,7 @@ impl<'p> Python<'p> {
     ) -> PyResult<()> {
         let res = self.run_code(code, ffi::Py_file_input, globals, locals);
         res.map(|obj| {
-            debug_assert!(crate::ObjectProtocol::is_none(obj));
+            debug_assert!(crate::ObjectProtocol::is_none(&obj));
         })
     }
 
@@ -250,7 +249,7 @@ impl<'p> Python<'p> {
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import(self, name: &str) -> PyResult<&'p PyModule> {
+    pub fn import(self, name: &str) -> PyResult<PyModule<'p>> {
         PyModule::import(self, name)
     }
 
@@ -293,7 +292,7 @@ impl<'p> Python<'p> {
     where
         T: PyTryFrom<'p>,
     {
-        let obj = unsafe { gil::register_owned(self, obj.into_nonnull()) };
+        let obj = unsafe { gil::register_owned(self, obj.into_non_null()) };
         <T as PyTryFrom>::try_from(obj)
     }
 
@@ -301,9 +300,9 @@ impl<'p> Python<'p> {
     /// to the specific type.
     pub unsafe fn cast_as<T>(self, obj: PyObject) -> &'p T
     where
-        T: PyDowncastImpl<'p> + PyTypeInfo,
+        T: PyDowncastImpl<'p> + PyTypeInfo<'p>,
     {
-        let obj = gil::register_owned(self, obj.into_nonnull());
+        let obj = gil::register_owned(self, obj.into_non_null());
         T::unchecked_downcast(obj)
     }
 
@@ -319,7 +318,7 @@ impl<'p> Python<'p> {
     /// Registers the object pointer in the release pool,
     /// and does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> &'p T
+    pub unsafe fn from_owned_ptr<T>(self, ptr: *mut ffi::PyObject) -> T
     where
         T: FromPyPointer<'p>,
     {
@@ -331,7 +330,7 @@ impl<'p> Python<'p> {
     /// Returns `Err(PyErr)` if the pointer is NULL.
     /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<&'p T>
+    pub unsafe fn from_owned_ptr_or_err<T>(self, ptr: *mut ffi::PyObject) -> PyResult<T>
     where
         T: FromPyPointer<'p>,
     {
@@ -343,7 +342,7 @@ impl<'p> Python<'p> {
     /// Returns `None` if the pointer is NULL.
     /// Does an unchecked downcast to the specific type.
     #[allow(clippy::wrong_self_convention)]
-    pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<&'p T>
+    pub unsafe fn from_owned_ptr_or_opt<T>(self, ptr: *mut ffi::PyObject) -> Option<T>
     where
         T: FromPyPointer<'p>,
     {
@@ -438,7 +437,7 @@ mod test {
 
         // Inject our own global namespace
         let v: i32 = py
-            .eval("foo + 29", Some(d), None)
+            .eval("foo + 29", Some(&d), None)
             .unwrap()
             .extract()
             .unwrap();
@@ -446,7 +445,7 @@ mod test {
 
         // Inject our own local namespace
         let v: i32 = py
-            .eval("foo + 29", None, Some(d))
+            .eval("foo + 29", None, Some(&d))
             .unwrap()
             .extract()
             .unwrap();
@@ -454,7 +453,7 @@ mod test {
 
         // Make sure builtin names are still accessible when using a local namespace
         let v: i32 = py
-            .eval("min(foo, 2)", None, Some(d))
+            .eval("min(foo, 2)", None, Some(&d))
             .unwrap()
             .extract()
             .unwrap();

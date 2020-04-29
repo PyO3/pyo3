@@ -1,6 +1,10 @@
-use crate::conversion::PyTryFrom;
+use crate::conversion::{FromPyPointer, PyTryFrom};
 use crate::err::PyDowncastError;
 use crate::ffi;
+use crate::gil;
+use crate::python::Python;
+use crate::type_object::PyTypeInfo;
+use crate::pyclass_init::PyNativeTypeInitializer;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
@@ -30,23 +34,71 @@ use std::ptr::NonNull;
 /// ```
 #[repr(transparent)]
 pub struct PyAny<'a>(NonNull<ffi::PyObject>, PhantomData<&'a ffi::PyObject>);
-unsafe impl crate::type_object::PyLayout<PyAny<'_>> for ffi::PyObject {}
+
 impl crate::type_object::PySizedLayout<PyAny<'_>> for ffi::PyObject {}
 pyobject_native_type_named!(PyAny);
-pyobject_native_type_convert!(
+pyobject_native_type_info!(
     PyAny,
     ffi::PyObject,
     ffi::PyBaseObject_Type,
-    Some("builtins"),
     ffi::PyObject_Check
 );
 pyobject_native_type_extract!(PyAny);
 
-impl PyAny {
+impl<'py> PyAny<'py> {
     pub fn downcast<T>(&self) -> Result<&T, PyDowncastError>
     where
-        for<'py> T: PyTryFrom<'py>,
+        T: PyTryFrom<'py>,
     {
         <T as PyTryFrom>::try_from(self)
+    }
+
+    /// Create a PyAny from an owned non-null raw PyObject pointer.
+    ///
+    /// # Safety
+    ///
+    /// It must be ensured that the pointer is an owned reference.
+    pub unsafe fn from_non_null(py: Python<'py>, ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData)
+    }
+
+    /// Create an owned non-null raw PyObject pointer from this PyAny.
+    pub fn into_non_null(self) -> NonNull<ffi::PyObject> {
+        // Destructure self so that Drop(self) is not called.
+        // (Alternative would be to call std::mem::forget(self).)
+        let PyAny(ptr, _) = self;
+        ptr
+    }
+}
+
+impl Clone for PyAny<'_> {
+    fn clone(&self) -> Self {
+        unsafe { ffi::Py_INCREF(self.0.as_ptr()); };
+        Self(self.0, PhantomData)
+    }
+}
+
+impl std::convert::AsRef<Self> for PyAny<'_> {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+impl Drop for PyAny<'_> {
+    fn drop(&mut self) {
+        unsafe { ffi::Py_DECREF(self.0.as_ptr()); };
+    }
+}
+
+unsafe impl<'py> FromPyPointer<'py> for PyAny<'py>
+{
+    unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        Some(Self::from_non_null(py, NonNull::new(ptr)?))
+    }
+    unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<&'py Self> {
+        Some(gil::register_borrowed(py, NonNull::new(ptr)?))
     }
 }

@@ -12,16 +12,16 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyBytes(PyObject, Unsendable);
+pub struct PyBytes<'py>(PyAny<'py>);
 
 pyobject_native_var_type!(PyBytes, ffi::PyBytes_Type, ffi::PyBytes_Check);
 
-impl PyBytes {
+impl<'py> PyBytes<'py> {
     /// Creates a new Python bytestring object.
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &[u8]) -> &'p PyBytes {
+    pub fn new(py: Python<'py>, s: &[u8]) -> Self {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe { py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(ptr, len)) }
@@ -30,7 +30,7 @@ impl PyBytes {
     /// Creates a new Python byte string object from a raw pointer and length.
     ///
     /// Panics if out of memory.
-    pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> &PyBytes {
+    pub unsafe fn from_ptr(py: Python<'py>, ptr: *const u8, len: usize) -> Self {
         py.from_owned_ptr(ffi::PyBytes_FromStringAndSize(
             ptr as *const _,
             len as isize,
@@ -50,7 +50,7 @@ impl PyBytes {
 }
 
 /// This is the same way [Vec] is indexed.
-impl<I: SliceIndex<[u8]>> Index<I> for PyBytes {
+impl<I: SliceIndex<[u8]>> Index<I> for PyBytes<'_> {
     type Output = I::Output;
 
     fn index(&self, index: I) -> &Self::Output {

@@ -7,14 +7,14 @@ use crate::{
 
 /// Represents a Python `bool`.
 #[repr(transparent)]
-pub struct PyBool<'a>(PyAny<'a>);
+pub struct PyBool<'py>(PyAny<'py>);
 
 pyobject_native_type!(PyBool, ffi::PyObject, ffi::PyBool_Type, ffi::PyBool_Check);
 
-impl PyBool {
+impl<'py> PyBool<'py> {
     /// Depending on `val`, returns `true` or `false`.
     #[inline]
-    pub fn new(py: Python, val: bool) -> &PyBool {
+    pub fn new(py: Python<'py>, val: bool) -> &'py Self {
         unsafe { py.from_borrowed_ptr(if val { ffi::Py_True() } else { ffi::Py_False() }) }
     }
 

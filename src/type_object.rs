@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// is of `PyAny`.
 ///
 /// This trait is intended to be used internally.
-pub unsafe trait PyLayout<T: PyTypeInfo> {
+pub unsafe trait PyLayout<'py, T: PyTypeInfo<'py>> {
     const IS_NATIVE_TYPE: bool = true;
     fn get_super(&mut self) -> Option<&mut T::BaseLayout> {
         None
@@ -26,7 +26,7 @@ pub unsafe trait PyLayout<T: PyTypeInfo> {
 /// `T: PySizedLayout<U>` represents `T` is not a instance of
 /// [`PyVarObject`](https://docs.python.org/3.8/c-api/structures.html?highlight=pyvarobject#c.PyVarObject).
 /// , in addition that `T` is a concrete representaion of `U`.
-pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
+pub trait PySizedLayout<'py, T: PyTypeInfo<'py>>: PyLayout<'py, T> + Sized {}
 
 /// Marker type indicates that `Self` can be a base layout of `PyClass`.
 ///
@@ -42,7 +42,7 @@ pub trait PySizedLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
 /// }
 /// ```
 /// Otherwise, implementing this trait is undefined behavior.
-pub unsafe trait PyBorrowFlagLayout<T: PyTypeInfo>: PyLayout<T> + Sized {}
+pub unsafe trait PyBorrowFlagLayout<'py, T: PyTypeInfo<'py>>: PyLayout<'py, T> + Sized {}
 
 /// Our custom type flags
 #[doc(hidden)]
@@ -81,7 +81,7 @@ pub unsafe trait PyDowncastImpl<'py> {
 
 unsafe impl<'py, T> PyDowncastImpl<'py> for T
 where
-    T: 'py + crate::PyNativeType,
+    T: crate::PyNativeType<'py>,
 {
     unsafe fn unchecked_downcast<'a>(obj: &'a PyAny<'py>) -> &'a Self {
         &*(obj as *const _ as *const Self)
@@ -95,7 +95,7 @@ where
 /// This trait is marked unsafe because:
 ///  - specifying the incorrect layout can lead to memory errors
 ///  - the return value of type_object must always point to the same PyTypeObject instance
-pub unsafe trait PyTypeInfo: Sized {
+pub unsafe trait PyTypeInfo<'py>: Sized {
     /// Type of objects to store in PyObject struct
     type Type;
 
@@ -112,19 +112,19 @@ pub unsafe trait PyTypeInfo: Sized {
     const FLAGS: usize = 0;
 
     /// Base class
-    type BaseType: PyTypeInfo + PyTypeObject;
+    type BaseType: PyTypeInfo<'py> + PyTypeObject;
 
     /// Layout
-    type Layout: PyLayout<Self>;
+    type Layout: PyLayout<'py, Self>;
 
     /// Layout of Basetype.
-    type BaseLayout: PySizedLayout<Self::BaseType>;
+    type BaseLayout: PySizedLayout<'py, Self::BaseType>;
 
     /// Initializer for layout
     type Initializer: PyObjectInit<Self>;
 
     /// Utility type to make AsPyRef work
-    type AsRefTarget: for<'py> PyDowncastImpl<'py>;
+    type AsRefTarget: PyDowncastImpl<'py>;
 
     /// PyTypeObject instance for this type.
     fn type_object() -> &'static ffi::PyTypeObject;
@@ -150,15 +150,15 @@ pub unsafe trait PyTypeInfo: Sized {
 /// See [PyTypeInfo::type_object]
 pub unsafe trait PyTypeObject {
     /// Returns the safe abstraction over the type object.
-    fn type_object(py: Python) -> &PyType;
+    fn type_object() -> Py<PyType<'static>>;
 }
 
-unsafe impl<T> PyTypeObject for T
+unsafe impl<'py, T> PyTypeObject for T
 where
-    T: PyTypeInfo,
+    T: PyTypeInfo<'py>,
 {
-    fn type_object(py: Python) -> &PyType {
-        unsafe { py.from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
+    fn type_object() -> Py<PyType<'static>> {
+        unsafe { Py::from_borrowed_ptr(<Self as PyTypeInfo>::type_object() as *const _ as _) }
     }
 }
 
@@ -216,7 +216,7 @@ impl LazyStaticType {
         }
     }
 
-    pub fn get_or_init<T: PyClass>(&self) -> &ffi::PyTypeObject {
+    pub fn get_or_init<T: for<'py> PyClass<'py>>(&self) -> &ffi::PyTypeObject {
         if !self
             .initialized
             .compare_and_swap(false, true, Ordering::Acquire)

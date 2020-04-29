@@ -32,15 +32,15 @@ pub struct ParamDescription {
 /// * kwargs: Keyword arguments
 /// * output: Output array that receives the arguments.
 ///           Must have same length as `params` and must be initialized to `None`.
-pub fn parse_fn_args<'p>(
+pub fn parse_fn_args<'a, 'py>(
     fname: Option<&str>,
     params: &[ParamDescription],
-    args: &'p PyTuple,
-    kwargs: Option<&'p PyDict>,
+    args: &'a PyTuple<'py>,
+    kwargs: Option<&'a PyDict<'py>>,
     accept_args: bool,
     accept_kwargs: bool,
-    output: &mut [Option<&'p PyAny>],
-) -> PyResult<(&'p PyTuple, Option<&'p PyDict>)> {
+    output: &mut [Option<&'a PyAny<'py>>],
+) -> PyResult<(&'a PyTuple<'py>, Option<&'a PyDict<'py>>)> {
     let nargs = args.len();
     let mut used_args = 0;
     macro_rules! raise_error {
@@ -263,7 +263,7 @@ pub trait TryFromPyCell<'a, T: PyClass>: Sized {
 impl<'a, T, R> TryFromPyCell<'a, T> for R
 where
     T: 'a + PyClass,
-    R: std::convert::TryFrom<&'a PyCell<T>>,
+    R: std::convert::TryFrom<&'a PyCell<'a, T>>,
     R::Error: Into<PyErr>,
 {
     type Error = R::Error;

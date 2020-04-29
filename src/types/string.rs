@@ -15,21 +15,21 @@ use std::str;
 ///
 /// This type is immutable.
 #[repr(transparent)]
-pub struct PyString(PyObject, Unsendable);
+pub struct PyString<'py>(PyAny<'py>);
 
 pyobject_native_var_type!(PyString, ffi::PyUnicode_Type, ffi::PyUnicode_Check);
 
-impl PyString {
+impl<'py> PyString<'py> {
     /// Creates a new Python string object.
     ///
     /// Panics if out of memory.
-    pub fn new<'p>(py: Python<'p>, s: &str) -> &'p PyString {
+    pub fn new(py: Python<'py>, s: &str) -> Self {
         let ptr = s.as_ptr() as *const c_char;
         let len = s.len() as ffi::Py_ssize_t;
         unsafe { py.from_owned_ptr(ffi::PyUnicode_FromStringAndSize(ptr, len)) }
     }
 
-    pub fn from_object<'p>(src: &'p PyAny, encoding: &str, errors: &str) -> PyResult<&'p PyString> {
+    pub fn from_object(src: &'_ PyAny<'py>, encoding: &str, errors: &str) -> PyResult<Self> {
         unsafe {
             src.py()
                 .from_owned_ptr_or_err::<PyString>(ffi::PyUnicode_FromEncodedObject(

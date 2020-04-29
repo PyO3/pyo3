@@ -3,6 +3,7 @@
 use crate::type_object::PyTypeObject;
 use crate::types::PyType;
 use crate::{exceptions, ffi};
+use crate::instance::PyNativeType;
 use crate::{
     AsPyPointer, FromPy, IntoPy, IntoPyPointer, Py, PyAny, PyObject, Python, ToBorrowedObject,
     ToPyObject,
@@ -151,7 +152,7 @@ impl PyErr {
             }
         } else {
             PyErr {
-                ptype: exceptions::TypeError::type_object(),
+                ptype: exceptions::TypeError::type_object(obj.py()).into(),
                 pvalue: PyErrValue::ToObject(Box::new("exceptions must derive from BaseException")),
                 ptraceback: None,
             }

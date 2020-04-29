@@ -17,8 +17,8 @@ use std::ptr::NonNull;
 /// PyO3 is designed in a way that all references to those types are bound
 /// to the GIL, which is why you can get a token from all references of those
 /// types.
-pub unsafe trait PyNativeType: Sized {
-    fn py(&self) -> Python {
+pub unsafe trait PyNativeType<'p>: Sized {
+    fn py(&self) -> Python<'p> {
         unsafe { Python::assume_gil_acquired() }
     }
 }
@@ -218,7 +218,7 @@ impl<T> IntoPyPointer for Py<T> {
 // Native types `&T` can be converted to `Py<T>`
 impl<'a, T> std::convert::From<&'a T> for Py<T>
 where
-    T: AsPyPointer + PyNativeType,
+    T: AsPyPointer + PyNativeType<'a>,
 {
     fn from(obj: &'a T) -> Self {
         unsafe { Py::from_borrowed_ptr(obj.as_ptr()) }
@@ -226,7 +226,7 @@ where
 }
 
 // `&PyCell<T>` can be converted to `Py<T>`
-impl<'a, T> std::convert::From<&PyCell<T>> for Py<T>
+impl<'a, T> std::convert::From<&PyCell<'_, T>> for Py<T>
 where
     T: PyClass,
 {
@@ -273,24 +273,6 @@ impl<T> std::convert::From<Py<T>> for PyObject {
     #[inline]
     fn from(ob: Py<T>) -> Self {
         unsafe { PyObject::from_not_null(ob.into_non_null()) }
-    }
-}
-
-impl<'a, T> std::convert::From<&'a T> for PyObject
-where
-    T: AsPyPointer,
-{
-    fn from(ob: &'a T) -> Self {
-        unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
-    }
-}
-
-impl<'a, T> std::convert::From<&'a mut T> for PyObject
-where
-    T: AsPyPointer,
-{
-    fn from(ob: &'a mut T) -> Self {
-        unsafe { Py::<T>::from_borrowed_ptr(ob.as_ptr()) }.into()
     }
 }
 

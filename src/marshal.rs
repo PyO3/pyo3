@@ -27,7 +27,7 @@ pub const VERSION: i32 = 4;
 ///
 /// let bytes = marshal::dumps(py, dict, marshal::VERSION);
 /// ```
-pub fn dumps<'a>(py: Python<'a>, object: &impl AsPyPointer, version: i32) -> PyResult<&'a PyBytes> {
+pub fn dumps<'py>(py: Python<'py>, object: &impl AsPyPointer, version: i32) -> PyResult<PyBytes<'py>> {
     unsafe {
         let bytes = ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int);
         FromPyPointer::from_owned_ptr_or_err(py, bytes)
@@ -35,7 +35,7 @@ pub fn dumps<'a>(py: Python<'a>, object: &impl AsPyPointer, version: i32) -> PyR
 }
 
 /// Deserialize an object from bytes using the Python built-in marshal module.
-pub fn loads<'a, B>(py: Python<'a>, data: &B) -> PyResult<PyAny<'a>>
+pub fn loads<'py, B>(py: Python<'py>, data: &B) -> PyResult<PyAny<'py>>
 where
     B: AsRef<[u8]> + ?Sized,
 {
@@ -65,9 +65,9 @@ mod test {
         let bytes = dumps(py, dict, VERSION)
             .expect("marshalling failed")
             .as_bytes();
-        let deserialzed = loads(py, bytes).expect("unmarshalling failed");
+        let deserialized = loads(py, bytes).expect("unmarshalling failed");
 
-        assert!(equal(py, dict, deserialzed));
+        assert!(equal(py, dict, &deserialized));
     }
 
     fn equal(_py: Python, a: &impl AsPyPointer, b: &impl AsPyPointer) -> bool {

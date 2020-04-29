@@ -15,7 +15,7 @@ use std::os::raw::c_double;
 /// and [extract](struct.PyObject.html#method.extract)
 /// with `f32`/`f64`.
 #[repr(transparent)]
-pub struct PyFloat(PyObject, Unsendable);
+pub struct PyFloat<'py>(PyAny<'py>);
 
 pyobject_native_type!(
     PyFloat,
@@ -24,9 +24,9 @@ pyobject_native_type!(
     ffi::PyFloat_Check
 );
 
-impl PyFloat {
+impl<'py> PyFloat<'py> {
     /// Creates a new Python `float` object.
-    pub fn new(py: Python<'_>, val: c_double) -> &PyFloat {
+    pub fn new(py: Python<'py>, val: c_double) -> Self {
         unsafe { py.from_owned_ptr(ffi::PyFloat_FromDouble(val)) }
     }
 

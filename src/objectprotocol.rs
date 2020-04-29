@@ -12,7 +12,7 @@ use std::cmp::Ordering;
 use std::os::raw::c_int;
 
 /// Python object model helper methods
-pub trait ObjectProtocol {
+pub trait ObjectProtocol<'py> {
     /// Determines whether this object has the given attribute.
     ///
     /// This is equivalent to the Python expression `hasattr(self, attr_name)`.
@@ -23,7 +23,7 @@ pub trait ObjectProtocol {
     /// Retrieves an attribute value.
     ///
     /// This is equivalent to the Python expression `self.attr_name`.
-    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
+    fn getattr<N>(&self, attr_name: N) -> PyResult<PyAny<'py>>
     where
         N: ToPyObject;
 
@@ -76,12 +76,12 @@ pub trait ObjectProtocol {
     /// Computes the "repr" representation of self.
     ///
     /// This is equivalent to the Python expression `repr(self)`.
-    fn repr(&self) -> PyResult<&PyString>;
+    fn repr(&self) -> PyResult<PyString<'py>>;
 
     /// Computes the "str" representation of self.
     ///
     /// This is equivalent to the Python expression `str(self)`.
-    fn str(&self) -> PyResult<&PyString>;
+    fn str(&self) -> PyResult<PyString<'py>>;
 
     /// Determines whether this object is callable.
     fn is_callable(&self) -> bool;
@@ -89,17 +89,17 @@ pub trait ObjectProtocol {
     /// Calls the object.
     ///
     /// This is equivalent to the Python expression `self(*args, **kwargs)`.
-    fn call(&self, args: impl IntoPy<Py<PyTuple>>, kwargs: Option<&PyDict>) -> PyResult<&PyAny>;
+    fn call(&self, args: impl IntoPy<Py<PyTuple<'static>>>, kwargs: Option<&PyDict>) -> PyResult<PyAny<'py>>;
 
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
+    fn call1(&self, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>>;
 
     /// Calls the object without arguments.
     ///
     /// This is equivalent to the Python expression `self()`.
-    fn call0(&self) -> PyResult<&PyAny>;
+    fn call0(&self) -> PyResult<PyAny<'py>>;
 
     /// Calls a method on the object.
     ///
@@ -120,19 +120,19 @@ pub trait ObjectProtocol {
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<PyTuple<'static>>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny>;
+    ) -> PyResult<PyAny<'py>>;
 
     /// Calls a method on the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self.name(*args)`.
-    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny>;
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>>;
 
     /// Calls a method on the object without arguments.
     ///
     /// This is equivalent to the Python expression `self.name()`.
-    fn call_method0(&self, name: &str) -> PyResult<&PyAny>;
+    fn call_method0(&self, name: &str) -> PyResult<PyAny<'py>>;
 
     /// Retrieves the hash code of the object.
     ///
@@ -162,7 +162,7 @@ pub trait ObjectProtocol {
     /// Gets an item from the collections.
     ///
     /// This is equivalent to the Python expression `self[key]`.
-    fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
+    fn get_item<K>(&self, key: K) -> PyResult<PyAny<'py>>
     where
         K: ToBorrowedObject;
 
@@ -185,10 +185,10 @@ pub trait ObjectProtocol {
     ///
     /// This is typically a new iterator but if the argument is an iterator,
     /// this returns itself.
-    fn iter(&self) -> PyResult<PyIterator>;
+    fn iter(&self) -> PyResult<PyIterator<'py>>;
 
     /// Returns the Python type object for this object's type.
-    fn get_type(&self) -> &PyType;
+    fn get_type(&self) -> &PyType<'py>;
 
     /// Returns the Python type pointer for this object.
     fn get_type_ptr(&self) -> *mut ffi::PyTypeObject;
@@ -217,9 +217,9 @@ pub trait ObjectProtocol {
     fn None(&self) -> PyObject;
 }
 
-impl<T> ObjectProtocol for T
+impl<'py, T> ObjectProtocol<'py> for T
 where
-    T: PyNativeType + AsPyPointer,
+    T: PyNativeType<'py> + AsPyPointer,
 {
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
@@ -230,7 +230,7 @@ where
         })
     }
 
-    fn getattr<N>(&self, attr_name: N) -> PyResult<&PyAny>
+    fn getattr<N>(&self, attr_name: N) -> PyResult<PyAny<'py>>
     where
         N: ToPyObject,
     {
@@ -315,14 +315,14 @@ where
         }
     }
 
-    fn repr(&self) -> PyResult<&PyString> {
+    fn repr(&self) -> PyResult<PyString<'py>> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PyObject_Repr(self.as_ptr()))
         }
     }
 
-    fn str(&self) -> PyResult<&PyString> {
+    fn str(&self) -> PyResult<PyString<'py>> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PyObject_Str(self.as_ptr()))
@@ -333,7 +333,7 @@ where
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
-    fn call(&self, args: impl IntoPy<Py<PyTuple>>, kwargs: Option<&PyDict>) -> PyResult<&PyAny> {
+    fn call(&self, args: impl IntoPy<Py<PyTuple<'static>>>, kwargs: Option<&PyDict>) -> PyResult<PyAny<'py>> {
         let args = args.into_py(self.py()).into_ptr();
         let kwargs = kwargs.into_ptr();
         let result = unsafe {
@@ -347,20 +347,20 @@ where
         result
     }
 
-    fn call0(&self) -> PyResult<&PyAny> {
+    fn call0(&self) -> PyResult<PyAny<'py>> {
         self.call((), None)
     }
 
-    fn call1(&self, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    fn call1(&self, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>> {
         self.call(args, None)
     }
 
     fn call_method(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<PyTuple<'static>>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<PyAny<'py>> {
         name.with_borrowed_ptr(self.py(), |name| unsafe {
             let py = self.py();
             let ptr = ffi::PyObject_GetAttr(self.as_ptr(), name);
@@ -378,11 +378,11 @@ where
         })
     }
 
-    fn call_method0(&self, name: &str) -> PyResult<&PyAny> {
+    fn call_method0(&self, name: &str) -> PyResult<PyAny<'py>> {
         self.call_method(name, (), None)
     }
 
-    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    fn call_method1(&self, name: &str, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>> {
         self.call_method(name, args, None)
     }
 
@@ -421,7 +421,7 @@ where
         self.len().map(|l| l == 0)
     }
 
-    fn get_item<K>(&self, key: K) -> PyResult<&PyAny>
+    fn get_item<K>(&self, key: K) -> PyResult<PyAny<'py>>
     where
         K: ToBorrowedObject,
     {
@@ -452,11 +452,11 @@ where
         })
     }
 
-    fn iter(&self) -> PyResult<PyIterator> {
+    fn iter(&self) -> PyResult<PyIterator<'py>> {
         Ok(PyIterator::from_object(self.py(), self)?)
     }
 
-    fn get_type(&self) -> &PyType {
+    fn get_type(&self) -> &PyType<'py> {
         unsafe { PyType::from_type_ptr(self.py(), (*self.as_ptr()).ob_type) }
     }
 
@@ -470,7 +470,7 @@ where
         D: PyTryFrom<'a>,
         Self: AsRef<PyAny<'a>>,
     {
-        D::try_from(self)
+        D::try_from(self.as_ref())
     }
 
     fn extract<'a, D>(&'a self) -> PyResult<D>
@@ -478,7 +478,7 @@ where
         D: FromPyObject<'a>,
         Self: AsRef<PyAny<'a>>,
     {
-        FromPyObject::extract(self.into())
+        FromPyObject::extract(self.as_ref())
     }
 
     fn get_refcnt(&self) -> isize {

@@ -28,11 +28,11 @@ unsafe impl Sync for PyObject {}
 
 impl PyObject {
     /// For internal conversions
-    pub(crate) unsafe fn from_not_null(ptr: NonNull<ffi::PyObject>) -> PyObject {
+    pub(crate) unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> PyObject {
         PyObject(ptr)
     }
 
-    pub(crate) unsafe fn into_nonnull(self) -> NonNull<ffi::PyObject> {
+    pub(crate) unsafe fn into_non_null(self) -> NonNull<ffi::PyObject> {
         let res = self.0;
         std::mem::forget(self); // Avoid Drop
         res
@@ -191,7 +191,7 @@ impl PyObject {
     pub fn call(
         &self,
         py: Python,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<PyTuple<'static>>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         let args = args.into_py(py).into_ptr();
@@ -209,7 +209,7 @@ impl PyObject {
     /// Calls the object with only positional arguments.
     ///
     /// This is equivalent to the Python expression `self(*args)`.
-    pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple>>) -> PyResult<PyObject> {
+    pub fn call1(&self, py: Python, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyObject> {
         self.call(py, args, None)
     }
 
@@ -227,7 +227,7 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<PyTuple<'static>>>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         name.with_borrowed_ptr(py, |name| unsafe {
@@ -252,7 +252,7 @@ impl PyObject {
         &self,
         py: Python,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<PyTuple<'static>>>,
     ) -> PyResult<PyObject> {
         self.call_method(py, name, args, None)
     }
@@ -262,6 +262,15 @@ impl PyObject {
     /// This is equivalent to the Python expression `self.name()`.
     pub fn call_method0(&self, py: Python, name: &str) -> PyResult<PyObject> {
         self.call_method(py, name, (), None)
+    }
+}
+
+impl<'a, T> std::convert::From<&'a T> for PyObject
+where
+    T: AsPyPointer,
+{
+    fn from(ob: &'a T) -> Self {
+        unsafe { PyObject::from_not_null(NonNull::new(ob.as_ptr()).expect("Null ptr")) }
     }
 }
 

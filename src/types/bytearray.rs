@@ -4,6 +4,7 @@ use crate::ffi;
 use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
+use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
 use std::os::raw::c_char;
@@ -11,15 +12,15 @@ use std::slice;
 
 /// Represents a Python `bytearray`.
 #[repr(transparent)]
-pub struct PyByteArray(PyObject, Unsendable);
+pub struct PyByteArray<'py>(PyAny<'py>);
 
 pyobject_native_var_type!(PyByteArray, ffi::PyByteArray_Type, ffi::PyByteArray_Check);
 
-impl PyByteArray {
+impl<'py> PyByteArray<'py> {
     /// Creates a new Python bytearray object.
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
-    pub fn new<'p>(py: Python<'p>, src: &[u8]) -> &'p PyByteArray {
+    pub fn new(py: Python<'py>, src: &[u8]) -> Self {
         let ptr = src.as_ptr() as *const c_char;
         let len = src.len() as ffi::Py_ssize_t;
         unsafe { py.from_owned_ptr::<PyByteArray>(ffi::PyByteArray_FromStringAndSize(ptr, len)) }
@@ -27,7 +28,7 @@ impl PyByteArray {
 
     /// Creates a new Python bytearray object from another PyObject that
     /// implements the buffer protocol.
-    pub fn from<'p, I>(py: Python<'p>, src: &'p I) -> PyResult<&'p PyByteArray>
+    pub fn from<I>(py: Python<'py>, src: &I) -> PyResult<Self>
     where
         I: AsPyPointer,
     {

@@ -5,6 +5,7 @@ use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
+use crate::types::PyAny;
 use crate::Python;
 use crate::{AsPyPointer, ToPyObject};
 use std::os::raw::c_long;
@@ -13,7 +14,7 @@ use std::os::raw::c_long;
 ///
 /// Only `c_long` indices supported at the moment by the `PySlice` object.
 #[repr(transparent)]
-pub struct PySlice(PyObject, Unsendable);
+pub struct PySlice<'py>(PyAny<'py>);
 
 pyobject_native_type!(
     PySlice,
@@ -41,9 +42,9 @@ impl PySliceIndices {
     }
 }
 
-impl PySlice {
+impl<'py> PySlice<'py> {
     /// Constructs a new slice with the given elements.
-    pub fn new(py: Python, start: isize, stop: isize, step: isize) -> &PySlice {
+    pub fn new(py: Python<'py>, start: isize, stop: isize, step: isize) -> Self {
         unsafe {
             let ptr = ffi::PySlice_New(
                 ffi::PyLong_FromLong(start as c_long),

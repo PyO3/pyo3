@@ -12,7 +12,7 @@ use std::os::raw::c_int;
 
 /// Sequence interface
 #[allow(unused_variables)]
-pub trait PySequenceProtocol<'p>: PyClass + Sized {
+pub trait PySequenceProtocol<'p>: PyClass<'p> + Sized {
     fn __len__(&'p self) -> Self::Result
     where
         Self: PySequenceLenProtocol<'p>,

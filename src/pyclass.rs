@@ -2,13 +2,14 @@
 use crate::class::methods::{PyMethodDefType, PyMethodsProtocol};
 use crate::pyclass_slots::{PyClassDict, PyClassWeakRef};
 use crate::type_object::{type_flags, PyLayout};
-use crate::{class, ffi, PyCell, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
+use crate::pycell::PyCellLayout;
+use crate::{class, ffi, PyErr, PyNativeType, PyResult, PyTypeInfo, Python};
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
 
 #[inline]
-pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
+pub(crate) unsafe fn default_alloc<T: for<'py> PyTypeInfo<'py>>() -> *mut ffi::PyObject {
     let type_obj = T::type_object();
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
@@ -22,12 +23,12 @@ pub(crate) unsafe fn default_alloc<T: PyTypeInfo>() -> *mut ffi::PyObject {
 }
 
 /// This trait enables custom alloc/dealloc implementations for `T: PyClass`.
-pub trait PyClassAlloc: PyTypeInfo + Sized {
+pub trait PyClassAlloc<'py>: PyTypeInfo<'py> + Sized {
     /// Allocate the actual field for `#[pyclass]`.
     ///
     /// # Safety
     /// This function must return a valid pointer to the Python heap.
-    unsafe fn alloc(_py: Python) -> *mut Self::Layout {
+    unsafe fn alloc(_py: Python<'py>) -> *mut Self::Layout {
         default_alloc::<Self>() as _
     }
 
@@ -35,7 +36,7 @@ pub trait PyClassAlloc: PyTypeInfo + Sized {
     ///
     /// # Safety
     /// `self_` must be a valid pointer to the Python heap.
-    unsafe fn dealloc(py: Python, self_: *mut Self::Layout) {
+    unsafe fn dealloc(py: Python<'py>, self_: *mut Self::Layout) {
         (*self_).py_drop(py);
         let obj = self_ as _;
         if ffi::PyObject_CallFinalizerFromDealloc(obj) < 0 {
@@ -70,8 +71,8 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 ///
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
-pub trait PyClass:
-    PyTypeInfo<Layout = PyCell<Self>> + Sized + PyClassAlloc + PyMethodsProtocol
+pub trait PyClass<'py>:
+    PyTypeInfo<'py, Layout = PyCellLayout<Self>> + Sized + PyClassAlloc<'py> + PyMethodsProtocol
 {
     /// Specify this class has `#[pyclass(dict)]` or not.
     type Dict: PyClassDict;
@@ -79,7 +80,7 @@ pub trait PyClass:
     type WeakRef: PyClassWeakRef;
     /// The closest native ancestor. This is `PyAny` by default, and when you declare
     /// `#[pyclass(extends=PyDict)]`, it's `PyDict`.
-    type BaseNativeType: PyTypeInfo + PyNativeType;
+    type BaseNativeType: PyTypeInfo<'py> + PyNativeType<'static>;
 }
 
 #[cfg(not(Py_LIMITED_API))]
@@ -89,7 +90,7 @@ pub(crate) fn initialize_type_object<T>(
     type_object: &mut ffi::PyTypeObject,
 ) -> PyResult<()>
 where
-    T: PyClass,
+    T: for<'py> PyClass<'py>,
 {
     type_object.tp_doc = match T::DESCRIPTION {
         // PyPy will segfault if passed only a nul terminator as `tp_doc`, ptr::null() is OK though.
@@ -109,7 +110,7 @@ where
     // dealloc
     unsafe extern "C" fn tp_dealloc_callback<T>(obj: *mut ffi::PyObject)
     where
-        T: PyClassAlloc,
+        T: for<'py> PyClassAlloc<'py>,
     {
         let pool = crate::GILPool::new();
         let py = pool.python();

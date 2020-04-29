@@ -42,8 +42,7 @@ impl<'p> PyIterator<'p> {
             }
 
             if ffi::PyIter_Check(ptr) != 0 {
-                // this is not right, but this cause of segfault check #71
-                Ok(PyIterator(py.from_borrowed_ptr(ptr)))
+                Ok(PyIterator(py.from_owned_ptr(ptr)))
             } else {
                 Err(PyDowncastError)
             }

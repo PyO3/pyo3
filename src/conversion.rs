@@ -252,7 +252,7 @@ where
     }
 }
 
-impl<'a, T> FromPyObject<'a> for &'a PyCell<T>
+impl<'a, T> FromPyObject<'a> for &'a PyCell<'a, T>
 where
     T: PyClass,
 {
@@ -311,16 +311,16 @@ where
 /// If `T` implements `PyTryFrom`, we can convert `&PyAny` to `&T`.
 ///
 /// This trait is similar to `std::convert::TryFrom`
-pub trait PyTryFrom<'v>: Sized + PyDowncastImpl<'v> {
+pub trait PyTryFrom<'py>: Sized + PyDowncastImpl<'py> {
     /// Cast from a concrete Python object type to PyObject.
-    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError>;
 
     /// Cast from a concrete Python object type to PyObject. With exact type check.
-    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError>;
+    fn try_from_exact<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError>;
 
     /// Cast a PyAny to a specific type of PyObject. The caller must
     /// have already verified the reference is for this type.
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v Self;
+    unsafe fn try_from_unchecked<'a>(value: &'a PyAny<'py>) -> &'a Self;
 }
 
 /// Trait implemented by Python object types that allow a checked downcast.
@@ -346,12 +346,11 @@ where
     }
 }
 
-impl<'v, T> PyTryFrom<'v> for T
+impl<'py, T> PyTryFrom<'py> for T
 where
-    T: PyDowncastImpl<'v> + PyTypeInfo + PyNativeType,
+    T: PyDowncastImpl<'py> + PyTypeInfo + PyNativeType<'py>,
 {
-    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
-        let value = value.into();
+    fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         unsafe {
             if T::is_instance(value) {
                 Ok(Self::try_from_unchecked(value))
@@ -361,8 +360,7 @@ where
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
-        let value = value.into();
+    fn try_from_exact<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         unsafe {
             if T::is_exact_instance(value) {
                 Ok(Self::try_from_unchecked(value))
@@ -373,16 +371,16 @@ where
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v Self {
+    unsafe fn try_from_unchecked<'a>(value: &'a PyAny<'py>) -> &'a Self {
         Self::unchecked_downcast(value.into())
     }
 }
 
-impl<'v, T> PyTryFrom<'v> for PyCell<T>
+impl<'py, T> PyTryFrom<'py> for PyCell<'py, T>
 where
-    T: 'v + PyClass,
+    T: 'py + PyClass,
 {
-    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
+    fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         let value = value.into();
         unsafe {
             if T::is_instance(value) {
@@ -392,8 +390,7 @@ where
             }
         }
     }
-    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v Self, PyDowncastError> {
-        let value = value.into();
+    fn try_from_exact<'a>(value: &'a PyAny<'py>) -> Result<&'a Self, PyDowncastError> {
         unsafe {
             if T::is_exact_instance(value) {
                 Ok(Self::try_from_unchecked(value))
@@ -403,31 +400,31 @@ where
         }
     }
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v Self {
-        Self::unchecked_downcast(value.into())
+    unsafe fn try_from_unchecked<'a>(value: &'a PyAny<'py>) -> &'a Self {
+        Self::unchecked_downcast(value)
     }
 }
 
 /// Converts `()` to an empty Python tuple.
-impl FromPy<()> for Py<PyTuple> {
-    fn from_py(_: (), py: Python) -> Py<PyTuple> {
+impl FromPy<()> for Py<PyTuple<'static>> {
+    fn from_py(_: (), py: Python) -> Py<PyTuple<'static>> {
         Py::from_py(PyTuple::empty(py), py)
     }
 }
 
 /// Raw level conversion between `*mut ffi::PyObject` and PyO3 types.
 pub unsafe trait FromPyPointer<'p>: Sized {
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self>;
-    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self>;
+    unsafe fn from_owned_ptr_or_panic(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
         match Self::from_owned_ptr_or_opt(py, ptr) {
             Some(s) => s,
             None => err::panic_after_error(),
         }
     }
-    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> &'p Self {
+    unsafe fn from_owned_ptr(py: Python<'p>, ptr: *mut ffi::PyObject) -> Self {
         Self::from_owned_ptr_or_panic(py, ptr)
     }
-    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<&'p Self> {
+    unsafe fn from_owned_ptr_or_err(py: Python<'p>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
         match Self::from_owned_ptr_or_opt(py, ptr) {
             Some(s) => Ok(s),
             None => Err(err::PyErr::fetch(py)),
@@ -452,36 +449,6 @@ pub unsafe trait FromPyPointer<'p>: Sized {
             Some(s) => Ok(s),
             None => Err(err::PyErr::fetch(py)),
         }
-    }
-}
-
-unsafe impl<'p, T> FromPyPointer<'p> for T
-where
-    T: 'p + crate::PyNativeType,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_owned(py, p)))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(
-        py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_borrowed(py, p)))
-    }
-}
-
-unsafe impl<'p, T> FromPyPointer<'p> for PyCell<T>
-where
-    T: PyClass,
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| &*(gil::register_owned(py, p).as_ptr() as *const PyCell<T>))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(
-        py: Python<'p>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<&'p Self> {
-        NonNull::new(ptr).map(|p| &*(gil::register_borrowed(py, p).as_ptr() as *const PyCell<T>))
     }
 }
 

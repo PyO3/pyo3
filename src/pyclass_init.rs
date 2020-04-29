@@ -1,6 +1,7 @@
 //! Initialization utilities for `#[pyclass]`.
+use crate::pycell::PyCellLayout;
 use crate::type_object::{PyBorrowFlagLayout, PyLayout, PySizedLayout, PyTypeInfo};
-use crate::{PyCell, PyClass, PyResult, Python};
+use crate::{PyClass, PyResult, Python};
 use std::marker::PhantomData;
 
 /// Initializer for Python types.
@@ -116,12 +117,12 @@ impl<T: PyClass> PyClassInitializer<T> {
 
     // Create a new PyCell + initialize it
     #[doc(hidden)]
-    pub unsafe fn create_cell(self, py: Python) -> PyResult<*mut PyCell<T>>
+    pub unsafe fn create_cell(self, py: Python) -> PyResult<*mut PyCellLayout<T>>
     where
         T: PyClass,
         T::BaseLayout: PyBorrowFlagLayout<T::BaseType>,
     {
-        let cell = PyCell::internal_new(py)?;
+        let cell = PyCellLayout::new(py)?;
         self.init_class(&mut *cell);
         Ok(cell)
     }

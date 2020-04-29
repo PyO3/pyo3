@@ -111,7 +111,7 @@ macro_rules! int_convert_128 {
 /// and [extract](struct.PyObject.html#method.extract)
 /// with the primitive Rust integer types.
 #[repr(transparent)]
-pub struct PyLong(PyObject, Unsendable);
+pub struct PyLong<'py>(PyAny<'py>);
 
 pyobject_native_var_type!(PyLong, ffi::PyLong_Type, ffi::PyLong_Check);
 

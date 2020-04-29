@@ -17,7 +17,7 @@ use std::{cmp, collections, hash};
 
 /// Represents a Python `dict`.
 #[repr(transparent)]
-pub struct PyDict(PyObject, Unsendable);
+pub struct PyDict<'py>(PyAny<'py>);
 
 pyobject_native_type!(
     PyDict,
@@ -26,10 +26,10 @@ pyobject_native_type!(
     ffi::PyDict_Check
 );
 
-impl PyDict {
+impl<'py> PyDict<'py> {
     /// Creates a new empty dictionary.
-    pub fn new(py: Python) -> &PyDict {
-        unsafe { py.from_owned_ptr::<PyDict>(ffi::PyDict_New()) }
+    pub fn new(py: Python<'py>) -> Self {
+        unsafe { py.from_owned_ptr(ffi::PyDict_New()) }
     }
 
     /// Creates a new dictionary from the sequence given.
@@ -40,7 +40,7 @@ impl PyDict {
     /// Returns an error on invalid input. In the case of key collisions,
     /// this keeps the last entry seen.
     #[cfg(not(PyPy))]
-    pub fn from_sequence(py: Python, seq: PyObject) -> PyResult<&PyDict> {
+    pub fn from_sequence(py: Python<'py>, seq: &PyAny) -> PyResult<Self> {
         unsafe {
             let dict = py.from_owned_ptr::<PyDict>(ffi::PyDict_New());
             match ffi::PyDict_MergeFromSeq2(dict.into_ptr(), seq.into_ptr(), 1i32) {
@@ -54,7 +54,7 @@ impl PyDict {
     /// Returns a new dictionary that contains the same key-value pairs as self.
     ///
     /// This is equivalent to the Python expression `dict(self)`.
-    pub fn copy(&self) -> PyResult<&PyDict> {
+    pub fn copy(&self) -> PyResult<Self> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err::<PyDict>(ffi::PyDict_Copy(self.as_ptr()))
@@ -139,30 +139,30 @@ impl PyDict {
     /// Returns a list of dict keys.
     ///
     /// This is equivalent to the Python expression `list(dict.keys())`.
-    pub fn keys(&self) -> &PyList {
+    pub fn keys(&self) -> PyList<'py> {
         unsafe {
             self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Keys(self.as_ptr()))
+                .from_owned_ptr(ffi::PyDict_Keys(self.as_ptr()))
         }
     }
 
     /// Returns a list of dict values.
     ///
     /// This is equivalent to the Python expression `list(dict.values())`.
-    pub fn values(&self) -> &PyList {
+    pub fn values(&self) -> PyList<'py> {
         unsafe {
             self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Values(self.as_ptr()))
+                .from_owned_ptr(ffi::PyDict_Values(self.as_ptr()))
         }
     }
 
     /// Returns a list of dict items.
     ///
     /// This is equivalent to the Python expression `list(dict.items())`.
-    pub fn items(&self) -> &PyList {
+    pub fn items(&self) -> PyList<'py> {
         unsafe {
             self.py()
-                .from_owned_ptr::<PyList>(ffi::PyDict_Items(self.as_ptr()))
+                .from_owned_ptr(ffi::PyDict_Items(self.as_ptr()))
         }
     }
 
@@ -170,21 +170,21 @@ impl PyDict {
     ///
     /// Note that it's unsafe to use when the dictionary might be changed by
     /// other code.
-    pub fn iter(&self) -> PyDictIterator {
+    pub fn iter<'a>(&'a self) -> PyDictIterator<'a, 'py> {
         PyDictIterator {
-            dict: self.as_ref(),
+            dict: self,
             pos: 0,
         }
     }
 }
 
-pub struct PyDictIterator<'py> {
-    dict: &'py PyAny<'py>,
+pub struct PyDictIterator<'a, 'py> {
+    dict: &'a PyDict<'py>,
     pos: isize,
 }
 
-impl<'py> Iterator for PyDictIterator<'py> {
-    type Item = (&'py PyAny<'py>, &'py PyAny<'py>);
+impl<'a, 'py> Iterator for PyDictIterator<'a, 'py> {
+    type Item = (&'a PyAny<'py>, &'a PyAny<'py>);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -201,9 +201,9 @@ impl<'py> Iterator for PyDictIterator<'py> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyDict {
-    type Item = (&'a PyAny<'a>, &'a PyAny<'a>);
-    type IntoIter = PyDictIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PyDict<'py> {
+    type Item = (&'a PyAny<'py>, &'a PyAny<'py>);
+    type IntoIter = PyDictIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -263,7 +263,7 @@ where
 pub trait IntoPyDict {
     /// Converts self into a `PyDict` object pointer. Whether pointer owned or borrowed
     /// depends on implementation.
-    fn into_py_dict(self, py: Python) -> &PyDict;
+    fn into_py_dict(self, py: Python) -> PyDict;
 }
 
 impl<T, I> IntoPyDict for I
@@ -271,7 +271,7 @@ where
     T: PyDictItem,
     I: IntoIterator<Item = T>,
 {
-    fn into_py_dict(self, py: Python) -> &PyDict {
+    fn into_py_dict(self, py: Python) -> PyDict {
         let dict = PyDict::new(py);
         for item in self {
             dict.set_item(item.key(), item.value())
@@ -379,7 +379,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let items = PyList::new(py, &vec![("a", 1), ("b", 2)]);
-        let dict = PyDict::from_sequence(py, items.to_object(py)).unwrap();
+        let dict = PyDict::from_sequence(py, &items).unwrap();
         assert_eq!(1, dict.get_item("a").unwrap().extract::<i32>().unwrap());
         assert_eq!(2, dict.get_item("b").unwrap().extract::<i32>().unwrap());
         let map: HashMap<&str, i32> = [("a", 1), ("b", 2)].iter().cloned().collect();

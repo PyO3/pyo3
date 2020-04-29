@@ -1,24 +1,28 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::buffer;
+use crate::conversion::FromPyPointer;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions;
+use crate::gil;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::{PyAny, PyList, PyTuple};
+use crate::type_object::PyDowncastImpl;
 use crate::AsPyPointer;
-use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
+use crate::{FromPyObject, PyTryFrom, ToBorrowedObject, Python};
+use std::ptr::NonNull;
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
-pub struct PySequence<'a>(PyAny<'a>);
+pub struct PySequence<'py>(PyAny<'py>);
 pyobject_native_type_named!(PySequence);
 pyobject_native_type_extract!(PySequence);
 
-impl PySequence {
+impl<'py> PySequence<'py> {
     /// Returns the number of objects in sequence.
     ///
     /// This is equivalent to the Python expression `len(self)`.
@@ -41,15 +45,14 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self + other`.
     #[inline]
-    pub fn concat(&self, other: &PySequence) -> PyResult<&PySequence> {
+    pub fn concat(&self, other: &PySequence) -> PyResult<Self> {
         unsafe {
-            let ptr = self
+            self
                 .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Concat(
+                .from_owned_ptr_or_err(ffi::PySequence_Concat(
                     self.as_ptr(),
                     other.as_ptr(),
-                ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+                ))
         }
     }
 
@@ -58,15 +61,14 @@ impl PySequence {
     /// This is equivalent to the Python expression `self * count`.
     /// NB: Python accepts negative counts; it returns an empty Sequence.
     #[inline]
-    pub fn repeat(&self, count: isize) -> PyResult<&PySequence> {
+    pub fn repeat(&self, count: isize) -> PyResult<Self> {
         unsafe {
-            let ptr = self
+            self
                 .py()
-                .from_owned_ptr_or_err::<PyAny>(ffi::PySequence_Repeat(
+                .from_owned_ptr_or_err(ffi::PySequence_Repeat(
                     self.as_ptr(),
                     count as Py_ssize_t,
-                ))?;
-            Ok(&*(ptr as *const PyAny as *const PySequence))
+                ))
         }
     }
 
@@ -105,7 +107,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self[index]`.
     #[inline]
-    pub fn get_item(&self, index: isize) -> PyResult<&PyAny> {
+    pub fn get_item(&self, index: isize) -> PyResult<PyAny<'py>> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -116,7 +118,7 @@ impl PySequence {
     ///
     /// This is equivalent to the Python expression `self[begin:end]`.
     #[inline]
-    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<&PyAny> {
+    pub fn get_slice(&self, begin: isize, end: isize) -> PyResult<PyAny<'py>> {
         unsafe {
             self.py().from_owned_ptr_or_err(ffi::PySequence_GetSlice(
                 self.as_ptr(),
@@ -244,7 +246,7 @@ impl PySequence {
 
     /// Returns a fresh list based on the Sequence.
     #[inline]
-    pub fn list(&self) -> PyResult<&PyList> {
+    pub fn list(&self) -> PyResult<PyList<'py>> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_List(self.as_ptr()))
@@ -253,7 +255,7 @@ impl PySequence {
 
     /// Returns a fresh tuple based on the Sequence.
     #[inline]
-    pub fn tuple(&self) -> PyResult<&PyTuple> {
+    pub fn tuple(&self) -> PyResult<PyTuple<'py>> {
         unsafe {
             self.py()
                 .from_owned_ptr_or_err(ffi::PySequence_Tuple(self.as_ptr()))
@@ -360,9 +362,8 @@ where
     Ok(())
 }
 
-impl<'v> PyTryFrom<'v> for PySequence<'v> {
-    fn try_from<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v PySequence<'v>, PyDowncastError> {
-        let value = value.into();
+impl<'py> PyTryFrom<'py> for PySequence<'py> {
+    fn try_from<'a>(value: &'a PyAny<'py>) -> Result<&'a PySequence<'py>, PyDowncastError> {
         unsafe {
             if ffi::PySequence_Check(value.as_ptr()) != 0 {
                 Ok(<PySequence as PyTryFrom>::try_from_unchecked(value))
@@ -372,14 +373,27 @@ impl<'v> PyTryFrom<'v> for PySequence<'v> {
         }
     }
 
-    fn try_from_exact<V: Into<&'v PyAny<'v>>>(value: V) -> Result<&'v PySequence<'v>, PyDowncastError> {
+    fn try_from_exact<'a>(value: &'a PyAny<'py>) -> Result<&'a PySequence<'py>, PyDowncastError> {
         <PySequence as PyTryFrom>::try_from(value)
     }
 
     #[inline]
-    unsafe fn try_from_unchecked<V: Into<&'v PyAny<'v>>>(value: V) -> &'v PySequence<'v> {
-        let ptr = value.into() as *const _ as *const PySequence;
+    unsafe fn try_from_unchecked<'a>(value: &'a PyAny<'py>) -> &'a PySequence<'py> {
+        let ptr = value as *const _ as *const PySequence;
         &*ptr
+    }
+}
+
+unsafe impl<'py> FromPyPointer<'py> for PySequence<'py>
+{
+    unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
+        NonNull::new(ptr).map(|p| Self(PyAny::from_non_null(py, p)))
+    }
+    unsafe fn from_borrowed_ptr_or_opt(
+        py: Python<'py>,
+        ptr: *mut ffi::PyObject,
+    ) -> Option<&'py Self> {
+        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_borrowed(py, p)))
     }
 }
 

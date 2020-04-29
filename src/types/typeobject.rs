@@ -7,7 +7,7 @@ use crate::ffi;
 use crate::instance::{Py, PyNativeType};
 use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
-use crate::type_object::PyTypeObject;
+use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
 use crate::AsPyPointer;
 use crate::Python;
@@ -23,8 +23,8 @@ pyobject_native_var_type!(PyType, ffi::PyType_Type, ffi::PyType_Check);
 impl<'py> PyType<'py> {
     /// Creates a new type object.
     #[inline]
-    pub fn new<T: PyTypeObject>(py: Python<'py>) -> Self {
-        T::type_object(py).clone()
+    pub fn new<T: PyTypeInfo>(py: Python<'py>) -> Self {
+        py.from_owned_ptr(T::type_object() as *const _ as *mut ffi::PyTypeObject as _)
     }
 
     /// Retrieves the underlying FFI pointer associated with this Python object.
@@ -37,7 +37,7 @@ impl<'py> PyType<'py> {
     /// This increments the reference count on the type object.
     /// Undefined behavior if the pointer is NULL or invalid.
     #[inline]
-    pub unsafe fn from_type_ptr(py: Python, p: *mut ffi::PyTypeObject) -> &PyType {
+    pub unsafe fn from_type_ptr(py: Python<'py>, p: *mut ffi::PyTypeObject) -> &Self {
         py.from_borrowed_ptr(p as *mut ffi::PyObject)
     }
 
@@ -51,9 +51,9 @@ impl<'py> PyType<'py> {
     /// Equivalent to Python's `issubclass` function.
     pub fn is_subclass<T>(&self) -> PyResult<bool>
     where
-        T: PyTypeObject,
+        T: PyTypeInfo,
     {
-        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object().as_ptr()) };
+        let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), T::type_object() as *const _ as *mut ffi::PyTypeObject as _)};
         if result == -1 {
             Err(PyErr::fetch(self.py()))
         } else if result == 1 {

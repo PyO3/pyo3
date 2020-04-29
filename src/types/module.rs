@@ -20,19 +20,19 @@ use std::str;
 
 /// Represents a Python `module` object.
 #[repr(transparent)]
-pub struct PyModule(PyObject, Unsendable);
+pub struct PyModule<'py>(PyAny<'py>);
 
 pyobject_native_var_type!(PyModule, ffi::PyModule_Type, ffi::PyModule_Check);
 
-impl PyModule {
+impl<'py> PyModule<'py> {
     /// Creates a new module object with the `__name__` attribute set to name.
-    pub fn new<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+    pub fn new(py: Python<'py>, name: &str) -> PyResult<Self> {
         let name = CString::new(name)?;
         unsafe { py.from_owned_ptr_or_err(ffi::PyModule_New(name.as_ptr())) }
     }
 
     /// Imports the Python module with the specified name.
-    pub fn import<'p>(py: Python<'p>, name: &str) -> PyResult<&'p PyModule> {
+    pub fn import(py: Python<'py>, name: &str) -> PyResult<Self> {
         let name = CString::new(name)?;
         unsafe { py.from_owned_ptr_or_err(ffi::PyImport_ImportModule(name.as_ptr())) }
     }
@@ -43,12 +43,12 @@ impl PyModule {
     /// `file_name` is the file name to associate with the module
     /// (this is used when Python reports errors, for example).
     /// `module_name` is the name to give the module.
-    pub fn from_code<'p>(
-        py: Python<'p>,
+    pub fn from_code(
+        py: Python<'py>,
         code: &str,
         file_name: &str,
         module_name: &str,
-    ) -> PyResult<&'p PyModule> {
+    ) -> PyResult<Self> {
         let data = CString::new(code)?;
         let filename = CString::new(file_name)?;
         let module = CString::new(module_name)?;
@@ -64,7 +64,7 @@ impl PyModule {
                 return Err(PyErr::fetch(py));
             }
 
-            <&PyModule as crate::FromPyObject>::extract(py.from_owned_ptr_or_err(mptr)?)
+            py.from_owned_ptr_or_err(mptr)
         }
     }
 
@@ -78,9 +78,9 @@ impl PyModule {
     }
 
     /// Return the index (`__all__`) of the module, creating one if needed.
-    pub fn index(&self) -> PyResult<&PyList> {
+    pub fn index(&self) -> PyResult<PyList<'py>> {
         match self.getattr("__all__") {
-            Ok(idx) => idx.downcast().map_err(PyErr::from),
+            Ok(idx) => idx.downcast().map(Clone::clone).map_err(PyErr::from),
             Err(err) => {
                 if err.is_instance::<exceptions::AttributeError>(self.py()) {
                     let l = PyList::empty(self.py());
@@ -101,7 +101,7 @@ impl PyModule {
             match str::from_utf8(slice) {
                 Ok(s) => Ok(s),
                 Err(e) => Err(PyErr::from_instance(
-                    exceptions::UnicodeDecodeError::new_utf8(self.py(), slice, e)?,
+                    &exceptions::UnicodeDecodeError::new_utf8(self.py(), slice, e)?,
                 )),
             }
         }
@@ -127,30 +127,30 @@ impl PyModule {
     pub fn call(
         &self,
         name: &str,
-        args: impl IntoPy<Py<PyTuple>>,
+        args: impl IntoPy<Py<PyTuple<'static>>>,
         kwargs: Option<&PyDict>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<PyAny<'py>> {
         self.getattr(name)?.call(args, kwargs)
     }
 
     /// Calls a function in the module with only positional arguments.
     ///
     /// This is equivalent to the Python expression `module.name(*args)`.
-    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple>>) -> PyResult<&PyAny> {
+    pub fn call1(&self, name: &str, args: impl IntoPy<Py<PyTuple<'static>>>) -> PyResult<PyAny<'py>> {
         self.getattr(name)?.call1(args)
     }
 
     /// Calls a function in the module without arguments.
     ///
     /// This is equivalent to the Python expression `module.name()`.
-    pub fn call0(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn call0(&self, name: &str) -> PyResult<PyAny<'py>> {
         self.getattr(name)?.call0()
     }
 
     /// Gets a member from the module.
     ///
     /// This is equivalent to the Python expression `module.name`.
-    pub fn get(&self, name: &str) -> PyResult<&PyAny> {
+    pub fn get(&self, name: &str) -> PyResult<PyAny<'py>> {
         self.getattr(name)
     }
 

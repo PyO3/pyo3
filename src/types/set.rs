@@ -13,11 +13,11 @@ use std::{collections, hash, ptr};
 
 /// Represents a Python `set`
 #[repr(transparent)]
-pub struct PySet(PyObject, Unsendable);
+pub struct PySet<'py>(PyAny<'py>);
 
-/// Represents a  Python `frozenset`
+/// Represents a Python `frozenset`
 #[repr(transparent)]
-pub struct PyFrozenSet(PyObject, Unsendable);
+pub struct PyFrozenSet<'py>(PyAny<'py>);
 
 pyobject_native_type!(PySet, ffi::PySetObject, ffi::PySet_Type, ffi::PySet_Check);
 pyobject_native_type!(
@@ -27,17 +27,17 @@ pyobject_native_type!(
     ffi::PyFrozenSet_Check
 );
 
-impl PySet {
+impl<'py> PySet<'py> {
     /// Creates a new set with elements from the given slice.
     ///
     /// Returns an error if some element is not hashable.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PySet> {
+    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<Self> {
         let list = elements.to_object(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(list.as_ptr())) }
     }
 
     /// Creates a new empty set.
-    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
+    pub fn empty(py: Python<'py>) -> PyResult<Self> {
         unsafe { py.from_owned_ptr_or_err(ffi::PySet_New(ptr::null_mut())) }
     }
 
@@ -112,7 +112,7 @@ impl PySet {
     ///
     /// Note that it can be unsafe to use when the set might be changed by other code.
     #[cfg(not(Py_LIMITED_API))]
-    pub fn iter(&self) -> PySetIterator {
+    pub fn iter<'a>(&'a self) -> PySetIterator<'a, 'py> {
         PySetIterator {
             set: self.as_ref(),
             pos: 0,
@@ -121,14 +121,14 @@ impl PySet {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-pub struct PySetIterator<'py> {
-    set: PyAny<'py>,
+pub struct PySetIterator<'a, 'py> {
+    set: &'a PyAny<'py>,
     pos: isize,
 }
 
 #[cfg(not(Py_LIMITED_API))]
-impl<'py> Iterator for PySetIterator<'py> {
-    type Item = &'py PyAny<'py>;
+impl<'a, 'py> Iterator for PySetIterator<'a, 'py> {
+    type Item = &'a PyAny<'py>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -145,9 +145,9 @@ impl<'py> Iterator for PySetIterator<'py> {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-impl<'a> std::iter::IntoIterator for &'a PySet {
-    type Item = &'a PyAny<'a>;
-    type IntoIter = PySetIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PySet<'py> {
+    type Item = &'a PyAny<'py>;
+    type IntoIter = PySetIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -236,17 +236,17 @@ where
     }
 }
 
-impl PyFrozenSet {
+impl<'py> PyFrozenSet<'py> {
     /// Creates a new frozenset.
     ///
     /// May panic when running out of memory.
-    pub fn new<'p, T: ToPyObject>(py: Python<'p>, elements: &[T]) -> PyResult<&'p PyFrozenSet> {
+    pub fn new<T: ToPyObject>(py: Python<'py>, elements: &[T]) -> PyResult<Self> {
         let list = elements.to_object(py);
         unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(list.as_ptr())) }
     }
 
     /// Creates a new empty frozen set
-    pub fn empty<'p>(py: Python<'p>) -> PyResult<&'p PySet> {
+    pub fn empty(py: Python<'py>) -> PyResult<Self> {
         unsafe { py.from_owned_ptr_or_err(ffi::PyFrozenSet_New(ptr::null_mut())) }
     }
 
@@ -287,9 +287,9 @@ impl PyFrozenSet {
 }
 
 #[cfg(not(Py_LIMITED_API))]
-impl<'a> std::iter::IntoIterator for &'a PyFrozenSet {
-    type Item = &'a PyAny<'a>;
-    type IntoIter = PySetIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PyFrozenSet<'py> {
+    type Item = &'a PyAny<'py>;
+    type IntoIter = PySetIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         PySetIterator {

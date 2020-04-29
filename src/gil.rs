@@ -394,7 +394,7 @@ mod test {
             {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
-                let _ = gil::register_owned(py, obj.into_nonnull());
+                let _ = gil::register_owned(py, obj.into_non_null());
 
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 assert_eq!(p.owned.len(), 1);
@@ -423,14 +423,14 @@ mod test {
                 let _pool = GILPool::new();
                 assert_eq!(p.owned.len(), 0);
 
-                let _ = gil::register_owned(py, obj.into_nonnull());
+                let _ = gil::register_owned(py, obj.into_non_null());
 
                 assert_eq!(p.owned.len(), 1);
                 assert_eq!(ffi::Py_REFCNT(obj_ptr), 2);
                 {
                     let _pool = GILPool::new();
                     let obj = get_object();
-                    let _ = gil::register_owned(py, obj.into_nonnull());
+                    let _ = gil::register_owned(py, obj.into_non_null());
                     assert_eq!(p.owned.len(), 2);
                 }
                 assert_eq!(p.owned.len(), 1);
