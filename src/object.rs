@@ -156,9 +156,9 @@ impl PyObject {
     /// Casts the PyObject to a concrete Python object type.
     ///
     /// This can cast only to native Python types, not types implemented in Rust.
-    pub fn cast_as<'a, 'py, D>(&'a self, py: Python<'py>) -> Result<&'a D, PyDowncastError>
+    pub fn cast_as<'a, 'py: 'a, D>(&'a self, py: Python<'py>) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom<'py>,
+        D: PyTryFrom<'py>
     {
         D::try_from(self.as_ref(py))
     }
@@ -166,9 +166,9 @@ impl PyObject {
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around `FromPyObject::extract()`.
-    pub fn extract<'a, 'py, D>(&'a self, py: Python<'py>) -> PyResult<D>
+    pub fn extract<'a, 'py: 'a, D>(&'a self, py: Python<'py>) -> PyResult<D>
     where
-        D: FromPyObject<'a, 'py>,
+        D: FromPyObject<'a, 'py>
     {
         FromPyObject::extract(self.as_ref(py))
     }
@@ -270,7 +270,7 @@ where
     T: AsPyPointer,
 {
     fn from(ob: &'a T) -> Self {
-        unsafe { PyObject::from_not_null(NonNull::new(ob.as_ptr()).expect("Null ptr")) }
+        unsafe { PyObject::from_non_null(NonNull::new(ob.as_ptr()).expect("Null ptr")) }
     }
 }
 

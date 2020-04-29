@@ -3,8 +3,6 @@ use crate::err::PyDowncastError;
 use crate::ffi;
 use crate::gil;
 use crate::python::Python;
-use crate::type_object::PyTypeInfo;
-use crate::pyclass_init::PyNativeTypeInitializer;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 

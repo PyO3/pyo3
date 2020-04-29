@@ -38,6 +38,14 @@ macro_rules! pyobject_native_type_named (
             }
         }
 
+        impl<$($type_param,)*> $crate::IntoPyPointer for $name<'_> {
+            /// Gets the underlying FFI pointer, returns a borrowed pointer.
+            #[inline]
+            fn into_ptr(self) -> *mut $crate::ffi::PyObject {
+                self.into_non_null().as_ptr()
+            }
+        }
+
         impl<$($type_param,)*> PartialEq for $name<'_> {
             #[inline]
             fn eq(&self, o: &$name) -> bool {
@@ -96,7 +104,7 @@ macro_rules! pyobject_native_type {
             type BaseNativeType = Self;
         }
         pyobject_native_type_named!($name $(,$type_param)*);
-        pyobject_native_newtype!($name, $(,$type_param)*);
+        pyobject_native_newtype!($name $(,$type_param)*);
         pyobject_native_type_info!($name, $layout, $typeobject, $module, $checkfunction $(,$type_param)*);
         pyobject_native_type_extract!($name $(,$type_param)*);
 
@@ -113,7 +121,7 @@ macro_rules! pyobject_native_type {
 macro_rules! pyobject_native_var_type {
     ($name: ident, $typeobject: expr, $module: expr, $checkfunction: path $(,$type_param: ident)*) => {
         pyobject_native_type_named!($name $(,$type_param)*);
-        pyobject_native_newtype!($name, $(,$type_param)*);
+        pyobject_native_newtype!($name $(,$type_param)*);
         pyobject_native_type_info!($name, $crate::ffi::PyObject,
                                    $typeobject, $module, $checkfunction $(,$type_param)*);
         pyobject_native_type_extract!($name $(,$type_param)*);
@@ -176,7 +184,7 @@ macro_rules! pyobject_native_type_info(
 
 #[macro_export]
 macro_rules! pyobject_native_newtype(
-    ($name: ident, $(,$type_param: ident)*) => {
+    ($name: ident $(,$type_param: ident)*) => {
         impl<'a, $($type_param,)*> ::std::convert::From<&'a $name<'a>> for &'a $crate::PyAny<'a> {
             fn from(ob: &'a $name) -> Self {
                 unsafe{&*(ob as *const $name as *const $crate::PyAny)}

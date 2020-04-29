@@ -2,7 +2,6 @@
 //
 
 use crate::err::{self, PyErr, PyResult};
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, IntoPy, PyAny, PyNativeType, PyObject, Python,
     ToBorrowedObject, ToPyObject,
@@ -406,7 +405,7 @@ mod test {
         }
 
         // intoiterator iteration
-        for el in set {
+        for el in &set {
             assert_eq!(1i32, el.extract().unwrap());
         }
     }
@@ -452,7 +451,7 @@ mod test {
         }
 
         // intoiterator iteration
-        for el in set {
+        for el in &set {
             assert_eq!(1i32, el.extract::<i32>().unwrap());
         }
     }

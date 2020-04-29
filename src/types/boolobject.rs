@@ -1,5 +1,4 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,

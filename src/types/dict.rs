@@ -2,7 +2,6 @@
 
 use crate::err::{self, PyErr, PyResult};
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::{PyAny, PyList};
 use crate::AsPyPointer;
@@ -170,7 +169,7 @@ impl<'py> PyDict<'py> {
     ///
     /// Note that it's unsafe to use when the dictionary might be changed by
     /// other code.
-    pub fn iter<'a>(&'a self) -> PyDictIterator<'a, 'py> {
+    pub fn iter(&self) -> PyDictIterator<'_, 'py> {
         PyDictIterator {
             dict: self,
             pos: 0,
@@ -393,7 +392,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let items = PyList::new(py, &vec!["a", "b"]);
-        assert!(PyDict::from_sequence(py, items.to_object(py)).is_err());
+        assert!(PyDict::from_sequence(py, &items).is_err());
     }
 
     #[test]

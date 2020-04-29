@@ -6,7 +6,6 @@ use crate::err::{PyErr, PyResult};
 use crate::exceptions;
 use crate::ffi;
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::pyclass::PyClass;

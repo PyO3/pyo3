@@ -9,7 +9,7 @@ use std::os::raw::c_void;
 use std::ptr;
 
 #[inline]
-pub(crate) unsafe fn default_alloc<T: for<'py> PyTypeInfo<'py>>() -> *mut ffi::PyObject {
+pub(crate) unsafe fn default_alloc<'py, T: PyTypeInfo<'py>>() -> *mut ffi::PyObject {
     let type_obj = T::type_object();
     // if the class derives native types(e.g., PyDict), call special new
     if T::FLAGS & type_flags::EXTENDED != 0 && T::BaseLayout::IS_NATIVE_TYPE {
@@ -71,7 +71,7 @@ pub unsafe fn tp_free_fallback(obj: *mut ffi::PyObject) {
 ///
 /// The `#[pyclass]` attribute automatically implements this trait for your Rust struct,
 /// so you don't have to use this trait directly.
-pub trait PyClass<'py>:
+pub trait PyClass<'py>: 'static +
     PyTypeInfo<'py, Layout = PyCellLayout<'py, Self>> + Sized + PyClassAlloc<'py> + PyMethodsProtocol
 {
     /// Specify this class has `#[pyclass(dict)]` or not.

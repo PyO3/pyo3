@@ -173,9 +173,9 @@ mod tests {
         let py = gil.python();
 
         let context = PyDict::new(py);
-        py.run(fibonacci_generator, None, Some(context)).unwrap();
+        py.run(fibonacci_generator, None, Some(&context)).unwrap();
 
-        let generator = py.eval("fibonacci(5)", None, Some(context)).unwrap();
+        let generator = py.eval("fibonacci(5)", None, Some(&context)).unwrap();
         for (actual, expected) in generator.iter().unwrap().zip(&[1, 1, 2, 3, 5]) {
             let actual = actual.unwrap().extract::<usize>().unwrap();
             assert_eq!(actual, *expected)

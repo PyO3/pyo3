@@ -1,26 +1,21 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::buffer;
-use crate::conversion::FromPyPointer;
 use crate::err::{self, PyDowncastError, PyErr, PyResult};
 use crate::exceptions;
-use crate::gil;
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
 use crate::objectprotocol::ObjectProtocol;
 use crate::types::{PyAny, PyList, PyTuple};
-use crate::type_object::PyDowncastImpl;
 use crate::AsPyPointer;
-use crate::{FromPyObject, PyTryFrom, ToBorrowedObject, Python};
-use std::ptr::NonNull;
+use crate::{FromPyObject, PyTryFrom, ToBorrowedObject};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 #[repr(transparent)]
 pub struct PySequence<'py>(PyAny<'py>);
 pyobject_native_type_named!(PySequence);
 pyobject_native_type_extract!(PySequence);
+pyobject_native_newtype!(PySequence);
 
 impl<'py> PySequence<'py> {
     /// Returns the number of objects in sequence.
@@ -270,7 +265,7 @@ macro_rules! array_impls {
             where
                 T: Copy + Default + FromPyObject<'a, 'py>,
             {
-                default fn extract(obj: &'a PyAny) -> PyResult<Self> {
+                default fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {
                     let mut array = [T::default(); $N];
                     extract_sequence_into_slice(obj, &mut array)?;
                     Ok(array)
@@ -381,19 +376,6 @@ impl<'py> PyTryFrom<'py> for PySequence<'py> {
     unsafe fn try_from_unchecked<'a>(value: &'a PyAny<'py>) -> &'a PySequence<'py> {
         let ptr = value as *const _ as *const PySequence;
         &*ptr
-    }
-}
-
-unsafe impl<'py> FromPyPointer<'py> for PySequence<'py>
-{
-    unsafe fn from_owned_ptr_or_opt(py: Python<'py>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| Self(PyAny::from_non_null(py, p)))
-    }
-    unsafe fn from_borrowed_ptr_or_opt(
-        py: Python<'py>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<&'py Self> {
-        NonNull::new(ptr).map(|p| Self::unchecked_downcast(gil::register_borrowed(py, p)))
     }
 }
 

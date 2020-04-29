@@ -2,10 +2,9 @@
 use crate::err::{PyErr, PyResult};
 use crate::gil;
 use crate::object::PyObject;
-use crate::objectprotocol::ObjectProtocol;
 use crate::type_object::{PyBorrowFlagLayout, PyDowncastImpl};
 use crate::{
-    ffi, AsPyPointer, FromPyObject, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
+    ffi, AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyCell, PyClass,
     PyClassInitializer, PyRef, PyRefMut, PyTypeInfo, Python, ToPyObject,
 };
 use std::marker::PhantomData;
@@ -194,7 +193,7 @@ impl<T> IntoPy<PyObject> for Py<T> {
     /// Consumes `self` without calling `Py_DECREF()`.
     #[inline]
     fn into_py(self, _py: Python) -> PyObject {
-        unsafe { PyObject::from_not_null(self.into_non_null()) }
+        unsafe { PyObject::from_non_null(self.into_non_null()) }
     }
 }
 
@@ -272,23 +271,27 @@ impl<T> Drop for Py<T> {
 impl<T> std::convert::From<Py<T>> for PyObject {
     #[inline]
     fn from(ob: Py<T>) -> Self {
-        unsafe { PyObject::from_not_null(ob.into_non_null()) }
+        unsafe { PyObject::from_non_null(ob.into_non_null()) }
     }
 }
 
-impl<'a, 'py, T> FromPyObject<'a, 'py> for Py<T>
-where
-    T: PyTypeInfo<'py>,
-    &'a T::AsRefTarget: FromPyObject<'a, 'py>,
-    T::AsRefTarget: 'a + 'py + AsPyPointer,
-{
-    /// Extracts `Self` from the source `PyObject`.
-    fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
-        unsafe {
-            ob.extract::<&T::AsRefTarget>()
-                .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
-        }
-    }
+// impl<'a, 'py, T> FromPyObject<'a, 'py> for Py<T>
+// where
+//     T: PyTypeInfo<'py>,
+//     &'a T::AsRefTarget: FromPyObject<'a, 'py>,
+//     T::AsRefTarget: 'a + 'py + AsPyPointer,
+// {
+//     /// Extracts `Self` from the source `PyObject`.
+//     fn extract(ob: &PyAny<'py>) -> PyResult<Self> {
+//         unsafe {
+//             ob.extract::<&T::AsRefTarget>()
+//                 .map(|val| Py::from_borrowed_ptr(val.as_ptr()))
+//         }
+//     }
+// }
+
+pub trait Unscoped<'py> {
+    type NativeType: PyNativeType<'py>;
 }
 
 /// Reference to a converted [ToPyObject].

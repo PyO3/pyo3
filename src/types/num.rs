@@ -2,7 +2,6 @@
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
 
-use crate::internal_tricks::Unsendable;
 use crate::{
     exceptions, ffi, AsPyPointer, FromPyObject, IntoPy, PyAny, PyErr, PyNativeType, PyObject,
     PyResult, Python, ToPyObject,

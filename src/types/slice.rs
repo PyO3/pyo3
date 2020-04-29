@@ -3,7 +3,6 @@
 use crate::err::{PyErr, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
 use crate::object::PyObject;
 use crate::types::PyAny;
 use crate::Python;

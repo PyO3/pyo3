@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 //
 // based on Daniel Grunwald's https://github.com/dgrunwald/rust-cpython
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, ObjectProtocol, PyAny, PyErr, PyNativeType, PyObject,
     PyResult, Python, ToPyObject,

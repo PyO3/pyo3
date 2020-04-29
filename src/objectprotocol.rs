@@ -198,14 +198,16 @@ pub trait ObjectProtocol<'py> {
     /// This can cast only to native Python types, not types implemented in Rust.
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom<'a>,
-        Self: AsRef<PyAny<'a>>;
+        'py: 'a,
+        D: PyTryFrom<'py>,
+        Self: AsRef<PyAny<'py>>;
 
     /// Extracts some type from the Python object.
     ///
     /// This is a wrapper function around `FromPyObject::extract()`.
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
+        'py: 'a,
         D: FromPyObject<'a, 'py>,
         Self: AsRef<PyAny<'py>>;
 
@@ -467,14 +469,16 @@ where
 
     fn cast_as<'a, D>(&'a self) -> Result<&'a D, PyDowncastError>
     where
-        D: PyTryFrom<'a>,
-        Self: AsRef<PyAny<'py>>,
+        'py: 'a,
+        D: PyTryFrom<'py>,
+        Self: AsRef<PyAny<'py>>
     {
         D::try_from(self.as_ref())
     }
 
     fn extract<'a, D>(&'a self) -> PyResult<D>
     where
+        'py: 'a,
         D: FromPyObject<'a, 'py>,
         Self: AsRef<PyAny<'py>>,
     {
@@ -534,7 +538,7 @@ mod test {
         let py = gil.python();
         let list = vec![3, 6, 5, 4, 7].to_object(py);
         let dict = vec![("reverse", true)].into_py_dict(py);
-        list.call_method(py, "sort", (), Some(dict)).unwrap();
+        list.call_method(py, "sort", (), Some(&dict)).unwrap();
         assert_eq!(list.extract::<Vec<i32>>(py).unwrap(), vec![7, 6, 5, 4, 3]);
     }
 

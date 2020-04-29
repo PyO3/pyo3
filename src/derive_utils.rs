@@ -40,7 +40,7 @@ pub fn parse_fn_args<'a, 'py>(
     accept_args: bool,
     accept_kwargs: bool,
     output: &mut [Option<&'a PyAny<'py>>],
-) -> PyResult<(&'a PyTuple<'py>, Option<&'a PyDict<'py>>)> {
+) -> PyResult<(&'a PyTuple<'py>, Option<PyDict<'py>>)> {
     let nargs = args.len();
     let mut used_args = 0;
     macro_rules! raise_error {
@@ -151,7 +151,7 @@ impl ModuleDef {
         }
         let module = py.from_owned_ptr_or_err::<PyModule>(module)?;
         module.add("__doc__", doc)?;
-        initializer(py, module)?;
+        initializer(py, &module)?;
         Ok(crate::IntoPyPointer::into_ptr(module))
     }
 }

@@ -5,8 +5,7 @@ use crate::err::{self, PyDowncastError, PyResult};
 use crate::object::PyObject;
 use crate::type_object::{PyDowncastImpl, PyTypeInfo};
 use crate::types::PyTuple;
-use crate::{ffi, gil, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
-use std::ptr::NonNull;
+use crate::{ffi, Py, PyAny, PyCell, PyClass, PyNativeType, PyRef, PyRefMut, Python};
 
 /// This trait represents that **we can do zero-cost conversion from the object
 /// to a FFI pointer**.
@@ -254,6 +253,7 @@ where
 
 impl<'a, 'py, T> FromPyObject<'a, 'py> for &'a PyCell<'py, T>
 where
+    'py: 'a,
     T: PyClass<'py>,
 {
     fn extract(obj: &'a PyAny<'py>) -> PyResult<Self> {

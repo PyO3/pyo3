@@ -1,10 +1,8 @@
 use crate::ffi;
 #[cfg(not(PyPy))]
 use crate::instance::PyNativeType;
-use crate::internal_tricks::Unsendable;
 use crate::types::PyAny;
 use crate::AsPyPointer;
-use crate::PyObject;
 use crate::Python;
 #[cfg(not(PyPy))]
 use std::ops::*;
@@ -251,7 +249,7 @@ mod test {
         let py = gil.python();
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.0, 2.6);
-        let res = l + r;
+        let res = &l + &r;
         assert_approx_eq!(res.real(), 4.0);
         assert_approx_eq!(res.imag(), 3.8);
     }
@@ -263,7 +261,7 @@ mod test {
         let py = gil.python();
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.0, 2.6);
-        let res = l - r;
+        let res = &l - &r;
         assert_approx_eq!(res.real(), 2.0);
         assert_approx_eq!(res.imag(), -1.4);
     }
@@ -275,7 +273,7 @@ mod test {
         let py = gil.python();
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.0, 2.6);
-        let res = l * r;
+        let res = &l * &r;
         assert_approx_eq!(res.real(), -0.12);
         assert_approx_eq!(res.imag(), 9.0);
     }
@@ -287,7 +285,7 @@ mod test {
         let py = gil.python();
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.0, 2.6);
-        let res = l / r;
+        let res = &l / &r;
         assert_approx_eq!(res.real(), 0.788_659_793_814_432_9);
         assert_approx_eq!(res.imag(), -0.850_515_463_917_525_7);
     }
@@ -298,7 +296,7 @@ mod test {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let val = PyComplex::from_doubles(py, 3.0, 1.2);
-        let res = -val;
+        let res = -&val;
         assert_approx_eq!(res.real(), -3.0);
         assert_approx_eq!(res.imag(), -1.2);
     }
@@ -319,7 +317,7 @@ mod test {
         let py = gil.python();
         let l = PyComplex::from_doubles(py, 3.0, 1.2);
         let r = PyComplex::from_doubles(py, 1.2, 2.6);
-        let val = l.pow(r);
+        let val = l.pow(&r);
         assert_approx_eq!(val.real(), -1.419_309_997_016_603_7);
         assert_approx_eq!(val.imag(), -0.541_297_466_033_544_6);
     }

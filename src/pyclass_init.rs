@@ -117,7 +117,7 @@ impl<'py, T: PyClass<'py>> PyClassInitializer<'py, T> {
 
     // Create a new PyCell + initialize it
     #[doc(hidden)]
-    pub unsafe fn create_cell(self, py: Python) -> PyResult<*mut PyCellLayout<'py, T>>
+    pub unsafe fn create_cell(self, py: Python<'py>) -> PyResult<*mut PyCellLayout<'py, T>>
     where
         T: PyClass<'py>,
         T::BaseLayout: PyBorrowFlagLayout<'py, T::BaseType>,
@@ -147,7 +147,7 @@ where
     T::BaseType: PyTypeInfo<'py, Initializer = PyNativeTypeInitializer<'py, T::BaseType>>,
 {
     fn from(value: T) -> PyClassInitializer<'py, T> {
-        Self::new(value, PyNativeTypeInitializer(PhantomData))
+        Self::new(value, PyNativeTypeInitializer(PhantomData, PhantomData))
     }
 }
 

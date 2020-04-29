@@ -1,4 +1,3 @@
-use crate::internal_tricks::Unsendable;
 use crate::{
     ffi, AsPyPointer, FromPy, FromPyObject, PyAny, PyObject, PyResult, PyTryFrom, Python,
     ToPyObject,
@@ -81,7 +80,7 @@ mod test {
         let py = gil.python();
 
         let py_bytes = py.eval("b'Hello Python'", None, None).unwrap();
-        let bytes: &[u8] = FromPyObject::extract(py_bytes).unwrap();
+        let bytes: &[u8] = FromPyObject::extract(&py_bytes).unwrap();
         assert_eq!(bytes, b"Hello Python");
     }
 

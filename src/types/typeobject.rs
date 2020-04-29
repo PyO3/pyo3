@@ -4,9 +4,7 @@
 
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
-use crate::instance::{Py, PyNativeType};
-use crate::internal_tricks::Unsendable;
-use crate::object::PyObject;
+use crate::instance::PyNativeType;
 use crate::type_object::PyTypeInfo;
 use crate::types::PyAny;
 use crate::AsPyPointer;

@@ -101,7 +101,7 @@ pub struct PyCellLayout<'py, T: PyClass<'py>> {
 impl<'py, T: PyClass<'py>> PyCellLayout<'py, T> {
     /// Allocates new PyCell without initilizing value.
     /// Requires `T::BaseLayout: PyBorrowFlagLayout<T::BaseType>` to ensure `self` has a borrow flag.
-    pub(crate) unsafe fn internal_new(py: Python) -> PyResult<*mut Self>
+    pub(crate) unsafe fn new(py: Python<'py>) -> PyResult<*mut Self>
     where
         T::BaseLayout: PyBorrowFlagLayout<'py, T::BaseType>,
     {
@@ -379,7 +379,7 @@ where
     T: PyClass<'p>,
 {
     unsafe fn from_owned_ptr_or_opt(py: Python<'p>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|p| Self(PyAny::from_not_null(py, p)))
+        NonNull::new(ptr).map(|p| Self(PyAny::from_non_null(py, p), PhantomData))
     }
     unsafe fn from_borrowed_ptr_or_opt(
         py: Python<'p>,
@@ -398,7 +398,7 @@ unsafe impl<'py, T: PyClass<'py>> PyDowncastImpl<'py> for PyCell<'py, T> {
 
 impl<'py, T: PyClass<'py>> AsPyPointer for PyCell<'py, T> {
     fn as_ptr(&self) -> *mut ffi::PyObject {
-        self.inner.as_ptr()
+        self.inner().as_ptr()
     }
 }
 

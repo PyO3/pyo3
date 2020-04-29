@@ -4,7 +4,6 @@
 
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
-use crate::internal_tricks::Unsendable;
 use crate::{
     AsPyPointer, IntoPy, IntoPyPointer, PyAny, PyNativeType, PyObject, Python, ToBorrowedObject,
     ToPyObject,
@@ -54,7 +53,7 @@ impl<'py> PyList<'py> {
     /// Gets the item at the specified index.
     ///
     /// Panics if the index is out of range.
-    pub fn get_item(&self, index: isize) -> &PyAny {
+    pub fn get_item(&self, index: isize) -> &PyAny<'py> {
         unsafe {
             self.py()
                 .from_borrowed_ptr(ffi::PyList_GetItem(self.as_ptr(), index as Py_ssize_t))
@@ -111,7 +110,7 @@ impl<'py> PyList<'py> {
     }
 
     /// Returns an iterator over this list's items.
-    pub fn iter(&self) -> PyListIterator {
+    pub fn iter(&self) -> PyListIterator<'_, 'py> {
         PyListIterator {
             list: self,
             index: 0,
@@ -130,16 +129,16 @@ impl<'py> PyList<'py> {
 }
 
 /// Used by `PyList::iter()`.
-pub struct PyListIterator<'a> {
-    list: &'a PyList<'a>,
+pub struct PyListIterator<'a, 'py> {
+    list: &'a PyList<'py>,
     index: isize,
 }
 
-impl<'a> Iterator for PyListIterator<'a> {
-    type Item = &'a PyAny<'a>;
+impl<'a, 'py> Iterator for PyListIterator<'a, 'py> {
+    type Item = &'a PyAny<'py>;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a PyAny> {
+    fn next(&mut self) -> Option<&'a PyAny<'py>> {
         if self.index < self.list.len() as isize {
             let item = self.list.get_item(self.index);
             self.index += 1;
@@ -150,9 +149,9 @@ impl<'a> Iterator for PyListIterator<'a> {
     }
 }
 
-impl<'a> std::iter::IntoIterator for &'a PyList<'a> {
-    type Item = &'a PyAny<'a>;
-    type IntoIter = PyListIterator<'a>;
+impl<'a, 'py> std::iter::IntoIterator for &'a PyList<'py> {
+    type Item = &'a PyAny<'py>;
+    type IntoIter = PyListIterator<'a, 'py>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

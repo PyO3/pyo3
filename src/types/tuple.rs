@@ -1,7 +1,6 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
 use crate::ffi::{self, Py_ssize_t};
-use crate::internal_tricks::Unsendable;
 use crate::{
     exceptions, AsPyPointer, AsPyRef, FromPy, FromPyObject, IntoPy, IntoPyPointer, Py, PyAny,
     PyErr, PyNativeType, PyObject, PyResult, PyTryFrom, Python, ToPyObject,
@@ -260,7 +259,6 @@ mod test {
         let py = gil.python();
         let ob = PyTuple::new(py, &[1, 2, 3]);
         assert_eq!(3, ob.len());
-        let ob: &PyAny = ob.into();
         assert_eq!((1, 2, 3), ob.extract().unwrap());
 
         let mut map = HashSet::new();
